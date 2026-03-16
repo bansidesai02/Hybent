@@ -52,13 +52,17 @@ def future(**kwargs):
 
 async def clear_all(db: AsyncSession):
     tables = [
+        "candidate_invitations", "password_reset_tokens",
         "audit_logs", "notifications", "scorecards", "offers",
         "interview_panelists", "interviews",
         "applications", "candidates",
         "refresh_tokens", "jobs", "users", "organizations",
     ]
     for t in tables:
-        await db.execute(text(f'TRUNCATE TABLE "{t}" CASCADE'))
+        await db.execute(text(
+            f"DO $$ BEGIN IF EXISTS (SELECT FROM pg_tables WHERE tablename = '{t}') "
+            f"THEN TRUNCATE TABLE \"{t}\" CASCADE; END IF; END $$;"
+        ))
     await db.commit()
     print("--  Cleared all tables")
 
