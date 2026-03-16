@@ -1,0 +1,340 @@
+import uuid
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import select, func
+from app.dependencies import DB, CurrentUser, RecruiterUser
+from app.models.candidate import Candidate
+from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate
+from app.services.email_service import send_candidate_invite
+from app.utils.pagination import paginate
+from app.services.activity_service import log_activity
+
+router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
+
+
+from sqlalchemy.orm import selectinload
+
+REJECTION_STAGES = [
+    "rejected",
+    "pre_screening_rejected",
+    "technical_round_rejected",
+    "technical_round_back_out",
+    "practical_round_rejected",
+    "practical_round_back_out",
+    "techno_functional_rejected",
+    "management_round_rejected",
+    "hr_round_rejected",
+    "offered_back_out",
+    "offer_withdrawn"
+]
+
+@router.get("")
+async def list_candidates(
+    current_user: CurrentUser,
+    db: DB,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    search: str | None = None,
+    tag: str | None = None,
+    stage: str | None = None,
+    status: str | None = None,
+):
+    status = (status or "").strip().lower() or None
+    # Status → multiple pipeline_stage values
+    STATUS_STAGE_MAP = {
+        "in_review":   [
+            "applied", None, "screening", ""
+        ],
+        "shortlisted": ["pre_screening_selected"],
+        "scheduled":   [
+            "technical_round_selected", "practical_round_selected",
+            "techno_functional_selected", "management_round_selected",
+            "hr_round_selected", "offered", "hired", "hired_joined",
+            "interview",
+        ],
+        "rejected": REJECTION_STAGES
+    }
+
+    query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations))
+    if search:
+        query = query.where(
+            Candidate.full_name.ilike(f"%{search}%") | Candidate.email.ilike(f"%{search}%")
+        )
+    if tag:
+        query = query.where(Candidate.tags.contains([tag]))
+        
+    if status and status in STATUS_STAGE_MAP:
+        target_stages = STATUS_STAGE_MAP[status]
+        if None in target_stages:
+            # Handle NULL and empty string specifically for 'in_review'
+            remaining_stages = [s for s in target_stages if s is not None]
+            query = query.where(
+                (Candidate.pipeline_stage.in_(remaining_stages)) | 
+                (Candidate.pipeline_stage.is_(None)) |
+                (Candidate.pipeline_stage == "")
+            )
+        else:
+            query = query.where(Candidate.pipeline_stage.in_(target_stages))
+    elif stage:
+        query = query.where(Candidate.pipeline_stage == stage)
+
+    total_query = select(func.count()).select_from(query.subquery())
+    total = (await db.execute(total_query)).scalar()
+
+    # Apply order by created_at desc
+    query = query.order_by(Candidate.created_at.desc())
+    items_result = await db.execute(query.offset((page - 1) * limit).limit(limit))
+    items = items_result.scalars().all()
+    
+    return paginate([CandidateOut.model_validate(c).model_dump() for c in items], total, page, limit)
+
+
+@router.get("/pipeline")
+async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
+    from app.models.application import Application
+    from app.models.job import Job
+    from app.utils.permissions import JobStatus
+
+    # Fetch candidates who have at least one application for an active job
+    query = (
+        select(Candidate)
+        .join(Application, Candidate.id == Application.candidate_id)
+        .join(Job, Application.job_id == Job.id)
+        .where(
+            Candidate.organization_id == current_user.organization_id,
+            Candidate.pipeline_stage.isnot(None),
+            Job.status == JobStatus.ACTIVE
+        )
+        .distinct()
+        .order_by(Candidate.updated_at.desc())
+    )
+    items = (await db.execute(query)).scalars().all()
+    
+    stages = {
+        "applied": [],
+        "screening": [],
+        "interview": [],
+        "offer": [],
+        "hired": [],
+        "rejected": []
+    }
+    
+    for c in items:
+        stage = c.pipeline_stage
+        if stage not in stages:
+            stages[stage] = []
+        stages[stage].append(CandidateOut.model_validate(c).model_dump())
+        
+    return stages
+
+
+@router.post("", response_model=CandidateOut, status_code=201)
+async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, db: DB):
+    # Check for existing candidate in org
+    existing = await db.execute(
+        select(Candidate).where(
+            Candidate.email == data.email,
+            Candidate.organization_id == current_user.organization_id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Candidate with this email already exists")
+    candidate = Candidate(organization_id=current_user.organization_id, **data.model_dump())
+    db.add(candidate)
+    await db.flush()
+    
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="CREATE",
+        resource_type="candidate",
+        resource_id=str(candidate.id),
+        details={"name": candidate.full_name}
+    )
+    
+    return CandidateOut.model_validate(candidate)
+
+
+@router.post("/invite", status_code=201)
+async def invite_candidate(data: CandidateInvite, current_user: RecruiterUser, db: DB):
+    # Check if candidate exists, if not create a stub
+    existing = await db.execute(
+        select(Candidate).where(
+            Candidate.email == data.email,
+            Candidate.organization_id == current_user.organization_id,
+        )
+    )
+    candidate = existing.scalar_one_or_none()
+    
+    if not candidate:
+        candidate = Candidate(
+            organization_id=current_user.organization_id,
+            email=data.email,
+            full_name=data.full_name,
+            source="Invited by Recruiter",
+            skills=[],
+            tags=[],
+        )
+        db.add(candidate)
+        await db.flush()
+    
+    # Use the new invitation service for secure token-based invite
+    from app.services import invitation_service
+    invitation = await invitation_service.create_invitation(
+        db=db,
+        candidate_id=candidate.id,
+        organization_id=current_user.organization_id,
+        email=candidate.email,
+        full_name=candidate.full_name
+    )
+    
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="INVITE",
+        resource_type="candidate",
+        resource_id=str(candidate.id),
+        details={"name": candidate.full_name, "email": candidate.email}
+    )
+    
+    return {
+        "message": f"Secure invite sent successfully to {candidate.email}",
+        "candidate": CandidateOut.model_validate(candidate),
+        "invitation_id": str(invitation.id)
+    }
+
+
+
+@router.get("/{candidate_id}", response_model=CandidateOut)
+async def get_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return CandidateOut.model_validate(candidate)
+
+
+from app.utils.permissions import REJECTION_STAGES
+
+@router.put("/{candidate_id}", response_model=CandidateOut)
+async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: RecruiterUser, db: DB):
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    old_stage = candidate.pipeline_stage
+    update_data = data.model_dump(exclude_none=True)
+    new_stage = update_data.get("pipeline_stage")
+    
+    for field, value in update_data.items():
+        setattr(candidate, field, value)
+        
+    # Automated rejection email
+    if new_stage and new_stage in REJECTION_STAGES and old_stage not in REJECTION_STAGES:
+        from app.services.email_service import send_rejection_email
+        from app.models.organization import Organization
+        
+        org_res = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
+        org = org_res.scalar_one_or_none()
+        company_name = org.name if org else "the team"
+        
+        send_rejection_email(
+            candidate_email=candidate.email,
+            candidate_name=candidate.full_name,
+            job_title=candidate.current_title or "the applied position",
+            company_name=company_name
+        )
+        
+    await db.flush()
+    return CandidateOut.model_validate(candidate)
+
+
+@router.patch("/{candidate_id}/stage", response_model=CandidateOut)
+async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUpdate, current_user: RecruiterUser, db: DB):
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    old_stage = candidate.pipeline_stage
+    candidate.pipeline_stage = data.pipeline_stage
+    
+    # Rejection email — only when explicitly requested (not on kanban drag)
+    if data.send_rejection_email and data.pipeline_stage in REJECTION_STAGES and old_stage not in REJECTION_STAGES:
+        from app.services.email_service import send_rejection_email
+        from app.models.organization import Organization
+
+        org_res = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
+        org = org_res.scalar_one_or_none()
+        company_name = org.name if org else "the team"
+
+        send_rejection_email(
+            candidate_email=candidate.email,
+            candidate_name=candidate.full_name,
+            job_title=candidate.current_title or "the applied position",
+            company_name=company_name
+        )
+
+    await db.flush()
+
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="UPDATE_STAGE",
+        resource_type="candidate",
+        resource_id=str(candidate_id),
+        details={"name": candidate.full_name, "from": old_stage, "to": data.pipeline_stage}
+    )
+
+    return CandidateOut.model_validate(candidate)
+
+
+@router.post("/{candidate_id}/reject", response_model=CandidateOut)
+async def reject_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+    return await update_candidate_stage(
+        candidate_id=candidate_id,
+        data=CandidateStageUpdate(pipeline_stage="rejected", send_rejection_email=False),
+        current_user=current_user,
+        db=db
+    )
+
+
+@router.delete("/{candidate_id}", status_code=204)
+async def delete_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    await db.delete(candidate)
+
+
+@router.get("/{candidate_id}/applications")
+async def get_candidate_applications(candidate_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    from app.models.application import Application
+    from app.schemas.application import ApplicationOut
+    result = await db.execute(
+        select(Application).where(
+            Application.candidate_id == candidate_id,
+            Application.organization_id == current_user.organization_id,
+        )
+    )
+    return [ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()]

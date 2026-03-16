@@ -1,0 +1,811 @@
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
+import { candidatesApi } from '@/api/candidates'
+import type { Candidate } from '@/types'
+import { Avatar } from '@/components/ui/Avatar'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Pagination } from '@/components/ui/Pagination'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Input } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
+import { formatDate } from '@/utils/formatters'
+
+// ─── Stage config (full pipeline) ─────────────────────────────────────────────
+
+const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
+  applied:                      { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', label: 'Applied' },
+  screening:                    { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Screening' },
+  interview:                    { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interview' },
+  offer:                        { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offer' },
+  hired:                        { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired' },
+  rejected:                     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Rejected' },
+  pre_screening_selected:       { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Pre-screening Selected' },
+  pre_screening_rejected:       { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Pre-screening Rejected' },
+  technical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Technical Round Selected' },
+  technical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Technical Round Rejected' },
+  technical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Technical Round Back Out' },
+  practical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Practical Round Selected' },
+  practical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Practical Round Rejected' },
+  practical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Practical Round Back Out' },
+  techno_functional_selected:   { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Techno-Functional Selected' },
+  techno_functional_rejected:   { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Techno-Functional Rejected' },
+  management_round_selected:    { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Management Round Selected' },
+  management_round_rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Management Round Rejected' },
+  hr_round_selected:            { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'HR Round Selected' },
+  hr_round_rejected:            { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'HR Round Rejected' },
+  offered:                      { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offered' },
+  offered_back_out:             { color: '#f97316', bg: 'rgba(249,115,22,0.10)', label: 'Offered Back Out' },
+  offer_withdrawn:              { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Offer Withdrawn' },
+  hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
+}
+
+// ─── Status config ─────────────────────────────────────────────────────────────
+
+const STATUS_CFG: Record<string, { color: string; bg: string; dot: string; label: string }> = {
+  shortlisted: { color: '#059669', bg: 'rgba(16,185,129,0.12)', dot: '#10b981', label: 'Shortlisted' },
+  in_review:   { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', dot: '#6c47ff', label: 'In Review' },
+  scheduled:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', dot: '#3b82f6', label: 'Scheduled' },
+  rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', dot: '#ef4444', label: 'Rejected' },
+}
+
+const REJECTION_STAGES = [
+  'rejected',
+  'pre_screening_rejected',
+  'technical_round_rejected',
+  'technical_round_back_out',
+  'practical_round_rejected',
+  'practical_round_back_out',
+  'techno_functional_rejected',
+  'management_round_rejected',
+  'hr_round_rejected',
+  'offered_back_out',
+  'offer_withdrawn'
+]
+
+function getStatusFromStage(stage: string | undefined): string {
+  if (!stage || stage === 'applied') return 'in_review'
+  if (stage === 'pre_screening_selected') return 'shortlisted'
+  // Any round selected / offered = scheduled (actively moving forward)
+  const scheduledStages = [
+    'technical_round_selected', 'practical_round_selected',
+    'techno_functional_selected', 'management_round_selected',
+    'hr_round_selected', 'offered', 'hired', 'hired_joined',
+    // legacy values
+    'screening', 'interview',
+  ]
+  if (scheduledStages.includes(stage)) return 'scheduled'
+  if (REJECTION_STAGES.includes(stage)) return 'rejected'
+  // fallback
+  return 'in_review'
+}
+
+function scoreColor(s: number) {
+  if (s >= 80) return { text: '#059669', bg: 'rgba(16,185,129,0.12)', track: '#10b981' }
+  if (s >= 60) return { text: '#d97706', bg: 'rgba(251,191,36,0.12)', track: '#f59e0b' }
+  return { text: '#ef4444', bg: 'rgba(239,68,68,0.10)', track: '#ef4444' }
+}
+
+// ─── Full pipeline stage dropdown groups ──────────────────────────────────────
+
+const STAGE_GROUPS = [
+  {
+    label: 'Pre-Screening',
+    icon: '🔍',
+    stages: [
+      { key: 'pre_screening_selected',   icon: '✅', label: 'Pre-screening Selected' },
+      { key: 'pre_screening_rejected',   icon: '✗',  label: 'Pre-screening Rejected' },
+    ],
+  },
+  {
+    label: 'Technical Round',
+    icon: '💻',
+    stages: [
+      { key: 'technical_round_selected', icon: '✅', label: 'Technical Round Selected' },
+      { key: 'technical_round_rejected', icon: '✗',  label: 'Technical Round Rejected' },
+      { key: 'technical_round_back_out', icon: '↩',  label: 'Technical Round Back Out' },
+    ],
+  },
+  {
+    label: 'Practical Round',
+    icon: '📝',
+    stages: [
+      { key: 'practical_round_selected', icon: '✅', label: 'Practical Round Selected' },
+      { key: 'practical_round_rejected', icon: '✗',  label: 'Practical Round Rejected' },
+      { key: 'practical_round_back_out', icon: '↩',  label: 'Practical Round Back Out' },
+    ],
+  },
+  {
+    label: 'Techno-Functional Round',
+    icon: '⚙️',
+    stages: [
+      { key: 'techno_functional_selected', icon: '✅', label: 'Techno-Functional Selected' },
+      { key: 'techno_functional_rejected', icon: '✗',  label: 'Techno-Functional Rejected' },
+    ],
+  },
+  {
+    label: 'Management Round',
+    icon: '👔',
+    stages: [
+      { key: 'management_round_selected', icon: '✅', label: 'Management Round Selected' },
+      { key: 'management_round_rejected', icon: '✗',  label: 'Management Round Rejected' },
+    ],
+  },
+  {
+    label: 'HR Round',
+    icon: '🤝',
+    stages: [
+      { key: 'hr_round_selected', icon: '✅', label: 'HR Round Selected' },
+      { key: 'hr_round_rejected', icon: '✗',  label: 'HR Round Rejected' },
+    ],
+  },
+  {
+    label: 'Offer & Joining',
+    icon: '🎉',
+    stages: [
+      { key: 'offered',           icon: '🏷️', label: 'Offered' },
+      { key: 'offered_back_out',  icon: '↩',  label: 'Offered Back Out' },
+      { key: 'offer_withdrawn',   icon: '🚫', label: 'Offer Withdrawn' },
+      { key: 'hired_joined',      icon: '🎊', label: 'Hired / Joined' },
+    ],
+  },
+]
+
+// ─── Candidate Profile Modal ───────────────────────────────────────────────────
+
+function CandidateProfileModal({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
+  const stage = candidate.pipeline_stage || 'applied'
+  const stageCfg = STAGE_CFG[stage] ?? STAGE_CFG.applied
+  const sc = candidate.match_score != null ? scoreColor(candidate.match_score) : null
+
+  return (
+    <Modal open onClose={onClose} title="Candidate Profile" size="lg">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, paddingBottom: 20, borderBottom: '1px solid var(--table-border)' }}>
+          <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", marginBottom: 3 }}>
+              {candidate.full_name}
+            </h3>
+            {candidate.current_title && (
+              <p style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 2 }}>
+                {candidate.current_title}{candidate.current_company ? ` · ${candidate.current_company}` : ''}
+              </p>
+            )}
+            <p style={{ fontSize: 12, color: 'var(--text-light)' }}>{candidate.email}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {candidate.pipeline_stage ? (
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color }}>
+                  {stageCfg.label}
+                </span>
+              ) : (
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: 'var(--kpi-bg)', color: 'var(--text-mid)', border: '1px solid var(--table-border)' }}>
+                  Not in Pipeline
+                </span>
+              )}
+              {sc && (
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: sc.bg, color: sc.text }}>
+                  Match {Math.round(candidate.match_score!)}%
+                </span>
+              )}
+            </div>
+          </div>
+          {/* Links */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+            {candidate.resume_url && (
+              <a href={candidate.resume_url} target="_blank" rel="noreferrer"
+                style={{ fontSize: 12, fontWeight: 600, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                📄 Resume
+              </a>
+            )}
+            {candidate.github_url && (
+              <a href={candidate.github_url} target="_blank" rel="noreferrer"
+                style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)', textDecoration: 'none' }}>⌥ GitHub</a>
+            )}
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
+          {candidate.years_experience != null && (
+            <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Experience</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.years_experience} yrs</p>
+            </div>
+          )}
+          {candidate.location && (
+            <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Location</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.location}</p>
+            </div>
+          )}
+          {candidate.phone && (
+            <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Phone</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.phone}</p>
+            </div>
+          )}
+          <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Added</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{formatDate(candidate.created_at)}</p>
+          </div>
+        </div>
+
+        {/* AI Summary */}
+        {!!candidate.summary ? (
+          <div style={{ background: 'rgba(108,71,255,0.04)', border: '1px solid rgba(108,71,255,0.15)', borderRadius: 12, padding: '14px 16px' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>⚡ AI Summary</p>
+            <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.7, fontStyle: 'italic' }}>"{candidate.summary}"</p>
+          </div>
+        ) : null}
+
+        {/* Work Experience */}
+        {candidate.parsed_data?.experience && Array.isArray(candidate.parsed_data.experience) && candidate.parsed_data.experience.length > 0 ? (
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 12 }}>Work Experience</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(candidate.parsed_data.experience as any[]).map((exp: any, idx: number) => (
+                <div key={idx} style={{ borderLeft: '2px solid rgba(108,71,255,0.25)', paddingLeft: 14 }}>
+                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{exp.title}</h4>
+                  <p style={{ fontSize: 11, color: 'var(--text-light)', marginBottom: 4 }}>{exp.company} · {exp.duration}</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.6 }}>{exp.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Projects */}
+        {candidate.parsed_data?.projects && Array.isArray(candidate.parsed_data.projects) && candidate.parsed_data.projects.length > 0 ? (
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 12 }}>Projects</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(candidate.parsed_data.projects as any[]).map((proj: any, idx: number) => (
+                <div key={idx} style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '12px 14px' }}>
+                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{proj.name}</h4>
+                  <p style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 8 }}>{proj.description}</p>
+                  {proj.technologies ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {(proj.technologies as string[]).map((tech) => (
+                        <span key={tech} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.08)', color: '#6c47ff' }}>{tech}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Education */}
+        {candidate.parsed_data?.education && Array.isArray(candidate.parsed_data.education) && candidate.parsed_data.education.length > 0 ? (
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Education</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(candidate.parsed_data.education as any[]).map((edu: any, idx: number) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{edu.institution}</h4>
+                    <p style={{ fontSize: 11, color: 'var(--text-light)' }}>{edu.degree}</p>
+                  </div>
+                  {edu.year ? <span style={{ fontSize: 11, color: 'var(--text-light)', background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', padding: '2px 10px', borderRadius: 20 }}>{edu.year as string}</span> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Skills */}
+        {candidate.skills.length > 0 && (
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Skills</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {candidate.skills.map((skill) => (
+                <span key={skill} style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: 'rgba(108,71,255,0.08)', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.15)' }}>
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tags */}
+        {candidate.tags.length > 0 && (
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Tags</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {candidate.tags.map((tag) => (
+                <span key={tag} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', color: 'var(--text-mid)' }}>#{tag}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+// ─── Score bar pill ───────────────────────────────────────────────────────────
+
+function ScorePill({ score }: { score: number }) {
+  const c = scoreColor(score)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <span style={{ fontSize: 12, fontWeight: 800, color: c.text }}>{Math.round(score)}%</span>
+      <div style={{ width: 40, height: 3, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${score}%`, background: c.track, borderRadius: 3, transition: 'width 0.5s' }} />
+      </div>
+    </div>
+  )
+}
+
+// ─── Stage Dropdown ───────────────────────────────────────────────────────────
+
+function StageDropdown({
+  candidateId,
+  currentStage,
+  onSelect,
+  onClose,
+}: {
+  candidateId: string
+  currentStage: string
+  onSelect: (stage: string) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.95, y: 6 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 6 }}
+      transition={{ duration: 0.14 }}
+      style={{
+        position: 'absolute', top: 38, right: 0, zIndex: 9999, width: 260,
+        background: 'var(--kpi-bg)', borderRadius: 14,
+        boxShadow: '0 16px 48px rgba(0,0,0,0.22)', border: '1px solid var(--table-border)',
+        padding: '8px', transformOrigin: 'top right',
+        maxHeight: 420, overflowY: 'auto',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {STAGE_GROUPS.map((group, gi) => {
+        return (
+          <div key={group.label}>
+            {gi > 0 && <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />}
+            <p style={{
+              fontSize: 9, fontWeight: 800, color: 'var(--text-light)',
+              textTransform: 'uppercase', letterSpacing: '0.9px',
+              padding: '6px 10px 4px', display: 'flex', alignItems: 'center', gap: 5,
+            }}>
+              <span>{group.icon}</span> {group.label}
+            </p>
+            {group.stages.map((item) => {
+              const cfg = STAGE_CFG[item.key] ?? STAGE_CFG.applied
+              const isActive = currentStage === item.key
+              const isGreen = item.icon === '✅'
+              const isRed = item.icon === '✗'
+              const iconColor = isGreen ? '#10b981' : isRed ? '#ef4444' : cfg.color
+              return (
+                <button
+                  key={item.key}
+                  onClick={(e) => { e.stopPropagation(); onSelect(item.key) }}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+                    background: isActive ? cfg.bg : 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 12.5, fontWeight: isActive ? 700 : 500, color: isActive ? cfg.color : 'var(--text)',
+                    display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = cfg.bg }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'none' }}
+                >
+                  <span style={{ fontSize: 11, color: iconColor, fontWeight: 700, minWidth: 12, textAlign: 'center' }}>{item.icon}</span>
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {isActive && (
+                    <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>Active</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )
+      })}
+    </motion.div>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function CandidatesPage() {
+  const navigate = useNavigate()
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Candidate | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  const inviteMutation = useMutation({
+    mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
+    onSuccess: () => {
+      toast.success('Invite sent!')
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
+  })
+
+  const queryParams = {
+    page,
+    limit: 12,
+    ...(search ? { search } : {}),
+    ...(statusFilter ? { status: statusFilter } : {}),
+  }
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['candidates', queryParams],
+    queryFn: () => candidatesApi.list(queryParams).then((r) => r.data),
+  })
+
+  const stageMutation = useMutation({
+    mutationFn: ({ id, stage }: { id: string; stage: string }) =>
+      candidatesApi.updateStage(id, stage, REJECTION_STAGES.includes(stage)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+      queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
+      toast.success('Stage updated')
+      setOpenDropdownId(null)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+  })
+
+  const displayItems = data?.items ?? []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.5px', marginBottom: 4 }}>
+            Candidates
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-light)' }}>
+            {data ? `${data.total} total candidates` : 'All candidates in your organisation'}
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/recruiter/upload')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7, padding: '10px 20px', borderRadius: 12, border: 'none',
+            background: 'linear-gradient(135deg,#6c47ff,#8b6bff)', color: '#fff',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(108,71,255,0.30)', transition: 'all 0.2s',
+          }}
+        >
+          <svg style={{ width: 16, height: 16 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Candidate
+        </button>
+      </div>
+
+      {/* Filters & Search Row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+        {/* Search Input */}
+        <div style={{ width: 320 }}>
+          <Input
+            placeholder="Search by name, email…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            leftIcon={
+              <svg style={{ width: 15, height: 15 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            }
+          />
+        </div>
+
+        {/* Status Tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {[
+            { label: 'All', value: undefined, icon: '👥' },
+            { label: 'Shortlisted', value: 'shortlisted', icon: '⭐' },
+            { label: 'In Review', value: 'in_review', icon: '🔍' },
+            { label: 'Scheduled', value: 'scheduled', icon: '📅' },
+            { label: 'Rejected', value: 'rejected', icon: '🚫' },
+          ].map((f) => {
+            const isActive = statusFilter === f.value
+            const statusCfg = f.value ? STATUS_CFG[f.value] : null
+            return (
+              <button
+                key={f.label}
+                onClick={() => { 
+                  setStatusFilter(f.value); 
+                  setPage(1); 
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 16px', borderRadius: 10,
+                  border: isActive ? `1.5px solid ${statusCfg?.dot ?? 'rgba(108,71,255,0.35)'}` : '1.5px solid var(--table-border)',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  background: isActive ? (statusCfg?.bg ?? 'rgba(108,71,255,0.08)') : 'var(--kpi-bg)',
+                  color: isActive ? (statusCfg?.color ?? '#6c47ff') : 'var(--text-mid)',
+                  transition: 'all 0.18s',
+                }}
+              >
+                <span style={{ fontSize: 12 }}>{f.icon}</span>
+                {f.label}
+                {isActive && statusCfg && (
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusCfg.dot, display: 'inline-block', marginLeft: 2 }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 18, borderRadius: 14, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)' }}>
+              <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <Skeleton className="h-4 w-44" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <div style={{ borderRadius: 12, padding: 16, fontSize: 13, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.20)', color: '#ef4444' }}>
+          Failed to load candidates. Please refresh.
+        </div>
+      ) : !displayItems.length ? (
+        <EmptyState
+          icon={
+            <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          }
+          title="No candidates found"
+          description={search ? 'Try adjusting your search.' : 'Upload resumes or invite candidates to get started.'}
+        />
+      ) : (
+        <>
+          {/* Column header — now hidden on mobile */}
+          <div className="hidden lg:grid" style={{
+            gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 130px 115px 215px',
+            gap: 14, padding: '0 24px',
+            fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px',
+          }}>
+            <span>Candidate</span>
+            <span style={{ textAlign: 'center' }}>Date</span>
+            <span>Role</span>
+            <span>Skills</span>
+            <span style={{ textAlign: 'center' }}>Exp</span>
+            <span style={{ textAlign: 'center' }}>Score</span>
+            <span style={{ textAlign: 'center' }}>Stage</span>
+            <span style={{ textAlign: 'center' }}>Status</span>
+            <span style={{ textAlign: 'center' }}>Actions</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 80 }}>
+            {displayItems.map((candidate, i) => {
+              const stage = candidate.pipeline_stage || 'applied'
+              const stageCfg = STAGE_CFG[stage] ?? STAGE_CFG.applied
+              const hasInvitation = candidate.invitations?.length > 0
+              const isAccountCreated = hasInvitation && candidate.invitations[0].is_used
+              const statusKey = getStatusFromStage(candidate.pipeline_stage ?? undefined)
+              const statusCfg = STATUS_CFG[statusKey]
+
+              return (
+                <div
+                  key={candidate.id}
+                  onClick={() => setSelected(candidate)}
+                  className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
+                  style={{
+                    gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 130px 115px 215px',
+                    alignItems: 'center',
+                    borderRadius: 14,
+                    background: 'var(--kpi-bg)',
+                    border: '1px solid var(--table-border)',
+                    boxShadow: 'var(--shadow)',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    const el = e.currentTarget as HTMLElement
+                    el.style.borderColor = 'rgba(108,71,255,0.30)'
+                    el.style.boxShadow = 'var(--shadow-h)'
+                  }}
+                  onMouseLeave={(e) => {
+                    const el = e.currentTarget as HTMLElement
+                    el.style.borderColor = 'var(--table-border)'
+                    el.style.boxShadow = 'var(--shadow)'
+                  }}
+                >
+                  {/* Row content for both Mobile and Desktop */}
+                  <div className="flex items-center justify-between lg:contents w-full">
+                    {/* Candidate */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }} className="lg:w-auto">
+                      <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#6c47ff', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {candidate.full_name}
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--text-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {candidate.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Status (Visible on mobile top right) */}
+                    <div className="lg:hidden">
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
+                        background: statusCfg.bg, color: statusCfg.color,
+                        display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+                      }}>
+                        <span style={{ width: 4, height: 4, borderRadius: '50%', background: statusCfg.dot }} />
+                        {statusCfg.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 lg:contents">
+                    {/* Date */}
+                    <p className="text-[12px] text-[var(--text-mid)] lg:text-center">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Applied</span>
+                      {formatDate(candidate.created_at)}
+                    </p>
+
+                    {/* Role */}
+                    <p className="text-[13px] text-[var(--text-mid)] truncate max-w-[150px] lg:max-w-none">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Role</span>
+                      {candidate.current_title || '—'}
+                    </p>
+
+                    {/* Skills */}
+                    <div className="lg:flex items-center gap-1.5 flex-wrap min-w-[120px]">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5 w-full">Skills</span>
+                      {candidate.skills.slice(0, 2).map((skill) => (
+                        <span key={skill} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.08)', color: '#6c47ff' }}>
+                          {skill}
+                        </span>
+                      ))}
+                      {candidate.skills.length > 2 && (
+                        <span style={{ fontSize: 10, color: 'var(--text-light)', fontWeight: 600 }}>+{candidate.skills.length - 2}</span>
+                      )}
+                    </div>
+
+                    {/* Exp */}
+                    <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Experience</span>
+                      {candidate.years_experience != null ? `${candidate.years_experience}y` : '—'}
+                    </p>
+
+                    {/* Score */}
+                    <div className="lg:flex lg:justify-center">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Match</span>
+                      {candidate.match_score != null
+                        ? <ScorePill score={candidate.match_score} />
+                        : <span style={{ fontSize: 11, color: 'var(--text-light)' }}>—</span>}
+                    </div>
+
+                    {/* Stage */}
+                    <div className="flex flex-col gap-1 lg:items-center">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Pipeline Stage</span>
+                      {candidate.pipeline_stage ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, display: 'inline-block', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          {stageCfg.label}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            stageMutation.mutate({ id: candidate.id, stage: 'applied' })
+                          }}
+                          className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-emerald-500 text-white shadow-sm hover:scale-105 active:scale-95 transition-all w-fit"
+                        >
+                          + Add to Pipeline
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Desktop Status */}
+                    <div className="hidden lg:flex justify-center">
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
+                        background: statusCfg.bg, color: statusCfg.color,
+                        display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: statusCfg.dot }} />
+                        {statusCfg.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div
+                    className="flex items-center lg:justify-end gap-2 pt-3 mt-1 lg:pt-0 lg:mt-0 border-t lg:border-none border-gray-100 dark:border-gray-800"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        inviteMutation.mutate({ email: candidate.email, full_name: candidate.full_name })
+                      }}
+                      className="flex-1 lg:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 transition-colors"
+                    >
+                      ✉ {hasInvitation ? 'Resend' : 'Invite'}
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/recruiter/interviews?candidateId=${candidate.id}`)
+                      }}
+                      className="flex-1 lg:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-colors"
+                    >
+                      📅 Schedule
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id)
+                      }}
+                      className="w-10 h-10 lg:w-8 lg:h-8 rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                    >
+                      ⋯
+                    </button>
+                  </div>
+                    <AnimatePresence>
+                      {openDropdownId === candidate.id && (
+                        <StageDropdown
+                          candidateId={candidate.id}
+                          currentStage={stage}
+                          onSelect={(s) => stageMutation.mutate({ id: candidate.id, stage: s })}
+                          onClose={() => setOpenDropdownId(null)}
+                        />
+                      )}
+                  </AnimatePresence>
+                </div>
+              )
+            })}
+          </div>
+
+          {data && (
+            <Pagination
+              page={data.page}
+              pages={data.pages}
+              total={data.total}
+              limit={data.limit}
+              onPage={setPage}
+            />
+          )}
+        </>
+      )}
+
+      {selected && <CandidateProfileModal candidate={selected} onClose={() => setSelected(null)} />}
+    </div>
+  )
+}
