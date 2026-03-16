@@ -98,12 +98,6 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
           { to: '/interviewer/live-room-hub', label: 'Live Room', icon: '🟢', customActivePath: '/interviewer/live-room' },
         ],
       },
-      {
-        label: 'ACCOUNT',
-        items: [
-          { to: '/interviewer/profile', label: 'My Profile', icon: '👤' },
-        ],
-      },
     ]
   }
 
@@ -123,12 +117,6 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
       label: 'INTELLIGENCE',
       items: [
         { to: '/recruiter/analytics', label: 'AI Insights', icon: '🧠' },
-      ],
-    },
-    {
-      label: 'ACCOUNT',
-      items: [
-        { to: '/recruiter/settings', label: 'Settings', icon: '⚙️' },
       ],
     },
   ]
