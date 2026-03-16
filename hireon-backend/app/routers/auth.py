@@ -143,3 +143,56 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
     user.hashed_password = hash_password(data.new_password)
     token_obj.is_used = True
     return {"message": "Password reset successfully. You can now log in."}
+
+
+@router.post("/candidate/magic-link")
+async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
+    """
+    Send a magic link (invitation) to a candidate. 
+    If registration is open for new candidates, create a stub profile.
+    """
+    from app.models.candidate import Candidate
+    from app.models.organization import Organization
+    from app.services import invitation_service
+    
+    # 1. Check if candidate exists
+    result = await db.execute(select(Candidate).where(Candidate.email == data.email))
+    candidate = result.scalar_one_or_none()
+    
+    if not candidate:
+        # Create a stub candidate for truly new users
+        # For multi-tenant, we pick the first org as default 'host' for public signups
+        org_result = await db.execute(select(Organization).limit(1))
+        org = org_result.scalar_one_or_none()
+        
+        if not org:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=500, detail="System configuration error: No organization found.")
+            
+        candidate = Candidate(
+            organization_id=org.id,
+            email=data.email,
+            full_name=data.email.split('@')[0].capitalize(), # Simple default name
+            source="Magic Link Signup",
+            skills=[],
+            tags=[],
+        )
+        db.add(candidate)
+        await db.flush()
+
+    # 2. Trigger the invitation flow
+    try:
+        await invitation_service.create_invitation(
+            db=db,
+            candidate_id=candidate.id,
+            organization_id=candidate.organization_id,
+            email=candidate.email,
+            full_name=candidate.full_name
+        )
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"Failed to send magic link: {str(e)}")
+
+    return {"message": "Magic link sent successfully. Please check your inbox."}

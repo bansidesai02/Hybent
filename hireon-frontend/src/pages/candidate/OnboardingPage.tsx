@@ -111,15 +111,36 @@ export default function OnboardingPage() {
         )
     }
 
+    const CSS = `
+    .logo-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; justify-content: center; }
+    .logo-orbit { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 10; }
+    .logo-orbit-ring { position: absolute; inset: 0; border: 2px dashed rgba(108, 71, 255, 0.15); border-radius: 50%; animation: orbitRotate 10s linear infinite; }
+    .logo-orbit-dot { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #00D1FF; border-radius: 50%; box-shadow: 0 0 12px rgba(0, 209, 255, 0.6); }
+    @keyframes orbitRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .logo-box { width: 36px; height: 36px; background: linear-gradient(135deg, #6C47FF 0%, #C471ED 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(108, 71, 255, 0.3); position: relative; z-index: 2; border: 1px solid rgba(255, 255, 255, 0.25); }
+    .logo-wordmark { font-family: 'Inter', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -1px; color: #1A1040; position: relative; }
+    .lwl { background: linear-gradient(135deg, #6C47FF 0%, #1A1040 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    `
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-            <Card className="max-w-xl w-full p-8">
-                <div className="text-center mb-8">
-                    <div className="w-20 h-20 bg-violet-100 dark:bg-violet-900/20 text-violet-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
-                        </svg>
+            <style>{CSS}</style>
+            <Card className="max-w-xl w-full p-10">
+                <div className="text-center mb-10">
+                    <div className="logo-wrap">
+                        <div className="logo-orbit">
+                            <div className="logo-orbit-ring">
+                                <div className="logo-orbit-dot"></div>
+                            </div>
+                            <div className="logo-box">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                    <path d="M7 5V19M17 5V19M7 12H17" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <span className="logo-wordmark lwl">Hireon</span>
                     </div>
+
                     <h1 className="text-2xl font-bold mb-2">Welcome, {invitation?.full_name}!</h1>
                     <p className="text-gray-500 dark:text-gray-400">
                         You've been invited by a team member to join our candidate portal.

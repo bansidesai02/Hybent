@@ -28,4 +28,7 @@ export const authApi = {
 
   resetPassword: (token: string, new_password: string) =>
     api.post<{ message: string }>('/v1/auth/reset-password', { token, new_password }),
+
+  sendCandidateMagicLink: (email: string) =>
+    api.post<{ message: string }>('/v1/auth/candidate/magic-link', { email }),
 }
