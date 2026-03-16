@@ -19,10 +19,14 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState('')
   const [activeTab, setActiveTab] = useState<'pass' | 'magic'>('pass')
   const [showPassword, setShowPassword] = useState(false)
-  const [view, setView] = useState<'login' | 'forgot' | 'forgot_sent'>('login')
+  const [view, setView] = useState<'login' | 'forgot' | 'forgot_sent' | 'magic_sent'>('login')
   const [fpEmail, setFpEmail] = useState('')
   const [fpLoading, setFpLoading] = useState(false)
   const [fpError, setFpError] = useState('')
+
+  const [magicEmail, setMagicEmail] = useState('')
+  const [magicLoading, setMagicLoading] = useState(false)
+  const [magicError, setMagicError] = useState('')
 
   const {
     register,
@@ -61,6 +65,24 @@ export default function LoginPage() {
       setFpError('Something went wrong. Please try again.')
     } finally {
       setFpLoading(false)
+    }
+  }
+
+  const onMagicSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setMagicError('')
+    if (!magicEmail || !/\S+@\S+\.\S+/.test(magicEmail)) {
+      setMagicError('Enter a valid email address')
+      return
+    }
+    setMagicLoading(true)
+    try {
+      await authApi.sendCandidateMagicLink(magicEmail)
+      setView('magic_sent')
+    } catch (err: any) {
+      setMagicError(err.response?.data?.detail || 'Something went wrong. Please try again.')
+    } finally {
+      setMagicLoading(false)
     }
   }
 
@@ -165,7 +187,7 @@ export default function LoginPage() {
           <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hireon</span>
         </div>
 
-        {view === 'forgot_sent' ? (
+        {view === 'forgot_sent' || view === 'magic_sent' ? (
           <div style={{ textAlign: 'center' }}>
             <div className="sent-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c47ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -175,14 +197,14 @@ export default function LoginPage() {
             </div>
             <h1 className="form-h1" style={{ marginBottom: 10 }}>Check your inbox</h1>
             <p className="form-h2" style={{ marginBottom: 32 }}>
-              We sent a reset link to <strong style={{ color: '#1a1040' }}>{fpEmail}</strong>.<br />Link expires in 30 minutes.
+              We sent a {view === 'magic_sent' ? 'magic' : 'reset'} link to <strong style={{ color: '#1a1040' }}>{view === 'magic_sent' ? magicEmail : fpEmail}</strong>.<br />Link expires in {view === 'magic_sent' ? '48 hours' : '30 minutes'}.
             </p>
-            <button className="btn-submit" type="button" onClick={() => { setView('login'); setFpEmail('') }}>
+            <button className="btn-submit" type="button" onClick={() => { setView('login'); setFpEmail(''); setMagicEmail(''); }}>
               Back to Sign In
             </button>
             <p style={{ marginTop: 16, fontSize: 12, color: '#9689bb' }}>
               Didn't get it?{' '}
-              <button className="forgot-link" onClick={() => { setView('forgot'); setFpError('') }}>Try again</button>
+              <button className="forgot-link" onClick={() => { setView(view === 'magic_sent' ? 'login' : 'forgot'); if (view === 'magic_sent') setActiveTab('magic'); setFpError(''); setMagicError(''); }}>Try again</button>
             </p>
           </div>
         ) : view === 'forgot' ? (
@@ -233,6 +255,7 @@ export default function LoginPage() {
             </div>
 
             {serverError && <div className="server-err">{serverError}</div>}
+            {magicError && <div className="server-err">{magicError}</div>}
 
             {activeTab === 'pass' ? (
               <form onSubmit={handleSubmit(onSubmit)}>
@@ -294,14 +317,30 @@ export default function LoginPage() {
                 </button>
               </form>
             ) : (
-              <div>
+              <form onSubmit={onMagicSubmit}>
                 <div className="field-box">
                   <label className="field-label">Email</label>
-                  <input type="email" placeholder="you@company.com" className="input-ctrl" />
+                  <input
+                    type="email"
+                    placeholder="you@company.com"
+                    className="input-ctrl"
+                    value={magicEmail}
+                    onChange={e => setMagicEmail(e.target.value)}
+                  />
                 </div>
                 <div style={{ height: '64px' }} />
-                <button className="btn-submit" type="button">Send Magic Link ✨</button>
-              </div>
+                <button className="btn-submit" type="submit" disabled={magicLoading}>
+                  {magicLoading ? (
+                    <>
+                      <svg className="animate-spin" style={{ width: 16, height: 16 }} fill="none" viewBox="0 0 24 24">
+                        <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      Sending...
+                    </>
+                  ) : 'Send Magic Link ✨'}
+                </button>
+              </form>
             )}
 
             <div className="or-divider">or continue with</div>
