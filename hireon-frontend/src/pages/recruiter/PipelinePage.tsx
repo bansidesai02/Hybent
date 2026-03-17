@@ -202,7 +202,7 @@ export default function PipelinePage() {
       applied: (pipelineStages.applied || []).map(mapCandidateToCard),
       screening: (pipelineStages.screening || []).map(mapCandidateToCard),
       interview: (pipelineStages.interview || []).map(mapCandidateToCard),
-      offer: [...(pipelineStages.offer || []), ...(pipelineStages.hired || [])].map(mapCandidateToCard),
+      offer: (pipelineStages.offer || []).map(mapCandidateToCard),
       rejected: (pipelineStages.rejected || []).map(mapCandidateToCard),
     }
   } : null

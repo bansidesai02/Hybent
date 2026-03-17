@@ -48,6 +48,7 @@ class CandidateUpdate(BaseModel):
 class CandidateStageUpdate(BaseModel):
     pipeline_stage: str
     send_rejection_email: bool = False
+    job_id: str | None = None
 
 
 class CandidateCreate(BaseModel):

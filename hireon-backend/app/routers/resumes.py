@@ -76,6 +76,7 @@ async def upload_and_create(
     current_user: RecruiterUser,
     db: DB,
     file: UploadFile = File(...),
+    job_id: str | None = Form(None),
     role_title: str = Form(""),
     required_skills: str = Form(""),   # comma-separated
     min_experience: float = Form(0.0),
@@ -109,50 +110,69 @@ async def upload_and_create(
     req_skills_list = [s.strip() for s in required_skills.split(",") if s.strip()]
     score: float | None = None
     breakdown: dict | None = None
-
-    if req_skills_list or min_experience > 0:
-        job_req = _JobReq(
-            title=role_title,
-            skills_required=req_skills_list,
-            min_experience_years=min_experience,
-        )
+    
+    from app.models.job import Job
+    job = None
+    if job_id and job_id.lower() not in ("null", "undefined", ""):
+        try:
+            job_res = await db.execute(select(Job).where(Job.id == uuid.UUID(job_id)))
+            job = job_res.scalar_one_or_none()
+        except ValueError:
+            pass
+    
+    if job or req_skills_list or min_experience > 0:
+        if not job:
+            job = _JobReq(
+                title=role_title,
+                skills_required=req_skills_list,
+                min_experience_years=min_experience,
+            )
+        
         score = await compute_match_score(
             candidate_skills=parsed.get("skills", []),
             parsed_data=parsed,
             years_experience=parsed.get("years_experience"),
-            job=job_req,
+            job=job,
         )
+        
+        job_skills = list(job.skills_required or []) if not isinstance(job, _JobReq) else req_skills_list
+        job_title = job.title
+        
         breakdown = compute_score_breakdown(
             candidate_skills=parsed.get("skills", []),
             parsed_data=parsed,
             years_experience=parsed.get("years_experience"),
-            job_skills=req_skills_list,
-            job_title=role_title,
+            job_skills=job_skills,
+            job_title=job_title,
             score=score,
             match_threshold=match_threshold,
         )
 
     # Priority 2: never auto-reject — low score → needs_review, not rejected
+    # User Request: Don't automatically add to pipeline. Allow recruiter to click "Add to Pipeline".
+    initial_stage = None
     if score is not None and score < match_threshold:
-        stage = "needs_review"
-    else:
-        stage = "applied"
+        initial_stage = "needs_review"
 
     if not candidate:
         candidate = Candidate(
             organization_id=current_user.organization_id,
             email=email,
             full_name=full_name,
-            pipeline_stage=stage,
+            pipeline_stage=initial_stage,
         )
         db.add(candidate)
         await db.flush()
-    else:
-        candidate.pipeline_stage = stage
+    # If candidate exists, we don't automatically overwrite their current pipeline stage during a simple resume update/re-score
+    # unless it was previously None or needs_review and we want to keep it that way.
+    # Actually, if they are already in the pipeline (e.g. 'interview'), we definitely don't want to reset them to None.
+    elif candidate.pipeline_stage is None or candidate.pipeline_stage == "needs_review":
+        candidate.pipeline_stage = initial_stage
 
     url, original_name = await save_resume(file, str(current_user.organization_id))
     candidate.resume_url = url
     candidate.resume_filename = original_name
+    candidate.full_name = full_name or candidate.full_name
     candidate.skills = parsed.get("skills", [])[:30]
     candidate.years_experience = parsed.get("years_experience")
     candidate.current_title = parsed.get("current_title") or role_title or candidate.current_title

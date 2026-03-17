@@ -15,7 +15,7 @@ Covers:
 import asyncio
 from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import text
+from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -69,6 +69,14 @@ async def clear_all(db: AsyncSession):
 
 async def seed():
     async with Session() as db:
+        # Check if admin already exists
+        result = await db.execute(select(User).where(User.email == "admin@brainerhub.com"))
+        existing_admin = result.scalar_one_or_none()
+        
+        if existing_admin:
+            print("\n⏩  Database already seeded. Skipping truncation and seeding.\n")
+            return
+
         print("\n🌱 HireOn — Seeding full demo data...\n")
         await clear_all(db)
 

@@ -13,7 +13,7 @@ RUN npm ci --prefer-offline
 # Set to "http://localhost" so:
 #   - Axios baseURL = "http://localhost"  → all API requests go to port 80 → nginx proxies to backend
 #   - useWebSocket: "http://localhost".replace('http','ws') = "ws://localhost" → nginx upgrades WS
-ARG VITE_API_BASE_URL=http://localhost
+ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 COPY . .

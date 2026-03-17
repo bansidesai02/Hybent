@@ -318,7 +318,7 @@ export default function OverviewPage() {
           </div>
 
           <div className="space-y-1">
-            <RecentActivityFeed />
+            <RecentActivityFeed limit={4} />
           </div>
         </div>
       </div>

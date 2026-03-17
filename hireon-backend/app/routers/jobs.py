@@ -71,6 +71,9 @@ async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB):
         details={"title": job.title}
     )
     
+    await db.commit()
+    await db.refresh(job)
+    
     return JobOut.model_validate(job)
 
 
@@ -122,7 +125,8 @@ async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: Recruiter
         if hasattr(value, "value"):
             value = value.value
         setattr(job, field, value)
-    await db.flush()
+    await db.commit()
+    await db.refresh(job)
     return JobOut.model_validate(job)
 
 
@@ -135,3 +139,4 @@ async def delete_job(job_id: uuid.UUID, current_user: RecruiterUser, db: DB):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     await db.delete(job)
+    await db.commit()

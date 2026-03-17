@@ -45,6 +45,41 @@ async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser,
         summary=data.summary,
     )
     db.add(scorecard)
+    
+    # Mark interview completed
+    from app.utils.permissions import InterviewStatus
+    interview.status = InterviewStatus.COMPLETED
+    
+    # Automate Stage Transition if recommendation is positive
+    if data.recommendation in ("yes", "strong_yes"):
+        from app.models.candidate import Candidate
+        from app.models.application import Application
+        
+        # Mapping title to canonical stages
+        TITLE_TO_STAGE = {
+            "Technical Round": "technical_round_selected",
+            "Practical Round": "practical_round_selected",
+            "Techno-Functional Round": "techno_functional_selected",
+            "Management Round": "management_round_selected",
+            "HR Round": "hr_round_selected",
+            "Final Round": "hr_round_selected",
+        }
+        
+        target_stage = TITLE_TO_STAGE.get(interview.title, "interview")
+        
+        # Update Candidate
+        cand_res = await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))
+        candidate = cand_res.scalar_one_or_none()
+        if candidate:
+            candidate.pipeline_stage = target_stage
+            
+        # Update Application if present
+        if interview.application_id:
+            app_res = await db.execute(select(Application).where(Application.id == interview.application_id))
+            application = app_res.scalar_one_or_none()
+            if application:
+                application.stage = target_stage
+
     await db.flush()
 
     out = ScorecardOut.model_validate(scorecard).model_dump()

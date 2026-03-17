@@ -20,8 +20,8 @@ export const candidatesApi = {
 
   getPipeline: () => api.get<any>('/v1/candidates/pipeline'),
 
-  updateStage: (id: string, pipeline_stage: string, send_rejection_email = false) =>
-    api.patch<Candidate>(`/v1/candidates/${id}/stage`, { pipeline_stage, send_rejection_email }),
+  updateStage: (id: string, pipeline_stage: string, send_rejection_email = false, job_id?: string) =>
+    api.patch<Candidate>(`/v1/candidates/${id}/stage`, { pipeline_stage, send_rejection_email, job_id }),
 
   reject: (id: string) => api.post<Candidate>(`/v1/candidates/${id}/reject`),
 }

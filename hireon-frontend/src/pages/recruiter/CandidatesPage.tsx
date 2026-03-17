@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { candidatesApi } from '@/api/candidates'
+import { jobsApi } from '@/api/jobs'
 import type { Candidate } from '@/types'
 import { Avatar } from '@/components/ui/Avatar'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -12,6 +13,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { formatDate } from '@/utils/formatters'
+import { formatDistanceToNow } from 'date-fns'
+import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
 
 // ─── Stage config (full pipeline) ─────────────────────────────────────────────
 
@@ -156,175 +159,9 @@ const STAGE_GROUPS = [
 // ─── Candidate Profile Modal ───────────────────────────────────────────────────
 
 function CandidateProfileModal({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
-  const stage = candidate.pipeline_stage || 'applied'
-  const stageCfg = STAGE_CFG[stage] ?? STAGE_CFG.applied
-  const sc = candidate.match_score != null ? scoreColor(candidate.match_score) : null
-
   return (
     <Modal open onClose={onClose} title="Candidate Profile" size="lg">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, paddingBottom: 20, borderBottom: '1px solid var(--table-border)' }}>
-          <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", marginBottom: 3 }}>
-              {candidate.full_name}
-            </h3>
-            {candidate.current_title && (
-              <p style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 2 }}>
-                {candidate.current_title}{candidate.current_company ? ` · ${candidate.current_company}` : ''}
-              </p>
-            )}
-            <p style={{ fontSize: 12, color: 'var(--text-light)' }}>{candidate.email}</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              {candidate.pipeline_stage ? (
-                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color }}>
-                  {stageCfg.label}
-                </span>
-              ) : (
-                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: 'var(--kpi-bg)', color: 'var(--text-mid)', border: '1px solid var(--table-border)' }}>
-                  Not in Pipeline
-                </span>
-              )}
-              {sc && (
-                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: sc.bg, color: sc.text }}>
-                  Match {Math.round(candidate.match_score!)}%
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Links */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-            {candidate.resume_url && (
-              <a href={candidate.resume_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 12, fontWeight: 600, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
-                📄 Resume
-              </a>
-            )}
-            {candidate.github_url && (
-              <a href={candidate.github_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)', textDecoration: 'none' }}>⌥ GitHub</a>
-            )}
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
-          {candidate.years_experience != null && (
-            <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Experience</p>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.years_experience} yrs</p>
-            </div>
-          )}
-          {candidate.location && (
-            <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Location</p>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.location}</p>
-            </div>
-          )}
-          {candidate.phone && (
-            <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Phone</p>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.phone}</p>
-            </div>
-          )}
-          <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '10px 14px' }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>Added</p>
-            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{formatDate(candidate.created_at)}</p>
-          </div>
-        </div>
-
-        {/* AI Summary */}
-        {!!candidate.summary ? (
-          <div style={{ background: 'rgba(108,71,255,0.04)', border: '1px solid rgba(108,71,255,0.15)', borderRadius: 12, padding: '14px 16px' }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>⚡ AI Summary</p>
-            <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.7, fontStyle: 'italic' }}>"{candidate.summary}"</p>
-          </div>
-        ) : null}
-
-        {/* Work Experience */}
-        {candidate.parsed_data?.experience && Array.isArray(candidate.parsed_data.experience) && candidate.parsed_data.experience.length > 0 ? (
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 12 }}>Work Experience</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {(candidate.parsed_data.experience as any[]).map((exp: any, idx: number) => (
-                <div key={idx} style={{ borderLeft: '2px solid rgba(108,71,255,0.25)', paddingLeft: 14 }}>
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{exp.title}</h4>
-                  <p style={{ fontSize: 11, color: 'var(--text-light)', marginBottom: 4 }}>{exp.company} · {exp.duration}</p>
-                  <p style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.6 }}>{exp.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Projects */}
-        {candidate.parsed_data?.projects && Array.isArray(candidate.parsed_data.projects) && candidate.parsed_data.projects.length > 0 ? (
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 12 }}>Projects</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {(candidate.parsed_data.projects as any[]).map((proj: any, idx: number) => (
-                <div key={idx} style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: '12px 14px' }}>
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{proj.name}</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 8 }}>{proj.description}</p>
-                  {proj.technologies ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {(proj.technologies as string[]).map((tech) => (
-                        <span key={tech} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.08)', color: '#6c47ff' }}>{tech}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Education */}
-        {candidate.parsed_data?.education && Array.isArray(candidate.parsed_data.education) && candidate.parsed_data.education.length > 0 ? (
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Education</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(candidate.parsed_data.education as any[]).map((edu: any, idx: number) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{edu.institution}</h4>
-                    <p style={{ fontSize: 11, color: 'var(--text-light)' }}>{edu.degree}</p>
-                  </div>
-                  {edu.year ? <span style={{ fontSize: 11, color: 'var(--text-light)', background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', padding: '2px 10px', borderRadius: 20 }}>{edu.year as string}</span> : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Skills */}
-        {candidate.skills.length > 0 && (
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Skills</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {candidate.skills.map((skill) => (
-                <span key={skill} style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: 'rgba(108,71,255,0.08)', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.15)' }}>
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tags */}
-        {candidate.tags.length > 0 && (
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Tags</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {candidate.tags.map((tag) => (
-                <span key={tag} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', color: 'var(--text-mid)' }}>#{tag}</span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <CandidateProfileView candidate={candidate} />
     </Modal>
   )
 }
@@ -437,6 +274,8 @@ export default function CandidatesPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const [selectedJobId, setSelectedJobId] = useState<string>('')
+  const [candidateToAdd, setCandidateToAdd] = useState<{ id: string; name: string } | null>(null)
 
   const inviteMutation = useMutation({
     mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
@@ -459,6 +298,28 @@ export default function CandidatesPage() {
     queryKey: ['candidates', queryParams],
     queryFn: () => candidatesApi.list(queryParams).then((r) => r.data),
   })
+
+  const { data: activeJobs } = useQuery({
+    queryKey: ['jobs', 'active'],
+    queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r: any) => r.data.items),
+  })
+
+  const handleAddToPipeline = async (candidateId: string, jobId: string) => {
+    if (!jobId) {
+      toast.error('Please select a job first')
+      return
+    }
+
+    try {
+      await candidatesApi.updateStage(candidateId, 'applied', false, jobId)
+      toast.success('Added to pipeline successfully')
+      setCandidateToAdd(null)
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+    } catch (error) {
+      toast.error('Failed to add to pipeline')
+    }
+  }
 
   const stageMutation = useMutation({
     mutationFn: ({ id, stage }: { id: string; stage: string }) =>
@@ -609,8 +470,8 @@ export default function CandidatesPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 80 }}>
             {displayItems.map((candidate, i) => {
-              const stage = candidate.pipeline_stage || 'applied'
-              const stageCfg = STAGE_CFG[stage] ?? STAGE_CFG.applied
+              const stage = candidate.pipeline_stage
+              const stageCfg = stage ? STAGE_CFG[stage] : null
               const hasInvitation = candidate.invitations?.length > 0
               const isAccountCreated = hasInvitation && candidate.invitations[0].is_used
               const statusKey = getStatusFromStage(candidate.pipeline_stage ?? undefined)
@@ -713,20 +574,48 @@ export default function CandidatesPage() {
                     {/* Stage */}
                     <div className="flex flex-col gap-1 lg:items-center">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Pipeline Stage</span>
-                      {candidate.pipeline_stage ? (
+                      {!stageCfg && activeJobs && activeJobs.length > 0 && (
+                        candidate.match_score != null && candidate.match_score >= 70 ? (
+                          <button
+                            onClick={(e: any) => {
+                              e.stopPropagation()
+                              if (activeJobs.length === 1) {
+                                handleAddToPipeline(candidate.id, activeJobs[0].id)
+                              } else {
+                                setCandidateToAdd({ id: candidate.id, name: candidate.full_name })
+                              }
+                            }}
+                            className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-emerald-500 text-white shadow-sm hover:scale-105 active:scale-95 transition-all w-fit"
+                          >
+                            + Add in Pipeline
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={(e: any) => {
+                                e.stopPropagation()
+                                stageMutation.mutate({ id: candidate.id, stage: 'rejected' })
+                              }}
+                              className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-red-500 text-white shadow-sm hover:scale-105 active:scale-95 transition-all w-fit"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              onClick={(e: any) => {
+                                e.stopPropagation()
+                                toast.success('Kept in Talent Database')
+                              }}
+                              className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-gray-500 text-white shadow-sm hover:scale-105 active:scale-95 transition-all w-fit"
+                            >
+                              Talent DB
+                            </button>
+                          </div>
+                        )
+                      )}
+                      {stageCfg && (
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, display: 'inline-block', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {stageCfg.label}
                         </span>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            stageMutation.mutate({ id: candidate.id, stage: 'applied' })
-                          }}
-                          className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-emerald-500 text-white shadow-sm hover:scale-105 active:scale-95 transition-all w-fit"
-                        >
-                          + Add to Pipeline
-                        </button>
                       )}
                     </div>
 
@@ -782,7 +671,7 @@ export default function CandidatesPage() {
                       {openDropdownId === candidate.id && (
                         <StageDropdown
                           candidateId={candidate.id}
-                          currentStage={stage}
+                          currentStage={stage || 'applied'}
                           onSelect={(s) => stageMutation.mutate({ id: candidate.id, stage: s })}
                           onClose={() => setOpenDropdownId(null)}
                         />
@@ -806,6 +695,44 @@ export default function CandidatesPage() {
       )}
 
       {selected && <CandidateProfileModal candidate={selected} onClose={() => setSelected(null)} />}
+
+      {candidateToAdd && (
+        <Modal
+          open={!!candidateToAdd}
+          onClose={() => setCandidateToAdd(null)}
+          title={`Add ${candidateToAdd.name} to Pipeline`}
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">
+                Select Active Job
+              </label>
+              <div className="space-y-2">
+                {activeJobs && activeJobs.length > 0 ? (
+                  activeJobs.map((job: any) => (
+                    <button
+                      key={job.id}
+                      onClick={() => handleAddToPipeline(candidateToAdd.id, job.id)}
+                      className="w-full p-4 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50 transition-all text-left flex items-center justify-between group"
+                    >
+                      <div>
+                        <p className="font-bold text-gray-900 group-hover:text-violet-700">{job.title}</p>
+                        <p className="text-xs text-gray-500">{job.location} • {job.type}</p>
+                      </div>
+                      <svg className="w-5 h-5 text-gray-300 group-hover:text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 italic py-4">No active jobs found. Please create a job first.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
