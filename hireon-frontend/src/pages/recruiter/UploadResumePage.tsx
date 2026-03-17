@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { resumesApi } from '@/api/resumes'
@@ -19,6 +19,7 @@ interface ScoringResult {
 }
 
 interface JobReq {
+  job_id?: string
   role_title: string
   min_experience: string
   match_threshold: string
@@ -83,19 +84,13 @@ import toast from 'react-hot-toast'
 
 // ─── Action Buttons ─────────────────────────────────────────────────────────────
 
-function AnalysisActions({ 
-  navigate, 
-  candidateId,
-  score,
-  threshold,
-  currentStage,
-  onAction
-}: { 
-  navigate: ReturnType<typeof useNavigate>,
-  candidateId: string,
-  score: number,
-  threshold: number,
-  currentStage?: string,
+function AnalysisActions({ navigate, candidateId, jobId, score, threshold, currentStage, onAction }: {
+  navigate: any
+  candidateId: string
+  jobId?: string
+  score: number
+  threshold: number
+  currentStage?: string
   onAction: () => void
 }) {
   const [loading, setLoading] = useState<string | null>(null)
@@ -103,7 +98,7 @@ function AnalysisActions({
   const handleStageUpdate = async (stage: string) => {
     setLoading(stage)
     try {
-      await candidatesApi.updateStage(candidateId, stage)
+      await candidatesApi.updateStage(candidateId, stage, false, jobId)
       toast.success(stage === 'applied' ? 'Candidate added to pipeline!' : 'Candidate moved to talent DB')
       onAction()
       if (stage === 'applied') {
@@ -135,59 +130,61 @@ function AnalysisActions({
     <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
       {isHighMatch ? (
         <>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              onClick={() => navigate('/recruiter/interviews')}
-              style={{
-                flex: 1, padding: '10px 16px',
-                background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
-                color: '#fff', border: 'none', borderRadius: 10,
-                fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                boxShadow: '0 4px 14px rgba(108,71,255,0.30)', transition: 'all 0.2s',
-              }}
-              onMouseOver={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
-              onMouseOut={e => (e.currentTarget.style.transform = 'none')}
-            >
-              📅 Schedule Interview
-            </button>
+          <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
+            {isHighMatch && !!jobId && (
+              <button
+                onClick={() => handleStageUpdate('applied')}
+                disabled={!!loading}
+                style={{
+                  width: '100%', padding: '12px 16px',
+                  background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff',
+                  border: 'none', borderRadius: 10,
+                  fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  boxShadow: '0 4px 14px rgba(16,185,129,0.30)', transition: 'all 0.2s',
+                  opacity: loading === 'applied' ? 0.7 : 1,
+                }}
+                onMouseOver={e => !loading && (e.currentTarget.style.transform = 'translateY(-1px)')}
+                onMouseOut={e => !loading && (e.currentTarget.style.transform = 'none')}
+              >
+                {loading === 'applied' ? 'Adding...' : '➕ Add in Pipeline'}
+              </button>
+            )}
 
-            <button
-              onClick={() => navigate('/recruiter/candidates')}
-              style={{
-                flex: 1, padding: '10px 16px',
-                background: 'transparent', color: '#6c47ff',
-                border: '1.5px solid rgba(108,71,255,0.30)', borderRadius: 10,
-                fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                transition: 'all 0.2s',
-              }}
-              onMouseOver={e => (e.currentTarget.style.background = 'rgba(108,71,255,0.07)')}
-              onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              View in Candidates
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => navigate('/recruiter/candidates')}
+                style={{
+                  flex: 1, padding: '10px 16px',
+                  background: 'rgba(108,71,255,0.05)', color: '#6c47ff',
+                  border: '1.5px solid rgba(108,71,255,0.2)', borderRadius: 10,
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = 'rgba(108,71,255,0.1)')}
+                onMouseOut={e => (e.currentTarget.style.background = 'rgba(108,71,255,0.05)')}
+              >
+                🔍 View Candidate
+              </button>
+
+              <button
+                onClick={() => navigate('/recruiter/interviews')}
+                style={{
+                  flex: 1, padding: '10px 16px',
+                  background: 'transparent', color: '#6c47ff',
+                  border: '1.5px solid rgba(108,71,255,0.2)', borderRadius: 10,
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = 'rgba(108,71,255,0.1)')}
+                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                📅 Schedule Interview
+              </button>
+            </div>
           </div>
-
-          {currentStage !== 'applied' && (
-            <button
-              onClick={() => handleStageUpdate('applied')}
-              disabled={!!loading}
-              style={{
-                width: '100%', padding: '10px 16px',
-                background: '#10b981', color: '#fff',
-                border: 'none', borderRadius: 10,
-                fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                boxShadow: '0 4px 14px rgba(16,185,129,0.30)', transition: 'all 0.2s',
-                opacity: loading === 'applied' ? 0.7 : 1,
-              }}
-              onMouseOver={e => !loading && (e.currentTarget.style.transform = 'translateY(-1px)')}
-              onMouseOut={e => !loading && (e.currentTarget.style.transform = 'none')}
-            >
-              {loading === 'applied' ? 'Adding...' : '➕ Add to Pipeline'}
-            </button>
-          )}
         </>
       ) : (
         <>
@@ -209,7 +206,7 @@ function AnalysisActions({
               onMouseOver={e => !loading && currentStage !== 'rejected' && (e.currentTarget.style.transform = 'translateY(-1px)')}
               onMouseOut={e => !loading && currentStage !== 'rejected' && (e.currentTarget.style.transform = 'none')}
             >
-              {loading === 'reject' ? 'Rejecting...' : currentStage === 'rejected' ? '✉ Rejection Email Sent' : '❌ Reject Profile'}
+              {loading === 'reject' ? 'Rejecting...' : currentStage === 'rejected' ? '✉ Sent' : '❌ Reject'}
             </button>
 
             <button
@@ -230,7 +227,7 @@ function AnalysisActions({
               {loading === 'screening' ? 'Adding...' : '📥 Talent DB'}
             </button>
           </div>
-          <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center', marginTop: 4 }}>
             Score is below your {threshold}% threshold.
           </p>
         </>
@@ -252,6 +249,7 @@ export default function UploadResumePage() {
   const [error, setError] = useState('')
   const [isAddedToPipeline, setIsAddedToPipeline] = useState(false)
   const [jobReq, setJobReq] = useState<JobReq>({
+    job_id: undefined,
     role_title: '',
     min_experience: '3',
     match_threshold: '70',
@@ -274,12 +272,20 @@ export default function UploadResumePage() {
       : (job.experience_level?.match(/\d+/) ? job.experience_level.match(/\d+/)![0] : '0')
 
     setJobReq({
+      job_id: jobId,
       role_title: job.title,
       min_experience: minExp,
       match_threshold: '70', // Default
       required_skills: (job.skills_required || []).join(', '),
     })
   }
+
+  // Auto-select if only one active job
+  useEffect(() => {
+    if (jobsData && jobsData.length === 1 && !jobReq.job_id) {
+      handleJobSelect(jobsData[0].id)
+    }
+  }, [jobsData, jobReq.job_id])
 
   const handleFile = useCallback(async (file: File) => {
     if (!file) return
@@ -300,6 +306,7 @@ export default function UploadResumePage() {
 
     try {
       const { data } = await resumesApi.uploadAndCreate(file, {
+        job_id: jobReq.job_id,
         role_title: jobReq.role_title,
         required_skills: jobReq.required_skills,
         min_experience: parseFloat(jobReq.min_experience) || 0,
@@ -379,6 +386,7 @@ export default function UploadResumePage() {
                   ...(jobsData?.map(j => ({ value: j.id, label: j.title })) || [])
                 ]}
                 onChange={(e) => handleJobSelect(e.target.value)}
+                value={jobReq.job_id || ''}
               />
             </div>
 
@@ -653,12 +661,18 @@ export default function UploadResumePage() {
                   <AnalysisActions 
                     navigate={navigate} 
                     candidateId={result.id}
+                    jobId={jobReq.job_id}
                     score={scoring?.score || 0}
                     threshold={parseFloat(jobReq.match_threshold) || 70}
                     currentStage={result.pipeline_stage || undefined}
                     onAction={() => {
-                       // Possible refresh or state update
-                       // For now we just allow the user to see the changed UI if we had state for stage
+                       // When any action happens (Add to Pipeline, Talent DB, etc.),
+                       // we want to refresh the candidate data to update the UI.
+                       // For simplicity, we can just fetch the updated candidate or 
+                       // manually update the local state if we had the new data.
+                       // AnalysisActions already triggers a success toast.
+                       // Let's just update the local result stage so the button disappears.
+                       setResult(prev => prev ? { ...prev, pipeline_stage: 'applied' } : null)
                     }}
                   />
 

@@ -39,10 +39,10 @@ function buildLabel(act: { action: string; resource_type: string; details: any }
   return { title: action.replace(/_/g, ' '), sub: resource_type }
 }
 
-export function RecentActivityFeed() {
+export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
   const { data: activities = [], isLoading, isError } = useQuery({
-    queryKey: ['recent-activities'],
-    queryFn: () => activitiesApi.list(10).then((r) => r.data),
+    queryKey: ['recent-activities', limit],
+    queryFn: () => activitiesApi.list(limit).then((r) => r.data),
     refetchInterval: 8_000,
     staleTime: 0,
   })

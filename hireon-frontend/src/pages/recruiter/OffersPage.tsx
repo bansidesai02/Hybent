@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
@@ -57,17 +57,64 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateForm>({ 
     resolver: zodResolver(createSchema), 
-    defaultValues: { salary_currency: 'USD', position_title: 'Senior Software Engineer' } 
+    defaultValues: { salary_currency: 'USD', position_title: '' } 
   })
 
-  // Mock applications for the demo if needed, otherwise just using the input
-  const { data: applications } = useQuery({
+  // Fetch applications for the dropdown - broadening to all to ensure we find candidates
+  const { data: applicationsPaged, isLoading: loadingApps } = useQuery({
     queryKey: ['applications-for-offer'],
-    queryFn: () => api.get<any[]>('/v1/applications').then(r => r.data).catch(() => [] as any[])
+    queryFn: () => api.get<{ items: any[] }>('/v1/applications?limit=100').then(r => r.data).catch(() => ({ items: [] }))
   })
+
+  const selectedAppId = watch('application_id')
+
+  const applicationOptions = useMemo(() => {
+    if (!applicationsPaged?.items) return [{ value: '', label: 'Loading candidates...' }]
+    
+    // Map of detailed stages to relevant buckets for offer creation
+    const OFFER_RELEVANT_STAGES = [
+      'hired', 'hired_joined',                // Hired
+      'offer', 'offered',                     // Offer
+      'interview', 'hr_round_selected',       // Interview/Final
+      'management_round_selected', 
+      'technical_round_selected'
+    ]
+
+    // Filter for candidates in relevant stages
+    const relevantApps = applicationsPaged.items.filter(app => {
+      const stage = (app.stage || '').toLowerCase()
+      const candStage = (app.candidate?.pipeline_stage || '').toLowerCase()
+      
+      return OFFER_RELEVANT_STAGES.includes(stage) || OFFER_RELEVANT_STAGES.includes(candStage)
+    })
+
+    if (relevantApps.length === 0) {
+      return [{ value: '', label: 'No candidates in Interview/Offer/Hired stage' }]
+    }
+
+    return [
+      { value: '', label: 'Select a candidate...' },
+      ...relevantApps.map(app => ({
+        value: app.id,
+        label: `${app.candidate?.full_name || 'Unknown'} - ${app.job?.title || 'Unknown Job'} (${app.id.slice(-6)})`
+      }))
+    ]
+  }, [applicationsPaged])
+
+  // Automatically set position title when application is selected
+  useEffect(() => {
+    if (selectedAppId && applicationsPaged?.items) {
+      const selected = applicationsPaged.items.find(app => app.id === selectedAppId)
+      if (selected?.job?.title) {
+        setValue('position_title', selected.job.title)
+      }
+    }
+  }, [selectedAppId, applicationsPaged, setValue])
 
   const mutation = useMutation({
     mutationFn: (data: CreateForm) => offersApi.create({ ...data, application_id: data.application_id }),
@@ -81,10 +128,17 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
           <div className="md:col-span-2">
             <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Application Selection</label>
             <div className="grid grid-cols-1 gap-4">
-              <Input
-                placeholder="Paste Application ID (e.g. app_123...)"
-                error={errors.application_id?.message}
-                {...register('application_id')}
+              <Controller
+                name="application_id"
+                control={control}
+                render={({ field }) => (
+                  <Select 
+                    {...field}
+                    options={applicationOptions}
+                    error={errors.application_id?.message}
+                    disabled={loadingApps}
+                  />
+                )}
               />
             </div>
           </div>
@@ -94,7 +148,7 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
           <div className="md:col-span-2">
             <Input
               label="Position Title"
-              placeholder="e.g. Senior Frontend Engineer"
+              placeholder="Detecting automatically..."
               error={errors.position_title?.message}
               {...register('position_title')}
             />

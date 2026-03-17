@@ -7,6 +7,9 @@ from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate
 from app.services.email_service import send_candidate_invite
 from app.utils.pagination import paginate
 from app.services.activity_service import log_activity
+from app.models.application import Application
+from app.models.job import Job
+from app.services.match_scorer import compute_match_score, compute_score_breakdown
 
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
 
@@ -114,15 +117,42 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
         "screening": [],
         "interview": [],
         "offer": [],
-        "hired": [],
         "rejected": []
     }
     
+    # Mapping of detailed stages to high-level buckets
+    STAGE_TO_BUCKET = {
+        "applied": "applied",
+        "pre_screening_selected": "screening",
+        "technical_round_selected": "interview",
+        "practical_round_selected": "interview",
+        "techno_functional_selected": "interview",
+        "management_round_selected": "interview",
+        "hr_round_selected": "interview",
+        "offered": "offer",
+        "hired": "offer",
+        "hired_joined": "offer",
+        "screening": "screening", # Legacy/Fallback
+        "interview": "interview"  # Legacy/Fallback
+    }
+
     for c in items:
+        # Map to bucket or use original if it matches one of the top-level stages
         stage = c.pipeline_stage
-        if stage not in stages:
-            stages[stage] = []
-        stages[stage].append(CandidateOut.model_validate(c).model_dump())
+        bucket = STAGE_TO_BUCKET.get(stage)
+        
+        if not bucket and stage in REJECTION_STAGES:
+            bucket = "rejected"
+        
+        if not bucket:
+            # Fallback if unknown stage, put in nearest bucket or ignore? 
+            # For now, put in its own list if it exists in 'stages' keys, or ignore
+            if stage in stages:
+                bucket = stage
+            else:
+                continue # Skip unknown stages that don't map to pipeline
+
+        stages[bucket].append(CandidateOut.model_validate(c).model_dump())
         
     return stages
 
@@ -271,7 +301,73 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         raise HTTPException(status_code=404, detail="Candidate not found")
         
     old_stage = candidate.pipeline_stage
-    candidate.pipeline_stage = data.pipeline_stage
+    
+    # Map high-level bucket names (from kanban) to canonical detailed stages
+    BUCKET_TO_STAGE = {
+        "screening": "pre_screening_selected",
+        "interview": "technical_round_selected",
+        "offer": "offered",
+    }
+    target_stage = BUCKET_TO_STAGE.get(data.pipeline_stage, data.pipeline_stage)
+    candidate.pipeline_stage = target_stage
+    
+    # Synchronize all applications for this candidate to the same stage
+    from app.models.application import Application
+    app_query = select(Application).where(Application.candidate_id == candidate_id)
+    apps_res = await db.execute(app_query)
+    for app in apps_res.scalars().all():
+        app.stage = target_stage
+    
+    # If adding to pipeline and job_id is provided, create Application
+    if data.pipeline_stage == "applied" and data.job_id and data.job_id.lower() not in ("null", "undefined", ""):
+        try:
+            job_id_uuid = uuid.UUID(data.job_id)
+        except ValueError:
+            job_id_uuid = None
+            
+        if job_id_uuid:
+            # Check if application already exists
+            app_res = await db.execute(
+                select(Application).where(
+                    Application.candidate_id == candidate_id,
+                    Application.job_id == job_id_uuid
+                )
+            )
+            application = app_res.scalar_one_or_none()
+            
+            if not application:
+                application = Application(
+                    organization_id=current_user.organization_id,
+                    candidate_id=candidate_id,
+                    job_id=job_id_uuid,
+                    stage="applied",
+                    match_score=candidate.match_score
+                )
+                db.add(application)
+                await db.flush()
+                
+                # Recalculate/Update match score for this specific job context
+                job_res = await db.execute(select(Job).where(Job.id == job_id_uuid))
+                job = job_res.scalar_one_or_none()
+                if job:
+                    score = await compute_match_score(
+                        candidate_skills=candidate.skills,
+                        parsed_data=candidate.parsed_data or {},
+                        years_experience=candidate.years_experience,
+                        job=job,
+                    )
+                    breakdown = compute_score_breakdown(
+                        candidate_skills=candidate.skills,
+                        parsed_data=candidate.parsed_data or {},
+                        years_experience=candidate.years_experience,
+                        job_skills=job.skills_required or [],
+                        job_title=job.title,
+                        score=score,
+                        match_threshold=70.0, # Default or should we allow passing it?
+                    )
+                    candidate.match_score = score
+                    candidate.score_breakdown = breakdown
+                    application.match_score = score
     
     # Rejection email — only when explicitly requested (not on kanban drag)
     if data.send_rejection_email and data.pipeline_stage in REJECTION_STAGES and old_stage not in REJECTION_STAGES:

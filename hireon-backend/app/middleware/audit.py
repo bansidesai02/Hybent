@@ -21,7 +21,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
     """
 
     SKIP_METHODS = {"GET", "HEAD", "OPTIONS"}
-    SKIP_PATHS = {"/docs", "/openapi.json", "/redoc", "/v1/auth/login", "/v1/auth/register"}
+    SKIP_PATHS = {"/docs", "/openapi.json", "/redoc", "/v1/auth/login", "/v1/auth/register", "/health"}
 
     def __init__(self, app: ASGIApp):
         super().__init__(app)

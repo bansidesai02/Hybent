@@ -119,6 +119,7 @@ export default function AddJobPage() {
       isEdit ? jobsApi.update(id!, data) : jobsApi.create(data),
     onSuccess: () => {
       setSaved(true)
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
       setTimeout(() => {
         navigate('/recruiter/jobs')

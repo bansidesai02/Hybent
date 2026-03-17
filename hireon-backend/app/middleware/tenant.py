@@ -15,7 +15,7 @@ from app.utils.security import decode_access_token
 logger = logging.getLogger(__name__)
 
 PUBLIC_PATHS = {
-    "/", "/docs", "/openapi.json", "/redoc",
+    "/", "/docs", "/openapi.json", "/redoc", "/health",
     "/v1/auth/login", "/v1/auth/register", "/v1/auth/refresh",
 }
 

@@ -133,6 +133,13 @@ async def update_stage(application_id: uuid.UUID, data: StageUpdate, current_use
     app = await _get_application(application_id, current_user.organization_id, db)
     app.stage = data.stage
     app.stage_changed_at = datetime.now(timezone.utc)
+    
+    # Synchronize candidate's pipeline_stage
+    cand = (await db.execute(select(Candidate).where(Candidate.id == app.candidate_id))).scalar_one_or_none()
+    if cand:
+        cand.pipeline_stage = data.stage
+        db.add(cand)
+    
     if data.rejection_reason:
         app.rejection_reason = data.rejection_reason
     return await _enrich_application(app, db)

@@ -48,13 +48,20 @@ const REC_BADGE: Record<string, { label: string; color: string; bg: string }> = 
 }
 
 const INTERVIEW_TYPES = [
-  { value: '', label: 'Select type' },
-  { value: 'phone', label: 'Phone Screen' },
   { value: 'video', label: 'Video Call' },
   { value: 'technical', label: 'Technical' },
   { value: 'onsite', label: 'On-site' },
   { value: 'hr', label: 'HR Interview' },
   { value: 'final', label: 'Final Round' },
+]
+
+const SCHEDULE_TITLES = [
+  { value: 'Technical Round', type: 'technical' },
+  { value: 'Practical Round', type: 'technical' },
+  { value: 'HR Round', type: 'hr' },
+  { value: 'Management Round', type: 'hr' },
+  { value: 'Techno-Functional Round', type: 'technical' },
+  { value: 'Final Round', type: 'final' },
 ]
 
 // ─── Schedule Schema ───────────────────────────────────────────────────────────
@@ -358,7 +365,7 @@ function ScheduleForm({
   selectedTime: string
   duration: number
 }) {
-  const { register, handleSubmit, control, reset, setValue, formState: { errors, isSubmitting } } = useForm<ScheduleForm>({
+  const { register, handleSubmit, control, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<ScheduleForm>({
     resolver: zodResolver(scheduleSchema),
     defaultValues: { duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_id: '' },
   })
@@ -408,11 +415,12 @@ function ScheduleForm({
   const mutation = useMutation({
     mutationFn: (data: ScheduleForm) => {
       const scheduledIso = new Date(data.scheduled_at).toISOString()
+      const selectedStage = SCHEDULE_TITLES.find(t => t.value === data.title)
       const payload = {
         candidate_id: data.candidate_id, 
-        title: data.title || 'Technical Interview',
+        title: data.title,
         application_id: '', 
-        interview_type: data.interview_type as InterviewType,
+        interview_type: (selectedStage?.type || 'video') as InterviewType,
         scheduled_at: scheduledIso, duration_minutes: data.duration_minutes,
         notes: data.notes,
         panelist_ids: data.panelist_id ? [{ user_id: data.panelist_id, role: 'lead' }] : [],
@@ -427,6 +435,25 @@ function ScheduleForm({
 
   return (
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Controller
+        name="title"
+        control={control}
+        render={({ field }) => (
+          <Select
+            label="Interview Stage / Title *"
+            error={errors.title?.message}
+            options={[
+              { value: '', label: 'Select stage...' },
+              ...SCHEDULE_TITLES.map((t) => ({
+                value: t.value,
+                label: t.value,
+              })),
+            ]}
+            {...field}
+          />
+        )}
+      />
+
       <Controller
         name="candidate_id"
         control={control}
