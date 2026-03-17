@@ -1,18 +1,30 @@
 import { format, formatDistanceToNow } from 'date-fns'
 
+// Helper to ensure dates from API are treated as UTC if they lack a timezone
+export function safeParseDate(date: string | null | undefined): Date | null {
+  if (!date) return null
+  const cleaned = date.includes('T') ? date : date.replace(' ', 'T')
+  const withZ = (cleaned.endsWith('Z') || cleaned.includes('+')) ? cleaned : cleaned + 'Z'
+  const d = new Date(withZ)
+  return isNaN(d.getTime()) ? new Date(date) : d
+}
+
 export function formatDate(date: string | null | undefined, fmt = 'MMM d, yyyy'): string {
-  if (!date) return '—'
-  return format(new Date(date), fmt)
+  const d = safeParseDate(date)
+  if (!d) return '—'
+  return format(d, fmt)
 }
 
 export function formatDateTime(date: string | null | undefined): string {
-  if (!date) return '—'
-  return format(new Date(date), 'MMM d, yyyy h:mm a')
+  const d = safeParseDate(date)
+  if (!d) return '—'
+  return format(d, 'MMM d, yyyy h:mm a')
 }
 
 export function timeAgo(date: string | null | undefined): string {
-  if (!date) return '—'
-  return formatDistanceToNow(new Date(date), { addSuffix: true })
+  const d = safeParseDate(date)
+  if (!d) return '—'
+  return formatDistanceToNow(d, { addSuffix: true })
 }
 
 export function formatSalary(min?: number | null, max?: number | null, currency = 'USD'): string {
