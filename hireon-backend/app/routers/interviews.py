@@ -47,6 +47,8 @@ async def list_interviews(current_user: CurrentUser, db: DB):
         if cand:
             d["candidate_name"] = cand.full_name
             d["candidate_email"] = cand.email
+            d["candidate_skills"] = cand.skills
+            d["candidate_experience"] = cand.years_experience
         panelists_result = await db.execute(
             select(InterviewPanelist).where(InterviewPanelist.interview_id == iv.id)
         )

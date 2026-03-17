@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
@@ -63,6 +63,18 @@ const SCHEDULE_TITLES = [
   { value: 'Techno-Functional Round', type: 'technical' },
   { value: 'Final Round', type: 'final' },
 ]
+
+// ─── Utils ──────────────────────────────────────────────────────────────────
+
+/** Parses an API ISO date string and ensures it's treated as UTC */
+const parseISO = (iso: string) => {
+  if (!iso) return new Date()
+  // Clean up if the server sometimes sends space instead of T
+  const cleaned = iso.includes('T') ? iso : iso.replace(' ', 'T')
+  // Ensure the 'Z' suffix so browser knows it's UTC (preventing 4:30 AM local shift)
+  const withZ = (cleaned.endsWith('Z') || cleaned.includes('+')) ? cleaned : cleaned + 'Z'
+  return new Date(withZ)
+}
 
 // ─── Schedule Schema ───────────────────────────────────────────────────────────
 
@@ -203,14 +215,22 @@ function TimeSlotPicker({
 
   const isBlocked = (time: string) => {
     if (!selectedDate) return false
-    return interviews.some(iv => {
-      const ivDate = new Date(iv.scheduled_at)
-      if (ivDate.getFullYear() !== selectedDate.getFullYear() ||
-          ivDate.getMonth() !== selectedDate.getMonth() ||
-          ivDate.getDate() !== selectedDate.getDate()) return false
+    const [h, m] = time.split(':').map(Number)
+    
+    // Create a date object for this specific slot at the selected date
+    const slotTime = new Date(selectedDate)
+    slotTime.setHours(h, m, 0, 0)
+    
+    return (interviews || []).some(iv => {
+      if (iv.status === 'cancelled') return false
       
-      const [h, m] = time.split(':')
-      return ivDate.getHours() === parseInt(h) && ivDate.getMinutes() === parseInt(m) && iv.status !== 'cancelled'
+      const ivStart = parseISO(iv.scheduled_at)
+      const duration = iv.duration_minutes || 60
+      const ivEnd = new Date(ivStart.getTime() + duration * 60 * 1000)
+      
+      // Check if this slot's start time falls within the existing interview's time range
+      // We check if slotTime is >= ivStart AND slotTime < ivEnd
+      return slotTime >= ivStart && slotTime < ivEnd
     })
   }
 
@@ -228,13 +248,13 @@ function TimeSlotPicker({
               onClick={() => onSelect(s)}
               style={{
                 padding: '10px 0', borderRadius: 10, 
-                border: `1px solid ${active ? '#6c47ff' : blocked ? 'rgba(239,68,68,0.1)' : 'var(--table-border)'}`,
-                background: active ? 'rgba(108,71,255,0.1)' : blocked? 'rgba(239,68,68,0.03)' : 'var(--input-bg)',
-                color: active ? '#6c47ff' : blocked ? '#ef4444' : 'var(--text-mid)',
+                border: `1px solid ${active ? '#6c47ff' : blocked ? 'rgba(245,158,11,0.2)' : 'var(--table-border)'}`,
+                background: active ? 'rgba(108,71,255,0.1)' : blocked? 'rgba(245,158,11,0.08)' : 'var(--input-bg)',
+                color: active ? '#6c47ff' : blocked ? '#f59e0b' : 'var(--text-mid)',
                 fontSize: 11, fontWeight: active ? 700 : 600, 
                 cursor: blocked ? 'not-allowed' : 'pointer', 
                 transition: 'all 0.15s',
-                opacity: blocked ? 0.6 : 1,
+                opacity: blocked ? 0.8 : 1,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2
               }}
             >
@@ -268,7 +288,7 @@ function Calendar({
     const map: Record<string, InterviewStatus[]> = {}
     for (const iv of interviews) {
       if (iv.status === 'cancelled') continue
-      const d = new Date(iv.scheduled_at)
+      const d = parseISO(iv.scheduled_at)
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
       if (!map[key]) map[key] = []
       map[key].push(iv.status)
@@ -376,7 +396,7 @@ function ScheduleForm({
       const [hh, mm] = selectedTime.split(':')
       const d = new Date(selectedDate)
       d.setHours(parseInt(hh), parseInt(mm), 0, 0)
-      return d.toISOString().slice(0, 16)
+      return d.toISOString()
     })() : ''
     
     reset({
@@ -390,14 +410,13 @@ function ScheduleForm({
     })
   }, [reset, preselectedCandidateId, selectedDate, selectedTime])
 
-  // 2. Sync date/time from calendar
+  // 2. Sync date/time from calendar - store full ISO with timezone
   useEffect(() => {
     if (selectedDate && selectedTime) {
       const [hh, mm] = selectedTime.split(':')
       const targetDate = new Date(selectedDate)
       targetDate.setHours(parseInt(hh), parseInt(mm), 0, 0)
-      const isoStr = targetDate.toISOString().slice(0, 16)
-      setValue('scheduled_at', isoStr)
+      setValue('scheduled_at', targetDate.toISOString())
     }
   }, [selectedDate, selectedTime, setValue])
 
@@ -414,7 +433,7 @@ function ScheduleForm({
 
   const mutation = useMutation({
     mutationFn: (data: ScheduleForm) => {
-      const scheduledIso = new Date(data.scheduled_at).toISOString()
+      const scheduledIso = data.scheduled_at
       const selectedStage = SCHEDULE_TITLES.find(t => t.value === data.title)
       const payload = {
         candidate_id: data.candidate_id, 
@@ -519,116 +538,133 @@ function InterviewCard({
   onCancel: () => void
   onToggleScorecard: () => void
 }) {
-  const cfg = STATUS_CONFIG[interview.status] ?? STATUS_CONFIG.scheduled
-  const d = new Date(interview.scheduled_at)
-  const typeIcon = TYPE_ICONS[interview.interview_type] ?? '📋'
+  const d = parseISO(interview.scheduled_at)
+  const isCompleted = interview.status === 'completed'
+  const isCancelled = interview.status === 'cancelled'
+  
+  // Logic for "Live Now" - simple check if current time is within slot
+  const now = new Date()
+  const endTime = new Date(d.getTime() + (interview.duration_minutes || 60) * 60 * 1000)
+  const isLive = interview.status === 'scheduled' && now >= d && now <= endTime
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       layout
       className="glass-card"
       style={{
-        padding: '18px 20px',
-        borderRadius: 20,
-        border: '1px solid var(--sidebar-border)',
+        padding: '24px 30px',
+        borderRadius: 24,
+        border: isLive ? '2px solid #10b981' : '1px solid var(--sidebar-border)',
         background: 'var(--sidebar-bg)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+        boxShadow: '0 4px 30px rgba(0,0,0,0.03)',
         position: 'relative',
-        overflow: 'hidden'
+        display: 'flex',
+        alignItems: 'center',
+        gap: 40,
+        opacity: isCancelled ? 0.6 : 1
       }}
     >
-      <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: cfg.color }} />
-      
-      <div style={{ display: 'flex', gap: 20 }}>
-        {/* Time Column */}
-        <div style={{ flexShrink: 0, width: 70, textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 900, color: '#6c47ff', marginBottom: 2 }}>
-            {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
-          </p>
-          <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      {isLive && (
+        <div style={{ position: 'absolute', top: 20, left: 0, width: 4, height: 'calc(100% - 40px)', background: '#10b981', borderRadius: '0 4px 4px 0' }} />
+      )}
+
+      {/* 1. Time Column */}
+      <div style={{ flexShrink: 0, width: 100, textAlign: 'left' }}>
+        <p style={{ fontSize: 24, fontWeight: 900, color: '#6c47ff', margin: 0, lineHeight: 1 }}>
+          {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', opacity: 0.6, textTransform: 'uppercase' }}>
             {d.getHours() >= 12 ? 'PM' : 'AM'}
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-light)', opacity: 0.4 }}>Today</span>
+        </div>
+      </div>
+
+      {/* 2. Info Column */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ marginBottom: 12 }}>
+          <h4 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: '0 0 4px 0' }}>
+            {interview.candidate_name || 'Unnamed Candidate'}
+          </h4>
+          <p style={{ fontSize: 13, color: 'var(--text-light)', fontWeight: 600, margin: 0 }}>
+            {interview.title} · {interview.duration_minutes} min slot
           </p>
         </div>
 
-        {/* Info Column */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <Avatar name={interview.candidate_name || 'C'} size="sm" />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {interview.candidate_name || 'Unnamed Candidate'}
-                </h4>
-                <Badge variant={cfg.variant}>{cfg.label}</Badge>
-              </div>
-              <p style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 600 }}>{interview.title}</p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>
-              <span>{typeIcon}</span> {interview.interview_type.replace(/_/g, ' ')}
+        {/* Skills Tags */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {(interview.candidate_skills || ['React', 'Node.js', 'PostgreSQL']).map(skill => (
+            <span 
+              key={skill}
+              style={{ 
+                padding: '4px 12px', borderRadius: 20, background: 'rgba(108,71,255,0.08)', 
+                color: '#6c47ff', fontSize: 11, fontWeight: 700 
+              }}
+            >
+              {skill}
             </span>
-            <span style={{ fontSize: 11, color: 'var(--text-light)', opacity: 0.4 }}>•</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>
-              ⏱️ {interview.duration_minutes}m
+          ))}
+          {interview.candidate_experience && (
+            <span style={{ padding: '4px 12px', borderRadius: 20, background: 'rgba(255,107,198,0.08)', color: '#ff6bc6', fontSize: 11, fontWeight: 700 }}>
+              {interview.candidate_experience} yrs
             </span>
-            {interview.meeting_link && (
-              <>
-                 <span style={{ fontSize: 11, color: 'var(--text-light)', opacity: 0.4 }}>•</span>
-                 <a 
-                  href={interview.meeting_link} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  style={{ fontSize: 11, fontWeight: 800, color: '#6c47ff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                  🔗 Meet Link
-                </a>
-              </>
-            )}
-          </div>
-
-          {/* Panelists */}
-          {interview.panelists && interview.panelists.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex' }}>
-                {interview.panelists.slice(0, 3).map((p, idx) => (
-                  <div key={p.id} style={{ marginLeft: idx === 0 ? 0 : -8, border: '2px solid var(--sidebar-bg)', borderRadius: '50%' }}>
-                    <Avatar name={p.user_name || 'P'} size="xs" />
-                  </div>
-                ))}
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', opacity: 0.8 }}>
-                with {interview.panelists[0]?.user_name?.split(' ')[0]} 
-                {interview.panelists.length > 1 ? ` & ${interview.panelists.length - 1} more` : ''}
-              </span>
-            </div>
           )}
         </div>
 
-        {/* Actions Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
-          {interview.status === 'scheduled' && (
-            <>
-              <button 
-                onClick={onCancel}
-                style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.05)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.15)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                Cancel
-              </button>
-            </>
-          )}
-           {interview.status === 'completed' && interview.application_id && (
-              <button 
-                onClick={onToggleScorecard}
-                style={{ padding: '6px 14px', borderRadius: 10, background: expandedScorecard ? '#6c47ff15' : 'var(--input-bg)', color: expandedScorecard ? '#6c47ff' : 'var(--text-mid)', border: `1px solid ${expandedScorecard ? '#6c47ff30' : 'var(--sidebar-border)'}`, fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                {expandedScorecard ? 'Close' : 'Scores'}
-              </button>
-           )}
-        </div>
+        {/* Meet Link */}
+        {interview.meeting_link && !isCompleted && !isCancelled && (
+           <a 
+            href={interview.meeting_link} 
+            target="_blank" 
+            rel="noreferrer"
+            style={{ fontSize: 13, fontWeight: 800, color: '#00d4c8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <span>🎥</span> {interview.meeting_link.replace('https://', '')}
+          </a>
+        )}
+      </div>
+
+      {/* 3. Actions Column */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 140 }}>
+        {isLive ? (
+          <button 
+            onClick={() => window.open(interview.meeting_link || '#', '_blank')}
+            style={{ width: '100%', padding: '10px 0', borderRadius: 12, background: '#6c47ff', color: '#fff', border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+          >
+            Enter Room
+          </button>
+        ) : interview.status === 'scheduled' ? (
+          <button 
+            style={{ width: '100%', padding: '10px 0', borderRadius: 12, background: '#10b981', color: '#fff', border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+          >
+            ✓ Confirm
+          </button>
+        ) : isCompleted ? (
+          <button 
+            onClick={onToggleScorecard}
+            style={{ width: '100%', padding: '10px 0', borderRadius: 12, background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', color: '#fff', border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+          >
+            📊 Scorecard
+          </button>
+        ) : null}
+
+        <button 
+          style={{ width: '100%', padding: '10px 0', borderRadius: 12, background: 'rgba(108,71,255,0.05)', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.1)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+        >
+          View Resume
+        </button>
+
+        {!isCompleted && !isCancelled && (
+          <button 
+            onClick={onCancel}
+            style={{ width: '100%', padding: '10px 0', borderRadius: 12, background: 'transparent', color: 'var(--text-light)', border: '1px solid var(--sidebar-border)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+          >
+            {isLive ? 'Prep Kit' : 'Reschedule'}
+          </button>
+        )}
       </div>
 
       <AnimatePresence>
@@ -637,9 +673,9 @@ function InterviewCard({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: 'hidden' }}
+            style={{ position: 'absolute', top: '100%', left: 0, width: '100%', zIndex: 10, background: 'var(--sidebar-bg)', borderRadius: '0 0 24px 24px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', border: '1px solid var(--sidebar-border)', borderTop: 'none' }}
           >
-            <div style={{ marginTop: 16 }}>
+            <div style={{ padding: 20 }}>
               <ScorecardAccordion applicationId={interview.application_id} />
             </div>
           </motion.div>
@@ -683,7 +719,7 @@ export default function InterviewsListPage() {
     return interviews.filter((iv) => {
       if (statusFilter !== 'all' && iv.status !== statusFilter) return false
       if (selectedDate) {
-        const d = new Date(iv.scheduled_at)
+        const d = parseISO(iv.scheduled_at)
         if (d.getFullYear() !== selectedDate.getFullYear() ||
             d.getMonth() !== selectedDate.getMonth() ||
             d.getDate() !== selectedDate.getDate()) return false
@@ -708,13 +744,24 @@ export default function InterviewsListPage() {
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.8px', marginBottom: 4 }}>
-            Schedule
+        <div style={{ paddingBottom: 20 }}>
+          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 42, fontWeight: 900, color: 'var(--text)', letterSpacing: '-1.5px', marginBottom: 8 }}>
+            My Interview Queue
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-light)', fontWeight: 500 }}>Auto-conflict-free scheduling with instant Meet links.</p>
+          <p style={{ fontSize: 16, color: 'var(--text-light)', fontWeight: 500 }}>Your assigned interviews today — confirm, reschedule or jump into the live room.</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 14 }}>
+           <button
+             style={{
+               display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 14,
+               fontSize: 14, fontWeight: 800, cursor: 'pointer',
+               background: '#6c47ff', color: '#fff',
+               border: 'none', boxShadow: '0 8px 24px rgba(108,71,255,0.2)'
+             }}
+           >
+             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+             Enter Live Room
+           </button>
            {user && !user.is_calendar_connected && (
             <button
               onClick={async () => {
@@ -729,13 +776,15 @@ export default function InterviewsListPage() {
                 border: '1px solid rgba(108,71,255,0.2)',
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(108,71,255,0.15)'
-                e.currentTarget.style.transform = 'translateY(-1px)'
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+                const target = e.currentTarget as HTMLButtonElement
+                target.style.background = 'rgba(108,71,255,0.15)'
+                target.style.transform = 'translateY(-1px)'
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(108,71,255,0.1)'
-                e.currentTarget.style.transform = 'translateY(0)'
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+                const target = e.currentTarget as HTMLButtonElement
+                target.style.background = 'rgba(108,71,255,0.1)'
+                target.style.transform = 'translateY(0)'
               }}
             >
               📅 Connect Google Calendar
@@ -794,56 +843,100 @@ export default function InterviewsListPage() {
           </div>
         </div>
 
-        {/* Right Column: Upcoming Interviews */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minHeight: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-             <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>Upcoming Interviews</h3>
-             <div style={{ display: 'flex', gap: 8 }}>
-                {(['all', 'scheduled', 'completed'] as const).map(f => (
-                  <button 
-                    key={f} 
-                    onClick={() => setStatusFilter(f)}
-                    style={{ 
-                      padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', cursor: 'pointer',
-                      background: statusFilter === f ? '#6c47ff15' : 'transparent',
-                      color: statusFilter === f ? '#6c47ff' : 'var(--text-light)',
-                      border: `1px solid ${statusFilter === f ? '#6c47ff30' : 'var(--sidebar-border)'}`,
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {f}
-                  </button>
-                ))}
-             </div>
-          </div>
-
-          <div 
-            style={{ 
-              flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingRight: 10,
-              paddingBottom: 40
-            }}
-          >
-            {isLoading ? (
-               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} style={{ height: 120, borderRadius: 20, background: 'var(--sidebar-bg)', border: '1px solid var(--sidebar-border)', opacity: 0.5 }} className="animate-pulse" />
-              ))
-            ) : filteredInterviews.length === 0 ? (
-               <EmptyState 
-                  title="No interviews found"
-                  description="Use the calendar to pick a different date or schedule a new one."
-               />
-            ) : (
-                filteredInterviews.map(iv => (
-                   <InterviewCard
+        {/* Right Column: Interview Queue Sections */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 40, minHeight: 0, paddingRight: 10, overflowY: 'auto' }}>
+          
+          {/* Section: Live Now */}
+          {(() => {
+            const now = new Date()
+            const live = filteredInterviews.filter((iv: Interview) => {
+              const start = parseISO(iv.scheduled_at)
+              const end = new Date(start.getTime() + (iv.duration_minutes || 60) * 60 * 1000)
+              return iv.status === 'scheduled' && now >= start && now <= end
+            })
+            if (live.length === 0) return null
+            return (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+                  <h3 style={{ fontSize: 12, fontWeight: 900, color: '#10b981', textTransform: 'uppercase', letterSpacing: '1.5px', margin: 0 }}>Live Now</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {live.map(iv => (
+                    <InterviewCard
                       key={iv.id}
                       interview={iv}
                       expandedScorecard={expandedScorecard === iv.id}
                       onCancel={() => setCancelTarget(iv)}
                       onToggleScorecard={() => setExpandedScorecard(expandedScorecard === iv.id ? null : iv.id)}
-                   />
-                ))
-            )}
-          </div>
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Section: Upcoming Today */}
+          {(() => {
+            const now = new Date()
+            const upcoming = filteredInterviews.filter((iv: Interview) => {
+              const start = parseISO(iv.scheduled_at)
+              return iv.status === 'scheduled' && start > now
+            })
+            return (
+              <div>
+                <h3 style={{ fontSize: 12, fontWeight: 900, color: 'var(--text-light)', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 20 }}>Upcoming Today</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                   {upcoming.length === 0 ? (
+                      <p style={{ fontSize: 14, color: 'var(--text-light)', opacity: 0.5 }}>No more interviews scheduled for today.</p>
+                   ) : upcoming.map((iv: Interview) => (
+                    <InterviewCard
+                      key={iv.id}
+                      interview={iv}
+                      expandedScorecard={expandedScorecard === iv.id}
+                      onCancel={() => setCancelTarget(iv)}
+                      onToggleScorecard={() => setExpandedScorecard(expandedScorecard === iv.id ? null : iv.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Section: Completed */}
+          {(() => {
+            const now = new Date()
+            const completed = filteredInterviews.filter((iv: Interview) => {
+              const start = parseISO(iv.scheduled_at)
+              const end = new Date(start.getTime() + (iv.duration_minutes || 60) * 60 * 1000)
+              return iv.status === 'completed' || end < now
+            })
+            if (completed.length === 0) return null
+            return (
+              <div style={{ paddingBottom: 60 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 900, color: 'var(--text-light)', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 20 }}>Completed</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {completed.map((iv: Interview) => (
+                    <InterviewCard
+                      key={iv.id}
+                      interview={iv}
+                      expandedScorecard={expandedScorecard === iv.id}
+                      onCancel={() => setCancelTarget(iv)}
+                      onToggleScorecard={() => setExpandedScorecard(expandedScorecard === iv.id ? null : iv.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
+          {isLoading && (
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} style={{ height: 160, borderRadius: 24, background: 'var(--sidebar-bg)', border: '1px solid var(--sidebar-border)', opacity: 0.5 }} className="animate-pulse" />
+                ))}
+             </div>
+          )}
         </div>
       </div>
 

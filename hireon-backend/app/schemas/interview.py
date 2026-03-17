@@ -56,6 +56,10 @@ class InterviewOut(OrmSchema):
     location: str | None = None
     notes: str | None = None
     feedback: str | None = None
+    candidate_name: str | None = None
+    candidate_email: str | None = None
+    candidate_skills: list[str] | None = None
+    candidate_experience: float | None = None
     panelists: list[PanelistOut] = []
     created_at: datetime
     updated_at: datetime

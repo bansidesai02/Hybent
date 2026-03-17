@@ -197,8 +197,8 @@ function InterviewCard({
 
       {/* time block */}
       <div style={{
-        width: 80, flexShrink: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', padding: '20px 0',
+        width: 90, flexShrink: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', padding: '20px 0 20px 12px',
         borderRight: '1px solid var(--card-border)',
       }}>
         <span style={{
@@ -243,66 +243,107 @@ function InterviewCard({
         justifyContent: 'center', gap: 8, padding: '18px 20px', flexShrink: 0,
       }}>
         {live ? (
-          <button
-            onClick={onEnterRoom}
-            style={{
-              padding: '9px 20px', borderRadius: 10, background: '#6c47ff',
-              color: '#fff', fontWeight: 700, fontSize: 13, border: 'none',
-              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
-            }}
-          >
-            Enter Room
-          </button>
+          <>
+            <button
+              onClick={onEnterRoom}
+              style={{
+                padding: '7px 16px', borderRadius: 10, background: '#6c47ff',
+                color: '#fff', fontWeight: 700, fontSize: 12, border: '1.5px solid #6c47ff',
+                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#6c47ff' }}
+            >
+              Enter Room
+            </button>
+            <button
+              onClick={onViewResume}
+              style={{
+                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
+                fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
+            >
+              View Resume
+            </button>
+            <button
+              onClick={onPrepKit}
+              style={{
+                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
+                fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
+            >
+              Prep Kit
+            </button>
+          </>
         ) : interview.status === 'completed' ? (
-          <button
-            onClick={onScorecard}
-            style={{
-              padding: '9px 20px', borderRadius: 10, background: '#6c47ff',
-              color: '#fff', fontWeight: 700, fontSize: 13, border: 'none',
-              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
-            }}
-          >
-            View Scorecard
-          </button>
-        ) : null}
-
-        <button
-          onClick={onViewResume}
-          style={{
-            background: 'none', border: 'none', color: '#6c47ff',
-            fontWeight: 600, fontSize: 13, cursor: 'pointer',
-            padding: '2px 4px', fontFamily: 'inherit',
-          }}
-        >
-          View Resume
-        </button>
-
-        {interview.status === 'scheduled' && !live && (
-          <button
-            onClick={onReschedule}
-            style={{
-              padding: '7px 16px', borderRadius: 10,
-              background: 'none', border: '1.5px solid var(--card-border)',
-              color: 'var(--text)', fontWeight: 600, fontSize: 12,
-              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
-            }}
-          >
-            Reschedule
-          </button>
-        )}
-
-        {live && (
-          <button
-            onClick={onPrepKit}
-            style={{
-              padding: '7px 16px', borderRadius: 10,
-              background: 'none', border: '1.5px solid var(--card-border)',
-              color: 'var(--text)', fontWeight: 600, fontSize: 12,
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            Prep Kit
-          </button>
+          <>
+            <button
+              onClick={onScorecard}
+              style={{
+                padding: '7px 16px', borderRadius: 10, background: '#6c47ff',
+                color: '#fff', fontWeight: 700, fontSize: 12, border: '1.5px solid #6c47ff',
+                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#6c47ff' }}
+            >
+              View Scorecard
+            </button>
+            <button
+              onClick={onViewResume}
+              style={{
+                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
+                fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
+            >
+              View Resume
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              style={{
+                padding: '7px 16px', borderRadius: 10, background: '#10b981',
+                color: '#fff', fontWeight: 700, fontSize: 12, border: '1.5px solid #10b981',
+                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
+              }}
+            >
+              ✓ Confirm
+            </button>
+            <button
+              onClick={onViewResume}
+              style={{
+                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
+                fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
+            >
+              View Resume
+            </button>
+            <button
+              onClick={onReschedule}
+              style={{
+                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
+                fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
+            >
+              Reschedule
+            </button>
+          </>
         )}
       </div>
     </motion.div>

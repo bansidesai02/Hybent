@@ -156,6 +156,8 @@ export interface Interview {
   application_id: string | null
   candidate_name?: string
   candidate_email?: string
+  candidate_skills?: string[]
+  candidate_experience?: number
   title: string
   interview_type: InterviewType
   status: InterviewStatus
