@@ -3,7 +3,14 @@ import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useActivityStore } from '@/store/activityStore'
 
-const WS_BASE = import.meta.env.VITE_API_BASE_URL?.replace('http', 'ws') ?? 'ws://localhost:8000'
+const getWsBase = () => {
+  const { protocol, host } = window.location
+  const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || `${wsProtocol}//${host}`
+  return baseUrl.startsWith('http') ? baseUrl.replace('http', 'ws') : baseUrl
+}
+
+const WS_BASE = getWsBase()
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
