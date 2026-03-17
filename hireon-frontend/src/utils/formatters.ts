@@ -1,7 +1,7 @@
 import { format, formatDistanceToNow } from 'date-fns'
 
 // Helper to ensure dates from API are treated as UTC if they lack a timezone
-export function safeParseDate(date: string | null | undefined): Date | null {
+function safeParseDate(date: string | null | undefined): Date | null {
   if (!date) return null
   const cleaned = date.includes('T') ? date : date.replace(' ', 'T')
   const withZ = (cleaned.endsWith('Z') || cleaned.includes('+')) ? cleaned : cleaned + 'Z'

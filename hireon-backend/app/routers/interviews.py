@@ -41,14 +41,13 @@ async def list_interviews(current_user: CurrentUser, db: DB):
     interviews = result.scalars().all()
     out = []
     for iv in interviews:
-        # Enrich with candidate name
+        # Enrich with candidate name and skills
         d = InterviewOut.model_validate(iv).model_dump()
         cand = (await db.execute(select(Candidate).where(Candidate.id == iv.candidate_id))).scalar_one_or_none()
         if cand:
             d["candidate_name"] = cand.full_name
             d["candidate_email"] = cand.email
-            d["candidate_skills"] = cand.skills
-            d["candidate_experience"] = cand.years_experience
+            d["candidate_skills"] = cand.skills or []
         panelists_result = await db.execute(
             select(InterviewPanelist).where(InterviewPanelist.interview_id == iv.id)
         )
@@ -63,6 +62,22 @@ async def list_interviews(current_user: CurrentUser, db: DB):
         d["panelists"] = panelist_out
         out.append(d)
     return out
+
+
+@router.post("/{interview_id}/confirm", response_model=dict)
+async def confirm_interview(interview_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    result = await db.execute(
+        select(Interview).where(
+            Interview.id == interview_id,
+        )
+    )
+    interview = result.scalar_one_or_none()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    
+    interview.is_confirmed = True
+    await db.commit()
+    return {"status": "success", "is_confirmed": True}
 
 
 @router.post("", response_model=dict, status_code=201)
