@@ -163,7 +163,7 @@ function ResumeModal({
 /* ── card component ───────────────────────────────────────────────────── */
 function InterviewCard({
   interview, live, delay,
-  onEnterRoom, onViewResume, onPrepKit, onReschedule, onScorecard,
+  onEnterRoom, onViewResume, onPrepKit, onReschedule, onScorecard, onConfirm,
 }: {
   interview: Interview
   live: boolean
@@ -173,178 +173,193 @@ function InterviewCard({
   onPrepKit: () => void
   onReschedule: () => void
   onScorecard: () => void
+  onConfirm: () => void
 }) {
   const ampm = fmtAmPm(interview.scheduled_at)
   const hourMin = fmtHourOnly(interview.scheduled_at)
-  const borderColor = live ? '#16a34a' : '#6c47ff'
+  const borderColor = live ? '#16a34a' : interview.status === 'completed' ? '#d1d5db' : '#6c47ff'
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
+      whileHover={{ y: -2, boxShadow: '0 8px 30px rgba(0,0,0,0.08)' }}
       style={{
         display: 'flex', gap: 0,
         background: 'var(--card-bg)',
         border: '1px solid var(--card-border)',
-        borderRadius: 16,
+        borderRadius: 20,
         overflow: 'hidden',
-        boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+        transition: 'all 0.3s ease',
       }}
     >
-      {/* left accent bar */}
-      <div style={{ width: 5, flexShrink: 0, background: borderColor }} />
-
-      {/* time block */}
+      {/* Time Column */}
       <div style={{
-        width: 90, flexShrink: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', padding: '20px 0 20px 12px',
+        width: 100, flexShrink: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', padding: '24px 0',
         borderRight: '1px solid var(--card-border)',
+        background: live ? 'rgba(22,163,74,0.03)' : 'transparent'
       }}>
         <span style={{
-          fontSize: 26, fontWeight: 900, color: '#6c47ff', lineHeight: 1,
+          fontSize: 28, fontWeight: 900, color: live ? '#16a34a' : '#6c47ff', lineHeight: 1,
           fontFamily: "'Fraunces', serif", letterSpacing: '-1px',
         }}>
           {hourMin}
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', marginTop: 2 }}>{ampm}</span>
-        <span style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 3, fontWeight: 500 }}>Today</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: live ? '#16a34a' : '#6c47ff', textTransform: 'uppercase' }}>{ampm}</span>
+          <span style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontWeight: 600 }}>Today</span>
+        </div>
       </div>
 
-      {/* main content */}
-      <div style={{ flex: 1, padding: '18px 20px', minWidth: 0 }}>
-        <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 3 }}>
-          {interview.candidate_name || interview.title}
-        </p>
-        <p style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 10 }}>
-          {interviewTypeLabel(interview.interview_type)} · {interview.duration_minutes} min slot
-        </p>
+      {/* Info Column */}
+      <div style={{ flex: 1, padding: '22px 24px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div>
+          <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: '0 0 4px 0' }}>
+            {interview.candidate_name || interview.title}
+          </h3>
+          <p style={{ fontSize: 13, color: 'var(--text-mid)', fontWeight: 500 }}>
+            {interviewTypeLabel(interview.interview_type)} · {interview.duration_minutes} min slot
+          </p>
+        </div>
 
-        {/* meeting link */}
-        {interview.meeting_link && (
+        {/* Skills Rail */}
+        {interview.candidate_skills && interview.candidate_skills.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '2px 0' }}>
+            {interview.candidate_skills.slice(0, 5).map(skill => (
+              <span key={skill} style={{
+                padding: '4px 10px', borderRadius: 8, background: 'rgba(108,71,255,0.06)',
+                color: '#6c47ff', fontSize: 11, fontWeight: 700, border: '1px solid rgba(108,71,255,0.1)'
+              }}>
+                {skill}
+              </span>
+            ))}
+            {interview.candidate_skills.length > 5 && (
+              <span style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 600, alignSelf: 'center', marginLeft: 4 }}>
+                +{interview.candidate_skills.length - 5} more
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Meeting Link */}
+        {interview.meeting_link && interview.status !== 'completed' && (
           <a
             href={interview.meeting_link}
             target="_blank"
             rel="noreferrer"
             style={{
-              fontSize: 12, color: '#6c47ff', fontWeight: 600,
-              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5,
+              fontSize: 12, color: '#6c47ff', fontWeight: 700,
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+              marginTop: 4
             }}
           >
-            <span>🎥</span>
+            <span style={{ fontSize: 14 }}>🔗</span>
             {interview.meeting_link.replace(/^https?:\/\//, '')}
           </a>
         )}
       </div>
 
-      {/* action buttons */}
+      {/* Actions Column */}
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-        justifyContent: 'center', gap: 8, padding: '18px 20px', flexShrink: 0,
+        justifyContent: 'center', gap: 8, padding: '22px 24px', flexShrink: 0,
       }}>
         {live ? (
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            onClick={onEnterRoom}
+            style={{
+              padding: '10px 24px', borderRadius: 12, background: '#6c47ff',
+              color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
+              cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(108,71,255,0.3)',
+            }}
+          >
+            Enter Room
+          </motion.button>
+        ) : interview.status === 'scheduled' ? (
           <>
-            <button
-              onClick={onEnterRoom}
-              style={{
-                padding: '7px 16px', borderRadius: 10, background: '#6c47ff',
-                color: '#fff', fontWeight: 700, fontSize: 12, border: '1.5px solid #6c47ff',
-                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', transition: 'all 0.18s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#6c47ff' }}
-            >
-              Enter Room
-            </button>
-            <button
-              onClick={onViewResume}
-              style={{
-                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
-                fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
-            >
-              View Resume
-            </button>
-            <button
-              onClick={onPrepKit}
-              style={{
-                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
-                fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
-            >
-              Prep Kit
-            </button>
+            {!interview.is_confirmed && (
+              <motion.button
+                whileHover={{ scale: 1.02, background: '#15803d' }} whileTap={{ scale: 0.98 }}
+                onClick={onConfirm}
+                style={{
+                  padding: '9px 24px', borderRadius: 10, background: '#16a34a',
+                  color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
+                  cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6,
+                  boxShadow: '0 4px 12px rgba(22,163,74,0.2)',
+                }}
+              >
+                ✓ Confirm
+              </motion.button>
+            )}
+            {interview.is_confirmed && (
+              <div style={{
+                padding: '6px 12px', borderRadius: 10, background: 'rgba(22,163,74,0.1)',
+                color: '#16a34a', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 5
+              }}>
+                <span style={{ fontSize: 14 }}>✅</span> Confirmed
+              </div>
+            )}
           </>
-        ) : interview.status === 'completed' ? (
-          <>
-            <button
-              onClick={onScorecard}
-              style={{
-                padding: '7px 16px', borderRadius: 10, background: '#6c47ff',
-                color: '#fff', fontWeight: 700, fontSize: 12, border: '1.5px solid #6c47ff',
-                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', transition: 'all 0.18s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#6c47ff' }}
-            >
-              View Scorecard
-            </button>
-            <button
-              onClick={onViewResume}
-              style={{
-                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
-                fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', transition: 'all 0.18s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
-            >
-              View Resume
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              style={{
-                padding: '7px 16px', borderRadius: 10, background: '#10b981',
-                color: '#fff', fontWeight: 700, fontSize: 12, border: '1.5px solid #10b981',
-                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
-              }}
-            >
-              ✓ Confirm
-            </button>
-            <button
-              onClick={onViewResume}
-              style={{
-                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
-                fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
-            >
-              View Resume
-            </button>
-            <button
+        ) : interview.status === 'completed' && (
+           <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            onClick={onScorecard}
+            style={{
+              padding: '10px 24px', borderRadius: 12, background: '#3b82f6',
+              color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
+              cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
+              display: 'flex', alignItems: 'center', gap: 6
+            }}
+          >
+            📊 Scorecard
+          </motion.button>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+          <motion.button
+            whileHover={{ background: 'rgba(108,71,255,0.05)' }}
+            onClick={onViewResume}
+            style={{
+              padding: '8px 16px', borderRadius: 10, background: 'transparent',
+              border: '1px solid var(--card-border)', color: 'var(--text-mid)',
+              fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center'
+            }}
+          >
+            View Resume
+          </motion.button>
+
+          {interview.status === 'scheduled' && (
+            <motion.button
+              whileHover={{ background: 'rgba(108,71,255,0.05)' }}
               onClick={onReschedule}
               style={{
-                background: 'rgba(108,71,255,0.08)', border: '1.5px solid #6c47ff', color: '#6c47ff',
-                fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.18s',
+                padding: '8px 16px', borderRadius: 10, background: 'transparent',
+                border: '1px solid var(--card-border)', color: 'var(--text-mid)',
+                fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center'
               }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.6)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(108,71,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#6c47ff' }}
             >
               Reschedule
-            </button>
-          </>
-        )}
+            </motion.button>
+          )}
+
+          {live && (
+            <motion.button
+              whileHover={{ background: 'rgba(108,71,255,0.05)' }}
+              onClick={onPrepKit}
+              style={{
+                padding: '8px 16px', borderRadius: 10, background: 'transparent',
+                border: '1px solid var(--card-border)', color: 'var(--text-mid)',
+                fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center'
+              }}
+            >
+              Prep Kit
+            </motion.button>
+          )}
+        </div>
       </div>
     </motion.div>
   )
@@ -353,14 +368,15 @@ function InterviewCard({
 /* ── section label ────────────────────────────────────────────────────── */
 function SectionLabel({ dot, color, label }: { dot: string; color: string; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, marginTop: 8 }}>
       <span style={{
-        width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0,
-        boxShadow: `0 0 0 3px ${dot}33`,
+        width: 10, height: 10, borderRadius: '50%', background: dot, flexShrink: 0,
+        boxShadow: `0 0 0 4px ${dot}22`,
       }} />
-      <span style={{ fontSize: 11, fontWeight: 800, color, letterSpacing: '1.2px' }}>
+      <span style={{ fontSize: 12, fontWeight: 900, color, letterSpacing: '1.5px', textTransform: 'uppercase' }}>
         {label}
       </span>
+      <div style={{ height: 1, flex: 1, background: 'var(--card-border)', opacity: 0.5, marginLeft: 10 }} />
     </div>
   )
 }
@@ -368,9 +384,10 @@ function SectionLabel({ dot, color, label }: { dot: string; color: string; label
 /* ── main ─────────────────────────────────────────────────────────────── */
 export default function MyInterviewsPage() {
   const navigate = useNavigate()
+  const queryControl = (window as any).queryClient
   const [resumeInterview, setResumeInterview] = useState<Interview | null>(null)
 
-  const { data: interviews, isLoading, isError } = useQuery({
+  const { data: interviews, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-interviews'],
     queryFn: () => interviewsApi.list().then((r) => r.data),
   })
@@ -381,12 +398,25 @@ export default function MyInterviewsPage() {
     enabled: !!resumeInterview,
   })
 
-  const liveNow     = interviews?.filter(isLiveNow) ?? []
+  const liveNow       = interviews?.filter(isLiveNow) ?? []
   const upcomingToday = interviews?.filter(
     (i) => isToday(i.scheduled_at) && i.status === 'scheduled' && !isLiveNow(i)
   ).sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()) ?? []
+  
+  const completedToday = interviews?.filter(
+    (i) => isToday(i.scheduled_at) && (i.status === 'completed' || i.status === 'no_show')
+  ).sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()) ?? []
 
   const firstLive = liveNow[0]
+
+  const handleConfirm = async (id: string) => {
+    try {
+      await interviewsApi.confirm(id)
+      refetch()
+    } catch (err) {
+      console.error('Failed to confirm interview', err)
+    }
+  }
 
   const handlers = (i: Interview) => ({
     onEnterRoom:  () => navigate(`/interviewer/live-room/${i.id}`),
@@ -394,74 +424,72 @@ export default function MyInterviewsPage() {
     onPrepKit:    () => navigate(`/interviewer/prep-kit/${i.id}`),
     onReschedule: () => navigate('/interviewer/interviews'),
     onScorecard:  () => navigate(`/interviewer/scorecard/${i.id}`),
+    onConfirm:    () => handleConfirm(i.id),
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingBottom: 40 }}>
 
       {/* ── header ───────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
         <div>
           <h1 style={{
-            fontSize: 24, fontWeight: 900, color: 'var(--text)',
-            fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 10,
+            fontSize: 28, fontWeight: 900, color: 'var(--text)',
+            fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 12,
+            margin: 0
           }}>
-            <span>📥</span> My Interview Queue
+            <span style={{ fontSize: 32 }}>📥</span> My Interview Queue
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 5 }}>
-            Your assigned interviews today — reschedule or jump into the live room.
+          <p style={{ fontSize: 14, color: 'var(--text-mid)', marginTop: 8, fontWeight: 500 }}>
+            Your assigned interviews today — confirm, reschedule or jump into the live room.
           </p>
         </div>
 
         {firstLive ? (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
             onClick={() => navigate(`/interviewer/live-room/${firstLive.id}`)}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 20px', borderRadius: 12,
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              padding: '12px 24px', borderRadius: 14,
               background: '#6c47ff', color: '#fff',
-              fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', flexShrink: 0,
+              fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer',
+              flexShrink: 0, boxShadow: '0 8px 20px rgba(108,71,255,0.4)',
             }}
           >
-            <span style={{
-              width: 9, height: 9, borderRadius: '50%', background: '#4ade80',
-              boxShadow: '0 0 0 3px rgba(74,222,128,0.4)',
-              animation: 'pulse 1.5s ease-in-out infinite',
-            }} />
+             <span className="dot-pulse" style={{ width: 10, height: 10, borderRadius: '50%', background: '#4ade80' }} />
             Enter Live Room
-          </button>
+          </motion.button>
         ) : (
-          <button
-            onClick={() => navigate('/interviewer/interviews')}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 20px', borderRadius: 12,
-              background: '#6c47ff', color: '#fff',
-              fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', flexShrink: 0, opacity: 0.7,
-            }}
-          >
-            <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d1d5db' }} />
+          <div style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            padding: '12px 24px', borderRadius: 14,
+            background: 'var(--card-border)', color: 'var(--text-light)',
+            fontWeight: 800, fontSize: 14, border: 'none',
+            flexShrink: 0, opacity: 0.6
+          }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#d1d5db' }} />
             Enter Live Room
-          </button>
+          </div>
         )}
       </div>
 
       {/* ── loading ───────────────────────────────────────────────────── */}
       {isLoading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {[1, 2, 3].map((n) => (
             <div key={n} style={{
               display: 'flex', gap: 0, border: '1px solid var(--card-border)',
-              borderRadius: 16, overflow: 'hidden', height: 100,
+              borderRadius: 20, overflow: 'hidden', height: 120, background: 'var(--card-bg)'
             }}>
-              <div style={{ width: 5, background: '#e5e7eb' }} />
-              <div style={{ width: 80, background: '#f9fafb', borderRight: '1px solid var(--card-border)' }} />
-              <div style={{ flex: 1, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-3 w-32" />
+              <div style={{ width: 100, background: 'var(--card-border)', opacity: 0.1 }} />
+              <div style={{ flex: 1, padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Skeleton className="h-5 w-64" />
                 <Skeleton className="h-3 w-40" />
+                <div style={{ display: 'flex', gap: 8 }}>
+                   <Skeleton className="h-6 w-16" />
+                   <Skeleton className="h-6 w-16" />
+                </div>
               </div>
             </div>
           ))}
@@ -472,49 +500,66 @@ export default function MyInterviewsPage() {
       {isError && (
         <div style={{
           background: '#fef2f2', border: '1px solid #fecaca',
-          borderRadius: 12, padding: '14px 18px', fontSize: 13, color: '#dc2626',
+          borderRadius: 16, padding: '20px', fontSize: 14, color: '#dc2626',
+          fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10
         }}>
-          Failed to load interviews. Please refresh.
+          <span>⚠️</span> Failed to load interviews. Please refresh the page.
         </div>
       )}
 
-      {/* ── live now ─────────────────────────────────────────────────── */}
-      {!isLoading && liveNow.length > 0 && (
-        <div>
-          <SectionLabel dot="#16a34a" color="#16a34a" label="LIVE NOW" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {liveNow.map((i, idx) => (
-              <InterviewCard key={i.id} interview={i} live delay={idx * 0.06} {...handlers(i)} />
-            ))}
-          </div>
+      {/* ── contents ─────────────────────────────────────────────────── */}
+      {!isLoading && !isError && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          
+          {liveNow.length > 0 && (
+            <div>
+              <SectionLabel dot="#16a34a" color="#16a34a" label="LIVE NOW" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {liveNow.map((i, idx) => (
+                  <InterviewCard key={i.id} interview={i} live delay={idx * 0.06} {...handlers(i)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {upcomingToday.length > 0 && (
+            <div>
+              <SectionLabel dot="#6c47ff" color="#6c47ff" label="UPCOMING TODAY" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {upcomingToday.map((i, idx) => (
+                  <InterviewCard key={i.id} interview={i} live={false} delay={(liveNow.length + idx) * 0.06} {...handlers(i)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {completedToday.length > 0 && (
+            <div>
+              <SectionLabel dot="#94a3b8" color="#64748b" label="COMPLETED" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {completedToday.map((i, idx) => (
+                  <InterviewCard key={i.id} interview={i} live={false} delay={(liveNow.length + upcomingToday.length + idx) * 0.06} {...handlers(i)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {liveNow.length === 0 && upcomingToday.length === 0 && completedToday.length === 0 && (
+            <div style={{
+              textAlign: 'center', padding: '80px 20px',
+              color: 'var(--text-mid)', fontSize: 15,
+              background: 'var(--card-bg)', border: '1px dashed var(--card-border)', borderRadius: 24
+            }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>✨</div>
+              <p style={{ fontWeight: 800, color: 'var(--text)', fontSize: 18 }}>No interviews assigned today</p>
+              <p style={{ fontSize: 14, marginTop: 6, opacity: 0.7 }}>Enjoy your day — we'll notify you when new ones are scheduled!</p>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* ── upcoming today ────────────────────────────────────────────── */}
-      {!isLoading && upcomingToday.length > 0 && (
-        <div>
-          <SectionLabel dot="#6c47ff" color="#6c47ff" label="UPCOMING TODAY" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {upcomingToday.map((i, idx) => (
-              <InterviewCard key={i.id} interview={i} live={false} delay={idx * 0.06} {...handlers(i)} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── empty state ───────────────────────────────────────────────── */}
-      {!isLoading && !isError && liveNow.length === 0 && upcomingToday.length === 0 && (
-        <div style={{
-          textAlign: 'center', padding: '60px 20px',
-          color: 'var(--text-mid)', fontSize: 14,
-        }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
-          <p style={{ fontWeight: 700, color: 'var(--text)' }}>No interviews today</p>
-          <p style={{ fontSize: 12, marginTop: 4 }}>Enjoy the break — check back tomorrow!</p>
-        </div>
-      )}
-
-      {/* ── resume modal (portal — covers sidebar) ───────────────────── */}
+      {/* ── resume modal ───────────────────── */}
       <ResumeModal
         interview={resumeInterview}
         candidate={resumeCandidate ?? null}

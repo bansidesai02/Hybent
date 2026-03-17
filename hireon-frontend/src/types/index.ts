@@ -156,8 +156,6 @@ export interface Interview {
   application_id: string | null
   candidate_name?: string
   candidate_email?: string
-  candidate_skills?: string[]
-  candidate_experience?: number
   title: string
   interview_type: InterviewType
   status: InterviewStatus
@@ -167,6 +165,8 @@ export interface Interview {
   location: string | null
   notes: string | null
   feedback: string | null
+  is_confirmed: boolean
+  candidate_skills?: string[]
   panelists: Panelist[]
   created_at: string
   updated_at: string

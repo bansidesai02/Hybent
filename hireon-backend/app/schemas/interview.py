@@ -19,6 +19,7 @@ class InterviewCreate(BaseModel):
     meeting_link: str | None = None
     location: str | None = None
     notes: str | None = None
+    is_confirmed: bool = False
     panelist_ids: list[PanelistIn] = []
 
 
@@ -32,6 +33,7 @@ class InterviewUpdate(BaseModel):
     notes: str | None = None
     status: InterviewStatus | None = None
     feedback: str | None = None
+    is_confirmed: bool | None = None
 
 
 class PanelistOut(OrmSchema):
@@ -56,10 +58,8 @@ class InterviewOut(OrmSchema):
     location: str | None = None
     notes: str | None = None
     feedback: str | None = None
-    candidate_name: str | None = None
-    candidate_email: str | None = None
-    candidate_skills: list[str] | None = None
-    candidate_experience: float | None = None
+    is_confirmed: bool
+    candidate_skills: list[str] = []
     panelists: list[PanelistOut] = []
     created_at: datetime
     updated_at: datetime

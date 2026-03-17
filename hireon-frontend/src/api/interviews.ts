@@ -23,4 +23,6 @@ export const interviewsApi = {
 
   cancel: (id: string, reason?: string) => 
     api.delete(`/v1/interviews/${id}`, { params: { reason } }),
+
+  confirm: (id: string) => api.post<{ status: string; is_confirmed: boolean }>(`/v1/interviews/${id}/confirm`),
 }
