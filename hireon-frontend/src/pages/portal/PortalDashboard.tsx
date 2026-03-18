@@ -2,99 +2,25 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
-import { formatDateTime, formatDate, formatSalary } from '@/utils/formatters'
+import { formatDate } from '@/utils/formatters'
 
-const STAGES = ['applied', 'screening', 'interview', 'offer', 'hired'] as const
-type PipelineStage = (typeof STAGES)[number]
+const STAGES = ['applied', 'screening', 'interview', 'offer', 'hired', 'rejected'] as const
 
 function stageIndex(stage: string): number {
-  return STAGES.indexOf(stage as PipelineStage)
+  return STAGES.indexOf(stage as any)
 }
 
-function StageChip({ stage }: { stage: string }) {
-  const cfg: Record<string, { bg: string; color: string; label: string }> = {
-    applied:   { bg: 'rgba(124,58,237,0.10)', color: '#7c3aed', label: 'Applied' },
-    screening: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: 'Screening' },
-    interview: { bg: 'rgba(6,182,212,0.12)',  color: '#06b6d4', label: 'Interview' },
-    offer:     { bg: 'rgba(16,185,129,0.12)', color: '#10b981', label: 'Offer' },
-    hired:     { bg: 'rgba(16,185,129,0.16)', color: '#059669', label: 'Hired' },
-    rejected:  { bg: 'rgba(239,68,68,0.10)',  color: '#ef4444', label: 'Rejected' },
-  }
-  const c = cfg[stage] ?? cfg.applied
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '4px 11px',
-        borderRadius: 20,
-        fontSize: 11,
-        fontWeight: 600,
-        fontFamily: "'Plus Jakarta Sans', sans-serif",
-        background: c.bg,
-        color: c.color,
-      }}
-    >
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
-      {c.label}
-    </span>
-  )
-}
-
-function StageTracker({ stage }: { stage: string }) {
-  const current = stageIndex(stage)
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 16 }}>
-      {STAGES.map((s, i) => {
-        const isDone = i < current
-        const isActive = i === current
-        const isPending = i > current
-        return (
-          <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < STAGES.length - 1 ? 1 : undefined }}>
-            {/* Dot */}
-            <div
-              title={s.charAt(0).toUpperCase() + s.slice(1)}
-              style={{
-                width: isActive ? 14 : 10,
-                height: isActive ? 14 : 10,
-                borderRadius: '50%',
-                flexShrink: 0,
-                background: isDone
-                  ? 'linear-gradient(135deg,#7c3aed,#a855f7)'
-                  : isActive
-                  ? 'linear-gradient(135deg,#06b6d4,#22d3ee)'
-                  : 'rgba(176,164,204,0.35)',
-                boxShadow: isActive ? '0 0 0 4px rgba(6,182,212,0.18)' : undefined,
-                animation: isActive ? 'portal-stage-pulse 2s ease-in-out infinite' : undefined,
-                transition: 'all 0.3s',
-              }}
-            />
-            {/* Line */}
-            {i < STAGES.length - 1 && (
-              <div
-                style={{
-                  flex: 1,
-                  height: 3,
-                  borderRadius: 2,
-                  background: isDone || isActive
-                    ? 'linear-gradient(90deg,#7c3aed,#a855f7)'
-                    : 'rgba(176,164,204,0.25)',
-                  margin: '0 2px',
-                  transition: 'background 0.3s',
-                }}
-              />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
+function getProgressPercent(currentIndex: number): number {
+  if (currentIndex === 0) return 15;
+  if (currentIndex === 1) return 30;
+  if (currentIndex === 2) return 50;
+  if (currentIndex === 3) return 85;
+  if (currentIndex >= 4) return 100;
+  return 0;
 }
 
 export default function PortalDashboard() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
 
   const { data: applications, isLoading: appsLoading } = useQuery({
     queryKey: ['portal', 'applications'],
@@ -106,468 +32,202 @@ export default function PortalDashboard() {
     queryFn: () => portalApi.myInterviews().then((r) => r.data),
   })
 
-  const { data: offers, isLoading: offersLoading } = useQuery({
-    queryKey: ['portal', 'offers'],
-    queryFn: () => portalApi.myOffers().then((r) => r.data),
-  })
+  if (appsLoading || intLoading) {
+    return <div className="p-8 text-center text-[var(--text-lite)]">Loading application journey...</div>
+  }
 
-  const activeApps = applications?.filter((a) => !['hired', 'rejected'].includes(a.stage)) ?? []
-  const nextInterview = interviews
-    ?.filter((i) => i.status === 'scheduled')
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
-  const pendingOffer = offers?.find((o) => o.status === 'sent')
+  const activeApp = applications?.find(a => !['hired', 'rejected'].includes(a.stage)) || applications?.[0]
+  
+  if (!activeApp) {
+    return (
+      <div className="page active" id="page-journey">
+        <div className="ph">
+          <div className="pt">Your Application Journey 🗺️</div>
+          <div className="ps">Start applying to open roles to track your progress!</div>
+        </div>
+        <button className="btn btn-primary" onClick={() => navigate('/portal/openings')}>View Openings</button>
+      </div>
+    )
+  }
 
-  const kpis = [
-    {
-      icon: '📄',
-      value: appsLoading ? '—' : activeApps.length,
-      label: 'Active Applications',
-      iconBg: 'linear-gradient(135deg,rgba(124,58,237,.14),rgba(168,85,247,.06))',
-      badgeBg: 'rgba(124,58,237,0.12)',
-      badgeColor: '#7c3aed',
-      badgeText: 'Active',
-      href: '/portal/applications',
-    },
-    {
-      icon: '🎤',
-      value: intLoading ? '—' : (interviews?.filter((i) => i.status === 'scheduled').length ?? 0),
-      label: 'Upcoming Interviews',
-      iconBg: 'linear-gradient(135deg,rgba(6,182,212,.14),rgba(34,211,238,.06))',
-      badgeBg: 'rgba(6,182,212,0.12)',
-      badgeColor: '#06b6d4',
-      badgeText: 'Scheduled',
-      href: '/portal/interviews',
-    },
-    {
-      icon: '🎁',
-      value: offersLoading ? '—' : (offers?.length ?? 0),
-      label: 'Offers Received',
-      iconBg: 'linear-gradient(135deg,rgba(16,185,129,.14),rgba(52,211,153,.06))',
-      badgeBg: 'rgba(16,185,129,0.12)',
-      badgeColor: '#10b981',
-      badgeText: '+Active',
-      href: '/portal/offers',
-    },
-  ]
+  const currentIdx = stageIndex(activeApp.stage)
+  const isRejected = activeApp.stage === 'rejected'
+  const isHired = activeApp.stage === 'hired'
+  const progressWidth = `${getProgressPercent(currentIdx)}%`
+
+  // Sort interviews by date descending
+  const history = [...(interviews || [])].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+
+  // Calc days in process
+  const msInSys = Date.now() - new Date(activeApp.applied_at).getTime()
+  const daysInProcess = Math.max(1, Math.floor(msInSys / (1000 * 60 * 60 * 24)))
 
   return (
-    <div style={{ fontFamily: "'Sora', sans-serif", color: 'var(--p-text)' }}>
-      {/* Page title */}
-      <div style={{ marginBottom: 28 }}>
-        <h1
-          style={{
-            fontFamily: "'Fraunces', serif",
-            fontSize: 30,
-            fontWeight: 700,
-            color: 'var(--p-text)',
-            lineHeight: 1.2,
-            marginBottom: 4,
-          }}
-        >
-          Welcome back{user ? `, ${user.full_name.split(' ')[0]}` : ''}!
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--p-text-mid)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          Track your applications, interviews and offers all in one place.
-        </p>
+    <div className="page active" id="page-journey">
+      <div className="ph">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div className="pt">Your Application Journey 🗺️</div>
+            <div className="ps">Applying for <strong>{activeApp.job?.title || 'Role'}</strong> · Applied {formatDate(activeApp.applied_at)}</div>
+          </div>
+          {isRejected ? (
+            <span className="chip chip-red"><span className="chd"></span>Rejected</span>
+          ) : isHired ? (
+            <span className="chip chip-green"><span className="chd"></span>Hired!</span>
+          ) : (
+            <span className="chip chip-teal"><span className="chd"></span>Stage: {activeApp.stage.charAt(0).toUpperCase() + activeApp.stage.slice(1)}</span>
+          )}
+        </div>
       </div>
 
-      {/* KPI cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 16,
-          marginBottom: 32,
-        }}
-      >
-        {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            onClick={() => navigate(kpi.href)}
-            style={{
-              background: 'var(--p-kpi)',
-              border: '1px solid var(--p-table-border)',
-              borderRadius: 16,
-              padding: 20,
-              cursor: 'pointer',
-              transition: 'all .3s',
-              boxShadow: 'var(--p-shadow)',
-            }}
-            onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--p-shadow-h)'
-              ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'
-            }}
-            onMouseLeave={(e) => {
-              ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--p-shadow)'
-              ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between',
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 19,
-                  background: kpi.iconBg,
-                }}
-              >
-                {kpi.icon}
-              </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '3px 8px',
-                  borderRadius: 20,
-                  background: kpi.badgeBg,
-                  color: kpi.badgeColor,
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                }}
-              >
-                {kpi.badgeText}
-              </span>
+      {/* Tracker Card */}
+      <div className="card" style={{ marginBottom: 20, overflow: 'hidden' }}>
+        <div className="ctitle">
+          Stage Progress 
+          <span className="ctag teal">Step {Math.min(currentIdx + 1, 5)} of 5</span>
+        </div>
+        
+        <div className="tracker-wrap">
+          <div className="tracker-line"></div>
+          <div className="tracker-progress" style={{ width: progressWidth }}></div>
+          <div className="tracker-steps">
+            
+            <div className={`tstep ${currentIdx > 0 ? 'done' : currentIdx === 0 ? 'active' : 'pending'}`}>
+              <div className="tstep-dot">{currentIdx > 0 ? '✓' : currentIdx === 0 ? '●' : '○'}</div>
+              <div className="tstep-label">Applied</div>
+              {currentIdx >= 0 && <div className="tstep-date">{formatDate(activeApp.applied_at)}</div>}
             </div>
-            <div
-              style={{
-                fontFamily: "'Fraunces', serif",
-                fontSize: 36,
-                lineHeight: 1,
-                color: 'var(--p-text)',
-                marginBottom: 4,
-              }}
-            >
-              {kpi.value}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--p-text-lite)',
-                fontWeight: 500,
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-              }}
-            >
-              {kpi.label}
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Application Stage Tracker (show first active app) */}
-      {!appsLoading && activeApps.length > 0 && (
-        <div
-          style={{
-            background: 'var(--p-kpi)',
-            border: '1px solid var(--p-table-border)',
-            borderRadius: 16,
-            padding: '20px 24px',
-            marginBottom: 24,
-            boxShadow: 'var(--p-shadow)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--p-text)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              {activeApps[0].job?.title ?? 'Current Application'} — Stage Progress
-            </span>
-            <StageChip stage={activeApps[0].stage} />
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--p-text-lite)', marginBottom: 4 }}>
-            Applied {formatDate(activeApps[0].applied_at)}
-          </p>
-          <StageTracker stage={activeApps[0].stage} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            {STAGES.map((s) => (
-              <span
-                key={s}
-                style={{
-                  fontSize: 10,
-                  color: s === activeApps[0].stage ? '#7c3aed' : 'var(--p-text-lite)',
-                  fontWeight: s === activeApps[0].stage ? 700 : 500,
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  textTransform: 'capitalize',
-                }}
-              >
-                {s}
-              </span>
-            ))}
+            <div className={`tstep ${currentIdx > 1 ? 'done' : currentIdx === 1 ? 'active' : 'pending'}`}>
+              <div className="tstep-dot">{currentIdx > 1 ? '✓' : currentIdx === 1 ? '●' : '○'}</div>
+              <div className="tstep-label">Shortlisted</div>
+              {currentIdx < 1 && <div className="tstep-note">Pending</div>}
+            </div>
+
+            <div className={`tstep ${currentIdx > 2 ? 'done' : currentIdx === 2 ? 'active' : 'pending'}`}>
+              <div className="tstep-dot">{currentIdx > 2 ? '✓' : currentIdx === 2 ? '●' : '○'}</div>
+              <div className="tstep-label">Interviews</div>
+              {currentIdx < 2 && <div className="tstep-note">Pending</div>}
+            </div>
+
+            <div className={`tstep ${currentIdx > 3 ? 'done' : currentIdx === 3 ? 'active' : 'pending'}`}>
+              <div className="tstep-dot">{currentIdx > 3 ? '✓' : currentIdx === 3 ? '●' : '○'}</div>
+              <div className="tstep-label">Offer</div>
+              {currentIdx < 3 && <div className="tstep-note">Pending</div>}
+            </div>
+
+            <div className={`tstep ${currentIdx > 4 ? 'done' : currentIdx === 4 ? 'active' : 'pending'}`}>
+              <div className="tstep-dot">{currentIdx === 4 ? (isHired ? '✓' : '●') : '○'}</div>
+              <div className="tstep-label">{isRejected ? 'Closed' : 'Hired'}</div>
+              {currentIdx < 4 && <div className="tstep-note">Pending</div>}
+            </div>
+
           </div>
         </div>
-      )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
-        {/* Upcoming Interview card */}
-        {!intLoading && nextInterview && (
-          <div
-            style={{
-              background: 'var(--p-kpi)',
-              border: '1px solid var(--p-table-border)',
-              borderRadius: 14,
-              padding: 20,
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 18,
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: 'var(--p-shadow)',
-            }}
-          >
-            {/* teal left border */}
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 4,
-                borderRadius: '4px 0 0 4px',
-                background: 'linear-gradient(180deg,#06b6d4,#22d3ee)',
-              }}
-            />
-            <div style={{ flex: 1, minWidth: 0, paddingLeft: 8 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#06b6d4', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "'Plus Jakarta Sans', sans-serif", marginBottom: 4 }}>
-                Upcoming Interview
-              </p>
-              <h3
-                style={{
-                  fontFamily: "'Fraunces', serif",
-                  fontSize: 20,
-                  color: 'var(--p-text)',
-                  lineHeight: 1.2,
-                  marginBottom: 6,
-                }}
-              >
-                {nextInterview.title}
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--p-text-mid)', marginBottom: 4 }}>
-                {formatDateTime(nextInterview.scheduled_at)} · {nextInterview.duration_minutes} min
-              </p>
-              <p style={{ fontSize: 12, color: 'var(--p-text-lite)', textTransform: 'capitalize' }}>
-                {nextInterview.interview_type.replace(/_/g, ' ')} interview
-              </p>
-              {nextInterview.meeting_link && (
-                <a
-                  href={nextInterview.meeting_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    marginTop: 12,
-                    padding: '8px 16px',
-                    borderRadius: 10,
-                    background: 'linear-gradient(135deg,#06b6d4,#22d3ee)',
-                    color: '#fff',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textDecoration: 'none',
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    boxShadow: '0 4px 14px rgba(6,182,212,0.35)',
-                  }}
-                >
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.867v6.266a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Join Meeting
-                </a>
+        {/* Dynamic Stage Detail Card based on active stage */}
+        <div className="stage-detail-card">
+          <div className="stage-label">Current Stage</div>
+          <div className="stage-title">
+            {currentIdx === 0 && "Application Received"}
+            {currentIdx === 1 && "Screening & Formatting"}
+            {currentIdx === 2 && "Interview Rounds"}
+            {currentIdx === 3 && "Offer Processing"}
+            {currentIdx >= 4 && (isHired ? "Welcome to the team!" : "Application Closed")}
+          </div>
+          <div className="stage-sub">
+            {currentIdx === 0 && "Your application has been received and is waiting to be reviewed by the team."}
+            {currentIdx === 1 && "Your profile is under active consideration. An HR representative will reach out shortly."}
+            {currentIdx === 2 && "You are currently in the interview phase. Complete your scheduled rounds."}
+            {currentIdx === 3 && "Congratulations on making it to the offer stage! Your offer document is being prepared."}
+            {currentIdx >= 4 && (isHired ? "You have officially accepted the offer." : "Thank you for your time. This application didn't proceed further.")}
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            {currentIdx === 2 && <button className="btn btn-teal btn-sm" onClick={() => navigate('/portal/interviews')}>📅 View Interviews</button>}
+            {currentIdx === 3 && <button className="btn btn-primary btn-sm" onClick={() => navigate('/portal/offers')}>📄 View Offer</button>}
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/portal/prep')}>🎯 Open Prep Hub</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="g2">
+        {/* Round History */}
+        <div className="card">
+          <div className="ctitle">Round History</div>
+          <div>
+            {history.length === 0 ? (
+              <div className="py-4 text-center text-[12px] text-[var(--text-lite)]">No interview history yet.</div>
+            ) : (
+              history.map((intv) => {
+                const isUpcoming = intv.status === 'scheduled';
+                const isPassed = intv.status === 'completed' || (intv.status as string) === 'passed';
+                const isFailed = (intv.status as string) === 'failed' || intv.status === 'cancelled';
+                return (
+                  <div className="rh-item" key={intv.id}>
+                    <div className={`rh-dot ${isUpcoming ? 'rhd-active' : isPassed ? 'rhd-done' : 'rhd-pend'}`}></div>
+                    <div>
+                      <div className="rh-name">{intv.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-lite)' }}>
+                        {intv.interview_type.replace('_', ' ')} · {intv.duration_minutes} min · {formatDate(intv.scheduled_at)}
+                      </div>
+                    </div>
+                    {isUpcoming && <span className="chip chip-teal">Upcoming</span>}
+                    {isPassed && <span className="chip chip-green">Passed ✓</span>}
+                    {isFailed && <span className="chip chip-gray">Closed</span>}
+                  </div>
+                )
+              })
+            )}
+            {/* Show pending next rounds based on stage */}
+            {currentIdx === 2 && (
+              <div className="rh-item">
+                <div className="rh-dot rhd-pend"></div>
+                <div>
+                  <div className="rh-name">Next Rounds</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-lite)' }}>Pending HR scheduling</div>
+                </div>
+                <span className="chip chip-gray" style={{ fontSize: 10 }}>Upcoming</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Application Stats */}
+        <div className="card">
+          <div className="ctitle">Your Application Stats</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="kpi" style={{ border: 'none', padding: 0, boxShadow: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div className="kpi-ico ki1">📅</div>
+              <div><div className="kpi-val" style={{ fontSize: 24 }}>{daysInProcess}</div><div className="kpi-lbl">Days in Process</div></div>
+            </div>
+            
+            <div style={{ borderTop: '1px solid var(--table-border)', paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 8, fontFamily: "'Space Grotesk', sans-serif" }}>Process Completion</div>
+              <div className="pbar"><div className="pfill" style={{ width: progressWidth }}></div></div>
+              <div style={{ fontSize: 11, color: 'var(--text-lite)', marginTop: 5 }}>
+                {Math.min(currentIdx + 1, 5)} of 5 stages · {progressWidth}
+              </div>
+            </div>
+            
+            <div style={{ borderTop: '1px solid var(--table-border)', paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 10, fontFamily: "'Space Grotesk', sans-serif" }}>Applied Role</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{activeApp.job?.title || 'Unknown Role'}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-lite)', marginTop: 3 }}>
+                {activeApp.job?.department || ''} · {activeApp.job?.location || 'Remote'}
+              </div>
+              {activeApp.job?.skills_required && activeApp.job.skills_required.length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {activeApp.job.skills_required.slice(0, 4).map((skill: string) => (
+                    <span key={skill} style={{ background: 'rgba(124,58,237,.08)', color: 'var(--brand)', fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20 }}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
-        )}
-
-        {/* Pending Offer banner */}
-        {!offersLoading && pendingOffer && (
-          <div
-            style={{
-              background: 'linear-gradient(135deg,#1a0050,#2d0080,#7c3aed,#a855f7)',
-              borderRadius: 16,
-              padding: '24px 28px',
-              color: '#fff',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 8px 32px rgba(124,58,237,0.35)',
-            }}
-          >
-            {/* decorative circles */}
-            <div
-              style={{
-                position: 'absolute',
-                width: 180,
-                height: 180,
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.05)',
-                top: -60,
-                right: -40,
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                width: 100,
-                height: 100,
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.04)',
-                bottom: -30,
-                left: 20,
-              }}
-            />
-            <div style={{ position: 'relative' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                Pending Offer
-              </p>
-              <h3
-                style={{
-                  fontFamily: "'Fraunces', serif",
-                  fontSize: 22,
-                  lineHeight: 1.2,
-                  marginBottom: 6,
-                }}
-              >
-                {pendingOffer.position_title}
-              </h3>
-              <p style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>
-                {formatSalary(pendingOffer.base_salary, null, pendingOffer.salary_currency)}
-                {pendingOffer.expiry_date && ` · Expires ${formatDate(pendingOffer.expiry_date)}`}
-              </p>
-              <button
-                onClick={() => navigate('/portal/offers')}
-                style={{
-                  marginTop: 14,
-                  padding: '9px 20px',
-                  borderRadius: 10,
-                  background: 'rgba(255,255,255,0.20)',
-                  border: '1px solid rgba(255,255,255,0.35)',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  backdropFilter: 'blur(8px)',
-                  transition: 'background 0.2s',
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.30)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.20)' }}
-              >
-                Review Offer →
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Applications */}
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 14,
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: "'Fraunces', serif",
-              fontSize: 20,
-              color: 'var(--p-text)',
-            }}
-          >
-            Recent Applications
-          </h2>
-          <button
-            onClick={() => navigate('/portal/applications')}
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#7c3aed',
-              background: 'rgba(124,58,237,0.08)',
-              border: '1px solid rgba(124,58,237,0.18)',
-              borderRadius: 8,
-              padding: '5px 12px',
-              cursor: 'pointer',
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-            }}
-          >
-            View All
-          </button>
         </div>
 
-        {appsLoading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                style={{
-                  height: 64,
-                  borderRadius: 12,
-                  background: 'rgba(124,58,237,0.05)',
-                  animation: 'pulse 2s infinite',
-                }}
-              />
-            ))}
-          </div>
-        ) : !applications?.length ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '40px 0',
-              color: 'var(--p-text-lite)',
-              fontSize: 14,
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-            }}
-          >
-            No applications yet.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {applications.slice(0, 5).map((app) => (
-              <div
-                key={app.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '14px 18px',
-                  background: 'var(--p-kpi)',
-                  border: '1px solid var(--p-table-border)',
-                  borderRadius: 12,
-                  boxShadow: 'var(--p-shadow)',
-                  transition: 'box-shadow 0.2s',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 14,
-                      color: 'var(--p-text)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      marginBottom: 2,
-                    }}
-                  >
-                    {app.job?.title ?? 'Position'}
-                  </p>
-                  <p style={{ fontSize: 12, color: 'var(--p-text-lite)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                    Applied {formatDate(app.applied_at)}
-                  </p>
-                </div>
-                <StageChip stage={app.stage} />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

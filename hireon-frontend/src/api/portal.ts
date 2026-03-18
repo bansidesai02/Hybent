@@ -19,4 +19,8 @@ export const portalApi = {
     api.post(`/v1/portal/offers/${offerId}/respond`, { accept, decline_reason }),
 
   profile: () => api.get<Candidate>('/v1/portal/profile'),
+
+  generatePrep: (applicationId: string) => api.get(`/v1/portal/applications/${applicationId}/prep-hub`),
+
+  jobs: () => api.get<import('@/types').Job[]>('/v1/portal/jobs'),
 }

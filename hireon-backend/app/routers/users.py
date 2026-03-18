@@ -25,7 +25,7 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
 
 
-@router.get("/", response_model=list[UserOut])
+@router.get("", response_model=list[UserOut])
 async def list_users(current_user: RecruiterUser, db: DB):
     result = await db.execute(
         select(User).where(User.organization_id == current_user.organization_id)

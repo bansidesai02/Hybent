@@ -43,7 +43,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
         ws_manager.disconnect(websocket, user_id)
 
 
-@router.get("/", response_model=list[NotificationOut])
+@router.get("", response_model=list[NotificationOut])
 async def list_notifications(current_user: CurrentUser, db: DB):
     result = await db.execute(
         select(Notification)

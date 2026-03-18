@@ -113,6 +113,14 @@ export interface Candidate {
   updated_at: string
   invitations: Invitation[]
   tags: string[]
+  experience_years?: number | null
+  notice_period_days?: number | null
+  current_ctc?: number | null
+  expected_ctc?: number | null
+  work_mode_preference?: string | null
+  availability_status?: string | null
+  interview_availability_days?: string[] | null
+  interview_time_slot?: string | null
 }
 
 export interface Invitation {

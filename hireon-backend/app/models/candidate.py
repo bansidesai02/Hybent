@@ -34,6 +34,16 @@ class Candidate(Base):
     parsed_data: Mapped[dict | None] = mapped_column(JSONB)  # skills, experience, education, etc.
     skills: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     years_experience: Mapped[int | None] = mapped_column(Integer)
+    experience_years: Mapped[str | None] = mapped_column(String(50))
+    notice_period_days: Mapped[str | None] = mapped_column(String(50))
+    current_ctc: Mapped[str | None] = mapped_column(String(100))
+    expected_ctc: Mapped[str | None] = mapped_column(String(100))
+    work_mode_preference: Mapped[str | None] = mapped_column(String(100))
+    availability_status: Mapped[str | None] = mapped_column(String(100))
+    interview_availability_days: Mapped[str | None] = mapped_column(String(100))
+    interview_time_slot: Mapped[str | None] = mapped_column(String(100))
+    blackout_dates: Mapped[str | None] = mapped_column(String(255))
+    weekend_interviews: Mapped[bool] = mapped_column(default=False, server_default="false")
     current_title: Mapped[str | None] = mapped_column(String(255))
     current_company: Mapped[str | None] = mapped_column(String(255))
     summary: Mapped[str | None] = mapped_column(Text)
@@ -66,4 +76,10 @@ class Candidate(Base):
         lazy="noload", 
         cascade="all, delete-orphan",
         order_by=lambda: desc("created_at")
+    )
+    other_offers: Mapped[list["OtherOffer"]] = relationship(
+        "OtherOffer", back_populates="candidate", lazy="noload", cascade="all, delete-orphan"
+    )
+    documents: Mapped[list["CandidateDocument"]] = relationship(
+        "CandidateDocument", back_populates="candidate", lazy="noload", cascade="all, delete-orphan"
     )
