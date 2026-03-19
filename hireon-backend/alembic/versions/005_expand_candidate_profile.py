@@ -1,7 +1,7 @@
 """expand candidate profile
 
-Revision ID: aac7608c5f10
-Revises: 002_add_is_confirmed
+Revision ID: 005_expand_candidate_profile
+Revises: 004_add_applied_job_title
 Create Date: 2026-03-18 07:42:23.887197
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'aac7608c5f10'
-down_revision: Union[str, None] = '002_add_is_confirmed'
+revision: str = '005_expand_candidate_profile'
+down_revision: Union[str, None] = '004_add_applied_job_title'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -406,7 +406,7 @@ function ScheduleForm({
     queryKey: ['users'],
     queryFn: () => adminApi.listUsers().then((r) => r.data),
   })
-  const interviewers = usersResponse || []
+  const interviewers = (usersResponse || []).filter(u => u.role === 'interviewer')
 
   const { data: candidatesList = [] } = useQuery({
     queryKey: ['candidates-for-schedule'],
