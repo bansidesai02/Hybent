@@ -46,10 +46,17 @@ export function ScoreBadge({ score }: { score: number }) {
 // Stage badge with automatic color
 export function StageBadge({ stage }: { stage: ApplicationStage }) {
   const map: Record<ApplicationStage, BadgeProps['variant']> = {
-    applied:   'default',
+    applied:   'purple',
     screening: 'info',
-    interview: 'purple',
-    offer:     'warning',
+    pre_screening: 'info',
+    technical_round: 'purple',
+    practical_round: 'purple',
+    techno_functional_round: 'purple',
+    management_round: 'purple',
+    hr_round: 'purple',
+    interview:   'purple',
+    interviewed: 'purple',
+    offer:       'warning',
     hired:     'success',
     rejected:  'danger',
   }

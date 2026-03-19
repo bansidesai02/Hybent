@@ -1,4 +1,5 @@
 import uuid
+import logging
 from dataclasses import dataclass, field
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Form
 from sqlalchemy import select
@@ -7,7 +8,8 @@ from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut
 from app.services.storage_service import save_resume, read_file_bytes
 from app.services.resume_parser import parse_resume
-from app.services.match_scorer import compute_match_score, compute_score_breakdown
+from app.services.activity_service import log_activity
+
 
 
 @dataclass
@@ -21,6 +23,7 @@ class _JobReq:
     experience_level: str = ""
 
 router = APIRouter(prefix="/v1/resumes", tags=["resumes"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/upload/{candidate_id}", response_model=CandidateOut)
@@ -105,6 +108,8 @@ async def upload_and_create(
         )
     )
     candidate = existing.scalar_one_or_none()
+    if candidate:
+        logger.info(f"Duplicate email match found: {email} for existing candidate {candidate.full_name} (ID: {candidate.id})")
 
     # Priority 1: compute score using the real ML scorer
     req_skills_list = [s.strip() for s in required_skills.split(",") if s.strip()]
@@ -128,30 +133,22 @@ async def upload_and_create(
                 min_experience_years=min_experience,
             )
         
-        score = await compute_match_score(
-            candidate_skills=parsed.get("skills", []),
-            parsed_data=parsed,
-            years_experience=parsed.get("years_experience"),
-            job=job,
-        )
-        
         job_skills = list(job.skills_required or []) if not isinstance(job, _JobReq) else req_skills_list
         job_title = job.title
         
-        breakdown = compute_score_breakdown(
+        from app.services.match_scorer import evaluate_candidate_match
+        score, breakdown = await evaluate_candidate_match(
+            candidate_data=parsed,
             candidate_skills=parsed.get("skills", []),
-            parsed_data=parsed,
             years_experience=parsed.get("years_experience"),
-            job_skills=job_skills,
-            job_title=job_title,
-            score=score,
+            job=job,
             match_threshold=match_threshold,
         )
 
     # Priority 2: never auto-reject — low score → needs_review, not rejected
     # User Request: Don't automatically add to pipeline. Allow recruiter to click "Add to Pipeline".
     initial_stage = None
-    if score is not None and score < match_threshold:
+    if score is not None and match_threshold is not None and score < float(match_threshold):
         initial_stage = "needs_review"
 
     if not candidate:
@@ -181,8 +178,19 @@ async def upload_and_create(
     candidate.phone = candidate.phone or parsed.get("phone")
     candidate.location = candidate.location or parsed.get("location")
     candidate.match_score = score
+    candidate.applied_job_title = job.title if job else (role_title or candidate.applied_job_title)
     # Priority 6: score breakdown is a separate field, not buried in parsed_data
     candidate.score_breakdown = breakdown
     candidate.parsed_data = parsed
+
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="CREATE",
+        resource_type="candidate",
+        resource_id=str(candidate.id),
+        details={"name": candidate.full_name}
+    )
 
     return CandidateOut.model_validate(candidate)

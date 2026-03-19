@@ -12,7 +12,8 @@ interface KanbanColumnProps {
 const stageConfig: Partial<Record<ApplicationStage, { label: string; color: string }>> = {
   applied: { label: 'Applied', color: '#6c47ff' },
   screening: { label: 'Shortlisted', color: '#f59e0b' },
-  interview: { label: 'Interviewed', color: '#00d4c8' },
+  interview: { label: 'In Interview', color: '#00d4c8' },
+  interviewed: { label: 'Interviewed', color: '#8b5cf6' },
   offer: { label: 'Offer / Hired', color: '#10b981' },
   rejected: { label: 'Rejected', color: '#ef4444' },
 }
@@ -22,11 +23,11 @@ export function KanbanColumn({ stage, cards, onCardClick }: KanbanColumnProps) {
 
   return (
     <div 
-      className="flex flex-col flex-1 min-w-[200px] rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800"
+      className="flex flex-col flex-1 min-w-[200px] rounded-xl bg-[var(--bg2)] dark:bg-[var(--glass)] border border-gray-200 dark:border-[var(--glass-border)]"
       style={{ borderTop: `4px solid ${config.color}` }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-200 dark:border-[var(--glass-border)]">
         <div 
           className="w-2 h-2 rounded-full" 
           style={{ backgroundColor: config.color }} 

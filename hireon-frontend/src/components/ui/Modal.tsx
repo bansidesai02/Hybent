@@ -6,9 +6,11 @@ interface ModalProps {
   open: boolean
   onClose: () => void
   title?: string
+  headerActions?: ReactNode
   children: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
+  hideScrollbar?: boolean
 }
 
 const sizes = {
@@ -18,7 +20,7 @@ const sizes = {
   xl: 'max-w-4xl',
 }
 
-export function Modal({ open, onClose, title, children, size = 'md', className }: ModalProps) {
+export function Modal({ open, onClose, title, headerActions, children, size = 'md', className, hideScrollbar }: ModalProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', handler)
@@ -58,17 +60,25 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
             {title && (
               <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
-                <button
-                  onClick={onClose}
-                  className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-3">
+                  {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
+                  <button
+                    onClick={onClose}
+                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
-            <div className="p-5 max-h-[80vh] overflow-y-auto">{children}</div>
+            <div className={clsx(
+              'max-h-[85vh] overflow-y-auto',
+              hideScrollbar && 'scrollbar-hide'
+            )}>
+              <div className="p-8">{children}</div>
+            </div>
           </motion.div>
         </div>
       )}

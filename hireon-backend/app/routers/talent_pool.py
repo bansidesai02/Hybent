@@ -83,7 +83,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
     """
     import asyncio
     from app.models.job import Job
-    from app.services.match_scorer import compute_match_score
+    from app.services.match_scorer import evaluate_candidate_match
     from app.utils.permissions import JobStatus
 
     # Get active jobs
@@ -113,16 +113,17 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
     async def get_job_suggestions(job):
         # Calculate scores for all candidates in parallel for this job
         score_tasks = [
-            compute_match_score(
-                candidate.skills or (candidate.parsed_data or {}).get("skills", []),
-                candidate.parsed_data or {},
-                candidate.years_experience,
-                job
+            evaluate_candidate_match(
+                candidate_data=candidate.parsed_data or {},
+                candidate_skills=candidate.skills or [],
+                years_experience=candidate.years_experience,
+                job=job
             )
             for candidate in pool_candidates
         ]
         
-        scores = await asyncio.gather(*score_tasks)
+        results = await asyncio.gather(*score_tasks)
+        scores = [r[0] for r in results]
         
         job_suggestions = []
         for candidate, score in zip(pool_candidates, scores):

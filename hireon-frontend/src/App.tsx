@@ -71,9 +71,33 @@ function RequireAuth({
   return <>{children}</>
 }
 
+import { Toaster } from 'react-hot-toast'
+
 export default function App() {
   return (
     <>
+      <Toaster 
+        position="top-right" 
+        toastOptions={{ 
+          duration: 4000,
+          style: {
+            background: '#ffffff',
+            color: '#1a1040',
+            borderRadius: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
+            padding: '12px 24px',
+            border: '1px solid #f1f0ff',
+          },
+          success: {
+            iconTheme: {
+              primary: '#6c47ff',
+              secondary: '#ffffff',
+            },
+          },
+        }} 
+      />
       <Routes>
         {/* Public */}
         <Route path="/" element={<LandingPage />} />

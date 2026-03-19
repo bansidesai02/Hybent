@@ -7,7 +7,14 @@ export type JobStatus = 'draft' | 'active' | 'paused' | 'closed'
 export type ApplicationStage =
   | 'applied'
   | 'screening'
+  | 'pre_screening'
+  | 'technical_round'
+  | 'practical_round'
+  | 'techno_functional_round'
+  | 'management_round'
+  | 'hr_round'
   | 'interview'
+  | 'interviewed'
   | 'offer'
   | 'hired'
   | 'rejected'
@@ -95,11 +102,15 @@ export interface Candidate {
   avatar_url: string | null
   parsed_data: Record<string, unknown> | null
   score_breakdown: {
+    final_score: number
+    skills_score: number
+    title_score: number
+    experience_score: number
+    education_score: number
     matched_skills: string[]
-    inferred_skills: string[]
-    level: string
+    missing_skills: string[]
     shortlisted: boolean
-    match_confidence: number
+    reasoning: string
   } | null
   skills: string[]
   years_experience: number | null
@@ -109,10 +120,12 @@ export interface Candidate {
   match_score: number | null
   source: string | null
   pipeline_stage?: ApplicationStage | null
+  applied_job_title?: string | null
   created_at: string
   updated_at: string
   invitations: Invitation[]
   tags: string[]
+  hr_notes?: string | null
 }
 
 export interface Invitation {
