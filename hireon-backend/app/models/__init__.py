@@ -11,9 +11,13 @@ from app.models.notification import Notification
 from app.models.audit_log import AuditLog
 from app.models.invitation import CandidateInvitation
 from app.models.password_reset import PasswordResetToken
+from app.models.other_offer import OtherOffer
+from app.models.job_referral import JobReferral
+from app.models.candidate_document import CandidateDocument
 
 __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
     "Application", "Interview", "InterviewPanelist", "Scorecard",
-    "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
+    "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken", 
+    "OtherOffer", "JobReferral", "CandidateDocument"
 ]

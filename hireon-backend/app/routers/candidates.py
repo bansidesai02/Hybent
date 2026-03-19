@@ -346,7 +346,7 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
     app_query = select(Application).where(Application.candidate_id == candidate_id)
     apps_res = await db.execute(app_query)
     for app in apps_res.scalars().all():
-        app.stage = target_stage
+        app.stage = data.pipeline_stage
     
     # If adding to pipeline and job_id is provided, create Application
     if data.pipeline_stage == "applied" and data.job_id and data.job_id.lower() not in ("null", "undefined", ""):
