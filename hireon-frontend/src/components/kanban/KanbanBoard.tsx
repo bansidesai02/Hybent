@@ -3,8 +3,9 @@ import { KanbanColumn } from './KanbanColumn'
 import type { PipelineData, ApplicationStage, KanbanCard } from '@/types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { candidatesApi } from '@/api/candidates'
+import toast from 'react-hot-toast'
 
-const STAGES: ApplicationStage[] = ['applied', 'screening', 'interview', 'offer', 'rejected']
+const STAGES: ApplicationStage[] = ['applied', 'screening', 'interview', 'interviewed', 'offer', 'rejected']
 
 interface KanbanBoardProps {
   data: PipelineData
@@ -22,6 +23,11 @@ export function KanbanBoard({ data, onCardClick }: KanbanBoardProps) {
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       queryClient.invalidateQueries({ queryKey: ['candidates-for-schedule'] })
     },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to move candidate'
+      toast.error(message)
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+    }
   })
 
   const onDragEnd = (result: DropResult) => {

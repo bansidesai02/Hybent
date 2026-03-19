@@ -22,6 +22,13 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   applied:                      { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', label: 'Applied' },
   screening:                    { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Screening' },
   interview:                    { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interview' },
+  pre_screening:                { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Pre-screening' },
+  technical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Technical Round' },
+  practical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Practical Round' },
+  techno_functional_round:      { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Techno-Functional Round' },
+  management_round:             { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Management Round' },
+  hr_round:                     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'HR Round' },
+  interviewed:                  { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interviewed' },
   offer:                        { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offer' },
   hired:                        { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired' },
   rejected:                     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Rejected' },
@@ -76,8 +83,11 @@ function getStatusFromStage(stage: string | undefined): string {
     'technical_round_selected', 'practical_round_selected',
     'techno_functional_selected', 'management_round_selected',
     'hr_round_selected', 'offered', 'hired', 'hired_joined',
+    // neutral stages
+    'pre_screening', 'technical_round', 'practical_round',
+    'techno_functional_round', 'management_round', 'hr_round',
     // legacy values
-    'screening', 'interview',
+    'screening', 'interview', 'interviewed',
   ]
   if (scheduledStages.includes(stage)) return 'scheduled'
   if (REJECTION_STAGES.includes(stage)) return 'rejected'
@@ -98,6 +108,7 @@ const STAGE_GROUPS = [
     label: 'Pre-Screening',
     icon: '🔍',
     stages: [
+      { key: 'pre_screening',            icon: '⏲',  label: 'In Pre-screening' },
       { key: 'pre_screening_selected',   icon: '✅', label: 'Pre-screening Selected' },
       { key: 'pre_screening_rejected',   icon: '✗',  label: 'Pre-screening Rejected' },
     ],
@@ -106,6 +117,7 @@ const STAGE_GROUPS = [
     label: 'Technical Round',
     icon: '💻',
     stages: [
+      { key: 'technical_round',          icon: '⏲',  label: 'In Technical Round' },
       { key: 'technical_round_selected', icon: '✅', label: 'Technical Round Selected' },
       { key: 'technical_round_rejected', icon: '✗',  label: 'Technical Round Rejected' },
       { key: 'technical_round_back_out', icon: '↩',  label: 'Technical Round Back Out' },
@@ -115,6 +127,7 @@ const STAGE_GROUPS = [
     label: 'Practical Round',
     icon: '📝',
     stages: [
+      { key: 'practical_round',          icon: '⏲',  label: 'In Practical Round' },
       { key: 'practical_round_selected', icon: '✅', label: 'Practical Round Selected' },
       { key: 'practical_round_rejected', icon: '✗',  label: 'Practical Round Rejected' },
       { key: 'practical_round_back_out', icon: '↩',  label: 'Practical Round Back Out' },
@@ -124,6 +137,7 @@ const STAGE_GROUPS = [
     label: 'Techno-Functional Round',
     icon: '⚙️',
     stages: [
+      { key: 'techno_functional_round',    icon: '⏲',  label: 'In Techno-Functional' },
       { key: 'techno_functional_selected', icon: '✅', label: 'Techno-Functional Selected' },
       { key: 'techno_functional_rejected', icon: '✗',  label: 'Techno-Functional Rejected' },
     ],
@@ -132,6 +146,7 @@ const STAGE_GROUPS = [
     label: 'Management Round',
     icon: '👔',
     stages: [
+      { key: 'management_round',          icon: '⏲',  label: 'In Management Round' },
       { key: 'management_round_selected', icon: '✅', label: 'Management Round Selected' },
       { key: 'management_round_rejected', icon: '✗',  label: 'Management Round Rejected' },
     ],
@@ -140,6 +155,7 @@ const STAGE_GROUPS = [
     label: 'HR Round',
     icon: '🤝',
     stages: [
+      { key: 'hr_round',          icon: '⏲',  label: 'In HR Round' },
       { key: 'hr_round_selected', icon: '✅', label: 'HR Round Selected' },
       { key: 'hr_round_rejected', icon: '✗',  label: 'HR Round Rejected' },
     ],
@@ -160,7 +176,7 @@ const STAGE_GROUPS = [
 
 function CandidateProfileModal({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
   return (
-    <Modal open onClose={onClose} title="Candidate Profile" size="lg">
+    <Modal open onClose={onClose} title="Candidate Profile" size="xl">
       <CandidateProfileView candidate={candidate} />
     </Modal>
   )
@@ -272,6 +288,7 @@ export default function CandidatesPage() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Candidate | null>(null)
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
+  const [stageFilter, setStageFilter] = useState<string | undefined>(undefined)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const [selectedJobId, setSelectedJobId] = useState<string>('')
@@ -279,8 +296,15 @@ export default function CandidatesPage() {
 
   const inviteMutation = useMutation({
     mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
-    onSuccess: () => {
-      toast.success('Invite sent!')
+    onSuccess: (_, variables) => {
+      toast.success(
+        <div>
+          <p style={{ margin: 0, fontWeight: 700 }}>Invitation Sent!</p>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 500, opacity: 0.8 }}>
+            Joining invitation was sent to <strong>{variables.full_name}</strong>
+          </p>
+        </div>
+      )
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
     },
@@ -290,8 +314,8 @@ export default function CandidatesPage() {
   const queryParams = {
     page,
     limit: 12,
-    ...(search ? { search } : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
+    ...(stageFilter ? { stage: stageFilter } : {}),
   }
 
   const { data, isLoading, isError } = useQuery({
@@ -541,7 +565,7 @@ export default function CandidatesPage() {
                     {/* Role */}
                     <p className="text-[13px] text-[var(--text-mid)] truncate max-w-[150px] lg:max-w-none">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Role</span>
-                      {candidate.current_title || '—'}
+                      {candidate.applied_job_title || candidate.current_title || '—'}
                     </p>
 
                     {/* Skills */}
@@ -612,9 +636,13 @@ export default function CandidatesPage() {
                           </div>
                         )
                       )}
-                      {stageCfg && (
+                      {stageCfg ? (
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, display: 'inline-block', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {stageCfg.label}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.05)', color: 'var(--text-light)', border: '1px dashed var(--table-border)' }}>
+                          {candidate.match_score != null ? 'New / Needs Action' : 'Unprocessed'}
                         </span>
                       )}
                     </div>

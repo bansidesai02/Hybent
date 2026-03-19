@@ -67,7 +67,7 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
     return (
       <div className="py-10 text-center">
         <span className="text-2xl mb-2 block">📭</span>
-        <p className="text-[13px] font-medium" style={{ color: '#9689bb' }}>
+        <p className="text-[13px] font-medium text-[var(--text-light)]">
           {isError ? 'Could not load activity.' : 'No recent activity to show.'}
         </p>
       </div>
@@ -85,8 +85,8 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
               {config.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold truncate" style={{ color: '#1a1040' }}>{title}</p>
-              {sub && <p className="text-[11px] font-medium truncate" style={{ color: '#9689bb' }}>{sub}</p>}
+              <p className="text-[13px] font-bold truncate text-[var(--text)]">{title}</p>
+              {sub && <p className="text-[11px] font-medium truncate text-[var(--text-light)]">{sub}</p>}
             </div>
             <span className="text-[10px] font-semibold flex-shrink-0" style={{ color: '#c4b9de' }}>
               {formatDistanceToNow(new Date(act.created_at), { addSuffix: true }).replace('about ', '')}

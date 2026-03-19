@@ -80,7 +80,7 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
     const OFFER_RELEVANT_STAGES = [
       'hired', 'hired_joined',                // Hired
       'offer', 'offered',                     // Offer
-      'interview', 'hr_round_selected',       // Interview/Final
+      'interview', 'interviewed', 'hr_round_selected',       // Interview/Final
       'management_round_selected', 
       'technical_round_selected'
     ]
@@ -122,8 +122,8 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   })
 
   return (
-    <Modal open onClose={onClose} title="Draft New Offer" size="lg">
-      <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-1">
+    <Modal open onClose={onClose} title="Draft New Offer" size="xl" hideScrollbar>
+      <form onSubmit={handleSubmit((d) => mutation.mutate(d))}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
           <div className="md:col-span-2">
             <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Application Selection</label>

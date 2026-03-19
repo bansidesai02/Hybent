@@ -4,10 +4,16 @@ import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
 import { formatDateTime, formatDate, formatSalary } from '@/utils/formatters'
 
-const STAGES = ['applied', 'screening', 'interview', 'offer', 'hired'] as const
+const STAGES = ['applied', 'screening', 'interview', 'interviewed', 'offer', 'hired'] as const
 type PipelineStage = (typeof STAGES)[number]
 
 function stageIndex(stage: string): number {
+  if (!stage || stage === 'applied') return 0
+  if (['screening', 'pre_screening', 'pre_screening_rejected'].includes(stage)) return 1
+  if (['interview', 'interviewed', 'technical_round', 'practical_round', 'techno_functional_round', 'management_round', 'hr_round'].includes(stage)) return 2
+  if (stage.includes('selected') || stage === 'shorlisted') return 3 // Next milestone
+  if (stage === 'offer') return 4
+  if (stage === 'hired' || stage === 'hired_joined') return 5
   return STAGES.indexOf(stage as PipelineStage)
 }
 
@@ -15,7 +21,14 @@ function StageChip({ stage }: { stage: string }) {
   const cfg: Record<string, { bg: string; color: string; label: string }> = {
     applied:   { bg: 'rgba(124,58,237,0.10)', color: '#7c3aed', label: 'Applied' },
     screening: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: 'Screening' },
+    pre_screening: { bg: 'rgba(59,130,246,0.10)', color: '#3b82f6', label: 'Pre-screening' },
+    technical_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Technical Round' },
+    practical_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Practical Round' },
+    techno_functional_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Techno-Functional Round' },
+    management_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Management Round' },
+    hr_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'HR Round' },
     interview: { bg: 'rgba(6,182,212,0.12)',  color: '#06b6d4', label: 'Interview' },
+    interviewed: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Interviewed' },
     offer:     { bg: 'rgba(16,185,129,0.12)', color: '#10b981', label: 'Offer' },
     hired:     { bg: 'rgba(16,185,129,0.16)', color: '#059669', label: 'Hired' },
     rejected:  { bg: 'rgba(239,68,68,0.10)',  color: '#ef4444', label: 'Rejected' },

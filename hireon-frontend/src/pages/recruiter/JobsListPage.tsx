@@ -51,7 +51,35 @@ const STATUS_FILTERS = [
 
 function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => void; onEdit: () => void }) {
   return (
-    <Modal open onClose={onClose} title="Position Details" size="lg">
+    <Modal
+      open
+      onClose={onClose}
+      title="Position Details"
+      size="lg"
+      headerActions={
+        job.jd_url && (
+          <button
+            onClick={() => window.open(job.jd_url!, '_blank')}
+            className="btn-primary-gradient"
+            style={{
+              padding: '6px 14px',
+              fontSize: 12,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 4px 12px rgba(108,71,255,0.25)'
+            }}
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            View JD
+          </button>
+        )
+      }
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         
         {/* Header Section */}
@@ -69,21 +97,6 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
                 <span style={{ fontSize: 12, color: 'var(--text-mid)' }}>{job.location}</span>
               </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            {job.jd_url && (
-              <button
-                onClick={() => window.open(job.jd_url!, '_blank')}
-                className="btn-primary-gradient"
-                style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
-              >
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                View JD
-              </button>
-            )}
           </div>
         </div>
 
@@ -241,7 +254,7 @@ export default function JobsListPage() {
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {Array.from({ length: 5 }).map((_, i) => (
-             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 18, borderRadius: 14, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)' }}>
+             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 18, borderRadius: 14, background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
                <Skeleton className="w-10 h-10 rounded-xl flex-shrink-0" />
                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
                  <Skeleton className="h-4 w-44" />
@@ -292,7 +305,7 @@ export default function JobsListPage() {
                   gridTemplateColumns: '2fr 1fr 1fr 80px 100px 140px',
                   gap: 12, alignItems: 'center',
                   padding: '14px 20px', borderRadius: 14,
-                  background: 'var(--kpi-bg)', border: '1px solid var(--table-border)',
+                  background: 'var(--card-bg)', border: '1px solid var(--card-border)',
                   boxShadow: 'var(--shadow)', cursor: 'pointer',
                   transition: 'all 0.15s',
                 }}
@@ -313,7 +326,7 @@ export default function JobsListPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, rgba(108,71,255,0.1), rgba(139,107,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>💼</div>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#6c47ff', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title}</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title}</p>
                     <p style={{ fontSize: 11, color: 'var(--text-light)' }}>{JOB_TYPE_LABEL[job.job_type] || job.job_type}</p>
                   </div>
                 </div>

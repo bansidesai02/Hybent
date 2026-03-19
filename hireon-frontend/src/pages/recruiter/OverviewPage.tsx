@@ -22,9 +22,9 @@ function KpiCard({ icon, label, value, delta }: KpiCardProps) {
     <div
       className="rounded-[20px] p-6 transition-all duration-300"
       style={{
-        background: 'rgba(255, 255, 255, 0.6)',
-        border: '1px solid rgba(255, 255, 255, 0.8)',
-        boxShadow: '0 8px 30px rgba(108, 71, 255, 0.04)',
+        background: 'var(--card-bg)',
+        border: '1px solid var(--card-border)',
+        boxShadow: 'var(--shadow)',
         backdropFilter: 'blur(20px)',
       }}
     >
@@ -44,11 +44,11 @@ function KpiCard({ icon, label, value, delta }: KpiCardProps) {
       </div>
       <p
         className="font-black leading-none mb-1.5"
-        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '36px', color: '#1a1040', letterSpacing: '-1px' }}
+        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '36px', color: 'var(--text)', letterSpacing: '-1px' }}
       >
         {value}
       </p>
-      <p className="text-[12px] font-semibold" style={{ color: '#9689bb' }}>{label}</p>
+      <p className="text-[12px] font-semibold" style={{ color: 'var(--text-mid)' }}>{label}</p>
     </div>
   )
 }
@@ -58,7 +58,7 @@ function FunnelRow({ label, count, total, color }: { label: string; count: numbe
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div className="flex items-center gap-4 mb-4 last:mb-0">
-      <span className="text-[12px] font-semibold w-24 text-right flex-shrink-0" style={{ color: '#9689bb' }}>
+      <span className="text-[12px] font-semibold w-24 text-right flex-shrink-0" style={{ color: 'var(--text-mid)' }}>
         {label}
       </span>
       <div className="flex-1 h-[10px] rounded-full overflow-hidden" style={{ background: 'rgba(108, 71, 255, 0.05)' }}>
@@ -68,7 +68,7 @@ function FunnelRow({ label, count, total, color }: { label: string; count: numbe
         />
       </div>
       <div className="flex items-center gap-3 flex-shrink-0 w-24 justify-end">
-        <span className="text-[13px] font-bold" style={{ color: '#1a1040' }}>{count.toLocaleString()}</span>
+        <span className="text-[13px] font-bold" style={{ color: 'var(--text)' }}>{count.toLocaleString()}</span>
       </div>
     </div>
   )
@@ -93,8 +93,8 @@ function ActivityItem({ icon, title, sub, time, iconBg }: ActivityItemProps) {
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold truncate" style={{ color: '#1a1040' }}>{title}</p>
-        <p className="text-[11px] font-medium truncate" style={{ color: '#9689bb' }}>{sub}</p>
+        <p className="text-[13px] font-bold truncate text-[var(--text)]">{title}</p>
+        <p className="text-[11px] font-medium truncate text-[var(--text-light)]">{sub}</p>
       </div>
       <span className="text-[10px] font-semibold flex-shrink-0" style={{ color: '#c4b9de' }}>{time}</span>
     </div>
@@ -108,9 +108,9 @@ function InterviewCard({ time, name, type, status, meetingLink }: { time: string
     <div
       className="p-5 rounded-[20px] transition-all duration-300 min-w-[280px] flex-1"
       style={{
-        background: 'rgba(255, 255, 255, 0.7)',
-        border: '1px solid rgba(255, 255, 255, 0.9)',
-        boxShadow: '0 4px 20px rgba(108, 71, 255, 0.03)',
+        background: 'var(--card-bg)',
+        border: '1px solid var(--card-border)',
+        boxShadow: 'var(--shadow)',
       }}
     >
       <div className="flex items-start justify-between mb-3">
@@ -131,8 +131,8 @@ function InterviewCard({ time, name, type, status, meetingLink }: { time: string
           </a>
         )}
       </div>
-      <p className="text-[15px] font-black mb-1" style={{ color: '#1a1040' }}>{name}</p>
-      <p className="text-[11px] font-medium mb-4" style={{ color: '#9689bb' }}>{type}</p>
+      <p className="text-[15px] font-black mb-1 text-[var(--text)]">{name}</p>
+      <p className="text-[11px] font-medium mb-4 text-[var(--text-light)]">{type}</p>
       <div className="flex items-center gap-2">
         <div
           className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5`}
@@ -156,15 +156,15 @@ function QuickLink({ label, icon, onClick, bg }: { label: string; icon: string; 
       onClick={onClick}
       className="flex items-center gap-3 p-4 rounded-[20px] transition-all duration-300 hover:scale-[1.02] hover:shadow-lg text-left"
       style={{
-        background: 'rgba(255, 255, 255, 0.6)',
-        border: '1px solid rgba(255, 255, 255, 0.8)',
+        background: 'var(--card-bg)',
+        border: '1px solid var(--card-border)',
         backdropFilter: 'blur(20px)',
       }}
     >
       <div className="w-10 h-10 rounded-[14px] flex items-center justify-center text-[18px]" style={{ background: bg }}>
         {icon}
       </div>
-      <span className="text-[13px] font-bold" style={{ color: '#1a1040' }}>{label}</span>
+      <span className="text-[13px] font-bold text-[var(--text)]">{label}</span>
       <span className="ml-auto text-[14px]" style={{ color: '#c4b9de' }}>→</span>
     </button>
   )
@@ -221,11 +221,11 @@ export default function OverviewPage() {
       <div className="mb-4">
         <h1
           className="font-black mb-2 tracking-[-1px] text-[32px] md:text-[40px] leading-tight"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1a1040' }}
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: 'var(--text)' }}
         >
           {greeting}, {user?.full_name?.split(' ')[0] || 'there'} 👋
         </h1>
-        <p className="text-[16px] font-medium" style={{ color: '#9689bb' }}>
+        <p className="text-[16px] font-medium" style={{ color: 'var(--text-mid)' }}>
           Here's your hiring pipeline at a glance — Hireon AI is working 24/7.
         </p>
       </div>
@@ -274,14 +274,14 @@ export default function OverviewPage() {
         <div
           className="rounded-[24px] p-8"
           style={{
-            background: 'rgba(255, 255, 255, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.8)',
-            boxShadow: '0 8px 30px rgba(108, 71, 255, 0.04)',
+            background: 'var(--card-bg)',
+            border: '1px solid var(--card-border)',
+            boxShadow: 'var(--shadow)',
             backdropFilter: 'blur(20px)',
           }}
         >
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-[16px] font-black" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1a1040' }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Hiring Funnel
             </h3>
             <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] uppercase tracking-wider" style={{ background: 'rgba(108, 71, 255, 0.08)', color: '#6c47ff' }}>
@@ -301,14 +301,14 @@ export default function OverviewPage() {
         <div
           className="rounded-[24px] p-8"
           style={{
-            background: 'rgba(255, 255, 255, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.8)',
-            boxShadow: '0 8px 30px rgba(108, 71, 255, 0.04)',
+            background: 'var(--card-bg)',
+            border: '1px solid var(--card-border)',
+            boxShadow: 'var(--shadow)',
             backdropFilter: 'blur(20px)',
           }}
         >
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-[16px] font-black" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1a1040' }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Recent Activity
             </h3>
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
@@ -327,15 +327,15 @@ export default function OverviewPage() {
       <div
         className="rounded-[24px] p-8"
         style={{
-          background: 'rgba(255, 255, 255, 0.6)',
-          border: '1px solid rgba(255, 255, 255, 0.8)',
-          boxShadow: '0 8px 30px rgba(108, 71, 255, 0.04)',
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          boxShadow: 'var(--shadow)',
           backdropFilter: 'blur(20px)',
         }}
       >
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <h3 className="text-[16px] font-black" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1a1040' }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Today's Interviews
             </h3>
             <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] " style={{ background: 'rgba(108, 71, 255, 0.08)', color: '#6c47ff' }}>
@@ -371,9 +371,9 @@ export default function OverviewPage() {
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center bg-[rgba(108,71,255,0.02)] rounded-[20px] border border-dashed border-[rgba(108,71,255,0.1)]">
+          <div className="py-8 text-center bg-[var(--sb-active)] dark:bg-[rgba(108,71,255,0.05)] rounded-[20px] border border-dashed border-[var(--sidebar-border)]">
             <span className="text-2xl mb-2 block">📅</span>
-            <p className="text-[13px] font-medium" style={{ color: '#9689bb' }}>No interviews scheduled for today.</p>
+            <p className="text-[13px] font-medium text-[var(--text-mid)]">No interviews scheduled for today.</p>
           </div>
         )}
       </div>

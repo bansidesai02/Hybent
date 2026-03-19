@@ -142,19 +142,40 @@ export default function AnalyticsPage() {
             {funnelLoading ? (
               Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-2 w-full rounded-full" />)
             ) : funnel?.stages.reduce((acc, s) => {
-              // Consolidate offer and hired
-              const name = (s.stage === 'offer' || s.stage === 'hired') ? 'offer / hired' : s.stage;
-              const existing = acc.find(a => a.name === name);
-              if (existing) {
-                existing.percentage = Math.max(existing.percentage, s.percentage);
-              } else {
-                acc.push({ name, percentage: s.percentage });
+              // Group stages into 5 funnel buckets
+              let bucket = '';
+              const stage = s.stage.toLowerCase();
+
+              if (stage === 'applied') bucket = 'Applied';
+              else if (['screening', 'pre_screening'].includes(stage)) bucket = 'Shortlisted';
+              else if (['technical_round', 'practical_round', 'techno_functional_round'].includes(stage)) bucket = 'Screened';
+              else if (['management_round', 'hr_round', 'interview'].includes(stage)) bucket = 'Interviewed';
+              else if (['interviewed', 'offer', 'hired'].includes(stage)) bucket = 'Final Round';
+              
+              if (bucket) {
+                const existing = acc.find(a => a.name === bucket);
+                if (existing) {
+                  existing.count += s.count;
+                } else {
+                  acc.push({ name: bucket, count: s.count, percentage: 0 });
+                }
               }
               return acc;
-            }, [] as { name: string, percentage: number }[]).map((s, i) => (
+            }, [] as { name: string, count: number, percentage: number }[])
+            .map((bucket, _, all) => {
+              // Recalculate percentages based on consolidated counts
+              const total = all.reduce((sum, b) => sum + b.count, 0);
+              bucket.percentage = total > 0 ? (bucket.count / total) * 100 : 0;
+              return bucket;
+            })
+            .sort((a, b) => {
+              const order = ['Applied', 'Shortlisted', 'Screened', 'Interviewed', 'Final Round'];
+              return order.indexOf(a.name) - order.indexOf(b.name);
+            })
+            .map((s, i) => (
               <div key={s.name} className="space-y-2">
                 <div className="flex justify-between text-[13px] font-bold text-gray-600 dark:text-gray-400">
-                  <span className="capitalize">{s.name}</span>
+                  <span>{s.name}</span>
                   <span>{Math.round(s.percentage)}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">

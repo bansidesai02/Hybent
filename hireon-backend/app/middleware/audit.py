@@ -46,6 +46,18 @@ class AuditMiddleware(BaseHTTPMiddleware):
         resource_type = parts[2] if len(parts) > 2 else "unknown"
         resource_id = parts[3] if len(parts) > 3 else None
 
+        # If it's a creation (POST) and resource_id is None, try to get it from the response body
+        if not resource_id and request.method == "POST" and response.status_code == 201:
+            try:
+                # We can only safely read the body if it's JSON and not too large
+                # For now, we'll skip complex body reading to avoid performance issues
+                # But we can look for specific headers if they exist (e.g. Location)
+                location = response.headers.get("Location")
+                if location:
+                    resource_id = location.strip("/").split("/")[-1]
+            except Exception:
+                pass
+
         action_map = {"POST": "CREATE", "PUT": "UPDATE", "PATCH": "UPDATE", "DELETE": "DELETE"}
         action = action_map.get(request.method, request.method)
 

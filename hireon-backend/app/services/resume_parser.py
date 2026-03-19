@@ -372,3 +372,58 @@ async def parse_jd(file_bytes: bytes, content_type: str) -> dict:
             "required_skills": [],
             "description": text[:500],
         }
+
+async def generate_match_summary(
+    candidate_data: dict, 
+    job_title: str, 
+    job_skills: list[str], 
+    score: float, 
+    match_threshold: float,
+    decision_reasons: list[str]
+) -> str:
+    """
+    Generates a 2-3 sentence paragraph explaining why a candidate received their match score,
+    focusing on their fit against the specific job requirements.
+    """
+    if not groq_client:
+        return "AI analysis unavailable. Please refer to the specific bullet points above."
+
+    shortlisted = score >= match_threshold
+    status_text = "Shortlisted" if shortlisted else "Rejected / Needs Review"
+
+    prompt = f"""
+    You are an expert technical recruiter AI. Write a concise, professional 2-3 sentence summary explaining exactly why this candidate was {status_text} for the {job_title} role.
+    
+    Context:
+    - Candidate Score: {score}% (Threshold: {match_threshold}%)
+    - Candidate Skills: {', '.join(candidate_data.get('skills', [])[:15])}
+    - Candidate Experience: {candidate_data.get('years_experience')} years
+    - Required Job Skills: {', '.join(job_skills[:15])}
+    
+    Decision Breakdown:
+    {chr(10).join(decision_reasons)}
+    
+    Guidelines:
+    - Do NOT use bullet points. Write a single short paragraph.
+    - Be direct but professional. Speak about the candidate in the third person.
+    - Specifically mention what they matched well on OR what key skills/experience they are missing that caused the low score.
+    - Keep it strictly under 50 words.
+    """
+
+    try:
+        response = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are an expert technical recruiter. Output only the requested summary paragraph."},
+                {"role": "user", "content": prompt},
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.3,
+            max_tokens=150,
+        )
+        content = response.choices[0].message.content
+        if not content:
+            return "Could not generate match summary."
+        return content.strip()
+    except Exception as e:
+        logger.error(f"Error generating match summary with Groq: {e}")
+        return "Could not generate match summary."
