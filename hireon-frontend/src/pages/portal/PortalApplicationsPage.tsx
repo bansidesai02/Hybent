@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { formatDate, stageLabel } from '@/utils/formatters'
 
-const PIPELINE_STAGES = ['applied', 'screening', 'interview', 'offer', 'hired'] as const
+const PIPELINE_STAGES = ['applied', 'screening', 'interview', 'interviewed', 'offer', 'hired'] as const
 type PipelineStage = (typeof PIPELINE_STAGES)[number]
 
 const STAGE_CFG: Record<string, { bg: string; color: string }> = {
   applied:   { bg: 'rgba(124,58,237,0.10)', color: '#7c3aed' },
   screening: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' },
   interview: { bg: 'rgba(6,182,212,0.12)',  color: '#06b6d4' },
+  interviewed: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4' },
   offer:     { bg: 'rgba(16,185,129,0.12)', color: '#10b981' },
   hired:     { bg: 'rgba(16,185,129,0.16)', color: '#059669' },
   rejected:  { bg: 'rgba(239,68,68,0.10)',  color: '#ef4444' },

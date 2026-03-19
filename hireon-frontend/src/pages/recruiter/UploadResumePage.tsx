@@ -3,19 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { resumesApi } from '@/api/resumes'
 import { jobsApi } from '@/api/jobs'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Select } from '@/components/ui/Select'
 import type { Candidate, Job } from '@/types'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface ScoringResult {
-  score: number
+  final_score: number
+  skills_score: number
+  title_score: number
+  experience_score: number
+  education_score: number
   matched_skills: string[]
-  inferred_skills: string[]
-  level: string
+  missing_skills: string[]
   shortlisted: boolean
-  match_confidence: number
+  reasoning: string
 }
 
 interface JobReq {
@@ -31,12 +34,10 @@ type Stage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error'
 const ANALYSIS_STEPS = [
   { id: 'parse', icon: '📄', label: 'Parsing document', getDetail: (c: Candidate) => `Extracted ${(c.summary?.length || 0) + 500} tokens` },
   { id: 'skills', icon: '🏷️', label: 'Extracting explicit skills', getDetail: (c: Candidate) => `Found: ${c.skills.slice(0, 4).join(', ')}` },
-  { id: 'infer', icon: '🔍', label: 'Inferring hidden skills', getDetail: (_: Candidate, s?: ScoringResult) => `Inferred: ${(s?.inferred_skills || []).slice(0, 4).join(', ') || '—'}` },
-  { id: 'exp', icon: '📅', label: 'Calculating experience', getDetail: (c: Candidate, s?: ScoringResult) => `${c.years_experience ?? '?'} years · Level: ${s?.level || '—'}` },
-  { id: 'score', icon: '🎯', label: 'Generating match score', getDetail: (_: Candidate, s?: ScoringResult) => `Match: ${s?.score ?? '?'}% · ${(s?.score ?? 0) >= 70 ? '✅ Passes' : '❌ Below threshold'}` },
+  { id: 'score', icon: '🎯', label: 'Generating match score', getDetail: (_: Candidate, s?: ScoringResult) => `Match: ${s?.final_score ?? '?'}% · ${s?.shortlisted ? '✅ Passes' : '❌ Below threshold'}` },
   { id: 'decide', icon: '⚡', label: 'Making shortlist decision', getDetail: (_: Candidate, s?: ScoringResult) => {
-    if (s?.shortlisted) return '✅ Shortlisted · Ready for pipeline'
-    return '⏸ Needs review · Score below threshold'
+    if (s?.shortlisted) return `✅ Shortlisted`
+    return `⏸ Needs review`
   }},
 ]
 
@@ -84,22 +85,25 @@ import toast from 'react-hot-toast'
 
 // ─── Action Buttons ─────────────────────────────────────────────────────────────
 
-function AnalysisActions({ navigate, candidateId, jobId, score, threshold, currentStage, onAction }: {
+function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage, scoring, onAction }: {
   navigate: any
   candidateId: string
   jobId?: string
-  score: number
   threshold: number
   currentStage?: string
+  scoring?: ScoringResult
   onAction: () => void
 }) {
   const [loading, setLoading] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   const handleStageUpdate = async (stage: string) => {
     setLoading(stage)
     try {
       await candidatesApi.updateStage(candidateId, stage, false, jobId)
       toast.success(stage === 'applied' ? 'Candidate added to pipeline!' : 'Candidate moved to talent DB')
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
       onAction()
       if (stage === 'applied') {
         navigate('/recruiter/pipeline')
@@ -124,13 +128,40 @@ function AnalysisActions({ navigate, candidateId, jobId, score, threshold, curre
     }
   }
 
-  const isHighMatch = score >= threshold
+  const isHighMatch = (scoring?.final_score ?? 0) >= threshold
 
   return (
     <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
       {isHighMatch ? (
         <>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
+            {scoring?.reasoning && (
+              <div style={{ marginTop: 12, marginBottom: 16, padding: 12, background: 'rgba(34,197,94,0.05)', borderRadius: 10, border: '1px solid rgba(34,197,94,0.1)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#22c55e', marginBottom: 6, textAlign: 'left' }}>
+                  AI Match Summary
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5, textAlign: 'left', whiteSpace: 'pre-wrap' }}>
+                  {scoring.reasoning}
+                </p>
+              </div>
+            )}
+
+            {scoring && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                {[
+                  { lbl: 'Skills', val: scoring.skills_score },
+                  { lbl: 'Title', val: scoring.title_score },
+                  { lbl: 'Exp.', val: scoring.experience_score },
+                  { lbl: 'Edu.', val: scoring.education_score },
+                ].map(m => (
+                  <div key={m.lbl} style={{ background: 'rgba(108,71,255,0.03)', border: '1px solid rgba(108,71,255,0.1)', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 600 }}>{m.lbl}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 700 }}>{m.val}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {isHighMatch && !!jobId && (
               <button
                 onClick={() => handleStageUpdate('applied')}
@@ -150,6 +181,7 @@ function AnalysisActions({ navigate, candidateId, jobId, score, threshold, curre
                 {loading === 'applied' ? 'Adding...' : '➕ Add in Pipeline'}
               </button>
             )}
+
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button
@@ -188,7 +220,53 @@ function AnalysisActions({ navigate, candidateId, jobId, score, threshold, curre
         </>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 10 }}>
+            {scoring && (scoring.missing_skills.length > 0 || scoring.reasoning) ? (
+              <div style={{ marginTop: 12, padding: 12, background: 'rgba(239,68,68,0.05)', borderRadius: 10, border: '1px solid rgba(239,68,68,0.1)' }}>
+                {scoring.reasoning && (
+                  <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid rgba(239,68,68,0.1)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#ef4444', marginBottom: 6, textAlign: 'left' }}>
+                      AI Match Summary
+                    </div>
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5, textAlign: 'left', whiteSpace: 'pre-wrap' }}>
+                      {scoring.reasoning}
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+                  {[
+                    { lbl: 'Skills', val: scoring.skills_score },
+                    { lbl: 'Title', val: scoring.title_score },
+                    { lbl: 'Exp.', val: scoring.experience_score },
+                    { lbl: 'Edu.', val: scoring.education_score },
+                  ].map(m => (
+                    <div key={m.lbl} style={{ background: 'rgba(239,68,68,0.03)', border: '1px solid rgba(239,68,68,0.1)', borderRadius: 6, padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, color: '#ef4444', opacity: 0.7, fontWeight: 600 }}>{m.lbl}</span>
+                      <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 700 }}>{m.val}%</span>
+                    </div>
+                  ))}
+                </div>
+
+                {scoring.missing_skills.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#ef4444', marginBottom: 8, textAlign: 'left' }}>
+                      Missing Key Skills
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.6, textAlign: 'left' }}>
+                      {scoring.missing_skills.map((skill, idx) => (
+                        <li key={idx} style={{ marginBottom: 4 }}>{skill}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
+                Score is below your {threshold}% threshold.
+              </p>
+            )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button
               onClick={handleReject}
               disabled={!!loading || currentStage === 'rejected'}
@@ -227,9 +305,7 @@ function AnalysisActions({ navigate, candidateId, jobId, score, threshold, curre
               {loading === 'screening' ? 'Adding...' : '📥 Talent DB'}
             </button>
           </div>
-          <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center', marginTop: 4 }}>
-            Score is below your {threshold}% threshold.
-          </p>
+
         </>
       )}
     </div>
@@ -315,9 +391,7 @@ export default function UploadResumePage() {
 
       // Animate through steps
       setStage('analyzing')
-      const sc: ScoringResult | undefined = data.score_breakdown
-        ? { score: data.match_score ?? 0, ...data.score_breakdown }
-        : undefined
+      const sc: ScoringResult | undefined = data.score_breakdown ?? undefined
 
       for (let i = 1; i <= ANALYSIS_STEPS.length; i++) {
         await new Promise((r) => setTimeout(r, 500 + Math.random() * 300))
@@ -595,7 +669,7 @@ export default function UploadResumePage() {
                 >
                   {/* Candidate header */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
-                    {scoring && <ScoreRing score={scoring.score} />}
+                    {scoring && <ScoreRing score={scoring.final_score} />}
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
                         {result.full_name}
@@ -624,8 +698,8 @@ export default function UploadResumePage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
                     {[
                       { val: result.years_experience ? `${result.years_experience}y` : '—', lbl: 'Years Exp.' },
-                      { val: scoring?.level || '—', lbl: 'Level' },
-                      { val: scoring ? `${scoring.match_confidence}%` : '—', lbl: 'Match Confidence' },
+                      { val: scoring?.final_score ?? '—', lbl: 'AI Score' },
+                      { val: scoring?.shortlisted ? '✅ YES' : '⏸ REVIEW', lbl: 'Shortlist' },
                     ].map(m => (
                       <div key={m.lbl} style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
                         <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>{m.val}</div>
@@ -662,9 +736,9 @@ export default function UploadResumePage() {
                     navigate={navigate} 
                     candidateId={result.id}
                     jobId={jobReq.job_id}
-                    score={scoring?.score || 0}
                     threshold={parseFloat(jobReq.match_threshold) || 70}
                     currentStage={result.pipeline_stage || undefined}
+                    scoring={scoring ?? undefined}
                     onAction={() => {
                        // When any action happens (Add to Pipeline, Talent DB, etc.),
                        // we want to refresh the candidate data to update the UI.

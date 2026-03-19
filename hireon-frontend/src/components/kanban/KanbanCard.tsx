@@ -21,7 +21,7 @@ export function KanbanCard({ card, index, onClick }: KanbanCardProps) {
           {...provided.dragHandleProps}
           onClick={onClick}
           className={`
-            bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700
+            bg-white dark:bg-[var(--card-bg)] rounded-xl p-4 border border-gray-100 dark:border-[var(--card-border)]
             cursor-pointer select-none transition-all duration-200 shadow-sm
             ${snapshot.isDragging
               ? 'shadow-xl scale-105 border-violet-300 dark:border-violet-600'

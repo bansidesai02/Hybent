@@ -58,6 +58,12 @@ class Candidate(Base):
     # Talent pool tags
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
 
+    # HR / Recruiter notes
+    hr_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Job title they are currently being considered for (syncs with latest application)
+    applied_job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     source: Mapped[str | None] = mapped_column(String(100))  # linkedin, referral, job_board, etc.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

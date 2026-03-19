@@ -16,25 +16,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { useAuthStore } from '@/store/authStore'
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
-function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      style={{
-        position: 'fixed', bottom: 24, right: 24, zIndex: 50,
-        padding: '12px 20px', borderRadius: 12,
-        background: type === 'success' ? '#059669' : '#dc2626',
-        color: '#fff', fontSize: 13, fontWeight: 600,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-      }}
-    >
-      {message}
-    </motion.div>
-  )
-}
+import toast from 'react-hot-toast'
 
 // ─── Role badge ───────────────────────────────────────────────────────────────
 const ROLE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
@@ -114,12 +96,7 @@ export default function TeamManagementPage() {
   const { user: currentUser } = useAuthStore()
   const [showInvite, setShowInvite] = useState(false)
   const [toggleTarget, setToggleTarget] = useState<User | null>(null)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3500)
-  }, [])
+  // Team members (admin + recruiter + interviewer)
 
   // Team members (admin + recruiter + interviewer)
   const { data: users, isLoading: usersLoading } = useQuery({
@@ -150,10 +127,10 @@ export default function TeamManagementPage() {
       adminApi.updateUser(id, { is_active }),
     onSuccess: (_, { is_active }) => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-      showToast(is_active ? 'User activated' : 'User deactivated')
+      toast.success(is_active ? 'User activated' : 'User deactivated')
       setToggleTarget(null)
     },
-    onError: () => showToast('Failed to update user status', 'error'),
+    onError: () => toast.error('Failed to update user status'),
   })
 
   const isLoading = usersLoading || hiredLoading
@@ -343,7 +320,7 @@ export default function TeamManagementPage() {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['users'] })
             setShowInvite(false)
-            showToast('Invitation sent successfully!')
+            toast.success('Invitation sent successfully!')
           }}
         />
       )}
@@ -364,9 +341,6 @@ export default function TeamManagementPage() {
         loading={toggleActiveMutation.isPending}
       />
 
-      <AnimatePresence>
-        {toast && <Toast {...toast} />}
-      </AnimatePresence>
     </div>
   )
 }

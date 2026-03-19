@@ -13,6 +13,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 /* ============================================
    DESIGN TOKENS
 ============================================ */
@@ -66,33 +76,33 @@
   }
 
   .dark {
-    --bg: #0c0720;
-    --bg2: #130a2a;
-    --text: #e8e0ff;
-    --text-mid: #a094cc;
-    --text-light: #6a5e99;
-    --glass: rgba(26, 12, 56, 0.84);
-    --glass-border: rgba(108, 71, 255, 0.18);
-    --topbar-bg: rgba(12, 7, 32, 0.94);
-    --topbar-border: rgba(108, 71, 255, 0.20);
-    --sidebar-bg: rgba(12, 7, 32, 0.90);
-    --sidebar-border: rgba(108, 71, 255, 0.16);
-    --card-bg: rgba(26, 12, 56, 0.84);
-    --card-border: rgba(108, 71, 255, 0.18);
-    --input-bg: rgba(108, 71, 255, 0.10);
-    --input-border: rgba(108, 71, 255, 0.26);
-    --hover-row: rgba(108, 71, 255, 0.07);
-    --table-head: rgba(20, 8, 50, 0.92);
-    --table-border: rgba(108, 71, 255, 0.11);
-    --shadow: 0 4px 24px rgba(0, 0, 0, 0.40);
-    --shadow-h: 0 12px 40px rgba(108, 71, 255, 0.28);
-    --kpi-bg: rgba(20, 10, 48, 0.92);
-    --activity-bg: rgba(20, 10, 48, 0.78);
-    --modal-bg: #140838;
-    --sb-active: rgba(108, 71, 255, 0.20);
-    --sb-hover: rgba(108, 71, 255, 0.11);
-    --search-bg: rgba(108, 71, 255, 0.11);
-    --blob-op: 0.35;
+    --bg: #060212;
+    --bg2: #0a041c;
+    --text: #ffffff;
+    --text-mid: #bdb4e0;
+    --text-light: #7e70ad;
+    --glass: rgba(16, 7, 44, 0.72);
+    --glass-border: rgba(108, 71, 255, 0.28);
+    --topbar-bg: rgba(6, 2, 18, 0.92);
+    --topbar-border: rgba(108, 71, 255, 0.24);
+    --sidebar-bg: rgba(8, 3, 26, 0.95);
+    --sidebar-border: rgba(108, 71, 255, 0.20);
+    --card-bg: rgba(19, 9, 53, 0.65);
+    --card-border: rgba(108, 71, 255, 0.22);
+    --input-bg: rgba(108, 71, 255, 0.12);
+    --input-border: rgba(108, 71, 255, 0.35);
+    --hover-row: rgba(108, 71, 255, 0.08);
+    --table-head: rgba(14, 6, 38, 0.95);
+    --table-border: rgba(108, 71, 255, 0.18);
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.65);
+    --shadow-h: 0 16px 48px rgba(108, 71, 255, 0.32);
+    --kpi-bg: rgba(22, 11, 58, 0.75);
+    --activity-bg: rgba(19, 10, 52, 0.85);
+    --modal-bg: #0a0422;
+    --sb-active: rgba(108, 71, 255, 0.28);
+    --sb-hover: rgba(108, 71, 255, 0.15);
+    --search-bg: rgba(108, 71, 255, 0.15);
+    --blob-op: 0.45;
   }
 
   *,
@@ -126,7 +136,13 @@
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow-card);
+    box-shadow: var(--shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass:hover {
+    box-shadow: var(--shadow-h);
+    border-color: rgba(108, 71, 255, 0.35);
   }
 
   /* Nav glassmorphism */
@@ -283,6 +299,14 @@
     background: var(--sb-active);
     color: var(--violet);
     font-weight: 700;
+    box-shadow: 0 4px 20px rgba(108, 71, 255, 0.12);
+  }
+
+  .dark .nav-item.active {
+    background: rgba(108, 71, 255, 0.25);
+    color: #ffffff;
+    border: 1px solid rgba(108, 71, 255, 0.35);
+    box-shadow: 0 0 25px rgba(108, 71, 255, 0.25);
   }
 
   /* Input base */

@@ -38,7 +38,9 @@ class CandidateOut(OrmSchema):
     match_score: float | None = None
     score_breakdown: dict | None = None
     pipeline_stage: str | None = None
+    applied_job_title: str | None = None
     tags: list[str]
+    hr_notes: str | None = None
     source: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -68,6 +70,7 @@ class CandidateUpdate(BaseModel):
     interview_time_slot: str | None = None
     blackout_dates: str | None = None
     weekend_interviews: bool | None = None
+    hr_notes: str | None = None
 
 class CandidateStageUpdate(BaseModel):
     pipeline_stage: str

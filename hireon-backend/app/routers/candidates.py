@@ -9,7 +9,7 @@ from app.utils.pagination import paginate
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
-from app.services.match_scorer import compute_match_score, compute_score_breakdown
+from app.services.match_scorer import evaluate_candidate_match
 
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
 
@@ -45,14 +45,16 @@ async def list_candidates(
     # Status → multiple pipeline_stage values
     STATUS_STAGE_MAP = {
         "in_review":   [
-            "applied", None, "screening", ""
+            "applied", None, "screening", "", "needs_review"
         ],
         "shortlisted": ["pre_screening_selected"],
         "scheduled":   [
+            "pre_screening", "technical_round", "practical_round",
+            "techno_functional_round", "management_round", "hr_round",
             "technical_round_selected", "practical_round_selected",
             "techno_functional_selected", "management_round_selected",
             "hr_round_selected", "offered", "hired", "hired_joined",
-            "interview",
+            "interview", "interviewed",
         ],
         "rejected": REJECTION_STAGES
     }
@@ -104,7 +106,6 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
         .join(Job, Application.job_id == Job.id)
         .where(
             Candidate.organization_id == current_user.organization_id,
-            Candidate.pipeline_stage.isnot(None),
             Job.status == JobStatus.ACTIVE
         )
         .distinct()
@@ -116,6 +117,7 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
         "applied": [],
         "screening": [],
         "interview": [],
+        "interviewed": [],
         "offer": [],
         "rejected": []
     }
@@ -123,12 +125,19 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
     # Mapping of detailed stages to high-level buckets
     STAGE_TO_BUCKET = {
         "applied": "applied",
+        "pre_screening": "screening",
         "pre_screening_selected": "screening",
+        "technical_round": "interview",
         "technical_round_selected": "interview",
+        "practical_round": "interview",
         "practical_round_selected": "interview",
+        "techno_functional_round": "interview",
         "techno_functional_selected": "interview",
+        "management_round": "interview",
         "management_round_selected": "interview",
+        "hr_round": "interview",
         "hr_round_selected": "interview",
+        "interviewed": "interviewed",
         "offered": "offer",
         "hired": "offer",
         "hired_joined": "offer",
@@ -145,9 +154,10 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
             bucket = "rejected"
         
         if not bucket:
-            # Fallback if unknown stage, put in nearest bucket or ignore? 
-            # For now, put in its own list if it exists in 'stages' keys, or ignore
-            if stage in stages:
+            # New candidates or those needing review go to 'applied' bucket by default in pipeline
+            if stage is None or stage == "needs_review":
+                bucket = "applied"
+            elif stage in stages:
                 bucket = stage
             else:
                 continue # Skip unknown stages that don't map to pipeline
@@ -304,11 +314,31 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
     
     # Map high-level bucket names (from kanban) to canonical detailed stages
     BUCKET_TO_STAGE = {
-        "screening": "pre_screening_selected",
-        "interview": "technical_round_selected",
+        "screening": "pre_screening",
+        "interview": "technical_round",
+        "interviewed": "interviewed",
         "offer": "offered",
     }
     target_stage = BUCKET_TO_STAGE.get(data.pipeline_stage, data.pipeline_stage)
+
+    if target_stage == "interviewed":
+        from app.models.scorecard import Scorecard
+        # Check if at least one scorecard exists for this candidate's applications
+        sc_query = (
+            select(func.count(Scorecard.id))
+            .join(Application, Scorecard.application_id == Application.id)
+            .where(
+                Application.candidate_id == candidate_id,
+                Application.organization_id == current_user.organization_id
+            )
+        )
+        sc_count = (await db.execute(sc_query)).scalar()
+        if sc_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot move to Interviewed: No scorecard submitted yet."
+            )
+
     candidate.pipeline_stage = target_stage
     
     # Synchronize all applications for this candidate to the same stage
@@ -316,7 +346,7 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
     app_query = select(Application).where(Application.candidate_id == candidate_id)
     apps_res = await db.execute(app_query)
     for app in apps_res.scalars().all():
-        app.stage = target_stage
+        app.stage = data.pipeline_stage
     
     # If adding to pipeline and job_id is provided, create Application
     if data.pipeline_stage == "applied" and data.job_id and data.job_id.lower() not in ("null", "undefined", ""):
@@ -350,23 +380,16 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
                 job_res = await db.execute(select(Job).where(Job.id == job_id_uuid))
                 job = job_res.scalar_one_or_none()
                 if job:
-                    score = await compute_match_score(
+                    score, breakdown = await evaluate_candidate_match(
+                        candidate_data=candidate.parsed_data or {},
                         candidate_skills=candidate.skills,
-                        parsed_data=candidate.parsed_data or {},
                         years_experience=candidate.years_experience,
                         job=job,
-                    )
-                    breakdown = compute_score_breakdown(
-                        candidate_skills=candidate.skills,
-                        parsed_data=candidate.parsed_data or {},
-                        years_experience=candidate.years_experience,
-                        job_skills=job.skills_required or [],
-                        job_title=job.title,
-                        score=score,
-                        match_threshold=70.0, # Default or should we allow passing it?
+                        match_threshold=70.0,
                     )
                     candidate.match_score = score
                     candidate.score_breakdown = breakdown
+                    candidate.applied_job_title = job.title
                     application.match_score = score
     
     # Rejection email — only when explicitly requested (not on kanban drag)

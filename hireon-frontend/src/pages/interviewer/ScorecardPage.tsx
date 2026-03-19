@@ -328,6 +328,8 @@ export default function ScorecardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scorecards', 'application', interview?.application_id] })
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
       showToast('Scorecard submitted successfully!')
       // Reset form
       setCriteria({ technical: 0, communication: 0, culture_fit: 0, problem_solving: 0 })

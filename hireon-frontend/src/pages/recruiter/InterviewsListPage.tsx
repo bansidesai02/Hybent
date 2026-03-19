@@ -91,26 +91,7 @@ type ScheduleForm = z.infer<typeof scheduleSchema>
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 20, scale: 0.95 }}
-      style={{
-        position: 'fixed', bottom: 24, right: 24, zIndex: 50,
-        padding: '12px 20px', borderRadius: 12,
-        background: type === 'success' ? '#059669' : '#dc2626',
-        color: '#fff', fontSize: 13, fontWeight: 600,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-        display: 'flex', alignItems: 'center', gap: 8,
-      }}
-    >
-      <span>{type === 'success' ? '✓' : '✕'}</span>
-      {message}
-    </motion.div>
-  )
-}
+import toast from 'react-hot-toast'
 
 function MiniStars({ value }: { value: number }) {
   return (
@@ -385,6 +366,7 @@ function ScheduleForm({
   selectedTime: string
   duration: number
 }) {
+  const queryClient = useQueryClient()
   const { register, handleSubmit, control, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<ScheduleForm>({
     resolver: zodResolver(scheduleSchema),
     defaultValues: { duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_id: '' },
@@ -447,7 +429,11 @@ function ScheduleForm({
       return interviewsApi.create(payload)
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['interviews'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates-for-schedule'] })
       onSuccess('Interview scheduled!')
+      toast.success('Interview scheduled successfully')
       reset({ duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_id: '' })
     },
   })
@@ -681,15 +667,9 @@ export default function InterviewsListPage() {
 
   const [cancelTarget, setCancelTarget]           = useState<Interview | null>(null)
   const [cancelReason, setCancelReason]           = useState<string>('')
-  const [toast, setToast]                         = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [expandedScorecard, setExpandedScorecard] = useState<string | null>(null)
   const [statusFilter, setStatusFilter]           = useState<InterviewStatus | 'all'>('all')
   const [activeTab, setActiveTab]                 = useState<'schedule' | 'interviews'>('schedule')
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3500)
-  }, [])
 
   const { data: interviews, isLoading, isError } = useQuery({
     queryKey: ['interviews'],
@@ -715,11 +695,12 @@ export default function InterviewsListPage() {
     mutationFn: ({ id, reason }: { id: string, reason?: string }) => interviewsApi.cancel(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interviews'] })
-      showToast('Interview cancelled')
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+      toast.success('Interview cancelled')
       setCancelTarget(null)
       setCancelReason('')
     },
-    onError: () => showToast('Failed to cancel interview', 'error'),
+    onError: () => toast.error('Failed to cancel interview'),
   })
 
   return (
@@ -738,7 +719,7 @@ export default function InterviewsListPage() {
             <button
               onClick={async () => {
                 try { const res = await authApi.connectCalendar(); window.location.href = res.data.auth_url }
-                catch { showToast('Could not connect calendar', 'error') }
+                catch { toast.error('Could not connect calendar') }
               }}
               className="glass-card"
               style={{ 
@@ -806,7 +787,7 @@ export default function InterviewsListPage() {
                 onSuccess={(msg) => {
                   queryClient.invalidateQueries({ queryKey: ['interviews'] })
                   queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
-                  showToast(msg)
+                  toast.success(msg)
                 }}
               />
             </div>
@@ -892,9 +873,6 @@ export default function InterviewsListPage() {
         </div>
       </ConfirmModal>
 
-      <AnimatePresence>
-        {toast && <Toast {...toast} />}
-      </AnimatePresence>
     </div>
   )
 }

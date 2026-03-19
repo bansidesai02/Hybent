@@ -1,7 +1,11 @@
-import React from 'react'
-import type { Candidate } from '@/types'
+import React, { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'react-hot-toast'
+import type { Candidate, Scorecard } from '@/types'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatDate } from '@/utils/formatters'
+import { candidatesApi } from '@/api/candidates'
+import { scorecardsApi } from '@/api/scorecards'
 
 interface CandidateProfileViewProps {
   candidate: Candidate
@@ -11,6 +15,13 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   applied:                      { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', label: 'Applied' },
   screening:                    { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Screening' },
   interview:                    { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interview' },
+  pre_screening:                { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Pre-screening' },
+  technical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Technical Round' },
+  practical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Practical Round' },
+  techno_functional_round:      { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Techno-Functional Round' },
+  management_round:             { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Management Round' },
+  hr_round:                     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'HR Round' },
+  interviewed:                  { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interviewed' },
   offer:                        { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offer' },
   hired:                        { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired' },
   rejected:                     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Rejected' },
@@ -34,106 +45,281 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
 }
 
+/** Stages that have past pre-screening and qualify for interview feedback */
+const INTERVIEW_STAGES = new Set([
+  'technical_round', 'technical_round_selected', 'technical_round_rejected', 'technical_round_back_out',
+  'practical_round', 'practical_round_selected', 'practical_round_rejected', 'practical_round_back_out',
+  'techno_functional_round', 'techno_functional_selected', 'techno_functional_rejected',
+  'management_round', 'management_round_selected', 'management_round_rejected',
+  'hr_round', 'hr_round_selected', 'hr_round_rejected',
+  'interview', 'interviewed',
+  'offered', 'offer', 'hired', 'hired_joined', 'rejected',
+])
+
+const REC_CFG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+  strong_yes: { label: 'Strong Hire',  color: '#059669', bg: 'rgba(16,185,129,0.12)', icon: '🌟' },
+  yes:        { label: 'Hire',         color: '#10b981', bg: 'rgba(16,185,129,0.10)', icon: '✅' },
+  maybe:      { label: 'Maybe',        color: '#d97706', bg: 'rgba(251,191,36,0.12)', icon: '🤔' },
+  no:         { label: 'No Hire',      color: '#ef4444', bg: 'rgba(239,68,68,0.10)',  icon: '❌' },
+  strong_no:  { label: 'Strong No',   color: '#dc2626', bg: 'rgba(239,68,68,0.12)',  icon: '🚫' },
+}
+
 function scoreColor(s: number) {
   if (s >= 80) return { text: '#059669', bg: 'rgba(16,185,129,0.12)', track: '#10b981' }
   if (s >= 60) return { text: '#d97706', bg: 'rgba(251,191,36,0.12)', track: '#f59e0b' }
   return { text: '#ef4444', bg: 'rgba(239,68,68,0.10)', track: '#ef4444' }
 }
 
-export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
+// ─── Feedback Tab ─────────────────────────────────────────────────────────────
+
+function FeedbackTab({ candidate }: { candidate: Candidate }) {
   const stage = candidate.pipeline_stage || 'applied'
-  const stageCfg = candidate.pipeline_stage ? STAGE_CFG[stage] : null
-  const sc = candidate.match_score != null ? scoreColor(candidate.match_score) : null
+  const hasInterviewStage = INTERVIEW_STAGES.has(stage)
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '4px 0' }}>
-      {/* Header Section */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, paddingBottom: 24, borderBottom: '1px solid rgba(139, 92, 246, 0.1)' }}>
-        <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" className="ring-4 ring-violet-50 dark:ring-violet-900/20 shadow-lg" />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", marginBottom: 4, letterSpacing: '-0.02em' }}>
-            {candidate.full_name}
-          </h3>
-          {candidate.current_title && (
-            <p style={{ fontSize: 14, fontWeight: 600, color: '#6c47ff', marginBottom: 2 }}>
-              {candidate.current_title}{candidate.current_company ? ` · ${candidate.current_company}` : ''}
-            </p>
-          )}
-          <p style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>{candidate.email}</p>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-            {stageCfg ? (
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 14px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {stageCfg.label}
-              </span>
-            ) : (
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 14px', borderRadius: 20, background: 'rgba(0,0,0,0.05)', color: 'var(--text-mid)', border: '1px solid rgba(0,0,0,0.05)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Talent Pool
-              </span>
-            )}
-            {sc && (
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 14px', borderRadius: 20, background: sc.bg, color: sc.text, textTransform: 'uppercase', letterSpacing: '0.05em', border: `1px solid ${sc.track}20` }}>
-                {Math.round(candidate.match_score!)}% AI Match
-              </span>
-            )}
-          </div>
-        </div>
+  // Fetch applications for this candidate to get application IDs
+  const { data: applications = [], isLoading: loadingApps } = useQuery({
+    queryKey: ['candidate-applications', candidate.id],
+    queryFn: () => candidatesApi.getApplications(candidate.id).then(r => r.data),
+    enabled: hasInterviewStage,
+  })
 
-        {/* Action Links */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-          {candidate.resume_url && (
-            <a href={candidate.resume_url} target="_blank" rel="noreferrer"
-              style={{ 
-                fontSize: 12, fontWeight: 700, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 6, 
-                textDecoration: 'none', background: 'rgba(108, 71, 255, 0.08)', padding: '8px 14px', borderRadius: 12,
-                transition: 'all 0.2s'
-              }}>
-              📄 View Resume
-            </a>
-          )}
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            {candidate.linkedin_url && (
-              <a href={candidate.linkedin_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-light)' }}>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.238 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-              </a>
-            )}
-            {candidate.github_url && (
-              <a href={candidate.github_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-light)' }}>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-              </a>
-            )}
-          </div>
-        </div>
+  // Derive the first application id
+  const applicationId: string | null = Array.isArray(applications) && applications.length > 0
+    ? (applications[0]?.id ?? null)
+    : null
+
+  const { data: scorecards = [], isLoading: loadingSC } = useQuery({
+    queryKey: ['scorecards', 'application', applicationId],
+    queryFn: () => scorecardsApi.getForApplication(applicationId).then(r => r.data as Scorecard[]),
+    enabled: hasInterviewStage && !!applicationId,
+    staleTime: 30_000,
+  })
+
+  const currentStageCfg = STAGE_CFG[stage]
+
+  // ── Locked state ──
+  if (!hasInterviewStage) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: 16 }}>
+        <div style={{ fontSize: 56 }}>🔒</div>
+        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Interview Feedback Not Available Yet</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-light)', lineHeight: 1.7, maxWidth: 340, margin: 0 }}>
+          Interview feedback unlocks once the candidate has been{' '}
+          {currentStageCfg && (
+            <strong style={{ color: currentStageCfg.color }}>{currentStageCfg.label}</strong>
+          )}{' '}
+          and progressed to at least the <strong style={{ color: '#8b5cf6' }}>Technical Round</strong>. Update the
+          candidate's stage using the Action dropdown to unlock this section.
+        </p>
       </div>
+    )
+  }
 
-      {/* Stats Quick Info */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
-        {[
-          { label: 'Experience', value: `${candidate.years_experience} Yrs` },
-          { label: 'Location', value: candidate.location || 'Remote' },
-          { label: 'Added On', value: formatDate(candidate.created_at) },
-          { label: 'Source', value: candidate.source || 'Sourced' },
-        ].map(stat => (
-          <div key={stat.label} style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 16, padding: '12px 16px' }}>
-            <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>{stat.label}</p>
-            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{stat.value}</p>
-          </div>
+  if (loadingApps || loadingSC) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '24px 0' }}>
+        {[1, 2].map(i => (
+          <div key={i} style={{ height: 120, borderRadius: 16, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
         ))}
       </div>
+    )
+  }
 
-      {/* AI Summary Section */}
-      {Boolean(candidate.summary) ? (
-        <div style={{ background: 'linear-gradient(135deg, #6c47ff, #8b5cf6)', color: '#fff', borderRadius: 24, padding: '24px', boxShadow: '0 10px 30px rgba(108, 71, 255, 0.15)', position: 'relative', overflow: 'hidden' }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 12 }}>⚡ AI Performance Summary</p>
-          <p style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.7, fontStyle: 'italic', position: 'relative', zIndex: 1 }}>
-            "{candidate.summary}"
-          </p>
-          <div style={{ position: 'absolute', bottom: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+  // ── No scorecards state ──
+  if (!scorecards.length) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: 16 }}>
+        <div style={{ fontSize: 48 }}>📋</div>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>No Feedback Submitted Yet</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-light)', lineHeight: 1.7, maxWidth: 340, margin: 0 }}>
+          The candidate is in the interview pipeline. Interviewers can submit feedback from the <strong>Schedule</strong> page after completing an interview.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 8 }}>
+      {/* Summary bar */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        {['strong_yes','yes','maybe','no','strong_no'].map(r => {
+          const count = scorecards.filter(sc => sc.recommendation === r).length
+          if (!count) return null
+          const cfg = REC_CFG[r]
+          return (
+            <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: cfg.bg, border: `1px solid ${cfg.color}22` }}>
+              <span>{cfg.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>{count} × {cfg.label}</span>
+            </div>
+          )
+        })}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(108,71,255,0.08)', border: '1px solid rgba(108,71,255,0.15)' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#6c47ff' }}>
+            Avg Rating: {(scorecards.reduce((s, sc) => s + sc.overall_rating, 0) / scorecards.length).toFixed(1)} / 5
+          </span>
         </div>
-      ) : null}
+      </div>
+
+      {/* Scorecard cards */}
+      {scorecards.map((sc) => {
+        const rec = REC_CFG[sc.recommendation]
+        const ratingColor = scoreColor((sc.overall_rating / 5) * 100)
+        const criteria = sc.criteria_scores ?? []
+        return (
+          <div key={sc.id} style={{
+            background: 'var(--kpi-bg)',
+            border: `1px solid var(--table-border)`,
+            borderLeft: `4px solid ${rec?.color ?? '#6c47ff'}`,
+            borderRadius: 16,
+            overflow: 'hidden',
+            transition: 'box-shadow 0.2s',
+          }}>
+            {/* Card header */}
+            <div style={{ padding: '18px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #6c47ff, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 800, flexShrink: 0 }}>
+                  {(sc.submitted_by_name ?? 'R').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{sc.submitted_by_name ?? 'Interviewer'}</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-light)', margin: 0 }}>{formatDate(sc.submitted_at)}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Star rating */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {[1,2,3,4,5].map(s => (
+                    <span key={s} style={{ fontSize: 16, color: s <= sc.overall_rating ? '#fbbf24' : 'rgba(0,0,0,0.12)' }}>★</span>
+                  ))}
+                  <span style={{ fontSize: 12, fontWeight: 700, color: ratingColor.text, marginLeft: 4, background: ratingColor.bg, padding: '2px 8px', borderRadius: 20 }}>
+                    {sc.overall_rating}/5
+                  </span>
+                </div>
+                {rec && (
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 12px', borderRadius: 20, background: rec.bg, color: rec.color, border: `1px solid ${rec.color}22` }}>
+                    {rec.icon} {rec.label}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Criteria scores */}
+            {criteria.length > 0 && (
+              <div style={{ padding: '0 20px 16px' }}>
+                <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Evaluation Criteria</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                  {criteria.map((c) => (
+                    <div key={c.criterion}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>{c.score}/5</span>
+                      </div>
+                      <div style={{ height: 5, background: 'rgba(108,71,255,0.08)', borderRadius: 4 }}>
+                        <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg,#6c47ff,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' }} />
+                      </div>
+                      {c.notes && <p style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontStyle: 'italic' }}>{c.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Strengths / Weaknesses / Summary */}
+            {(sc.strengths || sc.weaknesses || sc.summary) && (
+              <div style={{ borderTop: '1px solid var(--table-border)', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {sc.strengths && (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>💪 Strengths</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.strengths}</p>
+                  </div>
+                )}
+                {sc.weaknesses && (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>⚡ Areas to Improve</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.weaknesses}</p>
+                  </div>
+                )}
+                {sc.summary && (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📝 Overall Summary</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, fontStyle: 'italic' }}>"{sc.summary}"</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Details Tab ─────────────────────────────────────────────────────────────
+
+function DetailsTab({ candidate }: { candidate: Candidate }) {
+  const [notes, setNotes] = useState(candidate.hr_notes || '')
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    setNotes(candidate.hr_notes || '')
+  }, [candidate.hr_notes])
+
+  const saveNotesMutation = useMutation({
+    mutationFn: (newNotes: string) => candidatesApi.update(candidate.id, { hr_notes: newNotes }),
+    onSuccess: () => {
+      toast.success('Notes saved')
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    },
+    onError: () => {
+      toast.error('Failed to save notes')
+    }
+  })
+
+  // Handle auto-save on blur
+  const handleBlur = () => {
+    if (notes !== (candidate.hr_notes || '')) {
+      saveNotesMutation.mutate(notes)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Stats Quick Info */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+        {candidate.phone && (
+          <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+            <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📞 Phone Number</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.phone}</p>
+          </div>
+        )}
+        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>✉ Email ID</p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.email}</p>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>🎯 Experience</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.years_experience != null ? `${candidate.years_experience} Yrs` : 'N/A'}</p>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📍 Location</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.location || 'Remote'}</p>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📅 Added On</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{formatDate(candidate.created_at)}</p>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>🔗 Source</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.source || 'Sourced'}</p>
+        </div>
+      </div>
+
+
+
+      {/* Technical Expertise Title removed as it's below */}
 
       {/* Skills Section */}
-      {Boolean(candidate.skills && candidate.skills.length > 0) ? (
+      {Boolean(candidate.skills && candidate.skills.length > 0) && (
         <div>
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
             Technical Expertise <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
@@ -146,10 +332,10 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
             ))}
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Work Experience */}
-      {Boolean(candidate.parsed_data?.experience && Array.isArray(candidate.parsed_data.experience) && candidate.parsed_data.experience.length > 0) ? (
+      {Boolean(candidate.parsed_data?.experience && Array.isArray(candidate.parsed_data.experience) && (candidate.parsed_data.experience as any[]).length > 0) && (
         <div>
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
             Career Journey <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
@@ -165,34 +351,10 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
             ))}
           </div>
         </div>
-      ) : null}
-
-      {/* Projects */}
-      {Boolean(candidate.parsed_data?.projects && Array.isArray(candidate.parsed_data.projects) && candidate.parsed_data.projects.length > 0) ? (
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-            Key Projects <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-            {(candidate.parsed_data?.projects as any[]).map((proj: any, idx: number) => (
-              <div key={idx} style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 16, padding: '16px' }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{proj.name}</h4>
-                <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 10 }}>{proj.description}</p>
-                {proj.technologies && Array.isArray(proj.technologies) && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {proj.technologies.map((tech: string) => (
-                      <span key={tech} style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'rgba(108,71,255,0.05)', color: '#6c47ff', textTransform: 'uppercase' }}>{tech}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      )}
 
       {/* Education */}
-      {Boolean(candidate.parsed_data?.education && Array.isArray(candidate.parsed_data.education) && candidate.parsed_data.education.length > 0) ? (
+      {Boolean(candidate.parsed_data?.education && Array.isArray(candidate.parsed_data.education) && (candidate.parsed_data.education as any[]).length > 0) && (
         <div>
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
             Academic Foundation <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
@@ -209,7 +371,138 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
             ))}
           </div>
         </div>
-      ) : null}
+      )}
+
+      {/* HR Notes section */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
+            📝 HR Confidential Notes
+          </p>
+          {saveNotesMutation.isPending && <span style={{ fontSize: 11, color: '#6c47ff', fontWeight: 600 }}>Saving...</span>}
+        </div>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={handleBlur}
+          placeholder="Add private notes about this candidate here. These notes are only visible to your team..."
+          style={{
+            width: '100%',
+            minHeight: 120,
+            padding: '14px 16px',
+            borderRadius: 14,
+            border: '1px solid rgba(0,0,0,0.1)',
+            background: 'rgba(0,0,0,0.01)',
+            fontSize: 13,
+            color: 'var(--text)',
+            resize: 'vertical',
+            fontFamily: 'inherit',
+            lineHeight: 1.5,
+            transition: 'border-color 0.2s, background 0.2s',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = '#6c47ff'
+            e.currentTarget.style.background = '#fff'
+          }}
+          onBlurCapture={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'
+            e.currentTarget.style.background = 'rgba(0,0,0,0.01)'
+          }}
+        />
+        <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 8, fontStyle: 'italic' }}>
+          Notes auto-save when you click outside the text box.
+        </p>
+      </div>
+
+    </div>
+  )
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
+
+export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
+  const [activeTab, setActiveTab] = useState<'details' | 'feedback'>('details')
+  const stage = candidate.pipeline_stage || 'applied'
+  const stageCfg = candidate.pipeline_stage ? STAGE_CFG[stage] : null
+
+  const tabs = [
+    { key: 'details',  label: '📋 Candidate Details' },
+    { key: 'feedback', label: '🎙️ Interview Feedback' },
+  ] as const
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '4px 0' }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, paddingBottom: 20 }}>
+        <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" className="ring-4 ring-violet-50 shadow-lg" />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", marginBottom: 2, letterSpacing: '-0.02em' }}>
+            {candidate.full_name}
+          </h3>
+          {candidate.current_title && (
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-mid)', marginBottom: 6 }}>
+              {candidate.current_title}{candidate.current_company ? ` · ${candidate.current_company}` : ''}
+            </p>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {stageCfg ? (
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 14px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {stageCfg.label}
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 14px', borderRadius: 20, background: 'rgba(0,0,0,0.05)', color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Talent Pool
+              </span>
+            )}
+            {candidate.match_score != null && (() => {
+              const sc = scoreColor(candidate.match_score)
+              return (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20, background: sc.bg, color: sc.text, border: `1px solid ${sc.track}30` }}>
+                  ⚡ {Math.round(candidate.match_score)}% Match
+                </span>
+              )
+            })()}
+            {candidate.resume_url && (
+              <a href={candidate.resume_url} target="_blank" rel="noreferrer"
+                style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', background: 'rgba(108,71,255,0.08)', padding: '4px 12px', borderRadius: 20 }}>
+                📄 Resume
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tabs ── */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--table-border)', marginBottom: 24, position: 'relative' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: '10px 20px',
+              fontSize: 13,
+              fontWeight: activeTab === tab.key ? 700 : 500,
+              color: activeTab === tab.key ? '#6c47ff' : 'var(--text-light)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              position: 'relative',
+              transition: 'color 0.2s',
+            }}
+          >
+            {tab.label}
+            {activeTab === tab.key && (
+              <span style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 2, background: '#6c47ff', borderRadius: 2 }} />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab Content ── */}
+      {activeTab === 'details'
+        ? <DetailsTab candidate={candidate} />
+        : <FeedbackTab candidate={candidate} />
+      }
     </div>
   )
 }

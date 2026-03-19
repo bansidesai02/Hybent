@@ -60,69 +60,19 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB):
     await db.flush()
     
     # Send invite email
+    from app.services.email_service import send_team_invite
     import os
     frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    login_url = f"{frontend_base}/login"
     
-    # Capitalize role for display
-    display_role = role_str.replace('_', ' ').title()
-    
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <style>
-            body {{ font-family: 'Inter', -apple-system, sans-serif; background-color: #f6f9fc; margin: 0; padding: 0; }}
-            .wrapper {{ padding: 60px 20px; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.04); border: 1px solid #edf2f7; }}
-            .header {{ background: linear-gradient(135deg, #6c47ff, #8b5cf6); padding: 50px 40px; text-align: center; color: white; }}
-            .content {{ padding: 50px 48px; color: #334155; line-height: 1.7; }}
-            .btn {{ display: inline-block; padding: 18px 36px; background: #6c47ff; color: #ffffff !important; text-decoration: none !important; border-radius: 14px; font-weight: 700; margin-top: 32px; box-shadow: 0 8px 25px rgba(108, 71, 255, 0.3); font-size: 16px; text-align: center; }}
-            .creds-box {{ background: #f8fafc; padding: 28px; border-radius: 18px; margin: 32px 0; border: 1px solid #f1f5f9; }}
-            .role-pill {{ display: inline-block; padding: 6px 16px; background: rgba(108, 71, 255, 0.08); color: #6c47ff; border-radius: 99px; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; border: 1px solid rgba(108, 71, 255, 0.1); }}
-            .footer {{ padding: 32px; text-align: center; font-size: 12px; color: #94a3b8; background: #fafafa; border-top: 1px solid #f1f5f9; }}
-        </style>
-    </head>
-    <body>
-      <div class="wrapper">
-        <div class="container">
-            <div class="header">
-                <h1 style="margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -1.5px; color: white;">HireOn</h1>
-                <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 16px; color: white;">The Future of Intelligent Hiring</p>
-            </div>
-            <div class="content">
-                <h2 style="margin: 0 0 20px 0; color: #0f172a; font-size: 26px; font-weight: 800;">Join the internal team</h2>
-                <p>Hi <strong>{user.full_name}</strong>,</p>
-                <p>You've been invited by <strong>{current_user.full_name}</strong> to join <strong>HireOn</strong>. You'll be joining us as an:</p>
-                
-                <div style="margin: 20px 0;">
-                    <span class="role-pill">{display_role}</span>
-                </div>
-                
-                <div class="creds-box">
-                    <p style="margin: 0; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Your Access Credentials</p>
-                    <p style="margin: 0; font-size: 15px; color: #1e293b;">Email: <strong style="color: #6c47ff;">{user.email}</strong></p>
-                    <p style="margin: 6px 0 0 0; font-size: 22px; font-weight: 800; color: #0f172a;">Password: {data.password}</p>
-                </div>
-
-                <div style="text-align: center;">
-                    <a href="{login_url}" class="btn">Complete Your Setup</a>
-                </div>
-
-                <p style="margin-top: 40px; font-size: 13px; color: #94a3b8; font-style: italic;">
-                    Please change your temporary password once you log in for the first time.
-                </p>
-            </div>
-            <div class="footer">
-                &copy; 2026 HireOn AI Platform. Helping great teams hire great people.
-            </div>
-        </div>
-      </div>
-    </body>
-    </html>
-    """
-    send_email(user.email, "You've been invited to HireOn!", html_body)
+    send_team_invite(
+        to_email=user.email,
+        to_name=user.full_name,
+        invited_by=current_user.full_name,
+        company_name="HireOn",
+        role=role_str,
+        password=data.password,
+        login_url=f"{frontend_base}/login"
+    )
     
     return UserOut.model_validate(user)
 
