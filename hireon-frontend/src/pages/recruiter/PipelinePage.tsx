@@ -205,6 +205,7 @@ export default function PipelinePage() {
       interviewed: (pipelineStages.interviewed || []).map(mapCandidateToCard),
       offer: (pipelineStages.offer || []).map(mapCandidateToCard),
       rejected: (pipelineStages.rejected || []).map(mapCandidateToCard),
+      inactive: (pipelineStages.inactive || []).map(mapCandidateToCard),
     }
   } : null
 
