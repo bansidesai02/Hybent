@@ -193,7 +193,7 @@ export default function AddJobPage() {
       )}
 
       <form onSubmit={handleSubmit(d => mutation.mutate(d))}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 items-start">
 
           {/* ── LEFT PANEL: Job Details ── */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}>
@@ -207,7 +207,7 @@ export default function AddJobPage() {
             </div>
 
             {/* Status & Location */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 mb-3.5">
               <div>
                 <label style={labelStyle}>Status</label>
                 <select className="input-base" {...register('status')}>
@@ -236,7 +236,7 @@ export default function AddJobPage() {
             </div>
 
             {/* Min Exp + Experience Level */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 mb-3.5">
               <div>
                 <label style={labelStyle}>Min. Experience (yrs)</label>
                 <input

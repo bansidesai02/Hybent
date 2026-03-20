@@ -79,11 +79,10 @@ async def get_talent_stats(current_user: CurrentUser, db: DB):
 @router.get("/suggested-matches")
 async def get_suggested_matches(current_user: CurrentUser, db: DB):
     """
-    Get candidates from the pool who match current active jobs.
+    Get candidates from the pool who explicitly applied for or are mapped to current active jobs.
+    Uses pre-calculated match_score and applied_job_title instead of LLM re-evaluations.
     """
-    import asyncio
     from app.models.job import Job
-    from app.services.match_scorer import evaluate_candidate_match
     from app.utils.permissions import JobStatus
 
     # Get active jobs
@@ -98,60 +97,41 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
     if not active_jobs:
         return []
 
-    # Get recent candidates from pool
-    candidates_res = await db.execute(
-        select(Candidate)
-        .where(Candidate.organization_id == current_user.organization_id)
-        .order_by(Candidate.created_at.desc())
-        .limit(20)
-    )
-    pool_candidates = candidates_res.scalars().all()
-
-    suggestions = []
-    
-    # Process each job in parallel
-    async def get_job_suggestions(job):
-        # Calculate scores for all candidates in parallel for this job
-        score_tasks = [
-            evaluate_candidate_match(
-                candidate_data=candidate.parsed_data or {},
-                candidate_skills=candidate.skills or [],
-                years_experience=candidate.years_experience,
-                job=job
+    results = []
+    for job in active_jobs:
+        # Use simple statically saved scores and strict title mapping
+        cands_res = await db.execute(
+            select(Candidate)
+            .where(
+                Candidate.organization_id == current_user.organization_id,
+                Candidate.applied_job_title == job.title,
+                Candidate.match_score.isnot(None)
             )
-            for candidate in pool_candidates
-        ]
-        
-        results = await asyncio.gather(*score_tasks)
-        scores = [r[0] for r in results]
-        
+            .order_by(Candidate.match_score.desc().nulls_last())
+            .limit(5)
+        )
+        candidates = cands_res.scalars().all()
+
         job_suggestions = []
-        for candidate, score in zip(pool_candidates, scores):
-            if score > 40:
-                job_suggestions.append({
-                    "id": str(candidate.id),
-                    "full_name": candidate.full_name,
-                    "current_title": candidate.current_title,
-                    "years_experience": candidate.years_experience,
-                    "match_score": score,
-                    "skills": candidate.skills[:3],
-                    "avatar_url": None
-                })
-        
+        for candidate in candidates:
+            job_suggestions.append({
+                "id": str(candidate.id),
+                "full_name": candidate.full_name,
+                "current_title": candidate.current_title,
+                "years_experience": candidate.years_experience,
+                "match_score": candidate.match_score,
+                "skills": candidate.skills[:3] if candidate.skills else [],
+                "avatar_url": None
+            })
+            
         if job_suggestions:
-            return {
+            results.append({
                 "job_id": str(job.id),
                 "job_title": job.title,
-                "candidates": sorted(job_suggestions, key=lambda x: x["match_score"], reverse=True)[:5]
-            }
-        return None
+                "candidates": job_suggestions
+            })
 
-    # Run all job matching tasks in parallel
-    job_tasks = [get_job_suggestions(job) for job in active_jobs]
-    results = await asyncio.gather(*job_tasks)
-    
-    # Filter out None results and return
-    return [r for r in results if r]
+    return results
 
 
 @router.post("/{candidate_id}/tag")

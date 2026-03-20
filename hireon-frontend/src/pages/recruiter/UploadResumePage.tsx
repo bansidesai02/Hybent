@@ -441,7 +441,7 @@ export default function UploadResumePage() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 items-start">
 
         {/* ── LEFT PANEL ── */}
         <div>
@@ -476,7 +476,7 @@ export default function UploadResumePage() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 mb-3.5">
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-mid)', display: 'block', marginBottom: 6 }}>
                   Min. Experience (yrs)
@@ -695,7 +695,7 @@ export default function UploadResumePage() {
                   </div>
 
                   {/* Metrics row */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                     {[
                       { val: result.years_experience ? `${result.years_experience}y` : '—', lbl: 'Years Exp.' },
                       { val: scoring?.final_score ?? '—', lbl: 'AI Score' },

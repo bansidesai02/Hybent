@@ -207,7 +207,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
             {criteria.length > 0 && (
               <div style={{ padding: '0 20px 16px' }}>
                 <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Evaluation Criteria</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                <div className="flex flex-col sm:grid sm:grid-cols-2 gap-[10px_20px]">
                   {criteria.map((c) => (
                     <div key={c.criterion}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -285,7 +285,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Stats Quick Info */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+      <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
         {candidate.phone && (
           <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
             <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📞 Phone Number</p>
@@ -433,7 +433,7 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '4px 0' }}>
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, paddingBottom: 20 }}>
+      <div className="flex flex-col sm:flex-row items-start gap-4 pb-5">
         <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" className="ring-4 ring-violet-50 shadow-lg" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", marginBottom: 2, letterSpacing: '-0.02em' }}>
