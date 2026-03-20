@@ -24,7 +24,7 @@ export function KanbanBoard({ data, onCardClick }: KanbanBoardProps) {
       queryClient.invalidateQueries({ queryKey: ['candidates-for-schedule'] })
     },
     onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to move candidate'
+      const message = error.response?.data?.detail || 'Unable to move candidate as the interview is still pending'
       toast.error(message)
       queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
     }

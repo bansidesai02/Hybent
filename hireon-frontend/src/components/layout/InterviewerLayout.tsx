@@ -7,11 +7,6 @@ export function InterviewerLayout() {
   useWebSocket()
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
-      <div className="blob-bg">
-        <div className="blob blob-1" />
-        <div className="blob blob-2" />
-        <div className="blob blob-3" />
-      </div>
       <Sidebar role="interviewer" />
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
         <Topbar />

@@ -13,12 +13,6 @@ export function RecruiterLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
-      {/* Ambient blobs */}
-      <div className="blob-bg">
-        <div className="blob blob-1" />
-        <div className="blob blob-2" />
-        <div className="blob blob-3" />
-      </div>
 
       {/* Sidebar Overlay for mobile */}
       <AnimatePresence>

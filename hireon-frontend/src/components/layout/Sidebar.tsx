@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import type { UserRole } from '@/types'
 import { useNotificationStore } from '@/store/notificationStore'
+import { useAuth } from '@/hooks/useAuth'
 
 // ... existing types ...
 
@@ -134,6 +135,17 @@ interface SidebarProps {
 export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobileOpen }: SidebarProps) {
   const location = useLocation()
   const { notifications } = useNotificationStore()
+  const { user } = useAuth()
+
+  const initials = useMemo(() => {
+    if (!user?.full_name) return role.charAt(0).toUpperCase()
+    return user.full_name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }, [user?.full_name, role])
 
   // Track if we are on mobile to handle auto-closing
   useEffect(() => {
@@ -201,27 +213,28 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
         mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-[24px] flex-shrink-0">
-        <div className="logo-orbit scale-90 -ml-1">
-          <div className="logo-orbit-ring"></div>
-          <div className="logo-box">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-              <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
-              <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
-              <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95"/>
-            </svg>
+      {/* Logo Section */}
+      <div className={clsx('sb-header', collapsed && 'flex justify-center px-0')}>
+        <div className={clsx('logo-wrap', collapsed && 'justify-center gap-0')}>
+          <div className="logo-orbit">
+            <div className="logo-orbit-ring"></div>
+            <div className="logo-box">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
+                <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
+                <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95"/>
+              </svg>
+            </div>
           </div>
+          {!collapsed && (
+            <span className="logo-wordmark lwl">
+              Hireon
+            </span>
+          )}
         </div>
-        {!collapsed && (
-          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>
-            Hireon
-          </span>
-        )}
       </div>
 
-      {/* Gradient divider */}
-      <div className="mx-3 h-px mb-1" style={{ background: 'linear-gradient(90deg, transparent, rgba(108,71,255,0.3), transparent)' }} />
+      <div className="sb-divider" />
 
       {/* Nav sections */}
       <nav className="flex-1 px-[10px] py-2 overflow-y-auto space-y-0.5">
@@ -364,19 +377,24 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
       </nav>
 
       {/* User Support / Role */}
-      {!collapsed && (
-        <div className="px-4 py-4 mt-auto border-t border-[var(--sidebar-border)] bg-[rgba(108,71,255,0.03)]">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#6c47ff] to-[#ff6bc6] flex items-center justify-center text-[10px] font-black text-white shadow-sm">
-              {role.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold text-[var(--text)] truncate capitalize">{role}</p>
-              <p className="text-[9px] text-[var(--text-light)] truncate">AI Hiring Platform</p>
-            </div>
+      <div className="sb-footer">
+        <NavLink
+          to={`/${role}/profile`}
+          className={clsx('sb-user-card', collapsed && 'justify-center px-0')}
+        >
+          <div className="sb-footer-av">
+            {initials}
           </div>
-        </div>
-      )}
+          {!collapsed && (
+            <div className="sb-footer-info">
+              <div className="sb-footer-name" title={user?.full_name || role}>
+                {user?.full_name || role}
+              </div>
+              <div className="sb-footer-role">AI Hiring Platform</div>
+            </div>
+          )}
+        </NavLink>
+      </div>
     </aside>
   )
 }

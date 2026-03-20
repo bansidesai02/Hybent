@@ -59,6 +59,7 @@ export function StageBadge({ stage }: { stage: ApplicationStage }) {
     offer:       'warning',
     hired:     'success',
     rejected:  'danger',
+    inactive:  'default',
   }
   return (
     <Badge variant={map[stage]}>

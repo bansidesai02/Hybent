@@ -56,7 +56,8 @@ async def list_candidates(
             "hr_round_selected", "offered", "hired", "hired_joined",
             "interview", "interviewed",
         ],
-        "rejected": REJECTION_STAGES
+        "rejected": REJECTION_STAGES,
+        "inactive": ["inactive"]
     }
 
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations))
@@ -93,6 +94,29 @@ async def list_candidates(
     return paginate([CandidateOut.model_validate(c).model_dump() for c in items], total, page, limit)
 
 
+# Mapping of detailed stages to high-level buckets
+STAGE_TO_BUCKET = {
+    "applied": "applied",
+    "pre_screening": "screening",
+    "pre_screening_selected": "screening",
+    "technical_round": "interview",
+    "technical_round_selected": "interview",
+    "practical_round": "interview",
+    "practical_round_selected": "interview",
+    "techno_functional_round": "interview",
+    "techno_functional_selected": "interview",
+    "management_round": "interview",
+    "management_round_selected": "interview",
+    "hr_round": "interview",
+    "hr_round_selected": "interview",
+    "interviewed": "interviewed",
+    "offered": "offer",
+    "hired": "offer",
+    "hired_joined": "offer",
+    "screening": "screening", # Legacy/Fallback
+    "interview": "interview"  # Legacy/Fallback
+}
+
 @router.get("/pipeline")
 async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
     from app.models.application import Application
@@ -122,29 +146,6 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
         "rejected": []
     }
     
-    # Mapping of detailed stages to high-level buckets
-    STAGE_TO_BUCKET = {
-        "applied": "applied",
-        "pre_screening": "screening",
-        "pre_screening_selected": "screening",
-        "technical_round": "interview",
-        "technical_round_selected": "interview",
-        "practical_round": "interview",
-        "practical_round_selected": "interview",
-        "techno_functional_round": "interview",
-        "techno_functional_selected": "interview",
-        "management_round": "interview",
-        "management_round_selected": "interview",
-        "hr_round": "interview",
-        "hr_round_selected": "interview",
-        "interviewed": "interviewed",
-        "offered": "offer",
-        "hired": "offer",
-        "hired_joined": "offer",
-        "screening": "screening", # Legacy/Fallback
-        "interview": "interview"  # Legacy/Fallback
-    }
-
     for c in items:
         # Map to bucket or use original if it matches one of the top-level stages
         stage = c.pipeline_stage
@@ -336,8 +337,28 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         if sc_count == 0:
             raise HTTPException(
                 status_code=400,
-                detail="Cannot move to Interviewed: No scorecard submitted yet."
+                detail="Unable to move candidate as the interview is still pending"
             )
+
+    # NEW: Restricted moves to Offer or Rejected if currently in Intervew process without feedback
+    if target_stage in ["offered", "rejected"]:
+        old_bucket = STAGE_TO_BUCKET.get(old_stage)
+        if old_bucket == "interview":
+            from app.models.scorecard import Scorecard
+            sc_query = (
+                select(func.count(Scorecard.id))
+                .join(Application, Scorecard.application_id == Application.id)
+                .where(
+                    Application.candidate_id == candidate_id,
+                    Application.organization_id == current_user.organization_id
+                )
+            )
+            sc_count = (await db.execute(sc_query)).scalar()
+            if sc_count == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Unable to move candidate as the interview is still pending"
+                )
 
     candidate.pipeline_stage = target_stage
     
