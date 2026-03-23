@@ -108,7 +108,7 @@ function ScorecardAccordion({ applicationId }: { applicationId: string }) {
   const { data: scorecards, isLoading } = useQuery({
     queryKey: ['scorecards', 'application', applicationId],
     queryFn: () => scorecardsApi.getForApplication(applicationId).then((r) => r.data),
-    staleTime: 30_000,
+    refetchInterval: 30_000,
   })
 
   if (isLoading) return (
@@ -405,12 +405,14 @@ function ScheduleForm({
   const { data: usersResponse } = useQuery({
     queryKey: ['users'],
     queryFn: () => adminApi.listUsers().then((r) => r.data),
+    refetchInterval: 30_000,
   })
   const interviewers = (usersResponse || []).filter(u => u.role === 'interviewer')
 
   const { data: candidatesList = [] } = useQuery({
     queryKey: ['candidates-for-schedule'],
     queryFn: () => candidatesApi.list({ limit: 100 }).then((r) => r.data.items),
+    refetchInterval: 30_000,
   })
 
   const mutation = useMutation({
@@ -674,6 +676,7 @@ export default function InterviewsListPage() {
   const { data: interviews, isLoading, isError } = useQuery({
     queryKey: ['interviews'],
     queryFn: () => interviewsApi.list().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
 

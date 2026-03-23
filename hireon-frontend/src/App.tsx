@@ -50,6 +50,7 @@ import PortalProfilePage from '@/pages/portal/PortalProfilePage'
 import PortalPrepHub from '@/pages/portal/PortalPrepHub'
 import PortalOpenings from '@/pages/portal/PortalOpenings'
 import PortalNotifications from '@/pages/portal/PortalNotifications'
+import PortalSettingsPage from '@/pages/portal/PortalSettingsPage'
 
 // Admin pages
 import TeamManagementPage from '@/pages/admin/TeamManagementPage'
@@ -183,6 +184,7 @@ export default function App() {
           <Route path="prep" element={<PortalPrepHub />} />
           <Route path="openings" element={<PortalOpenings />} />
           <Route path="notifications" element={<PortalNotifications />} />
+          <Route path="settings" element={<PortalSettingsPage />} />
         </Route>
 
         {/* Fallback */}

@@ -58,8 +58,9 @@ export function StageBadge({ stage }: { stage: ApplicationStage }) {
     interviewed: 'purple',
     offer:       'warning',
     hired:     'success',
-    rejected:  'danger',
-    inactive:  'default',
+    rejected:     'danger',
+    inactive:     'default',
+    needs_review: 'info',
   }
   return (
     <Badge variant={map[stage]}>

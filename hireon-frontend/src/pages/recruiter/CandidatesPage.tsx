@@ -51,6 +51,7 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   offer_withdrawn:              { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Offer Withdrawn' },
   hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
   inactive:                     { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: 'Inactive' },
+  needs_review:                 { color: '#0891b2', bg: 'rgba(8,145,178,0.10)', label: 'Needs Review' },
 }
 
 // ─── Status config ─────────────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ const REJECTION_STAGES = [
 ]
 
 function getStatusFromStage(stage: string | undefined): string {
-  if (!stage || stage === 'applied') return 'in_review'
+  if (!stage || stage === 'applied' || stage === 'needs_review') return 'in_review'
   if (stage === 'pre_screening_selected') return 'shortlisted'
   // Any round selected / offered = scheduled (actively moving forward)
   const scheduledStages = [
@@ -369,11 +370,13 @@ export default function CandidatesPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['candidates', queryParams],
     queryFn: () => candidatesApi.list(queryParams).then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: activeJobs } = useQuery({
     queryKey: ['jobs', 'active'],
     queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r: any) => r.data.items),
+    refetchInterval: 30_000,
   })
 
   const handleAddToPipeline = async (candidateId: string, jobId: string) => {
@@ -659,7 +662,9 @@ export default function CandidatesPage() {
                     {/* Stage */}
                     <div className="flex flex-col gap-1 lg:items-center">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Pipeline Stage</span>
-                      {!stageCfg && activeJobs && activeJobs.length > 0 && (
+                      {/* Only show Reject / Talent DB for recruiter-uploaded candidates
+                           who haven't set up a portal account yet */}
+                      {!stageCfg && activeJobs && activeJobs.length > 0 && !isAccountCreated && (
                         candidate.match_score != null && candidate.match_score >= 70 ? (
                           <button
                             onClick={(e: any) => {
@@ -674,7 +679,7 @@ export default function CandidatesPage() {
                           >
                             + Add in Pipeline
                           </button>
-                        ) : (
+                        ) : candidate.match_score != null ? (
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={(e: any) => {
@@ -695,7 +700,7 @@ export default function CandidatesPage() {
                               Talent DB
                             </button>
                           </div>
-                        )
+                        ) : null
                       )}
                       {stageCfg ? (
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, display: 'inline-block', textAlign: 'center', whiteSpace: 'nowrap' }}>

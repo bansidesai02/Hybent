@@ -39,11 +39,25 @@ export function PortalLayout() {
 
   const { data: applications } = useQuery({
     queryKey: ['portal', 'applications'],
-    queryFn: () => portalApi.myApplications().then(r => r.data)
+    queryFn: () => portalApi.myApplications().then(r => r.data),
+    refetchInterval: 30_000,
   })
 
-  // Has offer if any application is in 'offer' or 'hired' stage
-  const hasOffer = applications?.some((a: any) => ['offer', 'hired'].includes(a.stage))
+  // Stages that unlock the Offers & Documents section
+  const OFFER_ELIGIBLE_STAGES = [
+    'hr_round_selected',
+    'offered',
+    'offer',
+    'hired',
+    'hired_joined',
+    'offered_back_out',
+    'offer_withdrawn',
+  ]
+
+  // Show Offer & Docs tab only when HR round is completed
+  const offersUnlocked = applications?.some(
+    (a: any) => OFFER_ELIGIBLE_STAGES.includes(a.stage) || OFFER_ELIGIBLE_STAGES.includes(a.candidate?.pipeline_stage)
+  ) ?? false
 
 
   const initials = user?.full_name
@@ -86,6 +100,9 @@ export function PortalLayout() {
               <NavLink to="/portal" end className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 <span className="sb-ico">🗺️</span> Application Journey
               </NavLink>
+              <NavLink to="/portal/notifications" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+                <span className="sb-ico">🔔</span> Notifications
+              </NavLink>
               <NavLink to="/portal/openings" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 <span className="sb-ico">💼</span> Job Openings
               </NavLink>
@@ -103,29 +120,20 @@ export function PortalLayout() {
             </div>
 
             {/* RESOURCES */}
-            <div className="sb-cat">
-              <div className="sb-cat-title">Resources</div>
-              <NavLink to="/portal/offers" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">📄</span> Offers & Documents
-                <span className="sb-badge new">New</span>
-              </NavLink>
-            </div>
-
-            {/* ACCOUNT */}
-            <div className="sb-cat">
-              <div className="sb-cat-title">Account</div>
-              <NavLink to="/portal/profile" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">👤</span> My Profile
-              </NavLink>
-              <NavLink to="/portal/settings" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">⚙️</span> Settings
-              </NavLink>
-            </div>
+            {offersUnlocked && (
+              <div className="sb-cat">
+                <div className="sb-cat-title">Resources</div>
+                <NavLink to="/portal/offers" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+                  <span className="sb-ico">📄</span> Offers &amp; Documents
+                  <span className="sb-badge new">New</span>
+                </NavLink>
+              </div>
+            )}
           </div>
 
           {/* Personalized Footer */}
           <div className="sb-footer">
-            <NavLink to="/portal/profile" className="sb-user-card">
+            <div className="sb-user-card" style={{ cursor: 'default' }}>
               <div className="sb-footer-av">
                 {initials}
               </div>
@@ -135,7 +143,7 @@ export function PortalLayout() {
                 </div>
                 <div className="sb-footer-role">AI Hiring Platform</div>
               </div>
-            </NavLink>
+            </div>
           </div>
         </div>
 

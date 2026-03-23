@@ -188,6 +188,7 @@ export default function OverviewPage() {
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: () => analyticsApi.overview().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: activitiesData, isLoading: activitiesLoading } = useQuery({
@@ -199,6 +200,7 @@ export default function OverviewPage() {
   const { data: interviews, isLoading: interviewsLoading } = useQuery({
     queryKey: ['interviews', 'today'],
     queryFn: () => interviewsApi.list().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const todayInterviews = interviews?.filter(i => isToday(new Date(i.scheduled_at))) || []

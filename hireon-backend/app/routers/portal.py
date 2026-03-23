@@ -3,7 +3,7 @@ Candidate portal endpoints — for candidates to self-register, view their own a
 respond to offers, and view interview schedules.
 """
 import uuid
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from app.dependencies import DB, CurrentUser
@@ -26,6 +26,8 @@ from app.schemas.candidate_document import CandidateDocumentCreate, CandidateDoc
 from app.utils.permissions import UserRole, OfferStatus
 from app.services.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
+from app.services.storage_service import save_resume
+from app.services.resume_parser import parse_resume
 
 router = APIRouter(prefix="/v1/portal", tags=["portal"])
 
@@ -96,8 +98,11 @@ async def my_applications(current_user: CurrentUser, db: DB):
     )).scalar_one_or_none()
     if not candidate:
         return []
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Application).where(Application.candidate_id == candidate.id)
+        select(Application)
+        .where(Application.candidate_id == candidate.id)
+        .options(selectinload(Application.job))
     )
     return [ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()]
 
@@ -192,6 +197,49 @@ async def update_portal_profile(data: CandidateUpdate, current_user: CurrentUser
     return CandidateOut.model_validate(candidate)
 
 
+@router.post("/profile/resume", response_model=CandidateOut)
+async def upload_portal_resume(
+    current_user: CurrentUser,
+    db: DB,
+    file: UploadFile = File(...),
+):
+    """Candidate self-uploads their resume; AI-parses and updates their profile."""
+    if current_user.role != UserRole.CANDIDATE:
+        raise HTTPException(status_code=403, detail="Candidates only")
+
+    candidate = (await db.execute(
+        select(Candidate).where(Candidate.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    file_content = await file.read()
+    await file.seek(0)
+    url, original_name = await save_resume(file, str(current_user.organization_id))
+    parsed = await parse_resume(file_content, file.content_type or "", file.filename or "")
+
+    candidate.resume_url = url
+    candidate.resume_filename = original_name
+    if parsed.get("skills"):
+        candidate.skills = parsed["skills"][:30]
+    if parsed.get("years_experience"):
+        candidate.years_experience = parsed["years_experience"]
+    if parsed.get("current_title"):
+        candidate.current_title = parsed["current_title"]
+    if parsed.get("summary"):
+        candidate.summary = parsed["summary"]
+
+    # If the candidate was stuck in 'needs_review' (set by AI scoring before
+    # they completed their profile), clear it so the recruiter sees them as
+    # "In Review" and can evaluate them properly.
+    if candidate.pipeline_stage in (None, "needs_review"):
+        candidate.pipeline_stage = None
+
+    await db.commit()
+    await db.refresh(candidate)
+    return CandidateOut.model_validate(candidate)
+
+
 @router.post("/profile/other-offers")
 async def add_other_offer(data: OtherOfferCreate, current_user: CurrentUser, db: DB):
     if current_user.role != UserRole.CANDIDATE:
@@ -241,6 +289,54 @@ async def portal_get_jobs(current_user: CurrentUser, db: DB):
         select(Job).where(Job.organization_id == current_user.organization_id, Job.status == "active")
     )
     return [JobOut.model_validate(j).model_dump() for j in result.scalars().all()]
+
+
+@router.post("/jobs/{job_id}/apply", response_model=ApplicationOut, status_code=201)
+async def portal_apply_to_job(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """Candidate self-applies to an active job within the organization."""
+    if current_user.role != UserRole.CANDIDATE:
+        raise HTTPException(status_code=403, detail="Candidates only")
+
+    candidate = (await db.execute(
+        select(Candidate).where(Candidate.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    if not candidate.resume_url:
+        raise HTTPException(status_code=400, detail="Please upload a resume before applying")
+
+    # Verify the job exists and belongs to the same org
+    job = (await db.execute(
+        select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id, Job.status == "active")
+    )).scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found or no longer active")
+
+    # Prevent duplicate applications
+    existing = (await db.execute(
+        select(Application).where(
+            Application.candidate_id == candidate.id,
+            Application.job_id == job.id,
+        )
+    )).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="You have already applied to this job")
+
+    application = Application(
+        candidate_id=candidate.id,
+        job_id=job.id,
+        stage="applied",
+        organization_id=current_user.organization_id,
+    )
+    db.add(application)
+    await db.commit()
+    await db.refresh(application)
+    from sqlalchemy.orm import selectinload
+    app_with_job = (await db.execute(
+        select(Application).where(Application.id == application.id).options(selectinload(Application.job))
+    )).scalar_one()
+    return ApplicationOut.model_validate(app_with_job)
 
 
 @router.post("/jobs/{job_id}/refer")
