@@ -19,6 +19,7 @@ export type ApplicationStage =
   | 'hired'
   | 'rejected'
   | 'inactive'
+  | 'needs_review'
 
 export type InterviewType = 'phone' | 'video' | 'onsite' | 'technical' | 'hr' | 'final'
 

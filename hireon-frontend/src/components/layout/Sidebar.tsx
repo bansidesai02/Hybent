@@ -377,10 +377,10 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
       </nav>
 
       {/* User Support / Role */}
-      <div className="sb-footer">
-        <NavLink
-          to={`/${role}/profile`}
+      <div className="sb-footer" style={{ cursor: 'default' }}>
+        <div
           className={clsx('sb-user-card', collapsed && 'justify-center px-0')}
+          style={{ cursor: 'default' }}
         >
           <div className="sb-footer-av">
             {initials}
@@ -393,7 +393,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
               <div className="sb-footer-role">AI Hiring Platform</div>
             </div>
           )}
-        </NavLink>
+        </div>
       </div>
     </aside>
   )

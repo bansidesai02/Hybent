@@ -23,4 +23,14 @@ export const portalApi = {
   generatePrep: (applicationId: string) => api.get(`/v1/portal/applications/${applicationId}/prep-hub`),
 
   jobs: () => api.get<import('@/types').Job[]>('/v1/portal/jobs'),
+
+  applyToJob: (jobId: string) => api.post<Application>(`/v1/portal/jobs/${jobId}/apply`),
+
+  uploadResume: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post<Candidate>('/v1/portal/profile/resume', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }

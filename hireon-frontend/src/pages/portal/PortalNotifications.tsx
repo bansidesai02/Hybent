@@ -15,7 +15,8 @@ interface Notification {
 export default function PortalNotifications() {
   const { data: notifications, isLoading } = useQuery({
     queryKey: ['portal', 'notifications'],
-    queryFn: () => api.get<Notification[]>('/v1/notifications').then(r => r.data)
+    queryFn: () => api.get<Notification[]>('/v1/notifications').then(r => r.data),
+    refetchInterval: 30_000,
   })
 
   // Group notifications loosely by simple date (today vs older)

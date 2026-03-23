@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { portalApi } from '@/api/portal'
 import type { Offer } from '@/types'
 import { Modal } from '@/components/ui/Modal'
@@ -164,13 +165,30 @@ function OfferCard({
 }
 
 export default function PortalOffersPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [acceptTarget, setAcceptTarget] = useState<Offer | null>(null)
   const [declineTarget, setDeclineTarget] = useState<Offer | null>(null)
 
+  // Gate: check if the candidate has reached HR round
+  const OFFER_ELIGIBLE_STAGES = [
+    'hr_round_selected', 'offered', 'offer', 'hired', 'hired_joined',
+    'offered_back_out', 'offer_withdrawn',
+  ]
+  const { data: applications, isLoading: appsLoading } = useQuery({
+    queryKey: ['portal', 'applications'],
+    queryFn: () => portalApi.myApplications().then((r) => r.data),
+    refetchInterval: 30_000,
+  })
+  const offersUnlocked = applications?.some(
+    (a: any) => OFFER_ELIGIBLE_STAGES.includes(a.stage) || OFFER_ELIGIBLE_STAGES.includes(a.candidate?.pipeline_stage)
+  ) ?? false
+
   const { data: offers, isLoading, isError } = useQuery({
     queryKey: ['portal', 'offers'],
     queryFn: () => portalApi.myOffers().then((r) => r.data),
+    refetchInterval: 30_000,
+    enabled: offersUnlocked,
   })
 
   const respondMutation = useMutation({
@@ -188,82 +206,91 @@ export default function PortalOffersPage() {
   // Has accepted offer? Check if we should render doc tracker section.
   const hasAccepted = offers?.some(o => o.status === 'accepted') || false;
 
+  // Silently redirect if not yet eligible
+  useEffect(() => {
+    if (!appsLoading && !offersUnlocked) {
+      navigate('/portal', { replace: true })
+    }
+  }, [appsLoading, offersUnlocked, navigate])
+
   return (
     <div className="page active">
       <div className="ph">
-        <div className="pt">Offer & Documents 📄</div>
+        <div className="pt">Offer &amp; Documents 📄</div>
         <div className="ps">Review pending offers and complete your pre-joining documents.</div>
       </div>
 
-      <div className="g2">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {isLoading ? (
-             <div className="py-8 text-[var(--text-lite)]">Loading offers...</div>
-          ) : isError ? (
-             <div className="py-8 text-[var(--red)]">Failed to load offers.</div>
-          ) : offers?.length === 0 ? (
-             <div className="card py-12 text-center text-[var(--text-lite)]">
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📬</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>No offers yet</div>
-                <div style={{ fontSize: 13 }}>When a company extends you an offer, it will appear here.</div>
-             </div>
-          ) : (
-            offers?.map((offer) => (
-              <OfferCard
-                key={offer.id}
-                offer={offer}
-                onAccept={() => setAcceptTarget(offer)}
-                onDecline={() => setDeclineTarget(offer)}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Right Column: Required Documents */}
-        <div>
-          <div className="card">
-            <div className="ctitle">
-              Required Documents 
-              {hasAccepted ? <span className="ctag amber">Action Needed</span> : <span className="ctag gray">Locked</span>}
-            </div>
-            
-            {hasAccepted ? (
-              <div className="doc-list">
-                <div className="doc-item">
-                  <div className="doc-ico">📄</div>
-                  <div className="doc-info">
-                    <div className="doc-name">Signed Offer Letter</div>
-                    <div className="doc-meta">Requires signature</div>
-                  </div>
-                  <span className="chip chip-amber"><span className="chd"></span>Pending</span>
-                </div>
-                
-                <div className="doc-item">
-                  <div className="doc-ico">🏦</div>
-                  <div className="doc-info">
-                    <div className="doc-name">Bank Details Form</div>
-                    <div className="doc-meta">For payroll processing</div>
-                  </div>
-                  <span className="chip chip-green"><span className="chd"></span>Done</span>
-                </div>
-
-                <div className="doc-item">
-                  <div className="doc-ico">🪪</div>
-                  <div className="doc-info">
-                    <div className="doc-name">Government ID</div>
-                    <div className="doc-meta">Aadhar / PAN / Passport</div>
-                  </div>
-                  <span className="chip chip-amber"><span className="chd"></span>Upload</span>
-                </div>
-              </div>
+      {offersUnlocked && (
+        <div className="g2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {isLoading ? (
+               <div className="py-8 text-[var(--text-lite)]">Loading offers...</div>
+            ) : isError ? (
+               <div className="py-8 text-[var(--red)]">Failed to load offers.</div>
+            ) : offers?.length === 0 ? (
+               <div className="card py-12 text-center text-[var(--text-lite)]">
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📬</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>No offers yet</div>
+                  <div style={{ fontSize: 13 }}>When a company extends you an offer, it will appear here.</div>
+               </div>
             ) : (
-              <div className="py-6 text-center text-[13px] text-[var(--text-lite)] px-2">
-                Document collection will unlock once you accept a job offer.
-              </div>
+              offers?.map((offer) => (
+                <OfferCard
+                  key={offer.id}
+                  offer={offer}
+                  onAccept={() => setAcceptTarget(offer)}
+                  onDecline={() => setDeclineTarget(offer)}
+                />
+              ))
             )}
           </div>
+
+          {/* Right Column: Required Documents */}
+          <div>
+            <div className="card">
+              <div className="ctitle">
+                Required Documents 
+                {hasAccepted ? <span className="ctag amber">Action Needed</span> : <span className="ctag gray">Locked</span>}
+              </div>
+              
+              {hasAccepted ? (
+                <div className="doc-list">
+                  <div className="doc-item">
+                    <div className="doc-ico">📄</div>
+                    <div className="doc-info">
+                      <div className="doc-name">Signed Offer Letter</div>
+                      <div className="doc-meta">Requires signature</div>
+                    </div>
+                    <span className="chip chip-amber"><span className="chd"></span>Pending</span>
+                  </div>
+                  
+                  <div className="doc-item">
+                    <div className="doc-ico">🏦</div>
+                    <div className="doc-info">
+                      <div className="doc-name">Bank Details Form</div>
+                      <div className="doc-meta">For payroll processing</div>
+                    </div>
+                    <span className="chip chip-green"><span className="chd"></span>Done</span>
+                  </div>
+
+                  <div className="doc-item">
+                    <div className="doc-ico">🪪</div>
+                    <div className="doc-info">
+                      <div className="doc-name">Government ID</div>
+                      <div className="doc-meta">Aadhar / PAN / Passport</div>
+                    </div>
+                    <span className="chip chip-amber"><span className="chd"></span>Upload</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6 text-center text-[13px] text-[var(--text-lite)] px-2">
+                  Document collection will unlock once you accept a job offer.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       <ConfirmModal
         open={!!acceptTarget}

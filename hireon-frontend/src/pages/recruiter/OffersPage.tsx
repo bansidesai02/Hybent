@@ -68,7 +68,8 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   // Fetch applications for the dropdown - broadening to all to ensure we find candidates
   const { data: applicationsPaged, isLoading: loadingApps } = useQuery({
     queryKey: ['applications-for-offer'],
-    queryFn: () => api.get<{ items: any[] }>('/v1/applications?limit=100').then(r => r.data).catch(() => ({ items: [] }))
+    queryFn: () => api.get<{ items: any[] }>('/v1/applications?limit=100').then(r => r.data).catch(() => ({ items: [] })),
+    refetchInterval: 30_000,
   })
 
   const selectedAppId = watch('application_id')
@@ -239,6 +240,7 @@ export default function OffersPage() {
   const { data: offers, isLoading, isError } = useQuery({
     queryKey: ['offers'],
     queryFn: () => offersApi.list().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   // Calculate Stats
