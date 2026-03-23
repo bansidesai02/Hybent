@@ -79,6 +79,7 @@ async def mark_read(notification_id: uuid.UUID, current_user: CurrentUser, db: D
         raise HTTPException(status_code=404, detail="Notification not found")
     notif.is_read = True
     notif.read_at = datetime.now(timezone.utc)
+    await db.commit()
     return {"message": "Marked as read"}
 
 
@@ -93,4 +94,5 @@ async def mark_all_read(current_user: CurrentUser, db: DB):
     for notif in result.scalars().all():
         notif.is_read = True
         notif.read_at = datetime.now(timezone.utc)
+    await db.commit()
     return {"message": "All notifications marked as read"}

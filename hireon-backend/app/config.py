@@ -22,8 +22,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
-    # ── Database ───────────────────────────────────────────────────────────────
+    # ── Database & Redis ───────────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://postgres:root@localhost:5432/hireon_db"
+    redis_url: str = "redis://localhost:6379/0"
 
     # ── AI API Keys ────────────────────────────────────────────────────────────
     gemini_api_key: str = ""

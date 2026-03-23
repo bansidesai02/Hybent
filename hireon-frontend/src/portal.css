@@ -187,21 +187,21 @@
 /* ══════════════════════════════
    1. APPLICATION JOURNEY / TRACKER
 ══════════════════════════════ */
-.tracker-wrap{position:relative;padding:32px 0 24px}
-.tracker-line{position:absolute;top:52px;left:10%;right:10%;height:3px;background:var(--border2);border-radius:2px;z-index:0}
-.tracker-progress{position:absolute;top:52px;left:10%;height:3px;background:linear-gradient(90deg,var(--brand),var(--brand2),var(--teal));border-radius:2px;z-index:1;transition:width 1.2s ease}
+.tracker-wrap{position:relative;padding:44px 0 28px;background:rgba(255,255,255,0.02);border-radius:16px}
+.tracker-line{position:absolute;top:62px;left:10%;right:10%;height:4px;background:var(--border2);border-radius:4px;z-index:0;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05)}
+.tracker-progress{position:absolute;top:62px;left:10%;height:4px;background:linear-gradient(90deg,var(--brand),var(--brand2),var(--teal));border-radius:4px;z-index:1;transition:width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);box-shadow:0 0 12px rgba(124,58,237,0.3)}
 .tracker-steps{display:flex;justify-content:space-between;padding:0 10%;position:relative;z-index:2}
-.tstep{display:flex;flex-direction:column;align-items:center;gap:10px;flex:1}
-.tstep-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid var(--border2);background:var(--surface);transition:all .4s;position:relative}
-.tstep.done .tstep-dot{background:linear-gradient(135deg,var(--brand),var(--brand2));border-color:var(--brand2);color:#fff;box-shadow:0 0 0 6px rgba(124,58,237,.12)}
-.tstep.active .tstep-dot{background:linear-gradient(135deg,var(--teal),#22d3ee);border-color:var(--teal);color:#fff;box-shadow:0 0 0 6px rgba(6,182,212,.15);animation:pulse-ring 2s infinite}
-@keyframes pulse-ring{0%,100%{box-shadow:0 0 0 6px rgba(6,182,212,.15)}50%{box-shadow:0 0 0 10px rgba(6,182,212,.06)}}
+.tstep{display:flex;flex-direction:column;align-items:center;gap:12px;flex:1;transition:all 0.3s}
+.tstep-dot{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:4px solid var(--border2);background:var(--surface);transition:all .4s;position:relative;box-shadow:0 4px 10px rgba(0,0,0,0.05)}
+.tstep.done .tstep-dot{background:linear-gradient(135deg,var(--brand),var(--brand2));border-color:transparent;color:#fff;box-shadow:0 0 0 6px rgba(124,58,237,0.12), 0 4px 12px rgba(124,58,237,0.2)}
+.tstep.active .tstep-dot{background:linear-gradient(135deg,var(--teal),#22d3ee);border-color:transparent;color:#fff;box-shadow:0 0 0 6px rgba(6,182,212,0.15), 0 0 20px rgba(6,182,212,0.4);animation:pulse-ring 2s infinite}
+@keyframes pulse-ring{0%,100%{box-shadow:0 0 0 6px rgba(6,182,212,0.15), 0 0 20px rgba(6,182,212,0.4)}50%{box-shadow:0 0 0 12px rgba(6,182,212,0.06), 0 0 30px rgba(6,182,212,0.2)}}
 .tstep.pending .tstep-dot{background:var(--surface2);border-color:var(--border2);color:var(--text-lite)}
-.tstep-label{font-size:12px;font-weight:700;color:var(--text-mid);text-align:center;font-family:'Space Grotesk',sans-serif}
+.tstep-label{font-size:12.5px;font-weight:700;color:var(--text-mid);text-align:center;font-family:'Space Grotesk',sans-serif;letter-spacing:-0.2px}
 .tstep.done .tstep-label{color:var(--brand)}
-.tstep.active .tstep-label{color:var(--teal)}
-.tstep-date{font-size:10px;color:var(--text-lite);text-align:center}
-.tstep-note{font-size:10px;color:var(--text-lite);text-align:center;max-width:90px}
+.tstep.active .tstep-label{color:var(--teal);transform:scale(1.05)}
+.tstep-date{font-size:10px;color:var(--text-lite);text-align:center;margin-top:2px;font-weight:600}
+.tstep-note{font-size:10.5px;color:var(--text-lite);text-align:center;max-width:90px;margin-top:2px;font-weight:500}
 .stage-detail-card{background:linear-gradient(135deg,rgba(6,182,212,.07),rgba(6,182,212,.03));border:1.5px solid rgba(6,182,212,.2);border-radius:14px;padding:20px;margin-top:8px}
 .stage-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal);margin-bottom:4px;font-family:'Space Grotesk',sans-serif}
 .stage-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);margin-bottom:4px}

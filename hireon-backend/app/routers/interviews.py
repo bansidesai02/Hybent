@@ -98,6 +98,12 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
+    # Backend validation: Cannot schedule in the past
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    if data.scheduled_at < (now - timedelta(minutes=5)):
+        raise HTTPException(status_code=400, detail="Cannot schedule an interview in the past")
+
     # Org info for emails etc.
     from app.models.organization import Organization
     org_result = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
@@ -238,22 +244,64 @@ async def get_interview(interview_id: uuid.UUID, current_user: CurrentUser, db: 
 
 
 @router.put("/{interview_id}", response_model=dict)
-async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, current_user: RecruiterUser, db: DB):
+async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, current_user: CurrentUser, db: DB):
     result = await db.execute(
         select(Interview).where(
             Interview.id == interview_id,
-            Interview.organization_id == current_user.organization_id,
         )
     )
     interview = result.scalar_one_or_none()
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
+
+    # Access control
+    if current_user.role == "interviewer":
+        # Interviewers can ONLY update status to 'completed' for interviews they are part of
+        if "status" in data.model_dump(exclude_none=True) and data.status == "completed":
+            panelist_check = await db.execute(
+                select(InterviewPanelist).where(
+                    InterviewPanelist.interview_id == interview_id,
+                    InterviewPanelist.user_id == current_user.id
+                )
+            )
+            if not panelist_check.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="You can only complete interviews you are assigned to")
+            # Clear everything else from data to prevent malicious updates
+            data = InterviewUpdate(status="completed")
+        else:
+            raise HTTPException(status_code=403, detail="Interviewers can only mark interviews as completed")
+    elif current_user.role != "admin" and interview.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this interview")
     
+    # Backend validation: Cannot reschedule to the past
+    if data.scheduled_at:
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        if data.scheduled_at < (now - timedelta(minutes=5)):
+            raise HTTPException(status_code=400, detail="Cannot reschedule an interview to the past")
+
     old_time = interview.scheduled_at
     data_dict = data.model_dump(exclude_none=True)
     
+    old_status = interview.status
     for field, value in data_dict.items():
         setattr(interview, field, value)
+    
+    await db.commit()
+    await db.refresh(interview)
+
+    # Trigger immediate feedback reminders if status changed to completed
+    if "status" in data_dict and data_dict["status"] == "completed" and old_status != "completed":
+        from app.tasks.notifications import send_feedback_reminder
+        panelists_result = await db.execute(select(InterviewPanelist).where(InterviewPanelist.interview_id == interview.id))
+        for p in panelists_result.scalars().all():
+            # Trigger reminder for each panelist
+            send_feedback_reminder.delay(
+                str(interview.id),
+                str(p.user_id),
+                str(interview.organization_id),
+                interview.title
+            )
     
     # Send reschedule email if time changed
     if "scheduled_at" in data_dict and data_dict["scheduled_at"] != old_time:
