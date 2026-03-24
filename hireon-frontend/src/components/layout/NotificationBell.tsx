@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useNotificationStore } from '@/store/notificationStore'
 import { timeAgo } from '@/utils/formatters'
@@ -6,11 +6,25 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
+  const bellRef = useRef<HTMLDivElement>(null)
   const { markRead, markAllRead } = useNotifications()
   const { notifications, unreadCount } = useNotificationStore()
 
+  // Handle click outside to close
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
   return (
-    <div className="relative">
+    <div className="relative" ref={bellRef}>
       <button
         onClick={() => setOpen(!open)}
         className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -28,9 +42,7 @@ export function NotificationBell() {
 
       <AnimatePresence>
         {open && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-            <motion.div
+          <motion.div
               initial={{ opacity: 0, y: -5, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -5 }}
@@ -70,7 +82,6 @@ export function NotificationBell() {
                 )}
               </div>
             </motion.div>
-          </>
         )}
       </AnimatePresence>
     </div>

@@ -181,16 +181,19 @@ export default function TalentPoolPage() {
           min_experience: minExp ? parseInt(minExp) : undefined,
         })
         .then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: stats } = useQuery({
     queryKey: ['talent-pool-stats'],
-    queryFn: () => talentPoolApi.getStats().then(r => r.data)
+    queryFn: () => talentPoolApi.getStats().then(r => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
     queryKey: ['talent-pool-suggestions'],
-    queryFn: () => talentPoolApi.getSuggestedMatches().then(r => r.data)
+    queryFn: () => talentPoolApi.getSuggestedMatches().then(r => r.data),
+    refetchInterval: 30_000,
   })
 
   const filterChips = ["All Time", "Q1 2026", "Q4 2025", "Q3 2025", "React", "Node.js", "Senior"]

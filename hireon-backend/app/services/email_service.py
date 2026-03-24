@@ -69,7 +69,7 @@ def _get_base_template(content_html: str) -> str:
             .content {{ padding: 0 48px 48px; text-align: center; color: #1a1040; }}
             .logo-wrap {{ display: inline-flex; align-items: center; gap: 12px; margin-bottom: 40px; }}
             .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 44px; height: 44px; border-radius: 12px; display: inline-block; vertical-align: middle; }}
-            .logo-text {{ font-size: 32px; font-weight: 800; color: #6c47ff; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
+           .logo-text {{ font-size: 32px; font-weight: 800; color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
             h2.title {{ font-size: 28px; font-weight: 800; margin: 0 0 16px 0; color: #0f172a; letter-spacing: -0.5px; }}
             p.description {{ font-size: 16px; line-height: 1.6; color: #64748b; margin: 0 0 32px 0; }}
             .info-box {{ background-color: #fbfaff; border-radius: 20px; padding: 32px; margin: 32px 0; text-align: left; border: 1px solid #f1f0ff; }}
@@ -150,7 +150,7 @@ def _get_calendar_invite_template(
             .container {{ max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #dadce0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
             .branding {{ padding: 24px 24px 0; text-align: left; }}
             .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 32px; height: 32px; border-radius: 8px; display: inline-block; vertical-align: middle; }}
-            .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 24px; font-weight: 800; color: #6c47ff; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
+            .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 24px; font-weight: 800; color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
             .header {{ padding: 24px; border-bottom: 1px solid #dadce0; display: table; width: 100%; box-sizing: border-box; }}
             .date-box {{ width: 52px; height: 64px; border: 1px solid #dadce0; border-radius: 8px; text-align: center; float: left; margin-right: 20px; overflow: hidden; background: #ffffff; }}
             .date-month {{ background-color: #ffffff; color: #d93025; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 0; border-bottom: 1px solid #dadce0; }}
@@ -411,19 +411,20 @@ def send_rejection_email(
     job_title: str,
     company_name: str,
 ) -> None:
-    subject = f"Application Update: {job_title} at {company_name}"
+    subject = f"Update regarding your application with {company_name}"
     content = f"""
-        <h2 class="title">Application Update</h2>
-        <p class="description">Hi {candidate_name.split()[0]},</p>
-        <p class="description">Thank you for your interest in the <strong>{job_title}</strong> position at <strong>{company_name}</strong>.</p>
-        <p class="description">After careful review of your profile, we have decided to move forward with other candidates at this time who more closely align with our current needs. However, we were impressed with your background and will keep your profile in our talent pool for future opportunities.</p>
+        <p class="description" style="text-align: left;">Hi {candidate_name},</p>
+        <p class="description" style="text-align: left;">I hope you are doing well.</p>
+        <p class="description" style="text-align: left;">Thank you for your interest in <strong>{company_name}</strong> and for taking the time to go through our selection process.</p>
+        <p class="description" style="text-align: left;">After careful consideration, we regret to inform you that we will not be moving forward with your application at this time.</p>
+        <p class="description" style="text-align: left;">We appreciate your interest in our organization and will keep your profile in our records for future opportunities.</p>
+        <p class="description" style="text-align: left;">Wishing you all the best in your future endeavors.</p>
         
-        <div class="info-box">
-            <div class="info-label">Status</div>
-            <div class="info-value">Application Closed</div>
+        <div style="margin-top: 32px; text-align: left; border-top: 1px solid #f1f0ff; padding-top: 24px;">
+            <p style="font-size: 14px; color: #1e293b; font-weight: 700; margin-bottom: 4px;">Best regards,</p>
+            <p style="font-size: 14px; color: #64748b; margin: 0;">HR & TA</p>
+            <p style="font-size: 14px; color: #6c47ff; font-weight: 700; margin: 4px 0 0 0;">{company_name}</p>
         </div>
-
-        <p style="font-size: 14px; color: #9689bb; margin-top: 32px;">We wish you the very best in your job search and future professional endeavors.</p>
     """
     send_email(candidate_email, subject, _get_base_template(content))
  

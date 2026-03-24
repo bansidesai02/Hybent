@@ -50,6 +50,8 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   offered_back_out:             { color: '#f97316', bg: 'rgba(249,115,22,0.10)', label: 'Offered Back Out' },
   offer_withdrawn:              { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Offer Withdrawn' },
   hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
+  inactive:                     { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: 'Inactive' },
+  needs_review:                 { color: '#0891b2', bg: 'rgba(8,145,178,0.10)', label: 'Needs Review' },
 }
 
 // ─── Status config ─────────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ const STATUS_CFG: Record<string, { color: string; bg: string; dot: string; label
   in_review:   { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', dot: '#6c47ff', label: 'In Review' },
   scheduled:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', dot: '#3b82f6', label: 'Scheduled' },
   rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', dot: '#ef4444', label: 'Rejected' },
+  inactive:    { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', dot: '#94a3b8', label: 'Inactive' },
 }
 
 const REJECTION_STAGES = [
@@ -76,7 +79,7 @@ const REJECTION_STAGES = [
 ]
 
 function getStatusFromStage(stage: string | undefined): string {
-  if (!stage || stage === 'applied') return 'in_review'
+  if (!stage || stage === 'applied' || stage === 'needs_review') return 'in_review'
   if (stage === 'pre_screening_selected') return 'shortlisted'
   // Any round selected / offered = scheduled (actively moving forward)
   const scheduledStages = [
@@ -90,6 +93,7 @@ function getStatusFromStage(stage: string | undefined): string {
     'screening', 'interview', 'interviewed',
   ]
   if (scheduledStages.includes(stage)) return 'scheduled'
+  if (stage === 'inactive') return 'inactive'
   if (REJECTION_STAGES.includes(stage)) return 'rejected'
   // fallback
   return 'in_review'
@@ -198,15 +202,19 @@ function ScorePill({ score }: { score: number }) {
 
 // ─── Stage Dropdown ───────────────────────────────────────────────────────────
 
-function StageDropdown({
+function CandidateActionsDropdown({
   candidateId,
   currentStage,
   onSelect,
+  onDelete,
+  onInactivate,
   onClose,
 }: {
   candidateId: string
   currentStage: string
   onSelect: (stage: string) => void
+  onDelete: (id: string) => void
+  onInactivate: (id: string) => void
   onClose: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -276,6 +284,47 @@ function StageDropdown({
           </div>
         )
       })}
+
+      <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
+      <p style={{
+        fontSize: 9, fontWeight: 800, color: 'var(--text-light)',
+        textTransform: 'uppercase', letterSpacing: '0.9px',
+        padding: '6px 10px 4px', display: 'flex', alignItems: 'center', gap: 5,
+      }}>
+        <span>⚙️</span> Management
+      </p>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); onInactivate(candidateId) }}
+        style={{
+          width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 500, color: '#94a3b8',
+          display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(148,163,184,0.1)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      >
+        <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 12, textAlign: 'center' }}>
+          {currentStage === 'inactive' ? '▶' : '⏸'}
+        </span>
+        <span style={{ flex: 1 }}>{currentStage === 'inactive' ? 'Activate Candidate' : 'Inactivate Candidate'}</span>
+      </button>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); if (confirm('Are you sure you want to delete this candidate?')) onDelete(candidateId) }}
+        style={{
+          width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 500, color: '#ef4444',
+          display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      >
+        <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, minWidth: 12, textAlign: 'center' }}>🗑</span>
+        <span style={{ flex: 1 }}>Delete Candidate</span>
+      </button>
     </motion.div>
   )
 }
@@ -321,11 +370,13 @@ export default function CandidatesPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['candidates', queryParams],
     queryFn: () => candidatesApi.list(queryParams).then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: activeJobs } = useQuery({
     queryKey: ['jobs', 'active'],
     queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r: any) => r.data.items),
+    refetchInterval: 30_000,
   })
 
   const handleAddToPipeline = async (candidateId: string, jobId: string) => {
@@ -356,6 +407,18 @@ export default function CandidatesPage() {
       setOpenDropdownId(null)
     },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => candidatesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+      toast.success('Candidate deleted')
+      setOpenDropdownId(null)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to delete candidate'),
   })
 
   const displayItems = data?.items ?? []
@@ -413,6 +476,7 @@ export default function CandidatesPage() {
             { label: 'In Review', value: 'in_review', icon: '🔍' },
             { label: 'Scheduled', value: 'scheduled', icon: '📅' },
             { label: 'Rejected', value: 'rejected', icon: '🚫' },
+            { label: 'Inactive', value: 'inactive', icon: '⏸' },
           ].map((f) => {
             const isActive = statusFilter === f.value
             const statusCfg = f.value ? STATUS_CFG[f.value] : null
@@ -599,7 +663,9 @@ export default function CandidatesPage() {
                     {/* Stage */}
                     <div className="flex flex-col gap-1 lg:items-center">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Pipeline Stage</span>
-                      {!stageCfg && activeJobs && activeJobs.length > 0 && (
+                      {/* Only show Reject / Talent DB for recruiter-uploaded candidates
+                           who haven't set up a portal account yet */}
+                      {!stageCfg && activeJobs && activeJobs.length > 0 && !isAccountCreated && (
                         candidate.match_score != null && candidate.match_score >= 70 ? (
                           <button
                             onClick={(e: any) => {
@@ -614,7 +680,7 @@ export default function CandidatesPage() {
                           >
                             + Add in Pipeline
                           </button>
-                        ) : (
+                        ) : candidate.match_score != null ? (
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={(e: any) => {
@@ -635,7 +701,7 @@ export default function CandidatesPage() {
                               Talent DB
                             </button>
                           </div>
-                        )
+                        ) : null
                       )}
                       {stageCfg ? (
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, display: 'inline-block', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -698,10 +764,12 @@ export default function CandidatesPage() {
                   </div>
                     <AnimatePresence>
                       {openDropdownId === candidate.id && (
-                        <StageDropdown
+                        <CandidateActionsDropdown
                           candidateId={candidate.id}
                           currentStage={stage || 'applied'}
                           onSelect={(s) => stageMutation.mutate({ id: candidate.id, stage: s })}
+                          onInactivate={(id) => stageMutation.mutate({ id, stage: stage === 'inactive' ? 'applied' : 'inactive' })}
+                          onDelete={(id) => deleteMutation.mutate(id)}
                           onClose={() => setOpenDropdownId(null)}
                         />
                       )}

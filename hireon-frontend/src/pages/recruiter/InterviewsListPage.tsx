@@ -108,7 +108,7 @@ function ScorecardAccordion({ applicationId }: { applicationId: string }) {
   const { data: scorecards, isLoading } = useQuery({
     queryKey: ['scorecards', 'application', applicationId],
     queryFn: () => scorecardsApi.getForApplication(applicationId).then((r) => r.data),
-    staleTime: 30_000,
+    refetchInterval: 30_000,
   })
 
   if (isLoading) return (
@@ -183,7 +183,7 @@ function TimeSlotPicker({
   selectedDate: Date | null;
 }) {
   const slots = [
-    '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
+    '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
   ]
 
   const formatAMPM = (time: string) => {
@@ -194,26 +194,46 @@ function TimeSlotPicker({
     return `${h12}:${mm} ${ampm}`
   }
 
-  const isBlocked = (time: string) => {
-    if (!selectedDate) return false
+  const getSlotStatus = useCallback((time: string) => {
+    if (!selectedDate) return 'available'
     const [h, m] = time.split(':').map(Number)
     
-    // Create a date object for this specific slot at the selected date
-    const slotTime = new Date(selectedDate)
-    slotTime.setHours(h, m, 0, 0)
+    // Create a date object for this specific slot at the selected date (Local)
+    const slotTime = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), h, m, 0, 0)
     
-    return (interviews || []).some(iv => {
+    // 1. First check if the slot overlaps with existing interviews
+    const isTaken = (interviews || []).some(iv => {
       if (iv.status === 'cancelled') return false
-      
       const ivStart = parseISO(iv.scheduled_at)
       const duration = iv.duration_minutes || 60
       const ivEnd = new Date(ivStart.getTime() + duration * 60 * 1000)
-      
-      // Check if this slot's start time falls within the existing interview's time range
-      // We check if slotTime is >= ivStart AND slotTime < ivEnd
       return slotTime >= ivStart && slotTime < ivEnd
     })
-  }
+    
+    if (isTaken) return 'scheduled'
+
+    // 2. Then check if it's a past slot (with 1-minute grace period)
+    const now = new Date()
+    // If it's today, we check the time. If it's a future date, it's never "past".
+    if (slotTime.getTime() < now.getTime() - 60000) return 'past'
+
+    return 'available'
+  }, [selectedDate, interviews])
+
+  // Auto-select first available slot only if current selection is invalid or missing
+  useEffect(() => {
+    if (selectedDate) {
+      const currentStatus = selected ? getSlotStatus(selected) : 'none'
+      if (currentStatus !== 'available') {
+        const firstAvailable = slots.find(s => getSlotStatus(s) === 'available')
+        if (firstAvailable) {
+          onSelect(firstAvailable)
+        }
+      }
+    }
+    // We purposely exclude 'selected' from dependencies to avoid overwriting 
+    // manual user clicks. We only want to re-check if the date or list changes.
+  }, [selectedDate, interviews, getSlotStatus, onSelect])
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -221,7 +241,8 @@ function TimeSlotPicker({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
         {slots.map(s => {
           const active = selected === s
-          const blocked = isBlocked(s)
+          const status = getSlotStatus(s)
+          const blocked = status !== 'available'
           return (
             <button
               key={s}
@@ -240,7 +261,8 @@ function TimeSlotPicker({
               }}
             >
               <span style={{ fontSize: 13 }}>{formatAMPM(s)}</span>
-              {blocked && <span style={{ fontSize: 8, textTransform: 'uppercase' }}>Blocked</span>}
+              {status === 'scheduled' && <span style={{ fontSize: 8, textTransform: 'uppercase' }}>Scheduled</span>}
+              {status === 'past' && <span style={{ fontSize: 8, textTransform: 'uppercase' }}>Past</span>}
             </button>
           )
         })}
@@ -313,24 +335,30 @@ function Calendar({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
         {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+          const dayDate = new Date(year, month, day)
           const key = `${year}-${month}-${day}`
           const statuses = dateMap[key]
           const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
           const isSelected = selectedDate?.getFullYear() === year && selectedDate?.getMonth() === month && selectedDate?.getDate() === day
           const dotColor = statuses ? statusColor(statuses) : null
+          
+          // Disable clicking on past dates (anything before today midnight)
+          const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+          const isPast = dayDate < todayMidnight
 
           return (
             <button
               key={day}
-              onClick={() => onSelectDate(new Date(year, month, day))}
+              onClick={() => onSelectDate(dayDate)}
               style={{
                 position: 'relative',
                 aspectRatio: '1',
                 borderRadius: 12,
                 border: isSelected ? '2px solid #6c47ff' : isToday ? '1px solid rgba(108,71,255,0.3)' : '1px solid transparent',
-                cursor: 'pointer',
+                cursor: isPast ? 'not-allowed' : 'pointer',
                 background: isSelected ? 'rgba(108,71,255,0.15)' : isToday ? 'rgba(108,71,255,0.05)' : 'transparent',
-                color: isSelected ? '#6c47ff' : isToday ? '#6c47ff' : 'var(--text)',
+                color: isSelected ? '#6c47ff' : isToday ? '#6c47ff' : isPast ? 'var(--text-light)' : 'var(--text)',
+                opacity: isPast ? 0.4 : 1,
                 fontSize: 13, fontWeight: isToday || isSelected ? 800 : 500,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
                 transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
@@ -405,12 +433,14 @@ function ScheduleForm({
   const { data: usersResponse } = useQuery({
     queryKey: ['users'],
     queryFn: () => adminApi.listUsers().then((r) => r.data),
+    refetchInterval: 30_000,
   })
   const interviewers = (usersResponse || []).filter(u => u.role === 'interviewer')
 
   const { data: candidatesList = [] } = useQuery({
     queryKey: ['candidates-for-schedule'],
     queryFn: () => candidatesApi.list({ limit: 100 }).then((r) => r.data.items),
+    refetchInterval: 30_000,
   })
 
   const mutation = useMutation({
@@ -517,11 +547,12 @@ function ScheduleForm({
 
 function InterviewCard({
   interview, expandedScorecard,
-  onCancel, onToggleScorecard,
+  onCancel, onStatusUpdate, onToggleScorecard,
 }: {
   interview: Interview
   expandedScorecard: boolean
   onCancel: () => void
+  onStatusUpdate: (status: InterviewStatus) => void
   onToggleScorecard: () => void
 }) {
   const cfg = STATUS_CONFIG[interview.status] ?? STATUS_CONFIG.scheduled
@@ -618,6 +649,12 @@ function InterviewCard({
           {interview.status === 'scheduled' && (
             <>
               <button 
+                onClick={() => onStatusUpdate('completed')}
+                style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.05)', color: '#10b981', border: '1px solid rgba(16,185,129,0.15)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                Complete
+              </button>
+              <button 
                 onClick={onCancel}
                 style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.05)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.15)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
               >
@@ -663,7 +700,7 @@ export default function InterviewsListPage() {
   const preselectedCandidateId = searchParams.get('candidateId')
   
   const [selectedDate, setSelectedDate]           = useState<Date | null>(new Date())
-  const [selectedTime, setSelectedTime]           = useState<string>('10:00')
+  const [selectedTime, setSelectedTime]           = useState<string>('')
 
   const [cancelTarget, setCancelTarget]           = useState<Interview | null>(null)
   const [cancelReason, setCancelReason]           = useState<string>('')
@@ -674,6 +711,7 @@ export default function InterviewsListPage() {
   const { data: interviews, isLoading, isError } = useQuery({
     queryKey: ['interviews'],
     queryFn: () => interviewsApi.list().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
 
@@ -701,6 +739,16 @@ export default function InterviewsListPage() {
       setCancelReason('')
     },
     onError: () => toast.error('Failed to cancel interview'),
+  })
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: InterviewStatus }) => 
+      interviewsApi.update(id, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['interviews'] })
+      toast.success('Interview status updated')
+    },
+    onError: () => toast.error('Failed to update interview status'),
   })
 
   return (
@@ -853,6 +901,7 @@ export default function InterviewsListPage() {
                       interview={iv}
                       expandedScorecard={expandedScorecard === iv.id}
                       onCancel={() => setCancelTarget(iv)}
+                      onStatusUpdate={(status) => statusMutation.mutate({ id: iv.id, status })}
                       onToggleScorecard={() => setExpandedScorecard(expandedScorecard === iv.id ? null : iv.id)}
                    />
                 ))

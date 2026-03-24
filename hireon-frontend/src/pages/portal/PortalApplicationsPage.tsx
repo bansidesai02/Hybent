@@ -105,6 +105,7 @@ export default function PortalApplicationsPage() {
   const { data: applications, isLoading, isError } = useQuery({
     queryKey: ['portal', 'applications'],
     queryFn: () => portalApi.myApplications().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   return (

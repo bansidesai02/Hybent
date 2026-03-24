@@ -30,26 +30,31 @@ export default function AnalyticsPage() {
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: () => analyticsApi.overview().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: funnel, isLoading: funnelLoading } = useQuery({
     queryKey: ['analytics', 'funnel', funnelJobId],
     queryFn: () => analyticsApi.funnel(funnelJobId || undefined).then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: talentStats } = useQuery({
     queryKey: ['talent-pool', 'stats'],
     queryFn: () => talentPoolApi.getStats().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: candidatesData } = useQuery({
     queryKey: ['candidates', 'top-skills'],
     queryFn: () => candidatesApi.list({ limit: 100 }).then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const { data: jobsData } = useQuery({
     queryKey: ['jobs', 'all'],
     queryFn: () => jobsApi.list({ limit: 100 }).then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   // ─── Computed Data ───────────────────────────────────────────────────────────

@@ -170,6 +170,7 @@ export default function JobsListPage() {
     queryKey: ['jobs', page, statusFilter, search],
     queryFn: () =>
       jobsApi.list({ page, limit: 10, status: statusFilter || undefined, search: search || undefined }).then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const deleteMutation = useMutation({

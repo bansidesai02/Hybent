@@ -38,6 +38,7 @@ services:
       # Always override DATABASE_URL to use the postgres service hostname.
       # The .env.docker file may have localhost — this ensures it points correctly.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hireon}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hireon_db}
+      REDIS_URL: redis://redis:6379/0
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       UPLOAD_DIR: /app/uploads
       APP_ENV: production
@@ -55,6 +56,60 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
+    networks:
+      - hireon-network
+
+  # ── Redis (Message Broker for Celery) ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: hireon_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - hireon-network
+
+  # ── Celery Worker (Background Executor) ───────────────────────────────────
+  celery_worker:
+    build:
+      context: ./hireon-backend
+      dockerfile: Dockerfile
+    container_name: hireon_celery_worker
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hireon}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hireon_db}
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - hireon-network
+
+  # ── Celery Beat (Scheduler) ───────────────────────────────────────────────
+  celery_beat:
+    build:
+      context: ./hireon-backend
+      dockerfile: Dockerfile
+    container_name: hireon_celery_beat
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hireon}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hireon_db}
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - hireon-network
 

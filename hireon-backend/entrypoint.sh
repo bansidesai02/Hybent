@@ -41,10 +41,17 @@ echo "==> [entrypoint] Seeding database..."
 python seed.py
 echo "==> [entrypoint] Seeding complete."
 
-echo "==> [entrypoint] Starting Uvicorn..."
-exec uvicorn app.main:app \
-    --host 0.0.0.0 \
-    --port 8000 \
-    --workers 2 \
-    --loop uvloop \
-    --http httptools
+# If a command is passed to the entrypoint, execute it. 
+# Otherwise, default to starting Uvicorn.
+if [ $# -gt 0 ]; then
+    echo "==> [entrypoint] Executing custom command: $@"
+    exec "$@"
+else
+    echo "==> [entrypoint] Starting Uvicorn..."
+    exec uvicorn app.main:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --workers 2 \
+        --loop uvloop \
+        --http httptools
+fi

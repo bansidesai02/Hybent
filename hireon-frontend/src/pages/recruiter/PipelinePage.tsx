@@ -74,6 +74,7 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
   const { data: scorecards, isLoading: scLoading } = useQuery({
     queryKey: ['scorecards', 'candidate', card.id],
     queryFn: () => scorecardsApi.getForApplication(card.id).then(r => r.data).catch(() => []), // Fallback to card ID as global view doesn't have application IDs yet
+    refetchInterval: 30_000,
   })
 
   return (
@@ -179,6 +180,7 @@ export default function PipelinePage() {
   const { data: pipelineStages, isLoading } = useQuery({
     queryKey: ['candidates_pipeline'],
     queryFn: () => candidatesApi.getPipeline().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const mapCandidateToCard = useCallback((c: any): KanbanCard => {
@@ -205,6 +207,7 @@ export default function PipelinePage() {
       interviewed: (pipelineStages.interviewed || []).map(mapCandidateToCard),
       offer: (pipelineStages.offer || []).map(mapCandidateToCard),
       rejected: (pipelineStages.rejected || []).map(mapCandidateToCard),
+      inactive: (pipelineStages.inactive || []).map(mapCandidateToCard),
     }
   } : null
 

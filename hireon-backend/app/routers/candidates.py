@@ -6,6 +6,8 @@ from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate
 from app.services.email_service import send_candidate_invite
 from app.utils.pagination import paginate
+from app.utils.permissions import UserRole, NotificationType
+from app.tasks.notifications import notify_organization_roles
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
@@ -56,7 +58,8 @@ async def list_candidates(
             "hr_round_selected", "offered", "hired", "hired_joined",
             "interview", "interviewed",
         ],
-        "rejected": REJECTION_STAGES
+        "rejected": REJECTION_STAGES,
+        "inactive": ["inactive"]
     }
 
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations))
@@ -93,6 +96,29 @@ async def list_candidates(
     return paginate([CandidateOut.model_validate(c).model_dump() for c in items], total, page, limit)
 
 
+# Mapping of detailed stages to high-level buckets
+STAGE_TO_BUCKET = {
+    "applied": "applied",
+    "pre_screening": "screening",
+    "pre_screening_selected": "interview", # Moved forward after pre-screening
+    "technical_round": "interview",
+    "technical_round_selected": "interviewed", # Automatically move to interviewed once selected
+    "practical_round": "interview",
+    "practical_round_selected": "interviewed",
+    "techno_functional_round": "interview",
+    "techno_functional_selected": "interviewed",
+    "management_round": "interview",
+    "management_round_selected": "interviewed",
+    "hr_round": "interview",
+    "hr_round_selected": "interviewed",
+    "interviewed": "interviewed",
+    "offered": "offer",
+    "hired": "offer",
+    "hired_joined": "offer",
+    "screening": "screening", # Legacy/Fallback
+    "interview": "interview"  # Legacy/Fallback
+}
+
 @router.get("/pipeline")
 async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
     from app.models.application import Application
@@ -122,29 +148,6 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
         "rejected": []
     }
     
-    # Mapping of detailed stages to high-level buckets
-    STAGE_TO_BUCKET = {
-        "applied": "applied",
-        "pre_screening": "screening",
-        "pre_screening_selected": "screening",
-        "technical_round": "interview",
-        "technical_round_selected": "interview",
-        "practical_round": "interview",
-        "practical_round_selected": "interview",
-        "techno_functional_round": "interview",
-        "techno_functional_selected": "interview",
-        "management_round": "interview",
-        "management_round_selected": "interview",
-        "hr_round": "interview",
-        "hr_round_selected": "interview",
-        "interviewed": "interviewed",
-        "offered": "offer",
-        "hired": "offer",
-        "hired_joined": "offer",
-        "screening": "screening", # Legacy/Fallback
-        "interview": "interview"  # Legacy/Fallback
-    }
-
     for c in items:
         # Map to bucket or use original if it matches one of the top-level stages
         stage = c.pipeline_stage
@@ -191,6 +194,16 @@ async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, d
         resource_id=str(candidate.id),
         details={"name": candidate.full_name}
     )
+
+    # Trigger system notification for Admin/HR
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        NotificationType.CANDIDATE_ADDED,
+        "New Candidate Added",
+        f"A new candidate '{candidate.full_name}' has been added to the system by {current_user.full_name}.",
+        {"candidate_id": str(candidate.id)}
+    )
     
     return CandidateOut.model_validate(candidate)
 
@@ -236,6 +249,16 @@ async def invite_candidate(data: CandidateInvite, current_user: RecruiterUser, d
         resource_type="candidate",
         resource_id=str(candidate.id),
         details={"name": candidate.full_name, "email": candidate.email}
+    )
+
+    # Trigger system notification for Admin/HR
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        NotificationType.CANDIDATE_ADDED,
+        "Candidate Invited",
+        f"Candidate '{candidate.full_name}' ({candidate.email}) has been invited to apply by {current_user.full_name}.",
+        {"candidate_id": str(candidate.id)}
     )
     
     return {
@@ -320,6 +343,49 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         "offer": "offered",
     }
     target_stage = BUCKET_TO_STAGE.get(data.pipeline_stage, data.pipeline_stage)
+    
+    # ─── PROTECTION: Hired/Offered candidates cannot be rejected ────────────────
+    if old_stage:
+        old_bucket = STAGE_TO_BUCKET.get(old_stage)
+        if old_bucket == "offer" and target_stage in REJECTION_STAGES:
+             raise HTTPException(
+                status_code=400,
+                detail="Candidates in 'Offered' or 'Hired' stage cannot be rejected"
+            )
+
+    # ─── RESTRICTIONS ──────────────────────────────────────────────────────────
+    # Check if this is a "bucket move" (likely from Kanban drag & drop)
+    is_bucket_move = data.pipeline_stage in BUCKET_TO_STAGE
+    
+    if is_bucket_move:
+        # Move to Screening bucket (from Applied/Needs Review)
+        if data.pipeline_stage == "screening":
+             if old_stage and old_stage not in ["applied", "needs_review", "screening"]:
+                 # Prevent moving backward or skipping from unrelated stages easily
+                 pass 
+
+        # Move to Interview bucket (from Screening)
+        if data.pipeline_stage == "interview":
+            if old_stage == "pre_screening":
+                 raise HTTPException(
+                    status_code=400,
+                    detail="Please select 'Pre-screening Selected' before moving to Interview round"
+                )
+            # If the user is trying to skip Screening entirely
+            if not old_stage or old_stage in ["applied", "needs_review"]:
+                 # Allow skipping to interview if needed, or enforce screening first?
+                 # For now, let's keep it flexible but prevent moving past an active "In Pre-screening"
+                 pass
+
+        # Move to Offer bucket
+        if data.pipeline_stage == "offer":
+            # Must be HR Round Selected or Interviewed
+            allowed_for_offer = ["hr_round_selected", "interviewed"]
+            if old_stage not in allowed_for_offer:
+                 raise HTTPException(
+                    status_code=400,
+                    detail="Candidate must be in 'HR Round Selected' or 'Interviewed' stage before moving to Offer"
+                )
 
     if target_stage == "interviewed":
         from app.models.scorecard import Scorecard
@@ -333,11 +399,31 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
             )
         )
         sc_count = (await db.execute(sc_query)).scalar()
-        if sc_count == 0:
+        if sc_count == 0 and not (old_stage and "_selected" in old_stage):
             raise HTTPException(
                 status_code=400,
-                detail="Cannot move to Interviewed: No scorecard submitted yet."
+                detail="Unable to move candidate as the interview is still pending"
             )
+
+    # NEW: Restricted moves to Offer or Rejected if currently in Intervew process without feedback
+    if target_stage in ["offered", "rejected"]:
+        old_bucket = STAGE_TO_BUCKET.get(old_stage)
+        if old_bucket == "interview":
+            from app.models.scorecard import Scorecard
+            sc_query = (
+                select(func.count(Scorecard.id))
+                .join(Application, Scorecard.application_id == Application.id)
+                .where(
+                    Application.candidate_id == candidate_id,
+                    Application.organization_id == current_user.organization_id
+                )
+            )
+            sc_count = (await db.execute(sc_query)).scalar()
+            if sc_count == 0 and not (old_stage and "_selected" in old_stage):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Unable to move candidate as the interview is still pending"
+                )
 
     candidate.pipeline_stage = target_stage
     

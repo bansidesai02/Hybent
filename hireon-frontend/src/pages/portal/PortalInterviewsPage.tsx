@@ -87,6 +87,7 @@ export default function PortalInterviewsPage() {
   const { data: interviews, isLoading, isError } = useQuery({
     queryKey: ['portal', 'interviews'],
     queryFn: () => portalApi.myInterviews().then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const todayInterviews = interviews?.filter((i) => i.status === 'scheduled' && isToday(i.scheduled_at)) ?? []

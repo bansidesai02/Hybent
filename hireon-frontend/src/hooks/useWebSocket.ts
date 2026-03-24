@@ -23,7 +23,7 @@ export function useWebSocket() {
     if (!accessToken || !isAuthenticated) return
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
-    const ws = new WebSocket(`${WS_BASE}/v1/notifications/ws?token=${accessToken}`)
+    const ws = new WebSocket(`${WS_BASE}/ws/?token=${accessToken}`)
     wsRef.current = ws
 
     ws.onopen = () => {

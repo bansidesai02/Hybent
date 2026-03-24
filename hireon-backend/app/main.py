@@ -2,6 +2,7 @@
 HireOn FastAPI application entry point.
 Registers all routers, middleware, static files, and startup events.
 """
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import engine, Base
+from app.websocket.manager import ws_manager
 from app.middleware.audit import AuditMiddleware
 from app.middleware.tenant import TenantMiddleware
 import app.models  # noqa: F401 — register all models with Base
@@ -24,6 +26,7 @@ from app.routers import (
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
     activities
 )
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -50,7 +53,20 @@ async def lifespan(app: FastAPI):
     Path(settings.upload_dir).mkdir(exist_ok=True)
     for sub in ["resumes", "jds", "offers", "avatars"]:
         Path(settings.upload_dir, sub).mkdir(exist_ok=True)
+        
+    # Start Redis Pub/Sub listener for WebSockets
+    redis_listener_task = asyncio.create_task(ws_manager.listen_to_redis())
+    logger.info("Redis WS listener task created.")
+
     yield
+    
+    # Clean up
+    redis_listener_task.cancel()
+    try:
+        await redis_listener_task
+    except asyncio.CancelledError:
+        logger.info("Redis WS listener task cancelled.")
+    
     logger.info("HireOn API shutting down")
 
 
@@ -73,7 +89,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # ── Middleware ─────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        settings.frontend_url,
+        "https://gethireon.netlify.app/", 
+        "http://localhost:5173", 
+        "http://localhost:3000",
+        "http://localhost",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1"
+    ],
+    
     allow_origin_regex="https?://.*",
     allow_credentials=True,
     allow_methods=["*"],

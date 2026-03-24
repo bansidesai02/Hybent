@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { formatSalary } from '@/utils/formatters'
 
@@ -38,11 +38,44 @@ function FieldRow({ label, value, placeholder, type = 'text' }: { label: string;
 export default function PortalProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['portal', 'profile'],
     queryFn: () => portalApi.profile().then((r) => r.data),
+    refetchInterval: 30_000,
   })
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => portalApi.uploadResume(file),
+    onSuccess: () => {
+      setUploadError(null)
+      queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
+    },
+    onError: (err: any) => {
+      setUploadError(err?.response?.data?.detail || 'Upload failed. Please try again.')
+    },
+  })
+
+  const handleFile = (file: File | undefined) => {
+    if (!file) return
+    const allowed = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ]
+    if (!allowed.includes(file.type)) {
+      setUploadError('Only PDF, DOC, or DOCX files are supported.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File is too large. Maximum size is 5 MB.')
+      return
+    }
+    setUploadError(null)
+    uploadMutation.mutate(file)
+  }
 
   if (isLoading) {
     return <div className="p-8 text-center text-[var(--text-lite)]">Loading profile...</div>
@@ -58,16 +91,16 @@ export default function PortalProfilePage() {
   return (
     <div className="page active" id="page-profile">
       <div className="ph">
-        <div className="pt">My Profile & Resume 👤</div>
+        <div className="pt">My Profile &amp; Resume 👤</div>
         <div className="ps">Keep your profile up to date to help interviewers understand you better.</div>
       </div>
 
       <div className="g2" style={{ marginBottom: 20 }}>
-        
+
         {/* PROFILE CARD */}
         <div className="card">
           <div className="ctitle">Profile</div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 22 }}>
             <div className="prof-av-big">{initials}</div>
             <div>
@@ -90,7 +123,7 @@ export default function PortalProfilePage() {
             <FieldRow label="First Name" value={profile?.full_name?.split(' ')[0] || ''} placeholder="First" />
             <FieldRow label="Last Name" value={profile?.full_name?.split(' ').slice(1).join(' ') || ''} placeholder="Last" />
           </div>
-          
+
           <div style={{ marginBottom: 12 }}>
             <FieldRow label="Email" value={profile?.email || ''} placeholder="Email address" type="email" />
           </div>
@@ -151,10 +184,10 @@ export default function PortalProfilePage() {
 
         {/* SIDE COLUMN */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          
+
           {/* Bio Box */}
           <div className="card">
-            <div className="ctitle">Bio & Summary</div>
+            <div className="ctitle">Bio &amp; Summary</div>
             <textarea
               className="ftarea"
               readOnly
@@ -165,7 +198,7 @@ export default function PortalProfilePage() {
 
           {/* Links Box */}
           <div className="card">
-            <div className="ctitle">Links & Social</div>
+            <div className="ctitle">Links &amp; Social</div>
             <div style={{ marginBottom: 12 }}>
               <FieldRow label="LinkedIn" value={profile?.linkedin_url || ''} placeholder="linkedin.com/in/" />
             </div>
@@ -177,10 +210,10 @@ export default function PortalProfilePage() {
             </div>
           </div>
 
-          {/* Settings Box (Skills & Resume) */}
+          {/* Resume & Skills Box */}
           <div className="card">
             <div className="ctitle">Resume <span className="ctag violet">Required</span></div>
-            
+
             {profile?.resume_url && (
               <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span>📄</span>
@@ -190,18 +223,44 @@ export default function PortalProfilePage() {
               </div>
             )}
 
+            {uploadError && (
+              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', marginBottom: 12, fontSize: 13, color: '#ef4444' }}>
+                ⚠️ {uploadError}
+              </div>
+            )}
+
             <div
               className="upload-zone"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !uploadMutation.isPending && fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false) }}
-              style={dragOver ? { borderColor: 'var(--brand)', background: 'rgba(124,58,237,.07)' } : {}}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOver(false)
+                handleFile(e.dataTransfer.files[0])
+              }}
+              style={{
+                ...(dragOver ? { borderColor: 'var(--brand)', background: 'rgba(124,58,237,.07)' } : {}),
+                cursor: uploadMutation.isPending ? 'not-allowed' : 'pointer',
+                opacity: uploadMutation.isPending ? 0.7 : 1,
+              }}
             >
-              <div className="upload-zone-ico">📎</div>
-              <div className="upload-zone-title">Drop your resume here</div>
-              <div className="upload-zone-sub">PDF, DOC, DOCX — max 5 MB</div>
-              <input type="file" ref={fileInputRef} style={{ display: 'none' }} />
+              <div className="upload-zone-ico">
+                {uploadMutation.isPending ? '⏳' : '📎'}
+              </div>
+              <div className="upload-zone-title">
+                {uploadMutation.isPending ? 'Uploading & parsing resume...' : 'Drop your resume here'}
+              </div>
+              <div className="upload-zone-sub">
+                {uploadMutation.isPending ? 'This may take a moment' : 'PDF, DOC, DOCX — max 5 MB'}
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".pdf,.doc,.docx"
+                style={{ display: 'none' }}
+                onChange={(e) => handleFile(e.target.files?.[0])}
+              />
             </div>
 
             <div className="ctitle" style={{ marginTop: 20 }}>Skills</div>

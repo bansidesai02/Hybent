@@ -163,7 +163,7 @@ function ResumeModal({
 /* ── card component ───────────────────────────────────────────────────── */
 function InterviewCard({
   interview, live, delay,
-  onEnterRoom, onViewResume, onPrepKit, onReschedule, onScorecard, onConfirm,
+  onEnterRoom, onViewResume, onPrepKit, onReschedule, onScorecard, onComplete, onConfirm,
 }: {
   interview: Interview
   live: boolean
@@ -173,6 +173,7 @@ function InterviewCard({
   onPrepKit: () => void
   onReschedule: () => void
   onScorecard: () => void
+  onComplete: () => void
   onConfirm: () => void
 }) {
   const ampm = fmtAmPm(interview.scheduled_at)
@@ -281,6 +282,17 @@ function InterviewCard({
           </motion.button>
         ) : interview.status === 'scheduled' ? (
           <>
+            <motion.button
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={onComplete}
+              style={{
+                padding: '9px 24px', borderRadius: 10, background: 'rgba(16,185,129,0.1)',
+                color: '#16a34a', fontWeight: 800, fontSize: 13, border: '1px solid rgba(16,185,129,0.3)',
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              Mark Completed
+            </motion.button>
             {!interview.is_confirmed && (
               <motion.button
                 whileHover={{ scale: 1.02, background: '#15803d' }} whileTap={{ scale: 0.98 }}
@@ -418,12 +430,22 @@ export default function MyInterviewsPage() {
     }
   }
 
+  const handleComplete = async (id: string) => {
+    try {
+      await interviewsApi.update(id, { status: 'completed' })
+      refetch()
+    } catch (err) {
+      console.error('Failed to update interview status', err)
+    }
+  }
+
   const handlers = (i: Interview) => ({
     onEnterRoom:  () => navigate(`/interviewer/live-room/${i.id}`),
     onViewResume: () => setResumeInterview(i),
     onPrepKit:    () => navigate(`/interviewer/prep-kit/${i.id}`),
     onReschedule: () => navigate('/interviewer/interviews'),
     onScorecard:  () => navigate(`/interviewer/scorecard/${i.id}`),
+    onComplete:   () => handleComplete(i.id),
     onConfirm:    () => handleConfirm(i.id),
   })
 
