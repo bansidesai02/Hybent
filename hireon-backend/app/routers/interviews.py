@@ -14,7 +14,8 @@ from app.services.email_service import (
     send_interview_cancellation,
     send_interview_reschedule
 )
-from app.utils.permissions import InterviewStatus
+from app.utils.permissions import InterviewStatus, NotificationType
+from app.tasks.notifications import notify_interview_team
 from app.services.activity_service import log_activity
 
 router = APIRouter(prefix="/v1/interviews", tags=["interviews"])
@@ -204,6 +205,15 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
         details={"candidate": candidate.full_name, "title": data.title, "scheduled_at": data.scheduled_at.isoformat()}
     )
 
+    # Trigger system notification for Admin, HR, and Panelists
+    notify_interview_team.delay(
+        str(interview.id),
+        NotificationType.INTERVIEW_SCHEDULED,
+        "Interview Scheduled",
+        f"A new interview '{data.title}' has been scheduled for {candidate.full_name} on {time_str}.",
+        {"interview_id": str(interview.id), "candidate": candidate.full_name, "scheduled_at": time_str}
+    )
+
     d = _interview_out(interview, panelist_out)
     d["candidate_name"] = candidate.full_name
     d["candidate_email"] = candidate.email
@@ -313,6 +323,15 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
         old_time_str = old_time.astimezone(tz).strftime("%B %d, %Y at %I:%M %p")
         new_time_str = interview.scheduled_at.astimezone(tz).strftime("%B %d, %Y at %I:%M %p")
         
+        # Trigger system notification
+        notify_interview_team.delay(
+            str(interview.id),
+            NotificationType.INTERVIEW_UPDATED,
+            "Interview Rescheduled",
+            f"The interview '{interview.title}' has been rescheduled from {old_time_str} to {new_time_str}.",
+            {"interview_id": str(interview.id), "old_time": old_time_str, "new_time": new_time_str}
+        )
+
         cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
         if cand:
             send_interview_reschedule(
@@ -378,6 +397,15 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
                 company_name=org.name if org else "the team",
                 scheduled_at=time_str, reason=reason
             )
+
+    # Trigger system notification
+    notify_interview_team.delay(
+        str(interview.id),
+        NotificationType.INTERVIEW_CANCELLED,
+        "Interview Cancelled",
+        f"The interview '{interview.title}' scheduled for {time_str} has been cancelled.",
+        {"interview_id": str(interview.id), "reason": reason}
+    )
 
     if interview.calendar_event_id:
         await cancel_calendar_event(interview.calendar_event_id, current_user.google_refresh_token)

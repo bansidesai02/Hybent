@@ -6,6 +6,8 @@ from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate
 from app.services.email_service import send_candidate_invite
 from app.utils.pagination import paginate
+from app.utils.permissions import UserRole, NotificationType
+from app.tasks.notifications import notify_organization_roles
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
@@ -192,6 +194,16 @@ async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, d
         resource_id=str(candidate.id),
         details={"name": candidate.full_name}
     )
+
+    # Trigger system notification for Admin/HR
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        NotificationType.CANDIDATE_ADDED,
+        "New Candidate Added",
+        f"A new candidate '{candidate.full_name}' has been added to the system by {current_user.full_name}.",
+        {"candidate_id": str(candidate.id)}
+    )
     
     return CandidateOut.model_validate(candidate)
 
@@ -237,6 +249,16 @@ async def invite_candidate(data: CandidateInvite, current_user: RecruiterUser, d
         resource_type="candidate",
         resource_id=str(candidate.id),
         details={"name": candidate.full_name, "email": candidate.email}
+    )
+
+    # Trigger system notification for Admin/HR
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        NotificationType.CANDIDATE_ADDED,
+        "Candidate Invited",
+        f"Candidate '{candidate.full_name}' ({candidate.email}) has been invited to apply by {current_user.full_name}.",
+        {"candidate_id": str(candidate.id)}
     )
     
     return {

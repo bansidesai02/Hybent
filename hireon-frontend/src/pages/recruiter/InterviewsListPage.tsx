@@ -183,7 +183,7 @@ function TimeSlotPicker({
   selectedDate: Date | null;
 }) {
   const slots = [
-    '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
+    '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
   ]
 
   const formatAMPM = (time: string) => {
@@ -201,7 +201,7 @@ function TimeSlotPicker({
     // Create a date object for this specific slot at the selected date (Local)
     const slotTime = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), h, m, 0, 0)
     
-    // 1. First check if the slot overlaps with existing interviews (most important info)
+    // 1. First check if the slot overlaps with existing interviews
     const isTaken = (interviews || []).some(iv => {
       if (iv.status === 'cancelled') return false
       const ivStart = parseISO(iv.scheduled_at)
@@ -212,21 +212,28 @@ function TimeSlotPicker({
     
     if (isTaken) return 'scheduled'
 
-    // 2. Then check if it's a past slot
-    if (slotTime.getTime() < Date.now()) return 'past'
+    // 2. Then check if it's a past slot (with 1-minute grace period)
+    const now = new Date()
+    // If it's today, we check the time. If it's a future date, it's never "past".
+    if (slotTime.getTime() < now.getTime() - 60000) return 'past'
 
     return 'available'
   }, [selectedDate, interviews])
 
-  // Auto-select first available slot when date changes or list updates
+  // Auto-select first available slot only if current selection is invalid or missing
   useEffect(() => {
     if (selectedDate) {
-      const firstAvailable = slots.find(s => getSlotStatus(s) === 'available')
-      if (firstAvailable && selected !== firstAvailable) {
-        onSelect(firstAvailable)
+      const currentStatus = selected ? getSlotStatus(selected) : 'none'
+      if (currentStatus !== 'available') {
+        const firstAvailable = slots.find(s => getSlotStatus(s) === 'available')
+        if (firstAvailable) {
+          onSelect(firstAvailable)
+        }
       }
     }
-  }, [selectedDate, interviews, getSlotStatus, selected, onSelect])
+    // We purposely exclude 'selected' from dependencies to avoid overwriting 
+    // manual user clicks. We only want to re-check if the date or list changes.
+  }, [selectedDate, interviews, getSlotStatus, onSelect])
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -335,8 +342,9 @@ function Calendar({
           const isSelected = selectedDate?.getFullYear() === year && selectedDate?.getMonth() === month && selectedDate?.getDate() === day
           const dotColor = statuses ? statusColor(statuses) : null
           
-          // Disable clicking on past dates
-          const isPast = dayDate < new Date(today.getFullYear(), today.getMonth(), today.getDate())
+          // Disable clicking on past dates (anything before today midnight)
+          const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+          const isPast = dayDate < todayMidnight
 
           return (
             <button
