@@ -78,12 +78,17 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+            <div className="logo-orbit">
+              <div className="logo-orbit-ring"></div>
+              <div className="logo-box">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                  <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
+                  <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
+                  <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95"/>
+                </svg>
+              </div>
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">HireOn</span>
+            <span className="logo-wordmark lwl" style={{ fontSize: '24px' }}>Hireon</span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create your account</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Start hiring smarter today — it's free</p>

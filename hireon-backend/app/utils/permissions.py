@@ -82,6 +82,9 @@ class NotificationType(str, Enum):
     OFFER_SENT = "offer_sent"
     OFFER_ACCEPTED = "offer_accepted"
     OFFER_DECLINED = "offer_declined"
+    INTERVIEW_UPDATED = "interview_updated"
+    INTERVIEW_CANCELLED = "interview_cancelled"
+    CANDIDATE_ADDED = "candidate_added"
     SYSTEM = "system"
 
 
