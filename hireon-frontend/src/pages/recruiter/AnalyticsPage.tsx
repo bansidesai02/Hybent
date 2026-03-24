@@ -106,17 +106,17 @@ export default function AnalyticsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[28px] p-8 text-white shadow-2xl shadow-violet-200 dark:shadow-none"
+        className="relative overflow-hidden rounded-[28px] p-5 sm:p-8 text-white shadow-2xl shadow-violet-200 dark:shadow-none"
         style={{
           background: 'linear-gradient(135deg, #6c47ff 0%, #ff6bc6 100%)'
         }}
       >
         <div className="relative z-10">
           <p className="text-[10px] font-black uppercase tracking-[3px] mb-3 opacity-80">AI SUMMARY</p>
-          <h2 className="text-3xl font-black mb-2 flex items-center gap-3" style={{ fontFamily: "'Fraunces', serif" }}>
+          <h2 className="text-xl sm:text-3xl font-black mb-2 flex items-center gap-3" style={{ fontFamily: "'Fraunces', serif" }}>
             Your pipeline is healthy 🎯
           </h2>
-          <p className="text-lg font-medium opacity-90 max-w-2xl leading-relaxed">
+          <p className="text-sm sm:text-lg font-medium opacity-90 max-w-2xl leading-relaxed">
             {overview 
               ? `${formatScore(overview.avg_match_score)}% avg match score this month. ${talentStats?.re_matched_count || 0} past candidates re-matched to new roles. Hiring velocity is stable.`
               : 'Aggregating latest pipeline intelligence...'}

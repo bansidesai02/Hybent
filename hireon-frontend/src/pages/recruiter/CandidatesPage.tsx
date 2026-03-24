@@ -453,9 +453,9 @@ export default function CandidatesPage() {
       </div>
 
       {/* Filters & Search Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         {/* Search Input */}
-        <div style={{ width: 320 }}>
+        <div className="w-full sm:max-w-xs flex-shrink-0">
           <Input
             placeholder="Search by name, email…"
             value={search}
@@ -469,7 +469,7 @@ export default function CandidatesPage() {
         </div>
 
         {/* Status Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="flex flex-wrap items-center gap-2">
           {[
             { label: 'All', value: undefined, icon: '👥' },
             { label: 'Shortlisted', value: 'shortlisted', icon: '⭐' },
@@ -489,12 +489,13 @@ export default function CandidatesPage() {
                 }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 16px', borderRadius: 10,
+                  padding: '7px 14px', borderRadius: 10,
                   border: isActive ? `1.5px solid ${statusCfg?.dot ?? 'rgba(108,71,255,0.35)'}` : '1.5px solid var(--table-border)',
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   background: isActive ? (statusCfg?.bg ?? 'rgba(108,71,255,0.08)') : 'var(--kpi-bg)',
                   color: isActive ? (statusCfg?.color ?? '#6c47ff') : 'var(--text-mid)',
                   transition: 'all 0.18s',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span style={{ fontSize: 12 }}>{f.icon}</span>

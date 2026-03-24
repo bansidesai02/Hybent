@@ -303,6 +303,13 @@ export default function ScorecardPage() {
     enabled: !!interviewId,
   })
 
+  // Fetch my existing scorecard for this interview
+  const { data: myScorecard, isLoading: myScLoading } = useQuery({
+    queryKey: ['my_scorecard', interviewId],
+    queryFn: () => scorecardsApi.getMyScorecardForInterview(interviewId!).then((r) => r.data),
+    enabled: !!interviewId,
+  })
+
   const { data: scorecards, isLoading: scLoading } = useQuery({
     queryKey: ['scorecards', 'application', interview?.application_id],
     queryFn: () => scorecardsApi.getForApplication(interview!.application_id || '').then((r) => r.data),
@@ -328,6 +335,7 @@ export default function ScorecardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scorecards', 'application', interview?.application_id] })
+      queryClient.invalidateQueries({ queryKey: ['my_scorecard', interviewId] })
       queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       showToast('Scorecard submitted successfully!')
@@ -347,7 +355,7 @@ export default function ScorecardPage() {
   const canSubmit = allRated && recommendation !== null && !mutation.isPending
 
   // ── Loading ────────────────────────────────────────────────────────────────────
-  if (intLoading) {
+  if (intLoading || myScLoading) {
     return (
       <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
         <Skeleton className="h-8 w-48" />
@@ -361,7 +369,8 @@ export default function ScorecardPage() {
     return <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-lite)' }}>Interview not found.</div>
   }
 
-  const isAlreadySubmitted = mutation.isSuccess
+  const isAlreadySubmitted = mutation.isSuccess || !!myScorecard
+  const displayScorecard = myScorecard || mutation.data?.data
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -434,7 +443,76 @@ export default function ScorecardPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      {/* ── My Submitted Scorecard (If exists) ────────────────────────── */}
+      {displayScorecard && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{
+            background: 'var(--card-bg)',
+            border: '2px solid #6c47ff',
+            borderRadius: 16,
+            padding: '24px',
+            boxShadow: '0 4px 20px rgba(108,71,255,0.08)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
+                🌟 Your Submitted Scorecard
+              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                 <StarRating value={displayScorecard.overall_rating} size={20} />
+                 {REC_BADGE[displayScorecard.recommendation] && (
+                    <span style={{
+                      fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
+                      background: REC_BADGE[displayScorecard.recommendation].bg,
+                      color: REC_BADGE[displayScorecard.recommendation].color,
+                      border: `1px solid ${REC_BADGE[displayScorecard.recommendation].color}33`
+                    }}>
+                      {REC_BADGE[displayScorecard.recommendation].label}
+                    </span>
+                 )}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Competencies</h3>
+                {Array.isArray(displayScorecard.criteria_scores) && displayScorecard.criteria_scores.map((c: any) => (
+                  <div key={c.criterion}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.criterion}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#6c47ff' }}>{c.score}/5</span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(108,71,255,0.08)', borderRadius: 3 }}>
+                      <div style={{ height: '100%', width: `${(c.score/5)*100}%`, background: 'linear-gradient(90deg, #6c47ff, #7c3aed)', borderRadius: 3 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Summary</h3>
+                  <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, background: 'var(--input-bg)', padding: '12px', borderRadius: 10, border: '1px solid var(--card-border)' }}>
+                    {displayScorecard.summary || 'No summary provided.'}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', marginBottom: 6 }}>Strengths</h3>
+                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5 }}>{displayScorecard.strengths || 'None listed'}</p>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', marginBottom: 6 }}>Concerns</h3>
+                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5 }}>{displayScorecard.weaknesses || 'None listed'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!displayScorecard && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
         {/* ── Left Column ───────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -701,6 +779,7 @@ export default function ScorecardPage() {
           </Card>
         </div>
       </div>
+    )}
 
       {/* ── Existing Scorecards ──────────────────────────────────────────────── */}
       {!scLoading && scorecards && scorecards.length > 0 && (

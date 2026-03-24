@@ -577,13 +577,13 @@ function InterviewCard({
     >
       <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: cfg.color }} />
       
-      <div style={{ display: 'flex', gap: 20 }}>
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
         {/* Time Column */}
-        <div style={{ flexShrink: 0, width: 70, textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 900, color: '#6c47ff', marginBottom: 2 }}>
+        <div className="shrink-0 w-auto sm:w-[70px] flex sm:block items-baseline gap-2 text-left sm:text-center">
+          <p className="text-[18px] font-black text-[#6c47ff] mb-0 sm:mb-[2px]">
             {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
           </p>
-          <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <p className="text-[10px] font-extrabold text-[var(--text-light)] opacity-60 uppercase tracking-[0.5px]">
             {d.getHours() >= 12 ? 'PM' : 'AM'}
           </p>
         </div>
@@ -645,7 +645,7 @@ function InterviewCard({
         </div>
 
         {/* Actions Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
+        <div className="flex sm:flex-col gap-2 justify-end sm:justify-center mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-[var(--sidebar-border)] sm:border-none">
           {interview.status === 'scheduled' && (
             <>
               <button 
@@ -752,10 +752,10 @@ export default function InterviewsListPage() {
   })
 
   return (
-    <div style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', gap: 24, overflow: 'hidden' }}>
+    <div className="flex flex-col gap-6 h-auto lg:h-[calc(100vh-120px)] lg:overflow-hidden min-h-[calc(100vh-120px)]">
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.8px', marginBottom: 4 }}>
             Schedule
@@ -798,10 +798,29 @@ export default function InterviewsListPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 30, flex: 1, minHeight: 0 }}>
+      {/* Mobile Tab Switcher — only shown below lg breakpoint */}
+      <div className="flex lg:hidden items-center gap-2 p-1 rounded-xl border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] shrink-0">
+        {(['schedule', 'interviews'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-[10px] text-[13px] font-bold transition-all duration-200"
+            style={{
+              background: activeTab === tab ? 'rgba(108,71,255,0.1)' : 'transparent',
+              color: activeTab === tab ? '#6c47ff' : 'var(--text-mid)',
+              border: activeTab === tab ? '1px solid rgba(108,71,255,0.2)' : '1px solid transparent',
+            }}
+          >
+            <span>{tab === 'schedule' ? '📅' : '📋'}</span>
+            {tab === 'schedule' ? 'Schedule' : 'Interviews'}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col lg:grid lg:grid-cols-[360px_1fr] gap-6 lg:gap-8 flex-1 min-h-0">
         
-        {/* Left Column: Calendar & Form */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', paddingRight: 4 }}>
+        {/* Left Column: Calendar & Form — always visible on desktop, only when tab='schedule' on mobile */}
+        <div className={`flex-col gap-5 overflow-visible lg:overflow-y-auto lg:pr-1 ${activeTab === 'schedule' ? 'flex' : 'hidden'} lg:flex`}>
           
           {/* Calendar Card */}
           <div className="glass-card" style={{ padding: 24, borderRadius: 24, border: '1px solid var(--sidebar-border)', background: 'var(--sidebar-bg)' }}>
@@ -842,8 +861,8 @@ export default function InterviewsListPage() {
           </div>
         </div>
 
-        {/* Right Column: Upcoming Interviews */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minHeight: 0 }}>
+        {/* Right Column: Upcoming Interviews — always visible on desktop, only when tab='interviews' on mobile */}
+        <div className={`flex-col gap-5 min-h-0 ${activeTab === 'interviews' ? 'flex' : 'hidden'} lg:flex`}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
              <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>Upcoming Interviews</h3>
              <div style={{ display: 'flex', gap: 8 }}>
@@ -865,12 +884,7 @@ export default function InterviewsListPage() {
              </div>
           </div>
 
-          <div 
-            style={{ 
-              flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingRight: 10,
-              paddingBottom: 40
-            }}
-          >
+          <div className="flex-1 overflow-visible lg:overflow-y-auto flex flex-col gap-3.5 lg:pr-2.5 pb-10">
             {isLoading ? (
                Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} style={{ height: 120, borderRadius: 20, background: 'var(--sidebar-bg)', border: '1px solid var(--sidebar-border)', opacity: 0.5 }} className="animate-pulse" />

@@ -17,4 +17,7 @@ export const scorecardsApi = {
     applicationId ? api.get<Scorecard[]>(`/v1/scorecards/application/${applicationId}`) : Promise.resolve({ data: [] }),
 
   get: (id: string) => api.get<Scorecard>(`/v1/scorecards/${id}`),
+
+  getMyScorecardForInterview: (interviewId: string) =>
+    api.get<Scorecard | null>(`/v1/scorecards/interview/${interviewId}/my`),
 }

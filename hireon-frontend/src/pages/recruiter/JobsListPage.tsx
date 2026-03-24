@@ -217,9 +217,9 @@ export default function JobsListPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full">
         {/* Search */}
-        <div style={{ position: 'relative', flex: 1, maxWidth: 400 }}>
+        <div className="relative w-full sm:max-w-[400px] flex-1">
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: 14 }}>🔍</span>
           <input
             placeholder="Search by title, location..."
@@ -231,7 +231,7 @@ export default function JobsListPage() {
         </div>
 
         {/* Status pills logic matching candidates */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--kpi-bg)', padding: 4, borderRadius: 12, border: '1px solid var(--table-border)' }}>
+        <div className="flex flex-wrap items-center gap-2 bg-[var(--kpi-bg)] p-1 rounded-xl border border-[var(--table-border)] text-sm">
           {STATUS_FILTERS.map(({ value, label }) => {
             const isActive = statusFilter === value
             return (
@@ -279,12 +279,7 @@ export default function JobsListPage() {
       ) : (
         <>
           {/* Column headers matching Candidate style */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr 1fr 80px 100px 140px',
-            gap: 12, padding: '0 20px',
-            fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px',
-          }}>
+          <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1fr_80px_100px_140px] gap-3 px-5 text-[10px] font-bold text-[var(--text-light)] uppercase tracking-[0.8px]">
             <span>Position</span>
             <span>Location</span>
             <span>Posted Date</span>
@@ -301,15 +296,7 @@ export default function JobsListPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
                 onClick={() => setSelectedJob(job)}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 1fr 80px 100px 140px',
-                  gap: 12, alignItems: 'center',
-                  padding: '14px 20px', borderRadius: 14,
-                  background: 'var(--card-bg)', border: '1px solid var(--card-border)',
-                  boxShadow: 'var(--shadow)', cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
+                className="flex flex-col lg:grid lg:grid-cols-[2fr_1fr_1fr_80px_100px_140px] gap-4 lg:gap-3 items-start lg:items-center p-4 lg:px-5 lg:py-[14px] rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-[var(--shadow)] cursor-pointer transition-all duration-150"
                 onMouseEnter={(e) => {
                   const el = e.currentTarget as HTMLElement
                   el.style.borderColor = 'rgba(108,71,255,0.30)'
@@ -324,51 +311,63 @@ export default function JobsListPage() {
                 }}
               >
                 {/* Position */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, rgba(108,71,255,0.1), rgba(139,107,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>💼</div>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-light)' }}>{JOB_TYPE_LABEL[job.job_type] || job.job_type}</p>
+                <div className="flex items-center gap-3 w-full lg:w-auto min-w-0">
+                  <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 text-base" style={{ background: 'linear-gradient(135deg, rgba(108,71,255,0.1), rgba(139,107,255,0.05))' }}>💼</div>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-[var(--violet)] mb-[2px] truncate">{job.title}</p>
+                    <p className="text-[11px] text-[var(--text-light)]">{JOB_TYPE_LABEL[job.job_type] || job.job_type}</p>
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4 w-full lg:contents mt-1 lg:mt-0">
+                  {/* Location */}
+                  <div className="flex flex-col gap-1 lg:contents">
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Location</span>
+                    <p className="text-[13px] text-[var(--text-mid)] truncate">{job.is_remote ? 'Remote' : (job.location || '—')}</p>
+                  </div>
 
-                {/* Location */}
-                <p style={{ fontSize: 13, color: 'var(--text-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.is_remote ? 'Remote' : (job.location || '—')}</p>
+                  {/* Posted Date */}
+                  <div className="flex flex-col gap-1 lg:contents">
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Posted Date</span>
+                    <p className="text-[12px] text-[var(--text-light)]">{formatDate(job.created_at)}</p>
+                  </div>
 
-                {/* Posted Date */}
-                <p style={{ fontSize: 12, color: 'var(--text-light)' }}>{formatDate(job.created_at)}</p>
+                  {/* Applicants */}
+                  <div className="flex flex-col gap-1 lg:contents">
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Applicants</span>
+                    <p className="text-[14px] font-bold text-[var(--text)] lg:text-center">{job.application_count}</p>
+                  </div>
 
-                {/* Applicants */}
-                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>{job.application_count}</p>
-
-                {/* Status */}
-                <div style={{ display: 'flex', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
-                  <select
-                    value={job.status}
-                    onChange={(e) => statusMutation.mutate({ id: job.id, status: e.target.value as JobStatus })}
-                    style={{
-                      appearance: 'none',
-                      border: `1px solid ${STATUS_STYLE[job.status]?.border ?? 'rgba(107,114,128,0.20)'}`,
-                      background: STATUS_STYLE[job.status]?.bg ?? 'rgba(107,114,128,0.10)',
-                      color: STATUS_STYLE[job.status]?.color ?? '#6b7280',
-                      fontSize: 11, fontWeight: 700,
-                      padding: '3px 10px', borderRadius: 20,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {['active', 'draft', 'paused', 'closed'].map(s => (
-                      <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                    ))}
-                  </select>
+                  {/* Status */}
+                  <div className="flex flex-col gap-1 lg:contents" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Status</span>
+                    <div className="flex lg:justify-center">
+                      <select
+                        value={job.status}
+                        onChange={(e) => statusMutation.mutate({ id: job.id, status: e.target.value as JobStatus })}
+                        style={{
+                          appearance: 'none',
+                          border: `1px solid ${STATUS_STYLE[job.status]?.border ?? 'rgba(107,114,128,0.20)'}`,
+                          background: STATUS_STYLE[job.status]?.bg ?? 'rgba(107,114,128,0.10)',
+                          color: STATUS_STYLE[job.status]?.color ?? '#6b7280',
+                          fontSize: 11, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 20,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {['active', 'draft', 'paused', 'closed'].map(s => (
+                          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-end gap-2 w-full lg:w-auto mt-2 lg:mt-0 border-t border-[var(--card-border)] lg:border-none pt-3 lg:pt-0" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => navigate(`/recruiter/jobs/${job.id}/edit`)}
-                    className="btn-glass"
-                    style={{ width: 32, height: 32, padding: 0, justifyContent: 'center', borderRadius: 8 }}
+                    className="btn-glass flex items-center justify-center w-8 h-8 rounded-lg"
                     title="Edit Position"
                   >
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -377,8 +376,7 @@ export default function JobsListPage() {
                   </button>
                   <button
                     onClick={() => setDeleteTarget(job)}
-                    className="btn-glass"
-                    style={{ width: 32, height: 32, padding: 0, justifyContent: 'center', borderRadius: 8, color: '#ef4444' }}
+                    className="btn-glass flex items-center justify-center w-8 h-8 rounded-lg text-red-500 hover:bg-red-50"
                     title="Delete Position"
                   >
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

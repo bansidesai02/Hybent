@@ -274,7 +274,7 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Hiring Funnel */}
         <div
-          className="rounded-[24px] p-8"
+          className="rounded-[24px] p-4 sm:p-8"
           style={{
             background: 'var(--card-bg)',
             border: '1px solid var(--card-border)',
@@ -282,7 +282,7 @@ export default function OverviewPage() {
             backdropFilter: 'blur(20px)',
           }}
         >
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
             <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Hiring Funnel
             </h3>
@@ -301,7 +301,7 @@ export default function OverviewPage() {
 
         {/* Recent Activity */}
         <div
-          className="rounded-[24px] p-8"
+          className="rounded-[24px] p-4 sm:p-8"
           style={{
             background: 'var(--card-bg)',
             border: '1px solid var(--card-border)',
@@ -309,7 +309,7 @@ export default function OverviewPage() {
             backdropFilter: 'blur(20px)',
           }}
         >
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
             <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Recent Activity
             </h3>
@@ -327,7 +327,7 @@ export default function OverviewPage() {
 
       {/* Today's Interviews Section */}
       <div
-        className="rounded-[24px] p-8"
+        className="rounded-[24px] p-4 sm:p-8"
         style={{
           background: 'var(--card-bg)',
           border: '1px solid var(--card-border)',
@@ -335,7 +335,7 @@ export default function OverviewPage() {
           backdropFilter: 'blur(20px)',
         }}
       >
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
           <div className="flex items-center gap-4">
             <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Today's Interviews
