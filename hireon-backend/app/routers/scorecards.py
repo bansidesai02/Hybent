@@ -46,9 +46,10 @@ async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser,
     )
     db.add(scorecard)
     
-    # Mark interview completed
+    # Mark interview completed and sync feedback
     from app.utils.permissions import InterviewStatus
     interview.status = InterviewStatus.COMPLETED
+    interview.feedback = data.summary or f"Recommendation: {data.recommendation.replace('_', ' ').title()}"
     
     # Automate Stage Transition if recommendation is positive
     if data.recommendation in ("yes", "strong_yes"):
@@ -80,11 +81,28 @@ async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser,
             if application:
                 application.stage = target_stage
 
-    await db.flush()
+    await db.commit()
 
     out = ScorecardOut.model_validate(scorecard).model_dump()
     out["submitted_by_name"] = current_user.full_name
     return out
+
+
+@router.get("/interview/{interview_id}/my")
+async def get_my_scorecard_for_interview(interview_id: uuid.UUID, current_user: InterviewerUser, db: DB):
+    result = await db.execute(
+        select(Scorecard).where(
+            Scorecard.interview_id == interview_id,
+            Scorecard.submitted_by_id == current_user.id,
+        )
+    )
+    sc = result.scalar_one_or_none()
+    if not sc:
+        return None
+        
+    d = ScorecardOut.model_validate(sc).model_dump()
+    d["submitted_by_name"] = current_user.full_name
+    return d
 
 
 @router.get("/application/{application_id}")

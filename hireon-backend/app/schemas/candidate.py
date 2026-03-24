@@ -51,6 +51,7 @@ class CandidateOut(OrmSchema):
 
 
 class CandidateUpdate(BaseModel):
+    email: EmailStr | None = None
     full_name: str | None = None
     phone: str | None = None
     location: str | None = None

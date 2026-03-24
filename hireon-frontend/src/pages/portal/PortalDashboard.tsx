@@ -37,12 +37,10 @@ function stageIndex(stage: string): number {
 }
 
 function getProgressPercent(currentIndex: number): number {
-  if (currentIndex <= 0) return 0
-  // Line is 80% of width (10% to 90%), with 6 segments for 7 dots.
-  // Each segment is 80 / 6 = 13.333%
-  const segmentWidth = 80 / (STAGES.length - 1)
-  return currentIndex * segmentWidth
+  const pct = [10, 25, 40, 55, 70, 85, 100]
+  return pct[Math.min(currentIndex, pct.length - 1)]
 }
+
 
 
 function StageChip({ stage }: { stage: string }) {

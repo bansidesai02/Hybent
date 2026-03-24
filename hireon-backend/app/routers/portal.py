@@ -3,7 +3,8 @@ Candidate portal endpoints — for candidates to self-register, view their own a
 respond to offers, and view interview schedules.
 """
 import uuid
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from app.dependencies import DB, CurrentUser
@@ -189,7 +190,19 @@ async def update_portal_profile(data: CandidateUpdate, current_user: CurrentUser
     if not candidate:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    
+    if "email" in update_data and update_data["email"] != candidate.email:
+        from app.models.user import User
+        existing_user = (await db.execute(select(User).where(User.email == update_data["email"]))).scalar_one_or_none()
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        
+        user = (await db.execute(select(User).where(User.id == current_user.id))).scalar_one_or_none()
+        if user:
+            user.email = update_data["email"]
+
+    for field, value in update_data.items():
         setattr(candidate, field, value)
 
     await db.commit()
@@ -340,7 +353,18 @@ async def portal_apply_to_job(job_id: uuid.UUID, current_user: CurrentUser, db: 
 
 
 @router.post("/jobs/{job_id}/refer")
-async def portal_refer_job(job_id: uuid.UUID, data: JobReferralCreate, current_user: CurrentUser, db: DB):
+async def portal_refer_job(
+    job_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    referee_first_name: str = Form(...),
+    referee_last_name: str = Form(...),
+    referee_email: EmailStr = Form(...),
+    referee_phone: str | None = Form(None),
+    relationship: str | None = Form(None),
+    reason: str | None = Form(None),
+    resume: UploadFile | None = File(None)
+):
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
         
@@ -352,15 +376,22 @@ async def portal_refer_job(job_id: uuid.UUID, data: JobReferralCreate, current_u
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    resume_url = None
+    resume_filename = None
+    if resume and resume.filename:
+        resume_url, resume_filename = await save_resume(resume, str(current_user.organization_id))
+
     referral = JobReferral(
         job_id=job.id,
         referrer_id=candidate.id,
-        referee_first_name=data.referee_first_name,
-        referee_last_name=data.referee_last_name,
-        referee_email=data.referee_email,
-        referee_phone=data.referee_phone,
-        relationship=data.relationship,
-        reason=data.reason
+        referee_first_name=referee_first_name,
+        referee_last_name=referee_last_name,
+        referee_email=referee_email,
+        referee_phone=referee_phone,
+        relation_to_referrer=relationship,
+        reason=reason,
+        resume_url=resume_url,
+        resume_filename=resume_filename
     )
     db.add(referral)
     await db.commit()

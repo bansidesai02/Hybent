@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { formatSalary } from '@/utils/formatters'
@@ -20,15 +21,16 @@ function completionPercent(data: any): number {
   return Math.round((fields.filter(Boolean).length / fields.length) * 100)
 }
 
-function FieldRow({ label, value, placeholder, type = 'text' }: { label: string; value: string; placeholder: string; type?: string }) {
+function FieldRow({ label, name, value, placeholder, type = 'text', readOnly = false }: { label: string; name?: string; value: string; placeholder: string; type?: string; readOnly?: boolean }) {
   return (
     <div>
       <label className="flabel">{label}</label>
       <input
+        name={name}
         type={type}
         defaultValue={value}
         placeholder={placeholder}
-        readOnly
+        readOnly={readOnly}
         className="finput"
       />
     </div>
@@ -39,6 +41,8 @@ export default function PortalProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [saveStatus, setSaveStatus] = useState<{ type: 'error' | 'success', msg: string } | null>(null)
+
   const queryClient = useQueryClient()
 
   const { data: profile, isLoading } = useQuery({
@@ -46,6 +50,16 @@ export default function PortalProfilePage() {
     queryFn: () => portalApi.profile().then((r) => r.data),
     refetchInterval: 30_000,
   })
+
+  const [skills, setSkills] = useState<string[]>([])
+  const [newSkill, setNewSkill] = useState('')
+
+  React.useEffect(() => {
+    if (profile) {
+      setSkills(profile.skills || profile.tags || [])
+    }
+  }, [profile])
+
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => portalApi.uploadResume(file),
@@ -57,6 +71,37 @@ export default function PortalProfilePage() {
       setUploadError(err?.response?.data?.detail || 'Upload failed. Please try again.')
     },
   })
+
+  const saveMutation = useMutation({
+    mutationFn: (data: any) => portalApi.updateProfile(data),
+    onSuccess: () => {
+      setSaveStatus({ type: 'success', msg: 'Profile saved successfully!' })
+      queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
+      setTimeout(() => setSaveStatus(null), 3000)
+    },
+    onError: (err: any) => {
+      setSaveStatus({ type: 'error', msg: err?.response?.data?.detail || 'Failed to save profile. Please try again.' })
+    },
+  })
+
+  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setSaveStatus(null)
+    const formData = new FormData(e.currentTarget)
+    const data: Record<string, any> = Object.fromEntries(formData.entries())
+    
+    // Combine first and last name
+    if (data.first_name || data.last_name) {
+      data.full_name = `${data.first_name || ''} ${data.last_name || ''}`.trim()
+      delete data.first_name
+      delete data.last_name
+    }
+    
+    data.tags = skills
+
+    saveMutation.mutate(data)
+  }
+
 
   const handleFile = (file: File | undefined) => {
     if (!file) return
@@ -95,7 +140,8 @@ export default function PortalProfilePage() {
         <div className="ps">Keep your profile up to date to help interviewers understand you better.</div>
       </div>
 
-      <div className="g2" style={{ marginBottom: 20 }}>
+      <form id="profile-form" className="g2" style={{ marginBottom: 20 }} onSubmit={handleSave}>
+
 
         {/* PROFILE CARD */}
         <div className="card">
@@ -120,47 +166,39 @@ export default function PortalProfilePage() {
           </div>
 
           <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="First Name" value={profile?.full_name?.split(' ')[0] || ''} placeholder="First" />
-            <FieldRow label="Last Name" value={profile?.full_name?.split(' ').slice(1).join(' ') || ''} placeholder="Last" />
+            <FieldRow label="First Name" name="first_name" value={profile?.full_name?.split(' ')[0] || ''} placeholder="First" />
+            <FieldRow label="Last Name" name="last_name" value={profile?.full_name?.split(' ').slice(1).join(' ') || ''} placeholder="Last" />
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <FieldRow label="Email" value={profile?.email || ''} placeholder="Email address" type="email" />
+            <FieldRow label="Email" name="email" value={profile?.email || ''} placeholder="Email address" type="email" />
           </div>
 
           <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="Phone" value={profile?.phone || ''} placeholder="+1 555-0000" type="tel" />
-            <FieldRow label="Location" value={profile?.location || ''} placeholder="City, Country" />
+            <FieldRow label="Phone" name="phone" value={profile?.phone || ''} placeholder="+1 555-0000" type="tel" />
+            <FieldRow label="Location" name="location" value={profile?.location || ''} placeholder="City, Country" />
           </div>
 
           <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="Experience" value={profile?.experience_years != null ? `${profile.experience_years} Years` : ''} placeholder="e.g. 5 Years" />
-            <FieldRow label="Notice Period" value={profile?.notice_period_days != null ? `${profile.notice_period_days} Days` : ''} placeholder="e.g. 30 Days" />
+            <FieldRow label="Experience" name="experience_years" value={profile?.experience_years != null ? `${profile.experience_years} Years` : ''} placeholder="e.g. 5 Years" />
+            <FieldRow label="Notice Period" name="notice_period_days" value={profile?.notice_period_days != null ? `${profile.notice_period_days} Days` : ''} placeholder="e.g. 30 Days" />
           </div>
 
           <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="Current CTC" value={profile?.current_ctc ? formatSalary(profile.current_ctc, null, 'INR') : ''} placeholder="e.g. ₹22,00,000" />
-            <FieldRow label="Expected CTC" value={profile?.expected_ctc ? formatSalary(profile.expected_ctc, null, 'INR') : ''} placeholder="e.g. ₹32,00,000" />
+            <FieldRow label="Current CTC" name="current_ctc" value={profile?.current_ctc ? formatSalary(profile.current_ctc, null, 'INR') : ''} placeholder="e.g. ₹22,00,000" />
+            <FieldRow label="Expected CTC" name="expected_ctc" value={profile?.expected_ctc ? formatSalary(profile.expected_ctc, null, 'INR') : ''} placeholder="e.g. ₹32,00,000" />
           </div>
 
           <div className="frow" style={{ marginBottom: 12 }}>
             <div>
-              <label className="flabel">Work Mode Preference</label>
-              <select className="finput" defaultValue={profile?.work_mode_preference || ''} disabled>
-                <option value="">Select Mode</option>
-                <option value="remote">Remote</option>
-                <option value="hybrid">Hybrid</option>
-                <option value="onsite">On-site</option>
-              </select>
-            </div>
-            <div>
-              <label className="flabel">Availability</label>
-              <select className="finput" defaultValue={profile?.availability_status || ''} disabled>
-                <option value="">Select Status</option>
-                <option value="immediate">Immediate</option>
-                <option value="serving_notice">Serving Notice</option>
-                <option value="not_looking">Not Looking</option>
-              </select>
+              <label className="flabel">YOU WILL ABLE TO JOIN WITHIN</label>
+              <input
+                type="text"
+                name="availability_status"
+                className="finput"
+                defaultValue={profile?.availability_status || ''}
+                placeholder="e.g. 15 Days"
+              />
             </div>
           </div>
 
@@ -171,12 +209,22 @@ export default function PortalProfilePage() {
             </div>
             <div className="frow" style={{ marginBottom: 10 }}>
               <div>
-                <label className="flabel">Preferred Interview Days</label>
-                <input className="finput" readOnly value={profile?.interview_availability_days?.join(', ') || 'Not specified'} />
+                <label className="flabel">Preferred Interview Date</label>
+                <input 
+                  type="date"
+                  name="interview_availability_days"
+                  className="finput" 
+                  defaultValue={Array.isArray(profile?.interview_availability_days) ? profile?.interview_availability_days[0] : (profile?.interview_availability_days || '')} 
+                />
               </div>
               <div>
                 <label className="flabel">Preferred Time Slot</label>
-                <input className="finput" readOnly value={profile?.interview_time_slot || 'Not specified'} />
+                <input 
+                  type="time" 
+                  name="interview_time_slot"
+                  className="finput" 
+                  defaultValue={profile?.interview_time_slot || ''} 
+                />
               </div>
             </div>
           </div>
@@ -189,8 +237,8 @@ export default function PortalProfilePage() {
           <div className="card">
             <div className="ctitle">Bio &amp; Summary</div>
             <textarea
+              name="summary"
               className="ftarea"
-              readOnly
               defaultValue={profile?.summary || ''}
               placeholder="Tell us about yourself..."
             />
@@ -200,13 +248,13 @@ export default function PortalProfilePage() {
           <div className="card">
             <div className="ctitle">Links &amp; Social</div>
             <div style={{ marginBottom: 12 }}>
-              <FieldRow label="LinkedIn" value={profile?.linkedin_url || ''} placeholder="linkedin.com/in/" />
+              <FieldRow label="LinkedIn" name="linkedin_url" value={profile?.linkedin_url || ''} placeholder="linkedin.com/in/" />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <FieldRow label="GitHub" value={profile?.github_url || ''} placeholder="github.com/" />
+              <FieldRow label="GitHub" name="github_url" value={profile?.github_url || ''} placeholder="github.com/" />
             </div>
             <div>
-              <FieldRow label="Portfolio" value={profile?.portfolio_url || ''} placeholder="https://" />
+              <FieldRow label="Portfolio" name="portfolio_url" value={profile?.portfolio_url || ''} placeholder="https://" />
             </div>
           </div>
 
@@ -264,15 +312,80 @@ export default function PortalProfilePage() {
             </div>
 
             <div className="ctitle" style={{ marginTop: 20 }}>Skills</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {profile?.skills?.map((skill: string) => (
-                <span key={skill} className="skill-tag">{skill}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              {skills.map((skill: string) => (
+                <span key={skill} className="skill-tag" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {skill}
+                  <button 
+                    type="button" 
+                    onClick={() => setSkills(skills.filter(s => s !== skill))} 
+                    style={{ background: 'none', border: 'none', color: 'currentcolor', cursor: 'pointer', padding: 0, margin: 0, fontSize: 16, lineHeight: 1 }}
+                  >
+                    &times;
+                  </button>
+                </span>
               ))}
-              <span className="skill-tag add" title="Recruiter managed">+ Add</span>
+              <input
+                type="text"
+                value={newSkill}
+                onChange={(e) => setNewSkill(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = newSkill.trim();
+                    if (val && !skills.includes(val)) setSkills([...skills, val]);
+                    setNewSkill('');
+                  }
+                }}
+                placeholder="+ Add skill"
+                className="skill-tag add"
+                style={{ background: 'transparent', outline: 'none', width: '90px' }}
+              />
             </div>
           </div>
         </div>
+      </form>
+
+
+      {/* BOTTOM SAVE BAR */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: 16,
+        marginTop: 10
+      }}>
+        {saveStatus && (
+          <div style={{ 
+            color: saveStatus.type === 'success' ? '#10B981' : '#EF4444', 
+            fontSize: 14, 
+            fontWeight: 600
+          }}>
+            {saveStatus.msg}
+          </div>
+        )}
+        <button
+          type="submit"
+          form="profile-form"
+          disabled={saveMutation.isPending}
+          style={{
+            background: 'var(--brand)',
+            color: 'white',
+            border: 'none',
+            padding: '10px 24px',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
+            opacity: saveMutation.isPending ? 0.7 : 1,
+            transition: 'all 0.2s',
+            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
+          }}
+        >
+          {saveMutation.isPending ? 'Saving...' : 'Save Profile'}
+        </button>
       </div>
+
     </div>
   )
 }

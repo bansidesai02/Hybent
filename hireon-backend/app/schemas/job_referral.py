@@ -12,6 +12,8 @@ class JobReferralOut(OrmSchema):
     referee_phone: str | None = None
     relationship: str | None = None
     reason: str | None = None
+    resume_url: str | None = None
+    resume_filename: str | None = None
     created_at: datetime
 
 class JobReferralCreate(BaseModel):

@@ -40,6 +40,19 @@ export default function PortalOpenings() {
     },
   })
 
+  const referMutation = useMutation({
+    mutationFn: ({ jobId, data }: { jobId: string; data: FormData }) => portalApi.referJob(jobId, data),
+    onSuccess: () => {
+      toast.success('Referral submitted successfully! 🎉')
+      setReferTarget(null)
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.detail || 'Failed to submit referral'
+      toast.error(msg)
+    },
+  })
+
+
   return (
     <div className="page active" id="page-openings">
       <div className="ph">
@@ -127,44 +140,68 @@ export default function PortalOpenings() {
       {/* Referral Modal */}
       {referTarget && (
         <Modal open onClose={() => setReferTarget(null)} title={`Refer for ${referTarget.title}`} size="md">
-          <p style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 16 }}>
-            Know someone perfect for this role? Fill out their details and earn <strong>{referTarget.referralBonus}</strong> if they are hired!
-          </p>
-          
+          <form onSubmit={(e) => {
+            e.preventDefault()
+            const formData = new FormData(e.currentTarget)
+            
+            // Handle splitting the single name input into first/last name
+            const fullName = formData.get('referee_full_name') as string || ''
+            const nameParts = fullName.trim().split(' ')
+            const firstName = nameParts[0] || 'Unknown'
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Unknown'
+            
+            formData.set('referee_first_name', firstName)
+            formData.set('referee_last_name', lastName)
+            formData.delete('referee_full_name')
+
+            referMutation.mutate({ jobId: referTarget.id, data: formData })
+          }}>
+
           <div className="frow" style={{ marginBottom: 12 }}>
             <div>
               <label className="flabel">Friend's Name</label>
-              <input className="finput" placeholder="e.g. John Doe" />
+              <input name="referee_full_name" className="finput" placeholder="e.g. John Doe" required />
             </div>
             <div>
               <label className="flabel">Friend's Email</label>
-              <input className="finput" placeholder="john@example.com" />
+              <input name="referee_email" type="email" className="finput" placeholder="john@example.com" required />
             </div>
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <label className="flabel">LinkedIn Profile (Optional)</label>
-            <input className="finput" placeholder="https://linkedin.com/in/..." />
+          <div className="frow" style={{ marginBottom: 12 }}>
+            <div>
+              <label className="flabel">Friend's Number</label>
+              <input name="referee_phone" type="tel" className="finput" placeholder="e.g. +1 555-0000" />
+            </div>
+            <div>
+              <label className="flabel">LinkedIn Profile (Optional)</label>
+              <input name="relationship" className="finput" placeholder="https://linkedin.com/in/..." />
+            </div>
           </div>
 
           <Textarea
+            name="reason"
             label="Why are they a good fit?"
             placeholder="Tell us why we should hire your friend..."
             rows={3}
           />
+
+          <div style={{ marginTop: 12 }}>
+            <label className="flabel">Upload Resume (Optional)</label>
+            <input name="resume" type="file" className="finput" accept=".pdf,.doc,.docx" style={{ padding: '8px 12px' }} />
+          </div>
           
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-            <button className="btn btn-outline" onClick={() => setReferTarget(null)}>Cancel</button>
+            <button type="button" className="btn btn-outline" onClick={() => setReferTarget(null)}>Cancel</button>
             <button
+              type="submit"
               className="btn btn-primary"
-              onClick={() => {
-                alert(`Successfully referred for ${referTarget.title}!`)
-                setReferTarget(null)
-              }}
+              disabled={referMutation.isPending}
             >
-              Submit Referral
+              {referMutation.isPending ? 'Submitting...' : 'Submit Referral'}
             </button>
           </div>
+          </form>
         </Modal>
       )}
 

@@ -20,11 +20,18 @@ export const portalApi = {
 
   profile: () => api.get<Candidate>('/v1/portal/profile'),
 
+  updateProfile: (data: Partial<Candidate>) => api.put<Candidate>('/v1/portal/profile', data),
+
   generatePrep: (applicationId: string) => api.get(`/v1/portal/applications/${applicationId}/prep-hub`),
 
   jobs: () => api.get<import('@/types').Job[]>('/v1/portal/jobs'),
 
   applyToJob: (jobId: string) => api.post<Application>(`/v1/portal/jobs/${jobId}/apply`),
+
+  referJob: (jobId: string, data: FormData) =>
+    api.post(`/v1/portal/jobs/${jobId}/refer`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 
   uploadResume: (file: File) => {
     const form = new FormData()

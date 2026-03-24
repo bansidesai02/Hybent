@@ -25,6 +25,8 @@ class JobReferral(Base):
     referee_phone: Mapped[str | None] = mapped_column(String(50))
     relation_to_referrer: Mapped[str | None] = mapped_column(String(100))
     reason: Mapped[str | None] = mapped_column(Text)
+    resume_url: Mapped[str | None] = mapped_column(String(255))
+    resume_filename: Mapped[str | None] = mapped_column(String(255))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
