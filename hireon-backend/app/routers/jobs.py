@@ -25,6 +25,7 @@ async def list_jobs(
     search: str | None = None,
 ):
     query = select(Job).where(Job.organization_id == current_user.organization_id)
+
     if status:
         query = query.where(Job.status == status)
     if search:

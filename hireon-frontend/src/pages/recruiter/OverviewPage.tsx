@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '@/api/analytics'
 import { notificationsApi } from '@/api/notifications'
@@ -183,6 +184,7 @@ const NOTIFICATION_MAP: Record<string, { icon: string; bg: string }> = {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function OverviewPage() {
+  const { basePath } = useAuth()
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
@@ -238,25 +240,25 @@ export default function OverviewPage() {
           label="Post New Job"
           icon="💼"
           bg="rgba(108, 71, 255, 0.1)"
-          onClick={() => navigate('/recruiter/jobs/new')}
+          onClick={() => navigate(`${basePath}/jobs/new`)}
         />
         <QuickLink
           label="Add Candidate"
           icon="👥"
           bg="rgba(16, 185, 129, 0.1)"
-          onClick={() => navigate('/recruiter/upload')}
+          onClick={() => navigate(`${basePath}/upload`)}
         />
         <QuickLink
           label="Schedule Call"
           icon="📅"
           bg="rgba(255, 107, 198, 0.1)"
-          onClick={() => navigate('/recruiter/interviews')}
+          onClick={() => navigate(`${basePath}/interviews`)}
         />
         <QuickLink
           label="AI Analytics"
           icon="🧠"
           bg="rgba(139, 92, 246, 0.1)"
-          onClick={() => navigate('/recruiter/analytics')}
+          onClick={() => navigate(`${basePath}/analytics`)}
         />
       </div>
 
@@ -345,7 +347,7 @@ export default function OverviewPage() {
             </span>
           </div>
           <button
-            onClick={() => navigate('/recruiter/interviews')}
+            onClick={() => navigate(`${basePath}/interviews`)}
             className="text-[11px] font-bold"
             style={{ color: '#6c47ff' }}
           >

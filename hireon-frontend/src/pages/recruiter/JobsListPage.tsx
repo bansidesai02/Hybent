@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useAuth } from '@/hooks/useAuth'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { jobsApi } from '@/api/jobs'
 import type { Job, JobStatus } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -81,7 +82,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        
+
         {/* Header Section */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid var(--table-border)', paddingBottom: 20 }}>
           <div style={{ display: 'flex', gap: 16 }}>
@@ -157,6 +158,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function JobsListPage() {
+  const { basePath } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -204,11 +206,11 @@ export default function JobsListPage() {
             Open Positions
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-light)' }}>
-            {data ? `${data.total} active position${data.total !== 1 ? 's' : ''}` : 'Manage your organisation\'s openings'}
+            {data ? `${data.total} active position${data.total !== 1 ? 's' : ''}` : "Manage your organisation's openings"}
           </p>
         </div>
         <button
-          onClick={() => navigate('/recruiter/jobs/new')}
+          onClick={() => navigate(`${basePath}/jobs/new`)}
           className="btn-primary-gradient"
           style={{ padding: '10px 20px', borderRadius: 12 }}
         >
@@ -230,7 +232,7 @@ export default function JobsListPage() {
           />
         </div>
 
-        {/* Status pills logic matching candidates */}
+        {/* Status pills */}
         <div className="flex flex-wrap items-center gap-2 bg-[var(--kpi-bg)] p-1 rounded-xl border border-[var(--table-border)] text-sm">
           {STATUS_FILTERS.map(({ value, label }) => {
             const isActive = statusFilter === value
@@ -278,7 +280,7 @@ export default function JobsListPage() {
         />
       ) : (
         <>
-          {/* Column headers matching Candidate style */}
+          {/* Column headers */}
           <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1fr_80px_100px_140px] gap-3 px-5 text-[10px] font-bold text-[var(--text-light)] uppercase tracking-[0.8px]">
             <span>Position</span>
             <span>Location</span>
@@ -310,7 +312,7 @@ export default function JobsListPage() {
                   el.style.transform = 'none'
                 }}
               >
-                {/* Position */}
+                {/* Col 1 – Position (always visible) */}
                 <div className="flex items-center gap-3 w-full lg:w-auto min-w-0">
                   <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 text-base" style={{ background: 'linear-gradient(135deg, rgba(108,71,255,0.1), rgba(139,107,255,0.05))' }}>💼</div>
                   <div className="min-w-0">
@@ -319,56 +321,58 @@ export default function JobsListPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 w-full lg:contents mt-1 lg:mt-0">
-                  {/* Location */}
-                  <div className="flex flex-col gap-1 lg:contents">
-                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Location</span>
-                    <p className="text-[13px] text-[var(--text-mid)] truncate">{job.is_remote ? 'Remote' : (job.location || '—')}</p>
-                  </div>
+                {/* Col 2 – Location (desktop only) */}
+                <p className="hidden lg:block text-[13px] text-[var(--text-mid)] truncate min-w-0">
+                  {job.is_remote ? 'Remote' : (job.location || '—')}
+                </p>
 
-                  {/* Posted Date */}
-                  <div className="flex flex-col gap-1 lg:contents">
-                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Posted Date</span>
-                    <p className="text-[12px] text-[var(--text-light)]">{formatDate(job.created_at)}</p>
-                  </div>
+                {/* Col 3 – Posted Date (desktop only) */}
+                <p className="hidden lg:block text-[12px] text-[var(--text-light)]">
+                  {formatDate(job.created_at)}
+                </p>
 
-                  {/* Applicants */}
-                  <div className="flex flex-col gap-1 lg:contents">
-                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Applicants</span>
-                    <p className="text-[14px] font-bold text-[var(--text)] lg:text-center">{job.application_count}</p>
-                  </div>
+                {/* Col 4 – Applicants (desktop only) */}
+                <p className="hidden lg:block text-[14px] font-bold text-[var(--text)] text-center">
+                  {job.application_count}
+                </p>
 
-                  {/* Status */}
-                  <div className="flex flex-col gap-1 lg:contents" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase lg:hidden tracking-wider">Status</span>
-                    <div className="flex lg:justify-center">
-                      <select
-                        value={job.status}
-                        onChange={(e) => statusMutation.mutate({ id: job.id, status: e.target.value as JobStatus })}
-                        style={{
-                          appearance: 'none',
-                          border: `1px solid ${STATUS_STYLE[job.status]?.border ?? 'rgba(107,114,128,0.20)'}`,
-                          background: STATUS_STYLE[job.status]?.bg ?? 'rgba(107,114,128,0.10)',
-                          color: STATUS_STYLE[job.status]?.color ?? '#6b7280',
-                          fontSize: 11, fontWeight: 700,
-                          padding: '3px 10px', borderRadius: 20,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {['active', 'draft', 'paused', 'closed'].map(s => (
-                          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                {/* Col 5 – Status dropdown (desktop only) */}
+                <div className="hidden lg:flex lg:justify-center" onClick={(e) => e.stopPropagation()}>
+                  <select
+                    value={job.status}
+                    onChange={(e) => statusMutation.mutate({ id: job.id, status: e.target.value as JobStatus })}
+                    style={{
+                      appearance: 'none',
+                      border: `1px solid ${STATUS_STYLE[job.status]?.border ?? 'rgba(107,114,128,0.20)'}`,
+                      background: STATUS_STYLE[job.status]?.bg ?? 'rgba(107,114,128,0.10)',
+                      color: STATUS_STYLE[job.status]?.color ?? '#6b7280',
+                      fontSize: 11, fontWeight: 700,
+                      padding: '3px 10px', borderRadius: 20,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {['active', 'draft', 'paused', 'closed'].map(s => (
+                      <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Actions */}
-                <div className="flex justify-end gap-2 w-full lg:w-auto mt-2 lg:mt-0 border-t border-[var(--card-border)] lg:border-none pt-3 lg:pt-0" onClick={(e) => e.stopPropagation()}>
+                {/* Col 6 – Actions (always visible) */}
+                <div
+                  className="flex justify-end gap-2 w-full lg:w-auto mt-2 lg:mt-0 border-t border-[var(--card-border)] lg:border-none pt-3 lg:pt-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
-                    onClick={() => navigate(`/recruiter/jobs/${job.id}/edit`)}
-                    className="btn-glass flex items-center justify-center w-8 h-8 rounded-lg"
+                    onClick={() => navigate(`${basePath}/jobs/${job.id}/edit`)}
                     title="Edit Position"
+                    style={{
+                      width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(108,71,255,0.25)',
+                      background: 'rgba(108,71,255,0.08)', color: '#6c47ff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.18)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.08)' }}
                   >
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -376,13 +380,56 @@ export default function JobsListPage() {
                   </button>
                   <button
                     onClick={() => setDeleteTarget(job)}
-                    className="btn-glass flex items-center justify-center w-8 h-8 rounded-lg text-red-500 hover:bg-red-50"
                     title="Delete Position"
+                    style={{
+                      width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)',
+                      background: 'rgba(239,68,68,0.07)', color: '#ef4444',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.16)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)' }}
                   >
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
+                </div>
+
+                {/* Mobile-only extra info */}
+                <div className="grid grid-cols-2 gap-3 w-full lg:hidden">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Location</span>
+                    <p className="text-[13px] text-[var(--text-mid)] truncate">{job.is_remote ? 'Remote' : (job.location || '—')}</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Posted Date</span>
+                    <p className="text-[12px] text-[var(--text-light)]">{formatDate(job.created_at)}</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Applicants</span>
+                    <p className="text-[14px] font-bold text-[var(--text)]">{job.application_count}</p>
+                  </div>
+                  <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Status</span>
+                    <select
+                      value={job.status}
+                      onChange={(e) => statusMutation.mutate({ id: job.id, status: e.target.value as JobStatus })}
+                      style={{
+                        appearance: 'none',
+                        border: `1px solid ${STATUS_STYLE[job.status]?.border ?? 'rgba(107,114,128,0.20)'}`,
+                        background: STATUS_STYLE[job.status]?.bg ?? 'rgba(107,114,128,0.10)',
+                        color: STATUS_STYLE[job.status]?.color ?? '#6b7280',
+                        fontSize: 11, fontWeight: 700,
+                        padding: '3px 10px', borderRadius: 20,
+                        cursor: 'pointer', width: 'fit-content',
+                      }}
+                    >
+                      {['active', 'draft', 'paused', 'closed'].map(s => (
+                        <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -398,12 +445,12 @@ export default function JobsListPage() {
         </>
       )}
 
-      {/* Select details */}
+      {/* Job Detail Modal */}
       {selectedJob && (
         <JobDetailModal
           job={selectedJob}
           onClose={() => setSelectedJob(null)}
-          onEdit={() => navigate(`/recruiter/jobs/${selectedJob.id}/edit`)}
+          onEdit={() => navigate(`${basePath}/jobs/${selectedJob.id}/edit`)}
         />
       )}
 

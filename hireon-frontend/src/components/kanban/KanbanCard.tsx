@@ -40,15 +40,23 @@ export function KanbanCard({ card, index, onClick }: KanbanCardProps) {
             )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <div 
-              className="bg-[#6c47ff]/10 text-[#6c47ff] px-2 py-1 rounded-lg text-[11px] font-bold"
-              style={{ letterSpacing: '0.2px' }}
-            >
-              {card.match_score}%
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50 dark:border-gray-800/40">
+            <div className="flex flex-col">
+              <span className="text-[9px] uppercase text-gray-400 dark:text-gray-500 font-bold leading-none mb-1">Added By</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 truncate max-w-[100px]">
+                {card.created_by_name || 'Admin'}
+              </span>
             </div>
-            <div className="opacity-80">
-              <Avatar name={card.candidate_name} size="xs" />
+            <div className="flex items-center gap-2.5">
+              <div 
+                className="bg-[#6c47ff]/10 text-[#6c47ff] px-2 py-1 rounded-lg text-[11px] font-black"
+                style={{ letterSpacing: '0.2px' }}
+              >
+                {card.match_score}%
+              </div>
+              <div className="opacity-90">
+                <Avatar name={card.candidate_name} size="xs" />
+              </div>
             </div>
           </div>
         </div>

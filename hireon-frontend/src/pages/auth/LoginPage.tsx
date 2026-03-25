@@ -41,6 +41,7 @@ export default function LoginPage() {
       setTokens(data.access_token, undefined, data.user)
       if (data.user.role === 'candidate') navigate('/portal')
       else if (data.user.role === 'interviewer') navigate('/interviewer')
+      else if (data.user.role === 'admin') navigate('/admin')
       else navigate('/recruiter')
     } catch (err: unknown) {
       const msg =

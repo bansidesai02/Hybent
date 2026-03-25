@@ -38,6 +38,15 @@ export type NotificationType =
   | 'offer_declined'
   | 'system'
 
+export interface ReportSummary {
+  applied: number
+  hired: number
+  backout: number
+  rejected: number
+  stages_distribution?: Record<string, number>
+  candidates_by_role?: Record<string, number>
+}
+
 // ── Core Models ────────────────────────────────────────────────────────────────
 
 export interface User {
@@ -125,6 +134,8 @@ export interface Candidate {
   applied_job_title?: string | null
   created_at: string
   updated_at: string
+  created_by_id?: string | null
+  created_by_name?: string | null
   invitations: Invitation[]
   tags: string[]
   experience_years?: number | null
@@ -333,6 +344,7 @@ export interface KanbanCard {
   skills: string[]
   current_title: string | null
   application_id: string
+  created_by_name?: string | null
 }
 
 export interface PipelineData {

@@ -48,3 +48,7 @@ google-auth-oauthlib
 # Background Tasks
 celery==5.4.0
 redis==5.0.4
+
+# Reporting
+pandas==2.2.2
+openpyxl==3.1.2

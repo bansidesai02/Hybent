@@ -35,7 +35,16 @@ async def list_interviews(current_user: CurrentUser, db: DB):
             .join(InterviewPanelist, InterviewPanelist.interview_id == Interview.id)
             .where(InterviewPanelist.user_id == current_user.id)
         )
+    elif current_user.role == "recruiter":
+        # Recruiter sees what they scheduled OR interviews for their own candidates
+        result = await db.execute(
+            select(Interview).outerjoin(Candidate, Interview.candidate_id == Candidate.id).where(
+                Interview.organization_id == current_user.organization_id,
+                (Interview.scheduled_by_id == current_user.id) | (Candidate.created_by_id == current_user.id)
+            )
+        )
     else:
+        # Admin sees everything in the org
         result = await db.execute(
             select(Interview).where(Interview.organization_id == current_user.organization_id)
         )

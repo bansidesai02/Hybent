@@ -12,8 +12,13 @@ export function useAuth() {
     // Role-based redirect
     if (data.user.role === 'candidate') navigate('/portal')
     else if (data.user.role === 'interviewer') navigate('/interviewer')
+    else if (data.user.role === 'admin') navigate('/admin')
     else navigate('/recruiter')
   }
+
+  const basePath = user?.role === 'admin' ? '/admin' : 
+                   user?.role === 'interviewer' ? '/interviewer' : 
+                   user?.role === 'candidate' ? '/portal' : '/recruiter'
 
   const logout = async () => {
     try {
@@ -26,5 +31,5 @@ export function useAuth() {
     navigate('/login')
   }
 
-  return { user, isAuthenticated, login, logout }
+  return { user, isAuthenticated, login, logout, basePath }
 }

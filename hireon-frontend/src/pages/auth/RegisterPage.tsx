@@ -58,7 +58,8 @@ export default function RegisterPage() {
     try {
       const { data } = await authApi.register(values)
       setTokens(data.access_token, undefined, data.user)
-      navigate('/recruiter')
+      if (data.user.role === 'admin') navigate('/admin')
+      else navigate('/recruiter')
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||

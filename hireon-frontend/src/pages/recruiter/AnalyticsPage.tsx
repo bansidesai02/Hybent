@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -23,6 +24,7 @@ function GlassCard({ children, className = '', style = {} }: { children: React.R
 }
 
 export default function AnalyticsPage() {
+  const { basePath } = useAuth()
   const navigate = useNavigate()
   const [funnelJobId, setFunnelJobId] = useState('')
 
@@ -248,7 +250,7 @@ export default function AnalyticsPage() {
             {talentStats?.re_matched_count || 0} candidates from your pool match current active roles. Re-engaging could save weeks of sourcing.
           </p>
           <button 
-            onClick={() => navigate('/recruiter/talent-pool')}
+            onClick={() => navigate(`${basePath}/talent-pool`)}
             className="bg-[#6c47ff] text-white px-4 py-2 rounded-xl text-xs font-bold hover:scale-105 transition-transform shadow-lg shadow-violet-100"
           >
             View Matches →

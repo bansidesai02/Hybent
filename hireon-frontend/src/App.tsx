@@ -26,6 +26,7 @@ import UploadResumePage from '@/pages/recruiter/UploadResumePage'
 import InterviewsListPage from '@/pages/recruiter/InterviewsListPage'
 import OffersPage from '@/pages/recruiter/OffersPage'
 import AnalyticsPage from '@/pages/recruiter/AnalyticsPage'
+import ReportsPage from '@/pages/recruiter/ReportsPage'
 import TalentPoolPage from '@/pages/recruiter/TalentPoolPage'
 import RecruiterProfilePage from '@/pages/recruiter/RecruiterProfilePage'
 import RecruiterSettingsPage from '@/pages/recruiter/RecruiterSettingsPage'
@@ -70,6 +71,7 @@ function RequireAuth({
     // Redirect to appropriate home based on role
     if (user.role === 'candidate') return <Navigate to="/portal" replace />
     if (user.role === 'interviewer') return <Navigate to="/interviewer" replace />
+    if (user.role === 'admin') return <Navigate to="/admin" replace />
     return <Navigate to="/recruiter" replace />
   }
   return <>{children}</>
@@ -78,6 +80,25 @@ function RequireAuth({
 import { Toaster } from 'react-hot-toast'
 
 export default function App() {
+  const coreRoutes = (
+    <>
+      <Route index element={<OverviewPage />} />
+      <Route path="jobs" element={<JobsListPage />} />
+      <Route path="jobs/new" element={<AddJobPage />} />
+      <Route path="jobs/:id/edit" element={<AddJobPage />} />
+      <Route path="candidates" element={<CandidatesPage />} />
+      <Route path="pipeline" element={<PipelinePage />} />
+      <Route path="upload" element={<UploadResumePage />} />
+      <Route path="interviews" element={<InterviewsListPage />} />
+      <Route path="offers" element={<OffersPage />} />
+      <Route path="analytics" element={<AnalyticsPage />} />
+      <Route path="reports" element={<ReportsPage />} />
+      <Route path="talent-pool" element={<TalentPoolPage />} />
+      <Route path="profile" element={<RecruiterProfilePage />} />
+      <Route path="settings" element={<RecruiterSettingsPage />} />
+    </>
+  )
+
   return (
     <>
       <Toaster 
@@ -110,31 +131,19 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/onboarding/:token" element={<OnboardingPage />} />
 
-        {/* Recruiter / Admin routes */}
+        {/* Recruiter routes */}
         <Route
           path="/recruiter"
           element={
-            <RequireAuth roles={['admin', 'recruiter']}>
+            <RequireAuth roles={['recruiter']}>
               <RecruiterLayout />
             </RequireAuth>
           }
         >
-          <Route index element={<OverviewPage />} />
-          <Route path="jobs" element={<JobsListPage />} />
-          <Route path="jobs/new" element={<AddJobPage />} />
-          <Route path="jobs/:id/edit" element={<AddJobPage />} />
-          <Route path="candidates" element={<CandidatesPage />} />
-          <Route path="pipeline" element={<PipelinePage />} />
-          <Route path="upload" element={<UploadResumePage />} />
-          <Route path="interviews" element={<InterviewsListPage />} />
-          <Route path="offers" element={<OffersPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
-          <Route path="talent-pool" element={<TalentPoolPage />} />
-          <Route path="profile" element={<RecruiterProfilePage />} />
-          <Route path="settings" element={<RecruiterSettingsPage />} />
+          {coreRoutes}
         </Route>
 
-        {/* Admin-specific routes (nested under recruiter layout) */}
+        {/* Admin routes */}
         <Route
           path="/admin"
           element={
@@ -143,6 +152,8 @@ export default function App() {
             </RequireAuth>
           }
         >
+          {coreRoutes}
+          {/* Admin-specific routes */}
           <Route path="team" element={<TeamManagementPage />} />
           <Route path="audit" element={<AuditLogsPage />} />
         </Route>

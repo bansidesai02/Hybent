@@ -196,6 +196,7 @@ export default function PipelinePage() {
       recruiter_notes: c.summary,
       skills: c.skills || [],
       current_title: c.current_title,
+      created_by_name: c.created_by_name,
     }
   }, [])
 

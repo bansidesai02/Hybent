@@ -36,45 +36,47 @@ interface NavSection {
 
 // ─── Nav Config Utility ────────────────────────────────────────────────────────
 
-const getCandidatesGroup = (badgeCount?: number): NavGroup => ({
+const getCandidatesGroup = (basePath: string, badgeCount?: number): NavGroup => ({
   type: 'group',
   label: 'Candidates',
   icon: '👥',
   badge: badgeCount,
   subPaths: [
-    '/recruiter/candidates',
-    '/recruiter/upload',
-    '/recruiter/jobs/new',
-    '/recruiter/talent-pool',
+    `${basePath}/candidates`,
+    `${basePath}/upload`,
+    `${basePath}/jobs/new`,
+    `${basePath}/talent-pool`,
   ],
   items: [
-    { to: '/recruiter/candidates', label: 'All Candidates', icon: '📋' },
-    { to: '/recruiter/upload', label: 'Upload Resume', icon: '⬆️', dot: true },
-    { to: '/recruiter/jobs/new', label: 'Upload / Add JD', icon: '📄' },
-    { to: '/recruiter/talent-pool', label: 'Talent DB', icon: '💾' },
+    { to: `${basePath}/candidates`, label: 'All Candidates', icon: '📋' },
+    { to: `${basePath}/upload`, label: 'Upload Resume', icon: '⬆️', dot: true },
+    { to: `${basePath}/jobs/new`, label: 'Upload / Add JD', icon: '📄' },
+    { to: `${basePath}/talent-pool`, label: 'Talent DB', icon: '💾' },
   ],
 })
 
 const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: number): NavSection[] => {
-  const candidatesGroup = getCandidatesGroup(candidateBadge)
+  const basePath = role === 'admin' ? '/admin' : '/recruiter'
+  const candidatesGroup = getCandidatesGroup(basePath, candidateBadge)
 
   if (role === 'admin') {
     return [
       {
         label: 'MAIN',
         items: [
-          { to: '/recruiter', label: 'Overview', icon: '🏠' },
-          { to: '/recruiter/jobs', label: 'Open Positions', icon: '💼' },
+          { to: basePath, label: 'Overview', icon: '🏠' },
+          { to: `${basePath}/jobs`, label: 'Open Positions', icon: '💼' },
           candidatesGroup,
-          { to: '/recruiter/pipeline', label: 'Pipeline', icon: '📋' },
-          { to: '/recruiter/interviews', label: 'Schedule', icon: '📅', badge: scheduleBadge },
-          { to: '/recruiter/offers', label: 'Offers', icon: '📨' },
+          { to: `${basePath}/pipeline`, label: 'Pipeline', icon: '📋' },
+          { to: `${basePath}/interviews`, label: 'Schedule', icon: '📅', badge: scheduleBadge },
+          { to: `${basePath}/offers`, label: 'Offers', icon: '📨' },
         ],
       },
       {
         label: 'INTELLIGENCE',
         items: [
-          { to: '/recruiter/analytics', label: 'AI Insights', icon: '🧠' },
+          { to: `${basePath}/analytics`, label: 'AI Insights', icon: '🧠' },
+          { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: '📊' },
         ],
       },
       {
@@ -107,17 +109,18 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
     {
       label: 'MAIN',
       items: [
-        { to: '/recruiter', label: 'Overview', icon: '🏠' },
-        { to: '/recruiter/jobs', label: 'Open Positions', icon: '💼' },
+        { to: basePath, label: 'Overview', icon: '🏠' },
+        { to: `${basePath}/jobs`, label: 'Open Positions', icon: '💼' },
         candidatesGroup,
-        { to: '/recruiter/pipeline', label: 'Pipeline', icon: '📋' },
-        { to: '/recruiter/interviews', label: 'Schedule', icon: '📅', badge: scheduleBadge },
+        { to: `${basePath}/pipeline`, label: 'Pipeline', icon: '📋' },
+        { to: `${basePath}/interviews`, label: 'Schedule', icon: '📅', badge: scheduleBadge },
       ],
     },
     {
       label: 'INTELLIGENCE',
       items: [
-        { to: '/recruiter/analytics', label: 'AI Insights', icon: '🧠' },
+        { to: `${basePath}/analytics`, label: 'AI Insights', icon: '🧠' },
+        { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: '📊' },
       ],
     },
   ]
@@ -306,7 +309,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                       >
                         {entry.items.map((sub) => {
                           const subActive = location.pathname === sub.to ||
-                            (sub.to !== '/recruiter' && location.pathname.startsWith(sub.to))
+                            (sub.to !== '/recruiter' && sub.to !== '/admin' && location.pathname.startsWith(sub.to))
                           return (
                             <NavLink
                               key={sub.to}
@@ -351,7 +354,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                 <NavLink
                   key={item.to + (item.customActivePath ?? '') + item.label}
                   to={item.to}
-                  end={item.to === '/recruiter' || item.to === '/interviewer' || !!item.customActivePath}
+                  end={item.to === '/recruiter' || item.to === '/admin' || item.to === '/interviewer' || !!item.customActivePath}
                   className={({ isActive }) => {
                     const active = item.customActivePath
                       ? location.pathname.startsWith(item.customActivePath)

@@ -18,6 +18,9 @@ class Candidate(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(50))
@@ -75,6 +78,7 @@ class Candidate(Base):
     )
 
     # Relationships
+    created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
     applications: Mapped[list["Application"]] = relationship("Application", back_populates="candidate", lazy="noload")
     invitations: Mapped[list["CandidateInvitation"]] = relationship(
         "CandidateInvitation", 

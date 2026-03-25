@@ -108,6 +108,22 @@ async def get_my_scorecard_for_interview(interview_id: uuid.UUID, current_user: 
 @router.get("/application/{application_id}")
 async def list_scorecards_for_application(application_id: uuid.UUID, current_user: CurrentUser, db: DB):
     from app.models.user import User
+    if current_user.role == "recruiter":
+        from app.models.application import Application
+        from app.models.job import Job
+        from app.models.candidate import Candidate
+        app_check = await db.execute(
+            select(Application)
+            .join(Job)
+            .outerjoin(Candidate, Application.candidate_id == Candidate.id)
+            .where(
+                Application.id == application_id,
+                (Job.created_by_id == current_user.id) | (Candidate.created_by_id == current_user.id)
+            )
+        )
+        if not app_check.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Not authorized to view scorecards for this application")
+
     result = await db.execute(
         select(Scorecard).where(
             Scorecard.application_id == application_id,
