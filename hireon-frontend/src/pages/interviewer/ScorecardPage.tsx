@@ -352,7 +352,7 @@ export default function ScorecardPage() {
     },
   })
 
-  const canSubmit = allRated && recommendation !== null && !mutation.isPending
+  const canSubmit = allRated && recommendation !== null && notes.trim() !== '' && strengths.trim() !== '' && weaknesses.trim() !== '' && !mutation.isPending
 
   // ── Loading ────────────────────────────────────────────────────────────────────
   if (intLoading || myScLoading) {
@@ -520,7 +520,7 @@ export default function ScorecardPage() {
           {/* Competency Ratings */}
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Competency Ratings</h2>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Competency Ratings <span style={{ color: '#ef4444' }}>*</span></h2>
               {allRated && (
                 <span
                   style={{
@@ -569,7 +569,7 @@ export default function ScorecardPage() {
           {/* Recommendation */}
           <Card>
             <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>
-              Your Recommendation
+              Your Recommendation <span style={{ color: '#ef4444' }}>*</span>
             </h2>
             <div style={{ display: 'flex', gap: 8 }}>
               {REC_OPTIONS.map((opt) => {
@@ -605,7 +605,7 @@ export default function ScorecardPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <Card>
             <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
-              Interview Notes
+              Interview Notes <span style={{ color: '#ef4444' }}>*</span>
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -621,7 +621,7 @@ export default function ScorecardPage() {
                     marginBottom: 6,
                   }}
                 >
-                  Overall Notes / Summary
+                  Overall Notes / Summary <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <textarea
                   value={notes}
@@ -658,7 +658,7 @@ export default function ScorecardPage() {
                     marginBottom: 6,
                   }}
                 >
-                  Strengths
+                  Strengths <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <textarea
                   value={strengths}
@@ -695,7 +695,7 @@ export default function ScorecardPage() {
                     marginBottom: 6,
                   }}
                 >
-                  Areas of Concern
+                  Areas of Concern <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <textarea
                   value={weaknesses}
@@ -770,9 +770,9 @@ export default function ScorecardPage() {
                   </Button>
                 </div>
               )}
-              {!allRated && !isAlreadySubmitted && (
+              {!canSubmit && !isAlreadySubmitted && !mutation.isPending && (
                 <p style={{ fontSize: 11, color: 'var(--text-lite)', marginTop: 8, textAlign: 'center' }}>
-                  Rate all 4 competencies and choose a recommendation to submit
+                  Rate all 4 competencies, provide all notes, and choose a recommendation to submit
                 </p>
               )}
             </div>

@@ -29,17 +29,21 @@ done
 
 echo "==> [entrypoint] PostgreSQL is ready."
 
-echo "==> [entrypoint] Running Alembic migrations..."
-if [ -d "/app/alembic" ]; then
-    alembic upgrade head
-    echo "==> [entrypoint] Migrations complete."
-else
-    echo "==> [entrypoint] No /app/alembic directory found, skipping migrations."
-fi
+if [ "$SKIP_PRESTART" != "true" ]; then
+    echo "==> [entrypoint] Running Alembic migrations..."
+    if [ -d "/app/alembic" ]; then
+        alembic upgrade head
+        echo "==> [entrypoint] Migrations complete."
+    else
+        echo "==> [entrypoint] No /app/alembic directory found, skipping migrations."
+    fi
 
-echo "==> [entrypoint] Seeding database..."
-python seed.py
-echo "==> [entrypoint] Seeding complete."
+    echo "==> [entrypoint] Seeding database..."
+    python seed.py
+    echo "==> [entrypoint] Seeding complete."
+else
+    echo "==> [entrypoint] SKIP_PRESTART is true, skipping migrations and seeding."
+fi
 
 # If a command is passed to the entrypoint, execute it. 
 # Otherwise, default to starting Uvicorn.

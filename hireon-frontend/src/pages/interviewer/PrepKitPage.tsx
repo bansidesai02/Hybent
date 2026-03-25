@@ -152,6 +152,7 @@ export default function PrepKitPage() {
     : (interview ? generateQuestions([], interview.interview_type) : [])
 
   const checkedCount = Object.values(checklist).filter(Boolean).length
+  const isChecklistComplete = checkedCount === CHECKLIST.length
 
   if (isLoading) {
     return (
@@ -384,16 +385,29 @@ export default function PrepKitPage() {
           {/* Action bar */}
           <div style={{ display: 'flex', gap: 10 }}>
             {interview.meeting_link && (
-              <a href={interview.meeting_link} target="_blank" rel="noreferrer" style={{ flex: 1 }}>
-                <button style={{
-                  width: '100%', padding: '11px 0', borderRadius: 10, border: 'none',
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                  color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Sora', sans-serif",
-                }}>
-                  🎥 Enter Google Meet
-                </button>
-              </a>
+              isChecklistComplete ? (
+                <a href={interview.meeting_link} target="_blank" rel="noreferrer" style={{ flex: 1 }}>
+                  <button style={{
+                    width: '100%', padding: '11px 0', borderRadius: 10, border: 'none',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    fontFamily: "'Sora', sans-serif",
+                  }}>
+                    🎥 Enter Google Meet
+                  </button>
+                </a>
+              ) : (
+                <div style={{ flex: 1, opacity: 0.5, cursor: 'not-allowed' }}>
+                  <button disabled style={{
+                    width: '100%', padding: '11px 0', borderRadius: 10, border: '1.5px solid var(--input-border)',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-lite)', fontSize: 13, fontWeight: 700, cursor: 'not-allowed',
+                    fontFamily: "'Sora', sans-serif",
+                  }}>
+                    🎥 Enter Google Meet
+                  </button>
+                </div>
+              )
             )}
             <button
               onClick={() => navigate(`/interviewer/live-room/${interviewId}`)}
@@ -419,6 +433,15 @@ export default function PrepKitPage() {
               📊 Scorecard
             </button>
           </div>
+
+          {!isChecklistComplete && (
+            <p style={{
+              fontSize: 11, color: '#6c47ff', marginTop: 12, textAlign: 'center',
+              fontWeight: 600, background: 'rgba(108,71,255,0.06)', padding: '8px', borderRadius: 8
+            }}>
+              ✨ Complete all {CHECKLIST.length} checklist items to unlock the Google Meet link
+            </p>
+          )}
 
         </div>
       </div>
