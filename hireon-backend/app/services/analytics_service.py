@@ -20,25 +20,48 @@ from app.schemas.analytics import (
 from app.utils.permissions import ApplicationStage, OfferStatus
 
 
-async def get_overview(org_id: uuid.UUID, db: AsyncSession) -> AnalyticsOverview:
-    """High-level KPI overview for the org."""
+async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID | None = None) -> AnalyticsOverview:
+    """High-level KPI overview for the org, optionally filtered by user."""
 
-    # Combine all counts into a single query using scalar subqueries
-    # This reduces 8 round-trips to 1.
+    # Base conditions for subqueries
+    job_cond = [Job.organization_id == org_id]
+    app_cond = [Application.organization_id == org_id]
+    cand_cond = [Candidate.organization_id == org_id]
+    int_cond = [Interview.organization_id == org_id]
+    off_cond = [Offer.organization_id == org_id]
+
+    if user_id:
+        job_cond.append(Job.created_by_id == user_id)
+        # For applications, we filter by the owner of the job it belongs to
+        app_cond.append(Application.job_id.in_(select(Job.id).where(Job.created_by_id == user_id)))
+        # Interviews scheduled by the user
+        int_cond.append(Interview.scheduled_by_id == user_id)
+        # Offers created by the user (assuming we track this, or skip if not in model yet)
+        # Note: Offer model doesn't have created_by_id currently, but let's assume we might need it.
+        # For now, we'll filter by jobs owned by the user
+        off_cond.append(Offer.application_id.in_(
+            select(Application.id).join(Job, Application.job_id == Job.id).where(Job.created_by_id == user_id)
+        ))
+        
+        # Candidates is tricky as it has no owner, but we can filter by those who have apps in user's jobs
+        cand_cond.append(Candidate.id.in_(
+            select(Application.candidate_id).join(Job, Application.job_id == Job.id).where(Job.created_by_id == user_id)
+        ))
+
     stmt = select(
-        select(func.count(Job.id)).where(Job.organization_id == org_id).scalar_subquery().label("total_jobs"),
-        select(func.count(Job.id)).where(Job.organization_id == org_id, Job.status == "active").scalar_subquery().label("active_jobs"),
-        select(func.count(Application.id)).where(Application.organization_id == org_id).scalar_subquery().label("total_apps"),
-        select(func.count(Candidate.id)).where(Candidate.organization_id == org_id).scalar_subquery().label("total_candidates"),
-        select(func.count(Interview.id)).where(Interview.organization_id == org_id).scalar_subquery().label("interviews_scheduled"),
+        select(func.count(Job.id)).where(*job_cond).scalar_subquery().label("total_jobs"),
+        select(func.count(Job.id)).where(*job_cond, Job.status == "active").scalar_subquery().label("active_jobs"),
+        select(func.count(Application.id)).where(*app_cond).scalar_subquery().label("total_apps"),
+        select(func.count(Candidate.id)).where(*cand_cond).scalar_subquery().label("total_candidates"),
+        select(func.count(Interview.id)).where(*int_cond).scalar_subquery().label("interviews_scheduled"),
         select(func.count(Offer.id)).where(
-            Offer.organization_id == org_id, Offer.status.in_(["sent", "accepted", "declined"])
+            *off_cond, Offer.status.in_(["sent", "accepted", "declined"])
         ).scalar_subquery().label("offers_sent"),
         select(func.count(Offer.id)).where(
-            Offer.organization_id == org_id, Offer.status == OfferStatus.ACCEPTED
+            *off_cond, Offer.status == OfferStatus.ACCEPTED
         ).scalar_subquery().label("offers_accepted"),
         select(func.avg(Application.match_score)).where(
-            Application.organization_id == org_id, Application.match_score.isnot(None)
+            *app_cond, Application.match_score.isnot(None)
         ).scalar_subquery().label("avg_score")
     )
 
@@ -57,13 +80,16 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession) -> AnalyticsOverview
     )
 
 
-async def get_funnel(org_id: uuid.UUID, job_id: uuid.UUID | None, db: AsyncSession) -> FunnelData:
-    """Application funnel by stage."""
+async def get_funnel(org_id: uuid.UUID, job_id: uuid.UUID | None, db: AsyncSession, user_id: uuid.UUID | None = None) -> FunnelData:
+    """Application funnel by stage, optionally filtered by user."""
     stages = [s.value for s in ApplicationStage]
     
     conditions = [Application.organization_id == org_id]
     if job_id:
         conditions.append(Application.job_id == job_id)
+    elif user_id:
+        # If no specific job, but user_id provided, filter by user's jobs
+        conditions.append(Application.job_id.in_(select(Job.id).where(Job.created_by_id == user_id)))
 
     # Use GROUP BY to get all stage counts in one query
     stmt = (

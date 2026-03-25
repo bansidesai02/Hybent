@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -13,7 +14,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { formatDate } from '@/utils/formatters'
-import { formatDistanceToNow } from 'date-fns'
+// import { formatDistanceToNow } from 'date-fns'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
 
 // ─── Stage config (full pipeline) ─────────────────────────────────────────────
@@ -332,6 +333,7 @@ function CandidateActionsDropdown({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CandidatesPage() {
+  const { basePath } = useAuth()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -437,7 +439,7 @@ export default function CandidatesPage() {
           </p>
         </div>
         <button
-          onClick={() => navigate('/recruiter/upload')}
+          onClick={() => navigate(`${basePath}/upload`)}
           style={{
             display: 'flex', alignItems: 'center', gap: 7, padding: '10px 20px', borderRadius: 12, border: 'none',
             background: 'linear-gradient(135deg,#6c47ff,#8b6bff)', color: '#fff',
@@ -542,7 +544,7 @@ export default function CandidatesPage() {
         <>
           {/* Column header — now hidden on mobile */}
           <div className="hidden lg:grid" style={{
-            gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 130px 115px 215px',
+            gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 120px 115px 100px 215px',
             gap: 14, padding: '0 24px',
             fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px',
           }}>
@@ -554,6 +556,7 @@ export default function CandidatesPage() {
             <span style={{ textAlign: 'center' }}>Score</span>
             <span style={{ textAlign: 'center' }}>Stage</span>
             <span style={{ textAlign: 'center' }}>Status</span>
+            <span style={{ textAlign: 'center' }}>Added By</span>
             <span style={{ textAlign: 'center' }}>Actions</span>
           </div>
 
@@ -572,7 +575,7 @@ export default function CandidatesPage() {
                   onClick={() => setSelected(candidate)}
                   className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
                   style={{
-                    gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 130px 115px 215px',
+                    gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 120px 115px 100px 215px',
                     alignItems: 'center',
                     borderRadius: 14,
                     background: 'var(--kpi-bg)',
@@ -725,6 +728,14 @@ export default function CandidatesPage() {
                         {statusCfg.label}
                       </span>
                     </div>
+
+                    {/* Added By */}
+                    <div className="flex flex-col gap-1 lg:items-center">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Added By</span>
+                      <p className="text-[11px] font-semibold text-[var(--text-mid)] truncate max-w-[90px] lg:max-w-none">
+                        {candidate.created_by_name || 'Admin'}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -745,7 +756,7 @@ export default function CandidatesPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        navigate(`/recruiter/interviews?candidateId=${candidate.id}`)
+                        navigate(`${basePath}/interviews?candidateId=${candidate.id}`)
                       }}
                       className="flex-1 lg:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-colors"
                     >
@@ -762,17 +773,17 @@ export default function CandidatesPage() {
                       ⋯
                     </button>
                   </div>
-                    <AnimatePresence>
-                      {openDropdownId === candidate.id && (
-                        <CandidateActionsDropdown
-                          candidateId={candidate.id}
-                          currentStage={stage || 'applied'}
-                          onSelect={(s) => stageMutation.mutate({ id: candidate.id, stage: s })}
-                          onInactivate={(id) => stageMutation.mutate({ id, stage: stage === 'inactive' ? 'applied' : 'inactive' })}
-                          onDelete={(id) => deleteMutation.mutate(id)}
-                          onClose={() => setOpenDropdownId(null)}
-                        />
-                      )}
+                  <AnimatePresence>
+                    {openDropdownId === candidate.id && (
+                      <CandidateActionsDropdown
+                        candidateId={candidate.id}
+                        currentStage={stage || 'applied'}
+                        onSelect={(s) => stageMutation.mutate({ id: candidate.id, stage: s })}
+                        onInactivate={(id) => stageMutation.mutate({ id, stage: stage === 'inactive' ? 'applied' : 'inactive' })}
+                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onClose={() => setOpenDropdownId(null)}
+                      />
+                    )}
                   </AnimatePresence>
                 </div>
               )

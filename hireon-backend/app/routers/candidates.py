@@ -62,7 +62,10 @@ async def list_candidates(
         "inactive": ["inactive"]
     }
 
-    query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations))
+    query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations), selectinload(Candidate.created_by))
+    
+    # Isolation removed: Recruiter & Admin can see all candidates in the organization
+
     if search:
         query = query.where(
             Candidate.full_name.ilike(f"%{search}%") | Candidate.email.ilike(f"%{search}%")
@@ -93,7 +96,14 @@ async def list_candidates(
     items_result = await db.execute(query.offset((page - 1) * limit).limit(limit))
     items = items_result.scalars().all()
     
-    return paginate([CandidateOut.model_validate(c).model_dump() for c in items], total, page, limit)
+    def transform_candidate(c: Candidate):
+        d = CandidateOut.model_validate(c).model_dump()
+        if c.created_by:
+            d["created_by_name"] = c.created_by.full_name
+            d["created_by_id"] = str(c.created_by.id)
+        return d
+
+    return paginate([transform_candidate(c) for c in items], total, page, limit)
 
 
 # Mapping of detailed stages to high-level buckets
@@ -134,10 +144,20 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
             Candidate.organization_id == current_user.organization_id,
             Job.status == JobStatus.ACTIVE
         )
-        .distinct()
-        .order_by(Candidate.updated_at.desc())
     )
+
+    # Isolation removed: Recruiters & All can see the full pipeline
+    query = query.distinct().options(selectinload(Candidate.created_by)).order_by(Candidate.updated_at.desc())
     items = (await db.execute(query)).scalars().all()
+    
+    def transform_candidate(c: Candidate):
+        d = CandidateOut.model_validate(c).model_dump()
+        if c.created_by:
+            d["created_by_name"] = c.created_by.full_name
+            d["created_by_id"] = str(c.created_by.id)
+        else:
+            d["created_by_name"] = "Admin"
+        return d
     
     stages = {
         "applied": [],
@@ -165,7 +185,7 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
             else:
                 continue # Skip unknown stages that don't map to pipeline
 
-        stages[bucket].append(CandidateOut.model_validate(c).model_dump())
+        stages[bucket].append(transform_candidate(c))
         
     return stages
 
@@ -174,14 +194,27 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
 async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, db: DB):
     # Check for existing candidate in org
     existing = await db.execute(
-        select(Candidate).where(
+        select(Candidate)
+        .where(
             Candidate.email == data.email,
             Candidate.organization_id == current_user.organization_id,
         )
+        .options(selectinload(Candidate.created_by))
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Candidate with this email already exists")
-    candidate = Candidate(organization_id=current_user.organization_id, **data.model_dump())
+    existing_candidate = existing.scalar_one_or_none()
+    if existing_candidate:
+        creator_name = "Admin"
+        if existing_candidate.created_by:
+            creator_name = existing_candidate.created_by.full_name
+        raise HTTPException(
+            status_code=409, 
+            detail=f"Candidate with this email has already been added by {creator_name}"
+        )
+    candidate = Candidate(
+        organization_id=current_user.organization_id,
+        created_by_id=current_user.id,
+        **data.model_dump()
+    )
     db.add(candidate)
     await db.flush()
     
@@ -222,6 +255,7 @@ async def invite_candidate(data: CandidateInvite, current_user: RecruiterUser, d
     if not candidate:
         candidate = Candidate(
             organization_id=current_user.organization_id,
+            created_by_id=current_user.id,
             email=data.email,
             full_name=data.full_name,
             source="Invited by Recruiter",

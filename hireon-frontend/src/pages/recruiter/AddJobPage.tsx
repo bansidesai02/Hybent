@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useRef, KeyboardEvent, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -47,6 +48,7 @@ const ICON_COLORS = [
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AddJobPage() {
+  const { basePath } = useAuth()
   const navigate = useNavigate()
   const { id } = useParams()
   const queryClient = useQueryClient()
@@ -122,7 +124,7 @@ export default function AddJobPage() {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
       setTimeout(() => {
-        navigate('/recruiter/jobs')
+        navigate(`${basePath}/jobs`)
       }, 1200)
     },
     onError: (err: unknown) => {
@@ -417,7 +419,7 @@ export default function AddJobPage() {
                     return (
                       <div
                         key={job.id}
-                        onClick={() => navigate(`/recruiter/jobs/${job.id}/edit`)}
+                        onClick={() => navigate(`${basePath}/jobs/${job.id}/edit`)}
                         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--activity-bg)', border: '1px solid var(--table-border)', borderRadius: 10, cursor: 'pointer', transition: 'background 0.15s' }}
                         onMouseOver={e => (e.currentTarget.style.background = 'var(--kpi-bg)')}
                         onMouseOut={e => (e.currentTarget.style.background = 'var(--activity-bg)')}
@@ -445,7 +447,7 @@ export default function AddJobPage() {
               {allJobs.length > 5 && (
                 <button
                   type="button"
-                  onClick={() => navigate('/recruiter/jobs')}
+                  onClick={() => navigate(`${basePath}/jobs`)}
                   style={{ marginTop: 12, width: '100%', padding: 8, background: 'transparent', border: 'none', color: '#6c47ff', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   View all {allJobs.length} jobs →

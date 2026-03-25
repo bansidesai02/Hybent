@@ -44,6 +44,8 @@ class CandidateOut(OrmSchema):
     source: str | None = None
     created_at: datetime
     updated_at: datetime
+    created_by_id: str | None = None
+    created_by_name: str | None = None
     invitations: list[InvitationOut] = []
     other_offers: list[OtherOfferOut] = []
     documents: list[CandidateDocumentOut] = []

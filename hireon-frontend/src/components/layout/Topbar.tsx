@@ -27,8 +27,9 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'U'
 
-  const profilePath = user?.role === 'interviewer' ? '/interviewer/profile' : '/recruiter/profile'
-  const settingsPath = user?.role === 'interviewer' ? '/interviewer/settings' : '/recruiter/settings'
+  const { basePath } = useAuth()
+  const profilePath = `${basePath}/profile`
+  const settingsPath = `${basePath}/settings`
 
   const menuItems = [
     { label: 'My Profile', icon: '👤', path: profilePath },

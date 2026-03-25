@@ -101,15 +101,25 @@ async def upload_and_create(
     full_name = parsed.get("full_name") or "Unknown Candidate"
 
     # Check for duplicate
+    from sqlalchemy.orm import selectinload
     existing = await db.execute(
-        select(Candidate).where(
+        select(Candidate)
+        .where(
             Candidate.email == email,
             Candidate.organization_id == current_user.organization_id,
         )
+        .options(selectinload(Candidate.created_by))
     )
     candidate = existing.scalar_one_or_none()
     if candidate:
         logger.info(f"Duplicate email match found: {email} for existing candidate {candidate.full_name} (ID: {candidate.id})")
+        creator_name = "Admin"
+        if candidate.created_by:
+            creator_name = candidate.created_by.full_name
+        raise HTTPException(
+            status_code=409, 
+            detail=f"Candidate with this email was already added by {creator_name}"
+        )
 
     # Priority 1: compute score using the real ML scorer
     req_skills_list = [s.strip() for s in required_skills.split(",") if s.strip()]
@@ -154,6 +164,7 @@ async def upload_and_create(
     if not candidate:
         candidate = Candidate(
             organization_id=current_user.organization_id,
+            created_by_id=current_user.id,
             email=email,
             full_name=full_name,
             pipeline_stage=initial_stage,

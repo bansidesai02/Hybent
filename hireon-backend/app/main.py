@@ -24,7 +24,7 @@ from app.routers import (
     resumes, ai, applications, pipeline,
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
-    activities
+    activities, reports
 )
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -133,6 +133,7 @@ app.include_router(admin.router)
 app.include_router(calendar.router)
 app.include_router(invitations.router)
 app.include_router(activities.router)
+app.include_router(reports.router)
 
 
 @app.get("/", tags=["health"])

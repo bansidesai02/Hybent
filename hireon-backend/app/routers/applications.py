@@ -48,6 +48,13 @@ async def list_applications(
     stage: str | None = None,
 ):
     query = select(Application).where(Application.organization_id == current_user.organization_id)
+    
+    # Isolation: Recruiters only see applications for their own jobs
+    # Isolation: Recruiters see applications for their own jobs OR their own candidates
+    if current_user.role == "recruiter":
+        query = query.join(Job).outerjoin(Candidate, Application.candidate_id == Candidate.id).where(
+            (Job.created_by_id == current_user.id) | (Candidate.created_by_id == current_user.id)
+        )
     if job_id:
         query = query.where(Application.job_id == job_id)
     if stage:

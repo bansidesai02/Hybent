@@ -13,30 +13,32 @@ const ACTIVITY_CONFIG: Record<string, { icon: string; bg: string }> = {
   default:         { icon: '🔔', bg: 'rgba(108, 71, 255, 0.1)' },
 }
 
-function buildLabel(act: { action: string; resource_type: string; details: any }): { title: string; sub: string } {
-  const { action, resource_type, details } = act
+function buildLabel(act: { action: string; resource_type: string; details: any; user_name?: string | null }): { title: string; sub: string } {
+  const { action, resource_type, details, user_name } = act
+  const authorSuffix = user_name ? ` • by ${user_name.split(' ')[0]}` : ''
+
   if (resource_type === 'job' && action === 'CREATE') {
-    return { title: `New Job — ${details?.title ?? 'Untitled'}`, sub: 'Position posted' }
+    return { title: `New Job — ${details?.title ?? 'Untitled'}`, sub: `Position posted${authorSuffix}` }
   }
   if (resource_type === 'candidate' && action === 'CREATE') {
-    return { title: `New Candidate — ${details?.name ?? ''}`, sub: 'Added to pipeline' }
+    return { title: `New Candidate — ${details?.name ?? ''}`, sub: `Added to pipeline${authorSuffix}` }
   }
   if (action === 'UPDATE_STAGE') {
-    return { title: `Pipeline Update — ${details?.name ?? ''}`, sub: `${details?.from ?? '—'} → ${details?.to ?? '—'}` }
+    return { title: `Pipeline Update — ${details?.name ?? ''}`, sub: `${details?.from ?? '—'} → ${details?.to ?? '—'}${authorSuffix}` }
   }
   if (action === 'SCHEDULE') {
-    return { title: `Interview Scheduled — ${details?.candidate ?? ''}`, sub: details?.title ?? '' }
+    return { title: `Interview Scheduled — ${details?.candidate ?? ''}`, sub: `${details?.title ?? ''}${authorSuffix}` }
   }
   if (action === 'OFFER_SENT') {
-    return { title: `Offer Sent — ${details?.position ?? ''}`, sub: 'Awaiting response' }
+    return { title: `Offer Sent — ${details?.position ?? ''}`, sub: `Awaiting response${authorSuffix}` }
   }
   if (action === 'OFFER_RESPONDED') {
-    return { title: `Offer Response — ${details?.position ?? ''}`, sub: details?.status ?? '' }
+    return { title: `Offer Response — ${details?.position ?? ''}`, sub: `${details?.status ?? ''}${authorSuffix}` }
   }
   if (action === 'INVITE') {
-    return { title: `Invite Sent — ${details?.name ?? ''}`, sub: details?.email ?? '' }
+    return { title: `Invite Sent — ${details?.name ?? ''}`, sub: `${details?.email ?? ''}${authorSuffix}` }
   }
-  return { title: action.replace(/_/g, ' '), sub: resource_type }
+  return { title: action.replace(/_/g, ' '), sub: `${resource_type}${authorSuffix}` }
 }
 
 export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {

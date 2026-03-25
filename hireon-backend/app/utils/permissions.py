@@ -28,9 +28,11 @@ class ApplicationStage(str, Enum):
 
 REJECTION_STAGES = [
     "rejected",
+    "screening_rejected",
     "pre_screening_rejected",
     "technical_round_rejected",
     "technical_round_back_out",
+    "practical_rejected",
     "practical_round_rejected",
     "practical_round_back_out",
     "techno_functional_rejected",

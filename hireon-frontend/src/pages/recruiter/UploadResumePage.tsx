@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -96,6 +97,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const { basePath } = useAuth()
 
   const handleStageUpdate = async (stage: string) => {
     setLoading(stage)
@@ -106,7 +108,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       onAction()
       if (stage === 'applied') {
-        navigate('/recruiter/pipeline')
+        navigate(`${basePath}/pipeline`)
       }
     } catch (err) {
       toast.error('Failed to update candidate stage')
@@ -185,7 +187,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => navigate('/recruiter/candidates')}
+                onClick={() => navigate(`${basePath}/candidates`)}
                 style={{
                   flex: 1, padding: '10px 16px',
                   background: 'rgba(108,71,255,0.05)', color: '#6c47ff',
@@ -201,7 +203,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
               </button>
 
               <button
-                onClick={() => navigate('/recruiter/interviews')}
+                onClick={() => navigate(`${basePath}/interviews`)}
                 style={{
                   flex: 1, padding: '10px 16px',
                   background: 'transparent', color: '#6c47ff',
@@ -315,6 +317,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function UploadResumePage() {
+  const { basePath } = useAuth()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
