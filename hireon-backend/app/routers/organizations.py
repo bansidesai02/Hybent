@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.dependencies import DB, CurrentUser, AdminUser
 from app.models.organization import Organization
 from app.schemas.organization import OrganizationOut, OrganizationUpdate
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/organizations", tags=["organizations"])
 
@@ -14,7 +15,7 @@ async def get_my_org(current_user: CurrentUser, db: DB):
     org = result.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    return OrganizationOut.model_validate(org)
+    return APIResponse.success(message="Organization fetched successfully.", data=OrganizationOut.model_validate(org))
 
 
 @router.put("/me", response_model=OrganizationOut)
@@ -25,4 +26,4 @@ async def update_my_org(data: OrganizationUpdate, current_user: AdminUser, db: D
         raise HTTPException(status_code=404, detail="Organization not found")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(org, field, value)
-    return OrganizationOut.model_validate(org)
+    return APIResponse.success(message="Organization updated successfully.", data=OrganizationOut.model_validate(org))

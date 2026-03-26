@@ -40,7 +40,14 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+      if (response.data.success) {
+        response.data = response.data.data !== undefined ? response.data.data : response.data;
+      }
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
@@ -70,15 +77,18 @@ api.interceptors.response.use(
           { withCredentials: true }
         )
 
-        const newToken = data.access_token
+        // Handle the new APIResponse format
+        const responseData = data.success !== undefined && data.data !== undefined ? data.data : data;
+
+        const newToken = responseData.access_token
         localStorage.setItem('hireon_access_token', newToken)
-        if (data.refresh_token) {
-          localStorage.setItem('hireon_refresh_token', data.refresh_token)
+        if (responseData.refresh_token) {
+          localStorage.setItem('hireon_refresh_token', responseData.refresh_token)
         }
 
         // Update auth store
         const { useAuthStore } = await import('@/store/authStore')
-        useAuthStore.getState().setTokens(newToken, data.refresh_token, data.user)
+        useAuthStore.getState().setTokens(newToken, responseData.refresh_token, responseData.user)
 
         processQueue(null, newToken)
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body
 from app.dependencies import DB, InterviewerUser
 from app.services import ai_evaluator
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/ai", tags=["ai"])
 
@@ -20,4 +21,4 @@ async def evaluate_notes(
     if not result:
         raise HTTPException(status_code=500, detail="AI evaluation failed. Please try again or check your Gemini API key.")
 
-    return result
+    return APIResponse.success(message="Interview notes evaluated successfully.", data=result)

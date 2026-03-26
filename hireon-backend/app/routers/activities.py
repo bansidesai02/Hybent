@@ -3,6 +3,7 @@ from sqlalchemy import select, desc
 from app.dependencies import DB, CurrentUser
 from app.models.audit_log import AuditLog
 from app.models.user import User
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/activities", tags=["activities"])
 
@@ -38,7 +39,7 @@ async def list_activities(
     
     activities = result.all()
 
-    return [
+    return APIResponse.success(message="Activities retrieved successfully.", data=[
         {
             "id": str(a.AuditLog.id),
             "action": a.AuditLog.action,
@@ -50,4 +51,4 @@ async def list_activities(
             "user_name": a.user_name,
         }
         for a in activities
-    ]
+    ])

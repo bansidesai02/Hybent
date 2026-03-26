@@ -2,18 +2,19 @@ from fastapi import APIRouter, Depends, Response
 from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.services import report_service
 from app.utils.permissions import UserRole
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/reports", tags=["reports"])
 
 @router.get("/summary")
 async def get_summary(current_user: RecruiterUser, db: DB):
     is_admin = current_user.role == UserRole.ADMIN
-    return await report_service.get_report_summary(
+    return APIResponse.success(message="Report summary retrieved successfully.", data=await report_service.get_report_summary(
         current_user.organization_id, 
         current_user.id, 
         is_admin, 
         db
-    )
+    ))
 
 @router.get("/export")
 async def export_report(current_user: RecruiterUser, db: DB):

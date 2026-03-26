@@ -11,6 +11,7 @@ from app.utils.pagination import paginate
 from app.services.resume_parser import parse_jd
 from app.services.storage_service import save_jd, read_file_bytes
 from app.services.activity_service import log_activity
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 
@@ -49,7 +50,7 @@ async def list_jobs(
         job_dict["application_count"] = counts.get(str(j.id), 0)
         items.append(job_dict)
 
-    return paginate(items, total, page, limit)
+    return APIResponse.success(message="Jobs retrieved successfully.", data=paginate(items, total, page, limit))
 
 
 @router.post("", response_model=JobOut, status_code=201)
@@ -75,7 +76,7 @@ async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB):
     await db.commit()
     await db.refresh(job)
     
-    return JobOut.model_validate(job)
+    return APIResponse.success(message="Job successfully created.", data=JobOut.model_validate(job), status_code=201)
 
 
 @router.post("/parse-jd")
@@ -98,7 +99,7 @@ async def parse_jd_endpoint(
         # Add the URL and filename to the response
         parsed_data["jd_url"] = jd_url
         parsed_data["jd_filename"] = jd_filename
-        return parsed_data
+        return APIResponse.success(message="Job description parsed successfully.", data=parsed_data)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse JD: {str(e)}")
 
@@ -111,7 +112,7 @@ async def get_job(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return JobOut.model_validate(job)
+    return APIResponse.success(message="Job retrieved successfully.", data=JobOut.model_validate(job))
 
 
 @router.put("/{job_id}", response_model=JobOut)
@@ -128,10 +129,10 @@ async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: Recruiter
         setattr(job, field, value)
     await db.commit()
     await db.refresh(job)
-    return JobOut.model_validate(job)
+    return APIResponse.success(message="Job updated successfully.", data=JobOut.model_validate(job))
 
 
-@router.delete("/{job_id}", status_code=204)
+@router.delete("/{job_id}")
 async def delete_job(job_id: uuid.UUID, current_user: RecruiterUser, db: DB):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
@@ -141,3 +142,4 @@ async def delete_job(job_id: uuid.UUID, current_user: RecruiterUser, db: DB):
         raise HTTPException(status_code=404, detail="Job not found")
     await db.delete(job)
     await db.commit()
+    return APIResponse.success(message="Job deleted successfully.")

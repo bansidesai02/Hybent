@@ -185,8 +185,8 @@ export default function PortalProfilePage() {
           </div>
 
           <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="Current CTC" name="current_ctc" value={profile?.current_ctc ? formatSalary(profile.current_ctc, null, 'INR') : ''} placeholder="e.g. ₹22,00,000" />
-            <FieldRow label="Expected CTC" name="expected_ctc" value={profile?.expected_ctc ? formatSalary(profile.expected_ctc, null, 'INR') : ''} placeholder="e.g. ₹32,00,000" />
+            <FieldRow label="Current CTC" name="current_ctc" value={profile?.current_ctc || ''} placeholder="e.g. ₹22,00,000" />
+            <FieldRow label="Expected CTC" name="expected_ctc" value={profile?.expected_ctc || ''} placeholder="e.g. ₹32,00,000" />
           </div>
 
           <div className="frow" style={{ marginBottom: 12 }}>

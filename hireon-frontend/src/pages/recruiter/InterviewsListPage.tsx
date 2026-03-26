@@ -92,6 +92,7 @@ type ScheduleForm = z.infer<typeof scheduleSchema>
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 import toast from 'react-hot-toast'
+import { Pagination } from '@/components/ui/Pagination'
 
 function MiniStars({ value }: { value: number }) {
   return (
@@ -463,7 +464,6 @@ function ScheduleForm({
       queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
       queryClient.invalidateQueries({ queryKey: ['candidates-for-schedule'] })
       onSuccess('Interview scheduled!')
-      toast.success('Interview scheduled successfully')
       reset({ duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_id: '' })
     },
   })
@@ -572,7 +572,8 @@ function InterviewCard({
         background: 'var(--sidebar-bg)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
         position: 'relative',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        flexShrink: 0
       }}
     >
       <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: cfg.color }} />
@@ -707,17 +708,19 @@ export default function InterviewsListPage() {
   const [expandedScorecard, setExpandedScorecard] = useState<string | null>(null)
   const [statusFilter, setStatusFilter]           = useState<InterviewStatus | 'all'>('all')
   const [activeTab, setActiveTab]                 = useState<'schedule' | 'interviews'>('schedule')
+  const [currentPage, setCurrentPage]             = useState(1)
+  const ITEMS_PER_PAGE = 5
 
   const { data: interviews, isLoading, isError } = useQuery({
     queryKey: ['interviews'],
-    queryFn: () => interviewsApi.list().then((r) => r.data),
+    queryFn: () => interviewsApi.list().then((r: any) => r.data),
     refetchInterval: 30_000,
   })
 
 
   const filteredInterviews = useMemo(() => {
     if (!interviews) return []
-    return interviews.filter((iv) => {
+    return interviews.filter((iv: Interview) => {
       if (statusFilter !== 'all' && iv.status !== statusFilter) return false
       if (selectedDate) {
         const d = parseISO(iv.scheduled_at)
@@ -728,6 +731,21 @@ export default function InterviewsListPage() {
       return true
     })
   }, [interviews, statusFilter, selectedDate])
+
+  const { paginatedInterviews, totalPages } = useMemo(() => {
+    const total = filteredInterviews.length
+    const pages = Math.ceil(total / ITEMS_PER_PAGE)
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return {
+      paginatedInterviews: filteredInterviews.slice(start, start + ITEMS_PER_PAGE),
+      totalPages: pages
+    }
+  }, [filteredInterviews, currentPage])
+
+  // Reset to page 1 when filter or date changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter, selectedDate])
 
   const cancelMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string, reason?: string }) => interviewsApi.cancel(id, reason),
@@ -777,11 +795,11 @@ export default function InterviewsListPage() {
                 border: '1px solid rgba(108,71,255,0.2)',
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={(e: any) => {
                 e.currentTarget.style.background = 'rgba(108,71,255,0.15)'
                 e.currentTarget.style.transform = 'translateY(-1px)'
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={(e: any) => {
                 e.currentTarget.style.background = 'rgba(108,71,255,0.1)'
                 e.currentTarget.style.transform = 'translateY(0)'
               }}
@@ -800,7 +818,7 @@ export default function InterviewsListPage() {
 
       {/* Mobile Tab Switcher — only shown below lg breakpoint */}
       <div className="flex lg:hidden items-center gap-2 p-1 rounded-xl border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] shrink-0">
-        {(['schedule', 'interviews'] as const).map((tab) => (
+        {(['schedule', 'interviews'] as const).map((tab: 'schedule' | 'interviews') => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -884,7 +902,7 @@ export default function InterviewsListPage() {
              </div>
           </div>
 
-          <div className="flex-1 overflow-visible lg:overflow-y-auto flex flex-col gap-3.5 lg:pr-2.5 pb-10">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-3.5 lg:pr-2.5 pb-10">
             {isLoading ? (
                Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} style={{ height: 120, borderRadius: 20, background: 'var(--sidebar-bg)', border: '1px solid var(--sidebar-border)', opacity: 0.5 }} className="animate-pulse" />
@@ -895,16 +913,28 @@ export default function InterviewsListPage() {
                   description="Use the calendar to pick a different date or schedule a new one."
                />
             ) : (
-                filteredInterviews.map(iv => (
-                   <InterviewCard
-                      key={iv.id}
-                      interview={iv}
-                      expandedScorecard={expandedScorecard === iv.id}
-                      onCancel={() => setCancelTarget(iv)}
-                      onStatusUpdate={(status) => statusMutation.mutate({ id: iv.id, status })}
-                      onToggleScorecard={() => setExpandedScorecard(expandedScorecard === iv.id ? null : iv.id)}
-                   />
-                ))
+                <>
+                  {paginatedInterviews.map((iv: Interview) => (
+                    <InterviewCard
+                        key={iv.id}
+                        interview={iv}
+                        expandedScorecard={expandedScorecard === iv.id}
+                        onCancel={() => setCancelTarget(iv)}
+                        onStatusUpdate={(status) => statusMutation.mutate({ id: iv.id, status })}
+                        onToggleScorecard={() => setExpandedScorecard(expandedScorecard === iv.id ? null : iv.id)}
+                    />
+                  ))}
+                  
+                  <div style={{ marginTop: 'auto', paddingTop: 20 }}>
+                    <Pagination
+                      page={currentPage}
+                      pages={totalPages}
+                      total={filteredInterviews.length}
+                      limit={ITEMS_PER_PAGE}
+                      onPage={setCurrentPage}
+                    />
+                  </div>
+                </>
             )}
           </div>
         </div>

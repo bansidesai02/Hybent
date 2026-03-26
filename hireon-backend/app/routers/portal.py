@@ -29,6 +29,7 @@ from app.services.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
 from app.services.storage_service import save_resume
 from app.services.resume_parser import parse_resume
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/portal", tags=["portal"])
 
@@ -86,7 +87,7 @@ async def portal_register(data: PortalRegisterRequest, db: DB):
         expires_at=datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days),
     ))
 
-    return {"access_token": access_token, "refresh_token": refresh_tok, "token_type": "bearer"}
+    return APIResponse.success(message="Registration successful.", data={"access_token": access_token, "refresh_token": refresh_tok, "token_type": "bearer"})
 
 
 @router.get("/my-applications")
@@ -98,14 +99,14 @@ async def my_applications(current_user: CurrentUser, db: DB):
         select(Candidate).where(Candidate.user_id == current_user.id)
     )).scalar_one_or_none()
     if not candidate:
-        return []
+        return APIResponse.success(message="Applications retrieved.", data=[])
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(Application)
         .where(Application.candidate_id == candidate.id)
         .options(selectinload(Application.job))
     )
-    return [ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()]
+    return APIResponse.success(message="Applications retrieved.", data=[ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()])
 
 
 @router.get("/my-interviews")
@@ -117,11 +118,11 @@ async def my_interviews(current_user: CurrentUser, db: DB):
         select(Candidate).where(Candidate.user_id == current_user.id)
     )).scalar_one_or_none()
     if not candidate:
-        return []
+        return APIResponse.success(message="Interviews retrieved.", data=[])
     result = await db.execute(
         select(Interview).where(Interview.candidate_id == candidate.id)
     )
-    return [InterviewOut.model_validate(i).model_dump() for i in result.scalars().all()]
+    return APIResponse.success(message="Interviews retrieved.", data=[InterviewOut.model_validate(i).model_dump() for i in result.scalars().all()])
 
 
 @router.get("/my-offers")
@@ -133,17 +134,17 @@ async def my_offers(current_user: CurrentUser, db: DB):
         select(Candidate).where(Candidate.user_id == current_user.id)
     )).scalar_one_or_none()
     if not candidate:
-        return []
+        return APIResponse.success(message="Offers retrieved.", data=[])
     apps = (await db.execute(
         select(Application).where(Application.candidate_id == candidate.id)
     )).scalars().all()
     app_ids = [a.id for a in apps]
     if not app_ids:
-        return []
+        return APIResponse.success(message="Offers retrieved.", data=[])
     result = await db.execute(
         select(Offer).where(Offer.application_id.in_(app_ids))
     )
-    return [OfferOut.model_validate(o).model_dump() for o in result.scalars().all()]
+    return APIResponse.success(message="Offers retrieved.", data=[OfferOut.model_validate(o).model_dump() for o in result.scalars().all()])
 
 
 @router.post("/offers/{offer_id}/respond")
@@ -163,7 +164,7 @@ async def portal_respond_offer(offer_id: uuid.UUID, data: OfferRespondRequest, c
     offer.responded_at = datetime.now(timezone.utc)
     if not data.accept:
         offer.decline_reason = data.decline_reason
-    return OfferOut.model_validate(offer)
+    return APIResponse.success(message="Offer response recorded.", data=OfferOut.model_validate(offer))
 
 
 @router.get("/profile")
@@ -177,7 +178,7 @@ async def portal_profile(current_user: CurrentUser, db: DB):
     )).scalar_one_or_none()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Profile retrieved.", data=CandidateOut.model_validate(candidate))
 
 
 @router.put("/profile")
@@ -207,7 +208,7 @@ async def update_portal_profile(data: CandidateUpdate, current_user: CurrentUser
 
     await db.commit()
     await db.refresh(candidate)
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Profile updated successfully.", data=CandidateOut.model_validate(candidate))
 
 
 @router.post("/profile/resume", response_model=CandidateOut)
@@ -250,7 +251,7 @@ async def upload_portal_resume(
 
     await db.commit()
     await db.refresh(candidate)
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Resume uploaded successfully.", data=CandidateOut.model_validate(candidate))
 
 
 @router.post("/profile/other-offers")
@@ -272,7 +273,7 @@ async def add_other_offer(data: OtherOfferCreate, current_user: CurrentUser, db:
     db.add(offer)
     await db.commit()
     await db.refresh(offer)
-    return OtherOfferOut.model_validate(offer)
+    return APIResponse.success(message="Other offer added successfully.", data=OtherOfferOut.model_validate(offer))
 
 
 @router.delete("/profile/other-offers/{offer_id}")
@@ -290,6 +291,7 @@ async def remove_other_offer(offer_id: uuid.UUID, current_user: CurrentUser, db:
         
     await db.delete(offer)
     await db.commit()
+    return APIResponse.success(message="Other offer removed successfully.")
 
 
 @router.get("/jobs")
@@ -301,7 +303,7 @@ async def portal_get_jobs(current_user: CurrentUser, db: DB):
     result = await db.execute(
         select(Job).where(Job.organization_id == current_user.organization_id, Job.status == "active")
     )
-    return [JobOut.model_validate(j).model_dump() for j in result.scalars().all()]
+    return APIResponse.success(message="Jobs retrieved.", data=[JobOut.model_validate(j).model_dump() for j in result.scalars().all()])
 
 
 @router.post("/jobs/{job_id}/apply", response_model=ApplicationOut, status_code=201)
@@ -349,7 +351,7 @@ async def portal_apply_to_job(job_id: uuid.UUID, current_user: CurrentUser, db: 
     app_with_job = (await db.execute(
         select(Application).where(Application.id == application.id).options(selectinload(Application.job))
     )).scalar_one()
-    return ApplicationOut.model_validate(app_with_job)
+    return APIResponse.success(message="Applied to job successfully.", data=ApplicationOut.model_validate(app_with_job))
 
 
 @router.post("/jobs/{job_id}/refer")
@@ -396,7 +398,7 @@ async def portal_refer_job(
     db.add(referral)
     await db.commit()
     await db.refresh(referral)
-    return JobReferralOut.model_validate(referral)
+    return APIResponse.success(message="Job referral submitted successfully.", data=JobReferralOut.model_validate(referral))
 
 
 @router.get("/documents")
@@ -409,7 +411,7 @@ async def portal_get_documents(current_user: CurrentUser, db: DB):
         raise HTTPException(status_code=404, detail="Profile not found")
 
     docs = await db.execute(select(CandidateDocument).where(CandidateDocument.candidate_id == candidate.id))
-    return [CandidateDocumentOut.model_validate(d).model_dump() for d in docs.scalars().all()]
+    return APIResponse.success(message="Documents retrieved.", data=[CandidateDocumentOut.model_validate(d).model_dump() for d in docs.scalars().all()])
 
 
 @router.post("/documents")
@@ -430,7 +432,7 @@ async def portal_add_document(data: CandidateDocumentCreate, current_user: Curre
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
-    return CandidateDocumentOut.model_validate(doc)
+    return APIResponse.success(message="Document added successfully.", data=CandidateDocumentOut.model_validate(doc))
 
 
 @router.get("/applications/{application_id}/prep-hub")
@@ -466,4 +468,4 @@ async def portal_prep_hub(application_id: uuid.UUID, current_user: CurrentUser, 
     resume_highlights = f"Summary: {candidate_summary}\nSkills: {candidate_skills}"
     
     materials = await generate_prep_materials(job.title, f"{desc} {skills}", resume_highlights)
-    return materials
+    return APIResponse.success(message="Prep materials generated successfully.", data=materials)

@@ -12,7 +12,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.schemas.response import APIResponse
 from app.config import settings
 from app.database import engine, Base
 from app.websocket.manager import ws_manager
@@ -80,11 +82,20 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return APIResponse.error(message=str(exc.detail), status_code=exc.status_code)
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
     logger.error(f"422 Validation error on {request.method} {request.url}: {errors}")
-    return JSONResponse(status_code=422, content={"detail": errors})
+    return APIResponse.error(message="There was an issue with the submitted data.", status_code=422, details={"errors": errors})
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled exception on {request.method} {request.url}: {exc}")
+    return APIResponse.error(message="An unexpected system error occurred. Please try again later.", status_code=500, details={"error": str(exc)})
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
 app.add_middleware(

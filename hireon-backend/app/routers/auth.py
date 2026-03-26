@@ -2,6 +2,7 @@ from fastapi import APIRouter, Response, Cookie
 from datetime import datetime, timezone
 from app.dependencies import DB, CurrentUser
 from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, TokenResponse, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas.response import APIResponse
 from app.services import auth_service
 from app.utils.security import hash_password, verify_password
 from sqlalchemy import select
@@ -12,7 +13,8 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 @router.post("/register", status_code=201)
 async def register(data: RegisterRequest, db: DB):
-    return await auth_service.register_user(data, db)
+    result = await auth_service.register_user(data, db)
+    return APIResponse.success(message="Account created successfully.", data=result)
 
 
 @router.post("/login")
@@ -28,7 +30,7 @@ async def login(data: LoginRequest, response: Response, db: DB):
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
     )
-    return {"access_token": result["access_token"], "token_type": "bearer", "user": result["user"]}
+    return APIResponse.success(message="Login successful.", data={"access_token": result["access_token"], "token_type": "bearer", "user": result["user"]})
 
 
 @router.post("/refresh")
@@ -53,7 +55,7 @@ async def refresh(
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
     )
-    return {"access_token": result["access_token"], "token_type": "bearer", "user": result["user"]}
+    return APIResponse.success(message="Token refreshed successfully.", data={"access_token": result["access_token"], "token_type": "bearer", "user": result["user"]})
 
 
 @router.post("/logout")
@@ -67,12 +69,12 @@ async def logout(
     if token:
         await auth_service.logout_user(token, db)
     response.delete_cookie("refresh_token")
-    return {"message": "Logged out successfully"}
+    return APIResponse.success(message="Logged out successfully.")
 
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: CurrentUser):
-    return UserOut.model_validate(current_user)
+    return APIResponse.success(message="User details retrieved.", data=UserOut.model_validate(current_user))
 
 
 @router.put("/me/password")
@@ -81,7 +83,7 @@ async def change_password(data: ChangePasswordRequest, current_user: CurrentUser
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     current_user.hashed_password = hash_password(data.new_password)
-    return {"message": "Password updated successfully"}
+    return APIResponse.success(message="Password updated successfully.")
 
 
 @router.post("/forgot-password")
@@ -95,7 +97,7 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
     user = result.scalar_one_or_none()
     # Always return 200 to prevent email enumeration
     if not user or not user.is_active:
-        return {"message": "If that email exists, a reset link has been sent."}
+        return APIResponse.success(message="If that email exists, a reset link has been sent.")
 
     # Invalidate old tokens
     from sqlalchemy import update
@@ -115,7 +117,7 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
     from app.config import settings as cfg
     reset_url = f"{cfg.frontend_url}/reset-password?token={token}"
     send_password_reset_email(user.email, user.full_name, reset_url)
-    return {"message": "If that email exists, a reset link has been sent."}
+    return APIResponse.success(message="If that email exists, a reset link has been sent.")
 
 
 @router.post("/reset-password")
@@ -142,7 +144,7 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
 
     user.hashed_password = hash_password(data.new_password)
     token_obj.is_used = True
-    return {"message": "Password reset successfully. You can now log in."}
+    return APIResponse.success(message="Password reset successfully. You can now log in.")
 
 
 @router.post("/candidate/magic-link")
@@ -195,4 +197,4 @@ async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
         from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=f"Failed to send magic link: {str(e)}")
 
-    return {"message": "Magic link sent successfully. Please check your inbox."}
+    return APIResponse.success(message="Magic link sent successfully. Please check your inbox.")

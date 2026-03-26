@@ -69,7 +69,7 @@ def _get_base_template(content_html: str) -> str:
             .content {{ padding: 0 48px 48px; text-align: center; color: #1a1040; }}
             .logo-wrap {{ display: inline-flex; align-items: center; gap: 12px; margin-bottom: 40px; }}
             .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 44px; height: 44px; border-radius: 12px; display: inline-block; vertical-align: middle; }}
-           .logo-text {{ font-size: 32px; font-weight: 800; color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
+           .logo-text {{ font-size: 32px; font-weight: 800; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
             h2.title {{ font-size: 28px; font-weight: 800; margin: 0 0 16px 0; color: #0f172a; letter-spacing: -0.5px; }}
             p.description {{ font-size: 16px; line-height: 1.6; color: #64748b; margin: 0 0 32px 0; }}
             .info-box {{ background-color: #fbfaff; border-radius: 20px; padding: 32px; margin: 32px 0; text-align: left; border: 1px solid #f1f0ff; }}
@@ -108,7 +108,9 @@ def _get_base_template(content_html: str) -> str:
                                 </tr>
                             </table>
                         </div>
-                        <span class="logo-text">Hireon</span>
+                        <span class="logo-text">
+                            <span style="color:#6c47ff;">H</span><span style="color:#894ef3;">i</span><span style="color:#a655e8;">r</span><span style="color:#c45cdc;">e</span><span style="color:#e163d1;">o</span><span style="color:#ff6bc6;">n</span>
+                        </span>
                     </div>
                 </div>
                 <div class="content">
@@ -132,7 +134,9 @@ def _get_calendar_invite_template(
     meeting_link: str,
     date_month: str,
     date_day: str,
-    date_weekday: str
+    date_weekday: str,
+    date_year: str,
+    date_time: str
 ) -> str:
     """Specialized template for Calendar-style invitations."""
     guests_html = "".join([f'<div style="margin-bottom: 4px;">{g}</div>' for g in guests])
@@ -150,7 +154,7 @@ def _get_calendar_invite_template(
             .container {{ max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #dadce0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
             .branding {{ padding: 24px 24px 0; text-align: left; }}
             .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 32px; height: 32px; border-radius: 8px; display: inline-block; vertical-align: middle; }}
-            .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 24px; font-weight: 800; color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
+            .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 24px; font-weight: 800; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
             .header {{ padding: 24px; border-bottom: 1px solid #dadce0; display: table; width: 100%; box-sizing: border-box; }}
             .date-box {{ width: 52px; height: 64px; border: 1px solid #dadce0; border-radius: 8px; text-align: center; float: left; margin-right: 20px; overflow: hidden; background: #ffffff; }}
             .date-month {{ background-color: #ffffff; color: #d93025; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 0; border-bottom: 1px solid #dadce0; }}
@@ -191,7 +195,9 @@ def _get_calendar_invite_template(
                         </tr>
                     </table>
                 </div>
-                <span class="logo-text">Hireon</span>
+                <span class="logo-text">
+                    <span style="color:#6c47ff;">H</span><span style="color:#894ef3;">i</span><span style="color:#a655e8;">r</span><span style="color:#c45cdc;">e</span><span style="color:#e163d1;">o</span><span style="color:#ff6bc6;">n</span>
+                </span>
             </div>
             <div class="header">
                 <div class="date-box">
@@ -202,20 +208,12 @@ def _get_calendar_invite_template(
                     <h1 class="event-title">{title}</h1>
                     <a href="#" class="calendar-link">View on Google Calendar</a>
                     <div style="font-size: 13px; color: #70757a; margin-top: 8px;">
-                        {date_weekday}, {date_month} {date_day}, 2026
+                        {date_weekday}, {date_month} {date_day}, {date_year}
                     </div>
                 </div>
             </div>
             <div class="content">
-                <div style="float: right; width: 40%; border-left: 1px solid #dadce0; padding-left: 24px;">
-                    <div class="section-title">Agenda</div>
-                    <div class="section-value" style="font-size: 12px; color: #70757a; letter-spacing: 0.2px;">
-                        {date_weekday} {date_month} {date_day}, 2026<br/>
-                        <b style="color: #3c4043;">10:00 AM</b><br/>
-                        {title}
-                    </div>
-                </div>
-                <div style="width: 50%;">
+                <div style="width: 100%;">
                     <div class="section-title">When</div>
                     <div class="section-value">{when}</div>
 
@@ -236,22 +234,22 @@ def _get_calendar_invite_template(
             </div>
             <div class="footer">
                 Need help? <a href="mailto:support@hireon.ai" style="color: #1a73e8; text-decoration: none;">support@hireon.ai</a><br/>
-                &copy; 2026 Hireon AI Platform. All rights reserved.
+                &copy; {date_year} Hireon AI Platform. All rights reserved.
             </div>
         </div>
     </body>
     </html>
     """
 
-def _format_date_for_calendar(date_str: str) -> tuple[str, str, str]:
-    """Helper to extract (weekday, month, day) from various date string formats."""
+def _format_date_for_calendar(date_str: str) -> tuple[str, str, str, str, str]:
+    """Helper to extract (weekday, month, day, year, time) from various date string formats."""
     try:
         # Use dateutil for robust parsing
         dt = date_parser.parse(date_str, fuzzy=True)
-        return dt.strftime("%a"), dt.strftime("%b"), dt.strftime("%d")
+        return dt.strftime("%a"), dt.strftime("%b"), dt.strftime("%d"), dt.strftime("%Y"), dt.strftime("%I:%M %p")
     except Exception as e:
         logger.warning(f"Could not parse date '{date_str}': {e}")
-        return "Thu", "Mar", "19"
+        return "Thu", "Mar", "19", "2026", "10:00 AM"
 
 
 def send_interviewer_invite(
@@ -266,7 +264,7 @@ def send_interviewer_invite(
     interview_type: str,
 ) -> None:
     subject = f"Interview Scheduled: {candidate_name} for {job_title}"
-    weekday, month, day = _format_date_for_calendar(scheduled_at)
+    weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
 
     html = _get_calendar_invite_template(
         title=f"Interview: {candidate_name} — {job_title}",
@@ -276,7 +274,9 @@ def send_interviewer_invite(
         meeting_link=meeting_link or "#",
         date_month=month,
         date_day=day,
-        date_weekday=weekday
+        date_weekday=weekday,
+        date_year=year,
+        date_time=time_str
     )
     send_email(interviewer_email, subject, html)
 
@@ -292,17 +292,20 @@ def send_interview_invite(
     interview_type: str = "video",
 ) -> None:
     subject = f"Interview Invitation — {job_title} at {company_name}"
-    weekday, month, day = _format_date_for_calendar(scheduled_at)
-
+    weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
+    
+    # We pass the raw 'job_title' parameter which actually contains the interview title (e.g. "Practical Round")
     html = _get_calendar_invite_template(
-        title=f"Technical Round: {job_title}",
+        title=job_title,
         when=scheduled_at,
         organizer=f"{company_name} Recruiting",
         guests=[candidate_email],
         meeting_link=meeting_link or "#",
         date_month=month,
         date_day=day,
-        date_weekday=weekday
+        date_weekday=weekday,
+        date_year=year,
+        date_time=time_str
     )
     send_email(candidate_email, subject, html)
 

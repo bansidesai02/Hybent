@@ -8,6 +8,7 @@ from app.services.storage_service import save_avatar
 from app.utils.permissions import UserRole
 from app.utils.security import hash_password
 from pydantic import BaseModel
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/users", tags=["users"])
 
@@ -34,7 +35,7 @@ async def list_users(current_user: RecruiterUser, db: DB):
     # Debug log to investigate why team members might not show up
     import logging
     print(f"DEBUG: Listing users for org {current_user.organization_id}: found {len(users)}")
-    return [UserOut.model_validate(u) for u in users]
+    return APIResponse.success(message="Users retrieved successfully.", data=[UserOut.model_validate(u) for u in users])
 
 
 from app.services.email_service import send_email
@@ -74,7 +75,7 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB):
         login_url=f"{frontend_base}/login"
     )
     
-    return UserOut.model_validate(user)
+    return APIResponse.success(message="User invited successfully.", data=UserOut.model_validate(user))
 
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -87,11 +88,11 @@ async def update_user(user_id: uuid.UUID, data: UserUpdate, current_user: AdminU
         raise HTTPException(status_code=404, detail="User not found")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(user, field, value)
-    return UserOut.model_validate(user)
+    return APIResponse.success(message="User updated successfully.", data=UserOut.model_validate(user))
 
 
 @router.post("/me/avatar", response_model=UserOut)
 async def upload_avatar(current_user: CurrentUser, db: DB, file: UploadFile = File(...)):
     url = await save_avatar(file, str(current_user.id))
     current_user.avatar_url = url
-    return UserOut.model_validate(current_user)
+    return APIResponse.success(message="Avatar uploaded successfully.", data=UserOut.model_validate(current_user))

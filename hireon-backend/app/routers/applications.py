@@ -7,6 +7,7 @@ from app.models.candidate import Candidate
 from app.models.job import Job
 from app.schemas.application import ApplicationOut, ApplicationCreate, StageUpdate, NotesUpdate
 from app.utils.pagination import paginate
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/applications", tags=["applications"])
 
@@ -63,7 +64,7 @@ async def list_applications(
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()
     apps = (await db.execute(query.offset((page - 1) * limit).limit(limit))).scalars().all()
     items = [await _enrich_application(a, db) for a in apps]
-    return paginate(items, total, page, limit)
+    return APIResponse.success(message="Applications retrieved successfully.", data=paginate(items, total, page, limit))
 
 
 @router.post("", response_model=dict, status_code=201)
@@ -126,13 +127,13 @@ async def create_application(data: ApplicationCreate, current_user: RecruiterUse
     except Exception as e:
         logger.error(f"Auto-scoring failed: {e}")
 
-    return await _enrich_application(app, db)
+    return APIResponse.success(message="Application created successfully.", data=await _enrich_application(app, db))
 
 
 @router.get("/{application_id}")
 async def get_application(application_id: uuid.UUID, current_user: CurrentUser, db: DB):
     app = await _get_application(application_id, current_user.organization_id, db)
-    return await _enrich_application(app, db)
+    return APIResponse.success(message="Application retrieved successfully.", data=await _enrich_application(app, db))
 
 
 @router.patch("/{application_id}/stage")
@@ -150,11 +151,11 @@ async def update_stage(application_id: uuid.UUID, data: StageUpdate, current_use
     
     if data.rejection_reason:
         app.rejection_reason = data.rejection_reason
-    return await _enrich_application(app, db)
+    return APIResponse.success(message="Application stage updated successfully.", data=await _enrich_application(app, db))
 
 
 @router.patch("/{application_id}/notes")
 async def update_notes(application_id: uuid.UUID, data: NotesUpdate, current_user: RecruiterUser, db: DB):
     app = await _get_application(application_id, current_user.organization_id, db)
     app.recruiter_notes = data.recruiter_notes
-    return {"message": "Notes updated"}
+    return APIResponse.success(message="Notes updated successfully.")

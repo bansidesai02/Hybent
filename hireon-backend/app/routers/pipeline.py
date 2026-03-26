@@ -11,6 +11,7 @@ from app.models.candidate import Candidate
 from app.models.job import Job
 from app.schemas.application import StageUpdate
 from app.utils.permissions import ApplicationStage
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/pipeline", tags=["pipeline"])
 
@@ -54,10 +55,10 @@ async def get_pipeline(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
             "current_title": cand.current_title if cand else None,
         })
 
-    return {
+    return APIResponse.success(message="Pipeline retrieved successfully.", data={
         "job": {"id": str(job.id), "title": job.title},
         "stages": stages,
-    }
+    })
 
 
 @router.patch("/{application_id}/move")
@@ -80,4 +81,4 @@ async def move_card(application_id: uuid.UUID, data: StageUpdate, current_user: 
     if data.rejection_reason:
         app.rejection_reason = data.rejection_reason
 
-    return {"application_id": str(application_id), "from": old_stage, "to": data.stage}
+    return APIResponse.success(message="Card moved successfully.", data={"application_id": str(application_id), "from": old_stage, "to": data.stage})

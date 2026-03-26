@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.notification import NotificationOut
 from app.utils.security import decode_access_token
 from app.websocket.manager import ws_manager
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/notifications", tags=["notifications"])
 
@@ -51,7 +52,7 @@ async def list_notifications(current_user: CurrentUser, db: DB):
         .order_by(Notification.created_at.desc())
         .limit(50)
     )
-    return [NotificationOut.model_validate(n) for n in result.scalars().all()]
+    return APIResponse.success(message="Notifications retrieved.", data=[NotificationOut.model_validate(n) for n in result.scalars().all()])
 
 
 @router.get("/unread-count")
@@ -63,7 +64,7 @@ async def unread_count(current_user: CurrentUser, db: DB):
             Notification.is_read == False,
         )
     )).scalar()
-    return {"count": count}
+    return APIResponse.success(message="Unread count retrieved.", data={"count": count})
 
 
 @router.post("/{notification_id}/read")
@@ -80,7 +81,7 @@ async def mark_read(notification_id: uuid.UUID, current_user: CurrentUser, db: D
     notif.is_read = True
     notif.read_at = datetime.now(timezone.utc)
     await db.commit()
-    return {"message": "Marked as read"}
+    return APIResponse.success(message="Marked as read.")
 
 
 @router.post("/read-all")
@@ -95,4 +96,4 @@ async def mark_all_read(current_user: CurrentUser, db: DB):
         notif.is_read = True
         notif.read_at = datetime.now(timezone.utc)
     await db.commit()
-    return {"message": "All notifications marked as read"}
+    return APIResponse.success(message="All notifications marked as read.")

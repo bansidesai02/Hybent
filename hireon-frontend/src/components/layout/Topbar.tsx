@@ -59,9 +59,9 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
         <div
           className="flex items-center gap-2 w-full max-w-[440px] rounded-[12px] px-[16px] py-[8px] transition-all duration-200"
           style={{
-            background: 'rgba(255, 255, 255, 0.4)',
+            background: 'var(--search-bg)',
             backdropFilter: 'blur(10px)',
-            border: `1.5px solid ${searchFocused ? '#6c47ff' : 'rgba(255, 255, 255, 0.6)'}`,
+            border: `1.5px solid ${searchFocused ? '#6c47ff' : 'var(--input-border)'}`,
           }}
         >
           <span style={{ fontSize: '14px', opacity: 0.5 }}>🔍</span>
@@ -84,8 +84,8 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
           onClick={() => setIsDark(!isDark)}
           className="w-[36px] h-[36px] rounded-[10px] flex items-center justify-center text-[16px] cursor-pointer transition-all duration-200 hover:scale-105 shadow-sm"
           style={{ 
-            background: 'rgba(255,255,255,0.4)', 
-            border: '1.5px solid rgba(255,255,255,0.6)',
+            background: 'var(--search-bg)', 
+            border: '1.5px solid var(--input-border)',
             backdropFilter: 'blur(10px)'
           }}
         >
@@ -121,20 +121,19 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   className="absolute right-0 top-[46px] w-60 rounded-[18px] z-40 overflow-hidden py-2"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.85)',
-                    border: '1px solid rgba(255, 255, 255, 0.5)',
+                    background: 'var(--sidebar-bg)',
+                    border: '1px solid var(--sidebar-border)',
                     boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
                     backdropFilter: 'blur(20px)',
                   }}
                 >
                   <div
-                    className="px-5 py-4 mb-1"
-                    style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}
+                    className="px-5 py-4 mb-1 border-b border-[var(--sidebar-border)]"
                   >
-                    <p className="text-[14px] font-bold text-gray-900 leading-tight">
+                    <p className="text-[14px] font-bold text-[var(--text)] leading-tight">
                       {user?.full_name}
                     </p>
-                    <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                    <p className="text-[11px] text-[var(--text-light)] font-medium mt-0.5">
                       {user?.email}
                     </p>
                   </div>
@@ -143,17 +142,17 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
                     <button
                       key={item.label}
                       onClick={() => { setMenuOpen(false); navigate(item.path) }}
-                      className="w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-violet-50 hover:text-violet-600 group"
+                      className="w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-bold text-[var(--text-mid)] transition-all hover:bg-[var(--sb-hover)] hover:text-[#6c47ff] group"
                     >
                       <span className="text-[16px] transition-transform group-hover:scale-110">{item.icon}</span>
                       {item.label}
                     </button>
                   ))}
 
-                  <div className="mt-1 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                  <div className="mt-1 pt-1 border-t border-[var(--sidebar-border)]">
                     <button
                       onClick={() => { setMenuOpen(false); logout() }}
-                      className="w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-bold text-red-500 transition-all hover:bg-red-50"
+                      className="w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-bold text-red-500 transition-all hover:bg-red-500/10"
                     >
                       <span className="text-[16px]">🚪</span>
                       Sign out
