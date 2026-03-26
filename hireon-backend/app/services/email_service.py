@@ -256,18 +256,19 @@ def send_interviewer_invite(
     interviewer_email: str,
     interviewer_name: str,
     candidate_name: str,
-    job_title: str,
+    round_name: str,
+    job_role: str,
     company_name: str,
     scheduled_at: str,
     meeting_link: str,
     duration_minutes: int,
     interview_type: str,
 ) -> None:
-    subject = f"Interview Scheduled: {candidate_name} for {job_title}"
+    subject = f"Interview Scheduled: {candidate_name} — {round_name} | {job_role}"
     weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
 
     html = _get_calendar_invite_template(
-        title=f"Interview: {candidate_name} — {job_title}",
+        title=f"Interview: {candidate_name} — {round_name} | {job_role}",
         when=scheduled_at,
         organizer=f"{company_name} Recruiting",
         guests=[interviewer_email, candidate_name],
@@ -284,19 +285,19 @@ def send_interviewer_invite(
 def send_interview_invite(
     candidate_email: str,
     candidate_name: str,
-    job_title: str,
+    round_name: str,
+    job_role: str,
     company_name: str,
     scheduled_at: str,
     meeting_link: str,
     duration_minutes: int = 60,
     interview_type: str = "video",
 ) -> None:
-    subject = f"Interview Invitation — {job_title} at {company_name}"
+    subject = f"Interview Invitation — {round_name} | {job_role} at {company_name}"
     weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
     
-    # We pass the raw 'job_title' parameter which actually contains the interview title (e.g. "Practical Round")
     html = _get_calendar_invite_template(
-        title=job_title,
+        title=f"{round_name} | {job_role}",
         when=scheduled_at,
         organizer=f"{company_name} Recruiting",
         guests=[candidate_email],
@@ -436,12 +437,13 @@ def send_interview_cancellation(
     to_email: str,
     to_name: str,
     candidate_name: str,
-    job_title: str,
+    round_name: str,
+    job_role: str,
     company_name: str,
     scheduled_at: str,
     reason: str | None = None,
 ) -> None:
-    subject = f"Interview Cancelled: {candidate_name} — {job_title}"
+    subject = f"Interview Cancelled: {candidate_name} — {round_name} | {job_role}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
     reason_html = f"""
         <div style="margin-top: 24px; padding: 24px; background: rgba(239, 68, 68, 0.03); border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.1);">
@@ -452,7 +454,7 @@ def send_interview_cancellation(
     
     content = f"""
         <h2 class="title" style="color: #ef4444; margin-top: 20px;">Interview Cancelled</h2>
-        <p class="description">Hi {fname}, the interview scheduled for <strong>{candidate_name}</strong> ({job_title}) on {scheduled_at} has been cancelled.</p>
+        <p class="description">Hi {fname}, the interview scheduled for <strong>{candidate_name}</strong> ({round_name} | {job_role}) on {scheduled_at} has been cancelled.</p>
         {reason_html}
         <p style="margin-top: 40px; font-size: 13px; color: #94a3b8;">We will notify you if there are further updates regarding this position.</p>
     """
@@ -463,18 +465,19 @@ def send_interview_reschedule(
     to_email: str,
     to_name: str,
     candidate_name: str,
-    job_title: str,
+    round_name: str,
+    job_role: str,
     company_name: str,
     old_time: str,
     new_time: str,
     meeting_link: str,
 ) -> None:
-    subject = f"Interview Rescheduled: {candidate_name} — {job_title}"
+    subject = f"Interview Rescheduled: {candidate_name} — {round_name} | {job_role}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
     
     content = f"""
         <h2 class="title">Interview Rescheduled</h2>
-        <p class="description">Hi {fname}, your interview for <strong>{job_title}</strong> with <strong>{candidate_name}</strong> has been moved to a new time.</p>
+        <p class="description">Hi {fname}, your interview for <strong>{round_name} | {job_role}</strong> with <strong>{candidate_name}</strong> has been moved to a new time.</p>
         
         <div class="info-box">
             <div style="margin-bottom: 20px; opacity: 0.6;">

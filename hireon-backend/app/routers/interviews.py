@@ -6,6 +6,8 @@ from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.interview import Interview, InterviewPanelist
 from app.models.candidate import Candidate
 from app.models.user import User
+from app.models.application import Application
+from app.models.job import Job
 from app.schemas.interview import InterviewCreate, InterviewUpdate, InterviewOut, PanelistOut
 from app.services.calendar_service import create_calendar_event, cancel_calendar_event
 from app.services.email_service import (
@@ -181,10 +183,21 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
         local_time = data.scheduled_at.astimezone(tz)
         time_str = local_time.strftime("%B %d, %Y at %I:%M %p")
 
+        # Fetch job title/role
+        job_role = "Position"
+        if data.application_id:
+            job_result = await db.execute(
+                select(Job.title)
+                .join(Application, Application.job_id == Job.id)
+                .where(Application.id == uuid.UUID(data.application_id))
+            )
+            job_role = job_result.scalar_one_or_none() or "Position"
+
         send_interview_invite(
             candidate_email=candidate.email,
             candidate_name=candidate.full_name,
-            job_title=data.title,
+            round_name=data.title,
+            job_role=job_role,
             company_name=org.name,
             scheduled_at=time_str,
             meeting_link=cal["meeting_link"],
@@ -197,7 +210,8 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
                 interviewer_email=p_out["user_email"],
                 interviewer_name=p_out["user_name"],
                 candidate_name=candidate.full_name,
-                job_title=data.title,
+                round_name=data.title,
+                job_role=job_role,
                 company_name=org.name,
                 scheduled_at=time_str,
                 meeting_link=cal["meeting_link"],
@@ -342,11 +356,23 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
             {"interview_id": str(interview.id), "old_time": old_time_str, "new_time": new_time_str}
         )
 
+        # Fetch job role
+        job_role = "Position"
+        if interview.application_id:
+            job_result = await db.execute(
+                select(Job.title)
+                .join(Application, Application.job_id == Job.id)
+                .where(Application.id == interview.application_id)
+            )
+            job_role = job_result.scalar_one_or_none() or "Position"
+
         cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
         if cand:
             send_interview_reschedule(
                 to_email=cand.email, to_name=cand.full_name,
-                candidate_name=cand.full_name, job_title=interview.title,
+                candidate_name=cand.full_name, 
+                round_name=interview.title,
+                job_role=job_role,
                 company_name=org.name if org else "the team",
                 old_time=old_time_str, new_time=new_time_str,
                 meeting_link=interview.meeting_link
@@ -358,7 +384,9 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
             if u:
                  send_interview_reschedule(
                     to_email=u.email, to_name=u.full_name,
-                    candidate_name=cand.full_name if cand else "Candidate", job_title=interview.title,
+                    candidate_name=cand.full_name if cand else "Candidate", 
+                    round_name=interview.title,
+                    job_role=job_role,
                     company_name=org.name if org else "the team",
                     old_time=old_time_str, new_time=new_time_str,
                     meeting_link=interview.meeting_link
@@ -388,11 +416,23 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
     time_str = interview.scheduled_at.astimezone(tz).strftime("%B %d, %Y at %I:%M %p")
 
     # Send cancellation emails
+    # Fetch job role
+    job_role = "Position"
+    if interview.application_id:
+        job_result = await db.execute(
+            select(Job.title)
+            .join(Application, Application.job_id == Job.id)
+            .where(Application.id == interview.application_id)
+        )
+        job_role = job_result.scalar_one_or_none() or "Position"
+
     cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
     if cand:
         send_interview_cancellation(
             to_email=cand.email, to_name=cand.full_name,
-            candidate_name=cand.full_name, job_title=interview.title,
+            candidate_name=cand.full_name, 
+            round_name=interview.title,
+            job_role=job_role,
             company_name=org.name if org else "the team",
             scheduled_at=time_str, reason=reason
         )
@@ -403,7 +443,9 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
         if u:
             send_interview_cancellation(
                 to_email=u.email, to_name=u.full_name,
-                candidate_name=cand.full_name if cand else "Candidate", job_title=interview.title,
+                candidate_name=cand.full_name if cand else "Candidate", 
+                round_name=interview.title,
+                job_role=job_role,
                 company_name=org.name if org else "the team",
                 scheduled_at=time_str, reason=reason
             )
