@@ -41,6 +41,7 @@ class CandidateOut(OrmSchema):
     applied_job_title: str | None = None
     tags: list[str]
     hr_notes: str | None = None
+    talent_pool_comment: str | None = None
     source: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -74,6 +75,7 @@ class CandidateUpdate(BaseModel):
     blackout_dates: str | None = None
     weekend_interviews: bool | None = None
     hr_notes: str | None = None
+    talent_pool_comment: str | None = None
 
 class CandidateStageUpdate(BaseModel):
     pipeline_stage: str

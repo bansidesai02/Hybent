@@ -8,6 +8,7 @@ from app.dependencies import DB, AdminUser
 from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.utils.pagination import paginate
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
@@ -38,7 +39,7 @@ async def list_audit_logs(
         users_res = await db.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))
         users_map = {str(r[0]): r[1] for r in users_res.all()}
 
-    return paginate([
+    return APIResponse.success(message="Audit logs retrieved successfully.", data=paginate([
         {
             "id": str(log.id),
             "action": log.action,
@@ -51,7 +52,7 @@ async def list_audit_logs(
             "created_at": log.created_at.isoformat(),
         }
         for log in items
-    ], total, page, limit)
+    ], total, page, limit))
 
 
 @router.get("/stats")
@@ -66,4 +67,4 @@ async def org_stats(current_user: AdminUser, db: DB):
             User.is_active == True,
         )
     )).scalar()
-    return {"total_users": total_users, "active_users": active_users}
+    return APIResponse.success(message="Stats retrieved successfully.", data={"total_users": total_users, "active_users": active_users})

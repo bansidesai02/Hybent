@@ -138,15 +138,16 @@ export interface Candidate {
   created_by_name?: string | null
   invitations: Invitation[]
   tags: string[]
-  experience_years?: number | null
-  notice_period_days?: number | null
-  current_ctc?: number | null
-  expected_ctc?: number | null
+  experience_years?: string | null
+  notice_period_days?: string | null
+  current_ctc?: string | null
+  expected_ctc?: string | null
   work_mode_preference?: string | null
   availability_status?: string | null
-  interview_availability_days?: string[] | null
+  interview_availability_days?: string | null
   interview_time_slot?: string | null
   hr_notes?: string | null
+  talent_pool_comment?: string | null
 }
 
 export interface Invitation {

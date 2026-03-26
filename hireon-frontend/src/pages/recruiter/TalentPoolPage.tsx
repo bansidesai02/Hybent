@@ -76,7 +76,7 @@ function SuggestedMatchItem({ candidate, jobTitle, jobMatchScore }: {
           </div>
         </div>
       </div>
-      <Button size="sm" className="w-full sm:w-auto bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black px-6 py-2.5 shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:scale-105 active:scale-95">
+      <Button size="sm" className="w-full max-w-[150px] bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black px-6 py-2.5 shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:scale-105 active:scale-95">
         Re-engage
       </Button>
     </motion.div>
@@ -107,15 +107,15 @@ function AddCommentModal({
   onClose: () => void
   onSuccess: () => void
 }) {
-  const [comment, setComment] = useState(candidate.summary || '')
+  const [comment, setComment] = useState(candidate.talent_pool_comment || '')
 
   const mutation = useMutation({
-    mutationFn: () => candidatesApi.update(candidate.id, { summary: comment.trim() }),
+    mutationFn: () => candidatesApi.update(candidate.id, { talent_pool_comment: comment.trim() }),
     onSuccess,
   })
 
   return (
-    <Modal open onClose={onClose} title={`Add a Comment to ${candidate.full_name}`} size="sm">
+    <Modal open onClose={onClose} title={`${candidate.talent_pool_comment ? 'Edit Comment for' : 'Add a Comment to'} ${candidate.full_name}`} size="sm">
       <div className="space-y-4">
         <Input
           label="Comment"
@@ -124,7 +124,7 @@ function AddCommentModal({
           onChange={(e) => setComment(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && comment.trim() && mutation.mutate()}
         />
-        {mutation.isError && <p className="text-sm text-red-500">Failed to add comment.</p>}
+        {mutation.isError && <p className="text-sm text-red-500">Failed to save comment.</p>}
         <div className="flex gap-3 justify-end">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button
@@ -133,7 +133,7 @@ function AddCommentModal({
             loading={mutation.isPending}
             disabled={!comment.trim()}
           >
-            Add Comment
+            {candidate.talent_pool_comment ? 'Save Changes' : 'Add Comment'}
           </Button>
         </div>
       </div>
@@ -358,7 +358,7 @@ export default function TalentPoolPage() {
         ) : !data?.items.length ? (
           <EmptyState title="No candidates match your search" />
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {data.items.map((candidate, i) => (
               <motion.div
                 key={candidate.id}
@@ -366,38 +366,63 @@ export default function TalentPoolPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <Card hover className="p-6 rounded-3xl border-none shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all bg-white dark:bg-gray-900 group">
+                <Card hover className="p-6 rounded-3xl border-none shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all bg-white dark:bg-gray-900 group flex flex-col h-full">
                   <div className="flex justify-between items-start">
                     <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" className="ring-4 ring-violet-50 dark:ring-violet-900/20" />
                     <ScoreRing score={candidate.match_score} size={56} strokeWidth={4} />
                   </div>
-                  <div className="mt-6">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-violet-600 transition-colors">{candidate.full_name}</h3>
-                    <p className="text-sm font-medium text-gray-400 mt-1">{candidate.current_title || "Full Stack Developer"}</p>
+                  <div className="mt-4">
+                    <h3 className="text-lg font-bold text-violet-600 dark:text-violet-400 group-hover:text-violet-700 transition-colors">{candidate.full_name}</h3>
+                    <p className="text-sm font-medium text-gray-400 mt-0.5">{candidate.current_title || "Full Stack Developer"}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{candidate.years_experience} Yrs Exp</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{candidate.years_experience} YRS EXP</span>
                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Available</span>
+                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">AVAILABLE</span>
                     </div>
                   </div>
                   
-                  <div className="mt-6">
-                    <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate">
-                      {candidate.skills.length > 0 ? candidate.skills.join(' • ') : "No skills listed"}
+                  <div className="mt-4">
+                    <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider line-clamp-2">
+                      {candidate.skills?.length > 0 ? candidate.skills.join(' • ') : "NO SKILLS LISTED"}
                     </p>
                   </div>
 
-                  <div className="flex gap-2 mt-8">
+                  {(candidate.linkedin_url || candidate.github_url) && (
+                    <div className="mt-4 flex gap-2">
+                      {candidate.linkedin_url && (
+                        <a href={candidate.linkedin_url} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md hover:bg-blue-100 transition-colors">
+                          LinkedIn
+                        </a>
+                      )}
+                      {candidate.github_url && (
+                        <a href={candidate.github_url} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-md hover:bg-gray-200 transition-colors">
+                          GitHub
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {candidate.talent_pool_comment && (
+                     <div className="mt-6 p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl">
+                        <p className="text-[11px] font-medium text-violet-800 dark:text-violet-300 italic line-clamp-3">
+                           {candidate.talent_pool_comment}
+                        </p>
+                     </div>
+                  )}
+
+                  <div className="mt-auto pt-6 flex flex-col gap-2">
                       <Button 
                         variant="outline" 
-                        className="flex-1 rounded-xl text-xs font-bold border-gray-100 hover:bg-violet-50 hover:text-violet-600"
+                        className="w-full rounded-2xl text-xs font-bold text-violet-600 border border-violet-100 dark:border-violet-900/50 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors duration-200"
                         onClick={() => setCommentTarget(candidate)}
+                        style={{ height: '44px' }}
                       >
-                        Add a Comment
+                        {candidate.talent_pool_comment ? 'Edit Comment' : 'Add a Comment'}
                       </Button>
                       <Button 
-                        className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-bold hover:bg-violet-600 hover:text-white dark:hover:bg-violet-600"
+                        className="w-full bg-violet-500 hover:bg-violet-600 text-white rounded-2xl text-xs font-bold shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:-translate-y-0.5"
                         onClick={() => setViewTarget(candidate)}
+                        style={{ height: '44px' }}
                       >
                         View Profile
                       </Button>

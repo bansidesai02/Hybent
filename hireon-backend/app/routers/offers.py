@@ -13,6 +13,7 @@ from app.services.storage_service import save_offer_pdf
 from app.services.email_service import send_offer_email
 from app.utils.permissions import OfferStatus
 from app.services.activity_service import log_activity
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/offers", tags=["offers"])
 
@@ -22,7 +23,7 @@ async def list_offers(current_user: CurrentUser, db: DB):
     result = await db.execute(
         select(Offer).where(Offer.organization_id == current_user.organization_id)
     )
-    return [OfferOut.model_validate(o).model_dump() for o in result.scalars().all()]
+    return APIResponse.success(message="Offers retrieved successfully.", data=[OfferOut.model_validate(o).model_dump() for o in result.scalars().all()])
 
 
 @router.post("", response_model=OfferOut, status_code=201)
@@ -52,7 +53,7 @@ async def create_offer(data: OfferCreate, current_user: RecruiterUser, db: DB):
     )
     db.add(offer)
     await db.flush()
-    return OfferOut.model_validate(offer)
+    return APIResponse.success(message="Offer created successfully.", data=OfferOut.model_validate(offer), status_code=201)
 
 
 @router.get("/{offer_id}", response_model=OfferOut)
@@ -63,7 +64,7 @@ async def get_offer(offer_id: uuid.UUID, current_user: CurrentUser, db: DB):
     offer = result.scalar_one_or_none()
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
-    return OfferOut.model_validate(offer)
+    return APIResponse.success(message="Offer retrieved successfully.", data=OfferOut.model_validate(offer))
 
 
 @router.put("/{offer_id}", response_model=OfferOut)
@@ -78,7 +79,7 @@ async def update_offer(offer_id: uuid.UUID, data: OfferUpdate, current_user: Rec
         raise HTTPException(status_code=400, detail="Can only edit draft offers")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(offer, field, value)
-    return OfferOut.model_validate(offer)
+    return APIResponse.success(message="Offer updated successfully.", data=OfferOut.model_validate(offer))
 
 
 @router.post("/{offer_id}/generate-pdf", response_model=OfferOut)
@@ -116,7 +117,7 @@ async def generate_pdf(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB)
     offer.pdf_url = pdf_url
     offer.letter_content = offer.letter_content or html
 
-    return OfferOut.model_validate(offer)
+    return APIResponse.success(message="Offer PDF generated successfully.", data=OfferOut.model_validate(offer))
 
 
 @router.post("/{offer_id}/send", response_model=OfferOut)
@@ -155,7 +156,7 @@ async def send_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB):
         details={"position": offer.position_title}
     )
     
-    return OfferOut.model_validate(offer)
+    return APIResponse.success(message="Offer sent successfully.", data=OfferOut.model_validate(offer))
 
 
 @router.post("/{offer_id}/respond", response_model=OfferOut)
@@ -185,10 +186,10 @@ async def respond_to_offer(offer_id: uuid.UUID, data: OfferRespondRequest, curre
         details={"status": offer.status, "position": offer.position_title}
     )
     
-    return OfferOut.model_validate(offer)
+    return APIResponse.success(message="Offer responded successfully.", data=OfferOut.model_validate(offer))
 
 
-@router.delete("/{offer_id}", status_code=204)
+@router.delete("/{offer_id}")
 async def revoke_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB):
     result = await db.execute(
         select(Offer).where(Offer.id == offer_id, Offer.organization_id == current_user.organization_id)
@@ -197,3 +198,5 @@ async def revoke_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB)
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
     offer.status = OfferStatus.REVOKED
+    await db.commit()
+    return APIResponse.success(message="Offer revoked successfully.")

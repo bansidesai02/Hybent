@@ -656,7 +656,7 @@
 }
 
 .sb-header {
-  background: #ffffff;
+  background: transparent;
   padding: 24px 20px;
   margin-bottom: 8px;
 }

@@ -12,6 +12,7 @@ from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
 from app.services.match_scorer import evaluate_candidate_match
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
 
@@ -103,7 +104,7 @@ async def list_candidates(
             d["created_by_id"] = str(c.created_by.id)
         return d
 
-    return paginate([transform_candidate(c) for c in items], total, page, limit)
+    return APIResponse.success(message="Candidates retrieved successfully.", data=paginate([transform_candidate(c) for c in items], total, page, limit))
 
 
 # Mapping of detailed stages to high-level buckets
@@ -187,7 +188,7 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
 
         stages[bucket].append(transform_candidate(c))
         
-    return stages
+    return APIResponse.success(message="Pipeline stages retrieved successfully.", data=stages)
 
 
 @router.post("", response_model=CandidateOut, status_code=201)
@@ -238,7 +239,7 @@ async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, d
         {"candidate_id": str(candidate.id)}
     )
     
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Candidate created successfully.", data=CandidateOut.model_validate(candidate))
 
 
 @router.post("/invite", status_code=201)
@@ -295,11 +296,10 @@ async def invite_candidate(data: CandidateInvite, current_user: RecruiterUser, d
         {"candidate_id": str(candidate.id)}
     )
     
-    return {
-        "message": f"Secure invite sent successfully to {candidate.email}",
+    return APIResponse.success(message=f"Secure invite sent successfully to {candidate.email}", data={
         "candidate": CandidateOut.model_validate(candidate),
         "invitation_id": str(invitation.id)
-    }
+    })
 
 
 
@@ -313,7 +313,7 @@ async def get_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: 
     candidate = result.scalar_one_or_none()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Candidate fetched successfully.", data=CandidateOut.model_validate(candidate))
 
 
 from app.utils.permissions import REJECTION_STAGES
@@ -353,7 +353,7 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
         )
         
     await db.flush()
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Candidate updated successfully.", data=CandidateOut.model_validate(candidate))
 
 
 @router.patch("/{candidate_id}/stage", response_model=CandidateOut)
@@ -540,7 +540,7 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         details={"name": candidate.full_name, "from": old_stage, "to": data.pipeline_stage}
     )
 
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Candidate stage updated successfully.", data=CandidateOut.model_validate(candidate))
 
 
 @router.post("/{candidate_id}/reject", response_model=CandidateOut)
@@ -553,7 +553,7 @@ async def reject_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser,
     )
 
 
-@router.delete("/{candidate_id}", status_code=204)
+@router.delete("/{candidate_id}")
 async def delete_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser, db: DB):
     result = await db.execute(
         select(Candidate).where(
@@ -564,6 +564,8 @@ async def delete_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser,
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
     await db.delete(candidate)
+    await db.commit()
+    return APIResponse.success(message="Candidate deleted successfully.")
 
 
 @router.get("/{candidate_id}/applications")
@@ -576,4 +578,4 @@ async def get_candidate_applications(candidate_id: uuid.UUID, current_user: Curr
             Application.organization_id == current_user.organization_id,
         )
     )
-    return [ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()]
+    return APIResponse.success(message="Candidate applications retrieved.", data=[ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()])

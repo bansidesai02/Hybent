@@ -5,6 +5,7 @@ from app.dependencies import DB, CurrentUser, InterviewerUser
 from app.models.scorecard import Scorecard
 from app.models.interview import Interview
 from app.schemas.scorecard import ScorecardCreate, ScorecardOut
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/scorecards", tags=["scorecards"])
 
@@ -85,7 +86,7 @@ async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser,
 
     out = ScorecardOut.model_validate(scorecard).model_dump()
     out["submitted_by_name"] = current_user.full_name
-    return out
+    return APIResponse.success(message="Scorecard submitted.", data=out, status_code=201)
 
 
 @router.get("/interview/{interview_id}/my")
@@ -98,11 +99,11 @@ async def get_my_scorecard_for_interview(interview_id: uuid.UUID, current_user: 
     )
     sc = result.scalar_one_or_none()
     if not sc:
-        return None
+        return APIResponse.success(message="Scorecard retrieved.", data=None)
         
     d = ScorecardOut.model_validate(sc).model_dump()
     d["submitted_by_name"] = current_user.full_name
-    return d
+    return APIResponse.success(message="Scorecard retrieved.", data=d)
 
 
 @router.get("/application/{application_id}")
@@ -137,7 +138,7 @@ async def list_scorecards_for_application(application_id: uuid.UUID, current_use
         user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
         d["submitted_by_name"] = user.full_name if user else None
         out.append(d)
-    return out
+    return APIResponse.success(message="Scorecards retrieved.", data=out)
 
 
 @router.get("/{scorecard_id}", response_model=ScorecardOut)
@@ -155,4 +156,4 @@ async def get_scorecard(scorecard_id: uuid.UUID, current_user: CurrentUser, db: 
     user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
     d = ScorecardOut.model_validate(sc).model_dump()
     d["submitted_by_name"] = user.full_name if user else None
-    return d
+    return APIResponse.success(message="Scorecard retrieved.", data=d)

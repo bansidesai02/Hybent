@@ -61,8 +61,11 @@ class Candidate(Base):
     # Talent pool tags
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
 
-    # HR / Recruiter notes
+    # HR / Recruiter notes (shown in Candidate Profile → HR Confidential Notes)
     hr_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Talent Pool quick comment (shown on Talent Pool card)
+    talent_pool_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Job title they are currently being considered for (syncs with latest application)
     applied_job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)

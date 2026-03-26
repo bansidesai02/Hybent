@@ -6,6 +6,9 @@ import { Avatar } from '@/components/ui/Avatar'
 import { formatDate } from '@/utils/formatters'
 import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
+
 
 interface CandidateProfileViewProps {
   candidate: Candidate
@@ -257,69 +260,175 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
 // ─── Details Tab ─────────────────────────────────────────────────────────────
 
 function DetailsTab({ candidate }: { candidate: Candidate }) {
+  const [isEditing, setIsEditing] = useState(false)
   const [notes, setNotes] = useState(candidate.hr_notes || '')
+  
+  const [formData, setFormData] = useState({
+    phone: candidate.phone || '',
+    email: candidate.email || '',
+    location: candidate.location || '',
+    experience_years: candidate.experience_years || '',
+    notice_period_days: candidate.notice_period_days || '',
+    current_ctc: candidate.current_ctc || '',
+    expected_ctc: candidate.expected_ctc || '',
+    availability_status: candidate.availability_status || '',
+    interview_availability_days: candidate.interview_availability_days || '',
+    interview_time_slot: candidate.interview_time_slot || '',
+    linkedin_url: candidate.linkedin_url || '',
+    github_url: candidate.github_url || '',
+    portfolio_url: candidate.portfolio_url || '',
+  })
+
   const queryClient = useQueryClient()
 
   useEffect(() => {
     setNotes(candidate.hr_notes || '')
-  }, [candidate.hr_notes])
+    setFormData({
+      phone: candidate.phone || '',
+      email: candidate.email || '',
+      location: candidate.location || '',
+      experience_years: candidate.experience_years || '',
+      notice_period_days: candidate.notice_period_days || '',
+      current_ctc: candidate.current_ctc || '',
+      expected_ctc: candidate.expected_ctc || '',
+      availability_status: candidate.availability_status || '',
+      interview_availability_days: candidate.interview_availability_days || '',
+      interview_time_slot: candidate.interview_time_slot || '',
+      linkedin_url: candidate.linkedin_url || '',
+      github_url: candidate.github_url || '',
+      portfolio_url: candidate.portfolio_url || '',
+    })
+  }, [candidate])
+
+  const saveDetailsMutation = useMutation({
+    mutationFn: (data: typeof formData) => candidatesApi.update(candidate.id, data),
+    onSuccess: () => {
+      toast.success('Candidate details updated')
+      setIsEditing(false)
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] })
+    },
+    onError: () => toast.error('Failed to update details')
+  })
 
   const saveNotesMutation = useMutation({
     mutationFn: (newNotes: string) => candidatesApi.update(candidate.id, { hr_notes: newNotes }),
     onSuccess: () => {
       toast.success('Notes saved')
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] })
     },
-    onError: () => {
-      toast.error('Failed to save notes')
-    }
+    onError: () => toast.error('Failed to save notes')
   })
 
-  // Handle auto-save on blur
-  const handleBlur = () => {
+  const handleBlurNotes = () => {
     if (notes !== (candidate.hr_notes || '')) {
       saveNotesMutation.mutate(notes)
     }
   }
 
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Stats Quick Info */}
-      <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
-        {candidate.phone && (
-          <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-            <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📞 Phone Number</p>
-            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.phone}</p>
+      
+      {/* HEADER WITH EDIT TOGGLE */}
+      <div className="flex justify-between items-center -mb-2">
+        <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          Personal Information
+        </p>
+        {!isEditing ? (
+          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 rounded-xl text-xs h-8">
+            Edit Details
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="gap-2 rounded-xl text-xs h-8">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={() => saveDetailsMutation.mutate(formData)} loading={saveDetailsMutation.isPending} className="gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-xs h-8">
+              Save Changes
+            </Button>
           </div>
         )}
-        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>✉ Email ID</p>
-          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{candidate.email}</p>
-        </div>
-        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>🎯 Experience</p>
-          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.years_experience != null ? `${candidate.years_experience} Yrs` : 'N/A'}</p>
-        </div>
-        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📍 Location</p>
-          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.location || 'Remote'}</p>
-        </div>
-        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📅 Added On</p>
-          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{formatDate(candidate.created_at)}</p>
-        </div>
-        <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>🔗 Source</p>
-          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.source || 'Sourced'}</p>
-        </div>
       </div>
 
+      {isEditing ? (
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Phone" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="+1 555-0000" />
+            <Input label="Location" value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} placeholder="City, Country" />
+            <Input label="Experience" value={formData.experience_years} onChange={(e) => handleInputChange('experience_years', e.target.value)} placeholder="e.g. 5 Years" />
+            <Input label="Notice Period" value={formData.notice_period_days} onChange={(e) => handleInputChange('notice_period_days', e.target.value)} placeholder="e.g. 30 Days" />
+            <Input label="Current CTC" value={formData.current_ctc} onChange={(e) => handleInputChange('current_ctc', e.target.value)} placeholder="e.g. ₹22,00,000" />
+            <Input label="Expected CTC" value={formData.expected_ctc} onChange={(e) => handleInputChange('expected_ctc', e.target.value)} placeholder="e.g. ₹32,00,000" />
+            <Input label="You will able to join within" value={formData.availability_status} onChange={(e) => handleInputChange('availability_status', e.target.value)} placeholder="e.g. 15 Days" />
+          </div>
 
+          <div className="flex flex-col gap-4 mt-2 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">📅 Interview Availability</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {[candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'Not provided by candidate'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">🔗 Social Links</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input label="LinkedIn URL" value={formData.linkedin_url} onChange={(e) => handleInputChange('linkedin_url', e.target.value)} placeholder="linkedin.com/in/username" />
+                <Input label="GitHub URL" value={formData.github_url} onChange={(e) => handleInputChange('github_url', e.target.value)} placeholder="github.com/username" />
+                <Input label="Portfolio URL" value={formData.portfolio_url} onChange={(e) => handleInputChange('portfolio_url', e.target.value)} placeholder="https://yoursite.com" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col sm:grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {[
+              { label: '📞 Phone Number', value: candidate.phone, show: !!candidate.phone },
+              { label: '✉ Email ID', value: candidate.email, show: true },
+              { label: '🎯 Experience', value: candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} Yrs` : null) || 'N/A', show: true },
+              { label: '📍 Location', value: candidate.location || 'Remote', show: true },
+              { label: '⏳ Notice Period', value: candidate.notice_period_days || 'N/A', show: true },
+              { label: '💰 Current CTC', value: candidate.current_ctc || 'N/A', show: true },
+              { label: '💰 Expected CTC', value: candidate.expected_ctc || 'N/A', show: true },
+              { label: '📅 Pref. Interview', value: [candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'N/A', show: !!(candidate.interview_availability_days || candidate.interview_time_slot) },
+              { label: '🔗 Source', value: candidate.source || 'Sourced', show: true },
+            ].filter(f => f.show).map((item, i) => (
+              <div key={i} style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+                <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>{item.label}</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word' }}>{item.value}</p>
+              </div>
+            ))}
+          </div>
 
-      {/* Technical Expertise Title removed as it's below */}
+          {/* Social Links — always visible, show Add if missing */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginRight: 4 }}>🔗 Links:</p>
+            {candidate.linkedin_url ? (
+              <a href={candidate.linkedin_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">LinkedIn Profile ↗</a>
+            ) : (
+              <button onClick={() => setIsEditing(true)} className="text-xs font-bold px-3 py-1.5 border border-dashed border-blue-200 text-blue-400 rounded-lg hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors">+ Add LinkedIn</button>
+            )}
+            {candidate.github_url ? (
+              <a href={candidate.github_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">GitHub Profile ↗</a>
+            ) : (
+              <button onClick={() => setIsEditing(true)} className="text-xs font-bold px-3 py-1.5 border border-dashed border-gray-200 text-gray-400 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600 transition-colors">+ Add GitHub</button>
+            )}
+            {candidate.portfolio_url ? (
+              <a href={candidate.portfolio_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-100 transition-colors">Portfolio ↗</a>
+            ) : (
+              <button onClick={() => setIsEditing(true)} className="text-xs font-bold px-3 py-1.5 border border-dashed border-violet-200 text-violet-400 rounded-lg hover:bg-violet-50 hover:border-violet-400 hover:text-violet-600 transition-colors">+ Add Portfolio</button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Skills Section */}
-      {Boolean(candidate.skills && candidate.skills.length > 0) && (
+      {!isEditing && Boolean(candidate.skills && candidate.skills.length > 0) && (
         <div>
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
             Technical Expertise <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
@@ -335,7 +444,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
       )}
 
       {/* Work Experience */}
-      {Boolean(candidate.parsed_data?.experience && Array.isArray(candidate.parsed_data.experience) && (candidate.parsed_data.experience as any[]).length > 0) && (
+      {!isEditing && Boolean(candidate.parsed_data?.experience && Array.isArray(candidate.parsed_data.experience) && (candidate.parsed_data.experience as any[]).length > 0) && (
         <div>
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
             Career Journey <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
@@ -354,7 +463,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
       )}
 
       {/* Education */}
-      {Boolean(candidate.parsed_data?.education && Array.isArray(candidate.parsed_data.education) && (candidate.parsed_data.education as any[]).length > 0) && (
+      {!isEditing && Boolean(candidate.parsed_data?.education && Array.isArray(candidate.parsed_data.education) && (candidate.parsed_data.education as any[]).length > 0) && (
         <div>
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
             Academic Foundation <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
@@ -374,45 +483,47 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
       )}
 
       {/* HR Notes section */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
-            📝 HR Confidential Notes
+      {!isEditing && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
+              📝 HR Confidential Notes
+            </p>
+            {saveNotesMutation.isPending && <span style={{ fontSize: 11, color: '#6c47ff', fontWeight: 600 }}>Saving...</span>}
+          </div>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={handleBlurNotes}
+            placeholder="Add private notes about this candidate here. These notes are only visible to your team..."
+            style={{
+              width: '100%',
+              minHeight: 120,
+              padding: '14px 16px',
+              borderRadius: 14,
+              border: '1px solid rgba(0,0,0,0.1)',
+              background: 'rgba(0,0,0,0.01)',
+              fontSize: 13,
+              color: 'var(--text)',
+              resize: 'vertical',
+              fontFamily: 'inherit',
+              lineHeight: 1.5,
+              transition: 'border-color 0.2s, background 0.2s',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#6c47ff'
+              e.currentTarget.style.background = '#fff'
+            }}
+            onBlurCapture={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'
+              e.currentTarget.style.background = 'rgba(0,0,0,0.01)'
+            }}
+          />
+          <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 8, fontStyle: 'italic' }}>
+            Notes auto-save when you click outside the text box.
           </p>
-          {saveNotesMutation.isPending && <span style={{ fontSize: 11, color: '#6c47ff', fontWeight: 600 }}>Saving...</span>}
         </div>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={handleBlur}
-          placeholder="Add private notes about this candidate here. These notes are only visible to your team..."
-          style={{
-            width: '100%',
-            minHeight: 120,
-            padding: '14px 16px',
-            borderRadius: 14,
-            border: '1px solid rgba(0,0,0,0.1)',
-            background: 'rgba(0,0,0,0.01)',
-            fontSize: 13,
-            color: 'var(--text)',
-            resize: 'vertical',
-            fontFamily: 'inherit',
-            lineHeight: 1.5,
-            transition: 'border-color 0.2s, background 0.2s',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = '#6c47ff'
-            e.currentTarget.style.background = '#fff'
-          }}
-          onBlurCapture={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'
-            e.currentTarget.style.background = 'rgba(0,0,0,0.01)'
-          }}
-        />
-        <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 8, fontStyle: 'italic' }}>
-          Notes auto-save when you click outside the text box.
-        </p>
-      </div>
+      )}
 
     </div>
   )

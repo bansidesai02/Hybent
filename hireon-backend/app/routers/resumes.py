@@ -9,6 +9,7 @@ from app.schemas.candidate import CandidateOut
 from app.services.storage_service import save_resume, read_file_bytes
 from app.services.resume_parser import parse_resume
 from app.services.activity_service import log_activity
+from app.schemas.response import APIResponse
 
 
 
@@ -70,7 +71,7 @@ async def upload_resume(
     if parsed.get("location") and not candidate.location:
         candidate.location = parsed["location"]
 
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Resume uploaded successfully.", data=CandidateOut.model_validate(candidate))
 
 
 @router.post("/upload-and-create", response_model=CandidateOut, status_code=201)
@@ -204,4 +205,4 @@ async def upload_and_create(
         details={"name": candidate.full_name}
     )
 
-    return CandidateOut.model_validate(candidate)
+    return APIResponse.success(message="Candidate created successfully.", data=CandidateOut.model_validate(candidate), status_code=201)

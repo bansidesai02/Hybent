@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Response
 from app.dependencies import DB
 from app.schemas.invitation import InvitationOut, InvitationVerify, InvitationUse
 from app.services import invitation_service
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/invitations", tags=["invitations"])
 
@@ -13,7 +14,7 @@ async def verify_invitation(token: str, db: DB):
     candidate = await invitation.load_candidate(db)
     out = InvitationOut.model_validate(invitation)
     out.full_name = candidate.full_name if candidate else ""
-    return out
+    return APIResponse.success(message="Invitation verified.", data=out)
 
 @router.post("/use/{token}")
 async def use_invitation(token: str, data: InvitationUse, response: Response, db: DB):
@@ -31,4 +32,4 @@ async def use_invitation(token: str, data: InvitationUse, response: Response, db
             max_age=30 * 24 * 3600,
             path="/v1/auth/refresh",
         )
-    return result
+    return APIResponse.success(message="Invitation used successfully.", data=result)

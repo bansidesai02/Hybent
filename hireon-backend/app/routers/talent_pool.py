@@ -8,6 +8,7 @@ from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut
 from app.utils.pagination import paginate
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/talent-pool", tags=["talent_pool"])
 
@@ -43,7 +44,7 @@ async def list_talent_pool(
         query.order_by(Candidate.match_score.desc().nulls_last()).offset((page - 1) * limit).limit(limit)
     )).scalars().all()
 
-    return paginate([CandidateOut.model_validate(c).model_dump() for c in items], total, page, limit)
+    return APIResponse.success(message="Talent pool retrieved.", data=paginate([CandidateOut.model_validate(c).model_dump() for c in items], total, page, limit))
 
 
 @router.get("/stats")
@@ -69,11 +70,11 @@ async def get_talent_stats(current_user: CurrentUser, db: DB):
     # real logic would compute delta between candidate created_at and application created_at for hired ones
     avg_hire_time = "2.1d" 
 
-    return {
+    return APIResponse.success(message="Talent stats retrieved.", data={
         "total_candidates": total_candidates,
         "re_matched_count": re_matched_count,
         "avg_hire_time": avg_hire_time
-    }
+    })
 
 
 @router.get("/suggested-matches")
@@ -95,7 +96,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
     active_jobs = jobs_res.scalars().all()
 
     if not active_jobs:
-        return []
+        return APIResponse.success(message="Suggested matches retrieved.", data=[])
 
     results = []
     for job in active_jobs:
@@ -131,7 +132,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
                 "candidates": job_suggestions
             })
 
-    return results
+    return APIResponse.success(message="Suggested matches retrieved.", data=results)
 
 
 @router.post("/{candidate_id}/tag")
@@ -148,4 +149,4 @@ async def add_tag(candidate_id: uuid.UUID, tag: str, current_user: RecruiterUser
         raise HTTPException(status_code=404, detail="Candidate not found")
     if tag not in candidate.tags:
         candidate.tags = [*candidate.tags, tag]
-    return {"tags": candidate.tags}
+    return APIResponse.success(message="Tag added.", data={"tags": candidate.tags})

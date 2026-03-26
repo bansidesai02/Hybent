@@ -17,6 +17,7 @@ from app.services.email_service import (
 from app.utils.permissions import InterviewStatus, NotificationType
 from app.tasks.notifications import notify_interview_team
 from app.services.activity_service import log_activity
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/interviews", tags=["interviews"])
 
@@ -71,7 +72,7 @@ async def list_interviews(current_user: CurrentUser, db: DB):
             })
         d["panelists"] = panelist_out
         out.append(d)
-    return out
+    return APIResponse.success(message="Interviews retrieved successfully.", data=out)
 
 
 @router.post("/{interview_id}/confirm", response_model=dict)
@@ -87,7 +88,7 @@ async def confirm_interview(interview_id: uuid.UUID, current_user: CurrentUser, 
     
     interview.is_confirmed = True
     await db.commit()
-    return {"status": "success", "is_confirmed": True}
+    return APIResponse.success(message="Interview confirmed successfully.", data={"is_confirmed": True})
 
 
 @router.post("", response_model=dict, status_code=201)
@@ -226,7 +227,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     d = _interview_out(interview, panelist_out)
     d["candidate_name"] = candidate.full_name
     d["candidate_email"] = candidate.email
-    return d
+    return APIResponse.success(message="Interview scheduled successfully.", data=d)
 
 
 @router.get("/{interview_id}")
@@ -259,7 +260,7 @@ async def get_interview(interview_id: uuid.UUID, current_user: CurrentUser, db: 
     if cand:
         d["candidate_name"] = cand.full_name
         d["candidate_email"] = cand.email
-    return d
+    return APIResponse.success(message="Interview retrieved successfully.", data=d)
 
 
 @router.put("/{interview_id}", response_model=dict)
@@ -363,10 +364,10 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
                     meeting_link=interview.meeting_link
                 )
 
-    return InterviewOut.model_validate(interview).model_dump()
+    return APIResponse.success(message="Interview updated successfully.", data=InterviewOut.model_validate(interview).model_dump())
 
 
-@router.delete("/{interview_id}", status_code=204)
+@router.delete("/{interview_id}")
 async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser, db: DB, reason: str | None = None):
     result = await db.execute(
         select(Interview).where(
@@ -418,3 +419,4 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
 
     if interview.calendar_event_id:
         await cancel_calendar_event(interview.calendar_event_id, current_user.google_refresh_token)
+    return APIResponse.success(message="Interview cancelled successfully.")

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.dependencies import get_db, CurrentUser
 from app.models.user import User
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/calendar", tags=["calendar"])
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ async def google_calendar_auth(current_user: CurrentUser):
     auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
     logger.info(f"Generated manual auth URL for user {current_user.email}")
     
-    return {"auth_url": auth_url}
+    return APIResponse.success(message="Calendar auth URL generated.", data={"auth_url": auth_url})
 
 
 @router.get("/callback")
