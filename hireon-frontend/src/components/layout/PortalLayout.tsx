@@ -39,8 +39,7 @@ export function PortalLayout() {
 
   const { data: applications } = useQuery({
     queryKey: ['portal', 'applications'],
-    queryFn: () => portalApi.myApplications().then(r => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
 
   // Stages that unlock the Offers & Documents section

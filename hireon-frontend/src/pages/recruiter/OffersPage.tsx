@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { AnimatePresence, motion } from 'framer-motion'
 import { offersApi } from '@/api/offers'
 import api from '@/api/axios'
-import type { Offer } from '@/types'
+import type { Offer, Application, PaginatedResponse } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { OfferStatusBadge } from '@/components/ui/Badge'
@@ -68,8 +68,7 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   // Fetch applications for the dropdown - broadening to all to ensure we find candidates
   const { data: applicationsPaged, isLoading: loadingApps } = useQuery({
     queryKey: ['applications-for-offer'],
-    queryFn: () => api.get<{ items: any[] }>('/v1/applications?limit=100').then(r => r.data).catch(() => ({ items: [] })),
-    refetchInterval: 30_000,
+    queryFn: () => api.get<PaginatedResponse<Application>>('/v1/applications?limit=100').then((r) => r.data).catch(() => ({ items: [] as Application[] })),
   })
 
   const selectedAppId = watch('application_id')
@@ -87,7 +86,7 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
     ]
 
     // Filter for candidates in relevant stages
-    const relevantApps = applicationsPaged.items.filter(app => {
+    const relevantApps = (applicationsPaged?.items || []).filter((app: Application) => {
       const stage = (app.stage || '').toLowerCase()
       const candStage = (app.candidate?.pipeline_stage || '').toLowerCase()
       
@@ -100,7 +99,7 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
 
     return [
       { value: '', label: 'Select a candidate...' },
-      ...relevantApps.map(app => ({
+      ...relevantApps.map((app: Application) => ({
         value: app.id,
         label: `${app.candidate?.full_name || 'Unknown'} - ${app.job?.title || 'Unknown Job'} (${app.id.slice(-6)})`
       }))
@@ -110,7 +109,7 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   // Automatically set position title when application is selected
   useEffect(() => {
     if (selectedAppId && applicationsPaged?.items) {
-      const selected = applicationsPaged.items.find(app => app.id === selectedAppId)
+      const selected = applicationsPaged.items.find((app: Application) => app.id === selectedAppId)
       if (selected?.job?.title) {
         setValue('position_title', selected.job.title)
       }
@@ -240,7 +239,6 @@ export default function OffersPage() {
   const { data: offers, isLoading, isError } = useQuery({
     queryKey: ['offers'],
     queryFn: () => offersApi.list().then((r) => r.data),
-    refetchInterval: 30_000,
   })
 
   // Calculate Stats
@@ -248,9 +246,9 @@ export default function OffersPage() {
     if (!offers) return { total: 0, accepted: 0, pending: 0, declined: 0 }
     return {
       total: offers.length,
-      accepted: offers.filter(o => o.status === 'accepted').length,
-      pending: offers.filter(o => ['draft', 'sent'].includes(o.status)).length,
-      declined: offers.filter(o => o.status === 'declined').length,
+      accepted: offers.filter((o: Offer) => o.status === 'accepted').length,
+      pending: offers.filter((o: Offer) => ['draft', 'sent'].includes(o.status)).length,
+      declined: offers.filter((o: Offer) => o.status === 'declined').length,
     }
   }, [offers])
 

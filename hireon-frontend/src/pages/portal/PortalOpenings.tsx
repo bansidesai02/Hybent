@@ -14,13 +14,11 @@ export default function PortalOpenings() {
   const { data: jobs, isLoading: jobsLoading } = useQuery<Job[]>({
     queryKey: ['portal', 'jobs'],
     queryFn: () => portalApi.jobs().then((r: any) => r.data),
-    refetchInterval: 30_000,
   })
 
   const { data: applications } = useQuery<Application[]>({
     queryKey: ['portal', 'applications'],
     queryFn: () => portalApi.myApplications().then((r: any) => r.data),
-    refetchInterval: 30_000,
   })
 
   // Map of job_id -> boolean to check if user already applied

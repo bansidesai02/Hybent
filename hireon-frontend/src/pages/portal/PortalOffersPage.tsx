@@ -177,8 +177,7 @@ export default function PortalOffersPage() {
   ]
   const { data: applications, isLoading: appsLoading } = useQuery({
     queryKey: ['portal', 'applications'],
-    queryFn: () => portalApi.myApplications().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
   const offersUnlocked = applications?.some(
     (a: any) => OFFER_ELIGIBLE_STAGES.includes(a.stage) || OFFER_ELIGIBLE_STAGES.includes(a.candidate?.pipeline_stage)
@@ -186,8 +185,7 @@ export default function PortalOffersPage() {
 
   const { data: offers, isLoading, isError } = useQuery({
     queryKey: ['portal', 'offers'],
-    queryFn: () => portalApi.myOffers().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => portalApi.myOffers().then((r: any) => r.data),
     enabled: offersUnlocked,
   })
 
@@ -204,7 +202,7 @@ export default function PortalOffersPage() {
   })
 
   // Has accepted offer? Check if we should render doc tracker section.
-  const hasAccepted = offers?.some(o => o.status === 'accepted') || false;
+  const hasAccepted = offers?.some((o: any) => o.status === 'accepted') || false;
 
   // Silently redirect if not yet eligible
   useEffect(() => {
@@ -234,7 +232,7 @@ export default function PortalOffersPage() {
                   <div style={{ fontSize: 13 }}>When a company extends you an offer, it will appear here.</div>
                </div>
             ) : (
-              offers?.map((offer) => (
+              offers?.map((offer: any) => (
                 <OfferCard
                   key={offer.id}
                   offer={offer}

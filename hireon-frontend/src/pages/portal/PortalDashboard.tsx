@@ -134,13 +134,13 @@ export default function PortalDashboard() {
 
   const { data: applications, isLoading: appsLoading } = useQuery({
     queryKey: ['portal', 'applications'],
-    queryFn: () => portalApi.myApplications().then((r) => r.data),
+    queryFn: () => portalApi.myApplications().then((r: any) => r.data),
     refetchInterval: 30_000,
   })
 
   const { data: interviews, isLoading: intLoading } = useQuery({
     queryKey: ['portal', 'interviews'],
-    queryFn: () => portalApi.myInterviews().then((r) => r.data),
+    queryFn: () => portalApi.myInterviews().then((r: any) => r.data),
     refetchInterval: 30_000,
   })
 
@@ -148,7 +148,7 @@ export default function PortalDashboard() {
   // an Application record exists (invite-only flow, no job linked yet)
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['portal', 'profile'],
-    queryFn: () => portalApi.profile().then((r) => r.data),
+    queryFn: () => portalApi.profile().then((r: any) => r.data),
     refetchInterval: 30_000,
   })
 
@@ -156,7 +156,7 @@ export default function PortalDashboard() {
     return <div className="p-8 text-center text-[var(--text-lite)]">Loading application journey...</div>
   }
 
-  const activeApp = applications?.find(a => !['hired', 'rejected'].includes(a.stage)) || applications?.[0]
+  const activeApp = applications?.find((a: any) => !['hired', 'rejected'].includes(a.stage)) || applications?.[0]
 
   // If no Application record yet but recruiter set a pipeline_stage on the candidate,
   // build a synthetic display object so the tracker renders correctly

@@ -18,6 +18,6 @@ export const jobsApi = {
     formData.append('file', file)
     return api.post<any>('/v1/jobs/parse-jd', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-    }).then(r => r.data)
+    }).then((r: any) => r.data)
   },
 }

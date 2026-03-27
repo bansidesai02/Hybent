@@ -189,23 +189,20 @@ export default function OverviewPage() {
   const { user } = useAuthStore()
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ['analytics', 'overview'],
-    queryFn: () => analyticsApi.overview().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => analyticsApi.overview().then((r: any) => r.data),
   })
 
   const { data: activitiesData, isLoading: activitiesLoading } = useQuery({
     queryKey: ['recent-activities-legacy'],
-    queryFn: () => notificationsApi.list().then((r) => r.data),
-    refetchInterval: 30000,
+    queryFn: () => notificationsApi.list().then((r: any) => r.data),
   })
 
   const { data: interviews, isLoading: interviewsLoading } = useQuery({
     queryKey: ['interviews', 'today'],
-    queryFn: () => interviewsApi.list().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => interviewsApi.list().then((r: any) => r.data),
   })
 
-  const todayInterviews = interviews?.filter(i => isToday(new Date(i.scheduled_at))) || []
+  const todayInterviews = interviews?.filter((i: any) => isToday(new Date(i.scheduled_at))) || []
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -363,7 +360,7 @@ export default function OverviewPage() {
           </div>
         ) : todayInterviews.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {todayInterviews.map((int) => (
+            {todayInterviews.map((int: any) => (
               <InterviewCard
                 key={int.id}
                 time={format(new Date(int.scheduled_at), 'hh:mm a')}

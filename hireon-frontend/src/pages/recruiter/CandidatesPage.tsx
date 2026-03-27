@@ -376,14 +376,12 @@ export default function CandidatesPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['candidates', queryParams],
-    queryFn: () => candidatesApi.list(queryParams).then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => candidatesApi.list(queryParams).then((r: any) => r.data),
   })
 
   const { data: activeJobs } = useQuery({
     queryKey: ['jobs', 'active'],
     queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r: any) => r.data.items),
-    refetchInterval: 30_000,
   })
 
   const handleAddToPipeline = async (candidateId: string, jobId: string) => {
@@ -566,7 +564,7 @@ export default function CandidatesPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 80 }}>
-            {displayItems.map((candidate, i) => {
+            {displayItems.map((candidate: any, i: number) => {
               const stage = candidate.pipeline_stage
               const stageCfg = stage ? STAGE_CFG[stage] : null
               const hasInvitation = candidate.invitations?.length > 0
@@ -644,7 +642,7 @@ export default function CandidatesPage() {
                     {/* Skills */}
                     <div className="lg:flex items-center gap-1.5 flex-wrap min-w-[120px]">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5 w-full">Skills</span>
-                      {candidate.skills.slice(0, 2).map((skill) => (
+                      {candidate.skills.slice(0, 2).map((skill: any) => (
                         <span key={skill} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.08)', color: '#6c47ff' }}>
                           {skill}
                         </span>

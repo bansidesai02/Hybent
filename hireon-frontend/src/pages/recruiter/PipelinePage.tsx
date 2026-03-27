@@ -73,8 +73,7 @@ function ScorecardItem({ scorecard }: { scorecard: Scorecard }) {
 function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => void }) {
   const { data: scorecards, isLoading: scLoading } = useQuery({
     queryKey: ['scorecards', 'candidate', card.id],
-    queryFn: () => scorecardsApi.getForApplication(card.id).then(r => r.data).catch(() => []), // Fallback to card ID as global view doesn't have application IDs yet
-    refetchInterval: 30_000,
+    queryFn: () => scorecardsApi.getForApplication(card.id).then((r) => r.data).catch(() => []), // Fallback to card ID as global view doesn't have application IDs yet
   })
 
   return (
@@ -129,13 +128,13 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
 
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
             {scLoading ? (
-              [1, 2].map(i => <Skeleton key={i} className="h-48 w-full rounded-2xl" />)
+              [1, 2].map((i: number) => <Skeleton key={i} className="h-48 w-full rounded-2xl" />)
             ) : !scorecards || scorecards.length === 0 ? (
               <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/30 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
                 <p className="text-sm text-gray-400 italic">No evaluations submitted yet.</p>
               </div>
             ) : (
-              scorecards.map((sc) => <ScorecardItem key={sc.id} scorecard={sc} />)
+              scorecards.map((sc: Scorecard) => <ScorecardItem key={sc.id} scorecard={sc} />)
             )}
           </div>
         </div>
@@ -180,7 +179,6 @@ export default function PipelinePage() {
   const { data: pipelineStages, isLoading } = useQuery({
     queryKey: ['candidates_pipeline'],
     queryFn: () => candidatesApi.getPipeline().then((r) => r.data),
-    refetchInterval: 30_000,
   })
 
   const mapCandidateToCard = useCallback((c: any): KanbanCard => {

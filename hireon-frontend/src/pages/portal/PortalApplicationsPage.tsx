@@ -104,8 +104,7 @@ function StageBar({ stage }: { stage: string }) {
 export default function PortalApplicationsPage() {
   const { data: applications, isLoading, isError } = useQuery({
     queryKey: ['portal', 'applications'],
-    queryFn: () => portalApi.myApplications().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
 
   return (
@@ -184,7 +183,7 @@ export default function PortalApplicationsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {applications.map((app) => (
+          {applications.map((app: any) => (
             <div
               key={app.id}
               style={{
