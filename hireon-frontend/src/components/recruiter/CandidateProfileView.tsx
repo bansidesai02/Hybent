@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import type { Candidate, Scorecard } from '@/types'
@@ -260,6 +261,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
 // ─── Details Tab ─────────────────────────────────────────────────────────────
 
 function DetailsTab({ candidate }: { candidate: Candidate }) {
+  const { user } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [notes, setNotes] = useState(candidate.hr_notes || '')
   
@@ -340,9 +342,11 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
           Personal Information
         </p>
         {!isEditing ? (
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 rounded-xl text-xs h-8">
-            Edit Details
-          </Button>
+          user?.role === 'admin' && (
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 rounded-xl text-xs h-8">
+              Edit Details
+            </Button>
+          )
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="gap-2 rounded-xl text-xs h-8">

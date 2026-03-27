@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select, func
-from app.dependencies import DB, CurrentUser, RecruiterUser
+from app.dependencies import DB, CurrentUser, RecruiterUser, AdminUser
 from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate
 from app.services.email_service import send_candidate_invite
@@ -319,7 +319,7 @@ async def get_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: 
 from app.utils.permissions import REJECTION_STAGES
 
 @router.put("/{candidate_id}", response_model=CandidateOut)
-async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: RecruiterUser, db: DB):
+async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: AdminUser, db: DB):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -332,6 +332,10 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
     old_stage = candidate.pipeline_stage
     update_data = data.model_dump(exclude_none=True)
     new_stage = update_data.get("pipeline_stage")
+
+    # Track comment/note changes before applying
+    old_hr_notes = candidate.hr_notes
+    old_talent_pool_comment = candidate.talent_pool_comment
     
     for field, value in update_data.items():
         setattr(candidate, field, value)
@@ -353,6 +357,44 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
         )
         
     await db.flush()
+
+    # Log HR notes change
+    if "hr_notes" in update_data and update_data["hr_notes"] != old_hr_notes:
+        await log_activity(
+            db,
+            organization_id=current_user.organization_id,
+            user_id=current_user.id,
+            action="ADD_COMMENT",
+            resource_type="hr_note",
+            resource_id=str(candidate_id),
+            details={"candidate": candidate.full_name, "note": (update_data["hr_notes"] or "")[:120]}
+        )
+
+    # Log talent pool comment change
+    if "talent_pool_comment" in update_data and update_data["talent_pool_comment"] != old_talent_pool_comment:
+        await log_activity(
+            db,
+            organization_id=current_user.organization_id,
+            user_id=current_user.id,
+            action="ADD_COMMENT",
+            resource_type="comment",
+            resource_id=str(candidate_id),
+            details={"candidate": candidate.full_name, "comment": (update_data["talent_pool_comment"] or "")[:120]}
+        )
+
+    # Log general update (only if non-comment fields changed)
+    non_comment_fields = {k for k in update_data if k not in ("hr_notes", "talent_pool_comment")}
+    if non_comment_fields:
+        await log_activity(
+            db,
+            organization_id=current_user.organization_id,
+            user_id=current_user.id,
+            action="UPDATE",
+            resource_type="candidate",
+            resource_id=str(candidate_id),
+            details={"name": candidate.full_name, "fields": list(non_comment_fields)[:5]}
+        )
+
     return APIResponse.success(message="Candidate updated successfully.", data=CandidateOut.model_validate(candidate))
 
 
@@ -554,7 +596,7 @@ async def reject_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser,
 
 
 @router.delete("/{candidate_id}")
-async def delete_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+async def delete_candidate(candidate_id: uuid.UUID, current_user: AdminUser, db: DB):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -563,6 +605,18 @@ async def delete_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser,
     candidate = result.scalar_one_or_none()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Log deletion before removing the record so we can capture the name
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="DELETE",
+        resource_type="candidate",
+        resource_id=str(candidate_id),
+        details={"name": candidate.full_name, "email": candidate.email}
+    )
+
     await db.delete(candidate)
     await db.commit()
     return APIResponse.success(message="Candidate deleted successfully.")

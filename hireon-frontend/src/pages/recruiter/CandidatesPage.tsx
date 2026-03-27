@@ -210,6 +210,7 @@ function CandidateActionsDropdown({
   onDelete,
   onInactivate,
   onClose,
+  user,
 }: {
   candidateId: string
   currentStage: string
@@ -217,6 +218,7 @@ function CandidateActionsDropdown({
   onDelete: (id: string) => void
   onInactivate: (id: string) => void
   onClose: () => void
+  user: any // Add user prop
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -312,20 +314,23 @@ function CandidateActionsDropdown({
         <span style={{ flex: 1 }}>{currentStage === 'inactive' ? 'Activate Candidate' : 'Inactivate Candidate'}</span>
       </button>
 
-      <button
-        onClick={(e) => { e.stopPropagation(); if (confirm('Are you sure you want to delete this candidate?')) onDelete(candidateId) }}
-        style={{
-          width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 12.5, fontWeight: 500, color: '#ef4444',
-          display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
-      >
-        <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, minWidth: 12, textAlign: 'center' }}>🗑</span>
-        <span style={{ flex: 1 }}>Delete Candidate</span>
-      </button>
+      {/* Management Actions (Only Admin can Delete) */}
+      {user?.role === 'admin' && (
+        <button
+          onClick={(e) => { e.stopPropagation(); if (confirm('Are you sure you want to delete this candidate?')) onDelete(candidateId) }}
+          style={{
+            width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 12.5, fontWeight: 500, color: '#ef4444',
+            display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+        >
+          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, minWidth: 12, textAlign: 'center' }}>🗑</span>
+          <span style={{ flex: 1 }}>Delete Candidate</span>
+        </button>
+      )}
     </motion.div>
   )
 }
@@ -333,7 +338,7 @@ function CandidateActionsDropdown({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CandidatesPage() {
-  const { basePath } = useAuth()
+  const { basePath, user } = useAuth()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -557,7 +562,7 @@ export default function CandidatesPage() {
             <span style={{ textAlign: 'center' }}>Stage</span>
             <span style={{ textAlign: 'center' }}>Status</span>
             <span style={{ textAlign: 'center' }}>Added By</span>
-            <span style={{ textAlign: 'center' }}>Actions</span>
+            {user?.role === 'admin' && <span style={{ textAlign: 'center' }}>Actions</span>}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 80 }}>
@@ -782,6 +787,7 @@ export default function CandidatesPage() {
                         onInactivate={(id) => stageMutation.mutate({ id, stage: stage === 'inactive' ? 'applied' : 'inactive' })}
                         onDelete={(id) => deleteMutation.mutate(id)}
                         onClose={() => setOpenDropdownId(null)}
+                        user={user}
                       />
                     )}
                   </AnimatePresence>

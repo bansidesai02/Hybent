@@ -53,6 +53,15 @@ async def create_offer(data: OfferCreate, current_user: RecruiterUser, db: DB):
     )
     db.add(offer)
     await db.flush()
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="CREATE",
+        resource_type="offer",
+        resource_id=str(offer.id),
+        details={"position": offer.position_title}
+    )
     return APIResponse.success(message="Offer created successfully.", data=OfferOut.model_validate(offer), status_code=201)
 
 
@@ -77,8 +86,19 @@ async def update_offer(offer_id: uuid.UUID, data: OfferUpdate, current_user: Rec
         raise HTTPException(status_code=404, detail="Offer not found")
     if offer.status not in {OfferStatus.DRAFT}:
         raise HTTPException(status_code=400, detail="Can only edit draft offers")
+    changed_fields = list(data.model_dump(exclude_none=True).keys())
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(offer, field, value)
+    await db.flush()
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="UPDATE",
+        resource_type="offer",
+        resource_id=str(offer_id),
+        details={"position": offer.position_title, "fields": changed_fields[:5]}
+    )
     return APIResponse.success(message="Offer updated successfully.", data=OfferOut.model_validate(offer))
 
 
@@ -197,6 +217,15 @@ async def revoke_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB)
     offer = result.scalar_one_or_none()
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="DELETE",
+        resource_type="offer",
+        resource_id=str(offer_id),
+        details={"position": offer.position_title, "previous_status": offer.status}
+    )
     offer.status = OfferStatus.REVOKED
     await db.commit()
     return APIResponse.success(message="Offer revoked successfully.")

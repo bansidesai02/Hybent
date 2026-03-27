@@ -392,6 +392,33 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
                     meeting_link=interview.meeting_link
                 )
 
+    # Audit log — RESCHEDULE takes priority when time changed, else UPDATE
+    cand_name = ""
+    _cand_for_log = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
+    if _cand_for_log:
+        cand_name = _cand_for_log.full_name
+
+    if "scheduled_at" in data_dict and data_dict["scheduled_at"] != old_time:
+        await log_activity(
+            db,
+            organization_id=interview.organization_id,
+            user_id=current_user.id,
+            action="RESCHEDULE",
+            resource_type="interview",
+            resource_id=str(interview_id),
+            details={"candidate": cand_name, "title": interview.title, "new_time": interview.scheduled_at.isoformat()}
+        )
+    else:
+        await log_activity(
+            db,
+            organization_id=interview.organization_id,
+            user_id=current_user.id,
+            action="UPDATE",
+            resource_type="interview",
+            resource_id=str(interview_id),
+            details={"candidate": cand_name, "title": interview.title, "fields": list(data_dict.keys())[:5]}
+        )
+
     return APIResponse.success(message="Interview updated successfully.", data=InterviewOut.model_validate(interview).model_dump())
 
 
@@ -461,4 +488,20 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
 
     if interview.calendar_event_id:
         await cancel_calendar_event(interview.calendar_event_id, current_user.google_refresh_token)
+
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="CANCEL",
+        resource_type="interview",
+        resource_id=str(interview_id),
+        details={
+            "candidate": cand.full_name if cand else "Unknown",
+            "title": interview.title,
+            "scheduled_at": time_str,
+            "reason": reason or "",
+        }
+    )
+
     return APIResponse.success(message="Interview cancelled successfully.")

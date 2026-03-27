@@ -77,9 +77,21 @@ function RequireAuth({
   return <>{children}</>
 }
 
+import { useState, useEffect } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import { useUIStore } from '@/store/uiStore'
+import { AppLoader } from '@/components/ui/AppLoader'
 import { Toaster } from 'react-hot-toast'
 
 export default function App() {
+  const { isLoading } = useUIStore()
+  const [initialLoading, setInitialLoading] = useState(true)
+
+  useEffect(() => {
+    // Initial splash screen delay - reduced to minimum or immediate
+    setInitialLoading(false)
+  }, [])
+
   const coreRoutes = (
     <>
       <Route index element={<OverviewPage />} />
@@ -101,6 +113,10 @@ export default function App() {
 
   return (
     <>
+      <AnimatePresence mode="wait">
+        {(initialLoading || isLoading) && <AppLoader />}
+      </AnimatePresence>
+
       <Toaster 
         position="top-right" 
         toastOptions={{ 

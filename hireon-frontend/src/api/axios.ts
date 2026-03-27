@@ -5,6 +5,14 @@
  * - 401 auto-refresh interceptor with request retry
  */
 import axios, { type AxiosRequestConfig } from 'axios'
+import { useUIStore } from '@/store/uiStore'
+
+// Extend AxiosRequestConfig to include skipLoader
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    skipLoader?: boolean
+  }
+}
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -14,8 +22,13 @@ const api = axios.create({
   withCredentials: true, // for HttpOnly refresh token cookie
 })
 
-// ── Request interceptor: inject access token ────────────────────────────────
+// ── Request interceptor: inject access token & start loading ─────────────────
 api.interceptors.request.use((config) => {
+  // Start global loader if not skipped
+  if (!config.skipLoader) {
+    useUIStore.getState().startLoading()
+  }
+
   // Import lazily to avoid circular deps
   const token = localStorage.getItem('hireon_access_token')
   if (token) {
@@ -24,7 +37,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// ── Response interceptor: auto-refresh on 401 ────────────────────────────────
+// ── Response interceptor: auto-refresh on 401 & stop loading ─────────────────
 let isRefreshing = false
 let failedQueue: Array<{
   resolve: (token: string) => void
@@ -41,6 +54,11 @@ function processQueue(error: unknown, token: string | null) {
 
 api.interceptors.response.use(
   (response) => {
+    // Stop global loader
+    if (!response.config.skipLoader) {
+      useUIStore.getState().stopLoading()
+    }
+
     if (response.data && typeof response.data === 'object' && 'success' in response.data) {
       if (response.data.success) {
         response.data = response.data.data !== undefined ? response.data.data : response.data;
@@ -49,6 +67,11 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Stop global loader on error too
+    if (error.config && !error.config.skipLoader) {
+      useUIStore.getState().stopLoading()
+    }
+
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -74,7 +97,10 @@ api.interceptors.response.use(
         const { data } = await axios.post(
           `${BASE_URL}/v1/auth/refresh`,
           payload,
-          { withCredentials: true }
+          { 
+            withCredentials: true,
+            skipLoader: true // Don't show loader for refresh token calls
+          }
         )
 
         // Handle the new APIResponse format

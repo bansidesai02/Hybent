@@ -9,6 +9,7 @@ export const talentPoolApi = {
     skill?: string
     tag?: string
     min_experience?: number
+    job_title?: string
   }) => api.get<PaginatedResponse<Candidate>>('/v1/talent-pool', { params }),
 
   addTag: (candidateId: string, tag: string) =>

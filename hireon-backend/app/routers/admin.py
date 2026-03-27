@@ -2,8 +2,9 @@
 Admin-only endpoints: audit logs, org settings, team management.
 """
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from app.dependencies import DB, AdminUser
 from app.models.audit_log import AuditLog
 from app.models.user import User
@@ -21,37 +22,69 @@ async def list_audit_logs(
     limit: int = Query(50, ge=1, le=200),
     action: str | None = None,
     resource_type: str | None = None,
+    search: str | None = None,      # filter by user name (partial, case-insensitive)
+    date_from: str | None = None,   # ISO date e.g. 2025-01-01
+    date_to: str | None = None,     # ISO date e.g. 2025-12-31
 ):
-    query = select(AuditLog).where(AuditLog.organization_id == current_user.organization_id)
+    # Base query joining User so we can filter by user name
+    query = (
+        select(AuditLog, User.full_name.label("user_name"), User.role.label("user_role"))
+        .outerjoin(User, AuditLog.user_id == User.id)
+        .where(AuditLog.organization_id == current_user.organization_id)
+    )
+
     if action:
         query = query.where(AuditLog.action == action.upper())
     if resource_type:
         query = query.where(AuditLog.resource_type == resource_type)
+    if search:
+        query = query.where(User.full_name.ilike(f"%{search}%"))
+    if date_from:
+        try:
+            dt_from = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+            query = query.where(AuditLog.created_at >= dt_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt_to = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
+            # Include the full end date by going to end of day
+            from datetime import timedelta
+            dt_to = dt_to + timedelta(days=1)
+            query = query.where(AuditLog.created_at < dt_to)
+        except ValueError:
+            pass
+
     query = query.order_by(AuditLog.created_at.desc())
 
-    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()
-    items = (await db.execute(query.offset((page - 1) * limit).limit(limit))).scalars().all()
+    # Count total for pagination
+    count_query = select(func.count()).select_from(
+        select(AuditLog)
+        .outerjoin(User, AuditLog.user_id == User.id)
+        .where(AuditLog.organization_id == current_user.organization_id)
+        .where(*([AuditLog.action == action.upper()] if action else []))
+        .where(*([AuditLog.resource_type == resource_type] if resource_type else []))
+        .where(*([User.full_name.ilike(f"%{search}%")] if search else []))
+        .subquery()
+    )
+    total = (await db.execute(count_query)).scalar()
 
-    # Batch-fetch user names to avoid N+1 queries
-    user_ids = list({log.user_id for log in items if log.user_id})
-    users_map: dict = {}
-    if user_ids:
-        users_res = await db.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))
-        users_map = {str(r[0]): r[1] for r in users_res.all()}
+    rows = (await db.execute(query.offset((page - 1) * limit).limit(limit))).all()
 
     return APIResponse.success(message="Audit logs retrieved successfully.", data=paginate([
         {
-            "id": str(log.id),
-            "action": log.action,
-            "resource_type": log.resource_type,
-            "resource_id": log.resource_id,
-            "user_id": str(log.user_id) if log.user_id else None,
-            "user_name": users_map.get(str(log.user_id)) if log.user_id else None,
-            "details": log.details,
-            "ip_address": log.ip_address,
-            "created_at": log.created_at.isoformat(),
+            "id": str(row.AuditLog.id),
+            "action": row.AuditLog.action,
+            "resource_type": row.AuditLog.resource_type,
+            "resource_id": row.AuditLog.resource_id,
+            "user_id": str(row.AuditLog.user_id) if row.AuditLog.user_id else None,
+            "user_name": row.user_name,
+            "user_role": row.user_role,
+            "details": row.AuditLog.details,
+            "ip_address": row.AuditLog.ip_address,
+            "created_at": row.AuditLog.created_at.isoformat(),
         }
-        for log in items
+        for row in rows
     ], total, page, limit))
 
 
