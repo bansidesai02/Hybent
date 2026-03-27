@@ -11,6 +11,8 @@ from app.utils.pagination import paginate
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 
+from sqlalchemy.orm import selectinload
+
 router = APIRouter(prefix="/v1/talent-pool", tags=["talent_pool"])
 
 
@@ -26,7 +28,7 @@ async def list_talent_pool(
     min_experience: int | None = None,
     job_title: str | None = None,   # Filter by active job title
 ):
-    query = select(Candidate).where(Candidate.organization_id == current_user.organization_id)
+    query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.created_by))
 
     if search:
         query = query.where(
@@ -55,7 +57,14 @@ async def list_talent_pool(
         query.order_by(Candidate.match_score.desc().nulls_last()).offset((page - 1) * limit).limit(limit)
     )).scalars().all()
 
-    return APIResponse.success(message="Talent pool retrieved.", data=paginate([CandidateOut.model_validate(c).model_dump() for c in items], total, page, limit))
+    def transform_candidate(c: Candidate):
+        d = CandidateOut.model_validate(c).model_dump()
+        if c.created_by:
+            d["created_by_name"] = c.created_by.full_name
+            d["created_by_id"] = str(c.created_by.id)
+        return d
+
+    return APIResponse.success(message="Talent pool retrieved.", data=paginate([transform_candidate(c) for c in items], total, page, limit))
 
 
 @router.get("/stats")
@@ -119,6 +128,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
                 Candidate.applied_job_title == job.title,
                 Candidate.match_score.isnot(None)
             )
+            .options(selectinload(Candidate.created_by))
             .order_by(Candidate.match_score.desc().nulls_last())
             .limit(5)
         )
@@ -133,7 +143,8 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
                 "years_experience": candidate.years_experience,
                 "match_score": candidate.match_score,
                 "skills": candidate.skills[:8] if candidate.skills else [],
-                "avatar_url": None
+                "avatar_url": None,
+                "created_by_name": candidate.created_by.full_name if candidate.created_by else "Admin"
             })
             
         if job_suggestions:
