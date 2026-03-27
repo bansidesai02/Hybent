@@ -31,44 +31,39 @@ export default function AnalyticsPage() {
   // ─── Data Fetching ────────────────────────────────────────────────────────────
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ['analytics', 'overview'],
-    queryFn: () => analyticsApi.overview().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => analyticsApi.overview().then((r: any) => r.data),
   })
 
   const { data: funnel, isLoading: funnelLoading } = useQuery({
     queryKey: ['analytics', 'funnel', funnelJobId],
-    queryFn: () => analyticsApi.funnel(funnelJobId || undefined).then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => analyticsApi.funnel(funnelJobId || undefined).then((r: any) => r.data),
   })
 
   const { data: talentStats } = useQuery({
     queryKey: ['talent-pool', 'stats'],
-    queryFn: () => talentPoolApi.getStats().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => talentPoolApi.getStats().then((r: any) => r.data),
   })
 
   const { data: candidatesData } = useQuery({
     queryKey: ['candidates', 'top-skills'],
-    queryFn: () => candidatesApi.list({ limit: 100 }).then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => candidatesApi.list({ limit: 100 }).then((r: any) => r.data),
   })
 
   const { data: jobsData } = useQuery({
     queryKey: ['jobs', 'all'],
-    queryFn: () => jobsApi.list({ limit: 100 }).then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => jobsApi.list({ limit: 100 }).then((r: any) => r.data),
   })
 
   // ─── Computed Data ───────────────────────────────────────────────────────────
   const jobOptions = [
     { value: '', label: 'Global Pipeline' },
-    ...(jobsData?.items.map((j) => ({ value: j.id, label: j.title })) ?? []),
+    ...(jobsData?.items.map((j: any) => ({ value: j.id, label: j.title })) ?? []),
   ]
 
   const topSkills = useMemo(() => {
     if (!candidatesData?.items) return []
     const counts: Record<string, number> = {}
-    candidatesData.items.forEach(c => {
+    candidatesData.items.forEach((c: any) => {
       // Primary: skills array; fallback: parsed_data.skills
       const skills: string[] = (c.skills?.length ? c.skills : (c as any).parsed_data?.skills) ?? []
       skills.forEach((s: string) => {
@@ -139,7 +134,7 @@ export default function AnalyticsPage() {
               <Select 
                 options={jobOptions} 
                 value={funnelJobId} 
-                onChange={(e) => setFunnelJobId(e.target.value)} 
+                onChange={(e: any) => setFunnelJobId(e.target.value)} 
                 className="!bg-transparent !border-none !shadow-none font-bold text-violet-600 focus:ring-0" 
               />
             </div>
@@ -147,8 +142,8 @@ export default function AnalyticsPage() {
           
           <div className="space-y-6">
             {funnelLoading ? (
-              Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-2 w-full rounded-full" />)
-            ) : funnel?.stages.reduce((acc, s) => {
+              Array.from({ length: 5 }).map((_: any, i: any) => <Skeleton key={i} className="h-2 w-full rounded-full" />)
+            ) : funnel?.stages.reduce((acc: any, s: any) => {
               // Group stages into 5 funnel buckets
               let bucket = '';
               const stage = s.stage.toLowerCase();
@@ -160,7 +155,7 @@ export default function AnalyticsPage() {
               else if (['interviewed', 'offer', 'hired'].includes(stage)) bucket = 'Final Round';
               
               if (bucket) {
-                const existing = acc.find(a => a.name === bucket);
+                const existing = acc.find((a: any) => a.name === bucket);
                 if (existing) {
                   existing.count += s.count;
                 } else {
@@ -169,17 +164,17 @@ export default function AnalyticsPage() {
               }
               return acc;
             }, [] as { name: string, count: number, percentage: number }[])
-            .map((bucket, _, all) => {
+            .map((bucket: any, _: any, all: any) => {
               // Recalculate percentages based on consolidated counts
-              const total = all.reduce((sum, b) => sum + b.count, 0);
+              const total = all.reduce((sum: any, b: any) => sum + b.count, 0);
               bucket.percentage = total > 0 ? (bucket.count / total) * 100 : 0;
               return bucket;
             })
-            .sort((a, b) => {
+            .sort((a: any, b: any) => {
               const order = ['Applied', 'Shortlisted', 'Screened', 'Interviewed', 'Final Round'];
               return order.indexOf(a.name) - order.indexOf(b.name);
             })
-            .map((s, i) => (
+            .map((s: any, i: any) => (
               <div key={s.name} className="space-y-2">
                 <div className="flex justify-between text-[13px] font-bold text-gray-600 dark:text-gray-400">
                   <span>{s.name}</span>
@@ -205,7 +200,7 @@ export default function AnalyticsPage() {
         <GlassCard>
           <h3 className="text-[15px] font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-8">Top Skills in Pipeline</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {topSkills.length > 0 ? topSkills.map((skill, i) => (
+            {topSkills.length > 0 ? topSkills.map((skill: any, i: any) => (
               <motion.div
                 key={skill}
                 initial={{ opacity: 0, scale: 0.9 }}

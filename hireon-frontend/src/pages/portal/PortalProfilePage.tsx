@@ -47,8 +47,7 @@ export default function PortalProfilePage() {
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['portal', 'profile'],
-    queryFn: () => portalApi.profile().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => portalApi.profile().then((r: any) => r.data),
   })
 
   const [skills, setSkills] = useState<string[]>([])
@@ -228,6 +227,36 @@ export default function PortalProfilePage() {
               </div>
             </div>
           </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 24 }}>
+            {saveStatus && (
+              <div style={{ 
+                color: saveStatus.type === 'success' ? '#10B981' : '#EF4444', 
+                fontSize: 14, 
+                fontWeight: 600
+              }}>
+                {saveStatus.msg}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={saveMutation.isPending}
+              style={{
+                background: 'var(--brand)',
+                color: 'white',
+                border: 'none',
+                padding: '10px 24px',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
+                opacity: saveMutation.isPending ? 0.7 : 1,
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
+              }}
+            >
+              {saveMutation.isPending ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
         </div>
 
         {/* SIDE COLUMN */}
@@ -347,44 +376,6 @@ export default function PortalProfilePage() {
       </form>
 
 
-      {/* BOTTOM SAVE BAR */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        gap: 16,
-        marginTop: 10
-      }}>
-        {saveStatus && (
-          <div style={{ 
-            color: saveStatus.type === 'success' ? '#10B981' : '#EF4444', 
-            fontSize: 14, 
-            fontWeight: 600
-          }}>
-            {saveStatus.msg}
-          </div>
-        )}
-        <button
-          type="submit"
-          form="profile-form"
-          disabled={saveMutation.isPending}
-          style={{
-            background: 'var(--brand)',
-            color: 'white',
-            border: 'none',
-            padding: '10px 24px',
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
-            opacity: saveMutation.isPending ? 0.7 : 1,
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
-          }}
-        >
-          {saveMutation.isPending ? 'Saving...' : 'Save Profile'}
-        </button>
-      </div>
 
     </div>
   )

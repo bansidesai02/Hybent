@@ -18,11 +18,11 @@ export default function OnboardingPage() {
         if (!token) return
 
         invitationsApi.verify(token)
-            .then(res => {
+            .then((res: any) => {
                 setInvitation(res.data)
                 setLoading(false)
             })
-            .catch(err => {
+            .catch((err: any) => {
                 setError(err.response?.data?.detail || 'Invalid or expired invitation link')
                 setLoading(false)
             })
@@ -167,7 +167,7 @@ export default function OnboardingPage() {
                                 type="password"
                                 placeholder="Min. 6 characters"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e: any) => setPassword(e.target.value)}
                                 className="h-11"
                             />
                         </div>
@@ -177,7 +177,7 @@ export default function OnboardingPage() {
                                 type="password"
                                 placeholder="Repeat password"
                                 value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                onChange={(e: any) => setConfirmPassword(e.target.value)}
                                 className="h-11"
                             />
                         </div>

@@ -86,17 +86,17 @@ function InterviewCard({ interview }: { interview: Interview }) {
 export default function PortalInterviewsPage() {
   const { data: interviews, isLoading, isError } = useQuery({
     queryKey: ['portal', 'interviews'],
-    queryFn: () => portalApi.myInterviews().then((r) => r.data),
+    queryFn: () => portalApi.myInterviews().then((r: any) => r.data),
     refetchInterval: 30_000,
   })
 
-  const todayInterviews = interviews?.filter((i) => i.status === 'scheduled' && isToday(i.scheduled_at)) ?? []
+  const todayInterviews = interviews?.filter((i: any) => i.status === 'scheduled' && isToday(i.scheduled_at)) ?? []
   const upcoming = interviews
-    ?.filter((i) => i.status === 'scheduled' && !isToday(i.scheduled_at))
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()) ?? []
+    ?.filter((i: any) => i.status === 'scheduled' && !isToday(i.scheduled_at))
+    .sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()) ?? []
   const past = interviews
-    ?.filter((i) => i.status !== 'scheduled')
-    .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()) ?? []
+    ?.filter((i: any) => i.status !== 'scheduled')
+    .sort((a: any, b: any) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()) ?? []
 
   return (
     <div className="page active">
@@ -129,7 +129,7 @@ export default function PortalInterviewsPage() {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--teal)', display: 'inline-block', animation: 'blink 2s infinite' }}></span>
                 Today
               </div>
-              {todayInterviews.map((iv) => <InterviewCard key={iv.id} interview={iv} />)}
+              {todayInterviews.map((iv: any) => <InterviewCard key={iv.id} interview={iv} />)}
             </>
           )}
 
@@ -138,7 +138,7 @@ export default function PortalInterviewsPage() {
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand)', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'Space Grotesk', sans-serif", marginTop: 4 }}>
                 Upcoming
               </div>
-              {upcoming.map((iv) => <InterviewCard key={iv.id} interview={iv} />)}
+              {upcoming.map((iv: any) => <InterviewCard key={iv.id} interview={iv} />)}
             </>
           )}
 
@@ -147,7 +147,7 @@ export default function PortalInterviewsPage() {
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-lite)', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'Space Grotesk', sans-serif", marginTop: 4 }}>
                 Completed
               </div>
-              {past.map((iv) => <InterviewCard key={iv.id} interview={iv} />)}
+              {past.map((iv: any) => <InterviewCard key={iv.id} interview={iv} />)}
             </>
           )}
           

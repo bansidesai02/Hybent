@@ -299,14 +299,12 @@ export default function TalentPoolPage() {
 
   const { data: stats } = useQuery({
     queryKey: ['talent-pool-stats'],
-    queryFn: () => talentPoolApi.getStats().then(r => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => talentPoolApi.getStats().then((r) => r.data),
   })
 
   const { data: suggestionsData, isLoading: suggestionsLoading } = useQuery({
     queryKey: ['talent-pool-suggestions'],
-    queryFn: () => talentPoolApi.getSuggestedMatches().then(r => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => talentPoolApi.getSuggestedMatches().then((r) => r.data),
   })
 
   // Auto-sync "Recent DB Matches" tab when search or job filter changes

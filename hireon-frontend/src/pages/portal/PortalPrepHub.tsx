@@ -13,15 +13,13 @@ export default function PortalPrepHub() {
 
   const { data: applications, isLoading: appsLoading } = useQuery({
     queryKey: ['portal', 'applications'],
-    queryFn: () => portalApi.myApplications().then(r => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
 
   // We fetch interviews to get the "Next Interview" info for the header
   const { data: interviews } = useQuery({
     queryKey: ['portal', 'interviews'],
-    queryFn: () => portalApi.myInterviews().then(r => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => portalApi.myInterviews().then((r: any) => r.data),
   })
 
   // Find the most relevant upcoming interview (today onwards)
@@ -48,7 +46,7 @@ export default function PortalPrepHub() {
 
   const { data: prepData, isLoading: prepLoading } = useQuery({
     queryKey: ['portal', 'prep', activeApp?.id],
-    queryFn: () => portalApi.generatePrep(activeApp!.id).then(r => r.data),
+    queryFn: () => portalApi.generatePrep(activeApp!.id).then((r: any) => r.data),
     enabled: !!activeApp,
     staleTime: Infinity,
     refetchOnWindowFocus: false,

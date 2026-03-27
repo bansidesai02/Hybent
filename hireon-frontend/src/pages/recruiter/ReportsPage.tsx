@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { motion } from 'framer-motion'
 import { toast } from 'react-hot-toast'
-import type { ReportSummary } from '@/types'
+import type { ReportSummary, User } from '@/types'
 import { 
   BarChart, 
   Bar, 

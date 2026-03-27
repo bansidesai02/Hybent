@@ -83,7 +83,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
   // Fetch applications for this candidate to get application IDs
   const { data: applications = [], isLoading: loadingApps } = useQuery({
     queryKey: ['candidate-applications', candidate.id],
-    queryFn: () => candidatesApi.getApplications(candidate.id).then(r => r.data),
+    queryFn: () => candidatesApi.getApplications(candidate.id).then((r: any) => r.data),
     enabled: hasInterviewStage,
   })
 
@@ -94,7 +94,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
 
   const { data: scorecards = [], isLoading: loadingSC } = useQuery({
     queryKey: ['scorecards', 'application', applicationId],
-    queryFn: () => scorecardsApi.getForApplication(applicationId).then(r => r.data as Scorecard[]),
+    queryFn: () => scorecardsApi.getForApplication(applicationId).then((r: any) => r.data as Scorecard[]),
     enabled: hasInterviewStage && !!applicationId,
     staleTime: 30_000,
   })
@@ -122,7 +122,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
   if (loadingApps || loadingSC) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '24px 0' }}>
-        {[1, 2].map(i => (
+        {[1, 2].map((i: any) => (
           <div key={i} style={{ height: 120, borderRadius: 16, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
         ))}
       </div>
@@ -146,8 +146,8 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 8 }}>
       {/* Summary bar */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {['strong_yes','yes','maybe','no','strong_no'].map(r => {
-          const count = scorecards.filter(sc => sc.recommendation === r).length
+        {['strong_yes','yes','maybe','no','strong_no'].map((r: any) => {
+          const count = scorecards.filter((sc: any) => sc.recommendation === r).length
           if (!count) return null
           const cfg = REC_CFG[r]
           return (
@@ -159,13 +159,13 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
         })}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(108,71,255,0.08)', border: '1px solid rgba(108,71,255,0.15)' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: '#6c47ff' }}>
-            Avg Rating: {(scorecards.reduce((s, sc) => s + sc.overall_rating, 0) / scorecards.length).toFixed(1)} / 5
+            Avg Rating: {(scorecards.reduce((s: any, sc: any) => s + sc.overall_rating, 0) / scorecards.length).toFixed(1)} / 5
           </span>
         </div>
       </div>
 
       {/* Scorecard cards */}
-      {scorecards.map((sc) => {
+      {scorecards.map((sc: any) => {
         const rec = REC_CFG[sc.recommendation]
         const ratingColor = scoreColor((sc.overall_rating / 5) * 100)
         const criteria = sc.criteria_scores ?? []
@@ -192,7 +192,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {/* Star rating */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {[1,2,3,4,5].map(s => (
+                  {[1,2,3,4,5].map((s: any) => (
                     <span key={s} style={{ fontSize: 16, color: s <= sc.overall_rating ? '#fbbf24' : 'rgba(0,0,0,0.12)' }}>★</span>
                   ))}
                   <span style={{ fontSize: 12, fontWeight: 700, color: ratingColor.text, marginLeft: 4, background: ratingColor.bg, padding: '2px 8px', borderRadius: 20 }}>
@@ -212,7 +212,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
               <div style={{ padding: '0 20px 16px' }}>
                 <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Evaluation Criteria</p>
                 <div className="flex flex-col sm:grid sm:grid-cols-2 gap-[10px_20px]">
-                  {criteria.map((c) => (
+                  {criteria.map((c: any) => (
                     <div key={c.criterion}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
@@ -362,13 +362,13 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
       {isEditing ? (
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Phone" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="+1 555-0000" />
-            <Input label="Location" value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} placeholder="City, Country" />
-            <Input label="Experience" value={formData.experience_years} onChange={(e) => handleInputChange('experience_years', e.target.value)} placeholder="e.g. 5 Years" />
-            <Input label="Notice Period" value={formData.notice_period_days} onChange={(e) => handleInputChange('notice_period_days', e.target.value)} placeholder="e.g. 30 Days" />
-            <Input label="Current CTC" value={formData.current_ctc} onChange={(e) => handleInputChange('current_ctc', e.target.value)} placeholder="e.g. ₹22,00,000" />
-            <Input label="Expected CTC" value={formData.expected_ctc} onChange={(e) => handleInputChange('expected_ctc', e.target.value)} placeholder="e.g. ₹32,00,000" />
-            <Input label="You will able to join within" value={formData.availability_status} onChange={(e) => handleInputChange('availability_status', e.target.value)} placeholder="e.g. 15 Days" />
+            <Input label="Phone" value={formData.phone} onChange={(e: any) => handleInputChange('phone', e.target.value)} placeholder="+1 555-0000" />
+            <Input label="Location" value={formData.location} onChange={(e: any) => handleInputChange('location', e.target.value)} placeholder="City, Country" />
+            <Input label="Experience" value={formData.experience_years} onChange={(e: any) => handleInputChange('experience_years', e.target.value)} placeholder="e.g. 5 Years" />
+            <Input label="Notice Period" value={formData.notice_period_days} onChange={(e: any) => handleInputChange('notice_period_days', e.target.value)} placeholder="e.g. 30 Days" />
+            <Input label="Current CTC" value={formData.current_ctc} onChange={(e: any) => handleInputChange('current_ctc', e.target.value)} placeholder="e.g. ₹22,00,000" />
+            <Input label="Expected CTC" value={formData.expected_ctc} onChange={(e: any) => handleInputChange('expected_ctc', e.target.value)} placeholder="e.g. ₹32,00,000" />
+            <Input label="You will able to join within" value={formData.availability_status} onChange={(e: any) => handleInputChange('availability_status', e.target.value)} placeholder="e.g. 15 Days" />
           </div>
 
           <div className="flex flex-col gap-4 mt-2 p-4 bg-gray-50 rounded-xl border border-gray-100">
@@ -381,9 +381,9 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
             <div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">🔗 Social Links</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Input label="LinkedIn URL" value={formData.linkedin_url} onChange={(e) => handleInputChange('linkedin_url', e.target.value)} placeholder="linkedin.com/in/username" />
-                <Input label="GitHub URL" value={formData.github_url} onChange={(e) => handleInputChange('github_url', e.target.value)} placeholder="github.com/username" />
-                <Input label="Portfolio URL" value={formData.portfolio_url} onChange={(e) => handleInputChange('portfolio_url', e.target.value)} placeholder="https://yoursite.com" />
+                <Input label="LinkedIn URL" value={formData.linkedin_url} onChange={(e: any) => handleInputChange('linkedin_url', e.target.value)} placeholder="linkedin.com/in/username" />
+                <Input label="GitHub URL" value={formData.github_url} onChange={(e: any) => handleInputChange('github_url', e.target.value)} placeholder="github.com/username" />
+                <Input label="Portfolio URL" value={formData.portfolio_url} onChange={(e: any) => handleInputChange('portfolio_url', e.target.value)} placeholder="https://yoursite.com" />
               </div>
             </div>
           </div>
@@ -401,7 +401,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
               { label: '💰 Expected CTC', value: candidate.expected_ctc || 'N/A', show: true },
               { label: '📅 Pref. Interview', value: [candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'N/A', show: !!(candidate.interview_availability_days || candidate.interview_time_slot) },
               { label: '🔗 Source', value: candidate.source || 'Sourced', show: true },
-            ].filter(f => f.show).map((item, i) => (
+            ].filter((f: any) => f.show).map((item: any, i: any) => (
               <div key={i} style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
                 <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>{item.label}</p>
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word' }}>{item.value}</p>
@@ -438,7 +438,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
             Technical Expertise <span style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.05)' }} />
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {candidate.skills.map((skill) => (
+            {candidate.skills.map((skill: any) => (
               <span key={skill} style={{ fontSize: 11, fontWeight: 600, padding: '6px 14px', borderRadius: 10, background: '#fff', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.15)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                 {skill}
               </span>
@@ -497,7 +497,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
           </div>
           <textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e: any) => setNotes(e.target.value)}
             onBlur={handleBlurNotes}
             placeholder="Add private notes about this candidate here. These notes are only visible to your team..."
             style={{

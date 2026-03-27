@@ -14,7 +14,6 @@ export function useNotifications() {
       setNotifications(data)
       return data
     },
-    refetchInterval: 60_000, // poll every minute as fallback
   })
 
   const { data: countData } = useQuery({
@@ -24,7 +23,6 @@ export function useNotifications() {
       setUnreadCount(data.count)
       return data
     },
-    refetchInterval: 30_000,
   })
 
   const markReadMutation = useMutation({

@@ -82,7 +82,7 @@ export default function AddJobPage() {
   // Fetch existing job when in edit mode
   const { data: jobData } = useQuery({
     queryKey: ['jobs', id],
-    queryFn: () => jobsApi.get(id!).then(r => r.data),
+    queryFn: () => jobsApi.get(id!).then((r: any) => r.data),
     enabled: isEdit,
   })
 
@@ -110,7 +110,7 @@ export default function AddJobPage() {
   // Fetch all jobs for "Active Job Descriptions" panel
   const { data: jobsRes } = useQuery({
     queryKey: ['jobs', 'list'],
-    queryFn: () => jobsApi.list({ limit: 10 }).then(r => r.data),
+    queryFn: () => jobsApi.list({ limit: 10 }).then((r: any) => r.data),
   })
   const allJobs: Job[] = jobsRes?.items ?? []
 
@@ -144,7 +144,7 @@ export default function AddJobPage() {
   }
 
   const removeSkill = (skill: string) => {
-    setValue('skills_required', skills.filter(s => s !== skill))
+    setValue('skills_required', skills.filter((s: any) => s !== skill))
   }
 
   const handleSkillKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -194,7 +194,7 @@ export default function AddJobPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(d => mutation.mutate(d))}>
+      <form onSubmit={handleSubmit((d: any) => mutation.mutate(d))}>
         <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 items-start">
 
           {/* ── LEFT PANEL: Job Details ── */}
@@ -279,7 +279,7 @@ export default function AddJobPage() {
                   className="input-base"
                   placeholder="React, TypeScript, Node.js"
                   value={skillInput}
-                  onChange={e => setSkillInput(e.target.value)}
+                  onChange={(e: any) => setSkillInput(e.target.value)}
                   onKeyDown={handleSkillKeyDown}
                   style={{ flex: 1 }}
                 />
@@ -293,7 +293,7 @@ export default function AddJobPage() {
               </div>
               {skills.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-                  {skills.map(skill => (
+                  {skills.map((skill: any) => (
                     <span key={skill} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', background: 'rgba(108,71,255,0.1)', borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#6c47ff' }}>
                       {skill}
                       <button type="button" onClick={() => removeSkill(skill)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6c47ff', lineHeight: 1, padding: 0, fontSize: 12 }}>×</button>
@@ -360,9 +360,9 @@ export default function AddJobPage() {
               )}
 
               <div
-                onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                onDragOver={(e: any) => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={e => {
+                onDrop={(e: any) => {
                   e.preventDefault()
                   setDragOver(false)
                   if (e.dataTransfer.files[0]) handleFileUpload(e.dataTransfer.files[0])
@@ -381,7 +381,7 @@ export default function AddJobPage() {
                   className="hidden"
                   accept=".pdf,.doc,.docx,.txt"
                   ref={fileInputRef}
-                  onChange={(e) => {
+                  onChange={(e: any) => {
                     const f = e.target.files?.[0]
                     if (f) handleFileUpload(f)
                   }}
@@ -392,7 +392,7 @@ export default function AddJobPage() {
                   AI will auto-extract skills, experience &amp; requirements
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                  {['PDF', 'DOCX', 'TXT'].map(t => (
+                  {['PDF', 'DOCX', 'TXT'].map((t: any) => (
                     <span key={t} style={{ padding: '3px 10px', background: 'rgba(108,71,255,0.09)', borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#6c47ff' }}>{t}</span>
                   ))}
                 </div>
@@ -403,26 +403,26 @@ export default function AddJobPage() {
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Active Job Descriptions</div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', background: 'rgba(108,71,255,0.09)', padding: '2px 9px', borderRadius: 20 }}>
-                  {allJobs.filter(j => j.status === 'active').length} open roles
-                </span>
+                <div className="text-xl font-black text-violet-600 font-fraunces tracking-tight">
+                  {allJobs.filter((j: any) => j.status === 'active').length} open roles
+                </div>
               </div>
 
-              {allJobs.filter(j => j.status === 'active').length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-light)', fontSize: 13 }}>
-                  No active job descriptions found.
+              {allJobs.filter((j: any) => j.status === 'active').length === 0 ? (
+                <div className="text-center py-12 bg-white/50 rounded-2xl border border-dashed border-violet-100">
+                  <p className="text-sm text-gray-400 italic">No active jobs yet. Create your first one below.</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {allJobs.filter(j => j.status === 'active').slice(0, 5).map((job, i) => {
+                <div className="space-y-3">
+                  {allJobs.filter((j: any) => j.status === 'active').slice(0, 5).map((job: any, i: any) => {
                     const badge = statusBadge(job.status)
                     return (
                       <div
                         key={job.id}
                         onClick={() => navigate(`${basePath}/jobs/${job.id}/edit`)}
                         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--activity-bg)', border: '1px solid var(--table-border)', borderRadius: 10, cursor: 'pointer', transition: 'background 0.15s' }}
-                        onMouseOver={e => (e.currentTarget.style.background = 'var(--kpi-bg)')}
-                        onMouseOut={e => (e.currentTarget.style.background = 'var(--activity-bg)')}
+                        onMouseOver={(e: any) => (e.currentTarget.style.background = 'var(--kpi-bg)')}
+                        onMouseOut={(e: any) => (e.currentTarget.style.background = 'var(--activity-bg)')}
                       >
                         <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0, background: ICON_COLORS[i % ICON_COLORS.length] }}>
                           💼

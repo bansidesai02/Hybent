@@ -108,8 +108,7 @@ function MiniStars({ value }: { value: number }) {
 function ScorecardAccordion({ applicationId }: { applicationId: string }) {
   const { data: scorecards, isLoading } = useQuery({
     queryKey: ['scorecards', 'application', applicationId],
-    queryFn: () => scorecardsApi.getForApplication(applicationId).then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => scorecardsApi.getForApplication(applicationId).then((r: any) => r.data),
   })
 
   if (isLoading) return (
@@ -225,8 +224,8 @@ function TimeSlotPicker({
   useEffect(() => {
     if (selectedDate) {
       const currentStatus = selected ? getSlotStatus(selected) : 'none'
-      if (currentStatus !== 'available') {
-        const firstAvailable = slots.find(s => getSlotStatus(s) === 'available')
+      if (slots && slots.length > 0) {
+        const firstAvailable = slots.find((s: string) => getSlotStatus(s) === 'available')
         if (firstAvailable) {
           onSelect(firstAvailable)
         }
@@ -240,7 +239,7 @@ function TimeSlotPicker({
     <div style={{ marginTop: 20 }}>
       <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Available Slots</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-        {slots.map(s => {
+        {slots.map((s: string) => {
           const active = selected === s
           const status = getSlotStatus(s)
           const blocked = status !== 'available'
@@ -433,29 +432,29 @@ function ScheduleForm({
 
   const { data: usersResponse } = useQuery({
     queryKey: ['users'],
-    queryFn: () => adminApi.listUsers().then((r) => r.data),
-    refetchInterval: 30_000,
+    queryFn: () => adminApi.listUsers().then((r: any) => r.data),
   })
-  const interviewers = (usersResponse || []).filter(u => u.role === 'interviewer')
+  const interviewers = (usersResponse || []).filter((u: any) => u.role === 'interviewer')
 
   const { data: candidatesList = [] } = useQuery({
     queryKey: ['candidates-for-schedule'],
-    queryFn: () => candidatesApi.list({ limit: 100 }).then((r) => r.data.items),
-    refetchInterval: 30_000,
+    queryFn: () => candidatesApi.list({ limit: 100 }).then((r: any) => r.data.items),
   })
 
   const mutation = useMutation({
-    mutationFn: (data: ScheduleForm) => {
-      const scheduledIso = data.scheduled_at
-      const selectedStage = SCHEDULE_TITLES.find(t => t.value === data.title)
+    mutationFn: (formData: ScheduleForm) => { // Renamed 'data' to 'formData' to avoid conflict with watch()
+      const data = watch() // Get current form data from watch()
+      const scheduledIso = formData.scheduled_at
+      const selectedStage = SCHEDULE_TITLES.find((t: any) => t.value === data.title)
+      if (!selectedStage) return Promise.reject(new Error("Invalid interview title selected")) // Return a rejected promise if selectedStage is null
       const payload = {
-        candidate_id: data.candidate_id, 
-        title: data.title,
+        candidate_id: formData.candidate_id, 
+        title: formData.title,
         application_id: '', 
         interview_type: (selectedStage?.type || 'video') as InterviewType,
-        scheduled_at: scheduledIso, duration_minutes: data.duration_minutes,
-        notes: data.notes,
-        panelist_ids: data.panelist_id ? [{ user_id: data.panelist_id, role: 'lead' }] : [],
+        scheduled_at: scheduledIso, duration_minutes: formData.duration_minutes,
+        notes: formData.notes,
+        panelist_ids: formData.panelist_id ? [{ user_id: formData.panelist_id, role: 'lead' }] : [],
       }
       return interviewsApi.create(payload)
     },
@@ -498,7 +497,7 @@ function ScheduleForm({
             error={errors.candidate_id?.message}
             options={[
               { value: '', label: 'Select candidate...' },
-              ...candidatesList.map((c) => ({
+              ...candidatesList.map((c: any) => ({
                 value: c.id,
                 label: c.full_name,
               })),
@@ -515,7 +514,7 @@ function ScheduleForm({
           <Select
             label="Interviewer *"
             error={errors.panelist_id?.message}
-            options={[{ value: '', label: 'Select interviewer...' }, ...interviewers.map((u) => ({ value: u.id, label: u.full_name }))]}
+            options={[{ value: '', label: 'Select interviewer...' }, ...interviewers.map((u: any) => ({ value: u.id, label: u.full_name }))]}
             {...field}
           />
         )}
@@ -593,7 +592,7 @@ function InterviewCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <Avatar name={interview.candidate_name || 'C'} size="sm" />
-            <div style={{ minWidth: 0 }}>
+            <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                 <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {interview.candidate_name || 'Unnamed Candidate'}
@@ -714,7 +713,6 @@ export default function InterviewsListPage() {
   const { data: interviews, isLoading, isError } = useQuery({
     queryKey: ['interviews'],
     queryFn: () => interviewsApi.list().then((r: any) => r.data),
-    refetchInterval: 30_000,
   })
 
 
@@ -884,7 +882,7 @@ export default function InterviewsListPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
              <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>Upcoming Interviews</h3>
              <div style={{ display: 'flex', gap: 8 }}>
-                {(['all', 'scheduled', 'completed'] as const).map(f => (
+                {(['all', 'scheduled', 'completed'] as const).map((f: InterviewStatus | 'all') => (
                   <button 
                     key={f} 
                     onClick={() => setStatusFilter(f)}

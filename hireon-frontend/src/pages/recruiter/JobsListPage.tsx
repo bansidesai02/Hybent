@@ -142,13 +142,13 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
         {/* Skills */}
         <div>
           <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Required Skills</h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {job.skills_required.map(skill => (
-              <span key={skill} style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: 'rgba(108,71,255,0.08)', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.15)' }}>
-                {skill}
-              </span>
-            ))}
-          </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {job.skills_required.map((skill: any) => (
+                <span key={skill} className="px-3 py-1 bg-white/50 dark:bg-gray-800/50 rounded-lg text-[10px] font-bold text-gray-500 uppercase tracking-wider border border-gray-100 dark:border-gray-700">
+                  {skill}
+                </span>
+              ))}
+            </div>
         </div>
       </div>
     </Modal>
@@ -171,8 +171,7 @@ export default function JobsListPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['jobs', page, statusFilter, search],
     queryFn: () =>
-      jobsApi.list({ page, limit: 10, status: statusFilter || undefined, search: search || undefined }).then((r) => r.data),
-    refetchInterval: 30_000,
+      jobsApi.list({ page, limit: 10, status: statusFilter || undefined, search: search || undefined }).then((r: any) => r.data),
   })
 
   const deleteMutation = useMutation({
@@ -291,7 +290,7 @@ export default function JobsListPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {data.items.map((job, i) => (
+            {data.items.map((job: any, i: number) => (
               <motion.div
                 key={job.id}
                 initial={{ opacity: 0, y: 8 }}
@@ -351,7 +350,7 @@ export default function JobsListPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    {['active', 'draft', 'paused', 'closed'].map(s => (
+                    {['active', 'draft', 'paused', 'closed'].map((s: any) => (
                       <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                     ))}
                   </select>
@@ -429,7 +428,7 @@ export default function JobsListPage() {
                         cursor: 'pointer', width: 'fit-content',
                       }}
                     >
-                      {['active', 'draft', 'paused', 'closed'].map(s => (
+                      {['active', 'draft', 'paused', 'closed'].map((s: any) => (
                         <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                       ))}
                     </select>

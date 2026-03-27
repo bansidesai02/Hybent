@@ -155,7 +155,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
                   { lbl: 'Title', val: scoring.title_score },
                   { lbl: 'Exp.', val: scoring.experience_score },
                   { lbl: 'Edu.', val: scoring.education_score },
-                ].map(m => (
+                ].map((m: any) => (
                   <div key={m.lbl} style={{ background: 'rgba(108,71,255,0.03)', border: '1px solid rgba(108,71,255,0.1)', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 600 }}>{m.lbl}</span>
                     <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 700 }}>{m.val}%</span>
@@ -241,7 +241,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
                     { lbl: 'Title', val: scoring.title_score },
                     { lbl: 'Exp.', val: scoring.experience_score },
                     { lbl: 'Edu.', val: scoring.education_score },
-                  ].map(m => (
+                  ].map((m: any) => (
                     <div key={m.lbl} style={{ background: 'rgba(239,68,68,0.03)', border: '1px solid rgba(239,68,68,0.1)', borderRadius: 6, padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 10, color: '#ef4444', opacity: 0.7, fontWeight: 600 }}>{m.lbl}</span>
                       <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 700 }}>{m.val}%</span>
@@ -338,11 +338,11 @@ export default function UploadResumePage() {
   // Fetch active jobs
   const { data: jobsData } = useQuery({
     queryKey: ['active-jobs'],
-    queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then(r => r.data.items)
+    queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r) => r.data.items),
   })
 
   const handleJobSelect = (jobId: string) => {
-    const job = jobsData?.find(j => j.id === jobId)
+    const job = jobsData?.find((j: Job) => j.id === jobId)
     if (!job) return
 
     // Use the new min_experience_years field specifically, fallback to experience_level parsing if missing
@@ -460,7 +460,7 @@ export default function UploadResumePage() {
               <Select
                 options={[
                   { value: '', label: 'Create custom requirement...' },
-                  ...(jobsData?.map(j => ({ value: j.id, label: j.title })) || [])
+                  ...(jobsData?.map((j: Job) => ({ value: j.id, label: j.title })) || [])
                 ]}
                 onChange={(e) => handleJobSelect(e.target.value)}
                 value={jobReq.job_id || ''}
@@ -550,7 +550,7 @@ export default function UploadResumePage() {
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-mid)' }}>PDF, DOC, DOCX up to 10 MB</div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
-              {['PDF', 'DOCX', 'TXT'].map(t => (
+              {['PDF', 'DOCX', 'TXT'].map((t: any) => (
                 <span key={t} style={{ padding: '3px 10px', background: 'rgba(108,71,255,0.09)', borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#6c47ff' }}>{t}</span>
               ))}
             </div>
@@ -682,12 +682,12 @@ export default function UploadResumePage() {
                       </div>
                       {/* Skill tags */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                        {result.skills.slice(0, 7).map(skill => (
+                        {result.skills.slice(0, 7).map((skill: any) => (
                           <span key={skill} style={{
                             padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                            background: (scoring?.matched_skills || []).map(s => s.toLowerCase()).includes(skill.toLowerCase())
+                            background: (scoring?.matched_skills || []).map((s: any) => s.toLowerCase()).includes(skill.toLowerCase())
                               ? 'rgba(108,71,255,0.12)' : 'rgba(0,212,200,0.10)',
-                            color: (scoring?.matched_skills || []).map(s => s.toLowerCase()).includes(skill.toLowerCase())
+                            color: (scoring?.matched_skills || []).map((s: any) => s.toLowerCase()).includes(skill.toLowerCase())
                               ? '#6c47ff' : '#00b4a8',
                           }}>
                             {skill}
@@ -703,7 +703,7 @@ export default function UploadResumePage() {
                       { val: result.years_experience ? `${result.years_experience}y` : '—', lbl: 'Years Exp.' },
                       { val: scoring?.final_score ?? '—', lbl: 'AI Score' },
                       { val: scoring?.shortlisted ? '✅ YES' : '⏸ REVIEW', lbl: 'Shortlist' },
-                    ].map(m => (
+                    ].map((m: any) => (
                       <div key={m.lbl} style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
                         <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>{m.val}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 4 }}>{m.lbl}</div>
