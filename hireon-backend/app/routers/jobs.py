@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
-from app.dependencies import DB, CurrentUser, RecruiterUser
+from app.dependencies import DB, CurrentUser, RecruiterUser, AdminUser
 from app.models.job import Job
 from app.models.application import Application
 from app.schemas.job import JobCreate, JobUpdate, JobOut
@@ -116,30 +116,51 @@ async def get_job(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
 
 
 @router.put("/{job_id}", response_model=JobOut)
-async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: RecruiterUser, db: DB):
+async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: AdminUser, db: DB):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
     )
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    changed_fields = list(data.model_dump(exclude_unset=True, exclude_none=True).keys())
     for field, value in data.model_dump(exclude_unset=True, exclude_none=True).items():
         if hasattr(value, "value"):
             value = value.value
         setattr(job, field, value)
+    await db.flush()
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="UPDATE",
+        resource_type="job",
+        resource_id=str(job_id),
+        details={"title": job.title, "fields": changed_fields[:5]}
+    )
     await db.commit()
     await db.refresh(job)
     return APIResponse.success(message="Job updated successfully.", data=JobOut.model_validate(job))
 
 
 @router.delete("/{job_id}")
-async def delete_job(job_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+async def delete_job(job_id: uuid.UUID, current_user: AdminUser, db: DB):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
     )
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    # Log before deletion so we can capture the job title
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="DELETE",
+        resource_type="job",
+        resource_id=str(job_id),
+        details={"title": job.title}
+    )
     await db.delete(job)
     await db.commit()
     return APIResponse.success(message="Job deleted successfully.")

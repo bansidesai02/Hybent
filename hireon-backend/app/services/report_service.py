@@ -15,8 +15,8 @@ BACKOUT_STAGES = [
     "offered_back_out",
 ]
 
-async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: bool, db: Session):
-    print(f"DEBUG: get_report_summary called for org={organization_id}, admin={is_admin}")
+async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: bool, db: Session, recruiter_id: str | None = None):
+    print(f"DEBUG: get_report_summary called for org={organization_id}, admin={is_admin}, recruiter={recruiter_id}")
     
     # We want a comprehensive view of all candidates/applications in the org
     # For Applied, we count all distinct candidates in the org
@@ -26,7 +26,9 @@ async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: boo
     from app.models.candidate import Candidate
     cand_query = select(Candidate).where(Candidate.organization_id == organization_id)
     if not is_admin:
-        cand_query = cand_query.where(Candidate.user_id == user_id)
+        cand_query = cand_query.where(Candidate.created_by_id == user_id)
+    elif recruiter_id:
+        cand_query = cand_query.where(Candidate.created_by_id == UUID(recruiter_id))
     
     res_cands = await db.execute(cand_query)
     all_candidates = res_cands.scalars().all()
@@ -34,7 +36,9 @@ async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: boo
     # 2. Get all Applications to find further progress
     app_query = select(Application).where(Application.organization_id == organization_id)
     if not is_admin:
-        app_query = app_query.join(Job, Application.job_id == Job.id).where(Job.created_by_id == user_id)
+        app_query = app_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == user_id)
+    elif recruiter_id:
+        app_query = app_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == UUID(recruiter_id))
         
     res_apps = await db.execute(app_query)
     all_apps = res_apps.scalars().all()
@@ -54,7 +58,9 @@ async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: boo
     # Re-fetch with Job join to get titles
     app_with_jobs_query = select(Application, Job.title).join(Job, Application.job_id == Job.id).where(Application.organization_id == organization_id)
     if not is_admin:
-        app_with_jobs_query = app_with_jobs_query.where(Job.created_by_id == user_id)
+        app_with_jobs_query = app_with_jobs_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == user_id)
+    elif recruiter_id:
+        app_with_jobs_query = app_with_jobs_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == UUID(recruiter_id))
     
     res_apps_jobs = await db.execute(app_with_jobs_query)
     for app_obj, job_title in res_apps_jobs.all():
@@ -89,34 +95,69 @@ async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: boo
     print(f"DEBUG: Final report summary with extra charts data: {summary}")
     return summary
 
-async def export_report_excel(organization_id: UUID, user_id: UUID, is_admin: bool, db: Session):
+async def export_report_excel(
+    organization_id: UUID, 
+    user_id: UUID, 
+    is_admin: bool, 
+    db: Session,
+    days: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    recruiter_id: str | None = None
+):
     import pandas as pd
+    from datetime import timedelta
+    from app.models.user import User
+
     query = (
-        select(Application, Job, Candidate)
+        select(Application, Job, Candidate, User.full_name.label("added_by"))
         .join(Job, Application.job_id == Job.id)
         .join(Candidate, Application.candidate_id == Candidate.id)
+        .outerjoin(User, Candidate.created_by_id == User.id)
         .where(Application.organization_id == organization_id)
     )
+
+    # Role Isolation
     if not is_admin:
-        query = query.where(Job.created_by_id == user_id)
+        query = query.where(Candidate.created_by_id == user_id)
+    elif recruiter_id:
+        # Admin filtering by specific recruiter
+        query = query.where(Candidate.created_by_id == UUID(recruiter_id))
+
+    # Date Filters
+    if days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        query = query.where(Application.applied_at >= cutoff)
+    elif start_date:
+        start = datetime.fromisoformat(start_date)
+        query = query.where(Application.applied_at >= start)
+        if end_date:
+            end = datetime.fromisoformat(end_date)
+            query = query.where(Application.applied_at <= end)
+
+    # Sorting (Oldest first as requested)
+    query = query.order_by(Application.applied_at.asc())
         
     result = await db.execute(query)
     rows = result.all()
     
     data = []
-    for app, job, cand in rows:
+    for idx, (app, job, cand, added_by) in enumerate(rows, 1):
         data.append({
+            "Sr No": idx,
+            "Date": app.applied_at.strftime("%Y-%m-%d"),
             "Candidate Name": cand.full_name,
             "Candidate Email": cand.email,
             "Job Title": job.title,
             "Current Stage": app.stage.replace("_", " ").title(),
-            "Date Applied": app.applied_at.strftime("%Y-%m-%d"),
-            "Match Code": app.match_score,
-            "Source": app.source or "Direct"
+            "Match Score": f"{app.match_score:.1f}%" if app.match_score else "N/A",
+            "Source": app.source or "Direct",
+            "Added By": added_by or "System"
         })
     
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Recruitment Report')
+        
     return output.getvalue()

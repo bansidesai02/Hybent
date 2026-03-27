@@ -1,5 +1,10 @@
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsApi } from '@/api/reports'
+import { adminApi } from '@/api/admin'
+import { useAuth } from '@/hooks/useAuth'
+import { Select } from '@/components/ui/Select'
+import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { motion } from 'framer-motion'
 import { toast } from 'react-hot-toast'
@@ -33,15 +38,45 @@ function GlassCard({ children, className = '', style = {} }: { children: React.R
 const COLORS = ['#6c47ff', '#10b981', '#f59e0b', '#ff6bc6', '#3b82f6', '#8b5cf6', '#f97316', '#ef4444']
 
 export default function ReportsPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const [days, setDays] = useState<string>('30')
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
+  const [recruiterId, setRecruiterId] = useState<string>('all')
+  const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
+
   const { data: summary, isLoading } = useQuery<ReportSummary>({
-    queryKey: ['reports', 'summary'],
-    queryFn: () => reportsApi.getSummary().then((r) => r.data),
+    queryKey: ['reports', 'summary', recruiterId],
+    queryFn: () => reportsApi.getSummary(isAdmin && recruiterId !== 'all' ? recruiterId : undefined).then((r) => r.data),
     refetchInterval: 30000,
   })
 
+  useEffect(() => {
+    if (isAdmin) {
+      adminApi.listUsers().then(res => {
+        // Filter out candidates from the recruiter list
+        const users = res.data
+          .filter((u: any) => u.role !== 'candidate')
+          .map((u: any) => ({ id: u.id, name: u.full_name }))
+        setRecruiters(users)
+      }).catch(err => console.error("Failed to fetch recruiters", err))
+    }
+  }, [isAdmin])
+
   const handleDownload = async () => {
     try {
-      const res = await reportsApi.export();
+      const params: any = {}
+      if (days === 'custom') {
+        if (startDate) params.start_date = startDate
+        if (endDate) params.end_date = endDate
+      } else if (days !== 'all') {
+        params.days = parseInt(days)
+      }
+      
+      if (isAdmin && recruiterId !== 'all') params.recruiter_id = recruiterId
+
+      const res = await reportsApi.export(params);
       const filename = `recruitment_report_${new Date().toISOString().split('T')[0]}.xlsx`;
 
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -104,6 +139,58 @@ export default function ReportsPage() {
           <span>📊</span> Download Excel Report
         </button>
       </div>
+
+      {/* Filters for Admin */}
+      <GlassCard className="bg-gray-50/30">
+        <div className="flex flex-col lg:flex-row gap-6 items-end w-full">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+            <Select
+              label="Date Range"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              options={[
+                { value: '7', label: 'Last 7 Days' },
+                { value: '30', label: 'Last 30 Days' },
+                { value: '90', label: 'Last 90 Days' },
+                { value: 'custom', label: 'Custom Range' },
+                { value: 'all', label: 'All Time' },
+              ]}
+            />
+
+            {days === 'custom' && (
+              <>
+                <Input
+                  type="date"
+                  label="Start Date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <Input
+                  type="date"
+                  label="End Date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </>
+            )}
+
+            {isAdmin && (
+              <Select
+                label="Recruiter Filter"
+                value={recruiterId}
+                onChange={(e) => setRecruiterId(e.target.value)}
+                options={[
+                  { value: 'all', label: 'All Recruiters' },
+                  ...recruiters.map(r => ({ value: r.id, label: r.name }))
+                ]}
+              />
+            )}
+          </div>
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-3 shrink-0">
+            Filtering aggregates for export
+          </div>
+        </div>
+      </GlassCard>
 
       {/* ── Stats Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

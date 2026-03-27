@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useActivityStore } from '@/store/activityStore'
@@ -18,6 +19,7 @@ export function useWebSocket() {
   const { accessToken, isAuthenticated } = useAuthStore()
   const { addNotification, setUnreadCount } = useNotificationStore()
   const { addActivity } = useActivityStore()
+  const queryClient = useQueryClient()
 
   const connect = useCallback(() => {
     if (!accessToken || !isAuthenticated) return
@@ -42,6 +44,21 @@ export function useWebSocket() {
           }
           if (msg.event === 'activity_created') {
             addActivity(msg.data)
+            
+            // Invalidate queries based on resource type
+            const resourceType = msg.data.resource_type
+            if (resourceType === 'candidate') {
+              queryClient.invalidateQueries({ queryKey: ['candidates'] })
+              queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+            } else if (resourceType === 'job') {
+              queryClient.invalidateQueries({ queryKey: ['jobs'] })
+            } else if (resourceType === 'application') {
+              queryClient.invalidateQueries({ queryKey: ['candidates'] })
+              queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+            }
+            
+            // Always refresh recent activities
+            queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
           }
         }
       } catch (_) { /* ignore */ }
@@ -62,7 +79,7 @@ export function useWebSocket() {
     }, 30000)
 
     ws.addEventListener('close', () => clearInterval(pingInterval))
-  }, [accessToken, isAuthenticated, addNotification, setUnreadCount])
+  }, [accessToken, isAuthenticated, addNotification, setUnreadCount, addActivity, queryClient])
 
   useEffect(() => {
     connect()

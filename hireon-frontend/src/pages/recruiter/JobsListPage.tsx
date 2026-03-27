@@ -158,7 +158,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function JobsListPage() {
-  const { basePath } = useAuth()
+  const { basePath, user } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -287,7 +287,7 @@ export default function JobsListPage() {
             <span>Posted Date</span>
             <span style={{ textAlign: 'center' }}>Apps</span>
             <span style={{ textAlign: 'center' }}>Status</span>
-            <span style={{ textAlign: 'right' }}>Actions</span>
+            {user?.role === 'admin' && <span style={{ textAlign: 'right' }}>Actions</span>}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -357,43 +357,47 @@ export default function JobsListPage() {
                   </select>
                 </div>
 
-                {/* Col 6 – Actions (always visible) */}
+                {/* Col 6 – Actions (Only Admin can Edit/Delete) */}
                 <div
                   className="flex justify-end gap-2 w-full lg:w-auto mt-2 lg:mt-0 border-t border-[var(--card-border)] lg:border-none pt-3 lg:pt-0"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button
-                    onClick={() => navigate(`${basePath}/jobs/${job.id}/edit`)}
-                    title="Edit Position"
-                    style={{
-                      width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(108,71,255,0.25)',
-                      background: 'rgba(108,71,255,0.08)', color: '#6c47ff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.18)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.08)' }}
-                  >
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setDeleteTarget(job)}
-                    title="Delete Position"
-                    style={{
-                      width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)',
-                      background: 'rgba(239,68,68,0.07)', color: '#ef4444',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.16)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)' }}
-                  >
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  {user?.role === 'admin' && (
+                    <>
+                      <button
+                        onClick={() => navigate(`${basePath}/jobs/${job.id}/edit`)}
+                        title="Edit Position"
+                        style={{
+                          width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(108,71,255,0.25)',
+                          background: 'rgba(108,71,255,0.08)', color: '#6c47ff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.18)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.08)' }}
+                      >
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(job)}
+                        title="Delete Position"
+                        style={{
+                          width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)',
+                          background: 'rgba(239,68,68,0.07)', color: '#ef4444',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.16)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)' }}
+                      >
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Mobile-only extra info */}

@@ -9,7 +9,15 @@ export const adminApi = {
 
   updateUser: (id: string, data: Partial<User>) => api.put<User>(`/v1/users/${id}`, data),
 
-  auditLogs: (params?: { page?: number; limit?: number; action?: string; resource_type?: string }) =>
+  auditLogs: (params?: {
+    page?: number
+    limit?: number
+    action?: string
+    resource_type?: string
+    search?: string
+    date_from?: string
+    date_to?: string
+  }) =>
     api.get<PaginatedResponse<AuditLog>>('/v1/admin/audit-logs', { params }),
 
   stats: () => api.get('/v1/admin/stats'),

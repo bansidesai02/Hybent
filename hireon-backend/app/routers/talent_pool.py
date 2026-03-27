@@ -3,11 +3,12 @@ Talent pool: browse all candidates, filter by skills/tags, re-engage.
 """
 import uuid
 from fastapi import APIRouter, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast, String
 from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut
 from app.utils.pagination import paginate
+from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/talent-pool", tags=["talent_pool"])
@@ -23,6 +24,7 @@ async def list_talent_pool(
     skill: str | None = None,
     tag: str | None = None,
     min_experience: int | None = None,
+    job_title: str | None = None,   # Filter by active job title
 ):
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id)
 
@@ -31,6 +33,9 @@ async def list_talent_pool(
             Candidate.full_name.ilike(f"%{search}%")
             | Candidate.email.ilike(f"%{search}%")
             | Candidate.current_title.ilike(f"%{search}%")
+            | Candidate.applied_job_title.ilike(f"%{search}%")
+            | cast(Candidate.skills, String).ilike(f"%{search}%")
+            | cast(Candidate.tags, String).ilike(f"%{search}%")
         )
     if skill:
         query = query.where(Candidate.skills.contains([skill]))
@@ -38,6 +43,12 @@ async def list_talent_pool(
         query = query.where(Candidate.tags.contains([tag]))
     if min_experience is not None:
         query = query.where(Candidate.years_experience >= min_experience)
+    if job_title:
+        # Match candidates whose applied_job_title or current_title matches the selected job
+        query = query.where(
+            Candidate.applied_job_title.ilike(f"%{job_title}%")
+            | Candidate.current_title.ilike(f"%{job_title}%")
+        )
 
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()
     items = (await db.execute(
@@ -121,7 +132,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
                 "current_title": candidate.current_title,
                 "years_experience": candidate.years_experience,
                 "match_score": candidate.match_score,
-                "skills": candidate.skills[:3] if candidate.skills else [],
+                "skills": candidate.skills[:8] if candidate.skills else [],
                 "avatar_url": None
             })
             
@@ -149,4 +160,14 @@ async def add_tag(candidate_id: uuid.UUID, tag: str, current_user: RecruiterUser
         raise HTTPException(status_code=404, detail="Candidate not found")
     if tag not in candidate.tags:
         candidate.tags = [*candidate.tags, tag]
+        await log_activity(
+            db,
+            organization_id=current_user.organization_id,
+            user_id=current_user.id,
+            action="UPDATE",
+            resource_type="candidate",
+            resource_id=str(candidate_id),
+            details={"name": candidate.full_name, "added_tag": tag}
+        )
+        await db.commit()
     return APIResponse.success(message="Tag added.", data={"tags": candidate.tags})
