@@ -138,6 +138,10 @@ function SuggestedMatchItem({ candidate, jobTitle, highlightTerm }: {
               )
             })}
           </div>
+          <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1.5 font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+            Added By: <span className="text-violet-600 dark:text-violet-400">{candidate.created_by_name || 'Admin'}</span>
+          </p>
         </div>
       </div>
       <Button size="sm" className="w-full max-w-[150px] bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black px-6 py-2.5 shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:scale-105 active:scale-95">
@@ -578,6 +582,19 @@ export default function TalentPoolPage() {
                       )}
                     </div>
                   )}
+                  
+                  {/* Added By Name */}
+                  <div className="mt-4 flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      Added By: <span className="text-violet-600 dark:text-violet-400 ml-1">{candidate.created_by_name || 'Admin'}</span>
+                    </p>
+                  </div>
+
                   {candidate.talent_pool_comment && (
                     <div className="mt-6 p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl">
                       <p className="text-[11px] font-medium text-violet-800 dark:text-violet-300 italic line-clamp-3">{candidate.talent_pool_comment}</p>

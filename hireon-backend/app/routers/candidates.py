@@ -43,6 +43,7 @@ async def list_candidates(
     tag: str | None = None,
     stage: str | None = None,
     status: str | None = None,
+    created_by_id: str | None = None,
 ):
     status = (status or "").strip().lower() or None
     # Status → multiple pipeline_stage values
@@ -66,6 +67,8 @@ async def list_candidates(
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations), selectinload(Candidate.created_by))
     
     # Isolation removed: Recruiter & Admin can see all candidates in the organization
+    if created_by_id:
+        query = query.where(Candidate.created_by_id == created_by_id)
 
     if search:
         query = query.where(

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
+import { adminApi } from '@/api/admin'
 import type { Candidate } from '@/types'
 import { Avatar } from '@/components/ui/Avatar'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -13,6 +14,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
 import { formatDate } from '@/utils/formatters'
 // import { formatDistanceToNow } from 'date-fns'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
@@ -345,6 +347,8 @@ export default function CandidatesPage() {
   const [selected, setSelected] = useState<Candidate | null>(null)
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [stageFilter, setStageFilter] = useState<string | undefined>(undefined)
+  const [recruiterId, setRecruiterId] = useState<string>('all')
+  const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const [selectedJobId, setSelectedJobId] = useState<string>('')
@@ -367,11 +371,22 @@ export default function CandidatesPage() {
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
   })
 
+  useEffect(() => {
+    adminApi.listUsers().then((res: any) => {
+      const users = res.data
+        .filter((u: any) => u.role !== 'candidate')
+        .map((u: any) => ({ id: u.id, name: u.full_name }))
+      setRecruiters(users)
+    }).catch((err: any) => console.error("Failed to fetch recruiters", err))
+  }, [])
+
   const queryParams = {
     page,
     limit: 12,
+    ...(search ? { search } : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
     ...(stageFilter ? { stage: stageFilter } : {}),
+    ...(recruiterId !== 'all' ? { created_by_id: recruiterId } : {}),
   }
 
   const { data, isLoading, isError } = useQuery({
@@ -470,6 +485,18 @@ export default function CandidatesPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             }
+          />
+        </div>
+
+        {/* Recruiter Filter */}
+        <div className="w-full sm:max-w-[180px] flex-shrink-0">
+          <Select
+            value={recruiterId}
+            onChange={(e) => { setRecruiterId(e.target.value); setPage(1) }}
+            options={[
+              { value: 'all', label: 'All Recruiters' },
+              ...recruiters.map(r => ({ value: r.id, label: r.name }))
+            ]}
           />
         </div>
 
