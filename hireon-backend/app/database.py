@@ -21,14 +21,30 @@ logger = logging.getLogger(__name__)
 class Base(DeclarativeBase):
     pass
 
+import asyncio
+import os
+
 # ── Lazy Components ────────────────────────────────────────────────────────────
 _engine = None
 _session_factory = None
+_pid = None
+_loop = None
 
 def get_engine():
-    """Lazily create the engine within the current event loop."""
-    global _engine
-    if _engine is None:
+    """Lazily create the engine within the current event loop and process."""
+    global _engine, _pid, _loop, _session_factory
+    current_pid = os.getpid()
+    
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+
+    # Re-initialize if engine is missing, PID changed (fork), or Event Loop changed (Celery)
+    if (_engine is None or 
+        _pid != current_pid or 
+        (current_loop is not None and _loop is not current_loop)):
+        
         _engine = create_async_engine(
             settings.database_url,
             echo=False,
@@ -36,14 +52,21 @@ def get_engine():
             max_overflow=20,
             pool_pre_ping=True,
         )
+        _pid = current_pid
+        _loop = current_loop
+        _session_factory = None  # Force factory to rebuild with new engine
+        
     return _engine
 
 def get_session_factory():
-    """Lazily create the session factory."""
+    """Lazily create the session factory, ensuring it's bound to the correct engine."""
     global _session_factory
+    # Always check if engine needs refreshing before returning factory
+    engine = get_engine()
+    
     if _session_factory is None:
         _session_factory = async_sessionmaker(
-            bind=get_engine(),
+            bind=engine,
             class_=AsyncSession,
             expire_on_commit=False,
             autocommit=False,
@@ -51,14 +74,24 @@ def get_session_factory():
         )
     return _session_factory
 
-# ── Proxy / Helper Definitions ────────────────────────────────────────────────
-def __getattr__(name):
-    """Lazy initialization of module attributes to ensure loop safety."""
-    if name == "engine":
-        return get_engine()
-    if name == "AsyncSessionLocal":
-        return get_session_factory()
-    raise AttributeError(f"module {__name__} has no attribute {name}")
+# ── Proxy Definitions ─────────────────────────────────────────────────────────
+class AsyncEngineProxy:
+    """A proxy that always delegates to the engine valid for the current event loop."""
+    def __getattr__(self, name):
+        return getattr(get_engine(), name)
+
+class AsyncSessionProxy:
+    """A proxy that always delegates to the session factory valid for the current loop."""
+    def __call__(self, **local_kw):
+        return get_session_factory()(**local_kw)
+    
+    def __getattr__(self, name):
+        return getattr(get_session_factory(), name)
+
+# These objects can be imported once and used in any event loop/process context.
+# They will always resolve to the correct SQLAlchemy components.
+engine = AsyncEngineProxy()
+AsyncSessionLocal = AsyncSessionProxy()
 
 # This ensures that internal references (like get_db) can use these names 
 # even before external callers trigger __getattr__.

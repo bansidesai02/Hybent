@@ -20,17 +20,14 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     WebSocket endpoint for real-time notifications.
     Connect: ws://localhost:8000/v1/notifications/ws?token=ACCESS_TOKEN
     """
-    try:
-        payload = decode_access_token(token)
-        user_id = payload.get("sub")
-        if not user_id:
-            await websocket.close(code=4001, reason="Invalid token")
-            return
-    except JWTError:
+    payload = decode_access_token(token)
+    user_id = payload.get("sub")
+    org_id = payload.get("org")
+    if not user_id:
         await websocket.close(code=4001, reason="Invalid token")
         return
 
-    await ws_manager.connect(websocket, user_id)
+    await ws_manager.connect(websocket, user_id, org_id)
     # Send a welcome message
     await ws_manager.send_to_user(user_id, "connected", {"message": "Connected to HireOn notifications"})
 
@@ -97,3 +94,20 @@ async def mark_all_read(current_user: CurrentUser, db: DB):
         notif.read_at = datetime.now(timezone.utc)
     await db.commit()
     return APIResponse.success(message="All notifications marked as read.")
+
+
+@router.post("/fcm-token")
+async def save_fcm_token(current_user: CurrentUser, db: DB, payload: dict):
+    """Save the browser's FCM registration token for the current user."""
+    token = payload.get("token", "").strip()
+    if not token:
+        raise HTTPException(status_code=422, detail="token is required")
+
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if user:
+        user.fcm_token = token
+        await db.commit()
+
+    return APIResponse.success(message="FCM token saved.")
+

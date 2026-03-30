@@ -125,27 +125,43 @@ async def _send_system_notification_async(user_id: str, org_id: str, type: str, 
         await db.commit()
         await db.refresh(notification)
         
-        # Real-time broadcast
+        notification_payload = {
+            "id": str(notification.id),
+            "type": notification.type,
+            "title": notification.title,
+            "message": notification.message,
+            "data": notification.data,
+            "created_at": notification.created_at.isoformat(),
+            "is_read": notification.is_read
+        }
+
+        # 1. Real-time WebSocket broadcast (in-app, when tab is open)
         try:
             await ws_manager.send_to_user(
                 user_id=user_id,
-                event="notification_received",
-                data={
-                    "id": str(notification.id),
-                    "type": notification.type,
-                    "title": notification.title,
-                    "message": notification.message,
-                    "data": notification.data,
-                    "created_at": notification.created_at.isoformat(),
-                    "is_read": notification.is_read
-                }
+                event="notification",
+                data=notification_payload,
             )
         except Exception as e:
             logger.error(f"Failed to broadcast notification via WS: {e}")
 
+
+        # 2. Firebase push notification (OS popup, works on other tabs / closed app)
+        try:
+            await ws_manager.send_push_notification(
+                user_id=user_id,
+                title=notification.title,
+                body=notification.message,
+                data={"id": str(notification.id), "type": notification.type},
+            )
+        except Exception as e:
+            logger.error(f"Failed to send FCM push notification: {e}")
+
+
 @celery_app.task
 def send_system_notification(user_id: str, org_id: str, type: str, title: str, message: str, data: dict | None = None):
     asyncio.run(_send_system_notification_async(user_id, org_id, type, title, message, data))
+
 
 
 async def _notify_organization_roles_async(org_id: str, roles: list[str], type: str, title: str, message: str, data: dict | None = None):

@@ -52,3 +52,6 @@ redis==5.0.4
 # Reporting
 pandas==2.2.2
 openpyxl==3.1.2
+
+# Firebase Admin SDK (push notifications)
+firebase-admin==6.5.0

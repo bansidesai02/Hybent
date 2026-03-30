@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useActivityStore } from '@/store/activityStore'
+import toast from 'react-hot-toast'
+import { ActivityToast } from '@/components/notifications/ActivityToast'
 
 const getWsBase = () => {
   const { protocol, host } = window.location
@@ -38,12 +40,46 @@ export function useWebSocket() {
         if (msg.type === 'event') {
           if (msg.event === 'notification' && msg.data) {
             addNotification(msg.data)
+            
+            // Trigger WhatsApp-style popup (in-app)
+            toast.custom((t) => (
+              <ActivityToast 
+                t={t} 
+                payload={{
+                  action: msg.data.type || 'notification',
+                  resource_type: 'notification',
+                  message: msg.data.message || 'New notification',
+                  timestamp: new Date().toISOString()
+                }} 
+              />
+            ), { id: `ws-notif-${msg.data.id || Date.now()}`, duration: 5000 })
+
+            // Trigger Native browser popup (visible when in another app)
+            if (Notification.permission === 'granted') {
+              new Notification(msg.data.title || 'HireOn Notification', {
+                body: msg.data.message || '',
+                icon: '/favicon.svg',
+              })
+            }
           }
           if (msg.event === 'unread_count') {
             setUnreadCount(msg.data.count)
           }
-          if (msg.event === 'activity_created') {
+          if (msg.event === 'activity_created' && msg.data) {
             addActivity(msg.data)
+            
+            // Trigger WhatsApp-style popup (in-app)
+            toast.custom((t) => (
+              <ActivityToast t={t} payload={msg.data} />
+            ), { id: `activity-${msg.data.id || Date.now()}`, duration: 5000 })
+
+            // Trigger Native browser popup (visible when in another app)
+            if (Notification.permission === 'granted') {
+              new Notification('New Activity', {
+                body: msg.data.message || 'A new activity occurred',
+                icon: '/favicon.svg',
+              })
+            }
             
             // Invalidate queries based on resource type
             const resourceType = msg.data.resource_type

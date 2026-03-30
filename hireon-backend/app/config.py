@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # ── Logging ────────────────────────────────────────────────────────────────
     log_level: str = "INFO"
 
+    # ── Firebase (push notifications) ──────────────────────────────────────────
+    firebase_service_account_json: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

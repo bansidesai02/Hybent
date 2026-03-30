@@ -63,7 +63,7 @@ export default function PortalPrepHub() {
   }))
 
   const nextInterviewDate = nextInterview ? new Date(nextInterview.scheduled_at) : null
-  const timeStr = nextInterviewDate ? nextInterviewDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ""
+  const timeStr = nextInterviewDate ? nextInterviewDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : ""
   const dateStr = nextInterviewDate ? `${nextInterviewDate.getMonth() + 1}/${nextInterviewDate.getDate()}/${nextInterviewDate.getFullYear()}` : ""
   const titleStr = nextInterview?.title || activeApp?.job?.title || "Specific Round"
 

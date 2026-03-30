@@ -34,6 +34,7 @@ class User(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
     google_refresh_token: Mapped[str | None] = mapped_column(String(500))
+    fcm_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     @property
     def is_calendar_connected(self) -> bool:

@@ -24,9 +24,42 @@ from app.schemas.response import APIResponse
 router = APIRouter(prefix="/v1/interviews", tags=["interviews"])
 
 
-def _interview_out(interview: Interview, panelists: list) -> dict:
+async def _get_job_role(db: DB, application_id: uuid.UUID | None, candidate_id: uuid.UUID) -> str:
+    """Robustly resolve the job title for an interview context."""
+    # 1. Try via application_id
+    if application_id:
+        job_result = await db.execute(
+            select(Job.title)
+            .join(Application, Application.job_id == Job.id)
+            .where(Application.id == application_id)
+        )
+        job_title = job_result.scalar_one_or_none()
+        if job_title:
+            return job_title
+
+    # 2. Try via Candidate.applied_job_title
+    cand_result = await db.execute(select(Candidate.applied_job_title).where(Candidate.id == candidate_id))
+    job_title = cand_result.scalar_one_or_none()
+    if job_title:
+        return job_title
+
+    # 3. Fallback: Most recent application for this candidate
+    fallback_result = await db.execute(
+        select(Job.title)
+        .join(Application, Application.job_id == Job.id)
+        .where(Application.candidate_id == candidate_id)
+        .order_by(Application.created_at.desc())
+        .limit(1)
+    )
+    job_title = fallback_result.scalar_one_or_none()
+    return job_title or "Position"
+
+
+async def _interview_out(db: DB, interview: Interview, panelists: list) -> dict:
     d = InterviewOut.model_validate(interview).model_dump()
     d["panelists"] = panelists
+    # Populate job_title for UI consistency
+    d["job_title"] = await _get_job_role(db, interview.application_id, interview.candidate_id)
     return d
 
 
@@ -73,6 +106,8 @@ async def list_interviews(current_user: CurrentUser, db: DB):
                 "user_email": u.email if u else None,
             })
         d["panelists"] = panelist_out
+        # Populate job_title for UI consistency
+        d["job_title"] = await _get_job_role(db, iv.application_id, iv.candidate_id)
         out.append(d)
     return APIResponse.success(message="Interviews retrieved successfully.", data=out)
 
@@ -183,15 +218,8 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
         local_time = data.scheduled_at.astimezone(tz)
         time_str = local_time.strftime("%B %d, %Y at %I:%M %p")
 
-        # Fetch job title/role
-        job_role = "Position"
-        if data.application_id:
-            job_result = await db.execute(
-                select(Job.title)
-                .join(Application, Application.job_id == Job.id)
-                .where(Application.id == uuid.UUID(data.application_id))
-            )
-            job_role = job_result.scalar_one_or_none() or "Position"
+        # Fetch job title/role using robust helper
+        job_role = await _get_job_role(db, interview.application_id, candidate.id)
 
         send_interview_invite(
             candidate_email=candidate.email,
@@ -234,11 +262,11 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
         str(interview.id),
         NotificationType.INTERVIEW_SCHEDULED,
         "Interview Scheduled",
-        f"A new interview '{data.title}' has been scheduled for {candidate.full_name} on {time_str}.",
+        f"A new interview '{data.title}' for {job_role} has been scheduled for {candidate.full_name} on {time_str}.",
         {"interview_id": str(interview.id), "candidate": candidate.full_name, "scheduled_at": time_str}
     )
-
-    d = _interview_out(interview, panelist_out)
+    
+    d = await _interview_out(db, interview, panelist_out)
     d["candidate_name"] = candidate.full_name
     d["candidate_email"] = candidate.email
     return APIResponse.success(message="Interview scheduled successfully.", data=d)
@@ -270,7 +298,7 @@ async def get_interview(interview_id: uuid.UUID, current_user: CurrentUser, db: 
             "user_email": u.email if u else None,
         })
 
-    d = _interview_out(interview, panelist_out)
+    d = await _interview_out(db, interview, panelist_out)
     if cand:
         d["candidate_name"] = cand.full_name
         d["candidate_email"] = cand.email
@@ -356,15 +384,8 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
             {"interview_id": str(interview.id), "old_time": old_time_str, "new_time": new_time_str}
         )
 
-        # Fetch job role
-        job_role = "Position"
-        if interview.application_id:
-            job_result = await db.execute(
-                select(Job.title)
-                .join(Application, Application.job_id == Job.id)
-                .where(Application.id == interview.application_id)
-            )
-            job_role = job_result.scalar_one_or_none() or "Position"
+        # Fetch job title/role using robust helper
+        job_role = await _get_job_role(db, interview.application_id, interview.candidate_id)
 
         cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
         if cand:
@@ -416,10 +437,10 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
             action="UPDATE",
             resource_type="interview",
             resource_id=str(interview_id),
-            details={"candidate": cand_name, "title": interview.title, "fields": list(data_dict.keys())[:5]}
+            details={"candidate": cand_name, "title": interview.title, "fields": list(data_dict.keys())}
         )
 
-    return APIResponse.success(message="Interview updated successfully.", data=InterviewOut.model_validate(interview).model_dump())
+    return APIResponse.success(message="Interview updated successfully.", data=await _interview_out(db, interview, [])) # panelists will be enriched by UI if needed
 
 
 @router.delete("/{interview_id}")
@@ -442,16 +463,8 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
     tz = zoneinfo.ZoneInfo(org.timezone or "Asia/Kolkata") if org else zoneinfo.ZoneInfo("Asia/Kolkata")
     time_str = interview.scheduled_at.astimezone(tz).strftime("%B %d, %Y at %I:%M %p")
 
-    # Send cancellation emails
-    # Fetch job role
-    job_role = "Position"
-    if interview.application_id:
-        job_result = await db.execute(
-            select(Job.title)
-            .join(Application, Application.job_id == Job.id)
-            .where(Application.id == interview.application_id)
-        )
-        job_role = job_result.scalar_one_or_none() or "Position"
+    # Fetch job title/role using robust helper
+    job_role = await _get_job_role(db, interview.application_id, interview.candidate_id)
 
     cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
     if cand:
@@ -482,7 +495,7 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
         str(interview.id),
         NotificationType.INTERVIEW_CANCELLED,
         "Interview Cancelled",
-        f"The interview '{interview.title}' scheduled for {time_str} has been cancelled.",
+        f"The interview '{interview.title}' for {job_role} scheduled for {time_str} has been cancelled.",
         {"interview_id": str(interview.id), "reason": reason}
     )
 
