@@ -298,7 +298,6 @@ export default function TalentPoolPage() {
         min_experience: minExp ? parseInt(minExp) : undefined,
         job_title: selectedJobTitle || undefined,
       }).then(r => r.data),
-    refetchInterval: 30_000,
   })
 
   const { data: stats } = useQuery({

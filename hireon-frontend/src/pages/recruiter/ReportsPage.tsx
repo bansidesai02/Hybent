@@ -49,7 +49,6 @@ export default function ReportsPage() {
   const { data: summary, isLoading } = useQuery<ReportSummary>({
     queryKey: ['reports', 'summary', recruiterId],
     queryFn: () => reportsApi.getSummary(isAdmin && recruiterId !== 'all' ? recruiterId : undefined).then((r) => r.data),
-    refetchInterval: 30000,
   })
 
   useEffect(() => {

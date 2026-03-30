@@ -135,13 +135,11 @@ export default function PortalDashboard() {
   const { data: applications, isLoading: appsLoading } = useQuery({
     queryKey: ['portal', 'applications'],
     queryFn: () => portalApi.myApplications().then((r: any) => r.data),
-    refetchInterval: 30_000,
   })
 
   const { data: interviews, isLoading: intLoading } = useQuery({
     queryKey: ['portal', 'interviews'],
     queryFn: () => portalApi.myInterviews().then((r: any) => r.data),
-    refetchInterval: 30_000,
   })
 
   // Fetch candidate profile as fallback — recruiters may update stage before
@@ -149,7 +147,6 @@ export default function PortalDashboard() {
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['portal', 'profile'],
     queryFn: () => portalApi.profile().then((r: any) => r.data),
-    refetchInterval: 30_000,
   })
 
   if (appsLoading || intLoading || profileLoading) {
