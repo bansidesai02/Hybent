@@ -50,11 +50,26 @@ export function useWebSocket() {
             if (resourceType === 'candidate') {
               queryClient.invalidateQueries({ queryKey: ['candidates'] })
               queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+              queryClient.invalidateQueries({ queryKey: ['talent-pool'] })
+              queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+              queryClient.invalidateQueries({ queryKey: ['talent-pool-suggestions'] })
             } else if (resourceType === 'job') {
               queryClient.invalidateQueries({ queryKey: ['jobs'] })
+              queryClient.invalidateQueries({ queryKey: ['active-jobs'] })
             } else if (resourceType === 'application') {
               queryClient.invalidateQueries({ queryKey: ['candidates'] })
               queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+              queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+              queryClient.invalidateQueries({ queryKey: ['overview-stats'] })
+            } else if (resourceType === 'interview') {
+              queryClient.invalidateQueries({ queryKey: ['interviews'] })
+              queryClient.invalidateQueries({ queryKey: ['recent-interviews'] })
+              queryClient.invalidateQueries({ queryKey: ['interviewer-interviews'] })
+            } else if (resourceType === 'offer') {
+              queryClient.invalidateQueries({ queryKey: ['offers'] })
+            } else if (resourceType === 'notification') {
+              queryClient.invalidateQueries({ queryKey: ['notifications'] })
+              queryClient.invalidateQueries({ queryKey: ['unread_notifications_count'] })
             }
             
             // Always refresh recent activities

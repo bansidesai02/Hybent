@@ -45,8 +45,7 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
   const { data: activities = [], isLoading, isError } = useQuery({
     queryKey: ['recent-activities', limit],
     queryFn: () => activitiesApi.list(limit).then((r) => r.data),
-    refetchInterval: 8_000,
-    staleTime: 0,
+    staleTime: 60_000, // 1 minute stale time since we use WebSockets for updates
   })
 
   if (isLoading) {
