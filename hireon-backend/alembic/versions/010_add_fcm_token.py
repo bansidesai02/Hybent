@@ -1,6 +1,6 @@
 """add fcm_token to users
 
-Revision ID: 009_add_fcm_token
+Revision ID: 010_add_fcm_token
 Revises: 009_add_settings
 Create Date: 2026-03-30
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '009_add_fcm_token'
+revision = '010_add_fcm_token'
 down_revision = '009_add_settings'
 branch_labels = None
 depends_on = None
