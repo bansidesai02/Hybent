@@ -32,3 +32,32 @@ export const authApi = {
   sendCandidateMagicLink: (email: string) =>
     api.post<{ message: string }>('/v1/auth/candidate/magic-link', { email }),
 }
+
+// ── Profile API (GET + PUT /v1/users/me) ──────────────────────────────────────
+export interface ProfileUpdatePayload {
+  full_name?: string
+  avatar_url?: string
+  phone?: string
+  // Admin-only fields:
+  email?: string
+  role?: string
+  organization_name?: string
+}
+
+export const profileApi = {
+  /** Fetch the current user's full profile */
+  getMe: () => api.get<User>('/v1/users/me'),
+
+  /** Update full_name and/or avatar_url */
+  updateMe: (data: ProfileUpdatePayload) =>
+    api.put<User>('/v1/users/me', data),
+
+  /** Upload a new avatar image (multipart/form-data) */
+  uploadAvatar: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post<User>('/v1/users/me/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+}

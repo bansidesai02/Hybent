@@ -56,6 +56,7 @@ import PortalSettingsPage from '@/pages/portal/PortalSettingsPage'
 // Admin pages
 import TeamManagementPage from '@/pages/admin/TeamManagementPage'
 import AuditLogsPage from '@/pages/admin/AuditLogsPage'
+import AdminProfilePage from '@/pages/admin/AdminProfilePage'
 
 // ── Protected route wrapper ────────────────────────────────────────────────────
 function RequireAuth({
@@ -168,10 +169,13 @@ export default function App() {
             </RequireAuth>
           }
         >
-          {coreRoutes}
-          {/* Admin-specific routes */}
+          {/* Admin-specific routes first - ensures /admin/profile hits AdminProfilePage */}
           <Route path="team" element={<TeamManagementPage />} />
           <Route path="audit" element={<AuditLogsPage />} />
+          <Route path="profile" element={<AdminProfilePage />} />
+          
+          {/* Shared routes */}
+          {coreRoutes}
         </Route>
 
         {/* Interviewer routes */}
