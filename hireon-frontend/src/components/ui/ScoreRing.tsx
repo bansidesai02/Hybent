@@ -33,7 +33,14 @@ export function ScoreRing({ score, size = 56, strokeWidth = 5 }: ScoreRingProps)
           style={{ transition: 'stroke-dashoffset 0.6s ease' }}
         />
       </svg>
-      <span className="absolute text-xs font-bold" style={{ color }}>
+      <span 
+        className="absolute font-bold" 
+        style={{ 
+          color, 
+          fontSize: size < 32 ? '8px' : size < 40 ? '10px' : '12px',
+          lineHeight: 1 
+        }}
+      >
         {score != null ? `${Math.round(score)}` : '—'}
       </span>
     </div>

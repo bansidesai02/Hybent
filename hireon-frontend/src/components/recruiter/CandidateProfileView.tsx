@@ -80,22 +80,10 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
   const stage = candidate.pipeline_stage || 'applied'
   const hasInterviewStage = INTERVIEW_STAGES.has(stage)
 
-  // Fetch applications for this candidate to get application IDs
-  const { data: applications = [], isLoading: loadingApps } = useQuery({
-    queryKey: ['candidate-applications', candidate.id],
-    queryFn: () => candidatesApi.getApplications(candidate.id).then((r: any) => r.data),
-    enabled: hasInterviewStage,
-  })
-
-  // Derive the first application id
-  const applicationId: string | null = Array.isArray(applications) && applications.length > 0
-    ? (applications[0]?.id ?? null)
-    : null
-
   const { data: scorecards = [], isLoading: loadingSC } = useQuery({
-    queryKey: ['scorecards', 'application', applicationId],
-    queryFn: () => scorecardsApi.getForApplication(applicationId).then((r: any) => r.data as Scorecard[]),
-    enabled: hasInterviewStage && !!applicationId,
+    queryKey: ['scorecards', 'candidate', candidate.id],
+    queryFn: () => scorecardsApi.getForCandidate(candidate.id).then((r: any) => r.data as Scorecard[]),
+    enabled: hasInterviewStage,
     staleTime: 30_000,
   })
 
@@ -119,7 +107,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
     )
   }
 
-  if (loadingApps || loadingSC) {
+  if (loadingSC) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '24px 0' }}>
         {[1, 2].map((i: any) => (

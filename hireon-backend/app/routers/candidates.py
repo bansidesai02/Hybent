@@ -322,7 +322,7 @@ async def get_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: 
 from app.utils.permissions import REJECTION_STAGES
 
 @router.put("/{candidate_id}", response_model=CandidateOut)
-async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: AdminUser, db: DB):
+async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: RecruiterUser, db: DB):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
