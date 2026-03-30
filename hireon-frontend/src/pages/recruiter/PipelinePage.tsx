@@ -80,26 +80,27 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
     <Modal open onClose={onClose} title="Candidate Details" size="lg">
       <div className="space-y-6">
         {/* Profile Section */}
-        <div className="flex items-center gap-5 p-1">
-          <div className="relative">
-            <Avatar name={card.candidate_name} src={card.avatar_url} size="xl" />
-            <div className="absolute -bottom-1 -right-1">
-              <ScoreRing score={card.match_score} size={48} strokeWidth={4} />
+        <div className="flex items-center justify-between gap-5 p-1">
+          <div className="flex items-center gap-5 min-w-0 font-sans">
+            <Avatar name={card.candidate_name} src={card.avatar_url} size="xl" className="ring-4 ring-violet-50 shadow-sm" />
+            <div className="min-w-0 space-y-0.5">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white truncate" style={{ fontFamily: "'Fraunces', serif" }}>{card.candidate_name}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase tracking-wide">{card.current_title || 'Software Engineer'}</p>
+              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+                <span className="flex items-center gap-1 shadow-sm">
+                  <svg className="w-3.5 h-3.5 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  {card.candidate_email}
+                </span>
+                <span className="opacity-30">•</span>
+                <span>Applied {formatDate(card.applied_at)}</span>
+              </div>
             </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate">{card.candidate_name}</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{card.current_title || 'Software Engineer'}</p>
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400 font-medium tracking-tight">
-              <span className="flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                {card.candidate_email}
-              </span>
-              <span>•</span>
-              <span>Applied {formatDate(card.applied_at)}</span>
-            </div>
+          <div className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 bg-violet-50 dark:bg-violet-900/10 rounded-2xl border border-violet-100/50 dark:border-violet-900/20">
+            <ScoreRing score={card.match_score} size={60} strokeWidth={5} />
+            <span className="text-[9px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">AI Match</span>
           </div>
         </div>
 

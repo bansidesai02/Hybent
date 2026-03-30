@@ -139,6 +139,32 @@ async def list_scorecards_for_application(application_id: uuid.UUID, current_use
         d["submitted_by_name"] = user.full_name if user else None
         out.append(d)
     return APIResponse.success(message="Scorecards retrieved.", data=out)
+    
+    
+@router.get("/candidate/{candidate_id}")
+async def list_scorecards_for_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    from app.models.user import User
+    from app.models.interview import Interview
+    
+    # Check org access
+    result = await db.execute(
+        select(Scorecard)
+        .join(Interview, Scorecard.interview_id == Interview.id)
+        .where(
+            Interview.candidate_id == candidate_id,
+            Scorecard.organization_id == current_user.organization_id,
+        )
+    )
+    scorecards = result.scalars().all()
+    
+    out = []
+    for sc in scorecards:
+        d = ScorecardOut.model_validate(sc).model_dump()
+        user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
+        d["submitted_by_name"] = user.full_name if user else None
+        out.append(d)
+        
+    return APIResponse.success(message="Scorecards retrieved.", data=out)
 
 
 @router.get("/{scorecard_id}", response_model=ScorecardOut)
