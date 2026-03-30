@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, field_validator
 from app.utils.permissions import UserRole
 from app.schemas.base import OrmSchema
@@ -47,9 +48,27 @@ class UserOut(OrmSchema):
     full_name: str
     role: UserRole
     organization_id: str
+    organization_name: str | None = None
     avatar_url: str | None = None
+    phone: str | None = None
     is_active: bool
     is_calendar_connected: bool = False
+    created_at: datetime | None = None
+    last_login: datetime | None = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Payload for PUT /v1/users/me.
+    All roles: full_name, avatar_url, phone.
+    Admin only: email, role, organization_name.
+    """
+    full_name: str | None = None
+    avatar_url: str | None = None
+    phone: str | None = None
+    # Admin-only fields (enforced in router)
+    email: str | None = None
+    role: str | None = None
+    organization_name: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):

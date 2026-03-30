@@ -1,10 +1,12 @@
 import { useAuthStore } from '@/store/authStore'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
+import { useQueryClient } from '@tanstack/react-query'
 
 export function useAuth() {
   const { user, isAuthenticated, setTokens, logout: storeLogout } = useAuthStore()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const login = async (email: string, password: string) => {
     const { data } = await authApi.login(email, password)
@@ -27,6 +29,8 @@ export function useAuth() {
     } catch (_) {
       // ignore errors
     }
+    // Clear ALL React Query cache so the next user never sees stale data
+    queryClient.clear()
     storeLogout()
     navigate('/login')
   }
