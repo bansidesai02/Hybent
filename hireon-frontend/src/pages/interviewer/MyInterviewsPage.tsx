@@ -23,11 +23,11 @@ function isLiveNow(i: Interview) {
 }
 
 function fmtAmPm(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString([], { hour12: true }).slice(-2)
+  return new Date(dateStr).toLocaleTimeString('en-US', { hour12: true }).split(' ').pop() || ''
 }
 
 function fmtHourOnly(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).split(' ')[0]
 }
 
 function interviewTypeLabel(type: string) {

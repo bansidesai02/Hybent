@@ -49,7 +49,7 @@ function avatarColor(name?: string | null) {
 }
 
 function fmtTime(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
 type ScheduleBadge = 'live' | 'upcoming' | 'unconfirmed' | 'fill' | 'done'

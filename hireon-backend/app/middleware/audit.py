@@ -67,8 +67,29 @@ class AuditMiddleware(BaseHTTPMiddleware):
             f"status={response.status_code} duration={duration_ms:.1f}ms"
         )
 
-        # For a production system, you'd write this to the audit_logs table.
-        # Skipped here to avoid DB session complexity in middleware —
-        # individual routers write audit entries directly where needed.
+        # ── Real-time Activity Broadcast (WhatsApp-style popups) ─────────────
+        if resource_type in {"job", "candidate", "interview", "application", "scorecard", "offer"}:
+            if 200 <= response.status_code < 300 and org_id:
+                from app.websocket.manager import ws_manager
+                import asyncio
+                from datetime import datetime, timezone
+                
+                # Format a friendly message for the toast
+                message = f"{action.capitalize()}d {resource_type}"
+                
+                # Use a background task to not block the current response
+                asyncio.create_task(ws_manager.broadcast_to_org(
+                    org_id=str(org_id),
+                    event="activity_created",
+                    data={
+                        "user_id": str(user_id) if user_id else None,
+                        "action": action,
+                        "resource_type": resource_type,
+                        "resource_id": str(resource_id) if resource_id else None,
+                        "message": message,
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    },
+                    exclude_user_id=str(user_id) if user_id else None
+                ))
 
         return response

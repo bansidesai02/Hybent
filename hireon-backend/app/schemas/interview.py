@@ -49,6 +49,7 @@ class InterviewOut(OrmSchema):
     organization_id: str
     candidate_id: str
     application_id: str | None = None         # optional
+    job_title: str | None = None              # position title
     title: str
     interview_type: InterviewType
     status: InterviewStatus

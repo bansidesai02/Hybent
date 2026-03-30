@@ -581,7 +581,7 @@ function InterviewCard({
         {/* Time Column */}
         <div className="shrink-0 w-auto sm:w-[70px] flex sm:block items-baseline gap-2 text-left sm:text-center">
           <p className="text-[18px] font-black text-[#6c47ff] mb-0 sm:mb-[2px]">
-            {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).split(' ')[0]}
           </p>
           <p className="text-[10px] font-extrabold text-[var(--text-light)] opacity-60 uppercase tracking-[0.5px]">
             {d.getHours() >= 12 ? 'PM' : 'AM'}
