@@ -24,9 +24,11 @@ export default function LoginPage() {
   const [fpLoading, setFpLoading] = useState(false)
   const [fpError, setFpError] = useState('')
 
+/*
   const [magicEmail, setMagicEmail] = useState('')
   const [magicLoading, setMagicLoading] = useState(false)
   const [magicError, setMagicError] = useState('')
+*/
 
   const {
     register,
@@ -69,6 +71,7 @@ export default function LoginPage() {
     }
   }
 
+/*
   const onMagicSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setMagicError('')
@@ -86,6 +89,7 @@ export default function LoginPage() {
       setMagicLoading(false)
     }
   }
+*/
 
   const CSS = `
     .login-container {
@@ -198,15 +202,17 @@ export default function LoginPage() {
             </div>
             <h1 className="form-h1" style={{ marginBottom: 10 }}>Check your inbox</h1>
             <p className="form-h2" style={{ marginBottom: 32 }}>
-              We sent a {view === 'magic_sent' ? 'magic' : 'reset'} link to <strong style={{ color: '#1a1040' }}>{view === 'magic_sent' ? magicEmail : fpEmail}</strong>.<br />Link expires in {view === 'magic_sent' ? '48 hours' : '30 minutes'}.
+              We sent a reset link to <strong style={{ color: '#1a1040' }}>{fpEmail}</strong>.<br />Link expires in 30 minutes.
             </p>
-            <button className="btn-submit" type="button" onClick={() => { setView('login'); setFpEmail(''); setMagicEmail(''); }}>
+            <button className="btn-submit" type="button" onClick={() => { setView('login'); setFpEmail(''); }}>
               Back to Sign In
             </button>
+            {/* 
             <p style={{ marginTop: 16, fontSize: 12, color: '#9689bb' }}>
               Didn't get it?{' '}
               <button className="forgot-link" onClick={() => { setView(view === 'magic_sent' ? 'login' : 'forgot'); if (view === 'magic_sent') setActiveTab('magic'); setFpError(''); setMagicError(''); }}>Try again</button>
             </p>
+            */}
           </div>
         ) : view === 'forgot' ? (
           <div>
@@ -250,15 +256,16 @@ export default function LoginPage() {
             <h1 className="form-h1">Good to see you</h1>
             <p className="form-h2">Sign in to your hiring dashboard</p>
 
+            {/* 
             <div className="tabs-list">
               <button className={`tab-btn ${activeTab === 'pass' ? 'active' : ''}`} onClick={() => setActiveTab('pass')}>Login</button>
-              <button className={`tab-btn ${activeTab === 'magic' ? 'active' : ''}`} onClick={() => setActiveTab('magic')}>Magic Link</button>
             </div>
+            */}
 
             {serverError && <div className="server-err">{serverError}</div>}
-            {magicError && <div className="server-err">{magicError}</div>}
+            {/* {magicError && <div className="server-err">{magicError}</div>} */}
 
-            {activeTab === 'pass' ? (
+            {/* {activeTab === 'pass' ? ( */}
               <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="field-box">
                   <label className="field-label">Email</label>
@@ -317,7 +324,7 @@ export default function LoginPage() {
                   ) : <>Sign In &rarr;</>}
                 </button>
               </form>
-            ) : (
+            {/* ) : (
               <form onSubmit={onMagicSubmit}>
                 <div className="field-box">
                   <label className="field-label">Email</label>
@@ -342,8 +349,9 @@ export default function LoginPage() {
                   ) : 'Send Magic Link ✨'}
                 </button>
               </form>
-            )}
+            )} */}
 
+            {/* 
             <div className="or-divider">or continue with</div>
             <div className="socials-grid">
               <button className="social-btn" type="button">
@@ -355,6 +363,7 @@ export default function LoginPage() {
                 Microsoft
               </button>
             </div>
+            */}
             <div className="foot-note">No account? <Link to="/register">create one &rarr;</Link></div>
           </>
         )}

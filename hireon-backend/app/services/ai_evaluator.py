@@ -111,6 +111,23 @@ Return strictly valid JSON:
 }
 """
 
+JD_GENERATE_PROMPT = """
+You are an expert technical recruiter and AI assistant. Based on the user's short prompt, generate a professional and structured Job Description.
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "title": "string (the Job Position)",
+  "location": "string (the Location)",
+  "experience": "string (e.g. 3+ Years, Fresher, etc.)",
+  "description": "string (a professional Job Description paragraph)",
+  "key_responsibilities": ["resp1", "resp2", ...],
+  "required_qualifications_skills": ["skill1", "skill2", ...],
+  "good_to_have": ["skill1", "skill2", ...]
+}
+
+User Prompt:
+"""
+
 async def generate_prep_materials(job_title: str, job_description: str, candidate_resume: str = ""):
     """
     Call Gemini or Groq to generate prep flashcards based on a Job and Candidate Resume.
@@ -146,3 +163,39 @@ async def generate_prep_materials(job_title: str, job_description: str, candidat
     except Exception as e:
         logger.error(f"AI Prep generation failure: {e}")
         return {"flashcards": [], "focus_areas": []}
+
+async def generate_jd_from_prompt(user_prompt: str):
+    """
+    Call Gemini or Groq to generate a full JD from a short user prompt.
+    """
+    if not settings.gemini_api_key and not settings.groq_api_key:
+        logger.warning("No AI API keys configured (Gemini/Groq)")
+        return None
+
+    prompt = f"{JD_GENERATE_PROMPT}\n{user_prompt}"
+
+    try:
+        if settings.gemini_api_key:
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                response = await model.generate_content_async(prompt)
+                return parse_json_response(response.text)
+            except Exception as ge:
+                logger.error(f"Gemini JD generation failed, checking Groq: {ge}")
+                if not settings.groq_api_key:
+                    raise ge
+
+        if settings.groq_api_key:
+            completion = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that returns strictly JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            return json.loads(completion.choices[0].message.content)
+
+    except Exception as e:
+        logger.error(f"AI JD generation failure: {e}")
+        return None

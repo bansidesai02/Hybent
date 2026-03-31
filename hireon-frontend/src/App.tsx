@@ -78,7 +78,7 @@ function RequireAuth({
   return <>{children}</>
 }
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/store/uiStore'
 import { AppLoader } from '@/components/ui/AppLoader'

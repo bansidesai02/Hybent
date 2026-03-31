@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { jobsApi } from '@/api/jobs'
+import { aiApi } from '@/api/ai'
 import type { Job, JobStatus } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Pagination } from '@/components/ui/Pagination'
@@ -51,6 +52,43 @@ const STATUS_FILTERS = [
 // ─── Job Detail Modal ──────────────────────────────────────────────────────────
 
 function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => void; onEdit: () => void }) {
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleDownloadPDF = async () => {
+    if (job.jd_url) {
+      window.open(job.jd_url, '_blank')
+      return
+    }
+
+    try {
+      setIsExporting(true)
+      const jdData = {
+        title: job.title,
+        location: job.location || 'Remote',
+        experience: job.experience_level,
+        key_responsibilities: job.requirements ? job.requirements.split('\n') : [],
+        required_qualifications_skills: job.skills_required,
+        good_to_have: [],
+        description: job.description
+      }
+      const res = await aiApi.exportJDPDF(jdData)
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `JD_${job.title.replace(/\s+/g, '_')}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      toast.success('JD PDF generated successfully!')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to generate PDF.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <Modal
       open
@@ -58,27 +96,28 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
       title="Position Details"
       size="lg"
       headerActions={
-        job.jd_url && (
-          <button
-            onClick={() => window.open(job.jd_url!, '_blank')}
-            className="btn-primary-gradient"
-            style={{
-              padding: '6px 14px',
-              fontSize: 12,
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 4px 12px rgba(108,71,255,0.25)'
-            }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            View JD
-          </button>
-        )
+        <button
+          type="button"
+          onClick={handleDownloadPDF}
+          disabled={isExporting}
+          className="btn-primary-gradient"
+          style={{
+            padding: '6px 14px',
+            fontSize: 12,
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            boxShadow: '0 4px 12px rgba(108,71,255,0.25)',
+            opacity: isExporting ? 0.7 : 1
+          }}
+        >
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          {isExporting ? 'Generating...' : 'View JD'}
+        </button>
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
