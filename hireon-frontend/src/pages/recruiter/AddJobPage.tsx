@@ -1,12 +1,15 @@
 import { useAuth } from '@/hooks/useAuth'
-import { useState, useRef, KeyboardEvent, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import React, { useState, useRef, KeyboardEvent, useEffect } from 'react'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { jobsApi } from '@/api/jobs'
+import { aiApi } from '@/api/ai'
 import type { Job } from '@/types'
+import { AIJDReviewModal } from '@/components/recruiter/AIJDReviewModal'
+import toast from 'react-hot-toast'
 
 // ─── Schema ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +53,7 @@ const ICON_COLORS = [
 export default function AddJobPage() {
   const { basePath } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const queryClient = useQueryClient()
   const isEdit = Boolean(id)
@@ -59,6 +63,11 @@ export default function AddJobPage() {
   const [serverError, setServerError] = useState('')
   const [saved, setSaved] = useState(false)
   const [isParsing, setIsParsing] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [showAIReview, setShowAIReview] = useState(false)
+  const [aiGeneratedJD, setAiGeneratedJD] = useState<any>(null)
+  const [isPreviewing, setIsPreviewing] = useState(false)
 
   const {
     register,
@@ -106,6 +115,54 @@ export default function AddJobPage() {
       })
     }
   }, [jobData, reset])
+
+  const handleApplyAIJD = (approved: any) => {
+    if (approved) {
+      if (approved.title) setValue('title', approved.title)
+      if (approved.location) setValue('location', approved.location)
+      if (approved.description) setValue('description', approved.description)
+      
+      // Map refined fields back to the form
+      const skills = [...(approved.required_qualifications_skills || []), ...(approved.good_to_have || [])]
+      if (skills.length > 0) setValue('skills_required', skills)
+      
+      if (approved.key_responsibilities && approved.key_responsibilities.length > 0) {
+        setValue('responsibilities', Array.isArray(approved.key_responsibilities) ? approved.key_responsibilities.join('\n• ') : approved.key_responsibilities)
+      }
+    }
+    setShowAIReview(false)
+  }
+
+  const handlePreviewPDF = async () => {
+    const values = watch()
+    try {
+      setIsPreviewing(true)
+      const jdData = {
+        title: values.title,
+        location: values.location || 'Remote',
+        experience: values.experience_level || 'Not specified',
+        key_responsibilities: values.responsibilities ? values.responsibilities.split('\n').map((s: string) => s.replace(/^[•\s*-]+/, '').trim()) : [],
+        required_qualifications_skills: values.skills_required || [],
+        good_to_have: [],
+        description: values.description
+      }
+      const res = await aiApi.exportJDPDF(jdData)
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `Preview_JD_${values.title.replace(/\s+/g, '_')}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      toast.success('Preview PDF generated!')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to generate preview PDF.')
+    } finally {
+      setIsPreviewing(false)
+    }
+  }
 
   // Fetch all jobs for "Active Job Descriptions" panel
   const { data: jobsRes } = useQuery({
@@ -173,6 +230,23 @@ export default function AddJobPage() {
     } finally {
       setIsParsing(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleMagicGenerate = async () => {
+    if (!aiPrompt.trim()) return
+    try {
+      setIsGenerating(true)
+      setServerError('')
+      const res = await aiApi.generateJD(aiPrompt)
+      setAiGeneratedJD(res.data)
+      setShowAIReview(true)
+      setAiPrompt('')
+    } catch (err) {
+      console.error(err)
+      setServerError('Failed to generate JD with AI. Please try again.')
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -337,6 +411,54 @@ export default function AddJobPage() {
           {/* ── RIGHT PANEL ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+            {/* AI Magic JD Generator */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>✨ AI JD Generator</div>
+              <p style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 12 }}>
+                Enter a short prompt to generate a full job description instantly.
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input 
+                  className="input-base" 
+                  placeholder="e.g. Senior Python dev with FastAPI..." 
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleMagicGenerate())}
+                />
+                <button
+                  type="button"
+                  onClick={handleMagicGenerate}
+                  disabled={isGenerating || !aiPrompt.trim()}
+                  style={{ 
+                    padding: '0 16px', borderRadius: 10, background: 'linear-gradient(135deg,#6c47ff,#8b6bff)', 
+                    color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: 13,
+                    opacity: (isGenerating || !aiPrompt.trim()) ? 0.6 : 1
+                  }}
+                >
+                  {isGenerating ? '⌛' : 'Generate'}
+                </button>
+              </div>
+
+              {aiGeneratedJD && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--table-border)' }}>
+                  <button
+                    type="button"
+                    onClick={handlePreviewPDF}
+                    disabled={isPreviewing}
+                    style={{
+                      width: '100%', padding: '8px', borderRadius: 10,
+                      background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.2)',
+                      color: '#6c47ff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      opacity: isPreviewing ? 0.7 : 1
+                    }}
+                  >
+                    {isPreviewing ? 'Generating Preview...' : '📄 Preview Professional PDF'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Upload JD File */}
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)', position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -457,6 +579,13 @@ export default function AddJobPage() {
           </div>
         </div>
       </form>
+
+      <AIJDReviewModal 
+        open={showAIReview}
+        onClose={() => setShowAIReview(false)}
+        data={aiGeneratedJD}
+        onApply={handleApplyAIJD}
+      />
     </div>
   )
 }

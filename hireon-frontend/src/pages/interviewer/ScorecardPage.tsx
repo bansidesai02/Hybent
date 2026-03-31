@@ -284,6 +284,18 @@ export default function ScorecardPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSuggestions, setAiSuggestions] = useState<any>(null)
 
+  const getCounts = (text: string) => {
+    const trimmed = text.trim()
+    return {
+      chars: trimmed.length,
+      words: trimmed === '' ? 0 : trimmed.split(/\s+/).length
+    }
+  }
+
+  const notesCounts = getCounts(notes)
+  const strengthsCounts = getCounts(strengths)
+  const weaknessesCounts = getCounts(weaknesses)
+
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type })
     setTimeout(() => setToast(null), 3500)
@@ -352,7 +364,13 @@ export default function ScorecardPage() {
     },
   })
 
-  const canSubmit = allRated && recommendation !== null && notes.trim() !== '' && strengths.trim() !== '' && weaknesses.trim() !== '' && !mutation.isPending
+  const canSubmit = 
+    allRated && 
+    recommendation !== null && 
+    notesCounts.words >= 100 && 
+    strengthsCounts.words >= 30 && 
+    weaknessesCounts.words >= 30 && 
+    !mutation.isPending
 
   // ── Loading ────────────────────────────────────────────────────────────────────
   if (intLoading || myScLoading) {
@@ -610,19 +628,22 @@ export default function ScorecardPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-mid)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    marginBottom: 6,
-                  }}
-                >
-                  Overall Notes / Summary <span style={{ color: '#ef4444' }}>*</span>
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: 'var(--text-mid)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.8px',
+                    }}
+                  >
+                    Overall Notes / Summary <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: notesCounts.words >= 100 ? '#059669' : 'var(--text-lite)' }}>
+                    {notesCounts.words} / 100
+                  </span>
+                </div>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -647,19 +668,22 @@ export default function ScorecardPage() {
               </div>
 
               <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#059669',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    marginBottom: 6,
-                  }}
-                >
-                  Strengths <span style={{ color: '#ef4444' }}>*</span>
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#059669',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.8px',
+                    }}
+                  >
+                    Strengths <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: strengthsCounts.words >= 30 ? '#059669' : 'var(--text-lite)' }}>
+                    {strengthsCounts.words} / 30
+                  </span>
+                </div>
                 <textarea
                   value={strengths}
                   onChange={(e) => setStrengths(e.target.value)}
@@ -684,19 +708,22 @@ export default function ScorecardPage() {
               </div>
 
               <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#ef4444',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    marginBottom: 6,
-                  }}
-                >
-                  Areas of Concern <span style={{ color: '#ef4444' }}>*</span>
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#ef4444',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.8px',
+                    }}
+                  >
+                    Areas of Concern <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: weaknessesCounts.words >= 30 ? '#059669' : 'var(--text-lite)' }}>
+                    {weaknessesCounts.words} / 30
+                  </span>
+                </div>
                 <textarea
                   value={weaknesses}
                   onChange={(e) => setWeaknesses(e.target.value)}
@@ -771,8 +798,9 @@ export default function ScorecardPage() {
                 </div>
               )}
               {!canSubmit && !isAlreadySubmitted && !mutation.isPending && (
-                <p style={{ fontSize: 11, color: 'var(--text-lite)', marginTop: 8, textAlign: 'center' }}>
-                  Rate all 4 competencies, provide all notes, and choose a recommendation to submit
+                <p style={{ fontSize: 11, color: 'var(--text-lite)', marginTop: 8, textAlign: 'center', lineHeight: 1.5 }}>
+                  Rate all competencies, choose a recommendation, and provide detailed notes:<br/>
+                  (Min 100 words for Summary, 30 for Strengths & Concerns)
                 </p>
               )}
             </div>
