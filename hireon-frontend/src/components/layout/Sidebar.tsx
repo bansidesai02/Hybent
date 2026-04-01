@@ -82,7 +82,7 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
       {
         label: 'SETTINGS',
         items: [
-          { to: '/admin/team', label: 'Team', icon: '👥' },
+          { to: '/admin/teams', label: 'Teams', icon: '👥' },
           { to: '/admin/audit', label: 'Audit Logs', icon: '📋' },
         ],
       },
@@ -121,6 +121,12 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
       items: [
         { to: `${basePath}/analytics`, label: 'AI Insights', icon: '🧠' },
         { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: '📊' },
+      ],
+    },
+    {
+      label: 'SETTINGS',
+      items: [
+        { to: `${basePath}/teams`, label: 'Teams', icon: '👥' },
       ],
     },
   ]

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useActivityStore } from '@/store/activityStore'
+import { useMessageStore } from '@/store/messageStore'
 import toast from 'react-hot-toast'
 import { ActivityToast } from '@/components/notifications/ActivityToast'
 
@@ -111,12 +112,49 @@ export function useWebSocket() {
             // Always refresh recent activities
             queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
           }
+
+          if (msg.event === 'new_message' && msg.data) {
+            // Update global message store
+            useMessageStore.getState().addOrUpdateConversation(msg.data)
+            
+            // Dispatch custom event for ChatPanel (if it's already open for this user)
+            window.dispatchEvent(new CustomEvent('ws:new_message', { detail: msg.data }))
+            
+            // Show interactive toast
+            toast.success(
+              (t) => (
+                <div 
+                  className="flex flex-col cursor-pointer"
+                  onClick={() => {
+                    toast.dismiss(t.id)
+                    useMessageStore.getState().openChat({
+                      id: msg.data.sender_id,
+                      full_name: msg.data.sender_name,
+                      avatar_url: msg.data.sender_avatar
+                    })
+                  }}
+                >
+                  <span className="font-bold">New message from {msg.data.sender_name}</span>
+                  <span className="text-xs truncate max-w-[200px]">{msg.data.content}</span>
+                </div>
+              ),
+              {
+                id: `msg-notif-${msg.data.id || Date.now()}`,
+                icon: '💬',
+                duration: 5000,
+              }
+            )
+          }
         }
       } catch (_) { /* ignore */ }
     }
 
     ws.onclose = (e) => {
-      console.log('[WS] Disconnected, reconnecting in 3s...')
+      if (e.code === 4001) {
+        console.warn('[WS] Authentication failed (Expired or Invalid Token). Stopping reconnection.')
+        return
+      }
+      console.log('[WS] Disconnected, reconnecting in 3s...', e.reason)
       reconnectTimeout.current = setTimeout(connect, 3000)
     }
 
