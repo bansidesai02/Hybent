@@ -372,6 +372,15 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
             resource_id=str(candidate_id),
             details={"candidate": candidate.full_name, "note": (update_data["hr_notes"] or "")[:120]}
         )
+        # Notify team about the new internal note
+        notify_organization_roles.delay(
+            str(current_user.organization_id),
+            [UserRole.ADMIN, UserRole.RECRUITER],
+            NotificationType.COMMENT_ADDED,
+            "Internal Note Added",
+            f"{current_user.full_name} added an internal note to candidate '{candidate.full_name}'.",
+            {"candidate_id": str(candidate_id)}
+        )
 
     # Log talent pool comment change
     if "talent_pool_comment" in update_data and update_data["talent_pool_comment"] != old_talent_pool_comment:
@@ -383,6 +392,15 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
             resource_type="comment",
             resource_id=str(candidate_id),
             details={"candidate": candidate.full_name, "comment": (update_data["talent_pool_comment"] or "")[:120]}
+        )
+        # Notify team about the new comment
+        notify_organization_roles.delay(
+            str(current_user.organization_id),
+            [UserRole.ADMIN, UserRole.RECRUITER],
+            NotificationType.COMMENT_ADDED,
+            "Candidate Comment",
+            f"{current_user.full_name} commented on candidate '{candidate.full_name}'.",
+            {"candidate_id": str(candidate_id)}
         )
 
     # Log general update (only if non-comment fields changed)
@@ -397,6 +415,16 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
             resource_id=str(candidate_id),
             details={"name": candidate.full_name, "fields": list(non_comment_fields)[:5]}
         )
+        # Optional: Notify for significant profile changes
+        if "pipeline_stage" in non_comment_fields:
+             notify_organization_roles.delay(
+                str(current_user.organization_id),
+                [UserRole.ADMIN, UserRole.RECRUITER],
+                NotificationType.CANDIDATE_UPDATED,
+                "Candidate Status Changed",
+                f"{current_user.full_name} updated '{candidate.full_name}' to {candidate.pipeline_stage}.",
+                {"candidate_id": str(candidate_id)}
+            )
 
     return APIResponse.success(message="Candidate updated successfully.", data=CandidateOut.model_validate(candidate))
 
@@ -585,6 +613,16 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         details={"name": candidate.full_name, "from": old_stage, "to": data.pipeline_stage}
     )
 
+    # Notify team about the stage move
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        NotificationType.CANDIDATE_UPDATED,
+        "Candidate Moved Stage",
+        f"{current_user.full_name} moved '{candidate.full_name}' from {old_stage or 'Applied'} to {data.pipeline_stage}.",
+        {"candidate_id": str(candidate_id), "stage": data.pipeline_stage}
+    )
+
     return APIResponse.success(message="Candidate stage updated successfully.", data=CandidateOut.model_validate(candidate))
 
 
@@ -622,6 +660,17 @@ async def delete_candidate(candidate_id: uuid.UUID, current_user: AdminUser, db:
 
     await db.delete(candidate)
     await db.commit()
+
+    # Broad notify about candidate deletion
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        NotificationType.CANDIDATE_DELETED if hasattr(NotificationType, "CANDIDATE_DELETED") else NotificationType.CANDIDATE_ADDED,
+        "Candidate Removed",
+        f"Candidate '{candidate.full_name}' has been deleted from the system by {current_user.full_name}.",
+        {"candidate_id": str(candidate_id), "name": candidate.full_name}
+    )
+
     return APIResponse.success(message="Candidate deleted successfully.")
 
 

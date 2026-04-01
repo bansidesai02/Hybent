@@ -40,12 +40,8 @@ async def log_activity(
     # Broadcast to organization
     # For now, we'll broadcast to all connected users in the organization
     # In a real app, we might want to filter by permissions
+    # Broadcast to organization for real-time UI updates (toasts and query refreshes)
     try:
-        # Get all users in the organization (this would be better cached)
-        # For simplicity, we'll just broadcast to all if we can't easily filter
-        # But wait, our ws_manager has broadcast_to_org which takes user_ids
-        # We need to know who is online or just send to all connections that belong to this org
-        
         event_data = {
             "id": str(activity.id),
             "action": activity.action,
@@ -56,30 +52,13 @@ async def log_activity(
             "user_id": str(activity.user_id) if activity.user_id else None,
         }
         
-        # NOTE: The current ws_manager.broadcast_to_org requires a list of user_ids.
-        # This is slightly inefficient if we don't have the list of online users for an org readily available.
-        # However, for a "Live" feel, we want anyone currently on the dashboard to see it.
-        # We'll assume the client filters or we'll need to enhance ws_manager later.
-        # For now, let's just use what we have.
-        
-        # We'll actually broadcast to the 'activity' topic or similar if we had it.
-        # Given current manager.py, we'll just broadcast to the specific user if they are the one who did it, 
-        # but the request is for organization-wide "Live" activity.
-        
-        # Let's check how to broadcast to all users in an org.
-        # manager.py: broadcast_to_org(org_id, user_ids, event, data)
-        # We'll need a list of user IDs for the org.
-        
-        from sqlalchemy import select
-        from app.models.user import User
-        user_result = await db.execute(select(User.id).where(User.organization_id == organization_id))
-        user_ids = [str(uid) for uid in user_result.scalars().all()]
-        
+        # Correctly broadcast to everyone in the organization via WebSocket
+        # The frontend's useWebSocket hook listens for 'activity_created' to refresh lists.
         await ws_manager.broadcast_to_org(
             org_id=str(organization_id),
-            user_ids=user_ids,
             event="activity_created",
-            data=event_data
+            data=event_data,
+            exclude_user_id=str(user_id) if user_id else None
         )
     except Exception as e:
         logger.error(f"Failed to broadcast activity: {e}")

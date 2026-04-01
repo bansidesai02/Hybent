@@ -144,6 +144,14 @@ export function useWebSocket() {
                 duration: 5000,
               }
             )
+
+            // Trigger Native browser popup for chat specifically
+            if (Notification.permission === 'granted' && document.hidden) {
+              new Notification(`Message from ${msg.data.sender_name}`, {
+                body: msg.data.content,
+                icon: msg.data.sender_avatar || '/favicon.svg',
+              })
+            }
           }
         }
       } catch (_) { /* ignore */ }

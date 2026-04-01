@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     groq_api_key: str = ""
     mistral_api_key: str = ""
+    huggingface_api_key: str = ""
 
     # ── Email (SMTP) ───────────────────────────────────────────────────────────
     smtp_host: str = "smtp.gmail.com"
@@ -55,6 +56,11 @@ class Settings(BaseSettings):
 
     # ── Firebase (push notifications) ──────────────────────────────────────────
     firebase_service_account_json: str = ""
+
+    # ── LinkedIn OAuth ─────────────────────────────────────────────────────────
+    linkedin_client_id: str = ""
+    linkedin_client_secret: str = ""
+    linkedin_redirect_uri: str = "http://localhost:8000/v1/linkedin/callback"
 
     @property
     def is_production(self) -> bool:

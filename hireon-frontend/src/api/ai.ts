@@ -10,4 +10,21 @@ export const aiApi = {
 
   exportJDPDF: (data: any) =>
     axios.post('/v1/ai/generate-jd-pdf', data, { responseType: 'blob' }),
+
+  generateLinkedInPost: (data: {
+    title: string
+    location?: string | null
+    job_type?: string
+    experience_level?: string | null
+    skills_required?: string[]
+    description?: string
+  }) => axios.post('/v1/ai/generate-linkedin-post', data),
+
+  generateImagePrompt: (data: {
+    title: string
+    description?: string
+  }) => axios.post('/v1/ai/generate-image-prompt', data),
+
+  generateImage: (prompt: string) => 
+    axios.post('/v1/ai/generate-image', { prompt }),
 }

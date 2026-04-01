@@ -32,7 +32,7 @@ export default function PortalOpenings() {
       setApplyTarget(null)
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.detail || 'Failed to submit application'
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to submit application'
       toast.error(msg)
       setApplyTarget(null)
     },
@@ -45,7 +45,7 @@ export default function PortalOpenings() {
       setReferTarget(null)
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.detail || 'Failed to submit referral'
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to submit referral'
       toast.error(msg)
     },
   })
