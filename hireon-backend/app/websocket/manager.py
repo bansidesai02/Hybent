@@ -16,8 +16,12 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+import uuid
+
 class ConnectionManager:
     def __init__(self):
+        # Unique ID for this process instance to avoid echoing own Redis messages
+        self.process_id = str(uuid.uuid4())
         # user_id (str) → list of active WebSockets
         self._connections: dict[str, list[WebSocket]] = {}
         # user_id → org_id (str)
@@ -103,6 +107,7 @@ class ConnectionManager:
         try:
             r = redis.from_url(settings.redis_url)
             message = json.dumps({
+                "process_id": self.process_id,
                 "user_id": user_id,
                 "org_id": org_id,
                 "exclude_user_id": exclude_user_id,
@@ -128,6 +133,11 @@ class ConnectionManager:
                 if message["type"] == "message":
                     try:
                         payload = json.loads(message["data"])
+                        
+                        # Ignore messages from our own process
+                        if payload.get("process_id") == self.process_id:
+                            continue
+                            
                         user_id = payload.get("user_id")
                         org_id = payload.get("org_id")
                         exclude_id = payload.get("exclude_user_id")

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { GlobalChatOverlay } from '../messaging/GlobalChatOverlay'
 import { useWebSocket } from '@/hooks/useWebSocket'
 
 export function InterviewerLayout() {
@@ -14,6 +15,7 @@ export function InterviewerLayout() {
           <Outlet />
         </main>
       </div>
+      <GlobalChatOverlay />
     </div>
   )
 }

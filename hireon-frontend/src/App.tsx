@@ -109,6 +109,7 @@ export default function App() {
       <Route path="talent-pool" element={<TalentPoolPage />} />
       <Route path="profile" element={<RecruiterProfilePage />} />
       <Route path="settings" element={<RecruiterSettingsPage />} />
+      <Route path="teams" element={<TeamManagementPage />} />
     </>
   )
 
@@ -170,7 +171,6 @@ export default function App() {
           }
         >
           {/* Admin-specific routes first - ensures /admin/profile hits AdminProfilePage */}
-          <Route path="team" element={<TeamManagementPage />} />
           <Route path="audit" element={<AuditLogsPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
           

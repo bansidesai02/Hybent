@@ -20,11 +20,16 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     WebSocket endpoint for real-time notifications.
     Connect: ws://localhost:8000/v1/notifications/ws?token=ACCESS_TOKEN
     """
-    payload = decode_access_token(token)
-    user_id = payload.get("sub")
-    org_id = payload.get("org")
-    if not user_id:
-        await websocket.close(code=4001, reason="Invalid token")
+    try:
+        payload = decode_access_token(token)
+        user_id = payload.get("sub")
+        org_id = payload.get("org")
+        if not user_id:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+    except Exception as e:
+        # Handle expired or invalid tokens gracefully
+        await websocket.close(code=4001, reason=str(e))
         return
 
     await ws_manager.connect(websocket, user_id, org_id)

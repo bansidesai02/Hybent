@@ -1,5 +1,6 @@
 import { useAuth } from '@/hooks/useAuth'
 import { NotificationBell } from './NotificationBell'
+import { MessageInbox } from './MessageInbox'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -91,6 +92,11 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
         >
           {isDark ? '☀️' : '🌙'}
         </button>
+
+        {/* Messages */}
+        <div className="relative">
+          <MessageInbox />
+        </div>
 
         {/* Notifications */}
         <div className="relative">
