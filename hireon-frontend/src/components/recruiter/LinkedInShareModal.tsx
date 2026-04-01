@@ -197,19 +197,20 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
   const [postText, setPostText] = useState('')
   const [hashtags, setHashtags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
-  const [imageDataUrl, setImageDataUrl] = useState<string>('')
+  const [imageUrl, setImageUrl] = useState<string>('')
   const [imageVariant, setImageVariant] = useState(0)
   const [postUrl, setPostUrl] = useState('')
-  const [imageType, setImageType] = useState<'card' | 'ai'>('card')
+  const [imageType, setImageType] = useState<'card' | 'ai' | 'none'>('card')
   const [imagePrompt, setImagePrompt] = useState('')
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [aiImageUrl, setAiImageUrl] = useState('')
+  const [selectedTone, setSelectedTone] = useState<'professional' | 'modern' | 'creative' | 'casual' | 'minimalist'>('professional')
   const popupRef = useRef<Window | null>(null)
 
   // Generate image when job changes or variant changes
   useEffect(() => {
     if (job) {
-      setImageDataUrl(generateJobCardImage(job, imageVariant))
+      setImageUrl(generateJobCardImage(job, imageVariant))
     }
   }, [job, imageVariant])
 
@@ -262,6 +263,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
         experience_level: job.experience_level,
         skills_required: job.skills_required,
         description: job.description,
+        tone: selectedTone,
       })
       const data = r.data
       if (data?.post_content) setPostText(data.post_content)
@@ -331,11 +333,14 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
     setIsPosting(true)
     try {
       const fullText = postText + '\n\n' + hashtags.join(' ')
-      let finalImage = imageDataUrl
+      let finalImage: string | undefined = undefined
       
-      if (imageType === 'ai' && aiImageUrl) {
+      if (imageType === 'card') {
+        finalImage = imageUrl
+      } else if (imageType === 'ai' && aiImageUrl) {
         finalImage = aiImageUrl
       }
+      // If imageType === 'none', finalImage remains undefined
 
       const r: any = await linkedinApi.post({ post_text: fullText, image_base64: finalImage })
       const url = r.data?.post_url
@@ -509,6 +514,26 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                 </button>
               </div>
 
+              {/* Tone Selection */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(['professional', 'modern', 'creative', 'casual', 'minimalist'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setSelectedTone(t)}
+                    style={{
+                      padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      textTransform: 'capitalize', cursor: 'pointer', border: '1px solid var(--table-border)',
+                      background: selectedTone === t ? 'rgba(108,71,255,0.1)' : 'transparent',
+                      color: selectedTone === t ? '#6c47ff' : 'var(--text-light)',
+                      borderColor: selectedTone === t ? '#6c47ff' : 'var(--table-border)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
               {/* Textarea or loading skeleton */}
               {isGenerating ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -639,6 +664,19 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                     >
                       AI Image
                     </button>
+                    <button
+                      onClick={() => setImageType('none')}
+                      style={{
+                        padding: '4px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                        fontSize: 11, fontWeight: 700,
+                        background: imageType === 'none' ? 'var(--card-bg)' : 'transparent',
+                        color: imageType === 'none' ? '#6c47ff' : 'var(--text-light)',
+                        boxShadow: imageType === 'none' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      None
+                    </button>
                   </div>
                 </div>
 
@@ -702,64 +740,81 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                 )}
               </div>
 
-              {imageType === 'card' ? (
-                imageDataUrl ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    style={{
-                      borderRadius: 12, overflow: 'hidden',
-                      border: '1px solid var(--table-border)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-                    }}
-                  >
-                    <img
-                      src={imageDataUrl}
-                      alt="Job card preview"
-                      style={{ width: '100%', display: 'block' }}
-                    />
-                  </motion.div>
-                ) : (
-                  <div style={{
-                    borderRadius: 12, background: 'var(--kpi-bg)', aspectRatio: '1200/628',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: '1px dashed var(--table-border)',
-                  }}>
-                    <span style={{ fontSize: 13, color: 'var(--text-light)' }}>Generating card...</span>
-                  </div>
-                )
-              ) : (
-                <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--table-border)', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-                  {aiImageUrl ? (
-                    <img
-                      src={aiImageUrl}
-                      alt="AI generated visual"
-                      style={{ width: '100%', display: 'block' }}
-                      onLoad={() => setIsGeneratingImage(false)}
-                      onError={() => {
-                        setImageType('card')
-                        setIsGeneratingImage(false)
-                        toast.error('AI Image service unreachable. Falling back to Job Card.')
-                      }}
-                    />
+              {imageType !== 'none' && (
+                <>
+                  {imageType === 'card' ? (
+                    imageUrl ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{
+                          borderRadius: 12, overflow: 'hidden',
+                          border: '1px solid var(--table-border)',
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                        }}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt="Job card preview"
+                          style={{ width: '100%', display: 'block' }}
+                        />
+                      </motion.div>
+                    ) : (
+                      <div style={{
+                        borderRadius: 12, background: 'var(--kpi-bg)', aspectRatio: '1200/628',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: '1px dashed var(--table-border)',
+                      }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-light)' }}>Generating card...</span>
+                      </div>
+                    )
                   ) : (
-                    <div style={{ borderRadius: 12, background: 'var(--kpi-bg)', aspectRatio: '1200/628', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontSize: 13, color: 'var(--text-light)' }}>
-                        {isGeneratingImage ? 'Generating image...' : 'Click "Generate New Visual"'}
-                      </span>
+                    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--table-border)', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                      {aiImageUrl ? (
+                        <img
+                          src={aiImageUrl}
+                          alt="AI generated visual"
+                          style={{ width: '100%', display: 'block' }}
+                          onLoad={() => setIsGeneratingImage(false)}
+                          onError={() => {
+                            setImageType('card')
+                            setIsGeneratingImage(false)
+                            toast.error('AI Image service unreachable. Falling back to Job Card.')
+                          }}
+                        />
+                      ) : (
+                        <div style={{ borderRadius: 12, background: 'var(--kpi-bg)', aspectRatio: '1200/628', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-light)' }}>
+                            {isGeneratingImage ? 'Generating image...' : 'Click "Generate New Visual"'}
+                          </span>
+                        </div>
+                      )}
+                      {isGeneratingImage && (
+                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+                           <div style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Creating Magic...</div>
+                        </div>
+                      )}
                     </div>
                   )}
-                  {isGeneratingImage && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-                       <div style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Creating Magic...</div>
-                    </div>
-                  )}
-                </div>
+
+                  <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center', lineHeight: 1.5 }}>
+                    This card will be attached to your LinkedIn post. Click "Change Style" for different background variants.
+                  </p>
+                </>
               )}
 
-              <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center', lineHeight: 1.5 }}>
-                This card will be attached to your LinkedIn post. Click "Change Style" for different background variants.
-              </p>
+              {imageType === 'none' && (
+                <div style={{
+                  flex: 1, borderRadius: 12, background: 'var(--kpi-bg)', border: '1px dashed var(--table-border)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, opacity: 0.7
+                }}>
+                  <div style={{ fontSize: 24, opacity: 0.5 }}>📝</div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-light)' }}>Text Only Mode</span>
+                  <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center', padding: '0 20px' }}>
+                    No image will be attached to this post.
+                  </p>
+                </div>
+              )}
 
               {/* Post button */}
               <button

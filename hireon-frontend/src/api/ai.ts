@@ -18,6 +18,7 @@ export const aiApi = {
     experience_level?: string | null
     skills_required?: string[]
     description?: string
+    tone?: string
   }) => axios.post('/v1/ai/generate-linkedin-post', data),
 
   generateImagePrompt: (data: {

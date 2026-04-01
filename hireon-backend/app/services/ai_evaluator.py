@@ -251,26 +251,33 @@ async def generate_jd_from_prompt(user_prompt: str):
         return None
 
 
-LINKEDIN_POST_PROMPT = """
+LINKEDIN_POST_BASE_PROMPT = """
 You are an expert recruitment marketer. Generate an engaging LinkedIn job post for the given position.
 
 Return ONLY a valid JSON object with this exact structure:
-{
-  "post_content": "string (the full LinkedIn post text, 150-300 words, professional yet engaging, include emojis, line breaks for readability, end with a call to action)",
+{{
+  "post_content": "string (the full LinkedIn post text, 150-300 words, include emojis, line breaks for readability, end with a call to action)",
   "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5", "#hashtag6"]
-}
+}}
 
-Guidelines:
-- Start with a hook (e.g. "🚀 We're hiring!", "💼 Exciting opportunity!")
-- Mention the role, key responsibilities, and what makes it exciting
-- Highlight the skills/tech stack
-- Use line breaks between paragraphs
-- End with "Apply now!" or "DM us" call-to-action
-- Hashtags should include role-specific, tech, and general hiring tags
-- Return ONLY valid JSON, no markdown, no backticks
+Style Guidelines for the Tone '{tone}':
+{style_guidelines}
+
+General Rules:
+- Mention the role, key responsibilities, and what makes it exciting.
+- Use line breaks between paragraphs for high readability.
+- Return ONLY valid JSON, no markdown, no backticks.
 
 Job Details:
 """
+
+STYLE_GUIDELINES = {
+    "professional": "Direct, balanced, and authoritative. Use hooks like 'We're excited to announce...' or 'Join our growing team as...'. Focus on corporate values and industry impact. Use minimal, professional emojis.",
+    "modern": "High energy, tech-forward, and enthusiastic. Use punchy hooks like '🚀 Ready to build the future?' or '💻 Tech-lovers, this one is for you!'. Use vibrant emojis (⚡, 🔥, 🛠️) and mention innovation/impact.",
+    "creative": "Narrative-driven, unconventional, and story-based. Start with a question or a bold statement like 'Forget everything you know about [Industry]...' or 'Imagine building X from scratch...'. Use varied, expressive emojis.",
+    "casual": "Friendly, warm, and human-centric. Use hooks like 'Hey network! We're looking for a new teammate...' or 'Want to work on cool stuff with nice people?'. Focus on the culture and team environment. Use friendly emojis (👋, ✨, 😊).",
+    "minimalist": "Clean, direct, and concise. No fluff. Start immediately with the role. 'Wait is over: [Role] is open at [Company].' Use 1-2 essential emojis. Focus on clarity and ease of reading."
+}
 
 
 async def generate_linkedin_post(job_data: dict):
@@ -290,7 +297,11 @@ async def generate_linkedin_post(job_data: dict):
         f"Description: {job_data.get('description', '')[:500]}"
     )
 
-    prompt = f"{LINKEDIN_POST_PROMPT}\n{job_summary}"
+    tone = job_data.get("tone", "professional").lower()
+    style = STYLE_GUIDELINES.get(tone, STYLE_GUIDELINES["professional"])
+    
+    prompt = LINKEDIN_POST_BASE_PROMPT.format(tone=tone, style_guidelines=style)
+    prompt += f"\n{job_summary}"
 
     try:
         if settings.gemini_api_key:
