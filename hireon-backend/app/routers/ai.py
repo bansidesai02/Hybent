@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Body, Depends, Response
 from app.dependencies import DB, InterviewerUser, RecruiterUser
 from app.services import ai_evaluator, jd_pdf_generator
 from app.schemas.response import APIResponse
+from typing import List, Optional
 
 router = APIRouter(prefix="/v1/ai", tags=["ai"])
 
@@ -59,3 +60,65 @@ async def generate_jd_pdf_endpoint(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
+
+
+@router.post("/generate-linkedin-post")
+async def generate_linkedin_post(
+    current_user: RecruiterUser,
+    data: dict = Body(...)
+):
+    """
+    Generate an engaging LinkedIn post (content + hashtags) for a job opening.
+    """
+    if not data.get("title"):
+        raise HTTPException(status_code=400, detail="Job title is required.")
+
+    result = await ai_evaluator.generate_linkedin_post(data)
+
+    if not result:
+        raise HTTPException(status_code=500, detail="AI LinkedIn post generation failed. Please check your API key.")
+
+    return APIResponse.success(message="LinkedIn post generated successfully.", data=result)
+@router.post("/generate-image-prompt")
+async def generate_image_prompt(
+    current_user: RecruiterUser,
+    data: dict = Body(...)
+):
+    """
+    Generate a high-quality image prompt for LinkedIn based on job details.
+    """
+    if not data.get("title"):
+        raise HTTPException(status_code=400, detail="Job title is required.")
+
+    result = await ai_evaluator.generate_image_prompt(data)
+
+    if not result:
+        raise HTTPException(status_code=500, detail="AI image prompt generation failed.")
+
+    return APIResponse.success(message="Image prompt generated successfully.", data={"prompt": result})
+@router.post("/generate-image")
+async def generate_image(
+    current_user: RecruiterUser,
+    prompt: str = Body(..., embed=True)
+):
+    """
+    Generate an image from a prompt using the configured AI service (Hugging Face).
+    """
+    if not prompt or len(prompt.strip()) < 5:
+        raise HTTPException(status_code=400, detail="Prompt is too short.")
+
+    result = await ai_evaluator.generate_image_hf(prompt)
+
+    if not result or "error" in result:
+        status_code = 500
+        if result.get("error") == "warming_up":
+            status_code = 503
+        elif result.get("error") == "no_key":
+            status_code = 401
+            
+        raise HTTPException(
+            status_code=status_code, 
+            detail=result.get("detail", "AI image generation failed.")
+        )
+
+    return APIResponse.success(message="Image generated successfully.", data={"image_base64": result.get("image_base64")})

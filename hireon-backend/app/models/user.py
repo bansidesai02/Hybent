@@ -35,6 +35,7 @@ class User(Base):
     )
     google_refresh_token: Mapped[str | None] = mapped_column(String(500))
     fcm_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    linkedin_access_token: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
     @property
     def is_calendar_connected(self) -> bool:

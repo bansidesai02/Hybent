@@ -67,7 +67,7 @@ export default function PortalProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
     },
     onError: (err: any) => {
-      setUploadError(err?.response?.data?.detail || 'Upload failed. Please try again.')
+      setUploadError(err?.response?.data?.message || err?.response?.data?.detail || 'Upload failed. Please try again.')
     },
   })
 
@@ -79,7 +79,7 @@ export default function PortalProfilePage() {
       setTimeout(() => setSaveStatus(null), 3000)
     },
     onError: (err: any) => {
-      setSaveStatus({ type: 'error', msg: err?.response?.data?.detail || 'Failed to save profile. Please try again.' })
+      setSaveStatus({ type: 'error', msg: err?.response?.data?.message || err?.response?.data?.detail || 'Failed to save profile. Please try again.' })
     },
   })
 

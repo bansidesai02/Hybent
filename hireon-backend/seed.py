@@ -158,8 +158,25 @@ async def seed():
         for u in [admin, recruiter, recruiter2, interviewer, interviewer2, candidate_user]:
             db.add(u)
         await db.flush()
+
+        # ── Candidate profile for the portal candidate user ───────────────────
+        # IMPORTANT: The users table alone is not enough — the portal endpoints
+        # look up the `candidates` table by user_id. Without this row, every
+        # call to GET/PUT /v1/portal/profile or POST /v1/portal/profile/resume
+        # returns 404 "Candidate profile not found".
+        candidate_profile = Candidate(
+            organization_id=org.id,
+            user_id=candidate_user.id,
+            email=candidate_user.email,
+            full_name=candidate_user.full_name,
+            source="portal",
+            skills=[],
+        )
+        db.add(candidate_profile)
+
         await db.commit()
         print(f"  ✓ Users: 6 created (admin, 2 recruiters, 2 interviewers, 1 candidate)")
+        print(f"  ✓ Candidate profile created for: {candidate_user.email}")
 
         print("\n" + "=" * 55)
         print("✅  Seed complete! Users loaded.")
