@@ -87,6 +87,9 @@ class NotificationType(str, Enum):
     INTERVIEW_UPDATED = "interview_updated"
     INTERVIEW_CANCELLED = "interview_cancelled"
     CANDIDATE_ADDED = "candidate_added"
+    CANDIDATE_UPDATED = "candidate_updated"
+    CANDIDATE_DELETED = "candidate_deleted"
+    COMMENT_ADDED = "comment_added"
     SYSTEM = "system"
 
 

@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
@@ -12,6 +13,7 @@ from app.websocket.manager import ws_manager
 from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/notifications", tags=["notifications"])
+logger = logging.getLogger(__name__)
 
 
 @router.websocket("/ws")
@@ -20,19 +22,35 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     WebSocket endpoint for real-time notifications.
     Connect: ws://localhost:8000/v1/notifications/ws?token=ACCESS_TOKEN
     """
+    await websocket.accept() # Accept the connection first to avoid 403 handshake rejections
+    
     try:
         payload = decode_access_token(token)
         user_id = payload.get("sub")
         org_id = payload.get("org")
         if not user_id:
-            await websocket.close(code=4001, reason="Invalid token")
+            logger.error(f"[WS] No 'sub' in token: {token[:15]}...")
+            await websocket.send_json({"type": "error", "message": "unauthorized"})
+            await websocket.close(code=4001)
             return
     except Exception as e:
-        # Handle expired or invalid tokens gracefully
-        await websocket.close(code=4001, reason=str(e))
+        logger.error(f"[WS] Token validation failed: {str(e)}")
+        # Send an error event before closing so the client knows WHY it's closing
+        try:
+            await websocket.send_json({"type": "error", "message": "unauthorized", "detail": str(e)})
+            await websocket.close(code=4001)
+        except:
+            pass
         return
 
-    await ws_manager.connect(websocket, user_id, org_id)
+    # Now that we're verified, connect to the manager
+    # We call connect with accept=False since we already accepted
+    if user_id not in ws_manager._connections:
+        ws_manager._connections[user_id] = []
+    ws_manager._connections[user_id].append(websocket)
+    if org_id:
+        ws_manager._user_orgs[user_id] = org_id
+    
     # Send a welcome message
     await ws_manager.send_to_user(user_id, "connected", {"message": "Connected to HireOn notifications"})
 
