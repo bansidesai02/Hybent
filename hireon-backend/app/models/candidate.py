@@ -36,7 +36,7 @@ class Candidate(Base):
     # AI-parsed data stored as JSON
     parsed_data: Mapped[dict | None] = mapped_column(JSONB)  # skills, experience, education, etc.
     skills: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
-    years_experience: Mapped[int | None] = mapped_column(Integer)
+    years_experience: Mapped[float | None] = mapped_column(Float)
     experience_years: Mapped[str | None] = mapped_column(String(50))
     notice_period_days: Mapped[str | None] = mapped_column(String(50))
     current_ctc: Mapped[str | None] = mapped_column(String(100))

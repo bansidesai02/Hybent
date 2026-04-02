@@ -224,15 +224,13 @@ function TimeSlotPicker({
   useEffect(() => {
     if (selectedDate) {
       const currentStatus = selected ? getSlotStatus(selected) : 'none'
-      if (slots && slots.length > 0) {
+      if (currentStatus !== 'available' && slots && slots.length > 0) {
         const firstAvailable = slots.find((s: string) => getSlotStatus(s) === 'available')
         if (firstAvailable) {
           onSelect(firstAvailable)
         }
       }
     }
-    // We purposely exclude 'selected' from dependencies to avoid overwriting 
-    // manual user clicks. We only want to re-check if the date or list changes.
   }, [selectedDate, interviews, getSlotStatus, onSelect])
 
   return (
@@ -266,6 +264,35 @@ function TimeSlotPicker({
             </button>
           )
         })}
+      </div>
+
+      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed var(--table-border)' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Or Enter Custom Time</p>
+        <div style={{ position: 'relative' }}>
+          <input
+            type="time"
+            value={selected || ''}
+            onChange={(e) => onSelect(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 10,
+              border: `1px solid ${selected && !slots.includes(selected) ? '#6c47ff' : 'var(--table-border)'}`,
+              background: selected && !slots.includes(selected) ? 'rgba(108,71,255,0.05)' : 'var(--input-bg)',
+              color: 'var(--text)',
+              fontSize: 14,
+              fontFamily: 'inherit',
+              outline: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          />
+        </div>
+        {selected && getSlotStatus(selected) !== 'available' && !slots.includes(selected) && (
+          <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 600, marginTop: 8 }}>
+            ⚠️ This time slot is {getSlotStatus(selected)}
+          </p>
+        )}
       </div>
     </div>
   )

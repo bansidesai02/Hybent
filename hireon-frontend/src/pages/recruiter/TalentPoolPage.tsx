@@ -561,7 +561,9 @@ export default function TalentPoolPage() {
                     <h3 className="text-lg font-bold text-violet-600 dark:text-violet-400 group-hover:text-violet-700 transition-colors">{candidate.full_name}</h3>
                     <p className="text-sm font-medium text-gray-400 mt-0.5">{candidate.current_title || "Full Stack Developer"}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{candidate.years_experience} YRS EXP</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} YRS EXP` : 'N/A')}
+                      </span>
                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                       <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">AVAILABLE</span>
                     </div>

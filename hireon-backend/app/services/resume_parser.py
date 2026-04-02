@@ -11,6 +11,7 @@ from typing import Optional
 
 import pdfplumber
 import docx
+import subprocess
 from groq import Groq
 from pydantic import BaseModel, Field
 
@@ -132,27 +133,105 @@ def extract_text_from_pdf(content: bytes) -> str:
 
 
 def extract_text_from_docx(content: bytes) -> str:
-    """Extract plain text from DOCX bytes."""
+    """Extract plain text from DOCX bytes including tables and headers/footers."""
     try:
         doc = docx.Document(io.BytesIO(content))
-        return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        full_text = []
+
+        # 1. Headers/Footers
+        for section in doc.sections:
+            if section.header:
+                for p in section.header.paragraphs:
+                    if p.text.strip():
+                        full_text.append(p.text)
+            if section.footer:
+                for p in section.footer.paragraphs:
+                    if p.text.strip():
+                        full_text.append(p.text)
+
+        # 2. Main Paragraphs
+        for p in doc.paragraphs:
+            if p.text.strip():
+                full_text.append(p.text)
+
+        # 3. Tables (Crucial for many resume layouts)
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = []
+                for cell in row.cells:
+                    if cell.text.strip():
+                        row_text.append(cell.text.strip())
+                if row_text:
+                    full_text.append(" | ".join(row_text))
+
+        return "\n".join(full_text).strip()
     except Exception as e:
         logger.error(f"DOCX extraction failed: {e}")
         return ""
 
 
+def extract_text_from_doc(content: bytes) -> str:
+    """Extract plain text from legacy binary .doc bytes using antiword."""
+    try:
+        # Create a temporary file to hold the content for antiword
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".doc", delete=True) as tmp:
+            tmp.write(content)
+            tmp.flush()
+            
+            # Run antiword through subprocess
+            # -w 0 means no line wrapping
+            result = subprocess.run(
+                ["antiword", "-w", "0", tmp.name],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        logger.error(f"antiword extraction failed: {e}")
+        return ""
+    except FileNotFoundError:
+        logger.error("antiword not found on system. Legacy .doc support is disabled.")
+        return ""
+    except Exception as e:
+        logger.error(f"Legacy .doc extraction failed: {e}")
+        return ""
+
+
 def _detect_file_type(file_content: bytes, content_type: str, filename: str = "") -> str:
-    """Returns 'pdf', 'docx', or 'unknown'."""
+    """Returns 'pdf', 'docx', 'doc', or 'unknown'."""
     ct = content_type.lower()
     fn = filename.lower()
-    if "pdf" in ct or fn.endswith(".pdf"):
+    
+    # Check by extension first for clarity
+    if fn.endswith(".pdf"):
         return "pdf"
-    if "docx" in ct or "document" in ct or "zip" in ct or fn.endswith(".docx") or fn.endswith(".doc"):
+    if fn.endswith(".docx"):
         return "docx"
-    if file_content[:4] == b"%PDF":
+    if fn.endswith(".doc"):
+        return "doc"
+
+    # Check by magic bytes / content-type
+    if "pdf" in ct or file_content[:4] == b"%PDF":
         return "pdf"
-    if file_content[:2] == b"PK":
+    
+    if "docx" in ct or "openxmlformats" in ct:
         return "docx"
+    
+    if "msword" in ct or "document" in ct:
+        # Many sources report .docx as generic "document"
+        if file_content[:2] == b"PK": # Zip signature (DOCX is a zip)
+            return "docx"
+        return "doc"
+    
+    if "zip" in ct or file_content[:2] == b"PK":
+        return "docx" # Assume it's a DOCX/OPC file if it's a zip sent to a resume parser
+    
+    # Signature for legacy OLE binary doc files
+    if file_content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        return "doc"
+
     return "unknown"
 
 
@@ -299,12 +378,15 @@ def _call_groq_with_retry(text: str) -> Optional[dict]:
 async def parse_resume(file_content: bytes, content_type: str, filename: str = "") -> dict:
     """Main entry point: parse resume bytes and return structured dict."""
     file_type = _detect_file_type(file_content, content_type, filename)
+    
     if file_type == "pdf":
         text = extract_text_from_pdf(file_content)
     elif file_type == "docx":
         text = extract_text_from_docx(file_content)
+    elif file_type == "doc":
+        text = extract_text_from_doc(file_content)
     else:
-        logger.warning(f"Unsupported content type: {content_type}")
+        logger.warning(f"Unsupported resume format or content type: {content_type}")
         return {}
 
     if not text:

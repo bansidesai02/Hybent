@@ -227,6 +227,7 @@ export interface Scorecard {
   summary: string | null
   submitted_at: string
   submitted_by_name: string | null
+  interview_title: string | null
 }
 
 export interface Offer {

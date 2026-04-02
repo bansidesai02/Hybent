@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
@@ -267,7 +267,12 @@ export default function ScorecardPage() {
   const { interviewId } = useParams<{ interviewId: string }>()
   const interview_id = interviewId
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
+
+  // (No longer using location.state for rawNotes)
+
+  const hasTriggeredAiRef = useRef(false)
 
   // Form state
   const [criteria, setCriteria] = useState<Record<CriterionKey, number>>({
@@ -284,6 +289,39 @@ export default function ScorecardPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSuggestions, setAiSuggestions] = useState<any>(null)
 
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }, [])
+
+  // Automatically summarize raw notes from localStorage
+  useEffect(() => {
+    const rawNotes = localStorage.getItem(`hireon_notes_${interview_id}`)
+
+    if (rawNotes && !hasTriggeredAiRef.current) {
+      hasTriggeredAiRef.current = true
+      setNotes('✨ AI is summarizing your live notes...')
+      setAiLoading(true)
+      
+      aiApi.evaluateNotes(rawNotes)
+        .then((res) => {
+          const aiData = res.data
+          if (aiData?.professional_description) {
+            setNotes(aiData.professional_description)
+            showToast('AI successfully summarized your live notes.', 'success')
+          } else {
+            setNotes(rawNotes)
+            showToast('Failed to fully summarize, using raw notes.', 'error')
+          }
+        })
+        .catch(() => {
+          setNotes(rawNotes)
+          showToast('AI summary failed, using your raw notes instead.', 'error')
+        })
+        .finally(() => setAiLoading(false))
+    }
+  }, [interview_id, showToast])
+
   const getCounts = (text: string) => {
     const trimmed = text.trim()
     return {
@@ -296,10 +334,7 @@ export default function ScorecardPage() {
   const strengthsCounts = getCounts(strengths)
   const weaknessesCounts = getCounts(weaknesses)
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3500)
-  }, [])
+
 
   // Derived overall rating = average of 4 criteria (rounded)
   const criteriaValues = Object.values(criteria)
@@ -357,6 +392,7 @@ export default function ScorecardPage() {
       setNotes('')
       setStrengths('')
       setWeaknesses('')
+      localStorage.removeItem(`hireon_notes_${interviewId}`) // Clean up
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail

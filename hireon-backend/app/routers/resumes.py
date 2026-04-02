@@ -121,7 +121,10 @@ async def upload_and_create(
             creator_name = candidate.created_by.full_name
         raise HTTPException(
             status_code=409, 
-            detail=f"Candidate with this email was already added by {creator_name}"
+            detail={
+                "message": f"Candidate with this email was already added by {creator_name}",
+                "candidate_id": str(candidate.id)
+            }
         )
 
     # Priority 1: compute score using the real ML scorer

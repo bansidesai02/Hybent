@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
@@ -88,6 +89,23 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
   })
 
   const currentStageCfg = STAGE_CFG[stage]
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  // ── Auto-expand the latest scorecard ──
+  useEffect(() => {
+    if (scorecards.length > 0) {
+      setExpandedIds(new Set([scorecards[0].id]))
+    }
+  }, [scorecards])
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev: Set<string>) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   // ── Locked state ──
   if (!hasInterviewStage) {
@@ -110,7 +128,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
   if (loadingSC) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '24px 0' }}>
-        {[1, 2].map((i: any) => (
+        {[1, 2].map((i: number) => (
           <div key={i} style={{ height: 120, borderRadius: 16, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
         ))}
       </div>
@@ -134,8 +152,8 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 8 }}>
       {/* Summary bar */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {['strong_yes','yes','maybe','no','strong_no'].map((r: any) => {
-          const count = scorecards.filter((sc: any) => sc.recommendation === r).length
+        {['strong_yes','yes','maybe','no','strong_no'].map((r: string) => {
+          const count = scorecards.filter((sc: Scorecard) => sc.recommendation === r).length
           if (!count) return null
           const cfg = REC_CFG[r]
           return (
@@ -145,11 +163,42 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
             </div>
           )
         })}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(108,71,255,0.08)', border: '1px solid rgba(108,71,255,0.15)' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#6c47ff' }}>
-            Avg Rating: {(scorecards.reduce((s: any, sc: any) => s + sc.overall_rating, 0) / scorecards.length).toFixed(1)} / 5
-          </span>
-        </div>
+        {(() => {
+          const avgRatingVal = scorecards.reduce((s: any, sc: any) => s + sc.overall_rating, 0) / scorecards.length
+          const avgRatingNum = Number(avgRatingVal.toFixed(1))
+          
+          let ratingCategory = ''
+          if (avgRatingNum < 2.5) ratingCategory = 'Below Average'
+          else if (avgRatingNum >= 2.5 && avgRatingNum < 3.5) ratingCategory = 'Average'
+          else if (avgRatingNum >= 3.5 && avgRatingNum < 4.5) ratingCategory = 'Good'
+          else ratingCategory = 'Excellent'
+
+          // Optional: Add some subtle color-coding based on the category
+          let colorTheme = '#6c47ff' // Default Good
+          if (ratingCategory === 'Below Average') colorTheme = '#ef4444' // Red
+          else if (ratingCategory === 'Average') colorTheme = '#f59e0b' // Amber
+          else if (ratingCategory === 'Excellent') colorTheme = '#10b981' // Emerald
+
+          return (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+              {/* Numeric Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.15)' }}>
+                <span style={{ fontSize: 12 }}>⭐</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#6c47ff' }}>
+                  {avgRatingNum.toFixed(1)} / 5
+                </span>
+              </div>
+              
+              {/* Category Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: `${colorTheme}12`, border: `1px solid ${colorTheme}30` }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: colorTheme }} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: colorTheme, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {ratingCategory}
+                </span>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Scorecard cards */}
@@ -157,6 +206,8 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
         const rec = REC_CFG[sc.recommendation]
         const ratingColor = scoreColor((sc.overall_rating / 5) * 100)
         const criteria = sc.criteria_scores ?? []
+        const isExpanded = expandedIds.has(sc.id)
+        
         return (
           <div key={sc.id} style={{
             background: 'var(--kpi-bg)',
@@ -166,18 +217,29 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
             overflow: 'hidden',
             transition: 'box-shadow 0.2s',
           }}>
-            {/* Card header */}
-            <div style={{ padding: '18px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            {/* Card header (Toggleable) */}
+            <div 
+              onClick={() => toggleExpand(sc.id)}
+              style={{ padding: '18px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, cursor: 'pointer', userSelect: 'none' }}
+              className="hover:bg-gray-50/50 transition-colors"
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #6c47ff, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 800, flexShrink: 0 }}>
                   {(sc.submitted_by_name ?? 'R').charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{sc.submitted_by_name ?? 'Interviewer'}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{sc.submitted_by_name ?? 'Interviewer'}</p>
+                    {sc.interview_title && (
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.08)', color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.05em', border: '1px solid rgba(108,71,255,0.15)' }}>
+                        {sc.interview_title}
+                      </span>
+                    )}
+                  </div>
                   <p style={{ fontSize: 11, color: 'var(--text-light)', margin: 0 }}>{formatDate(sc.submitted_at)}</p>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 {/* Star rating */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   {[1,2,3,4,5].map((s: any) => (
@@ -192,53 +254,75 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
                     {rec.icon} {rec.label}
                   </span>
                 )}
+                <motion.div
+                  animate={{ rotate: isExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ color: 'var(--text-light)', fontSize: 16, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  ▼
+                </motion.div>
               </div>
             </div>
 
-            {/* Criteria scores */}
-            {criteria.length > 0 && (
-              <div style={{ padding: '0 20px 16px' }}>
-                <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Evaluation Criteria</p>
-                <div className="flex flex-col sm:grid sm:grid-cols-2 gap-[10px_20px]">
-                  {criteria.map((c: any) => (
-                    <div key={c.criterion}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>{c.score}/5</span>
+            {/* Expandable content */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  {/* Criteria scores */}
+                  {criteria.length > 0 && (
+                    <div style={{ padding: '0 20px 16px' }}>
+                      <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Evaluation Criteria</p>
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 gap-[10px_20px]">
+                        {criteria.map((c: any) => (
+                          <div key={c.criterion}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>{c.score}/5</span>
+                            </div>
+                            <div style={{ height: 5, background: 'rgba(108,71,255,0.08)', borderRadius: 4 }}>
+                              <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg,#6c47ff,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' }} />
+                            </div>
+                            {c.notes && <p style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontStyle: 'italic' }}>{c.notes}</p>}
+                          </div>
+                        ))}
                       </div>
-                      <div style={{ height: 5, background: 'rgba(108,71,255,0.08)', borderRadius: 4 }}>
-                        <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg,#6c47ff,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' }} />
-                      </div>
-                      {c.notes && <p style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontStyle: 'italic' }}>{c.notes}</p>}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  )}
 
-            {/* Strengths / Weaknesses / Summary */}
-            {(sc.strengths || sc.weaknesses || sc.summary) && (
-              <div style={{ borderTop: '1px solid var(--table-border)', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {sc.strengths && (
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>💪 Strengths</p>
-                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.strengths}</p>
-                  </div>
-                )}
-                {sc.weaknesses && (
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>⚡ Areas to Improve</p>
-                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.weaknesses}</p>
-                  </div>
-                )}
-                {sc.summary && (
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📝 Overall Summary</p>
-                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, fontStyle: 'italic' }}>"{sc.summary}"</p>
-                  </div>
-                )}
-              </div>
-            )}
+                  {/* Strengths / Weaknesses / Summary */}
+                  {(sc.strengths || sc.weaknesses || sc.summary) && (
+                    <div style={{ borderTop: '1px solid var(--table-border)', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {sc.strengths && (
+                        <div>
+                          <p style={{ fontSize: 10, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>💪 Strengths</p>
+                          <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.strengths}</p>
+                        </div>
+                      )}
+                      {sc.weaknesses && (
+                        <div>
+                          <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>⚡ Areas to Improve</p>
+                          <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.weaknesses}</p>
+                        </div>
+                      )}
+                      {sc.summary && (
+                        <div>
+                          <p style={{ fontSize: 10, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
+                            📝 {sc.interview_title ? `${sc.interview_title} Feedback` : 'Overall Summary'}
+                          </p>
+                          <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, fontStyle: 'italic' }}>"{sc.summary}"</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )
       })}

@@ -49,3 +49,4 @@ class ScorecardOut(OrmSchema):
     summary: str | None = None
     submitted_at: datetime
     submitted_by_name: str | None = None
+    interview_title: str | None = None

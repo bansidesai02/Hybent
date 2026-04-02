@@ -86,6 +86,7 @@ async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser,
 
     out = ScorecardOut.model_validate(scorecard).model_dump()
     out["submitted_by_name"] = current_user.full_name
+    out["interview_title"] = interview.title
     return APIResponse.success(message="Scorecard submitted.", data=out, status_code=201)
 
 
@@ -103,6 +104,9 @@ async def get_my_scorecard_for_interview(interview_id: uuid.UUID, current_user: 
         
     d = ScorecardOut.model_validate(sc).model_dump()
     d["submitted_by_name"] = current_user.full_name
+    # Fetch interview title
+    res = await db.execute(select(Interview.title).where(Interview.id == sc.interview_id))
+    d["interview_title"] = res.scalar_one_or_none()
     return APIResponse.success(message="Scorecard retrieved.", data=d)
 
 
@@ -137,6 +141,9 @@ async def list_scorecards_for_application(application_id: uuid.UUID, current_use
         d = ScorecardOut.model_validate(sc).model_dump()
         user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
         d["submitted_by_name"] = user.full_name if user else None
+        # Fetch interview title
+        res = await db.execute(select(Interview.title).where(Interview.id == sc.interview_id))
+        d["interview_title"] = res.scalar_one_or_none()
         out.append(d)
     return APIResponse.success(message="Scorecards retrieved.", data=out)
     
@@ -162,6 +169,9 @@ async def list_scorecards_for_candidate(candidate_id: uuid.UUID, current_user: C
         d = ScorecardOut.model_validate(sc).model_dump()
         user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
         d["submitted_by_name"] = user.full_name if user else None
+        # Fetch interview title
+        res = await db.execute(select(Interview.title).where(Interview.id == sc.interview_id))
+        d["interview_title"] = res.scalar_one_or_none()
         out.append(d)
         
     return APIResponse.success(message="Scorecards retrieved.", data=out)
@@ -182,4 +192,7 @@ async def get_scorecard(scorecard_id: uuid.UUID, current_user: CurrentUser, db: 
     user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
     d = ScorecardOut.model_validate(sc).model_dump()
     d["submitted_by_name"] = user.full_name if user else None
+    # Fetch interview title
+    res = await db.execute(select(Interview.title).where(Interview.id == sc.interview_id))
+    d["interview_title"] = res.scalar_one_or_none()
     return APIResponse.success(message="Scorecard retrieved.", data=d)
