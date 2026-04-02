@@ -64,6 +64,7 @@ class CandidateUpdate(BaseModel):
     tags: list[str] | None = None
     summary: str | None = None
     pipeline_stage: str | None = None
+    years_experience: float | None = None
     experience_years: str | None = None
     notice_period_days: str | None = None
     current_ctc: str | None = None

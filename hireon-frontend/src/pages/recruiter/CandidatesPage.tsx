@@ -682,7 +682,7 @@ export default function CandidatesPage() {
                     {/* Exp */}
                     <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Experience</span>
-                      {candidate.years_experience != null ? `${candidate.years_experience}y` : '—'}
+                      {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : '—')}
                     </p>
 
                     {/* Score */}

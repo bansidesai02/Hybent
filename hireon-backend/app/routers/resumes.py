@@ -58,6 +58,8 @@ async def upload_resume(
         candidate.skills = parsed["skills"][:30]
     if parsed.get("years_experience"):
         candidate.years_experience = parsed["years_experience"]
+    if parsed.get("experience_years"):
+        candidate.experience_years = parsed["experience_years"]
     if parsed.get("current_title"):
         candidate.current_title = parsed["current_title"]
     if parsed.get("current_company"):
@@ -184,6 +186,7 @@ async def upload_and_create(
     candidate.full_name = full_name or candidate.full_name
     candidate.skills = parsed.get("skills", [])[:30]
     candidate.years_experience = parsed.get("years_experience")
+    candidate.experience_years = parsed.get("experience_years")
     candidate.current_title = parsed.get("current_title") or role_title or candidate.current_title
     candidate.current_company = parsed.get("current_company")
     candidate.summary = parsed.get("summary")

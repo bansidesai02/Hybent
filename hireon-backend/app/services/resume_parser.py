@@ -37,7 +37,8 @@ class ParsedResume(BaseModel):
     location: Optional[str] = None
     current_title: Optional[str] = None
     current_company: Optional[str] = None
-    years_experience: Optional[float] = None  # overridden by calculate_years_from_experience
+    years_experience: Optional[float] = None
+    experience_years: Optional[str] = None
     summary: Optional[str] = None
     skills: list[str] = Field(default_factory=list)
     education: list[dict] = Field(default_factory=list)
@@ -64,7 +65,8 @@ Return ONLY a valid JSON object with this exact structure:
   "location": "string or null",
   "current_title": "string or null",
   "current_company": "string or null",
-  "years_experience": null,
+  "years_experience": 5.5,
+  "experience_years": "5.5 Years",
   "summary": "AI-generated analysis of the full resume",
   "skills": ["skill1", "skill2", ...],
   "education": [
@@ -267,8 +269,13 @@ def _call_groq_with_retry(text: str) -> Optional[dict]:
             validated = ParsedResume(**raw)
             result = validated.model_dump()
 
-            # Override years_experience — always calculate from dates, never trust LLM
-            result["years_experience"] = calculate_years_from_experience(validated.experience)
+            # Use LLM-provided years_experience if valid, otherwise fallback to date calculation
+            if result.get("years_experience") is None:
+                result["years_experience"] = calculate_years_from_experience(validated.experience)
+            
+            # Ensure experience_years is also populated
+            if not result.get("experience_years") and result.get("years_experience") is not None:
+                result["experience_years"] = f"{result['years_experience']} Years"
 
             # Serialize experience to plain dicts
             result["experience"] = [
