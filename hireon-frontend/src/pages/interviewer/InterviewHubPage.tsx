@@ -61,7 +61,7 @@ const MODE: Record<HubMode, ModeConfig> = {
   liveroom: {
     icon: '🟢',
     title: 'Live Room',
-    subtitle: 'Enter the live interview room — track ratings, notes & meeting link',
+    subtitle: 'Enter the live interview room — track ratings, overall summary & meeting link',
     filter: (i) => i.status === 'scheduled',
     accentColor: '#10b981',
     accentBg: 'rgba(16,185,129,0.09)',

@@ -30,7 +30,7 @@ interface JobReq {
   required_skills: string
 }
 
-type Stage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error'
+type Stage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error' | 'duplicate'
 
 const ANALYSIS_STEPS = [
   { id: 'parse', icon: '📄', label: 'Parsing document', getDetail: (c: Candidate) => `Extracted ${(c.summary?.length || 0) + 500} tokens` },
@@ -322,6 +322,7 @@ export default function UploadResumePage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [stage, setStage] = useState<Stage>('idle')
+  const [duplicateParams, setDuplicateParams] = useState<{message: string, candidate_id: string} | null>(null)
   const [result, setResult] = useState<Candidate | null>(null)
   const [scoring, setScoring] = useState<ScoringResult | null>(null)
   const [completedSteps, setCompletedSteps] = useState(0)
@@ -370,7 +371,7 @@ export default function UploadResumePage() {
     if (!file) return
     const ext = file.name.split('.').pop()?.toLowerCase()
     if (!['pdf', 'docx', 'doc'].includes(ext ?? '')) {
-      setError('Only PDF and DOCX files are supported.')
+      setError('Only PDF, DOCX, and DOC files are supported.')
       return
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -405,9 +406,18 @@ export default function UploadResumePage() {
       setScoring(sc ?? null)
       setStage('done')
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Upload failed. Please try again.'
+      const resp = (err as any)?.response;
+      
+      if (resp?.status === 409 && resp?.data?.details?.candidate_id) {
+        setDuplicateParams({ 
+          message: resp.data.message || 'Duplicate candidate detected.', 
+          candidate_id: resp.data.details.candidate_id 
+        });
+        setStage('duplicate');
+        return;
+      }
+      
+      const msg = resp?.data?.message || resp?.data?.detail || 'Upload failed. Please try again.';
       setError(msg)
       setStage('error')
     }
@@ -427,6 +437,7 @@ export default function UploadResumePage() {
     setCompletedSteps(0)
     setError('')
     setIsAddedToPipeline(false)
+    setDuplicateParams(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -550,7 +561,7 @@ export default function UploadResumePage() {
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-mid)' }}>PDF, DOC, DOCX up to 10 MB</div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
-              {['PDF', 'DOCX', 'TXT'].map((t: any) => (
+              {['PDF', 'DOCX', 'DOC'].map((t: any) => (
                 <span key={t} style={{ padding: '3px 10px', background: 'rgba(108,71,255,0.09)', borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#6c47ff' }}>{t}</span>
               ))}
             </div>
@@ -574,6 +585,47 @@ export default function UploadResumePage() {
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>AI Analysis Ready</div>
                   <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
                     Fill in the job requirements and drop a resume to get an AI-powered match score, skill analysis, and shortlisting decision.
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Duplicate Candidate State */}
+            {stage === 'duplicate' && duplicateParams && (
+              <motion.div key="duplicate" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid #f59e0b', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 20px rgba(245,158,11,0.15)' }}>
+                  <div style={{ padding: '32px 24px', textAlign: 'center', background: 'rgba(245,158,11,0.05)' }}>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+                    <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700, color: '#d97706', marginBottom: 12 }}>
+                      Duplicate Detected
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 24, maxWidth: 320, margin: '0 auto 24px auto' }}>
+                      {duplicateParams.message}
+                    </div>
+                    
+                    <button
+                      onClick={() => navigate(`${basePath}/candidates`)}
+                      style={{
+                        padding: '12px 24px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', 
+                        border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, 
+                        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
+                        boxShadow: '0 4px 14px rgba(245,158,11,0.25)', transition: 'all 0.2s',
+                        width: '100%', justifyContent: 'center', maxWidth: 280
+                      }}
+                      onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                      onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                    >
+                      🔍 View Existing Profile
+                    </button>
+                    
+                    <div style={{ marginTop: 20 }}>
+                      <button
+                        onClick={reset}
+                        style={{ border: 'none', background: 'transparent', color: 'var(--text-mid)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Upload a different resume
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

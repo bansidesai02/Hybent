@@ -47,7 +47,7 @@ async def save_resume(file: UploadFile, organization_id: str) -> tuple[str, str]
         # Fallback: use file extension when browser sends generic content-type
         ext = _EXT_MAP[fname_ext]
     else:
-        raise HTTPException(status_code=400, detail="Only PDF and DOCX files are supported")
+        raise HTTPException(status_code=400, detail="Only PDF, DOCX, and DOC files are supported")
 
     content = await file.read()
     if len(content) > settings.max_file_size_bytes:

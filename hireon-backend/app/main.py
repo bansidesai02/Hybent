@@ -84,6 +84,10 @@ app = FastAPI(
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if isinstance(exc.detail, dict):
+        msg = exc.detail.get("message", "An error occurred")
+        details = {k: v for k, v in exc.detail.items() if k != "message"}
+        return APIResponse.error(message=msg, status_code=exc.status_code, details=details)
     return APIResponse.error(message=str(exc.detail), status_code=exc.status_code)
 
 @app.exception_handler(RequestValidationError)

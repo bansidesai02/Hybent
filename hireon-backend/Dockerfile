@@ -26,9 +26,11 @@ WORKDIR /app
 
 # libpq5 is the runtime shared library asyncpg links against
 # libcairo2 is needed by pycairo at runtime
+# antiword is needed for legacy .doc resume parsing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     libcairo2 \
+    antiword \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder stage

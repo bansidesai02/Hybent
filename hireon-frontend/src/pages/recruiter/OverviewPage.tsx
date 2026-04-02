@@ -103,8 +103,25 @@ function ActivityItem({ icon, title, sub, time, iconBg }: ActivityItemProps) {
 }
 
 // ─── Interview Card ────────────────────────────────────────────────────────────
-function InterviewCard({ time, name, type, status, meetingLink }: { time: string; name: string; type: string; status: 'confirmed' | 'pending'; meetingLink?: string | null }) {
-  const isConfirmed = status === 'confirmed'
+const STATUS_MAP: Record<string, { label: string; bg: string; color: string }> = {
+  scheduled: { label: 'Confirmed', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' },
+  completed: { label: 'Completed', bg: 'rgba(108, 71, 255, 0.1)', color: '#6c47ff' },
+  cancelled: { label: 'Cancelled', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' },
+  no_show: { label: 'No Show', bg: 'rgba(251, 191, 36, 0.1)', color: '#f59e0b' },
+}
+
+interface InterviewCardProps {
+  time: string
+  name: string
+  type: string
+  status: string
+  meetingLink?: string | null
+}
+
+function InterviewCard({ time, name, type, status, meetingLink }: InterviewCardProps) {
+  const cfg = STATUS_MAP[status] || STATUS_MAP.scheduled
+  const isScheduled = status === 'scheduled'
+
   return (
     <div
       className="p-5 rounded-[20px] transition-all duration-300 min-w-[280px] flex-1"
@@ -116,7 +133,7 @@ function InterviewCard({ time, name, type, status, meetingLink }: { time: string
     >
       <div className="flex items-start justify-between mb-3">
         <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#6c47ff' }}>{time}</p>
-        {isConfirmed && meetingLink && (
+        {isScheduled && meetingLink && (
           <a
             href={meetingLink}
             target="_blank"
@@ -136,14 +153,14 @@ function InterviewCard({ time, name, type, status, meetingLink }: { time: string
       <p className="text-[11px] font-medium mb-4 text-[var(--text-light)]">{type}</p>
       <div className="flex items-center gap-2">
         <div
-          className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5`}
+          className="px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5"
           style={{
-            background: isConfirmed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(251, 191, 36, 0.1)',
-            color: isConfirmed ? '#10b981' : '#f59e0b',
+            background: cfg.bg,
+            color: cfg.color,
           }}
         >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: isConfirmed ? '#10b981' : '#f59e0b' }} />
-          {isConfirmed ? 'Confirmed' : 'Pending'}
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.color }} />
+          {cfg.label}
         </div>
       </div>
     </div>
@@ -366,7 +383,7 @@ export default function OverviewPage() {
                 time={format(new Date(int.scheduled_at), 'hh:mm a')}
                 name={int.candidate_name || 'Anonymous Candidate'}
                 type={int.interview_type}
-                status={int.status === 'scheduled' ? 'confirmed' : 'pending'}
+                status={int.status}
                 meetingLink={int.meeting_link}
               />
             ))}

@@ -21,7 +21,7 @@ class CandidateOut(OrmSchema):
     resume_filename: str | None = None
     parsed_data: dict | None = None
     skills: list[str]
-    years_experience: int | None = None
+    years_experience: float | None = None
     experience_years: str | None = None
     notice_period_days: str | None = None
     current_ctc: str | None = None

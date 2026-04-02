@@ -121,7 +121,7 @@ const CHECKLIST = [
   'Review any previous interview notes',
   'Prepare your evaluation criteria',
   'Test your audio and video setup',
-  'Keep a notepad ready for live notes',
+  'Keep a notepad ready for overall summary',
   'Confirm meeting link is working',
 ]
 

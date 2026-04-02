@@ -84,7 +84,16 @@ export default function LiveRoomPage() {
   const [ratings, setRatings] = useState<Record<CriterionKey, number>>({
     technical: 0, communication: 0, culture_fit: 0, problem_solving: 0,
   })
-  const [liveNotes, setLiveNotes] = useState('')
+  const [overallSummary, setOverallSummary] = useState(() => {
+    return localStorage.getItem(`hireon_notes_${interviewId}`) || ''
+  })
+
+  // Auto-save notes to localStorage
+  useEffect(() => {
+    if (overallSummary) {
+      localStorage.setItem(`hireon_notes_${interviewId}`, overallSummary)
+    }
+  }, [overallSummary, interviewId])
   const [verdict, setVerdict] = useState<Verdict>(null)
   const [askedSet, setAskedSet] = useState<Set<number>>(new Set())
   const [toast, setToast] = useState<string | null>(null)
@@ -309,13 +318,13 @@ export default function LiveRoomPage() {
             ))}
           </div>
 
-          {/* Live Notes */}
+          {/* Overall Summary */}
           <Card>
             <h3 style={{
               fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 10,
               display: 'flex', alignItems: 'center', gap: 7,
             }}>
-              📝 Live Notes
+              📝 Overall Summary
               {running && (
                 <span style={{
                   fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
@@ -327,9 +336,9 @@ export default function LiveRoomPage() {
               )}
             </h3>
             <textarea
-              value={liveNotes}
-              onChange={(e) => setLiveNotes(e.target.value)}
-              placeholder="Capture key answers, observations, and follow-up points as the interview progresses..."
+              value={overallSummary}
+              onChange={(e) => setOverallSummary(e.target.value)}
+              placeholder="Capture key answers, observations, and overall summary as the interview progresses..."
               rows={8}
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10,
