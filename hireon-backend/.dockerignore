@@ -20,7 +20,6 @@ uploads/
 # Test and dev scripts
 test_*.py
 check_*.py
-clear_db.py
 verify_matches.py
 
 # IDE

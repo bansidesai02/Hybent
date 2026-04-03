@@ -7,9 +7,22 @@ import uuid
 import aiofiles
 from pathlib import Path
 
+from pathlib import Path
+
 from fastapi import UploadFile, HTTPException
+import cloudinary
+import cloudinary.uploader
 
 from app.config import settings
+
+# Configure Cloudinary globally when the service loads
+if settings.cloudinary_cloud_name:
+    cloudinary.config(
+        cloud_name=settings.cloudinary_cloud_name,
+        api_key=settings.cloudinary_api_key,
+        api_secret=settings.cloudinary_api_secret,
+        secure=True
+    )
 
 
 UPLOAD_BASE = Path(settings.upload_dir)
@@ -101,7 +114,7 @@ async def save_offer_pdf(pdf_bytes: bytes, organization_id: str) -> str:
 
 
 async def save_avatar(file: UploadFile, user_id: str) -> str:
-    """Save user avatar and return URL."""
+    """Save user avatar to Cloudinary (if configured) or local disk, and return URL."""
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP images are supported")
 
@@ -109,6 +122,24 @@ async def save_avatar(file: UploadFile, user_id: str) -> str:
     if len(content) > 5 * 1024 * 1024:  # 5MB
         raise HTTPException(status_code=400, detail="Avatar too large (max 5MB)")
 
+    # 1. Cloudinary Upload Flow
+    if settings.cloudinary_cloud_name:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder="hireon_avatars",
+                    public_id=f"avatar_{user_id}_{uuid.uuid4().hex[:8]}"
+                )
+            )
+            return response.get("secure_url")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Image upload to Cloudinary failed: {str(e)}")
+
+    # 2. Fallback Local Storage Flow
     ext = ALLOWED_IMAGE_TYPES[file.content_type]
     filename = f"{uuid.uuid4()}{ext}"
     folder = UPLOAD_BASE / "avatars"
