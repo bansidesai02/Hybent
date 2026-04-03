@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
     linkedin_redirect_uri: str = "http://localhost:8000/v1/linkedin/callback"
+    # ── Cloudinary ─────────────────────────────────────────────────────────────
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
 
     @property
     def is_production(self) -> bool:
