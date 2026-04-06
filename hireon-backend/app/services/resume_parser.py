@@ -12,10 +12,14 @@ from typing import Optional
 import pdfplumber
 import docx
 import subprocess
+import time
+import uuid
 from groq import Groq
 from pydantic import BaseModel, Field
+from fastapi import BackgroundTasks
 
 from app.config import settings
+from app.services.ai_usage_tracker import log_ai_usage
 
 logger = logging.getLogger(__name__)
 
@@ -318,12 +322,21 @@ def _regex_fallback(text: str) -> dict:
 
 # ─── Groq call with Pydantic validation + retry ──────────────────────────────────
 
-def _call_groq_with_retry(text: str) -> Optional[dict]:
+def _call_groq_with_retry(
+    text: str,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+) -> Optional[dict]:
     """
     Call Groq llama-3.3-70b-versatile, validate with Pydantic, retry once on failure.
     Returns validated dict with years_experience calculated from dates.
     """
     last_error = None
+    start_time = time.time()
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+
     for attempt in range(2):
         try:
             messages = [
@@ -339,6 +352,12 @@ def _call_groq_with_retry(text: str) -> Optional[dict]:
                 response_format={"type": "json_object"},
                 temperature=0.1,
             )
+            
+            if hasattr(completion, 'usage'):
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+
             content = completion.choices[0].message.content
             if not content:
                 last_error = "Empty response"
@@ -364,18 +383,44 @@ def _call_groq_with_retry(text: str) -> Optional[dict]:
             return result
 
         except Exception as e:
+            status = "failure"
             last_error = str(e)
             if attempt == 0:
                 logger.warning(f"Groq parse attempt 1 failed ({e}), retrying...")
             else:
                 logger.error(f"Groq parse attempt 2 failed ({e})")
+        finally:
+            if attempt == 1 or status == "success":
+                duration_ms = (time.time() - start_time) * 1000
+                if background_tasks:
+                    background_tasks.add_task(
+                        log_ai_usage,
+                        provider="Groq",
+                        model="llama-3.3-70b-versatile",
+                        feature="resume_parsing",
+                        prompt_tokens=p_tokens,
+                        completion_tokens=c_tokens,
+                        total_tokens=t_tokens,
+                        duration_ms=duration_ms,
+                        status=status,
+                        error_detail=last_error if status == "failure" else None,
+                        user_id=user_id,
+                        organization_id=organization_id
+                    )
 
     return None
 
 
 # ─── Public API ──────────────────────────────────────────────────────────────────
 
-async def parse_resume(file_content: bytes, content_type: str, filename: str = "") -> dict:
+async def parse_resume(
+    file_content: bytes, 
+    content_type: str, 
+    filename: str = "",
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+) -> dict:
     """Main entry point: parse resume bytes and return structured dict."""
     file_type = _detect_file_type(file_content, content_type, filename)
     
@@ -398,7 +443,12 @@ async def parse_resume(file_content: bytes, content_type: str, filename: str = "
         return _regex_fallback(text)
 
     try:
-        result = _call_groq_with_retry(text)
+        result = _call_groq_with_retry(
+            text,
+            background_tasks=background_tasks,
+            user_id=user_id,
+            organization_id=organization_id
+        )
         if result:
             return result
         return _regex_fallback(text)
@@ -415,7 +465,13 @@ async def parse_resume(file_content: bytes, content_type: str, filename: str = "
         return _regex_fallback(text)
 
 
-async def parse_jd(file_bytes: bytes, content_type: str) -> dict:
+async def parse_jd(
+    file_bytes: bytes, 
+    content_type: str,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+) -> dict:
     """Extracts job details using Groq."""
     if "pdf" in content_type:
         text = extract_text_from_pdf(file_bytes)
@@ -440,6 +496,11 @@ async def parse_jd(file_bytes: bytes, content_type: str) -> dict:
             "description": text[:800],
         }
 
+    start_time = time.time()
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
+
     try:
         response = groq_client.chat.completions.create(
             messages=[
@@ -450,17 +511,42 @@ async def parse_jd(file_bytes: bytes, content_type: str) -> dict:
             response_format={"type": "json_object"},
             temperature=0.1,
         )
+        
+        if hasattr(response, 'usage'):
+            p_tokens = response.usage.prompt_tokens
+            c_tokens = response.usage.completion_tokens
+            t_tokens = response.usage.total_tokens
+
         content = response.choices[0].message.content
         if not content:
             raise ValueError("Empty response from AI")
         return json.loads(content.strip())
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"Error parsing JD with Groq: {e}")
         return {
             "title": "Unknown Title",
             "required_skills": [],
             "description": text[:500],
         }
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider="Groq",
+                model="llama-3.3-70b-versatile",
+                feature="jd_parsing",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
 
 async def generate_match_summary(
     candidate_data: dict, 
@@ -468,7 +554,10 @@ async def generate_match_summary(
     job_skills: list[str], 
     score: float, 
     match_threshold: float,
-    decision_reasons: list[str]
+    decision_reasons: list[str],
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
 ) -> str:
     """
     Generates a 2-3 sentence paragraph explaining why a candidate received their match score,
@@ -499,6 +588,11 @@ async def generate_match_summary(
     - Keep it strictly under 50 words.
     """
 
+    start_time = time.time()
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
+
     try:
         response = groq_client.chat.completions.create(
             messages=[
@@ -509,10 +603,35 @@ async def generate_match_summary(
             temperature=0.3,
             max_tokens=150,
         )
+        
+        if hasattr(response, 'usage'):
+            p_tokens = response.usage.prompt_tokens
+            c_tokens = response.usage.completion_tokens
+            t_tokens = response.usage.total_tokens
+
         content = response.choices[0].message.content
         if not content:
             return "Could not generate match summary."
         return content.strip()
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"Error generating match summary with Groq: {e}")
         return "Could not generate match summary."
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider="Groq",
+                model="llama-3.3-70b-versatile",
+                feature="match_summary",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )

@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @router.post("/upload/{candidate_id}", response_model=CandidateOut)
 async def upload_resume(
     candidate_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     current_user: RecruiterUser,
     db: DB,
     file: UploadFile = File(...),
@@ -48,7 +49,14 @@ async def upload_resume(
     file_content = await file.read()
     await file.seek(0)
     url, original_name = await save_resume(file, str(current_user.organization_id))
-    parsed = await parse_resume(file_content, file.content_type or "", file.filename or "")
+    parsed = await parse_resume(
+        file_content, 
+        file.content_type or "", 
+        file.filename or "",
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
 
     candidate.resume_url = url
     candidate.resume_filename = original_name
@@ -92,7 +100,14 @@ async def upload_and_create(
     file_content = await file.read()
     await file.seek(0)
 
-    parsed = await parse_resume(file_content, file.content_type or "", file.filename or "")
+    parsed = await parse_resume(
+        file_content, 
+        file.content_type or "", 
+        file.filename or "",
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
 
     # Priority 4: fail fast if no email — don't create ghost candidates
     email = parsed.get("email")
@@ -159,6 +174,9 @@ async def upload_and_create(
             years_experience=parsed.get("years_experience"),
             job=job,
             match_threshold=match_threshold,
+            background_tasks=background_tasks,
+            user_id=current_user.id,
+            organization_id=current_user.organization_id
         )
 
     # Priority 2: never auto-reject — low score → needs_review, not rejected

@@ -5,10 +5,14 @@ and reasoning in one execution, enforcing strict matching rules.
 """
 import json
 import logging
+import time
+import uuid
 from typing import Optional
 
 from groq import Groq
+from fastapi import BackgroundTasks
 from app.config import settings
+from app.services.ai_usage_tracker import log_ai_usage
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +134,10 @@ async def evaluate_candidate_match(
     candidate_skills: list[str],
     years_experience: Optional[float],
     job,
-    match_threshold: float = 70.0
+    match_threshold: float = 70.0,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
 ) -> tuple[float, dict]:
     """
     Evaluates candidate purely using the strictly formatted LLM prompt logic.
@@ -175,6 +182,11 @@ async def evaluate_candidate_match(
         match_threshold=match_threshold
     )
 
+    start_time = time.time()
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
+
     try:
         response = groq_client.chat.completions.create(
             messages=[
@@ -185,6 +197,11 @@ async def evaluate_candidate_match(
             response_format={"type": "json_object"},
             temperature=0.1,  # Keep low for strict consistency
         )
+        
+        if hasattr(response, 'usage'):
+            p_tokens = response.usage.prompt_tokens
+            c_tokens = response.usage.completion_tokens
+            t_tokens = response.usage.total_tokens
 
         content = response.choices[0].message.content
         if not content:
@@ -202,6 +219,8 @@ async def evaluate_candidate_match(
         return final_score, result
 
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"Error evaluating candidate match via LLM: {e}")
         return 50.0, {
             "final_score": 50.0,
@@ -214,3 +233,20 @@ async def evaluate_candidate_match(
             "shortlisted": False,
             "reasoning": f"Scoring engine error: {str(e)}"
         }
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider="Groq",
+                model="llama-3.3-70b-versatile",
+                feature="candidate_match",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
