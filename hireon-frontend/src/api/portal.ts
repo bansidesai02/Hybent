@@ -40,4 +40,16 @@ export const portalApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+
+  /** Upload a new avatar image for the candidate (same endpoint as other portals) */
+  uploadAvatar: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post<Candidate>('/v1/users/me/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
+  /** Delete the candidate's avatar image */
+  deleteAvatar: () => api.delete<Candidate>('/v1/users/me/avatar'),
 }

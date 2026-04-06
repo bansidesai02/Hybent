@@ -205,9 +205,6 @@ export function PortalLayout() {
                       <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/portal/profile') }}>
                         <span>👤</span> My Profile
                       </button>
-                      <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/portal/settings') }}>
-                        <span>⚙️</span> Settings
-                      </button>
                       <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', marginTop: 4, paddingTop: 4 }}>
                         <button className="menu-item red" onClick={() => { setMenuOpen(false); logout() }}>
                           <span>🚪</span> Sign Out

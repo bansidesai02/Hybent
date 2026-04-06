@@ -249,6 +249,8 @@
 ══════════════════════════════ */
 .prof-av-big{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--pink));display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;flex-shrink:0;box-shadow:0 8px 24px rgba(124,58,237,.25);position:relative}
 .prof-av-big::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:2px dashed rgba(124,58,237,.3);animation:spin-slow 10s linear infinite}
+.prof-av-big:hover .prof-av-overlay{opacity:1 !important}
+.cand-avatar-img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 @keyframes spin-slow{to{transform:rotate(360deg)}}
 .compl-ring{width:72px;height:72px;flex-shrink:0}
 .skill-tag{display:inline-block;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;margin:3px;background:rgba(124,58,237,.09);color:var(--brand);cursor:default;transition:background .2s}
