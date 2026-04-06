@@ -7,7 +7,12 @@ import io
 import google.generativeai as genai
 from groq import Groq
 from huggingface_hub import InferenceClient
+import time
+import uuid
+from typing import Optional, Any
+from fastapi import BackgroundTasks
 from app.config import settings
+from app.services.ai_usage_tracker import log_ai_usage
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +23,12 @@ if settings.gemini_api_key:
 # Configure Groq fallback
 groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
 
-async def generate_image_hf(prompt: str):
+async def generate_image_hf(
+    prompt: str,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+):
     """
     Generate an image from a prompt using Hugging Face Free Serverless Inference.
     """
@@ -28,6 +38,10 @@ async def generate_image_hf(prompt: str):
 
     # Using the free serverless FLUX.1-schnell (no paid provider required)
     MODEL_ID = "black-forest-labs/FLUX.1-schnell"
+
+    start_time = time.time()
+    status = "success"
+    error_msg = None
 
     try:
         client = InferenceClient(
@@ -51,6 +65,8 @@ async def generate_image_hf(prompt: str):
         return {"image_base64": f"data:image/png;base64,{image_base64}"}
 
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"Image generation failure (HF/Serverless): {e}")
         detail = str(e)
         
@@ -62,6 +78,23 @@ async def generate_image_hf(prompt: str):
             detail = "Rate limit reached on Hugging Face free tier. Please wait a minute."
             
         return {"error": "exception", "detail": detail}
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider="HuggingFace",
+                model=MODEL_ID,
+                feature="image_generation",
+                prompt_tokens=1, 
+                completion_tokens=1,
+                total_tokens=2,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
 
 SYSTEM_PROMPT = """
 You are an AI assistant embedded in an Interviewer Panel application. 
@@ -92,7 +125,12 @@ Keep all descriptions objective, professional, and HR-friendly.
 Return ONLY strictly valid JSON. No markdown backticks.
 """
 
-async def evaluate_interview_notes(raw_notes: str):
+async def evaluate_interview_notes(
+    raw_notes: str,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+):
     """
     Call Gemini or Groq to structure raw interview notes.
     """
@@ -100,36 +138,82 @@ async def evaluate_interview_notes(raw_notes: str):
         logger.warning("No AI API keys configured (Gemini/Groq)")
         return None
 
+    start_time = time.time()
+    provider = "unknown"
+    model_name = "unknown"
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
+
     try:
         # Try Gemini first
         if settings.gemini_api_key:
+            provider = "Gemini"
+            model_name = "gemini-1.5-flash-latest"
             try:
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                model = genai.GenerativeModel(model_name)
                 prompt = f"{SYSTEM_PROMPT}\n\nInterviewer Raw Notes:\n{raw_notes}"
                 response = await model.generate_content_async(prompt)
+                
+                # Extract usage metadata
+                if hasattr(response, 'usage_metadata'):
+                    p_tokens = response.usage_metadata.prompt_token_count
+                    c_tokens = response.usage_metadata.candidates_token_count
+                    t_tokens = response.usage_metadata.total_token_count
+                
                 text = response.text
                 return parse_json_response(text)
             except Exception as ge:
                 logger.error(f"Gemini evaluation failed, checking for Groq: {ge}")
                 if not settings.groq_api_key:
+                    status = "failure"
+                    error_msg = str(ge)
                     raise ge
 
         # Try Groq fallback
         if settings.groq_api_key:
+            provider = "Groq"
+            model_name = "llama-3.3-70b-versatile"
             prompt = f"{SYSTEM_PROMPT}\n\nInterviewer Raw Notes:\n{raw_notes}"
             completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that returns strictly JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"}
             )
+            
+            # Extract Groq usage
+            if hasattr(completion, 'usage'):
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+                
             return json.loads(completion.choices[0].message.content)
 
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"AI Evaluation failure: {e}")
         return None
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider=provider,
+                model=model_name,
+                feature="interview_evaluation",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
 
 def parse_json_response(text: str):
     """Clean up and parse JSON from LLM response."""
@@ -178,7 +262,14 @@ Return ONLY a valid JSON object with this exact structure:
 User Prompt:
 """
 
-async def generate_prep_materials(job_title: str, job_description: str, candidate_resume: str = ""):
+async def generate_prep_materials(
+    job_title: str,
+    job_description: str,
+    candidate_resume: str = "",
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+):
     """
     Call Gemini or Groq to generate prep flashcards based on a Job and Candidate Resume.
     """
@@ -187,34 +278,83 @@ async def generate_prep_materials(job_title: str, job_description: str, candidat
         return {"flashcards": [{"category": "Technical", "question": "Mock Q", "hint": "Mock H", "key_points": []}], "focus_areas": []}
 
     prompt = f"{PREP_HUB_PROMPT}\n\nJob Title: {job_title}\nJob Info/Skills: {job_description}\nCandidate Resume Highlights: {candidate_resume}"
+    
+    start_time = time.time()
+    provider = "unknown"
+    model_name = "unknown"
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
 
     try:
         if settings.gemini_api_key:
+            provider = "Gemini"
+            model_name = "gemini-1.5-flash-latest"
             try:
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                model = genai.GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
+                
+                if hasattr(response, 'usage_metadata'):
+                    p_tokens = response.usage_metadata.prompt_token_count
+                    c_tokens = response.usage_metadata.candidates_token_count
+                    t_tokens = response.usage_metadata.total_token_count
+                    
                 return parse_json_response(response.text)
             except Exception as ge:
                 logger.error(f"Gemini prep failed, checking Groq: {ge}")
                 if not settings.groq_api_key:
+                    status = "failure"
+                    error_msg = str(ge)
                     raise ge
 
         if settings.groq_api_key:
+            provider = "Groq"
+            model_name = "llama-3.3-70b-versatile"
             completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that returns strictly JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"}
             )
+            
+            if hasattr(completion, 'usage'):
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+                
             return json.loads(completion.choices[0].message.content)
 
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"AI Prep generation failure: {e}")
         return {"flashcards": [], "focus_areas": []}
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider=provider,
+                model=model_name,
+                feature="candidate_prep",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
 
-async def generate_jd_from_prompt(user_prompt: str):
+async def generate_jd_from_prompt(
+    user_prompt: str,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+):
     """
     Call Gemini or Groq to generate a full JD from a short user prompt.
     """
@@ -223,32 +363,76 @@ async def generate_jd_from_prompt(user_prompt: str):
         return None
 
     prompt = f"{JD_GENERATE_PROMPT}\n{user_prompt}"
+    
+    start_time = time.time()
+    provider = "unknown"
+    model_name = "unknown"
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
 
     try:
         if settings.gemini_api_key:
+            provider = "Gemini"
+            model_name = "gemini-1.5-flash-latest"
             try:
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                model = genai.GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
+                
+                if hasattr(response, 'usage_metadata'):
+                    p_tokens = response.usage_metadata.prompt_token_count
+                    c_tokens = response.usage_metadata.candidates_token_count
+                    t_tokens = response.usage_metadata.total_token_count
+                    
                 return parse_json_response(response.text)
             except Exception as ge:
                 logger.error(f"Gemini JD generation failed, checking Groq: {ge}")
                 if not settings.groq_api_key:
+                    status = "failure"
+                    error_msg = str(ge)
                     raise ge
 
         if settings.groq_api_key:
+            provider = "Groq"
+            model_name = "llama-3.3-70b-versatile"
             completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that returns strictly JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"}
             )
+            
+            if hasattr(completion, 'usage'):
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+                
             return json.loads(completion.choices[0].message.content)
 
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"AI JD generation failure: {e}")
         return None
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider=provider,
+                model=model_name,
+                feature="jd_generation",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
 
 
 LINKEDIN_POST_BASE_PROMPT = """
@@ -280,7 +464,12 @@ STYLE_GUIDELINES = {
 }
 
 
-async def generate_linkedin_post(job_data: dict):
+async def generate_linkedin_post(
+    job_data: dict,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+):
     """
     Generate a LinkedIn post (content + hashtags) from job details.
     """
@@ -302,31 +491,75 @@ async def generate_linkedin_post(job_data: dict):
     
     prompt = LINKEDIN_POST_BASE_PROMPT.format(tone=tone, style_guidelines=style)
     prompt += f"\n{job_summary}"
+    
+    start_time = time.time()
+    provider = "unknown"
+    model_name = "unknown"
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
 
     try:
         if settings.gemini_api_key:
+            provider = "Gemini"
+            model_name = "gemini-1.5-flash-latest"
             try:
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                model = genai.GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
+                
+                if hasattr(response, 'usage_metadata'):
+                    p_tokens = response.usage_metadata.prompt_token_count
+                    c_tokens = response.usage_metadata.candidates_token_count
+                    t_tokens = response.usage_metadata.total_token_count
+                    
                 return parse_json_response(response.text)
             except Exception as ge:
                 logger.error(f"Gemini LinkedIn post generation failed, checking Groq: {ge}")
                 if not settings.groq_api_key:
+                    status = "failure"
+                    error_msg = str(ge)
                     raise ge
 
         if settings.groq_api_key:
+            provider = "Groq"
+            model_name = "llama-3.3-70b-versatile"
             completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that returns strictly JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"}
             )
+            
+            if hasattr(completion, 'usage'):
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+                
             return json.loads(completion.choices[0].message.content)
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"AI LinkedIn post generation failure: {e}")
         return None
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider=provider,
+                model=model_name,
+                feature="linkedin_post",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
 
 IMAGE_PROMPT_SYSTEM = """
 You are an expert AI prompt engineer specializing in professional, high-quality visuals for recruitment marketing. 
@@ -340,7 +573,12 @@ Guidelines:
 - Output ONLY the final image generation prompt. No conversational text.
 """
 
-async def generate_image_prompt(job_data: dict):
+async def generate_image_prompt(
+    job_data: dict,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+):
     """
     Generate a detailed image prompt from job details.
     """
@@ -354,23 +592,65 @@ async def generate_image_prompt(job_data: dict):
     )
 
     prompt = f"{IMAGE_PROMPT_SYSTEM}\n\nJob Details:\n{job_summary}"
+    
+    start_time = time.time()
+    provider = "unknown"
+    model_name = "unknown"
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
 
     try:
         if settings.gemini_api_key:
-            model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            provider = "Gemini"
+            model_name = "gemini-1.5-flash-latest"
+            model = genai.GenerativeModel(model_name)
             response = await model.generate_content_async(prompt)
+            
+            if hasattr(response, 'usage_metadata'):
+                p_tokens = response.usage_metadata.prompt_token_count
+                c_tokens = response.usage_metadata.candidates_token_count
+                t_tokens = response.usage_metadata.total_token_count
+                    
             return response.text.strip()
 
         if settings.groq_api_key:
+            provider = "Groq"
+            model_name = "llama-3.3-70b-versatile"
             completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that returns high-quality image prompts."},
                     {"role": "user", "content": prompt}
                 ]
             )
+            
+            if hasattr(completion, 'usage'):
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+                
             return completion.choices[0].message.content.strip()
 
     except Exception as e:
+        status = "failure"
+        error_msg = str(e)
         logger.error(f"Image prompt generation failure: {e}")
         return "Professional modern office workspace, tech aesthetic, cinematic lighting, high-quality photography"
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider=provider,
+                model=model_name,
+                feature="image_prompt",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )

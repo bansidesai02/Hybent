@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body, Depends, Response
+from fastapi import APIRouter, HTTPException, Body, Depends, Response, BackgroundTasks
 from app.dependencies import DB, InterviewerUser, RecruiterUser
 from app.services import ai_evaluator, jd_pdf_generator
 from app.schemas.response import APIResponse
@@ -9,6 +9,7 @@ router = APIRouter(prefix="/v1/ai", tags=["ai"])
 @router.post("/evaluate-notes")
 async def evaluate_notes(
     current_user: InterviewerUser,
+    background_tasks: BackgroundTasks,
     raw_notes: str = Body(..., embed=True)
 ):
     """
@@ -17,7 +18,12 @@ async def evaluate_notes(
     if not raw_notes or len(raw_notes.strip()) < 10:
         raise HTTPException(status_code=400, detail="Notes are too short to evaluate.")
 
-    result = await ai_evaluator.evaluate_interview_notes(raw_notes)
+    result = await ai_evaluator.evaluate_interview_notes(
+        raw_notes, 
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
     
     if not result:
         raise HTTPException(status_code=500, detail="AI evaluation failed. Please try again or check your Gemini API key.")
@@ -26,6 +32,7 @@ async def evaluate_notes(
 @router.post("/generate-jd")
 async def generate_jd(
     current_user: RecruiterUser,
+    background_tasks: BackgroundTasks,
     prompt: str = Body(..., embed=True)
 ):
     """
@@ -34,7 +41,12 @@ async def generate_jd(
     if not prompt or len(prompt.strip()) < 5:
         raise HTTPException(status_code=400, detail="Prompt is too short to generate a JD.")
 
-    result = await ai_evaluator.generate_jd_from_prompt(prompt)
+    result = await ai_evaluator.generate_jd_from_prompt(
+        prompt,
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
     
     if not result:
         raise HTTPException(status_code=500, detail="AI JD generation failed. Please try again or check your Gemini API key.")
@@ -65,6 +77,7 @@ async def generate_jd_pdf_endpoint(
 @router.post("/generate-linkedin-post")
 async def generate_linkedin_post(
     current_user: RecruiterUser,
+    background_tasks: BackgroundTasks,
     data: dict = Body(...)
 ):
     """
@@ -73,7 +86,12 @@ async def generate_linkedin_post(
     if not data.get("title"):
         raise HTTPException(status_code=400, detail="Job title is required.")
 
-    result = await ai_evaluator.generate_linkedin_post(data)
+    result = await ai_evaluator.generate_linkedin_post(
+        data,
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
 
     if not result:
         raise HTTPException(status_code=500, detail="AI LinkedIn post generation failed. Please check your API key.")
@@ -82,6 +100,7 @@ async def generate_linkedin_post(
 @router.post("/generate-image-prompt")
 async def generate_image_prompt(
     current_user: RecruiterUser,
+    background_tasks: BackgroundTasks,
     data: dict = Body(...)
 ):
     """
@@ -90,7 +109,12 @@ async def generate_image_prompt(
     if not data.get("title"):
         raise HTTPException(status_code=400, detail="Job title is required.")
 
-    result = await ai_evaluator.generate_image_prompt(data)
+    result = await ai_evaluator.generate_image_prompt(
+        data,
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
 
     if not result:
         raise HTTPException(status_code=500, detail="AI image prompt generation failed.")
@@ -99,6 +123,7 @@ async def generate_image_prompt(
 @router.post("/generate-image")
 async def generate_image(
     current_user: RecruiterUser,
+    background_tasks: BackgroundTasks,
     prompt: str = Body(..., embed=True)
 ):
     """
@@ -107,7 +132,12 @@ async def generate_image(
     if not prompt or len(prompt.strip()) < 5:
         raise HTTPException(status_code=400, detail="Prompt is too short.")
 
-    result = await ai_evaluator.generate_image_hf(prompt)
+    result = await ai_evaluator.generate_image_hf(
+        prompt,
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
 
     if not result or "error" in result:
         status_code = 500

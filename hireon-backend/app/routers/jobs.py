@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, BackgroundTasks
 from app.dependencies import DB, CurrentUser, RecruiterUser, AdminUser
 from app.models.job import Job
 from app.models.application import Application
@@ -94,6 +94,7 @@ async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB):
 
 @router.post("/parse-jd")
 async def parse_jd_endpoint(
+    background_tasks: BackgroundTasks,
     current_user: RecruiterUser,
     file: UploadFile = File(...),
 ):
@@ -104,10 +105,15 @@ async def parse_jd_endpoint(
     # 2. Extract contents for AI parsing
     file_bytes = await read_file_bytes(jd_url)
     content_type = file.content_type or ""
-    
     try:
         # Keep original parsing logic intact
-        parsed_data = await parse_jd(file_bytes, content_type)
+        parsed_data = await parse_jd(
+            file_bytes, 
+            content_type,
+            background_tasks=background_tasks,
+            user_id=current_user.id,
+            organization_id=current_user.organization_id
+        )
         
         # Add the URL and filename to the response
         parsed_data["jd_url"] = jd_url
