@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
+import { useAuthStore } from '@/store/authStore'
 import { formatSalary } from '@/utils/formatters'
 
 function completionPercent(data: any): number {
@@ -39,9 +40,11 @@ function FieldRow({ label, name, value, placeholder, type = 'text', readOnly = f
 
 export default function PortalProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<{ type: 'error' | 'success', msg: string } | null>(null)
+  const { user, setUser } = useAuthStore()
 
   const queryClient = useQueryClient()
 
@@ -60,6 +63,7 @@ export default function PortalProfilePage() {
   }, [profile])
 
 
+  // ── Resume upload ──────────────────────────────────────────────────────────
   const uploadMutation = useMutation({
     mutationFn: (file: File) => portalApi.uploadResume(file),
     onSuccess: () => {
@@ -70,6 +74,47 @@ export default function PortalProfilePage() {
       setUploadError(err?.response?.data?.message || err?.response?.data?.detail || 'Upload failed. Please try again.')
     },
   })
+
+  // ── Avatar upload ──────────────────────────────────────────────────────────
+  const avatarMutation = useMutation({
+    mutationFn: (file: File) => portalApi.uploadAvatar(file),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
+      // Also sync auth store so the topbar avatar updates instantly
+      if (res?.data) setUser(res.data)
+    },
+    onError: () => {
+      alert('Failed to upload avatar. Only JPG, PNG, WEBP under 5 MB are allowed.')
+    },
+  })
+
+  const deleteAvatarMutation = useMutation({
+    mutationFn: () => portalApi.deleteAvatar(),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
+      if (res?.data) setUser(res.data)
+    },
+  })
+
+  const handleAvatarFile = (file: File | undefined) => {
+    if (!file) return
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowed.includes(file.type)) {
+      alert('Only JPG, PNG, WEBP or GIF images are supported.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image is too large. Maximum size is 5 MB.')
+      return
+    }
+    avatarMutation.mutate(file)
+  }
+
+  const handleDeleteAvatar = () => {
+    if (confirm('Are you sure you want to remove your profile picture?')) {
+      deleteAvatarMutation.mutate()
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => portalApi.updateProfile(data),
@@ -147,19 +192,86 @@ export default function PortalProfilePage() {
           <div className="ctitle">Profile</div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 22 }}>
-            <div className="prof-av-big">{initials}</div>
+            {/* Clickable avatar with upload buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <div style={{ position: 'relative' }}>
+                <div
+                  className="prof-av-big"
+                  onClick={() => avatarInputRef.current?.click()}
+                  title="Click to change photo"
+                  style={{ cursor: 'pointer' }}
+                >
+                  {user?.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt="avatar"
+                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    initials
+                  )}
+                  {/* Camera overlay on hover */}
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontSize: 22, opacity: 0,
+                    transition: 'opacity 0.2s',
+                    color: '#fff',
+                  }}
+                    className="prof-av-overlay"
+                  >
+                    {avatarMutation.isPending ? '⏳' : '📷'}
+                  </div>
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleAvatarFile(e.target.files?.[0])}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, fontSize: 11, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
+                <div style={{ color: 'var(--brand)', cursor: 'pointer' }} onClick={() => avatarInputRef.current?.click()}>
+                  UPLOAD
+                </div>
+              </div>
+            </div>
+
             <div>
               <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: 'var(--text)' }}>
                 {profile?.full_name || 'Candidate'}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 3 }}>
-                {profile?.current_title || 'Position'}
-              </div>
-              <div style={{ marginTop: 8, display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              {profile?.current_title && (
+                <div style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 3 }}>
+                  {profile.current_title}
+                </div>
+              )}
+              {profile?.organization_name && (
+                <div style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2, fontWeight: 600 }}>
+                  {profile.organization_name}
+                </div>
+              )}
+              <div style={{ marginTop: 8, display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span className={`chip ${isComplete ? 'chip-green' : 'chip-amber'}`}>
                   <span className="chd"></span>{isComplete ? 'Profile Complete' : 'Incomplete'} ({pct}%)
                 </span>
                 <span className="chip chip-violet"><span className="chd"></span>Active</span>
+                {user?.avatar_url && (
+                  <button
+                    type="button"
+                    onClick={() => deleteAvatarMutation.mutate()}
+                    disabled={deleteAvatarMutation.isPending}
+                    style={{
+                      background: 'none', border: 'none', color: '#ef4444',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      padding: '2px 6px', borderRadius: 4,
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    {deleteAvatarMutation.isPending ? 'Removing...' : 'Remove Photo'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
