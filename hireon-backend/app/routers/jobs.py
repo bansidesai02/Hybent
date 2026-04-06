@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from app.dependencies import DB, CurrentUser, RecruiterUser, AdminUser
 from app.models.job import Job
 from app.models.application import Application
+from app.models.candidate import Candidate
 from app.schemas.job import JobCreate, JobUpdate, JobOut
 from app.utils.pagination import paginate
 from app.services.resume_parser import parse_jd
@@ -44,10 +45,22 @@ async def list_jobs(
     )
     counts = {str(row[0]): row[1] for row in count_result.all()}
 
+    # Attach re-engage counts from talent pool
+    re_engage_result = await db.execute(
+        select(Candidate.applied_job_title, func.count(Candidate.id))
+        .where(
+            Candidate.organization_id == current_user.organization_id,
+            Candidate.match_score.isnot(None)
+        )
+        .group_by(Candidate.applied_job_title)
+    )
+    re_engage_counts = {str(row[0]): row[1] for row in re_engage_result.all()}
+
     items = []
     for j in jobs:
         job_dict = JobOut.model_validate(j).model_dump()
         job_dict["application_count"] = counts.get(str(j.id), 0)
+        job_dict["re_engage_count"] = re_engage_counts.get(j.title, 0)
         items.append(job_dict)
 
     return APIResponse.success(message="Jobs retrieved successfully.", data=paginate(items, total, page, limit))

@@ -35,5 +35,7 @@ export function useAuth() {
     navigate('/login')
   }
 
-  return { user, isAuthenticated, login, logout, basePath }
+  const isAdmin = user?.role === 'admin'
+
+  return { user, isAuthenticated, login, logout, basePath, isAdmin }
 }

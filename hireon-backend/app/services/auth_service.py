@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.config import settings
 from app.models.organization import Organization
@@ -19,7 +20,11 @@ from app.utils.security import hash_password, verify_password, create_access_tok
 async def register_user(data: RegisterRequest, db: AsyncSession) -> dict:
     """Create a new organization and admin user."""
     # Check email uniqueness
-    existing = await db.execute(select(User).where(User.email == data.email))
+    existing = await db.execute(
+        select(User)
+        .options(joinedload(User.organization))
+        .where(User.email == data.email)
+    )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -69,7 +74,11 @@ async def register_user(data: RegisterRequest, db: AsyncSession) -> dict:
 
 async def login_user(data: LoginRequest, db: AsyncSession) -> dict:
     """Authenticate user and issue tokens."""
-    result = await db.execute(select(User).where(User.email == data.email))
+    result = await db.execute(
+        select(User)
+        .options(joinedload(User.organization))
+        .where(User.email == data.email)
+    )
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(data.password, user.hashed_password):
@@ -115,7 +124,11 @@ async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
     token_obj.is_revoked = True
 
     # Get user
-    user_result = await db.execute(select(User).where(User.id == token_obj.user_id))
+    user_result = await db.execute(
+        select(User)
+        .options(joinedload(User.organization))
+        .where(User.id == token_obj.user_id)
+    )
     user = user_result.scalar_one_or_none()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")

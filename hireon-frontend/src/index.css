@@ -711,6 +711,13 @@
   font-size: 14px;
   flex-shrink: 0;
   box-shadow: 0 4px 10px rgba(108, 71, 255, 0.15);
+  overflow: hidden;
+}
+
+.sb-avatar-img-tiny {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .sb-footer-info {
@@ -824,6 +831,31 @@
   border-radius: 999px;
   width: fit-content;
 }
+.profile-avatar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.avatar-delete-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+.avatar-delete-link:hover { opacity: 1; }
+.cand-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 .profile-form {
   display: flex;
   flex-direction: column;
@@ -884,3 +916,60 @@
 .w-48 { width: 12rem; }
 .w-32 { width: 8rem; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Danger Zone */
+.profile-danger-zone {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+}
+.divider-h {
+  height: 1px;
+  background: rgba(239, 68, 68, 0.15);
+  margin-bottom: 1.5rem;
+}
+.danger-zone-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  background: rgba(239, 68, 68, 0.03);
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.1);
+}
+.danger-zone-info { flex: 1; }
+.danger-zone-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #b91c1c;
+  margin-bottom: 0.25rem;
+}
+.danger-zone-text {
+  font-size: 0.8rem;
+  color: #7f1d1d;
+  opacity: 0.8;
+}
+.btn-danger-outline {
+  padding: 0.6rem 1.2rem;
+  background: transparent;
+  color: #ef4444;
+  border: 1.5px solid #ef4444;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-danger-outline:hover {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+.btn-danger-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.profile-avatar-readonly {
+  cursor: default !important;
+}
+.profile-avatar-readonly:hover { opacity: 1 !important; }
+.profile-avatar-readonly .profile-avatar-overlay { display: none !important; }

@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from app.dependencies import DB, CurrentUser, AdminUser, RecruiterUser
 from app.models.user import User
 from app.models.organization import Organization
@@ -31,7 +31,9 @@ class UserUpdate(BaseModel):
 @router.get("", response_model=list[UserOut])
 async def list_users(current_user: RecruiterUser, db: DB):
     result = await db.execute(
-        select(User).where(User.organization_id == current_user.organization_id)
+        select(User)
+        .options(joinedload(User.organization))
+        .where(User.organization_id == current_user.organization_id)
     )
     users = result.scalars().all()
     # Debug log to investigate why team members might not show up
@@ -85,10 +87,17 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB):
 # PUT /me would match it with user_id="me" (not a UUID) → 422 error.
 
 def _user_out_with_org(user: User) -> UserOut:
-    """Build UserOut including organization_name from the loaded relationship."""
+    """Build UserOut including organization_name from the loaded relationship.
+    
+    IMPORTANT: Pydantic v2 models are immutable by default.
+    Direct attribute assignment (data.field = x) is silently ignored.
+    We must use model_copy(update={...}) to produce an updated instance.
+    """
     data = UserOut.model_validate(user)
     if hasattr(user, 'organization') and user.organization:
-        data.organization_name = user.organization.name
+        return data.model_copy(update={
+            'organization_name': user.organization.name,
+        })
     return data
 
 
@@ -97,7 +106,7 @@ async def get_my_profile(current_user: CurrentUser, db: DB):
     """Get the authenticated user's own profile, including organization name."""
     result = await db.execute(
         select(User)
-        .options(selectinload(User.organization))
+        .options(joinedload(User.organization))
         .where(User.id == current_user.id)
     )
     user = result.scalar_one()
@@ -122,11 +131,24 @@ async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUse
     if data.phone is not None:
         current_user.phone = data.phone.strip()
 
-    # Fields editable by admin only
-    # Robust check for admin role (handles string, enum, and UserRole objects)
+    # Fields editable by Admin & Recruiter
     role_val = str(current_user.role).lower().strip()
-    is_admin = role_val == "admin" or role_val == "userrole.admin"
+    is_admin = role_val == "admin" or "admin" in role_val
+    is_recruiter = role_val == "recruiter" or "recruiter" in role_val
+    is_privileged = is_admin or is_recruiter
 
+    if is_privileged and data.organization_name is not None:
+        # Re-fetch organization to ensure it's in the session and editable
+        result = await db.execute(
+            select(Organization).where(Organization.id == current_user.organization_id)
+        )
+        org = result.scalar_one_or_none()
+        if org and data.organization_name.strip():  # Only update if non-empty
+            org.name = data.organization_name.strip()
+            db.add(org)
+            await db.flush() # Ensure org update is sent to DB before user commit
+
+    # Fields editable by admin only
     if is_admin:
         if data.email is not None:
             # Check no other user uses this email
@@ -139,25 +161,19 @@ async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUse
         
         if data.role is not None:
             current_user.role = data.role.strip()
-            
-        if data.organization_name is not None:
-            # Load organization relationship if not already present
-            from sqlalchemy import update
-            await db.execute(
-                update(Organization)
-                .where(Organization.id == current_user.organization_id)
-                .values(name=data.organization_name.strip())
-            )
-            # Help SQLAlchemy session stay in sync
-            await db.flush()
+
+    # Save user_id BEFORE commit — after commit(), SQLAlchemy auto-expires all
+    # session objects, so accessing current_user.id afterward triggers a sync
+    # lazy-load which raises MissingGreenlet in an async context.
+    user_id = current_user.id
 
     await db.commit()
 
-    # Re-fetch with org for the response
+    # Re-fetch with fresh org data for the response
     result = await db.execute(
         select(User)
-        .options(selectinload(User.organization))
-        .where(User.id == current_user.id)
+        .options(joinedload(User.organization))
+        .where(User.id == user_id)
     )
     updated_user = result.scalar_one()
     return APIResponse.success(
@@ -177,6 +193,21 @@ async def upload_avatar(current_user: CurrentUser, db: DB, file: UploadFile = Fi
     )
     updated_user = result.scalar_one()
     return APIResponse.success(message="Avatar uploaded successfully.", data=_user_out_with_org(updated_user))
+
+
+@router.delete("/me/avatar", response_model=UserOut)
+async def delete_avatar(current_user: CurrentUser, db: DB):
+    """Remove the current user's avatar."""
+    current_user.avatar_url = None
+    await db.commit()
+    result = await db.execute(
+        select(User).options(selectinload(User.organization)).where(User.id == current_user.id)
+    )
+    updated_user = result.scalar_one()
+    return APIResponse.success(message="Avatar removed successfully.", data=_user_out_with_org(updated_user))
+
+
+
 
 
 # ── Admin: update any user by ID — wildcard MUST stay after /me above ─────────

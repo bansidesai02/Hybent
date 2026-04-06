@@ -134,7 +134,11 @@ export function PortalLayout() {
           <div className="sb-footer">
             <div className="sb-user-card" style={{ cursor: 'default' }}>
               <div className="sb-footer-av">
-                {initials}
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="avatar" className="sb-avatar-img-tiny" />
+                ) : (
+                  initials
+                )}
               </div>
               <div className="sb-footer-info">
                 <div className="sb-footer-name" title={user?.full_name || 'Candidate'}>
@@ -178,7 +182,11 @@ export function PortalLayout() {
                   onClick={() => setMenuOpen(!menuOpen)}
                   title="Account Settings"
                 >
-                  {initials}
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="avatar" className="cand-avatar-img" />
+                  ) : (
+                    initials
+                  )}
                 </button>
 
                 <AnimatePresence>

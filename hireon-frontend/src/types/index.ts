@@ -55,7 +55,9 @@ export interface User {
   full_name: string
   role: UserRole
   organization_id: string
+  organization_name: string | null
   avatar_url: string | null
+  phone: string | null
   is_active: boolean
   is_calendar_connected: boolean
 }
@@ -96,6 +98,7 @@ export interface Job {
   created_at: string
   updated_at: string
   application_count: number
+  re_engage_count: number
 }
 
 export interface Candidate {

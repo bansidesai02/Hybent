@@ -30,11 +30,9 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
 
   const { basePath } = useAuth()
   const profilePath = `${basePath}/profile`
-  const settingsPath = `${basePath}/settings`
 
   const menuItems = [
     { label: 'My Profile', icon: '👤', path: profilePath },
-    { label: 'Settings', icon: '⚙️', path: settingsPath },
   ]
 
   return (
@@ -113,7 +111,11 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
               boxShadow: '0 4px 12px rgba(108,71,255,0.3)',
             }}
           >
-            {initials}
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover rounded-full" />
+            ) : (
+              initials
+            )}
           </button>
 
           <AnimatePresence>

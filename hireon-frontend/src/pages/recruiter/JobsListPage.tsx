@@ -321,10 +321,11 @@ export default function JobsListPage() {
       ) : (
         <>
           {/* Column headers */}
-          <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1fr_80px_100px_140px] gap-3 px-5 text-[10px] font-bold text-[var(--text-light)] uppercase tracking-[0.8px]">
+          <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1fr_100px_90px_100px_140px] gap-3 px-5 text-[10px] font-bold text-[var(--text-light)] uppercase tracking-[0.8px]">
             <span>Position</span>
             <span>Location</span>
             <span>Posted Date</span>
+            <span style={{ textAlign: 'center' }}>Re-engage</span>
             <span style={{ textAlign: 'center' }}>Apps</span>
             <span style={{ textAlign: 'center' }}>Status</span>
             {user?.role === 'admin' && <span style={{ textAlign: 'right' }}>Actions</span>}
@@ -338,7 +339,7 @@ export default function JobsListPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
                 onClick={() => setSelectedJob(job)}
-                className="flex flex-col lg:grid lg:grid-cols-[2fr_1fr_1fr_80px_100px_140px] gap-4 lg:gap-3 items-start lg:items-center p-4 lg:px-5 lg:py-[14px] rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-[var(--shadow)] cursor-pointer transition-all duration-150"
+                className="flex flex-col lg:grid lg:grid-cols-[2fr_1fr_1fr_100px_90px_100px_140px] gap-4 lg:gap-3 items-start lg:items-center p-4 lg:px-5 lg:py-[14px] rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-[var(--shadow)] cursor-pointer transition-all duration-150"
                 onMouseEnter={(e) => {
                   const el = e.currentTarget as HTMLElement
                   el.style.borderColor = 'rgba(108,71,255,0.30)'
@@ -371,12 +372,48 @@ export default function JobsListPage() {
                   {formatDate(job.created_at)}
                 </p>
 
-                {/* Col 4 – Applicants (desktop only) */}
+                {/* Col 4 – Re-engage (desktop only) */}
+                <div className="hidden lg:flex lg:justify-center" onClick={(e) => e.stopPropagation()}>
+                  {job.re_engage_count > 0 ? (
+                    <button
+                      onClick={() => navigate(`${basePath}/talent-db?search=${encodeURIComponent(job.title)}`)}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: 20,
+                        background: 'rgba(108,71,255,0.08)',
+                        color: '#6c47ff',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        border: '1px solid rgba(108,71,255,0.20)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(108,71,255,0.15)'
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(108,71,255,0.08)'
+                        e.currentTarget.style.transform = 'scale(1)'
+                      }}
+                    >
+                      <span style={{ fontSize: 13 }}>⚡</span>
+                      {job.re_engage_count}
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', opacity: 0.5 }}>0</span>
+                  )}
+                </div>
+
+                {/* Col 5 – Applicants (desktop only) */}
                 <p className="hidden lg:block text-[14px] font-bold text-[var(--text)] text-center">
                   {job.application_count}
                 </p>
 
-                {/* Col 5 – Status dropdown (desktop only) */}
+                {/* Col 6 – Status dropdown (desktop only) */}
                 <div className="hidden lg:flex lg:justify-center" onClick={(e) => e.stopPropagation()}>
                   <select
                     value={job.status}
@@ -397,7 +434,7 @@ export default function JobsListPage() {
                   </select>
                 </div>
 
-                {/* Col 6 – Actions (Admin can Edit/Delete, Admin+Recruiter can Share) */}
+                {/* Col 7 – Actions (Admin can Edit/Delete, Admin+Recruiter can Share) */}
                 <div
                   className="flex justify-end gap-2 w-full lg:w-auto mt-2 lg:mt-0 border-t border-[var(--card-border)] lg:border-none pt-3 lg:pt-0"
                   onClick={(e) => e.stopPropagation()}
@@ -467,6 +504,28 @@ export default function JobsListPage() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Posted Date</span>
                     <p className="text-[12px] text-[var(--text-light)]">{formatDate(job.created_at)}</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Re-engage</span>
+                    {job.re_engage_count > 0 ? (
+                      <button
+                        onClick={() => navigate(`${basePath}/talent-db?search=${encodeURIComponent(job.title)}`)}
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: 20,
+                          background: 'rgba(108,71,255,0.08)',
+                          color: '#6c47ff',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          border: '1px solid rgba(108,71,255,0.20)',
+                          width: 'fit-content',
+                        }}
+                      >
+                        ⚡ {job.re_engage_count}
+                      </button>
+                    ) : (
+                      <p className="text-[12px] text-[var(--text-light)] opacity-50">0</p>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Applicants</span>
