@@ -137,6 +137,7 @@ async def save_avatar(file: UploadFile, user_id: str) -> str:
             )
             return response.get("secure_url")
         except Exception as e:
+            print(f"ERROR: Cloudinary upload failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Image upload to Cloudinary failed: {str(e)}")
 
     # 2. Fallback Local Storage Flow

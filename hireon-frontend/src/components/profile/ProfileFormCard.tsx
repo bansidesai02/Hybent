@@ -36,6 +36,8 @@ export default function ProfileFormCard({
     isUpdating,
     uploadAvatar,
     isUploadingAvatar,
+    deleteAvatar,
+    refetch,
   } = useProfile()
 
   const user = profile ?? authUser
@@ -49,22 +51,36 @@ export default function ProfileFormCard({
     role: '',
   })
 
-  // Track if we've synced the initial server data to local state
-  const hasSyncedRef = useRef(false)
+  // Track the last profile ID we synced to detect genuine data changes
+  const lastSyncedProfileId = useRef<string | null>(null)
 
-  // Sync from API once profile loads
+  // Sync form from API whenever profile data changes
   useEffect(() => {
-    if (profile && !hasSyncedRef.current) {
+    if (profile && profile.id !== lastSyncedProfileId.current) {
       setForm({
         full_name: profile.full_name ?? '',
         email: profile.email ?? '',
-        phone: (profile as any).phone ?? '',
-        organization_name: (profile as any).organization_name ?? '',
+        phone: profile.phone ?? '',
+        organization_name: profile.organization_name ?? '',
         role: String(profile.role ?? '').replace('UserRole.', ''),
       })
-      hasSyncedRef.current = true
+      lastSyncedProfileId.current = profile.id
     }
   }, [profile])
+
+  // Also update form when organization_name changes (e.g. after a successful save)
+  useEffect(() => {
+    if (profile && profile.organization_name != null) {
+      setForm(prev => ({
+        ...prev,
+        organization_name: profile.organization_name ?? '',
+      }))
+    }
+  }, [profile?.organization_name])
+
+  const userRole = String(user?.role ?? '').replace('UserRole.', '').toLowerCase()
+  const isProfileAdmin = isAdmin || userRole === 'admin'
+  const isPrivileged = isProfileAdmin || userRole === 'recruiter'
 
   const initials = user?.full_name
     ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -76,28 +92,39 @@ export default function ProfileFormCard({
       phone: form.phone.trim(),
     }
 
-    if (isAdmin) {
+    // ONLY Admin can update the organization name
+    if (isProfileAdmin) {
+      payload.organization_name = form.organization_name.trim()
+    }
+
+    if (isProfileAdmin) {
       if (form.email.trim()) payload.email = form.email.trim()
       if (form.role.trim()) payload.role = form.role.trim()
-      if (form.organization_name.trim()) payload.organization_name = form.organization_name.trim()
     }
 
     updateProfile(payload, {
       onSuccess: (updatedProfile) => {
-        // Force refresh local form state with the newly saved data
+        // Sync local form state with final server data
         setForm({
           full_name: updatedProfile.full_name ?? '',
           email: updatedProfile.email ?? '',
-          phone: (updatedProfile as any).phone ?? '',
-          organization_name: (updatedProfile as any).organization_name ?? '',
+          phone: updatedProfile.phone ?? '',
+          organization_name: updatedProfile.organization_name ?? '',
           role: String(updatedProfile.role ?? '').replace('UserRole.', ''),
         })
+        // Reset sync ref so the useEffect can pick up fresh data on next profile change
+        lastSyncedProfileId.current = null
+        // Force fresh refetch from server to confirm save
+        refetch()
       }
     })
   }
 
-  // Fallback user object if profile query is still loading
-  const displayUser = profile ?? authUser
+  // ── Handlers ─────────────────────────────────────────────────────────────
+  const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) uploadAvatar(file)
+  }
 
   if (isLoading) {
     return (
@@ -144,26 +171,37 @@ export default function ProfileFormCard({
               type="file"
               accept="image/*"
               style={{ display: 'none' }}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                const f = e.target.files?.[0]
-                if (f) uploadAvatar(f)
-                e.target.value = ''
-              }}
+              onChange={onFileSelect}
             />
             <div className="profile-avatar-info">
               <p className="profile-avatar-name">{user?.full_name}</p>
               <p className="profile-avatar-email">{user?.email}</p>
-              <span className="profile-role-badge">
-                {String(user?.role ?? '').replace('UserRole.', '').toUpperCase()}
-              </span>
+              {form.organization_name && (
+                <p className="profile-avatar-org">{form.organization_name}</p>
+              )}
+              <div className="profile-avatar-actions">
+                <span className="profile-role-badge">
+                  {String(user?.role ?? '').replace('UserRole.', '').toUpperCase()}
+                </span>
+                {profile?.avatar_url && (
+                  <button
+                    className="avatar-delete-link"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteAvatar()
+                    }}
+                    title="Remove profile picture"
+                  >
+                    Remove Photo
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Form */}
         <div className="profile-form">
-
-          {/* Full Name — editable for ALL */}
           <div className="profile-field">
             <label className="profile-field-label">Full Name</label>
             <input
@@ -176,7 +214,6 @@ export default function ProfileFormCard({
             />
           </div>
 
-          {/* Email */}
           <div className="profile-field">
             <label className="profile-field-label">Email Address</label>
             {isAdmin ? (
@@ -198,7 +235,6 @@ export default function ProfileFormCard({
             )}
           </div>
 
-          {/* Phone — editable for ALL */}
           <div className="profile-field">
             <label className="profile-field-label">Phone Number</label>
             <input
@@ -212,14 +248,14 @@ export default function ProfileFormCard({
             />
           </div>
 
-          {/* Company */}
           <div className="profile-field">
-            <label className="profile-field-label">Company</label>
-            {isAdmin ? (
+            <label className="profile-field-label">Organization Name</label>
+            {isProfileAdmin ? (
               <input
                 type="text"
                 className="profile-field-input"
                 value={form.organization_name}
+                placeholder="Enter your organization name"
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setForm((f) => ({ ...f, organization_name: e.target.value }))
                 }
@@ -234,8 +270,7 @@ export default function ProfileFormCard({
             )}
           </div>
 
-          {/* Role */}
-          <div className="profile-field">
+          <div className="profile-field" style={{ marginTop: '1.5rem' }}>
             <label className="profile-field-label">Role</label>
             {isAdmin ? (
               <input
@@ -256,13 +291,13 @@ export default function ProfileFormCard({
             )}
           </div>
 
-          {/* Save */}
           <button
             className="profile-save-btn"
             onClick={handleSave}
-            disabled={isUpdating}
+            disabled={isUpdating || isUploadingAvatar}
+            style={{ width: '100%', marginTop: '2rem' }}
           >
-            {isUpdating ? 'Saving...' : '💾 Save Changes'}
+            {isUpdating ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>

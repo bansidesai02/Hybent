@@ -129,13 +129,13 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
   ctx.fillStyle = 'rgba(0,0,0,0.35)'
   ctx.fillRect(0, 550, 1200, 78)
 
-  // HireOn branding
+  // Hireon branding
   const brandGrad = ctx.createLinearGradient(60, 0, 300, 0)
   brandGrad.addColorStop(0, '#6c47ff')
   brandGrad.addColorStop(1, '#0077b5')
   ctx.fillStyle = brandGrad
   ctx.font = 'bold 28px Georgia, serif'
-  ctx.fillText('HireOn', 60, 596)
+  ctx.fillText('Hireon', 60, 596)
 
   ctx.fillStyle = 'rgba(255,255,255,0.4)'
   ctx.font = '18px Arial, sans-serif'

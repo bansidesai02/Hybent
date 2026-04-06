@@ -10,7 +10,7 @@
  * navbar/header reflects the new name/avatar instantly.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { profileApi, type ProfileUpdatePayload } from '@/api/auth'
+import { profileApi, authApi, type ProfileUpdatePayload } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import type { User } from '@/types'
@@ -78,6 +78,23 @@ export function useProfile() {
     },
   })
 
+  // ── DELETE avatar ──────────────────────────────────────────────────────────
+  const deleteAvatarMutation = useMutation<User, Error, void>({
+    mutationFn: async () => {
+      const { data } = await profileApi.deleteAvatar()
+      return data as User
+    },
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(queryKey, updatedUser)
+      setUser(updatedUser)
+      toast.success('Avatar removed.')
+    },
+    onError: () => {
+      toast.error('Failed to remove avatar. Please try again.')
+    },
+  })
+
+
   return {
     /** The live profile data from API (always fresh for the logged-in user) */
     profile,
@@ -92,5 +109,13 @@ export function useProfile() {
     /** uploadAvatar(File) */
     uploadAvatar: avatarMutation.mutate,
     isUploadingAvatar: avatarMutation.isPending,
+
+    /** deleteAvatar() */
+    deleteAvatar: () => {
+      if (confirm('Are you sure you want to remove your profile picture?')) {
+        deleteAvatarMutation.mutate()
+      }
+    },
+    isDeletingAvatar: deleteAvatarMutation.isPending,
   }
 }

@@ -63,3 +63,4 @@ class JobOut(OrmSchema):
     jd_url: str | None = None
     jd_filename: str | None = None
     application_count: int = 0
+    re_engage_count: int = 0

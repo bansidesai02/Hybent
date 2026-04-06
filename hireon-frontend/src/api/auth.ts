@@ -31,6 +31,9 @@ export const authApi = {
 
   sendCandidateMagicLink: (email: string) =>
     api.post<{ message: string }>('/v1/auth/candidate/magic-link', { email }),
+
+  /** Delete the current user's profile permanently */
+  deleteMe: () => api.delete('/v1/users/me'),
 }
 
 // ── Profile API (GET + PUT /v1/users/me) ──────────────────────────────────────
@@ -60,4 +63,7 @@ export const profileApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+
+  /** Delete the current avatar image */
+  deleteAvatar: () => api.delete<User>('/v1/users/me/avatar'),
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
@@ -171,6 +171,90 @@ function ScorecardAccordion({ applicationId }: { applicationId: string }) {
   )
 }
 
+function CustomNumberSelector({ 
+  value, 
+  options, 
+  onChange, 
+  width = '100%' 
+}: { 
+  value: string | number; 
+  options: (string | number)[]; 
+  onChange: (val: string) => void;
+  width?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width }}>
+      <button
+        type="button"
+        onMouseDown={(e) => { e.preventDefault(); setIsOpen(!isOpen); }}
+        style={{
+          width: '100%', padding: '12px 0', borderRadius: 12, border: '1px solid var(--sidebar-border)',
+          background: 'var(--input-bg)', color: 'var(--text)', fontSize: 14, fontWeight: 700,
+          textAlign: 'center', cursor: 'pointer', outline: 'none', transition: 'all 0.2s',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          boxShadow: isOpen ? '0 0 0 2px rgba(108,71,255,0.2)' : 'none'
+        }}
+      >
+        <span>{String(value).padStart(2, '0')}</span>
+        <span style={{ fontSize: 9, opacity: 0.4, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            style={{
+              position: 'absolute', bottom: 'calc(100% + 10px)', left: '50%', x: '-50%',
+              width: 70, background: 'var(--sidebar-bg)', border: '1px solid var(--sidebar-border)',
+              borderRadius: 14, boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+              zIndex: 1000, maxHeight: 220, overflowY: 'auto', padding: 5,
+              backdropFilter: 'blur(20px)'
+            }}
+          >
+            {options.map((opt) => {
+              const active = String(opt) === String(value)
+              return (
+                <div
+                  key={opt}
+                  onClick={() => {
+                    onChange(String(opt))
+                    setIsOpen(false)
+                  }}
+                  style={{
+                    padding: '8px 4px', borderRadius: 10, cursor: 'pointer',
+                    fontSize: 14, fontWeight: 800, color: active ? '#fff' : 'var(--text)',
+                    background: active ? 'linear-gradient(135deg,#6c47ff,#8b6bff)' : 'transparent',
+                    textAlign: 'center', transition: 'all 0.15s', marginBottom: 2
+                  }}
+                  onMouseOver={(e) => !active && (e.currentTarget.style.background = 'rgba(108,71,255,0.08)')}
+                  onMouseOut={(e) => !active && (e.currentTarget.style.background = 'transparent')}
+                >
+                  {String(opt).padStart(2, '0')}
+                </div>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 function TimeSlotPicker({ 
   selected, 
   onSelect, 
@@ -266,32 +350,79 @@ function TimeSlotPicker({
         })}
       </div>
 
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed var(--table-border)' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Or Enter Custom Time</p>
-        <div style={{ position: 'relative' }}>
-          <input
-            type="time"
-            value={selected || ''}
-            onChange={(e) => onSelect(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: 10,
-              border: `1px solid ${selected && !slots.includes(selected) ? '#6c47ff' : 'var(--table-border)'}`,
-              background: selected && !slots.includes(selected) ? 'rgba(108,71,255,0.05)' : 'var(--input-bg)',
-              color: 'var(--text)',
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
+      <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px dashed var(--table-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Or Enter Custom Time</p>
+          <span style={{ fontSize: 13, background: 'rgba(108,71,255,0.1)', padding: '4px 8px', borderRadius: 8, color: '#6c47ff', fontWeight: 700 }}>{formatAMPM(selected || '09:00')}</span>
+        </div>
+        
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Hours */}
+          <CustomNumberSelector
+            value={parseInt((selected || '09:00').split(':')[0]) % 12 || 12}
+            options={Array.from({ length: 12 }, (_, i) => i + 1)}
+            onChange={(val) => {
+              const [_, oldM] = (selected || '09:00').split(':')
+              const isPM = parseInt((selected || '09:00').split(':')[0]) >= 12
+              let nextH = parseInt(val)
+              if (isPM && nextH < 12) nextH += 12
+              if (!isPM && nextH === 12) nextH = 0
+              onSelect(`${String(nextH).padStart(2, '0')}:${oldM}`)
             }}
           />
+
+          <span style={{ fontWeight: 900, opacity: 0.2, fontSize: 18 }}>:</span>
+
+          {/* Minutes */}
+          <CustomNumberSelector
+            value={(selected || '09:00').split(':')[1]}
+            options={['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']}
+            onChange={(val) => {
+              const [oldH, _] = (selected || '09:00').split(':')
+              onSelect(`${oldH}:${val}`)
+            }}
+          />
+
+          <div style={{ width: 1, height: 24, background: 'var(--sidebar-border)', margin: '0 4px', opacity: 0.5 }} />
+
+          {/* AM/PM Toggle */}
+          <div style={{ display: 'flex', background: 'var(--input-bg)', borderRadius: 12, border: '1px solid var(--table-border)', padding: 3, gap: 2 }}>
+             {['AM', 'PM'].map(p => {
+               const currentH = parseInt((selected || '09:00').split(':')[0])
+               const active = (p === 'AM' && currentH < 12) || (p === 'PM' && currentH >= 12)
+               return (
+                 <button
+                   key={p}
+                   type="button"
+                   onClick={() => {
+                     const [oldH, oldM] = (selected || '09:00').split(':').map(Number)
+                     let nextH = oldH
+                     if (p === 'AM' && oldH >= 12) nextH -= 12
+                     if (p === 'PM' && oldH < 12) nextH += 12
+                     onSelect(`${String(nextH).padStart(2, '0')}:${String(oldM).padStart(2, '0')}`)
+                   }}
+                   style={{
+                     padding: '8px 12px', border: 'none', borderRadius: 9,
+                     background: active ? '#6c47ff' : 'transparent',
+                     color: active ? '#fff' : 'var(--text-light)',
+                     fontSize: 10, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s'
+                   }}
+                 >
+                   {p}
+                 </button>
+               )
+             })}
+          </div>
         </div>
+
         {selected && getSlotStatus(selected) !== 'available' && !slots.includes(selected) && (
-          <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 600, marginTop: 8 }}>
-            ⚠️ This time slot is {getSlotStatus(selected)}
-          </p>
+          <motion.p 
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <span>⚠️</span> This time slot is {getSlotStatus(selected)}
+          </motion.p>
         )}
       </div>
     </div>

@@ -69,7 +69,7 @@ export function useNotifications() {
 
       // Trigger Native browser popup (visible when in another app)
       if (Notification.permission === 'granted') {
-        new Notification(title ?? 'HireOn Notification', {
+        new Notification(title ?? 'Hireon Notification', {
           body: body ?? '',
           icon: '/favicon.svg',
         })

@@ -66,6 +66,16 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
+    from pydantic import model_validator
+
+    @model_validator(mode='after')
+    def _strip_cloudinary_credentials(self):
+        """Strip accidental leading/trailing whitespace from Cloudinary config values."""
+        self.cloudinary_cloud_name = self.cloudinary_cloud_name.strip()
+        self.cloudinary_api_key = self.cloudinary_api_key.strip()
+        self.cloudinary_api_secret = self.cloudinary_api_secret.strip()
+        return self
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

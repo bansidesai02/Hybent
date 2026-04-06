@@ -392,14 +392,20 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
           style={{ cursor: 'default' }}
         >
           <div className="sb-footer-av">
-            {initials}
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="avatar" className="sb-avatar-img-tiny" />
+            ) : (
+              initials
+            )}
           </div>
           {!collapsed && (
             <div className="sb-footer-info">
               <div className="sb-footer-name" title={user?.full_name || role}>
                 {user?.full_name || role}
               </div>
-              <div className="sb-footer-role">AI Hiring Platform</div>
+              <div className="sb-footer-role" title={user?.organization_name || 'AI Hiring Platform'}>
+                {user?.organization_name || 'AI Hiring Platform'}
+              </div>
             </div>
           )}
         </div>
