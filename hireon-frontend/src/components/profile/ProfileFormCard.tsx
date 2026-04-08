@@ -8,6 +8,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useProfile } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
+import ImageCropperModal from '@/components/common/ImageCropperModal'
 
 interface ProfileFormCardProps {
   portalTitle?: string
@@ -50,6 +51,8 @@ export default function ProfileFormCard({
     organization_name: '',
     role: '',
   })
+
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
 
   // Track the last profile ID we synced to detect genuine data changes
   const lastSyncedProfileId = useRef<string | null>(null)
@@ -123,7 +126,20 @@ export default function ProfileFormCard({
   // ── Handlers ─────────────────────────────────────────────────────────────
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) uploadAvatar(file)
+    if (file) {
+      const reader = new FileReader()
+      reader.addEventListener('load', () => {
+        setImageToCrop(reader.result as string)
+      })
+      reader.readAsDataURL(file)
+    }
+    // Reset input value so same file can be selected again
+    e.target.value = ''
+  }
+
+  const handleCropComplete = (croppedFile: File) => {
+    uploadAvatar(croppedFile)
+    setImageToCrop(null)
   }
 
   if (isLoading) {
@@ -301,6 +317,14 @@ export default function ProfileFormCard({
           </button>
         </div>
       </div>
+
+      {imageToCrop && (
+        <ImageCropperModal
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+        />
+      )}
     </div>
   )
 }

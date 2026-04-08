@@ -18,10 +18,27 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   setNotifications: (notifications) => set({ notifications }),
 
   addNotification: (notification) =>
-    set((state) => ({
-      notifications: [notification, ...state.notifications],
-      unreadCount: state.unreadCount + (notification.is_read ? 0 : 1),
-    })),
+    set((state) => {
+      const exists = state.notifications.some((n) => n.id === notification.id)
+      let newList
+      let unreadDelta = 0
+
+      if (exists) {
+        newList = state.notifications.map((n) =>
+          n.id === notification.id ? notification : n
+        )
+      } else {
+        newList = [notification, ...state.notifications]
+        unreadDelta = notification.is_read ? 0 : 1
+      }
+
+      newList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+      return {
+        notifications: newList,
+        unreadCount: state.unreadCount + unreadDelta,
+      }
+    }),
 
   setUnreadCount: (unreadCount) => set({ unreadCount }),
 

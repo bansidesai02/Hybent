@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
 import { formatSalary } from '@/utils/formatters'
+import ImageCropperModal from '@/components/common/ImageCropperModal'
 
 function completionPercent(data: any): number {
   const fields = [
@@ -45,6 +46,7 @@ export default function PortalProfilePage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<{ type: 'error' | 'success', msg: string } | null>(null)
   const { user, setUser } = useAuthStore()
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -107,7 +109,17 @@ export default function PortalProfilePage() {
       alert('Image is too large. Maximum size is 5 MB.')
       return
     }
-    avatarMutation.mutate(file)
+    
+    const reader = new FileReader()
+    reader.addEventListener('load', () => {
+      setImageToCrop(reader.result as string)
+    })
+    reader.readAsDataURL(file)
+  }
+
+  const handleCropComplete = (croppedFile: File) => {
+    avatarMutation.mutate(croppedFile)
+    setImageToCrop(null)
   }
 
   const handleDeleteAvatar = () => {
@@ -487,8 +499,13 @@ export default function PortalProfilePage() {
         </div>
       </form>
 
-
-
+      {imageToCrop && (
+        <ImageCropperModal
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+        />
+      )}
     </div>
   )
 }

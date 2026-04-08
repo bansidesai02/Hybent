@@ -6,6 +6,7 @@ from app.models.scorecard import Scorecard
 from app.models.interview import Interview
 from app.schemas.scorecard import ScorecardCreate, ScorecardOut
 from app.schemas.response import APIResponse
+from app.tasks.notifications import notify_candidate_stage_change
 
 router = APIRouter(prefix="/v1/scorecards", tags=["scorecards"])
 
@@ -81,6 +82,15 @@ async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser,
             application = app_res.scalar_one_or_none()
             if application:
                 application.stage = target_stage
+                
+        # Send live notification to candidate
+        if candidate:
+            notify_candidate_stage_change.delay(
+                str(candidate.user_id) if candidate.user_id else None,
+                str(candidate.id),
+                target_stage,
+                str(current_user.organization_id)
+            )
 
     await db.commit()
 

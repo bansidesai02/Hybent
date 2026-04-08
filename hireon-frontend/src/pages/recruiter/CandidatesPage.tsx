@@ -602,7 +602,10 @@ export default function CandidatesPage() {
               return (
                 <div
                   key={candidate.id}
-                  onClick={() => setSelected(candidate)}
+                  onClick={() => {
+                    setSelected(candidate)
+                    candidatesApi.recordView(candidate.id)
+                  }}
                   className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
                   style={{
                     gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 120px 115px 100px 215px',

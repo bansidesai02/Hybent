@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { NotificationBell } from './NotificationBell'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useWebSocket } from '@/hooks/useWebSocket'
 
 const NAV_ITEMS = [
   { to: '/portal', label: 'Application Journey', icon: '🗺️', end: true },
@@ -23,6 +24,9 @@ export function PortalLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  // Establish WebSocket connection for real-time notifications in candidate portal
+  useWebSocket()
 
   // Handle click outside to close menu
   useEffect(() => {

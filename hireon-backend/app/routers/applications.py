@@ -8,9 +8,9 @@ from app.models.job import Job
 from app.schemas.application import ApplicationOut, ApplicationCreate, StageUpdate, NotesUpdate
 from app.utils.pagination import paginate
 from app.schemas.response import APIResponse
+from app.tasks.notifications import notify_candidate_stage_change
 
 router = APIRouter(prefix="/v1/applications", tags=["applications"])
-
 
 async def _get_application(application_id: uuid.UUID, org_id: uuid.UUID, db) -> Application:
     result = await db.execute(
@@ -148,6 +148,12 @@ async def update_stage(application_id: uuid.UUID, data: StageUpdate, current_use
     if cand:
         cand.pipeline_stage = data.stage
         db.add(cand)
+        notify_candidate_stage_change.delay(
+            str(cand.user_id) if cand.user_id else None,
+            str(cand.id),
+            data.stage,
+            str(current_user.organization_id)
+        )
     
     if data.rejection_reason:
         app.rejection_reason = data.rejection_reason

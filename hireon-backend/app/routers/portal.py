@@ -24,12 +24,13 @@ from app.schemas.job import JobOut
 from app.schemas.job_referral import JobReferralCreate, JobReferralOut
 from app.schemas.other_offer import OtherOfferCreate, OtherOfferOut
 from app.schemas.candidate_document import CandidateDocumentCreate, CandidateDocumentOut
-from app.utils.permissions import UserRole, OfferStatus
+from app.utils.permissions import UserRole, OfferStatus, NotificationType
 from app.services.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
 from app.services.storage_service import save_resume
 from app.services.resume_parser import parse_resume
 from app.schemas.response import APIResponse
+from app.tasks.notifications import notify_organization_roles, send_system_notification
 
 router = APIRouter(prefix="/v1/portal", tags=["portal"])
 
@@ -164,6 +165,23 @@ async def portal_respond_offer(offer_id: uuid.UUID, data: OfferRespondRequest, c
     offer.responded_at = datetime.now(timezone.utc)
     if not data.accept:
         offer.decline_reason = data.decline_reason
+    await db.commit()
+    await db.refresh(offer)
+
+    # Notify the hiring team about the candidate's response
+    candidate = (await db.execute(select(Candidate).where(Candidate.user_id == current_user.id))).scalar_one_or_none()
+    candidate_name = candidate.full_name if candidate else "The candidate"
+    action_word = "accepted" if data.accept else "declined"
+    notif_type = NotificationType.OFFER_ACCEPTED if data.accept else NotificationType.OFFER_DECLINED
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        notif_type,
+        f"Offer {action_word.capitalize()}",
+        f"{candidate_name} has {action_word} the offer for '{offer.position_title}'.",
+        {"offer_id": str(offer.id), "candidate": candidate_name, "action": action_word},
+    )
+
     return APIResponse.success(message="Offer response recorded.", data=OfferOut.model_validate(offer))
 
 
@@ -351,6 +369,17 @@ async def portal_apply_to_job(job_id: uuid.UUID, current_user: CurrentUser, db: 
     app_with_job = (await db.execute(
         select(Application).where(Application.id == application.id).options(selectinload(Application.job))
     )).scalar_one()
+
+    # Notify the recruiting team about the new self-application
+    notify_organization_roles.delay(
+        str(current_user.organization_id),
+        [UserRole.ADMIN, UserRole.RECRUITER],
+        NotificationType.APPLICATION_RECEIVED,
+        "New Job Application",
+        f"{candidate.full_name} has applied to '{job.title}' via the candidate portal.",
+        {"candidate_id": str(candidate.id), "job_id": str(job.id)},
+    )
+
     return APIResponse.success(message="Applied to job successfully.", data=ApplicationOut.model_validate(app_with_job))
 
 

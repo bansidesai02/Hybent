@@ -1,6 +1,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 from app.dependencies import DB, CurrentUser, AdminUser, RecruiterUser
 from app.models.user import User
@@ -86,18 +87,23 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB):
 # FastAPI matches routes top-to-bottom. If /{user_id} is first, calling
 # PUT /me would match it with user_id="me" (not a UUID) → 422 error.
 
-def _user_out_with_org(user: User) -> UserOut:
-    """Build UserOut including organization_name from the loaded relationship.
-    
-    IMPORTANT: Pydantic v2 models are immutable by default.
-    Direct attribute assignment (data.field = x) is silently ignored.
-    We must use model_copy(update={...}) to produce an updated instance.
-    """
+async def _user_out_with_org(user: User, db: AsyncSession) -> UserOut:
+    """Build UserOut including organization_name and candidate_id for portal users."""
     data = UserOut.model_validate(user)
+    
+    # Add organization name
     if hasattr(user, 'organization') and user.organization:
-        return data.model_copy(update={
-            'organization_name': user.organization.name,
-        })
+        data = data.model_copy(update={'organization_name': user.organization.name})
+    
+    # Add candidate ID if it's a candidate role
+    role_val = str(user.role).lower()
+    if 'candidate' in role_val:
+        from app.models.candidate import Candidate
+        res = await db.execute(select(Candidate.id).where(Candidate.user_id == user.id))
+        c_id = res.scalar_one_or_none()
+        if c_id:
+            data = data.model_copy(update={'candidate_id': str(c_id)})
+            
     return data
 
 
@@ -112,7 +118,7 @@ async def get_my_profile(current_user: CurrentUser, db: DB):
     user = result.scalar_one()
     return APIResponse.success(
         message="Profile retrieved successfully.",
-        data=_user_out_with_org(user)
+        data=await _user_out_with_org(user, db)
     )
 
 
@@ -178,7 +184,7 @@ async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUse
     updated_user = result.scalar_one()
     return APIResponse.success(
         message="Profile updated successfully.",
-        data=_user_out_with_org(updated_user)
+        data=await _user_out_with_org(updated_user, db)
     )
 
 
@@ -192,7 +198,7 @@ async def upload_avatar(current_user: CurrentUser, db: DB, file: UploadFile = Fi
         select(User).options(selectinload(User.organization)).where(User.id == current_user.id)
     )
     updated_user = result.scalar_one()
-    return APIResponse.success(message="Avatar uploaded successfully.", data=_user_out_with_org(updated_user))
+    return APIResponse.success(message="Avatar uploaded successfully.", data=await _user_out_with_org(updated_user, db))
 
 
 @router.delete("/me/avatar", response_model=UserOut)
@@ -204,7 +210,7 @@ async def delete_avatar(current_user: CurrentUser, db: DB):
         select(User).options(selectinload(User.organization)).where(User.id == current_user.id)
     )
     updated_user = result.scalar_one()
-    return APIResponse.success(message="Avatar removed successfully.", data=_user_out_with_org(updated_user))
+    return APIResponse.success(message="Avatar removed successfully.", data=await _user_out_with_org(updated_user, db))
 
 
 

@@ -7,7 +7,7 @@ from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate
 from app.services.email_service import send_candidate_invite
 from app.utils.pagination import paginate
 from app.utils.permissions import UserRole, NotificationType
-from app.tasks.notifications import notify_organization_roles
+from app.tasks.notifications import notify_organization_roles, send_system_notification, notify_candidate_stage_change
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
@@ -15,7 +15,6 @@ from app.services.match_scorer import evaluate_candidate_match
 from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
-
 
 from sqlalchemy.orm import selectinload
 
@@ -425,6 +424,12 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
                 f"{current_user.full_name} updated '{candidate.full_name}' to {candidate.pipeline_stage}.",
                 {"candidate_id": str(candidate_id)}
             )
+             notify_candidate_stage_change.delay(
+                 str(candidate.user_id) if candidate.user_id else None,
+                 str(candidate.id),
+                 candidate.pipeline_stage,
+                 str(current_user.organization_id)
+             )
 
     return APIResponse.success(message="Candidate updated successfully.", data=CandidateOut.model_validate(candidate))
 
@@ -613,7 +618,7 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         details={"name": candidate.full_name, "from": old_stage, "to": data.pipeline_stage}
     )
 
-    # Notify team about the stage move
+    # Notify the team about the stage move
     notify_organization_roles.delay(
         str(current_user.organization_id),
         [UserRole.ADMIN, UserRole.RECRUITER],
@@ -621,6 +626,14 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         "Candidate Moved Stage",
         f"{current_user.full_name} moved '{candidate.full_name}' from {old_stage or 'Applied'} to {data.pipeline_stage}.",
         {"candidate_id": str(candidate_id), "stage": data.pipeline_stage}
+    )
+
+    # Also notify the candidate directly (if they have a portal account)
+    notify_candidate_stage_change.delay(
+        str(candidate.user_id) if candidate.user_id else None,
+        str(candidate.id),
+        target_stage,
+        str(current_user.organization_id)
     )
 
     return APIResponse.success(message="Candidate stage updated successfully.", data=CandidateOut.model_validate(candidate))
@@ -685,3 +698,59 @@ async def get_candidate_applications(candidate_id: uuid.UUID, current_user: Curr
         )
     )
     return APIResponse.success(message="Candidate applications retrieved.", data=[ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()])
+
+
+@router.post("/{candidate_id}/view")
+async def record_profile_view(candidate_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+    """
+    Record that a recruiter viewed a candidate's profile.
+    Sends a real-time notification to the candidate if they have a portal account.
+    This is a non-blocking, best-effort endpoint — always returns 200.
+    """
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.organization_id == current_user.organization_id,
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Log the profile view activity
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="VIEW",
+        resource_type="candidate",
+        resource_id=str(candidate_id),
+        details={"name": candidate.full_name}
+    )
+
+    # Notify the candidate if they have a portal account
+    if candidate.user_id:
+        from app.models.notification import Notification
+        from datetime import datetime, timezone, timedelta
+        
+        # Debounce to prevent spam - only 1 view notification per 2 hours
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
+        existing_notif = await db.execute(
+            select(Notification.id).where(
+                Notification.user_id == candidate.user_id,
+                Notification.type == NotificationType.PROFILE_VIEWED,
+                Notification.created_at >= cutoff
+            )
+        )
+        if not existing_notif.scalars().first():
+            send_system_notification.delay(
+                str(candidate.user_id),
+                str(current_user.organization_id),
+                NotificationType.PROFILE_VIEWED,
+                "Someone viewed your profile 👁️",
+                "A recruiter at the hiring team viewed your profile. Keep your profile up to date!",
+                {"candidate_id": str(candidate.id)},
+            )
+
+    return APIResponse.success(message="Profile view recorded.")
+

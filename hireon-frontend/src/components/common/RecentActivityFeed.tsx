@@ -2,6 +2,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
 import { activitiesApi } from '@/api/activities'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useAuthStore } from '@/store/authStore'
 
 const ACTIVITY_CONFIG: Record<string, { icon: string; bg: string }> = {
   CREATE:          { icon: '➕', bg: 'rgba(16, 185, 129, 0.1)' },
@@ -10,30 +11,58 @@ const ACTIVITY_CONFIG: Record<string, { icon: string; bg: string }> = {
   OFFER_SENT:      { icon: '📨', bg: 'rgba(251, 191, 36, 0.1)' },
   OFFER_RESPONDED: { icon: '🤝', bg: 'rgba(59, 130, 246, 0.1)' },
   INVITE:          { icon: '✉️', bg: 'rgba(255, 107, 198, 0.1)' },
+  VIEW:            { icon: '👁️', bg: 'rgba(124, 58, 237, 0.1)' },
   default:         { icon: '🔔', bg: 'rgba(108, 71, 255, 0.1)' },
 }
 
-function buildLabel(act: { action: string; resource_type: string; details: any; user_name?: string | null }): { title: string; sub: string } {
+function buildLabel(
+  act: { action: string; resource_type: string; details: any; user_name?: string | null },
+  isCandidate: boolean
+): { title: string; sub: string } {
   const { action, resource_type, details, user_name } = act
-  const authorSuffix = user_name ? ` • by ${user_name.split(' ')[0]}` : ''
+  const authorSuffix = user_name && !isCandidate ? ` • by ${user_name.split(' ')[0]}` : ''
+
+  if (resource_type === 'candidate' && action === 'VIEW') {
+    return {
+      title: isCandidate ? 'Someone viewed your profile 👁️' : `Profile Viewed — ${details?.name ?? ''}`,
+      sub: isCandidate ? 'A recruiter is reviewing your details.' : `Candidate profile was accessed${authorSuffix}`
+    }
+  }
 
   if (resource_type === 'job' && action === 'CREATE') {
     return { title: `New Job — ${details?.title ?? 'Untitled'}`, sub: `Position posted${authorSuffix}` }
   }
   if (resource_type === 'candidate' && action === 'CREATE') {
-    return { title: `New Candidate — ${details?.name ?? ''}`, sub: `Added to pipeline${authorSuffix}` }
+    return {
+      title: isCandidate ? 'Application Registered' : `New Candidate — ${details?.name ?? ''}`,
+      sub: isCandidate ? 'Your profile is now in the pipeline.' : `Added to pipeline${authorSuffix}`
+    }
   }
   if (action === 'UPDATE_STAGE') {
-    return { title: `Pipeline Update — ${details?.name ?? ''}`, sub: `${details?.from ?? '—'} → ${details?.to ?? '—'}${authorSuffix}` }
+    return {
+      title: isCandidate ? 'Stage Updated' : `Pipeline Update — ${details?.name ?? ''}`,
+      sub: isCandidate
+        ? `Your status moved to ${details?.to ?? '—'}`
+        : `${details?.from ?? '—'} → ${details?.to ?? '—'}${authorSuffix}`
+    }
   }
   if (action === 'SCHEDULE') {
-    return { title: `Interview Scheduled — ${details?.candidate ?? ''}`, sub: `${details?.title ?? ''}${authorSuffix}` }
+    return {
+      title: isCandidate ? 'Interview Scheduled 📅' : `Interview Scheduled — ${details?.candidate ?? ''}`,
+      sub: isCandidate ? `Check your interviews for: ${details?.title ?? ''}` : `${details?.title ?? ''}${authorSuffix}`
+    }
   }
   if (action === 'OFFER_SENT') {
-    return { title: `Offer Sent — ${details?.position ?? ''}`, sub: `Awaiting response${authorSuffix}` }
+    return {
+      title: isCandidate ? 'New Offer Received! 🎉' : `Offer Sent — ${details?.position ?? ''}`,
+      sub: isCandidate ? 'Check your offers section for details.' : `Awaiting response${authorSuffix}`
+    }
   }
   if (action === 'OFFER_RESPONDED') {
-    return { title: `Offer Response — ${details?.position ?? ''}`, sub: `${details?.status ?? ''}${authorSuffix}` }
+    return {
+      title: isCandidate ? 'Offer Response Recorded' : `Offer Response — ${details?.position ?? ''}`,
+      sub: isCandidate ? `You ${details?.status ?? 'responded'} to the offer.` : `${details?.status ?? ''}${authorSuffix}`
+    }
   }
   if (action === 'INVITE') {
     return { title: `Invite Sent — ${details?.name ?? ''}`, sub: `${details?.email ?? ''}${authorSuffix}` }
@@ -42,6 +71,9 @@ function buildLabel(act: { action: string; resource_type: string; details: any; 
 }
 
 export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
+  const { user } = useAuthStore()
+  const isCandidate = user?.role === 'candidate'
+
   const { data: activities = [], isLoading, isError } = useQuery({
     queryKey: ['recent-activities', limit],
     queryFn: () => activitiesApi.list(limit).then((r) => r.data),
@@ -79,7 +111,7 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
     <div className="space-y-1">
       {activities.map((act) => {
         const config = ACTIVITY_CONFIG[act.action] ?? ACTIVITY_CONFIG.default
-        const { title, sub } = buildLabel(act)
+        const { title, sub } = buildLabel(act, isCandidate)
         return (
           <div key={act.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 border-b last:border-0" style={{ borderColor: 'rgba(108, 71, 255, 0.05)' }}>
             <div className="w-10 h-10 rounded-[12px] flex items-center justify-center text-[16px] flex-shrink-0" style={{ background: config.bg }}>
