@@ -65,13 +65,16 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 
 
 @router.get("", response_model=list[NotificationOut])
-async def list_notifications(current_user: CurrentUser, db: DB):
-    result = await db.execute(
+async def list_notifications(current_user: CurrentUser, db: DB, unread_only: bool = False):
+    query = (
         select(Notification)
         .where(Notification.user_id == current_user.id)
         .order_by(Notification.created_at.desc())
         .limit(50)
     )
+    if unread_only:
+        query = query.where(Notification.is_read == False)
+    result = await db.execute(query)
     return APIResponse.success(message="Notifications retrieved.", data=[NotificationOut.model_validate(n) for n in result.scalars().all()])
 
 
@@ -133,4 +136,21 @@ async def save_fcm_token(current_user: CurrentUser, db: DB, payload: dict):
         await db.commit()
 
     return APIResponse.success(message="FCM token saved.")
+
+
+@router.delete("/{notification_id}")
+async def delete_notification(notification_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """Permanently dismiss/delete a notification for the current user."""
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.user_id == current_user.id,
+        )
+    )
+    notif = result.scalar_one_or_none()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    await db.delete(notif)
+    await db.commit()
+    return APIResponse.success(message="Notification deleted.")
 

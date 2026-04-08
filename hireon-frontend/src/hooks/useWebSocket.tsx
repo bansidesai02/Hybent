@@ -28,11 +28,14 @@ export function useWebSocket() {
     if (!accessToken || !isAuthenticated) return
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
-    const ws = new WebSocket(`${WS_BASE}/ws/?token=${accessToken}`)
+    const ws = new WebSocket(`${WS_BASE}/v1/notifications/ws?token=${accessToken}`)
     wsRef.current = ws
 
     ws.onopen = () => {
       console.log('[WS] Connected')
+      // Sync missed notifications during connection/reconnection
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'count'] })
     }
 
     ws.onmessage = (event) => {
@@ -41,6 +44,10 @@ export function useWebSocket() {
         if (msg.type === 'event') {
           if (msg.event === 'notification' && msg.data) {
             addNotification(msg.data)
+            
+            // Sync React Query state immediately
+            queryClient.invalidateQueries({ queryKey: ['notifications'] })
+            queryClient.invalidateQueries({ queryKey: ['notifications', 'count'] })
             
             // Trigger WhatsApp-style popup (in-app)
             toast.custom((t) => (
@@ -67,17 +74,41 @@ export function useWebSocket() {
             setUnreadCount(msg.data.count)
           }
           if (msg.event === 'activity_created' && msg.data) {
+            const { user } = useAuthStore.getState()
+            const isPortal = window.location.pathname.startsWith('/portal')
+            const isInterviewer = window.location.pathname.startsWith('/interviewer')
+            
+            // Relevance check for candidates
+            const isRelevantToCandidate = isPortal && user?.candidate_id && msg.data.resource_id === user.candidate_id
+            const isRelevantToInterviewer = isInterviewer && msg.data.user_id === user?.id
+            const isRecruiterOrAdmin = !isPortal && !isInterviewer
+
+            // Only proceed if it's a recruiter OR a relevant portal/interviewer event
+            if (!isRecruiterOrAdmin && !isRelevantToCandidate && !isRelevantToInterviewer) {
+              return
+            }
+
             addActivity(msg.data)
+
+            // Generate fallback text if activity 'message' is missing on the raw event
+            let activityMessage = msg.data.message;
+            if (!activityMessage) {
+              const resType = msg.data.resource_type || 'Resource';
+              const action = msg.data.action || 'updated';
+              activityMessage = `${resType.charAt(0).toUpperCase() + resType.slice(1)} was ${action.toLowerCase()}`;
+            }
+
+            const enhancedPayload = { ...msg.data, message: activityMessage };
             
             // Trigger WhatsApp-style popup (in-app)
             toast.custom((t) => (
-              <ActivityToast t={t} payload={msg.data} />
+              <ActivityToast t={t} payload={enhancedPayload} />
             ), { id: `activity-${msg.data.id || Date.now()}`, duration: 5000 })
 
             // Trigger Native browser popup (visible when in another app)
             if (Notification.permission === 'granted') {
               new Notification('New Activity', {
-                body: msg.data.message || 'A new activity occurred',
+                body: activityMessage,
                 icon: '/favicon.svg',
               })
             }
@@ -106,7 +137,7 @@ export function useWebSocket() {
               queryClient.invalidateQueries({ queryKey: ['offers'] })
             } else if (resourceType === 'notification') {
               queryClient.invalidateQueries({ queryKey: ['notifications'] })
-              queryClient.invalidateQueries({ queryKey: ['unread_notifications_count'] })
+              queryClient.invalidateQueries({ queryKey: ['notifications', 'count'] })
             }
             
             // Always refresh recent activities

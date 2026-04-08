@@ -91,6 +91,13 @@ class NotificationType(str, Enum):
     CANDIDATE_DELETED = "candidate_deleted"
     COMMENT_ADDED = "comment_added"
     SYSTEM = "system"
+    # ── Candidate-facing types ────────────────────────────────────────────────
+    SHORTLISTED = "shortlisted"
+    PROFILE_VIEWED = "profile_viewed"
+    STAGE_UPDATED = "stage_updated"
+    MESSAGE_RECEIVED = "message_received"
+    OFFER_RECEIVED = "offer_received"
+    FEEDBACK_REMINDER = "feedback_reminder"
 
 
 # Role hierarchy: which roles can access which resources

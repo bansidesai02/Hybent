@@ -27,10 +27,27 @@ async def list_activities(
         )
     )
 
-    # STRICT ISOLATION: Recruiters only see their own activity
-    # Admins see everything in the organization
+    # Role-based filtering
     if current_user.role == "recruiter":
+        # Recruiters only see their own activity
         query = query.where(AuditLog.user_id == current_user.id)
+    elif current_user.role == "candidate":
+        # Candidates only see activity related to *them*
+        from app.models.candidate import Candidate
+        cand_result = await db.execute(select(Candidate.id).where(Candidate.user_id == current_user.id))
+        candidate_id = cand_result.scalar_one_or_none()
+        
+        if candidate_id:
+            # Match logs where resource_id is the candidate's UUID string
+            # Also include logs where they are the user_id (unlikely for AuditLog but safe)
+            query = query.where(
+                (AuditLog.resource_id == str(candidate_id)) | 
+                (AuditLog.user_id == current_user.id)
+            )
+        else:
+            # If no candidate record linked yet, show nothing
+            query = query.where(AuditLog.id == None)
+    # Admin roles (or unspecified) see everything in the organization (filtered by org_id above)
 
     result = await db.execute(
         query.order_by(desc(AuditLog.created_at))

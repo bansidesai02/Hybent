@@ -54,18 +54,9 @@ export function useNotifications() {
         created_at: new Date().toISOString(),
       })
 
-      // Trigger WhatsApp-style popup (in-app)
-      toast.custom((t) => (
-        <ActivityToast 
-          t={t} 
-          payload={{
-            action: (data.type as string) ?? 'notification',
-            resource_type: 'notification',
-            message: body ?? 'You have a new message',
-            timestamp: new Date().toISOString()
-          }} 
-        />
-      ), { id: `notif-${data.id || Date.now()}`, duration: 5000 })
+      // Removed: In-app toast.custom trigger was completely deleted since WebSockets (which are ultra-low-latency) 
+      // already generate in-app toasts natively on connection. Foreground FCM pushing duplicates was causing the 
+      // user to see a barrage of stale "queued" push toasts rendering on app load.
 
       // Trigger Native browser popup (visible when in another app)
       if (Notification.permission === 'granted') {

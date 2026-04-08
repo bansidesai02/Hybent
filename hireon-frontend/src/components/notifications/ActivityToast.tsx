@@ -1,6 +1,7 @@
 import React from 'react'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
+import { timeAgo } from '@/utils/formatters'
 
 interface ActivityToastProps {
   t: any
@@ -26,6 +27,10 @@ const getEmoji = (type: string) => {
 }
 
 export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
+  if (!payload || !payload.message || payload.message.trim() === '') {
+    return null;
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -50, scale: 0.95 }}
@@ -48,7 +53,7 @@ export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               </p>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
-                Now
+                {payload.timestamp ? timeAgo(payload.timestamp) : 'Now'}
               </span>
             </div>
             <p className="mt-1 text-sm text-gray-600 leading-snug font-medium">

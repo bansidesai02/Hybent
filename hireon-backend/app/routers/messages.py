@@ -6,13 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, or_, and_, func, desc
 from sqlalchemy.orm import selectinload
 
-from app.dependencies import DB, InterviewerUser
+from app.dependencies import DB, CurrentUser
 from app.models.message import Message
 from app.models.user import User
 from app.schemas.message import MessageCreate, MessageRead, ConversationSummary
 from app.schemas.response import APIResponse
 from app.websocket.manager import ws_manager
-from app.utils.permissions import UserRole
+from app.utils.permissions import UserRole, NotificationType
+from app.tasks.notifications import send_system_notification
 
 router = APIRouter(prefix="/v1/messages", tags=["messages"])
 
@@ -21,18 +22,16 @@ router = APIRouter(prefix="/v1/messages", tags=["messages"])
 async def send_message(
     payload: MessageCreate,
     db: DB,
-    current_user: InterviewerUser,
+    current_user: CurrentUser,
 ):
-    # 1. Validate receiver exists and is a team member
+    # 1. Validate receiver exists
     result = await db.execute(select(User).where(User.id == payload.receiver_id))
     receiver = result.scalar_one_or_none()
     
     if not receiver:
         raise HTTPException(status_code=404, detail="Receiver not found")
     
-    if receiver.role == UserRole.CANDIDATE:
-        raise HTTPException(status_code=403, detail="Cannot message candidates")
-    
+    # Organization isolation
     if receiver.organization_id != current_user.organization_id:
         raise HTTPException(status_code=403, detail="Cannot message users outside your organization")
 
@@ -46,7 +45,7 @@ async def send_message(
     await db.commit()
     await db.refresh(new_message)
 
-    # 3. Notify receiver via WebSocket
+    # 3. Notify receiver via WebSocket (Direct Message)
     message_data = {
         "id": str(new_message.id),
         "sender_id": str(new_message.sender_id),
@@ -57,6 +56,17 @@ async def send_message(
     }
     await ws_manager.send_to_user(str(payload.receiver_id), "new_message", message_data)
 
+    # 4. Trigger System Notification (Bell Alert)
+    # This ensures the user gets a red dot/alert if they aren't looking at the chat
+    send_system_notification.delay(
+        str(payload.receiver_id),
+        str(current_user.organization_id),
+        NotificationType.MESSAGE_RECEIVED,
+        "New Message Received 💬",
+        f"You have a new message from {current_user.full_name}: \"{new_message.content[:50]}...\"",
+        {"sender_id": str(current_user.id)}
+    )
+
     return APIResponse.success(
         message="Message sent.",
         data=MessageRead.model_validate(new_message)
@@ -66,7 +76,7 @@ async def send_message(
 @router.get("/conversations", response_model=List[ConversationSummary])
 async def list_conversations(
     db: DB,
-    current_user: InterviewerUser,
+    current_user: CurrentUser,
 ):
     """
     Get a list of users the current user has chatted with,
@@ -141,7 +151,7 @@ async def list_conversations(
 async def get_messages(
     other_user_id: uuid.UUID,
     db: DB,
-    current_user: InterviewerUser,
+    current_user: CurrentUser,
     limit: int = 50,
     offset: int = 0
 ):

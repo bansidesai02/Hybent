@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate } from '@/utils/formatters'
+import { RecentActivityFeed } from '@/components/common/RecentActivityFeed'
 
 // Display stages shown in the tracker
 const STAGES = [
@@ -316,6 +317,20 @@ export default function PortalDashboard() {
                 <span className="chip chip-gray" style={{ fontSize: 10 }}>Upcoming</span>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Live Activity Feed */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="ctitle" style={{ marginBottom: 0 }}>Live Activity</div>
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+              Live
+            </span>
+          </div>
+          <div className="max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
+            <RecentActivityFeed limit={5} />
           </div>
         </div>
 

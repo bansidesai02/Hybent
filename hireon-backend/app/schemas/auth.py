@@ -53,6 +53,7 @@ class UserOut(OrmSchema):
     phone: str | None = None
     is_active: bool
     is_calendar_connected: bool = False
+    candidate_id: str | None = None
     created_at: datetime | None = None
     last_login: datetime | None = None
 

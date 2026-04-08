@@ -215,3 +215,120 @@ async def _notify_interview_team_async(interview_id: str, type: str, title: str,
 @celery_app.task
 def notify_interview_team(interview_id: str, type: str, title: str, message: str, data: dict | None = None):
     asyncio.run(_notify_interview_team_async(interview_id, type, title, message, data))
+
+
+_STAGE_TO_CANDIDATE_NOTIF = {
+    # Shortlisted / progressing forward
+    "pre_screening_selected": (
+        "shortlisted",
+        "You've been shortlisted! 🎉",
+        "Great news! You have been shortlisted and are moving forward in the hiring process.",
+    ),
+    "technical_round": (
+        "stage_updated",
+        "Interview Scheduled",
+        "You have been moved to the Technical Interview round. Check your email for details.",
+    ),
+    "technical_round_selected": (
+        "stage_updated",
+        "Interview Scheduled",
+        "You have been moved to the Technical Interview round. Check your email for details.",
+    ),
+    "practical_round": (
+        "stage_updated",
+        "Practical Round",
+        "You have been moved to the Practical Round. Please check your email for details.",
+    ),
+    "practical_round_selected": (
+        "stage_updated",
+        "Practical Round",
+        "You have been moved to the Practical Round. Please check your email for details.",
+    ),
+    "techno_functional_round": (
+        "stage_updated",
+        "Next Interview Round",
+        "You are advancing to the Techno-Functional round. Check your email for details.",
+    ),
+    "techno_functional_selected": (
+        "stage_updated",
+        "Next Interview Round",
+        "You are advancing to the Techno-Functional round. Check your email for details.",
+    ),
+    "management_round": (
+        "stage_updated",
+        "Management Round",
+        "You have progressed to the Management round. Check your email for further details.",
+    ),
+    "management_round_selected": (
+        "stage_updated",
+        "Management Round",
+        "You have progressed to the Management round. Check your email for further details.",
+    ),
+    "hr_round": (
+        "stage_updated",
+        "HR Round",
+        "You have progressed to the final HR round! Check your email for details.",
+    ),
+    "hr_round_selected": (
+        "stage_updated",
+        "Congratulations! 🎊",
+        "You have successfully completed all interview rounds. An offer decision is being prepared.",
+    ),
+    "offered": (
+        "offer_received",
+        "You have received an offer! 🎉",
+        "Fantastic news! An offer has been extended to you. Please log in to review and respond.",
+    ),
+    "hired": (
+        "offer_received",
+        "Welcome aboard! 🚀",
+        "Congratulations! Your offer has been marked as accepted. Welcome to the team!",
+    ),
+}
+
+_REJECTION_STAGE_MSG = (
+    "stage_updated",
+    "Application Status Update",
+    "Your application status has been updated. We appreciate the time you invested in the process.",
+)
+
+_REJECTION_STAGES = [
+    "rejected",
+    "pre_screening_rejected",
+    "technical_round_rejected",
+    "technical_round_back_out",
+    "practical_round_rejected",
+    "practical_round_back_out",
+    "techno_functional_rejected",
+    "management_round_rejected",
+    "hr_round_rejected",
+    "offered_back_out",
+    "offer_withdrawn"
+]
+
+@celery_app.task
+def notify_candidate_stage_change(user_id: str | None, candidate_id: str, new_stage: str, org_id: str):
+    """
+    If the candidate has a linked portal user account, send them a personal
+    notification for their stage change.
+    """
+    if not user_id:
+        return  # Candidate has no portal account; nothing to notify
+
+    if new_stage in _STAGE_TO_CANDIDATE_NOTIF:
+        notif_type, title, message = _STAGE_TO_CANDIDATE_NOTIF[new_stage]
+    elif new_stage in _REJECTION_STAGES:
+        notif_type, title, message = _REJECTION_STAGE_MSG
+    else:
+        return  # Stage not mapped to a candidate notification; skip
+
+    # Send the system notification using our existing helper task
+    send_system_notification.delay(
+        user_id,
+        org_id,
+        notif_type,
+        title,
+        message,
+        {"candidate_id": candidate_id, "stage": new_stage},
+    )
+

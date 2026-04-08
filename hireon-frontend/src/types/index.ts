@@ -36,7 +36,20 @@ export type NotificationType =
   | 'offer_sent'
   | 'offer_accepted'
   | 'offer_declined'
+  | 'interview_updated'
+  | 'interview_cancelled'
+  | 'candidate_added'
+  | 'candidate_updated'
+  | 'candidate_deleted'
+  | 'comment_added'
   | 'system'
+  // Candidate-facing types
+  | 'shortlisted'
+  | 'profile_viewed'
+  | 'stage_updated'
+  | 'message_received'
+  | 'offer_received'
+  | 'feedback_reminder'
 
 export interface ReportSummary {
   applied: number
@@ -60,6 +73,7 @@ export interface User {
   phone: string | null
   is_active: boolean
   is_calendar_connected: boolean
+  candidate_id?: string | null
 }
 
 export interface Organization {
