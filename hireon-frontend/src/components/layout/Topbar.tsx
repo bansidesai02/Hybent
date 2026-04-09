@@ -140,6 +140,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
 
   const menuItems = [
     { label: 'My Profile', icon: '👤', path: profilePath },
+    { label: 'Settings', icon: '⚙️', path: `${basePath}/settings` },
   ]
 
   return (

@@ -138,6 +138,8 @@ async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUse
         current_user.avatar_url = data.avatar_url
     if data.phone is not None:
         current_user.phone = data.phone.strip()
+    if data.recovery_email is not None:
+        current_user.recovery_email = data.recovery_email.strip()
 
     # Fields editable by Admin & Recruiter
     role_val = str(current_user.role).lower().strip()

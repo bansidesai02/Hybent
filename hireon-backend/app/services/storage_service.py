@@ -153,6 +153,46 @@ async def save_avatar(file: UploadFile, user_id: str) -> str:
     return f"/static/uploads/avatars/{filename}"
 
 
+async def save_logo(file: UploadFile, organization_id: str) -> str:
+    """Save organization logo to Cloudinary (if configured) or local disk, and return URL."""
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP images are supported")
+
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:  # 5MB
+        raise HTTPException(status_code=400, detail="Logo too large (max 5MB)")
+
+    # 1. Cloudinary Upload Flow
+    if settings.cloudinary_cloud_name:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder="hireon_logos",
+                    public_id=f"logo_{organization_id}_{uuid.uuid4().hex[:8]}"
+                )
+            )
+            return response.get("secure_url")
+        except Exception as e:
+            print(f"ERROR: Cloudinary upload failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Image upload to Cloudinary failed: {str(e)}")
+
+    # 2. Fallback Local Storage Flow
+    ext = ALLOWED_IMAGE_TYPES[file.content_type]
+    filename = f"{uuid.uuid4()}{ext}"
+    folder = UPLOAD_BASE / "logos"
+    folder.mkdir(parents=True, exist_ok=True)
+
+    filepath = folder / filename
+    async with aiofiles.open(filepath, "wb") as f:
+        await f.write(content)
+
+    return f"/static/uploads/logos/{filename}"
+
+
 def get_file_path(url: str) -> Path:
     """Convert a /static/uploads/... URL to a local filesystem path."""
     relative = url.replace("/static/uploads/", "", 1)

@@ -51,6 +51,7 @@ class UserOut(OrmSchema):
     organization_name: str | None = None
     avatar_url: str | None = None
     phone: str | None = None
+    recovery_email: str | None = None
     is_active: bool
     is_calendar_connected: bool = False
     candidate_id: str | None = None
@@ -66,6 +67,7 @@ class ProfileUpdateRequest(BaseModel):
     full_name: str | None = None
     avatar_url: str | None = None
     phone: str | None = None
+    recovery_email: str | None = None
     # Admin-only fields (enforced in router)
     email: str | None = None
     role: str | None = None
