@@ -728,29 +728,10 @@ async def record_profile_view(candidate_id: uuid.UUID, current_user: RecruiterUs
         details={"name": candidate.full_name}
     )
 
-    # Notify the candidate if they have a portal account
-    if candidate.user_id:
-        from app.models.notification import Notification
-        from datetime import datetime, timezone, timedelta
-        
-        # Debounce to prevent spam - only 1 view notification per 2 hours
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
-        existing_notif = await db.execute(
-            select(Notification.id).where(
-                Notification.user_id == candidate.user_id,
-                Notification.type == NotificationType.PROFILE_VIEWED,
-                Notification.created_at >= cutoff
-            )
-        )
-        if not existing_notif.scalars().first():
-            send_system_notification.delay(
-                str(candidate.user_id),
-                str(current_user.organization_id),
-                NotificationType.PROFILE_VIEWED,
-                "Someone viewed your profile 👁️",
-                "A recruiter at the hiring team viewed your profile. Keep your profile up to date!",
-                {"candidate_id": str(candidate.id)},
-            )
+    # NOTE: Profile view notifications to candidates have been intentionally
+    # removed. The activity log above still records the view for recruiter-side
+    # audit purposes. Candidates no longer receive a "Someone viewed your
+    # profile" notification to avoid noise.
 
     return APIResponse.success(message="Profile view recorded.")
 
