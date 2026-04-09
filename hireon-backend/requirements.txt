@@ -60,3 +60,7 @@ firebase-admin==6.5.0
 huggingface_hub>=0.25.0
 # Cloud Image Storage
 cloudinary>=1.40.0
+
+# Search
+elasticsearch[async]>=8.0.0
+

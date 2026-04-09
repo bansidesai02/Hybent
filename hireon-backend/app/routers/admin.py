@@ -201,3 +201,65 @@ async def dashboard_stats(current_user: AdminUser, db: DB):
             "total_requests": ai_stats.total_requests or 0
         }
     })
+
+
+@router.post("/es/reindex")
+async def es_reindex_all(current_user: AdminUser, db: DB):
+    """
+    Bulk-index all existing Postgres data into Elasticsearch.
+    Run once after the first deployment. New records are indexed automatically.
+    Scoped to the current admin's organization.
+    """
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+    from app.models.interview import Interview
+    from app.models.user import User
+    from app.models.candidate import Candidate as CandidateModel
+    from app.services import elasticsearch_service as es_service
+    from sqlalchemy import select
+
+    org_id = current_user.organization_id
+    counts = {"candidates": 0, "jobs": 0, "interviews": 0, "users": 0}
+
+    # ── Candidates ──────────────────────────────────────────────────────────
+    cand_rows = (
+        await db.execute(select(Candidate).where(Candidate.organization_id == org_id))
+    ).scalars().all()
+    for c in cand_rows:
+        await es_service.index_candidate(c)
+        counts["candidates"] += 1
+
+    # ── Jobs ────────────────────────────────────────────────────────────────
+    job_rows = (
+        await db.execute(select(Job).where(Job.organization_id == org_id))
+    ).scalars().all()
+    for j in job_rows:
+        await es_service.index_job(j)
+        counts["jobs"] += 1
+
+    # ── Interviews ──────────────────────────────────────────────────────────
+    ivw_rows = (
+        await db.execute(select(Interview).where(Interview.organization_id == org_id))
+    ).scalars().all()
+    for iv in ivw_rows:
+        # Resolve candidate name
+        cand = (
+            await db.execute(select(CandidateModel).where(CandidateModel.id == iv.candidate_id))
+        ).scalar_one_or_none()
+        await es_service.index_interview(iv, cand.full_name if cand else "")
+        counts["interviews"] += 1
+
+    # ── Users ───────────────────────────────────────────────────────────────
+    user_rows = (
+        await db.execute(select(User).where(User.organization_id == org_id))
+    ).scalars().all()
+    for u in user_rows:
+        await es_service.index_user(u)
+        counts["users"] += 1
+
+    total = sum(counts.values())
+    return APIResponse.success(
+        message=f"Elasticsearch reindex complete. {total} documents indexed.",
+        data=counts,
+    )
+

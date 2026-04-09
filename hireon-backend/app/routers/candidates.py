@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from sqlalchemy import select, func
 from app.dependencies import DB, CurrentUser, RecruiterUser, AdminUser
 from app.models.candidate import Candidate
@@ -13,6 +13,7 @@ from app.models.application import Application
 from app.models.job import Job
 from app.services.match_scorer import evaluate_candidate_match
 from app.schemas.response import APIResponse
+from app.services import elasticsearch_service as es_service
 
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
 
@@ -43,6 +44,9 @@ async def list_candidates(
     stage: str | None = None,
     status: str | None = None,
     created_by_id: str | None = None,
+    job_id: uuid.UUID | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
 ):
     status = (status or "").strip().lower() or None
     # Status → multiple pipeline_stage values
@@ -65,13 +69,41 @@ async def list_candidates(
 
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations), selectinload(Candidate.created_by))
     
+    # Filter by job_id (join with Application)
+    if job_id:
+        query = query.join(Application, Application.candidate_id == Candidate.id).where(Application.job_id == job_id)
+
+    # Filter by date range
+    if date_from:
+        try:
+            from datetime import datetime, timezone
+            dt_from = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+            query = query.where(Candidate.created_at >= dt_from)
+        except (ValueError, TypeError):
+            pass
+    if date_to:
+        try:
+            from datetime import datetime, timezone, timedelta
+            dt_to = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
+            # If it's just a date (no time), include the whole day
+            if dt_to.hour == 0 and dt_to.minute == 0:
+                dt_to = dt_to + timedelta(days=1)
+            query = query.where(Candidate.created_at < dt_to)
+        except (ValueError, TypeError):
+            pass
+
     # Isolation removed: Recruiter & Admin can see all candidates in the organization
     if created_by_id:
         query = query.where(Candidate.created_by_id == created_by_id)
 
     if search:
+        from sqlalchemy import cast, String as SAString
         query = query.where(
-            Candidate.full_name.ilike(f"%{search}%") | Candidate.email.ilike(f"%{search}%")
+            Candidate.full_name.ilike(f"%{search}%")
+            | Candidate.email.ilike(f"%{search}%")
+            | Candidate.current_title.ilike(f"%{search}%")
+            | Candidate.current_company.ilike(f"%{search}%")
+            | cast(Candidate.skills, SAString).ilike(f"%{search}%")
         )
     if tag:
         query = query.where(Candidate.tags.contains([tag]))
@@ -194,7 +226,7 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
 
 
 @router.post("", response_model=CandidateOut, status_code=201)
-async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, db: DB):
+async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
     # Check for existing candidate in org
     existing = await db.execute(
         select(Candidate)
@@ -241,6 +273,7 @@ async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, d
         {"candidate_id": str(candidate.id)}
     )
     
+    background_tasks.add_task(es_service.index_candidate, candidate)
     return APIResponse.success(message="Candidate created successfully.", data=CandidateOut.model_validate(candidate))
 
 
@@ -321,7 +354,7 @@ async def get_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: 
 from app.utils.permissions import REJECTION_STAGES
 
 @router.put("/{candidate_id}", response_model=CandidateOut)
-async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: RecruiterUser, db: DB):
+async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -431,11 +464,12 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
                  str(current_user.organization_id)
              )
 
+    background_tasks.add_task(es_service.index_candidate, candidate)
     return APIResponse.success(message="Candidate updated successfully.", data=CandidateOut.model_validate(candidate))
 
 
 @router.patch("/{candidate_id}/stage", response_model=CandidateOut)
-async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUpdate, current_user: RecruiterUser, db: DB):
+async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUpdate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -636,6 +670,7 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         str(current_user.organization_id)
     )
 
+    background_tasks.add_task(es_service.index_candidate, candidate)
     return APIResponse.success(message="Candidate stage updated successfully.", data=CandidateOut.model_validate(candidate))
 
 
@@ -650,7 +685,7 @@ async def reject_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser,
 
 
 @router.delete("/{candidate_id}")
-async def delete_candidate(candidate_id: uuid.UUID, current_user: AdminUser, db: DB):
+async def delete_candidate(candidate_id: uuid.UUID, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -684,6 +719,7 @@ async def delete_candidate(candidate_id: uuid.UUID, current_user: AdminUser, db:
         {"candidate_id": str(candidate_id), "name": candidate.full_name}
     )
 
+    background_tasks.add_task(es_service.delete_from_index, "hireon_candidates", str(candidate_id))
     return APIResponse.success(message="Candidate deleted successfully.")
 
 

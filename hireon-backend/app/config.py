@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # ── Database & Redis ───────────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://postgres:root@localhost:5432/hireon_db"
     redis_url: str = "redis://localhost:6379/0"
+    elasticsearch_url: str = "http://localhost:9200"
 
     # ── AI API Keys ────────────────────────────────────────────────────────────
     gemini_api_key: str = ""

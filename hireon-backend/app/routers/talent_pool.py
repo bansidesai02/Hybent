@@ -31,13 +31,14 @@ async def list_talent_pool(
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.created_by))
 
     if search:
+        from sqlalchemy import cast, String as SAString
         query = query.where(
             Candidate.full_name.ilike(f"%{search}%")
             | Candidate.email.ilike(f"%{search}%")
             | Candidate.current_title.ilike(f"%{search}%")
-            | Candidate.applied_job_title.ilike(f"%{search}%")
-            | cast(Candidate.skills, String).ilike(f"%{search}%")
-            | cast(Candidate.tags, String).ilike(f"%{search}%")
+            | Candidate.current_company.ilike(f"%{search}%")
+            | cast(Candidate.skills, SAString).ilike(f"%{search}%")
+            | cast(Candidate.tags, SAString).ilike(f"%{search}%")
         )
     if skill:
         query = query.where(Candidate.skills.contains([skill]))

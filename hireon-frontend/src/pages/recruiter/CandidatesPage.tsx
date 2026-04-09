@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { formatDate } from '@/utils/formatters'
 // import { formatDistanceToNow } from 'date-fns'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
@@ -351,7 +352,9 @@ export default function CandidatesPage() {
   const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const queryClient = useQueryClient()
-  const [selectedJobId, setSelectedJobId] = useState<string>('')
+  const [selectedJobId, setSelectedJobId] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<string>('all')
+  const [customDate, setCustomDate] = useState<string>('')
   const [candidateToAdd, setCandidateToAdd] = useState<{ id: string; name: string } | null>(null)
 
   const inviteMutation = useMutation({
@@ -387,6 +390,17 @@ export default function CandidatesPage() {
     ...(statusFilter ? { status: statusFilter } : {}),
     ...(stageFilter ? { stage: stageFilter } : {}),
     ...(recruiterId !== 'all' ? { created_by_id: recruiterId } : {}),
+    ...(selectedJobId !== 'all' ? { job_id: selectedJobId } : {}),
+    ...(dateFilter !== 'all' ? (() => {
+      const now = new Date()
+      if (dateFilter === 'today') return { date_from: new Date(now.setHours(0,0,0,0)).toISOString() }
+      if (dateFilter === 'week') return { date_from: new Date(now.setDate(now.getDate() - 7)).toISOString() }
+      if (dateFilter === 'month') return { date_from: new Date(now.setDate(now.getDate() - 30)).toISOString() }
+      if (dateFilter === 'custom' && customDate) {
+        return { date_from: customDate, date_to: customDate }
+      }
+      return {}
+    })() : {}),
   }
 
   const { data, isLoading, isError } = useQuery({
@@ -472,35 +486,82 @@ export default function CandidatesPage() {
         </button>
       </div>
 
-      {/* Filters & Search Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        {/* Search Input */}
-        <div className="w-full sm:max-w-xs flex-shrink-0">
-          <Input
-            placeholder="Search by name, email…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            leftIcon={
-              <svg style={{ width: 15, height: 15 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            }
-          />
-        </div>
+      {/* Filters Row */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 bg-gray-50/50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+        <div className="flex flex-wrap items-center gap-3 flex-1 w-full">
+          {/* Search Input */}
+          <div className="w-full sm:max-w-[280px]">
+            <Input
+              placeholder="Search candidates…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              leftIcon={
+                <svg style={{ width: 15, height: 15 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              }
+            />
+          </div>
 
-        {/* Recruiter Filter */}
-        <div className="w-full sm:max-w-[180px] flex-shrink-0">
-          <Select
-            value={recruiterId}
-            onChange={(e) => { setRecruiterId(e.target.value); setPage(1) }}
-            options={[
-              { value: 'all', label: 'All Recruiters' },
-              ...recruiters.map(r => ({ value: r.id, label: r.name }))
-            ]}
-          />
-        </div>
+          <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block mx-1" />
 
-        {/* Status Tabs */}
+          {/* Core Selects Group */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-[140px]">
+              <Select
+                value={recruiterId}
+                onChange={(e) => { setRecruiterId(e.target.value); setPage(1) }}
+                options={[
+                  { value: 'all', label: 'All Recruiters' },
+                  ...recruiters.map(r => ({ value: r.id, label: r.name }))
+                ]}
+              />
+            </div>
+
+            <div className="w-[140px]">
+              <Select
+                value={selectedJobId}
+                onChange={(e) => { setSelectedJobId(e.target.value); setPage(1) }}
+                options={[
+                  { value: 'all', label: 'All Roles' },
+                  ...(activeJobs || []).map((j: any) => ({ value: j.id, label: j.title }))
+                ]}
+              />
+            </div>
+
+            {/* Date Group: Keeps Select and Picker together */}
+            <div className="flex items-center gap-2">
+              <div className="w-[130px]">
+                <Select
+                  value={dateFilter}
+                  onChange={(e) => { setDateFilter(e.target.value); setPage(1) }}
+                  options={[
+                    { value: 'all', label: 'Any Date' },
+                    { value: 'today', label: 'Today' },
+                    { value: 'week', label: 'Last 7 Days' },
+                    { value: 'month', label: 'Last 30 Days' },
+                    { value: 'custom', label: 'Custom Date…' },
+                  ]}
+                />
+              </div>
+
+              {dateFilter === 'custom' && (
+                <div className="w-[155px] flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <DatePicker
+                    value={customDate}
+                    onChange={(date) => { setCustomDate(date); setPage(1) }}
+                    className="relative z-50"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Tabs Row */}
+      <div className="flex items-center gap-3 px-1">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2">Status:</span>
         <div className="flex flex-wrap items-center gap-2">
           {[
             { label: 'All', value: undefined, icon: '👥' },
@@ -508,7 +569,6 @@ export default function CandidatesPage() {
             { label: 'In Review', value: 'in_review', icon: '🔍' },
             { label: 'Scheduled', value: 'scheduled', icon: '📅' },
             { label: 'Rejected', value: 'rejected', icon: '🚫' },
-            { label: 'Inactive', value: 'inactive', icon: '⏸' },
           ].map((f) => {
             const isActive = statusFilter === f.value
             const statusCfg = f.value ? STATUS_CFG[f.value] : null
@@ -540,6 +600,7 @@ export default function CandidatesPage() {
           })}
         </div>
       </div>
+
 
       {/* Table */}
       {isLoading ? (

@@ -20,13 +20,14 @@ from app.database import engine, Base
 from app.websocket.manager import ws_manager
 from app.middleware.audit import AuditMiddleware
 from app.middleware.tenant import TenantMiddleware
+from app.services import elasticsearch_service as es_service
 import app.models  # noqa: F401 — register all models with Base
 from app.routers import (
     auth, organizations, users, jobs, candidates,
     resumes, ai, applications, pipeline,
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
-    activities, reports, messages, linkedin
+    activities, reports, messages, linkedin, search
 )
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -60,6 +61,13 @@ async def lifespan(app: FastAPI):
     redis_listener_task = asyncio.create_task(ws_manager.listen_to_redis())
     logger.info("Redis WS listener task created.")
 
+    # Setup Elasticsearch indices (non-blocking — warns if ES unavailable)
+    try:
+        await es_service.setup_indices()
+        logger.info("Elasticsearch indices ready.")
+    except Exception as exc:
+        logger.warning(f"Elasticsearch setup skipped: {exc}")
+
     yield
     
     # Clean up
@@ -68,6 +76,9 @@ async def lifespan(app: FastAPI):
         await redis_listener_task
     except asyncio.CancelledError:
         logger.info("Redis WS listener task cancelled.")
+
+    # Close ES client
+    await es_service.close()
     
     logger.info("HireOn API shutting down")
 
@@ -151,6 +162,7 @@ app.include_router(activities.router)
 app.include_router(reports.router)
 app.include_router(messages.router)
 app.include_router(linkedin.router)
+app.include_router(search.router)
 
 
 @app.get("/", tags=["health"])

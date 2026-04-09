@@ -2,7 +2,18 @@ import api from './axios'
 import type { Candidate, PaginatedResponse } from '@/types'
 
 export const candidatesApi = {
-  list: (params?: { page?: number; limit?: number; search?: string; tag?: string; stage?: string; status?: string; created_by_id?: string }) =>
+  list: (params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    tag?: string; 
+    stage?: string; 
+    status?: string; 
+    created_by_id?: string;
+    job_id?: string;
+    date_from?: string;
+    date_to?: string;
+  }) =>
     api.get<PaginatedResponse<Candidate>>('/v1/candidates', { params }),
 
   create: (data: Partial<Candidate>) => api.post<Candidate>('/v1/candidates', data),

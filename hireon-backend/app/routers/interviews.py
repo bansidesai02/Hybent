@@ -1,6 +1,6 @@
 import uuid
 import zoneinfo
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from sqlalchemy import select
 from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.interview import Interview, InterviewPanelist
@@ -20,6 +20,7 @@ from app.utils.permissions import InterviewStatus, NotificationType
 from app.tasks.notifications import notify_interview_team
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
+from app.services import elasticsearch_service as es_service
 
 router = APIRouter(prefix="/v1/interviews", tags=["interviews"])
 
@@ -129,7 +130,7 @@ async def confirm_interview(interview_id: uuid.UUID, current_user: CurrentUser, 
 
 
 @router.post("", response_model=dict, status_code=201)
-async def create_interview(data: InterviewCreate, current_user: RecruiterUser, db: DB):
+async def create_interview(data: InterviewCreate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
     # Validate candidate belongs to org
     try:
         cand_id = uuid.UUID(data.candidate_id)
@@ -269,6 +270,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     d = await _interview_out(db, interview, panelist_out)
     d["candidate_name"] = candidate.full_name
     d["candidate_email"] = candidate.email
+    background_tasks.add_task(es_service.index_interview, interview, candidate.full_name)
     return APIResponse.success(message="Interview scheduled successfully.", data=d)
 
 
@@ -306,7 +308,7 @@ async def get_interview(interview_id: uuid.UUID, current_user: CurrentUser, db: 
 
 
 @router.put("/{interview_id}", response_model=dict)
-async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, current_user: CurrentUser, db: DB):
+async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, current_user: CurrentUser, db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Interview).where(
             Interview.id == interview_id,
@@ -419,6 +421,7 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
     if _cand_for_log:
         cand_name = _cand_for_log.full_name
 
+    # Audit log — RESCHEDULE takes priority when time changed, else UPDATE
     if "scheduled_at" in data_dict and data_dict["scheduled_at"] != old_time:
         await log_activity(
             db,
@@ -440,11 +443,12 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
             details={"candidate": cand_name, "title": interview.title, "fields": list(data_dict.keys())}
         )
 
+    background_tasks.add_task(es_service.index_interview, interview, cand_name)
     return APIResponse.success(message="Interview updated successfully.", data=await _interview_out(db, interview, [])) # panelists will be enriched by UI if needed
 
 
 @router.delete("/{interview_id}")
-async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser, db: DB, reason: str | None = None):
+async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks, reason: str | None = None):
     result = await db.execute(
         select(Interview).where(
             Interview.id == interview_id,
@@ -517,4 +521,5 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
         }
     )
 
+    background_tasks.add_task(es_service.index_interview, interview, cand.full_name if cand else "")
     return APIResponse.success(message="Interview cancelled successfully.")

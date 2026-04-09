@@ -1,9 +1,11 @@
 import { useAuth } from '@/hooks/useAuth'
 import { NotificationBell } from './NotificationBell'
 import { MessageInbox } from './MessageInbox'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { globalSearch } from '@/api/search'
+import type { SearchResults, SearchResult } from '@/types'
 
 interface TopbarProps {
   title?: string
@@ -11,11 +13,17 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, onToggleMenu }: TopbarProps) {
-  const { user, logout } = useAuth()
+  const { user, logout, basePath } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const [isDark, setIsDark] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+  
+  const searchRef = useRef<HTMLDivElement>(null)
+  const location = useLocation()
 
   // Sync dark class on <html>
   useEffect(() => {
@@ -24,11 +32,110 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     else root.classList.remove('dark')
   }, [isDark])
 
+  // Global Search Debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null)
+      setIsSearching(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const results = await globalSearch(searchQuery)
+        setSearchResults(results)
+      } catch (error) {
+        console.error('Search failed:', error)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Close search results on route change or click outside
+  useEffect(() => {
+    setSearchQuery('')
+    setSearchResults(null)
+    setSearchFocused(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchFocused(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleResultClick = (result: SearchResult) => {
+    const path = result.type === 'candidate' ? `${basePath}/candidates` 
+               : result.type === 'job' ? `${basePath}/jobs`
+               : result.type === 'interview' ? `${basePath}/interviews`
+               : result.type === 'user' ? `${basePath}/teams`
+               : basePath
+
+    // We'll pass the search query to the page state so it can filter locally if needed
+    // or just navigate to the relevant list page. 
+    // For candidates, we might want to navigate to a specific ID if we had detail pages.
+    navigate(path, { state: { search: result.title }})
+    setSearchQuery('')
+    setSearchResults(null)
+    setSearchFocused(false)
+  }
+
+  const renderSearchSection = (title: string, icon: string, results: SearchResult[]) => {
+    if (results.length === 0) return null
+    return (
+      <div className="mb-4 last:mb-0">
+        <h4 className="px-4 py-2 text-[11px] font-black uppercase tracking-wider text-[var(--text-light)] opacity-60 flex items-center gap-2">
+          <span>{icon}</span> {title}
+        </h4>
+        <div className="space-y-0.5">
+          {results.map((res) => (
+            <button
+              key={res.id}
+              onClick={() => handleResultClick(res)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all hover:bg-[var(--sb-hover)] group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex-shrink-0 flex items-center justify-center text-[14px] group-hover:scale-110 transition-transform">
+                {res.avatar_url ? (
+                  <img src={res.avatar_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                ) : (
+                  resultIconMap[res.type]
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-[var(--text)] truncate">{res.title}</p>
+                <p className="text-[11px] text-[var(--text-mid)] truncate">{res.subtitle}</p>
+              </div>
+              {res.meta && (
+                <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-[var(--search-bg)] border border-[var(--input-border)] text-[var(--text-light)]">
+                  {res.meta}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const resultIconMap: Record<string, string> = {
+    candidate: '👤',
+    job: '💼',
+    interview: '🗓️',
+    user: '🧑‍💼'
+  }
+
   const initials = user?.full_name
     ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'U'
 
-  const { basePath } = useAuth()
   const profilePath = `${basePath}/profile`
 
   const menuItems = [
@@ -54,24 +161,99 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
       </button>
 
       {/* Search bar */}
-      <div className="flex-1 hidden md:flex justify-center">
-        <div
-          className="flex items-center gap-2 w-full max-w-[440px] rounded-[12px] px-[16px] py-[8px] transition-all duration-200"
-          style={{
-            background: 'var(--search-bg)',
-            backdropFilter: 'blur(10px)',
-            border: `1.5px solid ${searchFocused ? '#6c47ff' : 'var(--input-border)'}`,
-          }}
-        >
-          <span style={{ fontSize: '14px', opacity: 0.5 }}>🔍</span>
-          <input
-            type="text"
-            placeholder="Search candidates, roles, interviews..."
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            className="border-none bg-transparent text-[13px] outline-none w-full"
-            style={{ fontFamily: "'Sora', sans-serif", color: 'var(--text)' }}
-          />
+      <div className="flex-1 hidden md:flex justify-center" ref={searchRef}>
+        <div className="relative w-full max-w-[440px]">
+          <div
+            className="flex items-center gap-2 w-full rounded-[12px] px-[16px] py-[8px] transition-all duration-200"
+            style={{
+              background: 'var(--search-bg)',
+              backdropFilter: 'blur(10px)',
+              border: `1.5px solid ${searchFocused ? '#6c47ff' : 'var(--input-border)'}`,
+              boxShadow: searchFocused ? '0 0 0 4px rgba(108, 71, 255, 0.1)' : 'none',
+            }}
+          >
+            <span style={{ fontSize: '14px', opacity: isSearching ? 0 : 0.5 }} className="transition-opacity">🔍</span>
+            {isSearching && (
+              <div className="absolute left-[16px] flex items-center">
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                  className="w-4 h-4 border-2 border-[#6c47ff] border-t-transparent rounded-full"
+                />
+              </div>
+            )}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search candidates, roles, interviews..."
+              onFocus={() => setSearchFocused(true)}
+              className="border-none bg-transparent text-[13px] outline-none w-full"
+              style={{ fontFamily: "'Sora', sans-serif", color: 'var(--text)' }}
+            />
+          </div>
+
+          <AnimatePresence>
+            {searchFocused && (searchQuery || searchResults) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                className="absolute top-[calc(100%+8px)] left-0 right-0 max-h-[480px] overflow-y-auto rounded-2xl p-2 z-[100]"
+                style={{
+                  background: 'var(--sidebar-bg)',
+                  border: '1px solid var(--sidebar-border)',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
+                  backdropFilter: 'blur(30px)',
+                }}
+              >
+                {!searchResults && !isSearching && searchQuery && (
+                  <div className="p-8 text-center">
+                    <p className="text-[24px] mb-2">🔎</p>
+                    <p className="text-[13px] font-bold text-[var(--text)]">Search across everything</p>
+                    <p className="text-[11px] text-[var(--text-light)]">Candidates, jobs, team members and more</p>
+                  </div>
+                )}
+
+                {isSearching && !searchResults && (
+                  <div className="p-8 text-center">
+                    <motion.div 
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                      className="text-[13px] font-medium text-[var(--text-light)]"
+                    >
+                      Searching for "{searchQuery}"...
+                    </motion.div>
+                  </div>
+                )}
+
+                {searchResults && (
+                  <>
+                    {searchResults.total === 0 ? (
+                      <div className="p-8 text-center">
+                        <p className="text-[24px] mb-2">🛰️</p>
+                        <p className="text-[13px] font-bold text-[var(--text)]">No results found</p>
+                        <p className="text-[11px] text-[var(--text-light)]">Try searching for something else</p>
+                      </div>
+                    ) : (
+                      <>
+                        {renderSearchSection('Candidates', '👤', searchResults.candidates)}
+                        {renderSearchSection('Jobs', '💼', searchResults.jobs)}
+                        {renderSearchSection('Interviews', '🗓️', searchResults.interviews)}
+                        {renderSearchSection('Team', '🧑‍💼', searchResults.users)}
+                        
+                        <div className="mt-2 p-2 border-t border-[var(--sidebar-border)] text-center">
+                          <p className="text-[10px] text-[var(--text-light)] font-bold uppercase tracking-widest opacity-40">
+                            {searchResults.total} results found
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

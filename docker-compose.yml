@@ -39,6 +39,7 @@ services:
       # The .env.docker file may have localhost — this ensures it points correctly.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hireon}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hireon_db}
       REDIS_URL: redis://redis:6379/0
+      ELASTICSEARCH_URL: http://elasticsearch:9200
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       UPLOAD_DIR: /app/uploads
       APP_ENV: production
@@ -49,6 +50,8 @@ services:
       - "8000:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
@@ -138,6 +141,30 @@ services:
         condition: service_healthy
     networks:
       - hireon-network
+
+  # ── Elasticsearch (Global Search Engine) ──────────────────────────────────
+  elasticsearch:
+    image: elasticsearch:8.12.0
+    container_name: hireon_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    networks:
+      - hireon-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
 # ── Named Volumes ─────────────────────────────────────────────────────────
 volumes:

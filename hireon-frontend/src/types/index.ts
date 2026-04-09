@@ -400,3 +400,29 @@ export interface JobForm {
   openings: number
   status: JobStatus
 }
+
+// ── Search ──────────────────────────────────────────────────────────────────
+
+export type SearchEntityType = 'candidate' | 'job' | 'interview' | 'user'
+
+export interface SearchResult {
+  id: string
+  type: SearchEntityType
+  title: string
+  subtitle: string
+  meta?: string | null
+  avatar_url?: string | null
+  pipeline_stage?: string | null
+  email?: string | null
+  is_remote?: boolean
+  scheduled_at?: string | null
+}
+
+export interface SearchResults {
+  candidates: SearchResult[]
+  jobs: SearchResult[]
+  interviews: SearchResult[]
+  users: SearchResult[]
+  total: number
+}
+
