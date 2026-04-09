@@ -68,7 +68,11 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 async def list_notifications(current_user: CurrentUser, db: DB, unread_only: bool = False):
     query = (
         select(Notification)
-        .where(Notification.user_id == current_user.id)
+        .where(
+            Notification.user_id == current_user.id,
+            # profile_viewed notifications are hidden from candidates
+            Notification.type != "profile_viewed",
+        )
         .order_by(Notification.created_at.desc())
         .limit(50)
     )
@@ -85,6 +89,8 @@ async def unread_count(current_user: CurrentUser, db: DB):
         select(func.count(Notification.id)).where(
             Notification.user_id == current_user.id,
             Notification.is_read == False,
+            # profile_viewed notifications are excluded from the unread badge count
+            Notification.type != "profile_viewed",
         )
     )).scalar()
     return APIResponse.success(message="Unread count retrieved.", data={"count": count})

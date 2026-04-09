@@ -109,7 +109,11 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
 
   return (
     <div className="space-y-1">
-      {activities.map((act) => {
+      {activities
+        // Candidates do not see "Someone viewed your profile" in the Live Activity feed.
+        // Recruiters continue to see "Profile Viewed" entries for internal audit.
+        .filter((act) => !(isCandidate && act.action === 'VIEW' && act.resource_type === 'candidate'))
+        .map((act) => {
         const config = ACTIVITY_CONFIG[act.action] ?? ACTIVITY_CONFIG.default
         const { title, sub } = buildLabel(act, isCandidate)
         return (
