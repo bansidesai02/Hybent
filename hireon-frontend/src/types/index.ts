@@ -71,6 +71,7 @@ export interface User {
   organization_name: string | null
   avatar_url: string | null
   phone: string | null
+  recovery_email: string | null
   is_active: boolean
   is_calendar_connected: boolean
   candidate_id?: string | null
