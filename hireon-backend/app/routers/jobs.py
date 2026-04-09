@@ -13,6 +13,7 @@ from app.services.resume_parser import parse_jd
 from app.services.storage_service import save_jd, read_file_bytes
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
+from app.services import elasticsearch_service as es_service
 
 router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 
@@ -31,7 +32,13 @@ async def list_jobs(
     if status:
         query = query.where(Job.status == status)
     if search:
-        query = query.where(Job.title.ilike(f"%{search}%"))
+        from sqlalchemy import cast, String as SAString
+        query = query.where(
+            Job.title.ilike(f"%{search}%")
+            | Job.description.ilike(f"%{search}%")
+            | Job.location.ilike(f"%{search}%")
+            | cast(Job.skills_required, SAString).ilike(f"%{search}%")
+        )
 
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()
     jobs = (await db.execute(query.offset((page - 1) * limit).limit(limit))).scalars().all()
@@ -67,7 +74,7 @@ async def list_jobs(
 
 
 @router.post("", response_model=JobOut, status_code=201)
-async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB):
+async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
     job = Job(
         organization_id=current_user.organization_id,
         created_by_id=current_user.id,
@@ -88,7 +95,7 @@ async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB):
     
     await db.commit()
     await db.refresh(job)
-    
+    background_tasks.add_task(es_service.index_job, job)
     return APIResponse.success(message="Job successfully created.", data=JobOut.model_validate(job), status_code=201)
 
 
@@ -135,7 +142,7 @@ async def get_job(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
 
 
 @router.put("/{job_id}", response_model=JobOut)
-async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: AdminUser, db: DB):
+async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
     )
@@ -159,11 +166,12 @@ async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: AdminUser
     )
     await db.commit()
     await db.refresh(job)
+    background_tasks.add_task(es_service.index_job, job)
     return APIResponse.success(message="Job updated successfully.", data=JobOut.model_validate(job))
 
 
 @router.delete("/{job_id}")
-async def delete_job(job_id: uuid.UUID, current_user: AdminUser, db: DB):
+async def delete_job(job_id: uuid.UUID, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
     )
@@ -182,4 +190,5 @@ async def delete_job(job_id: uuid.UUID, current_user: AdminUser, db: DB):
     )
     await db.delete(job)
     await db.commit()
+    background_tasks.add_task(es_service.delete_from_index, "hireon_jobs", str(job_id))
     return APIResponse.success(message="Job deleted successfully.")

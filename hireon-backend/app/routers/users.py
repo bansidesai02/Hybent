@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
@@ -12,6 +12,7 @@ from app.utils.permissions import UserRole
 from app.utils.security import hash_password
 from pydantic import BaseModel
 from app.schemas.response import APIResponse
+from app.services import elasticsearch_service as es_service
 
 router = APIRouter(prefix="/v1/users", tags=["users"])
 
@@ -46,7 +47,7 @@ async def list_users(current_user: RecruiterUser, db: DB):
 from app.services.email_service import send_email
 
 @router.post("/invite", response_model=UserOut, status_code=201)
-async def invite_user(data: UserInvite, current_user: AdminUser, db: DB):
+async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
     existing = await db.execute(select(User).where(User.email == data.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -80,6 +81,7 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB):
         login_url=f"{frontend_base}/login"
     )
     
+    background_tasks.add_task(es_service.index_user, user)
     return APIResponse.success(message="User invited successfully.", data=UserOut.model_validate(user))
 
 
@@ -123,7 +125,7 @@ async def get_my_profile(current_user: CurrentUser, db: DB):
 
 
 @router.put("/me", response_model=UserOut)
-async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUser, db: DB):
+async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUser, db: DB, background_tasks: BackgroundTasks):
     """
     Update profile. All roles: full_name, avatar_url, phone.
     Admin only: email, role, organization_name.
@@ -182,6 +184,7 @@ async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUse
         .where(User.id == user_id)
     )
     updated_user = result.scalar_one()
+    background_tasks.add_task(es_service.index_user, updated_user)
     return APIResponse.success(
         message="Profile updated successfully.",
         data=await _user_out_with_org(updated_user, db)
@@ -219,7 +222,7 @@ async def delete_avatar(current_user: CurrentUser, db: DB):
 # ── Admin: update any user by ID — wildcard MUST stay after /me above ─────────
 
 @router.put("/{user_id}", response_model=UserOut)
-async def update_user(user_id: uuid.UUID, data: UserUpdate, current_user: AdminUser, db: DB):
+async def update_user(user_id: uuid.UUID, data: UserUpdate, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(User).where(User.id == user_id, User.organization_id == current_user.organization_id)
     )
@@ -230,4 +233,5 @@ async def update_user(user_id: uuid.UUID, data: UserUpdate, current_user: AdminU
         setattr(user, field, value)
     await db.commit()
     await db.refresh(user)
+    background_tasks.add_task(es_service.index_user, user)
     return APIResponse.success(message="User updated successfully.", data=UserOut.model_validate(user))
