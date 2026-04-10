@@ -80,7 +80,7 @@ const parseISO = (iso: string) => {
 
 const scheduleSchema = z.object({
   candidate_id: z.string().min(1, 'Candidate is required'),
-  panelist_id: z.string().min(1, 'Interviewer is required'),
+  panelist_ids: z.array(z.string()).min(1, 'At least one interviewer is required'),
   title: z.string().min(2, 'Title required'),
   interview_type: z.string().min(1, 'Type required'),
   scheduled_at: z.string().min(1, 'Schedule date required'),
@@ -543,6 +543,109 @@ function Calendar({
 
 // ─── Schedule Form ─────────────────────────────────────────────────────────────
 
+function MultiSelectPanelists({
+  value,
+  onChange,
+  options,
+  error
+}: {
+  value: string[];
+  onChange: (val: string[]) => void;
+  options: { value: string; label: string }[];
+  error?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Don't close if a modal overlay is open (z-50 fixed overlay)
+      const modalOpen = document.querySelector('.fixed.inset-0.z-50')
+      if (modalOpen) return
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleOption = (optValue: string) => {
+    if (value.includes(optValue)) {
+      onChange(value.filter(v => v !== optValue));
+    } else {
+      onChange([...value, optValue]);
+    }
+  };
+
+  const selectedLabels = options.filter(o => value.includes(o.value)).map(o => o.label);
+
+  return (
+    <div ref={containerRef} className="w-full relative" style={{ zIndex: 100 }}>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+        Interviewers *
+      </label>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`input-base cursor-pointer min-h-[42px] flex items-center flex-wrap gap-1.5 ${error ? 'border-red-400' : ''}`}
+        style={{ position: 'relative', paddingRight: 36, userSelect: 'none' }}
+      >
+        {selectedLabels.length === 0 ? (
+          <span style={{ color: 'var(--text-light)', fontSize: 13 }}>Select interviewers...</span>
+        ) : (
+          selectedLabels.map(l => (
+            <span key={l} style={{
+              background: 'rgba(108,71,255,0.1)',
+              color: '#6c47ff',
+              padding: '2px 10px',
+              borderRadius: 20,
+              fontSize: 11,
+              fontWeight: 700,
+              border: '1px solid rgba(108,71,255,0.2)',
+              display: 'inline-flex',
+              alignItems: 'center',
+            }}>
+              {l}
+            </span>
+          ))
+        )}
+        {/* Chevron — absolutely positioned inside this div */}
+        <div style={{
+          position: 'absolute', right: 12, top: '50%',
+          color: 'var(--text-light)', transition: 'transform 0.2s', pointerEvents: 'none',
+          transform: isOpen ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%)',
+        }}>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+            className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1b23] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl max-h-60 overflow-y-auto"
+          >
+            {options.map(opt => (
+              <div 
+                key={opt.value} 
+                onClick={() => toggleOption(opt.value)}
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-[rgba(108,71,255,0.05)] cursor-pointer transition-colors"
+              >
+                <div className={`w-4 h-4 rounded border flex items-center justify-center ${value.includes(opt.value) ? 'bg-[#6c47ff] border-[#6c47ff]' : 'border-[var(--sidebar-border)]'}`}>
+                  {value.includes(opt.value) && <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                </div>
+                <span className="text-[13px] font-semibold text-[var(--text)]">{opt.label}</span>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
+
 function ScheduleForm({
   onSuccess, preselectedCandidateId, selectedDate, selectedTime, duration,
 }: {
@@ -555,7 +658,7 @@ function ScheduleForm({
   const queryClient = useQueryClient()
   const { register, handleSubmit, control, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<ScheduleForm>({
     resolver: zodResolver(scheduleSchema),
-    defaultValues: { duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_id: '' },
+    defaultValues: { duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_ids: [] },
   })
 
   // 1. Initial population for new interviews
@@ -572,7 +675,7 @@ function ScheduleForm({
       duration_minutes: 60,
       scheduled_at: initialIso,
       interview_type: 'video',
-      panelist_id: '',
+      panelist_ids: [],
       title: 'Technical Interview',
       notes: '',
     })
@@ -605,6 +708,12 @@ function ScheduleForm({
       const scheduledIso = formData.scheduled_at
       const selectedStage = SCHEDULE_TITLES.find((t: any) => t.value === data.title)
       if (!selectedStage) return Promise.reject(new Error("Invalid interview title selected")) // Return a rejected promise if selectedStage is null
+      
+      const payload_panelists = formData.panelist_ids.map((id, index) => ({
+        user_id: id,
+        role: index === 0 ? 'lead' : 'panelist'
+      }))
+
       const payload = {
         candidate_id: formData.candidate_id, 
         title: formData.title,
@@ -612,7 +721,7 @@ function ScheduleForm({
         interview_type: (selectedStage?.type || 'video') as InterviewType,
         scheduled_at: scheduledIso, duration_minutes: formData.duration_minutes,
         notes: formData.notes,
-        panelist_ids: formData.panelist_id ? [{ user_id: formData.panelist_id, role: 'lead' }] : [],
+        panelist_ids: payload_panelists,
       }
       return interviewsApi.create(payload)
     },
@@ -621,7 +730,7 @@ function ScheduleForm({
       queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
       queryClient.invalidateQueries({ queryKey: ['candidates-for-schedule'] })
       onSuccess('Interview scheduled!')
-      reset({ duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_id: '' })
+      reset({ duration_minutes: 60, scheduled_at: '', interview_type: 'video', panelist_ids: [] })
     },
   })
 
@@ -666,14 +775,14 @@ function ScheduleForm({
       />
 
       <Controller
-        name="panelist_id"
+        name="panelist_ids"
         control={control}
         render={({ field }) => (
-          <Select
-            label="Interviewer *"
-            error={errors.panelist_id?.message}
-            options={[{ value: '', label: 'Select interviewer...' }, ...interviewers.map((u: any) => ({ value: u.id, label: u.full_name }))]}
-            {...field}
+          <MultiSelectPanelists
+            value={field.value || []}
+            onChange={field.onChange}
+            options={interviewers.map((u: any) => ({ value: u.id, label: u.full_name }))}
+            error={errors.panelist_ids?.message}
           />
         )}
       />
@@ -715,6 +824,7 @@ function InterviewCard({
   const cfg = STATUS_CONFIG[interview.status] ?? STATUS_CONFIG.scheduled
   const d = parseISO(interview.scheduled_at)
   const typeIcon = TYPE_ICONS[interview.interview_type] ?? '📋'
+  const queryClient = useQueryClient()
 
   return (
     <motion.div
@@ -786,18 +896,14 @@ function InterviewCard({
 
           {/* Panelists */}
           {interview.panelists && interview.panelists.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex' }}>
-                {interview.panelists.slice(0, 3).map((p, idx) => (
-                  <div key={p.id} style={{ marginLeft: idx === 0 ? 0 : -8, border: '2px solid var(--sidebar-bg)', borderRadius: '50%' }}>
-                    <Avatar name={p.user_name || 'P'} size="xs" />
-                  </div>
-                ))}
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', opacity: 0.8 }}>
-                with {interview.panelists[0]?.user_name?.split(' ')[0]} 
-                {interview.panelists.length > 1 ? ` & ${interview.panelists.length - 1} more` : ''}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>Interviewers:</span>
+              {interview.panelists.map((p) => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(108,71,255,0.05)', padding: '2px 8px', borderRadius: 12, border: '1px solid rgba(108,71,255,0.1)' }}>
+                  <Avatar name={p.user_name || 'P'} size="xs" />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff' }}>{p.user_name}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -820,13 +926,17 @@ function InterviewCard({
               </button>
             </>
           )}
-           {interview.status === 'completed' && interview.application_id && (
-              <button 
-                onClick={onToggleScorecard}
-                style={{ padding: '6px 14px', borderRadius: 10, background: expandedScorecard ? '#6c47ff15' : 'var(--input-bg)', color: expandedScorecard ? '#6c47ff' : 'var(--text-mid)', border: `1px solid ${expandedScorecard ? '#6c47ff30' : 'var(--sidebar-border)'}`, fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                {expandedScorecard ? 'Close' : 'Scores'}
-              </button>
+           {interview.status === 'completed' && (
+              <>
+                {interview.application_id && (
+                  <button 
+                    onClick={onToggleScorecard}
+                    style={{ padding: '6px 14px', borderRadius: 10, background: expandedScorecard ? '#6c47ff15' : 'var(--input-bg)', color: expandedScorecard ? '#6c47ff' : 'var(--text-mid)', border: `1px solid ${expandedScorecard ? '#6c47ff30' : 'var(--sidebar-border)'}`, fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
+                  >
+                    {expandedScorecard ? 'Close' : 'Scores'}
+                  </button>
+                )}
+              </>
            )}
         </div>
       </div>

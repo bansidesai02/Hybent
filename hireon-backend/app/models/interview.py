@@ -39,6 +39,7 @@ class Interview(Base):
     calendar_event_id: Mapped[str | None] = mapped_column(String(255))
     notes: Mapped[str | None] = mapped_column(Text)
     feedback: Mapped[str | None] = mapped_column(Text)
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_confirmed: Mapped[bool] = mapped_column(default=False)
 
     created_at: Mapped[datetime] = mapped_column(

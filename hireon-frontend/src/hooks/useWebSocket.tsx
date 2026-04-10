@@ -100,17 +100,24 @@ export function useWebSocket() {
 
             const enhancedPayload = { ...msg.data, message: activityMessage };
             
-            // Trigger WhatsApp-style popup (in-app)
-            toast.custom((t) => (
-              <ActivityToast t={t} payload={enhancedPayload} />
-            ), { id: `activity-${msg.data.id || Date.now()}`, duration: 5000 })
+            // Skip noisy notifications like simply viewing a candidate profile
+            const isViewAction = 
+              (msg.data.action && typeof msg.data.action === 'string' && ['view', 'viewed'].includes(msg.data.action.toLowerCase().trim())) ||
+              (activityMessage && typeof activityMessage === 'string' && activityMessage.toLowerCase().includes('was view'));
+            
+            if (!isViewAction) {
+              // Trigger WhatsApp-style popup (in-app)
+              toast.custom((t) => (
+                <ActivityToast t={t} payload={enhancedPayload} />
+              ), { id: `activity-${msg.data.id || Date.now()}`, duration: 5000 })
 
-            // Trigger Native browser popup (visible when in another app)
-            if (Notification.permission === 'granted') {
-              new Notification('New Activity', {
-                body: activityMessage,
-                icon: '/favicon.svg',
-              })
+              // Trigger Native browser popup (visible when in another app)
+              if (Notification.permission === 'granted') {
+                new Notification('New Activity', {
+                  body: activityMessage,
+                  icon: '/favicon.svg',
+                })
+              }
             }
             
             // Invalidate queries based on resource type

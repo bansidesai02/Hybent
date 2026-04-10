@@ -75,6 +75,297 @@ function scoreColor(s: number) {
   return { text: '#ef4444', bg: 'rgba(239,68,68,0.10)', track: '#ef4444' }
 }
 
+function AiSummaryBlock({ interviewId }: { interviewId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['ai-summary', interviewId],
+    queryFn: () => scorecardsApi.getAiSummary(interviewId).then((r: any) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: !!interviewId && interviewId !== 'unknown',
+  })
+
+  const summary: string | null = data?.ai_summary ?? null
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(108,71,255,0.06), rgba(168,85,247,0.06))',
+      border: '1px solid rgba(108,71,255,0.18)',
+      borderRadius: 14,
+      padding: '16px 20px',
+    }}>
+      <p style={{ fontSize: 11, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        ✨ AI Summary
+      </p>
+
+      {isLoading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 14, height: 14, border: '2px solid rgba(108,71,255,0.3)', borderTopColor: '#6c47ff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <span style={{ fontSize: 12, color: 'var(--text-light)', fontStyle: 'italic' }}>
+            AI is synthesizing interviewers' feedback…
+          </span>
+        </div>
+      ) : summary ? (
+        <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
+          "{summary}"
+        </p>
+      ) : (
+        <p style={{ fontSize: 12, color: 'var(--text-light)', margin: 0, fontStyle: 'italic' }}>
+          AI summary could not be generated. Ensure at least one scorecard has been submitted.
+        </p>
+      )}
+    </div>
+  )
+}
+
+
+
+function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, expandedIds: Set<string>, toggleExpand: (id: string) => void }) {
+  const rec = REC_CFG[sc.recommendation]
+  const ratingColor = scoreColor((sc.overall_rating / 5) * 100)
+  const criteria = sc.criteria_scores ?? []
+  const isExpanded = expandedIds.has(sc.id)
+
+  return (
+    <div style={{
+      border: '1px solid var(--table-border)',
+      borderRadius: 12,
+      overflow: 'hidden',
+      background: 'rgba(0,0,0,0.01)',
+      transition: 'box-shadow 0.2s',
+    }}>
+      {/* Card header — click to expand */}
+      <div
+        onClick={() => toggleExpand(sc.id)}
+        style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, cursor: 'pointer', userSelect: 'none' }}
+        className="hover:bg-gray-50/50 transition-colors"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #6c47ff, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
+            {(sc.submitted_by_name ?? 'R').charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{sc.submitted_by_name ?? 'Interviewer'}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-light)', margin: 0 }}>{formatDate(sc.submitted_at)}</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Star rating */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {[1, 2, 3, 4, 5].map((s: number) => (
+              <span key={s} style={{ fontSize: 15, color: s <= sc.overall_rating ? '#fbbf24' : 'rgba(0,0,0,0.12)' }}>★</span>
+            ))}
+            <span style={{ fontSize: 12, fontWeight: 700, color: ratingColor.text, marginLeft: 4, background: ratingColor.bg, padding: '2px 8px', borderRadius: 20 }}>
+              {sc.overall_rating}/5
+            </span>
+          </div>
+          {rec && (
+            <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 12px', borderRadius: 20, background: rec.bg, color: rec.color, border: `1px solid ${rec.color}22` }}>
+              {rec.icon} {rec.label}
+            </span>
+          )}
+          <motion.div
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ color: 'var(--text-light)', fontSize: 14, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            ▼
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Expandable detail */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ borderTop: '1px solid var(--table-border)' }}>
+              {/* Criteria scores */}
+              {criteria.length > 0 && (
+                <div style={{ padding: '14px 18px 12px' }}>
+                  <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Evaluation Criteria</p>
+                  <div className="flex flex-col sm:grid sm:grid-cols-2 gap-[10px_20px]">
+                    {criteria.map((c: any) => (
+                      <div key={c.criterion}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>{c.score}/5</span>
+                        </div>
+                        <div style={{ height: 5, background: 'rgba(108,71,255,0.08)', borderRadius: 4 }}>
+                          <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg,#6c47ff,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' }} />
+                        </div>
+                        {c.notes && <p style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontStyle: 'italic' }}>{c.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Strengths / Weaknesses / Summary */}
+              {(sc.strengths || sc.weaknesses || sc.summary) && (
+                <div style={{ borderTop: criteria.length > 0 ? '1px solid var(--table-border)' : 'none', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {sc.strengths && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>💪 Strengths</p>
+                      <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, margin: 0 }}>{sc.strengths}</p>
+                    </div>
+                  )}
+                  {sc.weaknesses && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>⚡ Areas to Improve</p>
+                      <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, margin: 0 }}>{sc.weaknesses}</p>
+                    </div>
+                  )}
+                  {sc.summary && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📝 Summary</p>
+                      <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, fontStyle: 'italic', margin: 0 }}>"{sc.summary}"</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+
+function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any, expandedIds: Set<string>, toggleExpand: (id: string) => void }) {
+  if (!group.cards || group.cards.length === 0) return null
+
+  const hasAiSummary = group.interview_id && !group.interview_id.startsWith('unknown_')
+  // Default active tab: 'ai' if available, else first interviewer id
+  const [activeTab, setActiveTab] = useState<string>(hasAiSummary ? 'ai' : group.cards[0]?.id)
+
+  const avgScore = group.cards.reduce((sum: number, sc: any) => sum + sc.overall_rating, 0) / group.cards.length
+
+  // Build tab list: [AI Summary, ...interviewers]
+  const tabs: { key: string; label: string; icon?: string }[] = [
+    ...(hasAiSummary ? [{ key: 'ai', label: 'AI Summary', icon: '✨' }] : []),
+    ...group.cards.map((sc: any, idx: number) => ({
+      key: sc.id,
+      label: sc.submitted_by_name?.split(' ')[0] ?? `Interviewer ${idx + 1}`,
+      icon: (sc.submitted_by_name ?? 'I').charAt(0).toUpperCase(),
+      isInterviewer: true,
+    })),
+  ]
+
+  const activeCard = group.cards.find((sc: any) => sc.id === activeTab)
+
+  return (
+    <div style={{
+      background: 'var(--kpi-bg)',
+      border: `1px solid var(--table-border)`,
+      borderLeft: `4px solid #6c47ff`,
+      borderRadius: 16,
+      overflow: 'hidden',
+      marginBottom: 16,
+    }}>
+      {/* ── HEADER ROW: left = round info, right = pill tab buttons ── */}
+      <div style={{
+        padding: '10px 16px',
+        borderBottom: '1px solid var(--table-border)',
+        background: 'rgba(0,0,0,0.01)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+      }}>
+        {/* Left: round title */}
+        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 13 }}>🎙️</span> {group.title}
+        </span>
+
+        {/* Divider */}
+        <span style={{ height: 14, width: 1, background: 'var(--table-border)', flexShrink: 0 }} />
+
+        {/* Avg score */}
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          Avg. Score: <span style={{ color: avgScore >= 4 ? '#10b981' : avgScore >= 3 ? '#fbbf24' : '#ef4444' }}>★ {avgScore.toFixed(1)}</span>
+        </span>
+
+        {/* ── PILL TAB BUTTONS pushed to the right ── */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+          {tabs.map((tab: any) => {
+            const isActive = activeTab === tab.key
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '5px 12px 5px 8px',
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? '#fff' : 'var(--text-mid)',
+                  background: isActive
+                    ? (tab.key === 'ai' ? 'linear-gradient(135deg,#6c47ff,#a855f7)' : 'linear-gradient(135deg,#6c47ff,#a855f7)')
+                    : 'rgba(108,71,255,0.06)',
+                  border: isActive ? '1px solid transparent' : '1px solid rgba(108,71,255,0.15)',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s',
+                  whiteSpace: 'nowrap',
+                  boxShadow: isActive ? '0 2px 8px rgba(108,71,255,0.25)' : 'none',
+                }}
+              >
+                {tab.isInterviewer ? (
+                  <>
+                    {/* Avatar circle inside pill */}
+                    <div style={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: isActive ? 'rgba(255,255,255,0.25)' : 'linear-gradient(135deg,#6c47ff,#a855f7)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: 8, fontWeight: 900, flexShrink: 0,
+                    }}>
+                      {tab.icon}
+                    </div>
+                    {tab.label}
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>{tab.icon}</span>
+                    {tab.label}
+                  </>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── TAB CONTENT ── */}
+      <div style={{ padding: '16px 20px' }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18 }}
+          >
+            {activeTab === 'ai' && hasAiSummary ? (
+              <AiSummaryBlock interviewId={group.interview_id} />
+            ) : activeCard ? (
+              <SingleInterviewerCard sc={activeCard} expandedIds={expandedIds} toggleExpand={toggleExpand} />
+            ) : null}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
 // ─── Feedback Tab ─────────────────────────────────────────────────────────────
 
 function FeedbackTab({ candidate }: { candidate: Candidate }) {
@@ -90,13 +381,6 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
 
   const currentStageCfg = STAGE_CFG[stage]
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-
-  // ── Auto-expand the latest scorecard ──
-  useEffect(() => {
-    if (scorecards.length > 0) {
-      setExpandedIds(new Set([scorecards[0].id]))
-    }
-  }, [scorecards])
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev: Set<string>) => {
@@ -201,131 +485,32 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
         })()}
       </div>
 
-      {/* Scorecard cards */}
-      {scorecards.map((sc: any) => {
-        const rec = REC_CFG[sc.recommendation]
-        const ratingColor = scoreColor((sc.overall_rating / 5) * 100)
-        const criteria = sc.criteria_scores ?? []
-        const isExpanded = expandedIds.has(sc.id)
-        
-        return (
-          <div key={sc.id} style={{
-            background: 'var(--kpi-bg)',
-            border: `1px solid var(--table-border)`,
-            borderLeft: `4px solid ${rec?.color ?? '#6c47ff'}`,
-            borderRadius: 16,
-            overflow: 'hidden',
-            transition: 'box-shadow 0.2s',
-          }}>
-            {/* Card header (Toggleable) */}
-            <div 
-              onClick={() => toggleExpand(sc.id)}
-              style={{ padding: '18px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, cursor: 'pointer', userSelect: 'none' }}
-              className="hover:bg-gray-50/50 transition-colors"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #6c47ff, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 800, flexShrink: 0 }}>
-                  {(sc.submitted_by_name ?? 'R').charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{sc.submitted_by_name ?? 'Interviewer'}</p>
-                    {sc.interview_title && (
-                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.08)', color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.05em', border: '1px solid rgba(108,71,255,0.15)' }}>
-                        {sc.interview_title}
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ fontSize: 11, color: 'var(--text-light)', margin: 0 }}>{formatDate(sc.submitted_at)}</p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                {/* Star rating */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {[1,2,3,4,5].map((s: any) => (
-                    <span key={s} style={{ fontSize: 16, color: s <= sc.overall_rating ? '#fbbf24' : 'rgba(0,0,0,0.12)' }}>★</span>
-                  ))}
-                  <span style={{ fontSize: 12, fontWeight: 700, color: ratingColor.text, marginLeft: 4, background: ratingColor.bg, padding: '2px 8px', borderRadius: 20 }}>
-                    {sc.overall_rating}/5
-                  </span>
-                </div>
-                {rec && (
-                  <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 12px', borderRadius: 20, background: rec.bg, color: rec.color, border: `1px solid ${rec.color}22` }}>
-                    {rec.icon} {rec.label}
-                  </span>
-                )}
-                <motion.div
-                  animate={{ rotate: isExpanded ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                  style={{ color: 'var(--text-light)', fontSize: 16, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  ▼
-                </motion.div>
-              </div>
-            </div>
+      {/* Grouped Scorecards by Round */}
+      {(() => {
+        const groups: Record<string, { interview_id: string; title: string; cards: any[] }> = {}
+        scorecards.forEach((sc: any) => {
+          const key = sc.interview_id || 'unknown_' + Math.random()
+          if (!groups[key]) {
+            groups[key] = {
+              interview_id: key,
+              title: sc.interview_title || 'Overall Feedback',
+              cards: [],
+            }
+          }
+          groups[key].cards.push(sc)
+        })
 
-            {/* Expandable content */}
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  {/* Criteria scores */}
-                  {criteria.length > 0 && (
-                    <div style={{ padding: '0 20px 16px' }}>
-                      <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Evaluation Criteria</p>
-                      <div className="flex flex-col sm:grid sm:grid-cols-2 gap-[10px_20px]">
-                        {criteria.map((c: any) => (
-                          <div key={c.criterion}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>{c.score}/5</span>
-                            </div>
-                            <div style={{ height: 5, background: 'rgba(108,71,255,0.08)', borderRadius: 4 }}>
-                              <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg,#6c47ff,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' }} />
-                            </div>
-                            {c.notes && <p style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontStyle: 'italic' }}>{c.notes}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+        const groupedArray = Object.values(groups)
 
-                  {/* Strengths / Weaknesses / Summary */}
-                  {(sc.strengths || sc.weaknesses || sc.summary) && (
-                    <div style={{ borderTop: '1px solid var(--table-border)', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {sc.strengths && (
-                        <div>
-                          <p style={{ fontSize: 10, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>💪 Strengths</p>
-                          <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.strengths}</p>
-                        </div>
-                      )}
-                      {sc.weaknesses && (
-                        <div>
-                          <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>⚡ Areas to Improve</p>
-                          <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{sc.weaknesses}</p>
-                        </div>
-                      )}
-                      {sc.summary && (
-                        <div>
-                          <p style={{ fontSize: 10, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
-                            📝 {sc.interview_title ? `${sc.interview_title} Feedback` : 'Overall Summary'}
-                          </p>
-                          <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, fontStyle: 'italic' }}>"{sc.summary}"</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )
-      })}
+        return groupedArray.map((group) => (
+          <RoundScorecardsGroup 
+            key={group.interview_id}
+            group={group}
+            expandedIds={expandedIds}
+            toggleExpand={toggleExpand}
+          />
+        ))
+      })()}
     </div>
   )
 }
