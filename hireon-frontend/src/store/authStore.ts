@@ -8,7 +8,7 @@ interface AuthState {
   refreshToken: string | null
   isAuthenticated: boolean
 
-  setTokens: (accessToken: string, refreshToken: string | undefined, user: User) => void
+  setTokens: (accessToken: string, refreshToken: string | undefined, user?: User) => void
   setUser: (user: User) => void
   logout: () => void
 }
@@ -24,7 +24,12 @@ export const useAuthStore = create<AuthState>()(
       setTokens: (accessToken, refreshToken, user) => {
         localStorage.setItem('hireon_access_token', accessToken)
         if (refreshToken) localStorage.setItem('hireon_refresh_token', refreshToken)
-        set({ accessToken, refreshToken: refreshToken ?? null, user, isAuthenticated: true })
+        set((state) => ({ 
+          accessToken, 
+          refreshToken: refreshToken ?? null, 
+          ...(user !== undefined && { user }),
+          isAuthenticated: true 
+        }))
       },
 
       setUser: (user) => set({ user }),

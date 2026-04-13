@@ -94,8 +94,13 @@ export default function RegisterPage() {
       } else {
         // Standard registration
         const { data } = await authApi.register(values as any)
-        setTokens(data.access_token, undefined, data.user)
-        if (data.user.role === 'admin') navigate('/admin')
+        setTokens(data.access_token, undefined)
+        
+        // Fetch profile
+        const { data: user } = await authApi.me()
+        useAuthStore.getState().setUser(user)
+
+        if (user.role === 'admin') navigate('/admin')
         else navigate('/recruiter')
       }
     } catch (err: unknown) {

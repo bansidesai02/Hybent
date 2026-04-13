@@ -114,7 +114,7 @@ api.interceptors.response.use(
 
         // Update auth store
         const { useAuthStore } = await import('@/store/authStore')
-        useAuthStore.getState().setTokens(newToken, responseData.refresh_token, responseData.user)
+        useAuthStore.getState().setTokens(newToken, responseData.refresh_token)
 
         processQueue(null, newToken)
 
