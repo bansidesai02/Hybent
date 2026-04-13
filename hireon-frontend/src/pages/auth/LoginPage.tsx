@@ -40,10 +40,14 @@ export default function LoginPage() {
     setServerError('')
     try {
       const { data } = await authApi.login(values.email, values.password)
-      setTokens(data.access_token, undefined, data.user)
-      if (data.user.role === 'candidate') navigate('/portal')
-      else if (data.user.role === 'interviewer') navigate('/interviewer')
-      else if (data.user.role === 'admin') navigate('/admin')
+      setTokens(data.access_token, undefined)
+      
+      const { data: user } = await authApi.me()
+      useAuthStore.getState().setUser(user)
+
+      if (user.role === 'candidate') navigate('/portal')
+      else if (user.role === 'interviewer') navigate('/interviewer')
+      else if (user.role === 'admin') navigate('/admin')
       else navigate('/recruiter')
     } catch (err: unknown) {
       const msg =

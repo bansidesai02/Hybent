@@ -10,11 +10,16 @@ export function useAuth() {
 
   const login = async (email: string, password: string) => {
     const { data } = await authApi.login(email, password)
-    setTokens(data.access_token, undefined, data.user)
+    setTokens(data.access_token, undefined)
+    
+    // Fetch profile
+    const { data: user } = await authApi.me()
+    useAuthStore.getState().setUser(user)
+
     // Role-based redirect
-    if (data.user.role === 'candidate') navigate('/portal')
-    else if (data.user.role === 'interviewer') navigate('/interviewer')
-    else if (data.user.role === 'admin') navigate('/admin')
+    if (user.role === 'candidate') navigate('/portal')
+    else if (user.role === 'interviewer') navigate('/interviewer')
+    else if (user.role === 'admin') navigate('/admin')
     else navigate('/recruiter')
   }
 

@@ -68,7 +68,6 @@ async def register_user(data: RegisterRequest, db: AsyncSession) -> dict:
         "access_token": access_token,
         "refresh_token": refresh_tok,
         "token_type": "bearer",
-        "user": UserOut.model_validate(user),
     }
 
 
@@ -104,7 +103,6 @@ async def login_user(data: LoginRequest, db: AsyncSession) -> dict:
         "access_token": access_token,
         "refresh_token": refresh_tok,
         "token_type": "bearer",
-        "user": UserOut.model_validate(user),
     }
 
 
@@ -146,7 +144,6 @@ async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
         "access_token": new_access,
         "refresh_token": new_refresh,
         "token_type": "bearer",
-        "user": UserOut.model_validate(user),
     }
 
 
