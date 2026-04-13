@@ -228,6 +228,119 @@ def parse_json_response(text: str):
         # Try a last resort regex or raw cleanup if needed, but simple strip is usually enough
         return json.loads(text.strip())
 
+
+COMBINED_FEEDBACK_PROMPT = """\
+You are an expert HR analyst reviewing interview feedback. Multiple interviewers have separately evaluated the same candidate.
+Your task: synthesize ALL the feedback into a single concise AI summary (3-5 sentences) that gives the recruiter a balanced, 
+objective overview of the candidate's performance as seen by all interviewers.
+
+Focus on:
+- Overall consensus or disagreements in recommendations
+- Recurring strengths across interviewers
+- Recurring concerns or weaknesses across interviewers
+- Final balanced verdict (hire / consider / pass)
+
+Return ONLY the summary as a plain string. No JSON, no bullet points, no markdown. Just 3-5 clean sentences.
+
+Interviewer Scorecards:
+"""
+
+
+async def generate_combined_feedback_summary(
+    scorecards: list[dict],
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+) -> Optional[str]:
+    """
+    Synthesize multiple interviewers' scorecards into one cohesive AI summary string.
+    Uses Gemini first, falls back to Groq.
+    """
+    if not scorecards:
+        return None
+    if not settings.gemini_api_key and not settings.groq_api_key:
+        logger.warning("No AI API keys configured for combined summary.")
+        return None
+
+    # Build a readable text block of all scorecards
+    cards_text = ""
+    for i, sc in enumerate(scorecards, 1):
+        cards_text += (
+            f"\n--- Interviewer {i}: {sc.get('submitted_by_name', 'Unknown')} ---\n"
+            f"Rating: {sc.get('overall_rating', 'N/A')}/5\n"
+            f"Recommendation: {sc.get('recommendation', 'N/A')}\n"
+            f"Strengths: {sc.get('strengths', 'N/A')}\n"
+            f"Weaknesses: {sc.get('weaknesses', 'N/A')}\n"
+            f"Summary: {sc.get('summary', 'N/A')}\n"
+        )
+
+    prompt = COMBINED_FEEDBACK_PROMPT + cards_text
+
+    start_time = time.time()
+    provider = "unknown"
+    model_name = "unknown"
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    status = "success"
+    error_msg = None
+
+    try:
+        if settings.gemini_api_key:
+            provider = "Gemini"
+            model_name = "gemini-1.5-flash-latest"
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = await model.generate_content_async(prompt)
+                if hasattr(response, 'usage_metadata'):
+                    p_tokens = response.usage_metadata.prompt_token_count
+                    c_tokens = response.usage_metadata.candidates_token_count
+                    t_tokens = response.usage_metadata.total_token_count
+                return response.text.strip()
+            except Exception as ge:
+                logger.error(f"Gemini combined summary failed, falling back to Groq: {ge}")
+                if not settings.groq_api_key:
+                    status = "failure"
+                    error_msg = str(ge)
+                    raise ge
+
+        if settings.groq_api_key:
+            provider = "Groq"
+            model_name = "llama-3.3-70b-versatile"
+            completion = groq_client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "You are a helpful HR analyst. Return only a plain text summary, no JSON."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            if hasattr(completion, 'usage'):
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+            return completion.choices[0].message.content.strip()
+
+    except Exception as e:
+        status = "failure"
+        error_msg = str(e)
+        logger.error(f"Combined feedback summary generation failure: {e}")
+        return None
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider=provider,
+                model=model_name,
+                feature="combined_feedback_summary",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
+
 PREP_HUB_PROMPT = """
 You are an expert technical interviewer helping a candidate prepare for an upcoming interview.
 Given the Job Title, Required Skills (or Description), AND the Candidate's Resume Highlights, generate 6 high-quality interview flashcards.

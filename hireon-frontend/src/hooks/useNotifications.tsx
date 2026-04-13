@@ -59,7 +59,9 @@ export function useNotifications() {
       // user to see a barrage of stale "queued" push toasts rendering on app load.
 
       // Trigger Native browser popup (visible when in another app)
-      if (Notification.permission === 'granted') {
+      const isNoisy = (body ?? '').toLowerCase().includes('was view') || (title ?? '').toLowerCase().includes('was view');
+      
+      if (!isNoisy && Notification.permission === 'granted') {
         new Notification(title ?? 'Hireon Notification', {
           body: body ?? '',
           icon: '/favicon.svg',

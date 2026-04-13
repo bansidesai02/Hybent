@@ -36,7 +36,11 @@ export function Modal({ open, onClose, title, headerActions, children, size = 'm
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -51,6 +55,7 @@ export function Modal({ open, onClose, title, headerActions, children, size = 'm
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15 }}
+            onClick={(e) => e.stopPropagation()}
             className={clsx(
               'relative w-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden',
               sizes[size],

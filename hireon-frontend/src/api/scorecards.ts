@@ -23,4 +23,9 @@ export const scorecardsApi = {
 
   getMyScorecardForInterview: (interviewId: string) =>
     api.get<Scorecard | null>(`/v1/scorecards/interview/${interviewId}/my`),
+
+  getAiSummary: (interviewId: string, regenerate = false) =>
+    api.get<{ interview_id: string; ai_summary: string | null; cached: boolean }>(
+      `/v1/interviews/${interviewId}/ai-summary${regenerate ? '?regenerate=true' : ''}`
+    ),
 }
