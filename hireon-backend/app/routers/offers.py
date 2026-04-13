@@ -161,6 +161,7 @@ async def send_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB):
             job_title=offer.position_title,
             company_name=org.name,
             offer_url=offer.pdf_url or f"http://localhost:8000/v1/offers/{offer_id}",
+            org_logo_url=org.logo_url if org else None
         )
 
     offer.status = OfferStatus.SENT

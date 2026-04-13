@@ -232,6 +232,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
             meeting_link=cal["meeting_link"],
             duration_minutes=data.duration_minutes,
             interview_type=data.interview_type,
+            org_logo_url=org.logo_url if org else None,
         )
         
         for p_out in panelist_out:
@@ -246,6 +247,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
                 meeting_link=cal["meeting_link"],
                 duration_minutes=data.duration_minutes,
                 interview_type=data.interview_type,
+                org_logo_url=org.logo_url if org else None,
             )
 
     await log_activity(
@@ -398,7 +400,8 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
                 job_role=job_role,
                 company_name=org.name if org else "the team",
                 old_time=old_time_str, new_time=new_time_str,
-                meeting_link=interview.meeting_link
+                meeting_link=interview.meeting_link,
+                org_logo_url=org.logo_url if org else None
             )
         
         panelists_result = await db.execute(select(InterviewPanelist).where(InterviewPanelist.interview_id == interview.id))
@@ -412,7 +415,8 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
                     job_role=job_role,
                     company_name=org.name if org else "the team",
                     old_time=old_time_str, new_time=new_time_str,
-                    meeting_link=interview.meeting_link
+                    meeting_link=interview.meeting_link,
+                    org_logo_url=org.logo_url if org else None
                 )
 
     # Audit log — RESCHEDULE takes priority when time changed, else UPDATE
@@ -478,7 +482,8 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
             round_name=interview.title,
             job_role=job_role,
             company_name=org.name if org else "the team",
-            scheduled_at=time_str, reason=reason
+            scheduled_at=time_str, reason=reason,
+            org_logo_url=org.logo_url if org else None
         )
     
     panelists_result = await db.execute(select(InterviewPanelist).where(InterviewPanelist.interview_id == interview.id))
@@ -491,7 +496,8 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
                 round_name=interview.title,
                 job_role=job_role,
                 company_name=org.name if org else "the team",
-                scheduled_at=time_str, reason=reason
+                scheduled_at=time_str, reason=reason,
+                org_logo_url=org.logo_url if org else None
             )
 
     # Trigger system notification

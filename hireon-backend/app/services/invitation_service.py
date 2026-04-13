@@ -60,7 +60,8 @@ async def create_invitation(
         candidate_email=email,
         candidate_name=full_name,
         company_name=company_name,
-        portal_url=portal_url
+        portal_url=portal_url,
+        org_logo_url=organization.logo_url if organization else None
     )
 
     return invitation
