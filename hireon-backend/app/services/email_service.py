@@ -51,8 +51,52 @@ def send_email(to: str, subject: str, html_body: str) -> None:
 
 # ── Email templates ────────────────────────────────────────────────────────────
 
-def _get_base_template(content_html: str) -> str:
+def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None, is_centered: bool = True) -> str:
+    """Consistently renders the brand logo across all templates."""
+    align = "center" if is_centered else "left"
+    margin = "0 auto" if is_centered else "0"
+    
+    if org_logo_url:
+        return f'<img src="{org_logo_url}" alt="{org_name or "Organization"}" style="max-height: 28px; max-width: 140px; display: block; margin: {margin};">'
+    
+    # Premium CSS-based fallback logo (Hireon Branding)
+    return f"""
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: {margin};">
+        <tr>
+            <td style="padding-right: 8px;">
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="28" height="28" style="background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 8px;">
+                    <tr>
+                        <td align="center" valign="middle">
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="12" height="12">
+                                <tr>
+                                    <td width="3" height="12" rowspan="3" style="background-color: #ffffff; border-radius: 1px;"></td>
+                                    <td width="6" height="4"></td>
+                                    <td width="3" height="12" rowspan="3" style="background-color: #ffffff; border-radius: 1px;"></td>
+                                </tr>
+                                <tr>
+                                    <td width="6" height="2" style="background-color: #ffffff; border-radius: 1px;"></td>
+                                </tr>
+                                <tr>
+                                    <td width="6" height="4"></td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 19px; font-weight: 800; letter-spacing: -0.8px; color: #1e293b;">
+                    <span style="color: #6c47ff;">Hi</span><span style="color: #9c57e6;">re</span><span style="color: #ff6bc6;">on</span>
+                </span>
+            </td>
+        </tr>
+    </table>
+    """
+
+def _get_base_template(content_html: str, org_logo_url: str | None = None, org_name: str | None = None) -> str:
     """Provides a consistent, premium wrapper for all emails."""
+    branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
+
     return f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -60,64 +104,33 @@ def _get_base_template(content_html: str) -> str:
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-            body, table, td, div, p, a {{ font-family: 'Plus Jakarta Sans', Arial, Helvetica, sans-serif !important; }}
-            body {{ margin: 0; padding: 0; background-color: #f8f7ff; }}
-            .wrapper {{ width: 100%; background-color: #f8f7ff; padding: 40px 0; }}
-            .container {{ max-width: 540px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(108, 71, 255, 0.05); }}
-            .header {{ padding: 48px 40px 32px; text-align: center; }}
-            .content {{ padding: 0 48px 48px; text-align: center; color: #1a1040; }}
-            .logo-wrap {{ display: inline-flex; align-items: center; gap: 12px; margin-bottom: 40px; }}
-            .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 44px; height: 44px; border-radius: 12px; display: inline-block; vertical-align: middle; }}
-           .logo-text {{ font-size: 32px; font-weight: 800; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
-            h2.title {{ font-size: 28px; font-weight: 800; margin: 0 0 16px 0; color: #0f172a; letter-spacing: -0.5px; }}
-            p.description {{ font-size: 16px; line-height: 1.6; color: #64748b; margin: 0 0 32px 0; }}
-            .info-box {{ background-color: #fbfaff; border-radius: 20px; padding: 32px; margin: 32px 0; text-align: left; border: 1px solid #f1f0ff; }}
-            .info-label {{ font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }}
-            .info-value {{ font-size: 17px; color: #1e293b; font-weight: 700; margin-bottom: 24px; }}
-            .info-value:last-child {{ margin-bottom: 0; }}
-            .button-wrap {{ margin: 40px 0; text-align: center; }}
-            .button {{ display: inline-block; background: linear-gradient(135deg, #6c47ff, #ff6bc6); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 18px 48px; border-radius: 14px; box-shadow: 0 8px 20px rgba(108, 71, 255, 0.25); font-size: 16px; }}
-            .footer {{ padding: 32px 48px; text-align: center; border-top: 1px solid #f8f7ff; color: #94a3b8; font-size: 13px; }}
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;800&display=swap');
+            body, table, td, div, p, a {{ font-family: 'Roboto', Arial, Helvetica, sans-serif !important; }}
+            body {{ margin: 0; padding: 0; background-color: #f8f9fa; }}
+            .wrapper {{ width: 100%; background-color: #f8f9fa; padding: 40px 0; }}
+            .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #dadce0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
+            .branding {{ padding: 24px 24px 0; text-align: left; }}
+            .content {{ padding: 24px; color: #3c4043; line-height: 1.6; min-height: 300px; }}
+            .section-title {{ font-size: 14px; font-weight: 700; color: #3c4043; margin-bottom: 4px; text-transform: capitalize; }}
+            .section-value {{ font-size: 15px; color: #3c4043; margin-bottom: 24px; }}
+            .button-wrap {{ margin: 32px 0 16px; text-align: left; }}
+            .button {{ display: inline-block; background: linear-gradient(135deg, #6c47ff, #ff6bc6); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
+            .footer {{ background-color: #f8f9fa; padding: 24px; border-top: 1px solid #dadce0; text-align: center; color: #70757a; font-size: 12px; }}
             .footer a {{ color: #6c47ff; text-decoration: none; font-weight: 600; }}
         </style>
     </head>
     <body>
         <div class="wrapper">
             <div class="container">
-                <div class="header">
-                    <div class="logo-wrap">
-                        <div class="logo-square">
-                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="44" height="44">
-                                <tr>
-                                    <td align="center" valign="middle">
-                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="20" height="20">
-                                            <tr>
-                                                <td width="4" height="20" rowspan="3" style="background-color: #ffffff; border-radius: 2px;"></td>
-                                                <td width="12" height="8"></td>
-                                                <td width="4" height="20" rowspan="3" style="background-color: #ffffff; border-radius: 2px;"></td>
-                                            </tr>
-                                            <tr>
-                                                <td width="12" height="4" style="background-color: #ffffff; border-radius: 2px;"></td>
-                                            </tr>
-                                            <tr>
-                                                <td width="12" height="8"></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                        <span class="logo-text">
-                            <span style="color:#6c47ff;">H</span><span style="color:#894ef3;">i</span><span style="color:#a655e8;">r</span><span style="color:#c45cdc;">e</span><span style="color:#e163d1;">o</span><span style="color:#ff6bc6;">n</span>
-                        </span>
-                    </div>
+                <div class="branding">
+                    {branding_html}
                 </div>
                 <div class="content">
                     {content_html}
                 </div>
                 <div class="footer">
-                    <p style="margin-bottom: 8px;">Need help? Contact <a href="mailto:support@hireon.ai">support@hireon.ai</a></p>
+                    <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:support@hireon.ai">support@hireon.ai</a></p>
                     <p style="margin: 0;">&copy; 2026 Hireon AI Platform. All rights reserved.</p>
                 </div>
             </div>
@@ -136,10 +149,15 @@ def _get_calendar_invite_template(
     date_day: str,
     date_weekday: str,
     date_year: str,
-    date_time: str
+    date_time: str,
+    org_logo_url: str | None = None,
+    org_name: str | None = None
 ) -> str:
     """Specialized template for Calendar-style invitations."""
     guests_html = "".join([f'<div style="margin-bottom: 4px;">{g}</div>' for g in guests])
+    
+    branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
+
     return f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -148,14 +166,14 @@ def _get_calendar_invite_template(
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;800&display=swap');
             body, table, td, div, p, a {{ font-family: 'Roboto', Arial, Helvetica, sans-serif !important; }}
             body {{ margin: 0; padding: 0; background-color: #f8f9fa; }}
             .container {{ max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #dadce0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
             .branding {{ padding: 24px 24px 0; text-align: left; }}
-            .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 32px; height: 32px; border-radius: 8px; display: inline-block; vertical-align: middle; }}
-            .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 24px; font-weight: 800; letter-spacing: -1px; display: inline-block; vertical-align: middle; margin-left: 8px; }}
-            .header {{ padding: 24px; border-bottom: 1px solid #dadce0; display: table; width: 100%; box-sizing: border-box; }}
+            .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 16px; height: 16px; border-radius: 4px; display: inline-block; vertical-align: middle; }}
+            .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 14px; font-weight: 800; letter-spacing: -0.5px; display: inline-block; vertical-align: middle; }}
+            .header {{ padding: 20px 24px; border-bottom: 1px solid #dadce0; display: table; width: 100%; box-sizing: border-box; }}
             .date-box {{ width: 52px; height: 64px; border: 1px solid #dadce0; border-radius: 8px; text-align: center; float: left; margin-right: 20px; overflow: hidden; background: #ffffff; }}
             .date-month {{ background-color: #ffffff; color: #d93025; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 0; border-bottom: 1px solid #dadce0; }}
             .date-day {{ font-size: 24px; font-weight: 400; color: #3c4043; padding-top: 4px; }}
@@ -174,30 +192,7 @@ def _get_calendar_invite_template(
     <body>
         <div class="container">
             <div class="branding">
-                <div class="logo-square">
-                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="32" height="32">
-                        <tr>
-                            <td align="center" valign="middle">
-                                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="16" height="16">
-                                    <tr>
-                                        <td width="3" height="16" rowspan="3" style="background-color: #ffffff; border-radius: 1px;"></td>
-                                        <td width="10" height="6"></td>
-                                        <td width="3" height="16" rowspan="3" style="background-color: #ffffff; border-radius: 1px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td width="10" height="4" style="background-color: #ffffff; border-radius: 1px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td width="10" height="6"></td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-                <span class="logo-text">
-                    <span style="color:#6c47ff;">H</span><span style="color:#894ef3;">i</span><span style="color:#a655e8;">r</span><span style="color:#c45cdc;">e</span><span style="color:#e163d1;">o</span><span style="color:#ff6bc6;">n</span>
-                </span>
+                {branding_html}
             </div>
             <div class="header">
                 <div class="date-box">
@@ -233,7 +228,35 @@ def _get_calendar_invite_template(
                 <div style="clear: both;"></div>
             </div>
             <div class="footer">
-                Need help? <a href="mailto:support@hireon.ai" style="color: #1a73e8; text-decoration: none;">support@hireon.ai</a><br/>
+                <div style="margin-bottom: 8px; opacity: 0.6;">
+                    <span style="font-size: 9px; text-transform: uppercase;">Powered by</span>
+                    <div style="display: inline-block; vertical-align: middle; margin-left: 4px;">
+                        <div class="logo-square">
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="14" height="14">
+                                <tr>
+                                    <td align="center" valign="middle">
+                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="7" height="7">
+                                            <tr>
+                                                <td width="2" height="7" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
+                                                <td width="3" height="3"></td>
+                                                <td width="2" height="7" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
+                                            </tr>
+                                            <tr>
+                                                <td width="3" height="1" style="background-color: #ffffff; border-radius: 0.5px;"></td>
+                                            </tr>
+                                            <tr>
+                                                <td width="3" height="3"></td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <span class="logo-text" style="font-size: 12px;">
+                            <span style="color:#6c47ff;">H</span><span style="color:#894ef3;">i</span><span style="color:#a655e8;">r</span><span style="color:#c45cdc;">e</span><span style="color:#e163d1;">o</span><span style="color:#ff6bc6;">n</span>
+                        </span>
+                    </div>
+                </div>
                 &copy; {date_year} Hireon AI Platform. All rights reserved.
             </div>
         </div>
@@ -263,6 +286,7 @@ def send_interviewer_invite(
     meeting_link: str,
     duration_minutes: int,
     interview_type: str,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Interview Scheduled: {candidate_name} — {round_name} | {job_role}"
     weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
@@ -277,7 +301,9 @@ def send_interviewer_invite(
         date_day=day,
         date_weekday=weekday,
         date_year=year,
-        date_time=time_str
+        date_time=time_str,
+        org_logo_url=org_logo_url,
+        org_name=company_name
     )
     send_email(interviewer_email, subject, html)
 
@@ -292,6 +318,7 @@ def send_interview_invite(
     meeting_link: str,
     duration_minutes: int = 60,
     interview_type: str = "video",
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Interview Invitation — {round_name} | {job_role} at {company_name}"
     weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
@@ -306,7 +333,9 @@ def send_interview_invite(
         date_day=day,
         date_weekday=weekday,
         date_year=year,
-        date_time=time_str
+        date_time=time_str,
+        org_logo_url=org_logo_url,
+        org_name=company_name
     )
     send_email(candidate_email, subject, html)
 
@@ -317,6 +346,7 @@ def send_offer_email(
     job_title: str,
     company_name: str,
     offer_url: str,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Offer Letter — {job_title} at {company_name}"
     content = f"""
@@ -329,7 +359,7 @@ def send_offer_email(
         
         <p style="font-size: 14px; color: #9689bb;">Please review and respond within the specified deadline.</p>
     """
-    send_email(candidate_email, subject, _get_base_template(content))
+    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
 
 
 def send_stage_update_email(
@@ -338,6 +368,7 @@ def send_stage_update_email(
     job_title: str,
     company_name: str,
     new_stage: str,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Application Update — {job_title} at {company_name}"
     stage_pretty = new_stage.replace('_', ' ').title()
@@ -352,7 +383,7 @@ def send_stage_update_email(
 
         <p style="font-size: 14px; color: #9689bb;">Thank you for your interest in joining our team. We will keep you updated on further progress.</p>
     """
-    send_email(candidate_email, subject, _get_base_template(content))
+    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
 
 
 def send_candidate_invite(
@@ -360,6 +391,7 @@ def send_candidate_invite(
     candidate_name: str,
     company_name: str,
     portal_url: str,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Join the {company_name} Candidate Portal"
     content = f"""
@@ -369,10 +401,8 @@ def send_candidate_invite(
         <div class="button-wrap">
             <a href="{portal_url}" class="button">Set Up Your Portal Profile</a>
         </div>
-        
-        <p style="font-size: 14px; color: #94a3b8; border-top: 1px solid #f1f0ff; padding-top: 32px; margin-top: 32px;">If you weren't expecting this invitation, you can safely ignore this email.</p>
     """
-    send_email(candidate_email, subject, _get_base_template(content))
+    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
 
 
 def send_team_invite(
@@ -383,6 +413,7 @@ def send_team_invite(
     role: str,
     password: str,
     login_url: str,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"You've been invited to join {company_name}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
@@ -403,10 +434,8 @@ def send_team_invite(
         <div class="button-wrap">
             <a href="{login_url}" class="button">Complete Your Setup</a>
         </div>
-
-        <p style="font-size: 14px; color: #94a3b8; font-style: italic; margin-top: 32px;">Please change your temporary password once you log in for the first time.</p>
     """
-    send_email(to_email, subject, _get_base_template(content))
+    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name))
 
 
 def send_rejection_email(
@@ -414,6 +443,7 @@ def send_rejection_email(
     candidate_name: str,
     job_title: str,
     company_name: str,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Update regarding your application with {company_name}"
     content = f"""
@@ -430,7 +460,7 @@ def send_rejection_email(
             <p style="font-size: 14px; color: #6c47ff; font-weight: 700; margin: 4px 0 0 0;">{company_name}</p>
         </div>
     """
-    send_email(candidate_email, subject, _get_base_template(content))
+    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
  
  
 def send_interview_cancellation(
@@ -442,6 +472,7 @@ def send_interview_cancellation(
     company_name: str,
     scheduled_at: str,
     reason: str | None = None,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Interview Cancelled: {candidate_name} — {round_name} | {job_role}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
@@ -458,7 +489,7 @@ def send_interview_cancellation(
         {reason_html}
         <p style="margin-top: 40px; font-size: 13px; color: #94a3b8;">We will notify you if there are further updates regarding this position.</p>
     """
-    send_email(to_email, subject, _get_base_template(content))
+    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name))
  
  
 def send_interview_reschedule(
@@ -471,6 +502,7 @@ def send_interview_reschedule(
     old_time: str,
     new_time: str,
     meeting_link: str,
+    org_logo_url: str | None = None,
 ) -> None:
     subject = f"Interview Rescheduled: {candidate_name} — {round_name} | {job_role}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
@@ -496,4 +528,69 @@ def send_interview_reschedule(
  
         <a href="{meeting_link}" class="button">Join Rescheduled Interview</a>
     """
-    send_email(to_email, subject, _get_base_template(content))
+    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name))
+
+
+def send_password_reset_email(
+    to_email: str,
+    to_name: str,
+    reset_url: str,
+    org_logo_url: str | None = None,
+    org_name: str | None = None,
+) -> None:
+    subject = "Reset Your Password"
+    fname = to_name.split()[0].title() if to_name else "User"
+    content = f"""
+        <h2 class="title" style="margin-top: 20px;">Reset Password</h2>
+        <p class="description">Hi {fname}, we received a request to reset your password for your account. Click the button below to choose a new one.</p>
+        
+        <div class="button-wrap">
+            <a href="{reset_url}" class="button">Reset My Password</a>
+        </div>
+    """
+    send_email(to_email, subject, _get_base_template(content, org_logo_url, org_name))
+ 
+ 
+def send_demo_request_email(
+    first_name: str,
+    last_name: str,
+    work_email: str,
+    company_name: str,
+    team_size: str,
+    monthly_hires: str,
+    hiring_challenge: str
+) -> None:
+    """Send demo request notification to Hireon admin."""
+    subject = f"New Demo Request: {first_name} {last_name} from {company_name}"
+    recipient = "bansid.brainerhub@gmail.com"
+    
+    content = f"""
+        <h1 style="font-size: 20px; font-weight: 500; color: #3c4043; margin: 0 0 24px 0; border-bottom: 1px solid #dadce0; padding-bottom: 20px;">
+            Demo Request Details
+        </h1>
+        
+        <div class="section-title">Organization Details</div>
+        <div class="section-value">
+            <b>{first_name} {last_name}</b><br/>
+            <a href="mailto:{work_email}" style="color: #6c47ff; text-decoration: none;">{work_email}</a>
+        </div>
+        
+        <div class="section-title">Organization</div>
+        <div class="section-value">{company_name}</div>
+        
+        <div class="section-title">Scale</div>
+        <div class="section-value">
+            Team Size: {team_size}<br/>
+            Monthly Hires: {monthly_hires}
+        </div>
+        
+        <div class="section-title">Hiring Challenge</div>
+        <div class="section-value" style="font-style: italic; color: #70757a;">
+            "{hiring_challenge}"
+        </div>
+
+        <div class="button-wrap">
+            <a href="mailto:{work_email}" class="button">Connect to Organization</a>
+        </div>
+    """
+    send_email(recipient, subject, _get_base_template(content, org_name="Hireon"))

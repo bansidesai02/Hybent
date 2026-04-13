@@ -388,7 +388,8 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
             candidate_email=candidate.email,
             candidate_name=candidate.full_name,
             job_title=candidate.current_title or "the applied position",
-            company_name=company_name
+            company_name=company_name,
+            org_logo_url=org.logo_url if org else None
         )
         
     await db.flush()
@@ -637,7 +638,8 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
             candidate_email=candidate.email,
             candidate_name=candidate.full_name,
             job_title=candidate.current_title or "the applied position",
-            company_name=company_name
+            company_name=company_name,
+            org_logo_url=org.logo_url if org else None
         )
 
     await db.flush()

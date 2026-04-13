@@ -71,14 +71,19 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
     import os
     frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000")
     
+    org_res = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
+    org = org_res.scalar_one_or_none()
+    company_name = org.name if org else "HireOn"
+    
     send_team_invite(
         to_email=user.email,
         to_name=user.full_name,
         invited_by=current_user.full_name,
-        company_name="HireOn",
+        company_name=company_name,
         role=role_str,
         password=data.password,
-        login_url=f"{frontend_base}/login"
+        login_url=f"{frontend_base}/login",
+        org_logo_url=org.logo_url if org else None
     )
     
     background_tasks.add_task(es_service.index_user, user)

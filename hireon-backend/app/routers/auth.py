@@ -115,8 +115,18 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
     ))
 
     from app.config import settings as cfg
+    from app.models.organization import Organization
+    org_res = await db.execute(select(Organization).where(Organization.id == user.organization_id))
+    org = org_res.scalar_one_or_none()
+    
     reset_url = f"{cfg.frontend_url}/reset-password?token={token}"
-    send_password_reset_email(user.email, user.full_name, reset_url)
+    send_password_reset_email(
+        to_email=user.email,
+        to_name=user.full_name,
+        reset_url=reset_url,
+        org_logo_url=org.logo_url if org else None,
+        org_name=org.name if org else None
+    )
     return APIResponse.success(message="If that email exists, a reset link has been sent.")
 
 
