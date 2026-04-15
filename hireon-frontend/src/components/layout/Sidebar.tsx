@@ -36,7 +36,7 @@ interface NavSection {
 
 // ─── Nav Config Utility ────────────────────────────────────────────────────────
 
-const getCandidatesGroup = (basePath: string, badgeCount?: number): NavGroup => ({
+const getCandidatesGroup = (basePath: string, role: UserRole, badgeCount?: number): NavGroup => ({
   type: 'group',
   label: 'Candidates',
   icon: '👥',
@@ -48,8 +48,8 @@ const getCandidatesGroup = (basePath: string, badgeCount?: number): NavGroup => 
     `${basePath}/talent-pool`,
   ],
   items: [
-    { to: `${basePath}/candidates`, label: 'All Candidates', icon: '📋' },
-    { to: `${basePath}/upload`, label: 'Upload Resume', icon: '⬆️', dot: true },
+    { to: `${basePath}/candidates`, label: role === 'admin' ? 'All Candidates' : 'My Candidates', icon: '📋' },
+    { to: `${basePath}/upload`, label: 'Upload Resume', icon: '⬆️' },
     { to: `${basePath}/jobs/new`, label: 'Upload / Add JD', icon: '📄' },
     { to: `${basePath}/talent-pool`, label: 'Talent DB', icon: '💾' },
   ],
@@ -57,7 +57,7 @@ const getCandidatesGroup = (basePath: string, badgeCount?: number): NavGroup => 
 
 const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: number): NavSection[] => {
   const basePath = role === 'admin' ? '/admin' : '/recruiter'
-  const candidatesGroup = getCandidatesGroup(basePath, candidateBadge)
+  const candidatesGroup = getCandidatesGroup(basePath, role, candidateBadge)
 
   if (role === 'admin') {
     return [
@@ -276,7 +276,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                       {!collapsed && (
                         <>
                           <span className="flex-1">{entry.label}</span>
-                          {entry.badge != null && (
+                          {entry.badge != null && entry.badge > 0 && (
                             <span
                               className="text-[10px] font-bold text-white px-[7px] py-[1px] rounded-[10px] min-w-[18px] text-center mr-1"
                               style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)' }}
@@ -370,7 +370,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                 >
                   <span className="flex-shrink-0 w-[22px] text-center text-base">{item.icon}</span>
                   {!collapsed && <span className="flex-1">{item.label}</span>}
-                  {!collapsed && item.badge != null && (
+                  {!collapsed && item.badge != null && item.badge > 0 && (
                     <span
                       className="text-[10px] font-bold text-white px-[7px] py-[2px] rounded-[10px] min-w-[20px] text-center"
                       style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)' }}
