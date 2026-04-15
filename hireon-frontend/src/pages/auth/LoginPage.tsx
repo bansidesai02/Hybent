@@ -103,7 +103,7 @@ export default function LoginPage() {
       justify-content: center;
       position: relative;
       overflow: hidden;
-      font-family: 'Sora', sans-serif;
+      font-family: 'Poppins', sans-serif;
       background: #fff;
     }
     .aurora { position: fixed; inset: 0; background: linear-gradient(135deg, #f0eeff 0%, #ffe8f8 35%, #e8f0ff 65%, #f0fff8 100%); z-index: 0; }
@@ -126,15 +126,15 @@ export default function LoginPage() {
     @keyframes cardIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
     .logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; justify-content: center; }
     .logo-mark { width: 40px; height: 40px; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(108,71,255,.35); }
-    .logo-text { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.5px; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .form-h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; font-weight: 800; color: #1a1040; text-align: center; margin-bottom: 5px; letter-spacing: -.4px; }
+    .logo-text { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.5px; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .form-h1 { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 800; color: #1a1040; text-align: center; margin-bottom: 5px; letter-spacing: -.4px; }
     .form-h2 { font-size: 13px; color: #9689bb; text-align: center; margin-bottom: 30px; }
     .tabs-list { display: flex; background: rgba(108,71,255,.07); border-radius: 12px; padding: 4px; margin-bottom: 24px; }
     .tab-btn { flex: 1; padding: 9px; text-align: center; font-size: 13px; font-weight: 600; color: #9689bb; border-radius: 9px; cursor: pointer; transition: all .22s; border: none; background: transparent; }
     .tab-btn.active { background: #fff; color: #6c47ff; box-shadow: 0 2px 8px rgba(108,71,255,.15); }
     .field-box { margin-bottom: 14px; position: relative; }
     .field-label { display: block; font-size: 11px; font-weight: 700; color: #5a4e7a; letter-spacing: .7px; text-transform: uppercase; margin-bottom: 7px; text-align: left; }
-    .input-ctrl { width: 100%; padding: 12px 16px; background: rgba(255,255,255,.8); border: 1.5px solid rgba(108,71,255,.14); border-radius: 12px; color: #1a1040; font-family: 'Sora', sans-serif; font-size: 13px; outline: none; transition: all .2s; backdrop-filter: blur(8px); box-sizing: border-box; }
+    .input-ctrl { width: 100%; padding: 12px 16px; background: rgba(255,255,255,.8); border: 1.5px solid rgba(108,71,255,.14); border-radius: 12px; color: #1a1040; font-family: 'Poppins', sans-serif; font-size: 13px; outline: none; transition: all .2s; backdrop-filter: blur(8px); box-sizing: border-box; }
     .input-ctrl:focus { border-color: #6c47ff; background: rgba(255,255,255,.95); box-shadow: 0 0 0 3px rgba(108,71,255,.1); }
     .input-ctrl::placeholder { color: #c4b9de; }
     .input-ctrl.with-toggle { padding-right: 44px; }
@@ -144,12 +144,12 @@ export default function LoginPage() {
     .error-txt { margin-top: 4px; font-size: 11px; color: #ef4444; text-align: left; }
     .row-utils { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; font-size: 12px; }
     .remember-chk { display: flex; align-items: center; gap: 7px; color: #9689bb; cursor: pointer; }
-    .forgot-link { color: #6c47ff; font-weight: 600; text-decoration: none; background: none; border: none; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; padding: 0; }
+    .forgot-link { color: #6c47ff; font-weight: 600; text-decoration: none; background: none; border: none; cursor: pointer; font-family: 'Poppins', sans-serif; font-size: 12px; padding: 0; }
     .forgot-link:hover { text-decoration: underline; }
-    .btn-submit { width: 100%; padding: 13px; border-radius: 13px; background: linear-gradient(135deg, #6c47ff, #9b6bff); color: #fff; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: all .25s; box-shadow: 0 8px 24px rgba(108,71,255,.38), 0 1px 0 rgba(255,255,255,.2) inset; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-submit { width: 100%; padding: 13px; border-radius: 13px; background: linear-gradient(135deg, #6c47ff, #9b6bff); color: #fff; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: all .25s; box-shadow: 0 8px 24px rgba(108,71,255,.38), 0 1px 0 rgba(255,255,255,.2) inset; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(108,71,255,.5); }
     .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-    .btn-back { background: none; border: none; cursor: pointer; color: #9689bb; font-size: 12px; font-weight: 600; font-family: 'Sora', sans-serif; display: flex; align-items: center; gap: 5px; padding: 0; margin-bottom: 20px; transition: color .2s; }
+    .btn-back { background: none; border: none; cursor: pointer; color: #9689bb; font-size: 12px; font-weight: 600; font-family: 'Poppins', sans-serif; display: flex; align-items: center; gap: 5px; padding: 0; margin-bottom: 20px; transition: color .2s; }
     .btn-back:hover { color: #6c47ff; }
     .or-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; font-size: 11px; color: #c4b9de; font-weight: 600; }
     .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: rgba(108,71,255,.1); }
