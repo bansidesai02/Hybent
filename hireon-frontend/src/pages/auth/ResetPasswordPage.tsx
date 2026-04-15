@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
   }
 
   const CSS = `
-    .rp-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; font-family: 'Sora', sans-serif; }
+    .rp-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; font-family: 'Poppins', sans-serif; }
     .aurora { position: fixed; inset: 0; background: linear-gradient(135deg, #f0eeff 0%, #ffe8f8 35%, #e8f0ff 65%, #f0fff8 100%); z-index: 0; }
     .aura { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; }
     .a1 { width: 700px; height: 700px; background: radial-gradient(circle, rgba(108,71,255,.28), transparent 70%); top: -250px; right: -150px; animation: drift1 16s ease-in-out infinite alternate; }
@@ -44,13 +44,13 @@ export default function ResetPasswordPage() {
     @keyframes cardIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
     .logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; justify-content: center; }
     .logo-mark { width: 40px; height: 40px; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(108,71,255,.35); }
-    .logo-text { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.5px; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .rp-h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; font-weight: 800; color: #1a1040; text-align: center; margin-bottom: 5px; letter-spacing: -.4px; }
+    .logo-text { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.5px; background: linear-gradient(135deg, #6c47ff, #ff6bc6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .rp-h1 { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 800; color: #1a1040; text-align: center; margin-bottom: 5px; letter-spacing: -.4px; }
     .rp-sub { font-size: 13px; color: #9689bb; text-align: center; margin-bottom: 28px; }
     .field-box { margin-bottom: 14px; }
     .field-label { display: block; font-size: 11px; font-weight: 700; color: #5a4e7a; letter-spacing: .7px; text-transform: uppercase; margin-bottom: 7px; }
     .input-wrap { position: relative; }
-    .input-ctrl { width: 100%; padding: 12px 16px; background: rgba(255,255,255,.8); border: 1.5px solid rgba(108,71,255,.14); border-radius: 12px; color: #1a1040; font-family: 'Sora', sans-serif; font-size: 13px; outline: none; transition: all .2s; box-sizing: border-box; }
+    .input-ctrl { width: 100%; padding: 12px 16px; background: rgba(255,255,255,.8); border: 1.5px solid rgba(108,71,255,.14); border-radius: 12px; color: #1a1040; font-family: 'Poppins', sans-serif; font-size: 13px; outline: none; transition: all .2s; box-sizing: border-box; }
     .input-ctrl:focus { border-color: #6c47ff; background: rgba(255,255,255,.95); box-shadow: 0 0 0 3px rgba(108,71,255,.1); }
     .input-ctrl::placeholder { color: #c4b9de; }
     .input-ctrl.with-toggle { padding-right: 44px; }
@@ -58,7 +58,7 @@ export default function ResetPasswordPage() {
     .eye-btn:hover { color: #6c47ff; }
     .error-txt { margin-top: 4px; font-size: 11px; color: #ef4444; }
     .server-err { margin-bottom: 18px; padding: 12px; border-radius: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #ef4444; font-size: 13px; }
-    .btn-submit { width: 100%; padding: 13px; border-radius: 13px; background: linear-gradient(135deg, #6c47ff, #9b6bff); color: #fff; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: all .25s; box-shadow: 0 8px 24px rgba(108,71,255,.38); display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+    .btn-submit { width: 100%; padding: 13px; border-radius: 13px; background: linear-gradient(135deg, #6c47ff, #9b6bff); color: #fff; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: all .25s; box-shadow: 0 8px 24px rgba(108,71,255,.38); display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
     .btn-submit:hover { transform: translateY(-2px); }
     .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
     .strength-bar { height: 3px; border-radius: 3px; background: #f0eeff; margin-top: 6px; overflow: hidden; }
