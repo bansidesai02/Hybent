@@ -17,7 +17,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
-  const [isDark, setIsDark] = useState(false)
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('hireon_theme') === 'dark')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null)
   const [isSearching, setIsSearching] = useState(false)
@@ -25,11 +25,16 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
   const searchRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
 
-  // Sync dark class on <html>
+  // Sync dark class on <html> and persist preference
   useEffect(() => {
     const root = document.documentElement
-    if (isDark) root.classList.add('dark')
-    else root.classList.remove('dark')
+    if (isDark) {
+      root.classList.add('dark')
+      localStorage.setItem('hireon_theme', 'dark')
+    } else {
+      root.classList.remove('dark')
+      localStorage.setItem('hireon_theme', 'light')
+    }
   }, [isDark])
 
   // Global Search Debounce
