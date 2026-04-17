@@ -1,11 +1,56 @@
-import { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import type { UserRole } from '@/types'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useAuth } from '@/hooks/useAuth'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { 
+  Home, 
+  Briefcase, 
+  Users, 
+  ClipboardList, 
+  Upload, 
+  FileText, 
+  Database, 
+  Kanban, 
+  Calendar, 
+  Send, 
+  Brain, 
+  BarChart, 
+  LayoutDashboard, 
+  Inbox, 
+  BarChart2, 
+  FileSearch, 
+  Video, 
+  ChevronRight,
+  Building2
+} from 'lucide-react'
 
-// ... existing types ...
+// ─── Custom Icons ─────────────────────────────────────────────────────────────
+const PipelineIcon = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="3" cy="8" r="2" />
+    <circle cx="8" cy="8" r="2" />
+    <circle cx="13" cy="8" r="2" />
+  </svg>
+)
+
+const TeamLogoIcon = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {/* Top Person */}
+    <circle cx="12" cy="5" r="3" />
+    <path d="M8 10h8" />
+    <path d="M12 8v2" />
+    {/* Bottom 3 Persons */}
+    <circle cx="5" cy="16" r="3" />
+    <circle cx="12" cy="16" r="3" />
+    <circle cx="19" cy="16" r="3" />
+    <path d="M5 13v1.5" />
+    <path d="M12 13v1.5" />
+    <path d="M19 13v1.5" />
+  </svg>
+)
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,7 +84,7 @@ interface NavSection {
 const getCandidatesGroup = (basePath: string, role: UserRole, badgeCount?: number): NavGroup => ({
   type: 'group',
   label: 'Candidates',
-  icon: '👥',
+  icon: <GlassIcon icon="Users" variant="violet" ghost size={24} iconSize={14} glow={false} />,
   badge: badgeCount,
   subPaths: [
     `${basePath}/candidates`,
@@ -48,10 +93,10 @@ const getCandidatesGroup = (basePath: string, role: UserRole, badgeCount?: numbe
     `${basePath}/talent-pool`,
   ],
   items: [
-    { to: `${basePath}/candidates`, label: role === 'admin' ? 'All Candidates' : 'My Candidates', icon: '📋' },
-    { to: `${basePath}/upload`, label: 'Upload Resume', icon: '⬆️' },
-    { to: `${basePath}/jobs/new`, label: 'Upload / Add JD', icon: '📄' },
-    { to: `${basePath}/talent-pool`, label: 'Talent DB', icon: '💾' },
+    { to: `${basePath}/candidates`, label: role === 'admin' ? 'All Candidates' : 'My Candidates', icon: <GlassIcon icon="Users" variant="violet" ghost size={18} iconSize={12} glow={false} /> },
+    { to: `${basePath}/upload`, label: 'Upload Resume', icon: <GlassIcon icon="Upload" variant="emerald" ghost size={18} iconSize={12} glow={false} /> },
+    { to: `${basePath}/jobs/new`, label: 'Upload / Add JD', icon: <GlassIcon icon="FileText" variant="blue" ghost size={18} iconSize={12} glow={false} /> },
+    { to: `${basePath}/talent-pool`, label: 'Talent DB', icon: <GlassIcon icon="Database" variant="amber" ghost size={18} iconSize={12} glow={false} /> },
   ],
 })
 
@@ -64,26 +109,26 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
       {
         label: 'MAIN',
         items: [
-          { to: basePath, label: 'Overview', icon: '🏠' },
-          { to: `${basePath}/jobs`, label: 'Open Positions', icon: '💼' },
+          { to: basePath, label: 'Overview', icon: <GlassIcon icon="LayoutGrid" variant="violet" ghost size={24} iconSize={14} glow={false} /> },
+          { to: `${basePath}/jobs`, label: 'Open Positions', icon: <GlassIcon icon="BriefcaseMedical" variant="blue" ghost size={24} iconSize={14} glow={false} /> },
           candidatesGroup,
-          { to: `${basePath}/pipeline`, label: 'Pipeline', icon: '📋' },
-          { to: `${basePath}/interviews`, label: 'Schedule', icon: '📅', badge: scheduleBadge },
-          { to: `${basePath}/offers`, label: 'Offers', icon: '📨' },
+          { to: `${basePath}/pipeline`, label: 'Pipeline', icon: <GlassIcon icon={<PipelineIcon size={14} />} variant="pink" ghost size={24} iconSize={14} glow={false} /> },
+          { to: `${basePath}/interviews`, label: 'Schedule', icon: <GlassIcon icon="Calendar" variant="violet" ghost size={24} iconSize={14} glow={false} />, badge: scheduleBadge },
+          { to: `${basePath}/offers`, label: 'Offers', icon: <GlassIcon icon="Handshake" variant="teal" ghost size={24} iconSize={14} glow={false} /> },
         ],
       },
       {
         label: 'INTELLIGENCE',
         items: [
-          { to: `${basePath}/analytics`, label: 'AI Insights', icon: '🧠' },
-          { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: '📊' },
+          { to: `${basePath}/analytics`, label: 'AI Insights', icon: <GlassIcon icon="Bot" variant="pink" ghost size={24} iconSize={14} glow={false} /> },
+          { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: <GlassIcon icon="TrendingUp" variant="teal" ghost size={24} iconSize={14} glow={false} /> },
         ],
       },
       {
         label: 'SETTINGS',
         items: [
-          { to: '/admin/teams', label: 'Teams', icon: '👥' },
-          { to: '/admin/audit', label: 'Audit Logs', icon: '📋' },
+          { to: '/admin/teams', label: 'Team', icon: <GlassIcon icon={<TeamLogoIcon size={14} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/admin/audit', label: 'Audit Logs', icon: <GlassIcon icon="ClipboardList" variant="amber" ghost size={24} iconSize={14} glow={false} /> },
         ],
       },
     ]
@@ -94,11 +139,11 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
       {
         label: 'MY PANEL',
         items: [
-          { to: '/interviewer', label: 'Dashboard', icon: '🏠' },
-          { to: '/interviewer/interviews', label: 'My Interviews', icon: '📥' },
-          { to: '/interviewer/scorecard-hub', label: 'Scorecard & Eval', icon: '📊', customActivePath: '/interviewer/scorecard' },
-          { to: '/interviewer/prep-kit-hub', label: 'Prep Kit', icon: '🗒️', customActivePath: '/interviewer/prep-kit' },
-          { to: '/interviewer/live-room-hub', label: 'Live Room', icon: '🟢', customActivePath: '/interviewer/live-room' },
+          { to: '/interviewer', label: 'Dashboard', icon: <GlassIcon icon="LayoutDashboard" variant="gray" ghost iconSize={14} /> },
+          { to: '/interviewer/interviews', label: 'My Interviews', icon: <GlassIcon icon="Inbox" variant="gray" ghost iconSize={14} /> },
+          { to: '/interviewer/scorecard-hub', label: 'Scorecard & Eval', icon: <GlassIcon icon="BarChart2" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/scorecard' },
+          { to: '/interviewer/prep-kit-hub', label: 'Prep Kit', icon: <GlassIcon icon="FileSearch" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/prep-kit' },
+          { to: '/interviewer/live-room-hub', label: 'Live Room', icon: <GlassIcon icon="Video" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/live-room' },
         ],
       },
     ]
@@ -109,24 +154,25 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
     {
       label: 'MAIN',
       items: [
-        { to: basePath, label: 'Overview', icon: '🏠' },
-        { to: `${basePath}/jobs`, label: 'Open Positions', icon: '💼' },
+        { to: basePath, label: 'Overview', icon: <GlassIcon icon="LayoutGrid" variant="gray" ghost iconSize={14} /> },
+        { to: `${basePath}/jobs`, label: 'Open Positions', icon: <GlassIcon icon="BriefcaseMedical" variant="gray" ghost iconSize={14} /> },
         candidatesGroup,
-        { to: `${basePath}/pipeline`, label: 'Pipeline', icon: '📋' },
-        { to: `${basePath}/interviews`, label: 'Schedule', icon: '📅', badge: scheduleBadge },
+        { to: `${basePath}/pipeline`, label: 'Pipeline', icon: <GlassIcon icon={<PipelineIcon size={14} />} variant="gray" ghost iconSize={14} /> },
+        { to: `${basePath}/interviews`, label: 'Schedule', icon: <GlassIcon icon="Calendar" variant="gray" ghost iconSize={14} />, badge: scheduleBadge },
+        { to: `${basePath}/offers`, label: 'Offers', icon: <GlassIcon icon="Handshake" variant="gray" ghost iconSize={14} /> },
       ],
     },
     {
       label: 'INTELLIGENCE',
       items: [
-        { to: `${basePath}/analytics`, label: 'AI Insights', icon: '🧠' },
-        { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: '📊' },
+        { to: `${basePath}/analytics`, label: 'AI Insights', icon: <GlassIcon icon="Bot" variant="gray" ghost iconSize={14} /> },
+        { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: <GlassIcon icon="TrendingUp" variant="gray" ghost iconSize={14} /> },
       ],
     },
     {
       label: 'SETTINGS',
       items: [
-        { to: `${basePath}/teams`, label: 'Teams', icon: '👥' },
+        { to: `${basePath}/teams`, label: 'Team', icon: <GlassIcon icon={<TeamLogoIcon size={14} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
       ],
     },
   ]
@@ -173,13 +219,13 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
   }, [location.pathname]) // eslint-disable-line
 
   // Calculate dynamic badges
-  const candidateBadge = useMemo(() => 
+  const candidateBadge = useMemo(() =>
     notifications.filter(n => !n.is_read && (n.type === 'application_received' || n.type === 'stage_changed')).length
-  , [notifications])
+    , [notifications])
 
-  const scheduleBadge = useMemo(() => 
+  const scheduleBadge = useMemo(() =>
     notifications.filter(n => !n.is_read && (n.type === 'interview_scheduled' || n.type === 'interview_reminder')).length
-  , [notifications])
+    , [notifications])
 
   const sections = useMemo(() => getSections(role, candidateBadge, scheduleBadge), [role, candidateBadge, scheduleBadge])
 
@@ -216,7 +262,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
     <aside
       className={clsx(
         'h-screen flex flex-col flex-shrink-0 transition-all duration-300 z-[70]',
-        'bg-[var(--sidebar-bg)] backdrop-blur-[20px] border-r border-[var(--sidebar-border)]',
+        'bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)]',
         'fixed lg:static inset-y-0 left-0',
         collapsed ? 'w-16' : 'w-60',
         mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -229,9 +275,9 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
             <div className="logo-orbit-ring"></div>
             <div className="logo-box">
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
-                <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
-                <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95"/>
+                <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
+                <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
+                <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95" />
               </svg>
             </div>
           </div>
@@ -250,7 +296,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
         {sections.map((section) => (
           <div key={section.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {!collapsed && (
-              <p className="text-[10px] font-bold tracking-[1.5px] uppercase text-[var(--text-light)] px-3 pt-3 pb-1">
+              <p className="text-[10px] font-bold tracking-[1.5px] uppercase text-[var(--text)] dark:text-[var(--text-light)] px-3 pt-3 pb-1 opacity-60">
                 {section.label}
               </p>
             )}
@@ -272,31 +318,33 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                         collapsed && 'justify-center px-2'
                       )}
                     >
-                      <span className="flex-shrink-0 w-[22px] text-center text-base">{entry.icon}</span>
+                      <span className="flex-shrink-0 w-[24px] flex items-center justify-center">
+                        {React.isValidElement(entry.icon) && entry.icon.type === GlassIcon 
+                          ? React.cloneElement(entry.icon as React.ReactElement, { variant: isActive ? 'violet' : 'gray', ghost: true })
+                          : entry.icon
+                        }
+                      </span>
                       {!collapsed && (
                         <>
                           <span className="flex-1">{entry.label}</span>
                           {entry.badge != null && entry.badge > 0 && (
                             <span
                               className="text-[10px] font-bold text-white px-[7px] py-[1px] rounded-[10px] min-w-[18px] text-center mr-1"
-                              style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)' }}
+                              style={{ background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))' }}
                             >
                               {entry.badge}
                             </span>
                           )}
                           {/* chevron */}
-                          <span
+                          <ChevronRight
+                            size={14}
                             style={{
-                              fontSize: 12,
-                              display: 'inline-block',
                               transition: 'transform 0.26s',
                               transform: isOpen ? 'rotate(90deg)' : 'none',
                               color: 'var(--text-lite)',
                               marginLeft: 4,
                             }}
-                          >
-                            ›
-                          </span>
+                          />
                         </>
                       )}
                     </button>
@@ -325,12 +373,15 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                                 'py-[7px] pr-3',
                                 'pl-[28px]',  // indented
                                 subActive
-                                  ? 'bg-[var(--sb-active)] text-[#6c47ff] font-[700]'
-                                  : 'text-[var(--text-mid)] hover:bg-[var(--sb-hover)] hover:text-[#6c47ff]'
+                                  ? 'bg-[var(--sb-active)] text-[var(--violet)] font-[700]'
+                                  : 'text-[var(--text-mid)] hover:bg-[var(--sb-hover)] hover:text-[var(--violet)]'
                               )}
                             >
-                              <span style={{ fontSize: 13, width: 16, textAlign: 'center', flexShrink: 0 }}>
-                                {sub.icon}
+                              <span style={{ width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {React.isValidElement(sub.icon) && sub.icon.type === GlassIcon 
+                                  ? React.cloneElement(sub.icon as React.ReactElement, { variant: subActive ? 'violet' : 'gray', ghost: true })
+                                  : sub.icon
+                                }
                               </span>
                               <span className="flex-1">{sub.label}</span>
                               {sub.dot && (
@@ -368,12 +419,20 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                     return clsx('nav-item', active && 'active', collapsed && 'justify-center px-2')
                   }}
                 >
-                  <span className="flex-shrink-0 w-[22px] text-center text-base">{item.icon}</span>
+                  <span className="flex-shrink-0 w-[24px] flex items-center justify-center">
+                    {React.isValidElement(item.icon) && item.icon.type === GlassIcon 
+                      ? React.cloneElement(item.icon as React.ReactElement, { 
+                          variant: (item.customActivePath ? location.pathname.startsWith(item.customActivePath) : location.pathname === item.to) ? 'violet' : 'gray',
+                          ghost: true
+                        })
+                      : item.icon
+                    }
+                  </span>
                   {!collapsed && <span className="flex-1">{item.label}</span>}
                   {!collapsed && item.badge != null && item.badge > 0 && (
                     <span
                       className="text-[10px] font-bold text-white px-[7px] py-[2px] rounded-[10px] min-w-[20px] text-center"
-                      style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)' }}
+                      style={{ background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))' }}
                     >
                       {item.badge}
                     </span>
@@ -414,60 +473,4 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
   )
 }
 
-// ── Icon components ────────────────────────────────────────────────────────────
-function GridIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-    </svg>
-  )
-}
-function BriefcaseIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-    </svg>
-  )
-}
-function UsersIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  )
-}
-function KanbanIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-    </svg>
-  )
-}
-function CalendarIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  )
-}
-function DocumentIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  )
-}
-function ChartIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-    </svg>
-  )
-}
-function ClipboardIcon() {
-  return (
-    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-    </svg>
-  )
-}
+// Replaced inline SVGs with Lucide React icons

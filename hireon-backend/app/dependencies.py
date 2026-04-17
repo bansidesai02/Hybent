@@ -15,11 +15,11 @@ from app.models.user import User
 from app.utils.permissions import UserRole, RECRUITER_ROLES, INTERVIEWER_ROLES, ADMIN_ONLY
 from app.utils.security import decode_access_token
 
-bearer_scheme = HTTPBearer(auto_error=True)
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
     """Validate access token and return the authenticated user."""
@@ -28,6 +28,10 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if not credentials:
+        raise credentials_exception
+
     try:
         payload = decode_access_token(credentials.credentials)
         user_id: str = payload.get("sub")

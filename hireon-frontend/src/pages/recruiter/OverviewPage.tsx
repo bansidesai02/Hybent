@@ -9,10 +9,12 @@ import React from 'react'
 import { formatDistanceToNow, isToday, format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { RecentActivityFeed } from '@/components/common/RecentActivityFeed'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { ArrowRight } from 'lucide-react'
 
 // ─── KPI Card ──────────────────────────────────────────────────────────────────
 interface KpiCardProps {
-  icon: string
+  icon: React.ReactNode
   label: string
   value: string | number
   delta?: { label: string; up: boolean }
@@ -26,7 +28,6 @@ function KpiCard({ icon, label, value, delta }: KpiCardProps) {
         background: 'var(--card-bg)',
         border: '1px solid var(--card-border)',
         boxShadow: 'var(--shadow)',
-        backdropFilter: 'blur(20px)',
       }}
     >
       <div className="flex items-start justify-between mb-4">
@@ -45,7 +46,7 @@ function KpiCard({ icon, label, value, delta }: KpiCardProps) {
       </div>
       <p
         className="font-black leading-none mb-1.5"
-        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '36px', color: 'var(--text)', letterSpacing: '-1px' }}
+        style={{ fontFamily: "'Poppins', sans-serif", fontSize: '36px', color: 'var(--text)', letterSpacing: '-1px', fontWeight: 800 }}
       >
         {value}
       </p>
@@ -77,7 +78,7 @@ function FunnelRow({ label, count, total, color }: { label: string; count: numbe
 
 // ─── Activity Item ─────────────────────────────────────────────────────────────
 interface ActivityItemProps {
-  icon: string
+  icon: React.ReactNode
   title: string
   sub: string
   time: string
@@ -104,8 +105,8 @@ function ActivityItem({ icon, title, sub, time, iconBg }: ActivityItemProps) {
 
 // ─── Interview Card ────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; bg: string; color: string }> = {
-  scheduled: { label: 'Confirmed', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' },
-  completed: { label: 'Completed', bg: 'rgba(108, 71, 255, 0.1)', color: '#6c47ff' },
+  scheduled: { label: 'Confirmed', bg: 'rgba(16, 185, 129, 0.1)', color: 'var(--teal, #10b981)' },
+  completed: { label: 'Completed', bg: 'var(--violet)/10', color: 'var(--violet)' },
   cancelled: { label: 'Cancelled', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' },
   no_show: { label: 'No Show', bg: 'rgba(251, 191, 36, 0.1)', color: '#f59e0b' },
 }
@@ -132,7 +133,7 @@ function InterviewCard({ time, name, type, status, meetingLink }: InterviewCardP
       }}
     >
       <div className="flex items-start justify-between mb-3">
-        <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#6c47ff' }}>{time}</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--violet)' }}>{time}</p>
         {isScheduled && meetingLink && (
           <a
             href={meetingLink}
@@ -140,9 +141,9 @@ function InterviewCard({ time, name, type, status, meetingLink }: InterviewCardP
             rel="noopener noreferrer"
             className="text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all hover:scale-105 active:scale-95"
             style={{ 
-              background: 'linear-gradient(135deg, #6c47ff, #8b5cf6)', 
+              background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))', 
               color: '#fff',
-              boxShadow: '0 4px 12px rgba(108, 71, 255, 0.2)'
+              boxShadow: '0 4px 12px rgba(167, 139, 250, 0.2)'
             }}
           >
             Join Now
@@ -168,7 +169,7 @@ function InterviewCard({ time, name, type, status, meetingLink }: InterviewCardP
 }
 
 // ─── Quick Link ────────────────────────────────────────────────────────────────
-function QuickLink({ label, icon, onClick, bg }: { label: string; icon: string; onClick: () => void; bg: string }) {
+function QuickLink({ label, icon, onClick, bg }: { label: string; icon: React.ReactNode; onClick: () => void; bg: string }) {
   return (
     <button
       onClick={onClick}
@@ -176,27 +177,26 @@ function QuickLink({ label, icon, onClick, bg }: { label: string; icon: string; 
       style={{
         background: 'var(--card-bg)',
         border: '1px solid var(--card-border)',
-        backdropFilter: 'blur(20px)',
       }}
     >
       <div className="w-10 h-10 rounded-[14px] flex items-center justify-center text-[18px]" style={{ background: bg }}>
         {icon}
       </div>
       <span className="text-[13px] font-bold text-[var(--text)]">{label}</span>
-      <span className="ml-auto text-[14px]" style={{ color: '#c4b9de' }}>→</span>
+      <ArrowRight size={14} className="ml-auto" style={{ color: '#c4b9de' }} />
     </button>
   )
 }
 
-const NOTIFICATION_MAP: Record<string, { icon: string; bg: string }> = {
-  application_received: { icon: '💬', bg: 'rgba(255, 107, 198, 0.1)' },
-  stage_changed: { icon: '✅', bg: 'rgba(16, 185, 129, 0.1)' },
-  interview_scheduled: { icon: '📅', bg: 'rgba(108, 71, 255, 0.1)' },
-  interview_reminder: { icon: '⏰', bg: 'rgba(108, 71, 255, 0.1)' },
-  scorecard_submitted: { icon: '🧠', bg: 'rgba(139, 92, 246, 0.1)' },
-  offer_sent: { icon: '📨', bg: 'rgba(251, 191, 36, 0.1)' },
-  offer_accepted: { icon: '🎉', bg: 'rgba(10, 185, 129, 0.1)' },
-  default: { icon: '🔔', bg: 'rgba(108, 71, 255, 0.1)' },
+const NOTIFICATION_MAP: Record<string, { icon: React.ReactNode; bg: string }> = {
+  application_received: { icon: <GlassIcon icon="MessageSquare" variant="pink" size={32} iconSize={14} />, bg: 'rgba(255, 107, 198, 0.1)' },
+  stage_changed: { icon: <GlassIcon icon="CheckCircle" variant="emerald" size={32} iconSize={14} />, bg: 'rgba(16, 185, 129, 0.1)' },
+  interview_scheduled: { icon: <GlassIcon icon="Calendar" variant="violet" size={32} iconSize={14} />, bg: 'rgba(108, 71, 255, 0.1)' },
+  interview_reminder: { icon: <GlassIcon icon="Clock" variant="violet" size={32} iconSize={14} />, bg: 'rgba(108, 71, 255, 0.1)' },
+  scorecard_submitted: { icon: <GlassIcon icon="Brain" variant="indigo" size={32} iconSize={14} />, bg: 'rgba(139, 92, 246, 0.1)' },
+  offer_sent: { icon: <GlassIcon icon="Send" variant="amber" size={32} iconSize={14} />, bg: 'rgba(251, 191, 36, 0.1)' },
+  offer_accepted: { icon: <GlassIcon icon="PartyPopper" variant="emerald" size={32} iconSize={14} />, bg: 'rgba(10, 185, 129, 0.1)' },
+  default: { icon: <GlassIcon icon="Bell" variant="violet" size={32} iconSize={14} />, bg: 'rgba(108, 71, 255, 0.1)' },
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
@@ -225,52 +225,49 @@ export default function OverviewPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const kpis = [
-    { label: 'Resumes Processed', value: analytics?.total_applications ?? 0, icon: '📥', delta: { label: '↑ 18%', up: true } },
-    { label: 'Auto-Shortlisted', value: analytics?.total_candidates ?? 0, icon: '✅', delta: { label: '↑ 12%', up: true } },
-    { label: 'Interviews Booked', value: analytics?.interviews_scheduled ?? 0, icon: '📅', delta: { label: '↑ 7%', up: true } },
-    { label: 'Hires Made', value: analytics?.offers_accepted ?? 0, icon: '🎉', delta: { label: '2', up: true } },
+    { label: 'Resumes Processed', value: analytics?.total_applications ?? 0, icon: <GlassIcon icon="FileText" variant="violet" size={42} iconSize={20} ghost />, delta: { label: '↑ 18%', up: true } },
+    { label: 'Auto-Shortlisted', value: analytics?.total_candidates ?? 0, icon: <GlassIcon icon="CheckCircle" variant="emerald" size={42} iconSize={20} ghost />, delta: { label: '↑ 12%', up: true } },
+    { label: 'Interviews Booked', value: analytics?.interviews_scheduled ?? 0, icon: <GlassIcon icon="Calendar" variant="violet" size={42} iconSize={20} ghost />, delta: { label: '↑ 7%', up: true } },
+    { label: 'Hires Made', value: analytics?.offers_accepted ?? 0, icon: <GlassIcon icon="PartyPopper" variant="emerald" size={42} iconSize={20} ghost />, delta: { label: '2', up: true } },
   ]
 
   const funnelTotal = analytics?.total_applications ?? 1
 
   return (
-    <div className="w-full space-y-8 pb-10 pt-6">
+    <div className="space-y-8 pb-10 pt-6">
       {/* Header Section */}
-      <div className="mb-4">
-        <h1
-          className="font-black mb-2 tracking-[-1px] text-[32px] md:text-[40px] leading-tight"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: 'var(--text)' }}
-        >
-          {greeting}, {user?.full_name?.split(' ')[0] || 'there'} 👋
+      <header className="page-header">
+        <h1 className="page-title">
+          {greeting}, {user?.full_name?.split(' ')[0] || 'there'} 
         </h1>
-        <p className="text-[16px] font-medium" style={{ color: 'var(--text-mid)' }}>
+        <p className="page-subtitle">
           Here's your hiring pipeline at a glance — Hireon AI is working 24/7.
         </p>
-      </div>
+      </header>
 
       {/* Quick Links Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <QuickLink
           label="Post New Job"
-          icon="💼"
+          icon={<GlassIcon icon="BriefcaseMedical" variant="violet" size={40} iconSize={18} ghost />}
           bg="rgba(108, 71, 255, 0.1)"
           onClick={() => navigate(`${basePath}/jobs/new`)}
         />
         <QuickLink
           label="Add Candidate"
-          icon="👥"
+          icon={<GlassIcon icon="UserPlus" variant="emerald" size={40} iconSize={18} ghost />}
           bg="rgba(16, 185, 129, 0.1)"
           onClick={() => navigate(`${basePath}/upload`)}
         />
         <QuickLink
           label="Schedule Call"
-          icon="📅"
+          icon={<GlassIcon icon="Calendar" variant="pink" size={40} iconSize={18} ghost />}
           bg="rgba(255, 107, 198, 0.1)"
           onClick={() => navigate(`${basePath}/interviews`)}
         />
         <QuickLink
-          label="AI Analytics"
-          icon="🧠"
+          label="AI Insights"
+          icon={<GlassIcon icon="Bot" variant="indigo" size={40} iconSize={18} ghost />}
           bg="rgba(139, 92, 246, 0.1)"
           onClick={() => navigate(`${basePath}/analytics`)}
         />
@@ -295,23 +292,22 @@ export default function OverviewPage() {
             background: 'var(--card-bg)',
             border: '1px solid var(--card-border)',
             boxShadow: 'var(--shadow)',
-            backdropFilter: 'blur(20px)',
           }}
         >
           <div className="flex items-center justify-between mb-6 sm:mb-8">
-            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
               Hiring Funnel
             </h3>
-            <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] uppercase tracking-wider" style={{ background: 'rgba(108, 71, 255, 0.08)', color: '#6c47ff' }}>
+            <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] uppercase tracking-wider" style={{ background: 'var(--violet)/10', color: 'var(--violet)' }}>
               This Month
             </span>
           </div>
 
           <div className="space-y-6">
-            <FunnelRow label="Applied" count={analytics?.total_applications ?? 0} total={funnelTotal} color="#6c47ff" />
-            <FunnelRow label="Shortlisted" count={analytics?.total_candidates ?? 0} total={funnelTotal} color="#ff6bc6" />
+            <FunnelRow label="Applied" count={analytics?.total_applications ?? 0} total={funnelTotal} color="var(--violet)" />
+            <FunnelRow label="Shortlisted" count={analytics?.total_candidates ?? 0} total={funnelTotal} color="#3b82f6" />
             <FunnelRow label="Interviewed" count={analytics?.interviews_scheduled ?? 0} total={funnelTotal} color="#ff6bc6" />
-            <FunnelRow label="Hired" count={analytics?.offers_accepted ?? 0} total={funnelTotal} color="#00d4c8" />
+            <FunnelRow label="Hired" count={analytics?.offers_accepted ?? 0} total={funnelTotal} color="var(--teal, #10b981)" />
           </div>
         </div>
 
@@ -322,11 +318,10 @@ export default function OverviewPage() {
             background: 'var(--card-bg)',
             border: '1px solid var(--card-border)',
             boxShadow: 'var(--shadow)',
-            backdropFilter: 'blur(20px)',
           }}
         >
           <div className="flex items-center justify-between mb-6 sm:mb-8">
-            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
               Recent Activity
             </h3>
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
@@ -348,24 +343,23 @@ export default function OverviewPage() {
           background: 'var(--card-bg)',
           border: '1px solid var(--card-border)',
           boxShadow: 'var(--shadow)',
-          backdropFilter: 'blur(20px)',
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
           <div className="flex items-center gap-4">
-            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
               Today's Interviews
             </h3>
-            <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] " style={{ background: 'rgba(108, 71, 255, 0.08)', color: '#6c47ff' }}>
+            <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] " style={{ background: 'var(--violet)/10', color: 'var(--violet)' }}>
               {format(new Date(), 'MMM dd')}
             </span>
           </div>
           <button
             onClick={() => navigate(`${basePath}/interviews`)}
-            className="text-[11px] font-bold"
-            style={{ color: '#6c47ff' }}
+            className="text-[11px] font-bold flex items-center gap-1"
+            style={{ color: 'var(--violet)' }}
           >
-            View Schedule →
+            View Schedule <ArrowRight size={14} />
           </button>
         </div>
 
@@ -389,8 +383,10 @@ export default function OverviewPage() {
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center bg-[var(--sb-active)] dark:bg-[rgba(108,71,255,0.05)] rounded-[20px] border border-dashed border-[var(--sidebar-border)]">
-            <span className="text-2xl mb-2 block">📅</span>
+          <div className="py-8 text-center bg-[var(--sb-active)] dark:bg-[var(--violet)]/5 rounded-[20px] border border-dashed border-[var(--sidebar-border)]">
+            <div className="mb-2 flex justify-center">
+              <GlassIcon icon="Calendar" variant="violet" size={48} iconSize={24} />
+            </div>
             <p className="text-[13px] font-medium text-[var(--text-mid)]">No interviews scheduled for today.</p>
           </div>
         )}

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { formatDate, stageLabel } from '@/utils/formatters'
+import { FileText } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 const PIPELINE_STAGES = ['applied', 'screening', 'interview', 'interviewed', 'offer', 'hired'] as const
 type PipelineStage = (typeof PIPELINE_STAGES)[number]
@@ -165,7 +167,9 @@ export default function PortalApplicationsPage() {
             color: 'var(--p-text-lite)',
           }}
         >
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+            <GlassIcon icon="FileText" variant="violet" size={60} iconSize={28} />
+          </div>
           <p
             style={{
               fontSize: 16,

@@ -16,9 +16,9 @@ export function Card({ glass, hover, gradient, padding = 'md', children, classNa
         // Base styles
         !glass && !gradient && 'bg-[var(--card-bg)] border border-[var(--card-border)] backdrop-blur-[16px] shadow-[var(--shadow)]',
         // Glass variant
-        glass && 'bg-[rgba(255,255,255,0.72)] dark:bg-[rgba(26,12,56,0.84)] backdrop-blur-[24px] saturate-180 border border-[rgba(255,255,255,0.95)] dark:border-[rgba(108,71,255,0.18)] shadow-card',
+        glass && 'bg-[rgba(255,255,255,0.72)] dark:bg-[rgba(31,27,54,0.84)] backdrop-blur-[24px] saturate-180 border border-[rgba(255,255,255,0.95)] dark:border-[rgba(167,139,240,0.18)] shadow-card',
         // Gradient variant
-        gradient && 'bg-gradient-to-br from-[rgba(108,71,255,0.07)] to-[rgba(255,107,198,0.04)] border border-[var(--card-border)] backdrop-blur-[16px] shadow-[var(--shadow)]',
+        gradient && 'bg-gradient-to-br from-[rgba(167,139,250,0.07)] to-[rgba(255,107,198,0.04)] border border-[var(--card-border)] backdrop-blur-[16px] shadow-[var(--shadow)]',
         // Hover effect
         hover && 'hover:shadow-[var(--shadow-h)] hover:-translate-y-1 cursor-pointer',
         // Padding

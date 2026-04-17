@@ -4,25 +4,38 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { useNotificationStore } from '@/store/notificationStore'
 import { timeAgo } from '@/utils/formatters'
 import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Bell, 
+  Target, 
+  Calendar, 
+  AlertTriangle, 
+  PartyPopper, 
+  Eye, 
+  RefreshCw, 
+  MessageCircle, 
+  FileText, 
+  CheckCircle 
+} from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import type { NotificationType } from '@/types'
 
-function getNotifIcon(type: NotificationType): string {
+function getNotifIcon(type: NotificationType): React.ReactNode {
   switch (type) {
-    case 'shortlisted':          return '🎯'
+    case 'shortlisted':          return <GlassIcon icon="Target" variant="violet" size={24} iconSize={12} ghost glow={false} />
     case 'interview_scheduled':
-    case 'interview_updated':    return '📅'
+    case 'interview_updated':    return <GlassIcon icon="Calendar" variant="blue" size={24} iconSize={12} ghost glow={false} />
     case 'interview_cancelled':
-    case 'interview_reminder':   return '⚠️'
+    case 'interview_reminder':   return <GlassIcon icon="AlertTriangle" variant="amber" size={24} iconSize={12} ghost glow={false} />
     case 'offer_sent':
     case 'offer_received':
-    case 'offer_accepted':       return '🎉'
-    case 'profile_viewed':       return '👁️'
+    case 'offer_accepted':       return <GlassIcon icon="PartyPopper" variant="pink" size={24} iconSize={12} ghost glow={false} />
+    case 'profile_viewed':       return <GlassIcon icon="Eye" variant="indigo" size={24} iconSize={12} ghost glow={false} />
     case 'stage_updated':
-    case 'stage_changed':        return '🔄'
-    case 'message_received':     return '💬'
-    case 'application_received': return '📝'
-    case 'feedback_reminder':    return '✅'
-    default:                     return '🔔'
+    case 'stage_changed':        return <GlassIcon icon="RefreshCw" variant="emerald" size={24} iconSize={12} ghost glow={false} />
+    case 'message_received':     return <GlassIcon icon="MessageCircle" variant="violet" size={24} iconSize={12} ghost glow={false} />
+    case 'application_received': return <GlassIcon icon="FileText" variant="blue" size={24} iconSize={12} ghost glow={false} />
+    case 'feedback_reminder':    return <GlassIcon icon="CheckCircle" variant="emerald" size={24} iconSize={12} ghost glow={false} />
+    default:                     return <GlassIcon icon="Bell" variant="gray" size={24} iconSize={12} ghost glow={false} />
   }
 }
 
@@ -53,10 +66,7 @@ export function NotificationBell() {
         className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         aria-label="Notifications"
       >
-        <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
+        <Bell className="w-5 h-5 text-gray-600 dark:text-[#b0a8d8]" strokeWidth={2} />
 
         {/* Badge with pulse ring */}
         {unreadCount > 0 && (
@@ -99,12 +109,12 @@ export function NotificationBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -5, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-12 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 z-40 overflow-hidden"
+            className="absolute right-0 top-12 w-80 bg-white dark:bg-[#1a1730] rounded-2xl shadow-xl border border-gray-200 dark:border-[#2a2550] z-40 overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#2a2550]">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Notifications</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-[#ede9ff] text-sm">Notifications</h3>
                 {unreadCount > 0 && (
                   <span style={{
                     fontSize: 10,
@@ -132,7 +142,7 @@ export function NotificationBell() {
             <div className="max-h-80 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-800">
               {!notifications?.length ? (
                 <div className="py-10 text-center">
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🔔</div>
+                  <Bell className="mx-auto mb-2 opacity-20" size={32} />
                   <p className="text-sm text-gray-400">No notifications yet</p>
                 </div>
               ) : (
@@ -155,14 +165,14 @@ export function NotificationBell() {
                               style={{ width: 6, height: 6, borderRadius: '50%', background: '#7c3aed', boxShadow: '0 0 4px rgba(124,58,237,0.5)' }}
                             />
                           )}
-                          <p className={`text-xs font-semibold text-gray-800 dark:text-gray-200 ${!n.is_read ? '' : ''}`}>
+                          <p className={`text-xs font-semibold text-gray-800 dark:text-[#ede9ff] ${!n.is_read ? '' : ''}`}>
                             {n.title}
                           </p>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                        <p className="text-xs text-gray-500 dark:text-[#b0a8d8] mt-0.5 leading-snug">
                           {n.message}
                         </p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                        <p className="text-[10px] text-gray-400 dark:text-[#6b6393] mt-1">
                           {timeAgo(n.created_at)}
                         </p>
                       </div>
@@ -173,7 +183,7 @@ export function NotificationBell() {
             </div>
 
             {/* Footer — View All */}
-            <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-2.5">
+            <div className="border-t border-gray-100 dark:border-[#2a2550] px-4 py-2.5">
               <button
                 onClick={() => {
                   setOpen(false)
@@ -183,9 +193,9 @@ export function NotificationBell() {
                     : null
                   if (path) navigate(path)
                 }}
-                className="w-full text-center text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors py-0.5"
+                className="w-full text-center text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors py-0.5 flex items-center justify-center gap-1"
               >
-                View all notifications →
+                View all notifications <GlassIcon icon="ArrowRight" variant="violet" size={16} iconSize={10} ghost glow={false} />
               </button>
             </div>
           </motion.div>

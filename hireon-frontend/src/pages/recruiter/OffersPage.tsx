@@ -12,12 +12,15 @@ import { Card } from '@/components/ui/Card'
 import { OfferStatusBadge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { formatDate, formatSalary } from '@/utils/formatters'
+import { GenerateOfferModal } from '@/components/recruiter/GenerateOfferModal'
+import { FileText, Download } from 'lucide-react'
 
 function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
   return (
@@ -143,7 +146,7 @@ function CreateOfferModal({ onClose, onSuccess }: { onClose: () => void; onSucce
             </div>
           </div>
 
-          <div className="md:col-span-2 h-px bg-gray-100 dark:bg-gray-800 my-2" />
+          <div className="md:col-span-2 h-px bg-gray-100 dark:bg-[#1e1a35] my-2" />
 
           <div className="md:col-span-2">
             <Input
@@ -229,6 +232,7 @@ export default function OffersPage() {
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [revokeTarget, setRevokeTarget] = useState<Offer | null>(null)
+  const [docxTarget, setDocxTarget] = useState<Offer | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -286,12 +290,12 @@ export default function OffersPage() {
     <div className="space-y-8 select-none">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight" style={{ fontFamily: "'Fraunces', serif" }}>
+        <header className="page-header !mb-0">
+          <h1 className="page-title">
             Offers
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">Draft, send, and track candidate offer letters in one place.</p>
-        </div>
+          <p className="page-subtitle">Draft, send, and track candidate offer letters in one place.</p>
+        </header>
         <Button 
           onClick={() => setShowCreate(true)}
           className="bg-gradient-to-r from-[#6c47ff] to-[#8b6bff] text-white shadow-lg shadow-violet-200 dark:shadow-none hover:scale-[1.02] active:scale-[0.98] transition-all"
@@ -306,17 +310,17 @@ export default function OffersPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Issued', value: stats.total, color: '#6c47ff', icon: '📝' },
-          { label: 'Accepted', value: stats.accepted, color: '#10b981', icon: '✅' },
-          { label: 'Pending', value: stats.pending, color: '#f59e0b', icon: '⏳' },
-          { label: 'Declined', value: stats.declined, color: '#ef4444', icon: '❌' },
+          { label: 'Total Issued', value: stats.total, icon: <GlassIcon icon="FileText" variant="violet" size={32} iconSize={14} glow={false} /> },
+          { label: 'Accepted', value: stats.accepted, icon: <GlassIcon icon="CheckCircle" variant="emerald" size={32} iconSize={14} glow={false} /> },
+          { label: 'Pending', value: stats.pending, icon: <GlassIcon icon="Clock" variant="amber" size={32} iconSize={14} glow={false} /> },
+          { label: 'Declined', value: stats.declined, icon: <GlassIcon icon="XCircle" variant="rose" size={32} iconSize={14} glow={false} /> },
         ].map((s) => (
-          <div key={s.label} className="bg-white dark:bg-gray-900/50 p-5 rounded-[24px] border border-gray-100 dark:border-gray-800 shadow-sm">
+          <div key={s.label} className="bg-white dark:bg-[#1a1730]/50 p-5 rounded-[24px] border border-gray-100 dark:border-[#2a2550] shadow-sm">
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-xl">{s.icon}</span>
+              {s.icon}
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{s.label}</span>
             </div>
-            <p className="text-2xl font-black text-gray-900 dark:text-white">{s.value}</p>
+            <p className="text-2xl font-black text-gray-900 dark:text-[#ede9ff]">{s.value}</p>
           </div>
         ))}
       </div>
@@ -324,7 +328,7 @@ export default function OffersPage() {
       {isLoading ? (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 w-full rounded-3xl bg-gray-50 dark:bg-gray-800 animate-pulse" />
+            <div key={i} className="h-24 w-full rounded-3xl bg-gray-50 dark:bg-[#1e1a35] animate-pulse" />
           ))}
         </div>
       ) : isError ? (
@@ -333,9 +337,11 @@ export default function OffersPage() {
         </div>
       ) : !offers?.length ? (
         <div className="py-20 flex flex-col items-center text-center">
-          <div className="w-20 h-20 bg-violet-50 dark:bg-violet-900/20 rounded-full flex items-center justify-center mb-6 text-3xl">📨</div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Offers Generated</h3>
-          <p className="text-gray-500 dark:text-gray-400 max-w-sm mb-8">Start your hiring process by creating a new offer letter for your top candidates.</p>
+          <div className="mb-6">
+            <GlassIcon icon="Send" variant="violet" size={80} iconSize={36} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-[#ede9ff] mb-2">No Offers Generated</h3>
+          <p className="text-gray-500 dark:text-[#b0a8d8] max-w-sm mb-8">Start your hiring process by creating a new offer letter for your top candidates.</p>
           <Button onClick={() => setShowCreate(true)} variant="outline">Create First Offer</Button>
         </div>
       ) : (
@@ -346,20 +352,20 @@ export default function OffersPage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="group bg-white dark:bg-gray-900 p-6 rounded-[28px] border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:border-violet-100 dark:hover:border-violet-900/40 transition-all duration-300"
+              className="group bg-white dark:bg-[#1a1730] p-6 rounded-[28px] border border-gray-100 dark:border-[#2a2550] shadow-sm hover:shadow-xl hover:border-violet-100 dark:hover:border-violet-900/40 transition-all duration-300"
             >
               <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                 {/* Main Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">{offer.position_title}</h3>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-[#ede9ff] truncate">{offer.position_title}</h3>
                     <OfferStatusBadge status={offer.status} />
                   </div>
                   
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-violet-500 font-bold">💰</span>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                      <GlassIcon icon="Banknote" variant="emerald" size={20} iconSize={10} glow={false} />
+                      <span className="text-sm font-bold text-gray-700 dark:text-[#ede9ff]">
                         {formatSalary(offer.base_salary, null, offer.salary_currency)}
                       </span>
                     </div>
@@ -380,14 +386,21 @@ export default function OffersPage() {
                   <button
                     onClick={() => generatePdfMutation.mutate(offer.id)}
                     disabled={generatePdfMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-violet-50 hover:text-violet-600 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 dark:text-[#b0a8d8] bg-gray-50 dark:bg-[#1e1a35] rounded-xl hover:bg-violet-50 hover:text-violet-600 transition-colors"
                   >
                     {generatePdfMutation.isPending && generatePdfMutation.variables === offer.id ? (
                       <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <span>📄</span>
+                      <GlassIcon icon="FileText" variant="gray" size={20} iconSize={10} glow={false} />
                     )}
                     Generate PDF
+                  </button>
+
+                  <button
+                    onClick={() => setDocxTarget(offer)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl hover:bg-emerald-100 transition-colors"
+                  >
+                    <Download size={14} /> Download DOCX
                   </button>
 
                   {offer.status === 'draft' && (
@@ -439,6 +452,14 @@ export default function OffersPage() {
             setShowCreate(false)
             showToast('Offer created successfully!')
           }}
+        />
+      )}
+
+      {docxTarget && (
+        <GenerateOfferModal
+          onClose={() => setDocxTarget(null)}
+          candidate={{ full_name: '' } as any} // Will be filled in the form
+          application={{ job: { title: docxTarget.position_title } } as any}
         />
       )}
 

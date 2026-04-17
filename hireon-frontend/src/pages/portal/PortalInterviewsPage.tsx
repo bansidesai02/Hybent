@@ -1,7 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import type { Interview } from '@/types'
+import { CheckCircle, User, Clock, Video, MapPin, Target, Calendar, Check, FileText } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 function isToday(dateStr: string): boolean {
   const d = new Date(dateStr)
@@ -42,17 +44,33 @@ function InterviewCard({ interview }: { interview: Interview }) {
       
       <div className="int-info">
         <div className="int-title">{interview.title}</div>
-        <div className="int-round">{interview.interview_type.replace(/_/g, ' ')} · {interview.duration_minutes} min {interview.status !== 'scheduled' && `· Completed ✅`}</div>
+        <div className="int-round" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {interview.interview_type.replace(/_/g, ' ')} · {interview.duration_minutes} min 
+          {interview.status !== 'scheduled' && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--green)' }}>
+              · Completed <CheckCircle size={12} />
+            </span>
+          )}
+        </div>
         
         <div className="int-meta">
-          <div className="int-meta-item">👤 <span>Panel: {panelists}</span></div>
-          <div className="int-meta-item">⏱️ <span>{interview.duration_minutes} minutes</span></div>
+          <div className="int-meta-item">
+            <User size={12} /> <span>Panel: {panelists}</span>
+          </div>
+          <div className="int-meta-item">
+            <Clock size={12} /> <span>{interview.duration_minutes} minutes</span>
+          </div>
         </div>
 
         {interview.meeting_link && interview.status === 'scheduled' ? (
-          <div className="int-link">🎥 <a href={interview.meeting_link} target="_blank" rel="noreferrer">Join Meeting</a></div>
+          <div className="int-link">
+            <Video size={14} /> 
+            <a href={interview.meeting_link} target="_blank" rel="noreferrer">Join Meeting</a>
+          </div>
         ) : interview.location && interview.status === 'scheduled' ? (
-          <div className="int-link">📍 {interview.location}</div>
+          <div className="int-link">
+            <MapPin size={14} /> {interview.location}
+          </div>
         ) : null}
 
         {interview.notes && (
@@ -70,11 +88,17 @@ function InterviewCard({ interview }: { interview: Interview }) {
                 Join Meet
               </a>
             )}
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/portal/prep')}>🎯 Prep Kit</button>
+            <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => navigate('/portal/prep')}>
+              <Target size={14} /> Prep Kit
+            </button>
           </>
         ) : (
           <>
-            {isPassed && <span className="chip chip-green" style={{ fontSize: 11 }}>Passed ✓</span>}
+            {isPassed && (
+              <span className="chip chip-green" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                Passed <Check size={11} />
+              </span>
+            )}
             {isFailed && <span className="chip chip-gray" style={{ fontSize: 11 }}>{interview.status}</span>}
           </>
         )}
@@ -102,7 +126,7 @@ export default function PortalInterviewsPage() {
       <div className="ph">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div className="pt">My Interview Schedule 📅</div>
+            <div className="pt" style={{ display: 'flex', alignItems: 'center', gap: 10 }}> My Interview Schedule <GlassIcon icon="Calendar" variant="violet" size={28} iconSize={14} /></div>
             <div className="ps">All your upcoming and past interviews in one place.</div>
           </div>
           {todayInterviews.length > 0 && <span className="chip chip-teal"><span className="chd"></span>{todayInterviews.length} Interview{todayInterviews.length > 1 ? 's' : ''} Today</span>}
@@ -115,7 +139,9 @@ export default function PortalInterviewsPage() {
         <div className="py-8 text-center" style={{ color: 'var(--red)' }}>Failed to load interviews.</div>
       ) : !interviews?.length ? (
         <div className="py-12 text-center" style={{ color: 'var(--text-lite)' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📅</div>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+            <GlassIcon icon="Calendar" variant="violet" size={60} iconSize={28} />
+          </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>No interviews scheduled</div>
           <div style={{ fontSize: 13 }}>When an interviewer schedules you, it will appear here.</div>
         </div>

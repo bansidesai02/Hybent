@@ -7,6 +7,8 @@ import { interviewsApi } from '@/api/interviews'
 import { candidatesApi } from '@/api/candidates'
 import type { Interview } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { FileText, CheckCircle, BarChart2, Inbox, Sparkles, X, Plus, Check, Clock, Link as LinkIcon, AlertTriangle, XCircle, Layout } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function isToday(dateStr: string) {
@@ -101,11 +103,11 @@ function ResumeModal({
                 onClick={onClose}
                 style={{
                   width: 32, height: 32, borderRadius: 8, border: 'none',
-                  background: '#f5f5f5', cursor: 'pointer', fontSize: 16,
+                  background: '#f5f5f5', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666',
                 }}
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
@@ -133,8 +135,12 @@ function ResumeModal({
                       style={{
                         padding: '7px 14px', borderRadius: 8, background: '#6c47ff',
                         color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                        display: 'flex', alignItems: 'center', gap: 6
                       }}
                     >
+                      <div className="logo-box">
+                        <Layout size={14} color="white" strokeWidth={3} />
+                      </div>
                       Open in new tab ↗
                     </a>
                   </div>
@@ -145,8 +151,8 @@ function ResumeModal({
                   />
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '52px 0', color: '#aaa' }}>
-                  <div style={{ fontSize: 38, marginBottom: 12 }}>📄</div>
+                <div style={{ textAlign: 'center', padding: '52px 0', color: '#aaa', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <GlassIcon icon="FileText" variant="gray" size={60} iconSize={28} glow={false} />
                   <p style={{ fontWeight: 700, color: '#333', fontSize: 15 }}>No resume uploaded</p>
                   <p style={{ fontSize: 12, marginTop: 4 }}>This candidate hasn't uploaded a resume yet.</p>
                 </div>
@@ -257,7 +263,7 @@ function InterviewCard({
               marginTop: 4
             }}
           >
-            <span style={{ fontSize: 14 }}>🔗</span>
+            <LinkIcon size={14} />
             {interview.meeting_link.replace(/^https?:\/\//, '')}
           </a>
         )}
@@ -300,19 +306,19 @@ function InterviewCard({
                 style={{
                   padding: '9px 24px', borderRadius: 10, background: '#16a34a',
                   color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
-                  cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6,
+                  cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 10,
                   boxShadow: '0 4px 12px rgba(22,163,74,0.2)',
                 }}
               >
-                ✓ Confirm
+                <Check size={16} /> Confirm
               </motion.button>
             )}
             {interview.is_confirmed && (
               <div style={{
                 padding: '6px 12px', borderRadius: 10, background: 'rgba(22,163,74,0.1)',
-                color: '#16a34a', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 5
+                color: '#16a34a', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6
               }}>
-                <span style={{ fontSize: 14 }}>✅</span> Confirmed
+                <CheckCircle size={14} /> Confirmed
               </div>
             )}
           </>
@@ -324,10 +330,10 @@ function InterviewCard({
               padding: '10px 24px', borderRadius: 12, background: '#3b82f6',
               color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
               cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
-              display: 'flex', alignItems: 'center', gap: 6
+              display: 'flex', alignItems: 'center', gap: 12
             }}
           >
-            📊 Scorecard
+            <BarChart2 size={16} /> Scorecard
           </motion.button>
         )}
 
@@ -460,7 +466,7 @@ export default function MyInterviewsPage() {
             fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 12,
             margin: 0
           }}>
-            <span style={{ fontSize: 32 }}>📥</span> My Interview Queue
+            My Interview Queue <GlassIcon icon="Inbox" variant="violet" size={36} iconSize={18} />
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-mid)', marginTop: 8, fontWeight: 500 }}>
             Your assigned interviews today — confirm, reschedule or jump into the live room.
@@ -525,7 +531,7 @@ export default function MyInterviewsPage() {
           borderRadius: 16, padding: '20px', fontSize: 14, color: '#dc2626',
           fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10
         }}>
-          <span>⚠️</span> Failed to load interviews. Please refresh the page.
+          <AlertTriangle size={18} /> Failed to load interviews. Please refresh the page.
         </div>
       )}
 
@@ -570,9 +576,10 @@ export default function MyInterviewsPage() {
             <div style={{
               textAlign: 'center', padding: '80px 20px',
               color: 'var(--text-mid)', fontSize: 15,
-              background: 'var(--card-bg)', border: '1px dashed var(--card-border)', borderRadius: 24
+              background: 'var(--card-bg)', border: '1px dashed var(--card-border)', borderRadius: 24,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12
             }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>✨</div>
+              <GlassIcon icon="Sparkles" variant="emerald" size={60} iconSize={28} glow={false} />
               <p style={{ fontWeight: 800, color: 'var(--text)', fontSize: 18 }}>No interviews assigned today</p>
               <p style={{ fontSize: 14, marginTop: 6, opacity: 0.7 }}>Enjoy your day — we'll notify you when new ones are scheduled!</p>
             </div>

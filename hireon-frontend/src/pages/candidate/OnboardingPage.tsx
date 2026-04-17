@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { invitationsApi } from '@/api/invitations'
 import { Button } from '@/components/ui/Button'
@@ -60,15 +61,13 @@ export default function OnboardingPage() {
 
     if (isAuthenticated && user?.role !== 'candidate') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#1a1730] p-4">
                 <Card className="max-w-md w-full p-8 text-center border-amber-200 bg-amber-50/50">
                     <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
+                        <AlertTriangle size={32} />
                     </div>
                     <h2 className="text-xl font-bold mb-2 text-gray-900">Logout Required</h2>
-                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    <p className="text-gray-600 dark:text-[#b0a8d8] mb-6">
                         You are currently logged in as a <strong>{user?.role || 'user'}</strong>. To accept this invitation as a candidate, please log out first.
                     </p>
                     <div className="space-y-3">
@@ -86,7 +85,7 @@ export default function OnboardingPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#1a1730]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600"></div>
             </div>
         )
@@ -94,7 +93,7 @@ export default function OnboardingPage() {
 
     if (error) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#1a1730] p-4">
                 <Card className="max-w-md w-full p-8 text-center">
                     <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,7 +101,7 @@ export default function OnboardingPage() {
                         </svg>
                     </div>
                     <h2 className="text-xl font-bold mb-2">Invitation Error</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mb-6">{error}</p>
+                    <p className="text-gray-500 dark:text-[#b0a8d8] mb-6">{error}</p>
                     <Button onClick={() => navigate('/')} variant="outline" className="w-full">
                         Back to Home
                     </Button>
@@ -123,7 +122,7 @@ export default function OnboardingPage() {
     `
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#1a1730] p-4">
             <style>{CSS}</style>
             <Card className="max-w-xl w-full p-10">
                 <div className="text-center mb-10">
@@ -142,13 +141,13 @@ export default function OnboardingPage() {
                     </div>
 
                     <h1 className="text-2xl font-bold mb-2">Welcome, {invitation?.full_name}!</h1>
-                    <p className="text-gray-500 dark:text-gray-400">
+                    <p className="text-gray-500 dark:text-[#b0a8d8]">
                         You've been invited by a team member to join our candidate portal.
                         Set your account password to get started.
                     </p>
                 </div>
 
-                <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-[#2a2550]">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Invited Email</label>
@@ -162,7 +161,7 @@ export default function OnboardingPage() {
 
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Set Password</label>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-[#b0a8d8] mb-1">Set Password</label>
                             <Input
                                 type="password"
                                 placeholder="Min. 6 characters"
@@ -172,7 +171,7 @@ export default function OnboardingPage() {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Confirm Password</label>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-[#b0a8d8] mb-1">Confirm Password</label>
                             <Input
                                 type="password"
                                 placeholder="Repeat password"

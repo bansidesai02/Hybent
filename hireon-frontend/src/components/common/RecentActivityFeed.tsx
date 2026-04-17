@@ -3,16 +3,17 @@ import { useQuery } from '@tanstack/react-query'
 import { activitiesApi } from '@/api/activities'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/store/authStore'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
-const ACTIVITY_CONFIG: Record<string, { icon: string; bg: string }> = {
-  CREATE:          { icon: '➕', bg: 'rgba(16, 185, 129, 0.1)' },
-  UPDATE_STAGE:    { icon: '📈', bg: 'rgba(108, 71, 255, 0.1)' },
-  SCHEDULE:        { icon: '📅', bg: 'rgba(108, 71, 255, 0.1)' },
-  OFFER_SENT:      { icon: '📨', bg: 'rgba(251, 191, 36, 0.1)' },
-  OFFER_RESPONDED: { icon: '🤝', bg: 'rgba(59, 130, 246, 0.1)' },
-  INVITE:          { icon: '✉️', bg: 'rgba(255, 107, 198, 0.1)' },
-  VIEW:            { icon: '👁️', bg: 'rgba(124, 58, 237, 0.1)' },
-  default:         { icon: '🔔', bg: 'rgba(108, 71, 255, 0.1)' },
+const ACTIVITY_CONFIG: Record<string, { icon: React.ReactNode; bg: string }> = {
+  CREATE:          { icon: <GlassIcon icon="Plus" variant="emerald" size={32} iconSize={14} glow={false} />, bg: 'rgba(16, 185, 129, 0.1)' },
+  UPDATE_STAGE:    { icon: <GlassIcon icon="RefreshCw" variant="violet" size={32} iconSize={14} glow={false} />, bg: 'rgba(108, 71, 255, 0.1)' },
+  SCHEDULE:        { icon: <GlassIcon icon="Calendar" variant="violet" size={32} iconSize={14} glow={false} />, bg: 'rgba(108, 71, 255, 0.1)' },
+  OFFER_SENT:      { icon: <GlassIcon icon="Send" variant="amber" size={32} iconSize={14} glow={false} />, bg: 'rgba(251, 191, 36, 0.1)' },
+  OFFER_RESPONDED: { icon: <GlassIcon icon="Handshake" variant="blue" size={32} iconSize={14} glow={false} />, bg: 'rgba(59, 130, 246, 0.1)' },
+  INVITE:          { icon: <GlassIcon icon="Mail" variant="pink" size={32} iconSize={14} glow={false} />, bg: 'rgba(255, 107, 198, 0.1)' },
+  VIEW:            { icon: <GlassIcon icon="Eye" variant="indigo" size={32} iconSize={14} glow={false} />, bg: 'rgba(124, 58, 237, 0.1)' },
+  default:         { icon: <GlassIcon icon="Bell" variant="violet" size={32} iconSize={14} glow={false} />, bg: 'rgba(108, 71, 255, 0.1)' },
 }
 
 function buildLabel(
@@ -24,7 +25,7 @@ function buildLabel(
 
   if (resource_type === 'candidate' && action === 'VIEW') {
     return {
-      title: isCandidate ? 'Someone viewed your profile 👁️' : `Profile Viewed — ${details?.name ?? ''}`,
+      title: isCandidate ? 'Someone viewed your profile' : `Profile Viewed — ${details?.name ?? ''}`,
       sub: isCandidate ? 'A recruiter is reviewing your details.' : `Candidate profile was accessed${authorSuffix}`
     }
   }
@@ -43,18 +44,18 @@ function buildLabel(
       title: isCandidate ? 'Stage Updated' : `Pipeline Update — ${details?.name ?? ''}`,
       sub: isCandidate
         ? `Your status moved to ${details?.to ?? '—'}`
-        : `${details?.from ?? '—'} → ${details?.to ?? '—'}${authorSuffix}`
+        : `${details?.from ?? '—'} to ${details?.to ?? '—'}${authorSuffix}`
     }
   }
   if (action === 'SCHEDULE') {
     return {
-      title: isCandidate ? 'Interview Scheduled 📅' : `Interview Scheduled — ${details?.candidate ?? ''}`,
+      title: isCandidate ? 'Interview Scheduled' : `Interview Scheduled — ${details?.candidate ?? ''}`,
       sub: isCandidate ? `Check your interviews for: ${details?.title ?? ''}` : `${details?.title ?? ''}${authorSuffix}`
     }
   }
   if (action === 'OFFER_SENT') {
     return {
-      title: isCandidate ? 'New Offer Received! 🎉' : `Offer Sent — ${details?.position ?? ''}`,
+      title: isCandidate ? 'New Offer Received!' : `Offer Sent — ${details?.position ?? ''}`,
       sub: isCandidate ? 'Check your offers section for details.' : `Awaiting response${authorSuffix}`
     }
   }
@@ -99,7 +100,9 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
   if (isError || activities.length === 0) {
     return (
       <div className="py-10 text-center">
-        <span className="text-2xl mb-2 block">📭</span>
+        <div className="flex justify-center mb-4">
+          <GlassIcon icon="Inbox" variant="violet" size={48} iconSize={20} glow={false} />
+        </div>
         <p className="text-[13px] font-medium text-[var(--text-light)]">
           {isError ? 'Could not load activity.' : 'No recent activity to show.'}
         </p>

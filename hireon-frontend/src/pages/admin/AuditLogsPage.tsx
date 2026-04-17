@@ -5,28 +5,35 @@ import { adminApi } from '@/api/admin'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatDateTime } from '@/utils/formatters'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 // ─── Action styling ───────────────────────────────────────────────────────────
-const ACTION_STYLE: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-  CREATE:       { bg: 'rgba(16,185,129,0.10)',  color: '#059669', icon: '✦', label: 'Created' },
-  UPDATE:       { bg: 'rgba(59,130,246,0.10)',  color: '#2563eb', icon: '✎', label: 'Edited' },
-  UPDATE_STAGE: { bg: 'rgba(108,71,255,0.10)',  color: '#6c47ff', icon: '⇄', label: 'Stage Change' },
-  SCHEDULE:     { bg: 'rgba(108,71,255,0.10)',  color: '#6c47ff', icon: '📅', label: 'Scheduled' },
-  RESCHEDULE:   { bg: 'rgba(245,158,11,0.12)',  color: '#d97706', icon: '🔄', label: 'Rescheduled' },
-  CANCEL:       { bg: 'rgba(239,68,68,0.10)',   color: '#dc2626', icon: '✕', label: 'Cancelled' },
-  DELETE:       { bg: 'rgba(239,68,68,0.12)',   color: '#b91c1c', icon: '🗑', label: 'Deleted' },
-  INVITE:       { bg: 'rgba(255,107,198,0.10)', color: '#db2777', icon: '✉', label: 'Invited' },
-  ADD_COMMENT:  { bg: 'rgba(20,184,166,0.10)',  color: '#0d9488', icon: '💬', label: 'Comment Added' },
-  LOGIN:        { bg: 'rgba(16,185,129,0.10)',  color: '#059669', icon: '→', label: 'Login' },
-  LOGOUT:       { bg: 'rgba(107,114,128,0.10)', color: '#6b7280', icon: '←', label: 'Logout' },
-  OFFER_SENT:   { bg: 'rgba(251,191,36,0.10)',  color: '#d97706', icon: '📨', label: 'Offer Sent' },
-  OFFER_RESPONDED: { bg: 'rgba(59,130,246,0.10)', color: '#2563eb', icon: '✔', label: 'Offer Response' },
+const ACTION_STYLE: Record<string, { bg: string; color: string; icon: React.ReactNode; label: string }> = {
+  CREATE:       { bg: 'rgba(16,185,129,0.10)',  color: '#059669', icon: <GlassIcon icon="Plus" variant="emerald" size={20} iconSize={10} glow={false} />, label: 'Created' },
+  UPDATE:       { bg: 'rgba(59,130,246,0.10)',  color: '#2563eb', icon: <GlassIcon icon="Edit2" variant="blue" size={20} iconSize={10} glow={false} />, label: 'Edited' },
+  UPDATE_STAGE: { bg: 'rgba(108,71,255,0.10)',  color: '#6c47ff', icon: <GlassIcon icon="RefreshCw" variant="violet" size={20} iconSize={10} glow={false} />, label: 'Stage Change' },
+  SCHEDULE:     { bg: 'rgba(108,71,255,0.10)',  color: '#6c47ff', icon: <GlassIcon icon="Calendar" variant="violet" size={20} iconSize={10} glow={false} />, label: 'Scheduled' },
+  RESCHEDULE:   { bg: 'rgba(245,158,11,0.12)',  color: '#d97706', icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} glow={false} />, label: 'Rescheduled' },
+  CANCEL:       { bg: 'rgba(239,68,68,0.10)',   color: '#dc2626', icon: <GlassIcon icon="X" variant="rose" size={20} iconSize={10} glow={false} />, label: 'Cancelled' },
+  DELETE:       { bg: 'rgba(239,68,68,0.12)',   color: '#b91c1c', icon: <GlassIcon icon="Trash2" variant="rose" size={20} iconSize={10} glow={false} />, label: 'Deleted' },
+  INVITE:       { bg: 'rgba(255,107,198,0.10)', color: '#db2777', icon: <GlassIcon icon="Mail" variant="pink" size={20} iconSize={10} glow={false} />, label: 'Invited' },
+  ADD_COMMENT:  { bg: 'rgba(20,184,166,0.10)',  color: '#0d9488', icon: <GlassIcon icon="MessageSquare" variant="teal" size={20} iconSize={10} glow={false} />, label: 'Comment Added' },
+  LOGIN:        { bg: 'rgba(16,185,129,0.10)',  color: '#059669', icon: <GlassIcon icon="LogIn" variant="emerald" size={20} iconSize={10} glow={false} />, label: 'Login' },
+  LOGOUT:       { bg: 'rgba(107,114,128,0.10)', color: '#6b7280', icon: <GlassIcon icon="LogOut" variant="gray" size={20} iconSize={10} glow={false} />, label: 'Logout' },
+  OFFER_SENT:   { bg: 'rgba(251,191,36,0.10)',  color: '#d97706', icon: <GlassIcon icon="Send" variant="amber" size={20} iconSize={10} glow={false} />, label: 'Offer Sent' },
+  OFFER_RESPONDED: { bg: 'rgba(59,130,246,0.10)', color: '#2563eb', icon: <GlassIcon icon="Check" variant="blue" size={20} iconSize={10} glow={false} />, label: 'Offer Response' },
 }
 
-const RESOURCE_ICON: Record<string, string> = {
-  job: '💼', candidate: '👤', interview: '📅', offer: '📝',
-  user: '👥', organization: '🏢', application: '📋',
-  hr_note: '🔒', comment: '💬',
+const RESOURCE_ICON: Record<string, React.ReactNode> = {
+  job: <GlassIcon icon="Briefcase" variant="violet" size={18} iconSize={10} glow={false} />, 
+  candidate: <GlassIcon icon="User" variant="violet" size={18} iconSize={10} glow={false} />, 
+  interview: <GlassIcon icon="Calendar" variant="violet" size={18} iconSize={10} glow={false} />, 
+  offer: <GlassIcon icon="FileText" variant="violet" size={18} iconSize={10} glow={false} />,
+  user: <GlassIcon icon="Users" variant="violet" size={18} iconSize={10} glow={false} />, 
+  organization: <GlassIcon icon="Building2" variant="violet" size={18} iconSize={10} glow={false} />, 
+  application: <GlassIcon icon="ClipboardList" variant="violet" size={18} iconSize={10} glow={false} />,
+  hr_note: <GlassIcon icon="Lock" variant="violet" size={18} iconSize={10} glow={false} />, 
+  comment: <GlassIcon icon="MessageSquare" variant="violet" size={18} iconSize={10} glow={false} />,
 }
 
 const ROLE_STYLE: Record<string, { bg: string; color: string }> = {
@@ -63,7 +70,7 @@ function buildDescription(log: any): string {
       return `Updated ${rt}${name ? ` — ${name}` : ''}`
 
     case 'UPDATE_STAGE':
-      return `Moved ${d.name || 'candidate'} from ${d.from || '?'} → ${d.to || '?'}`
+      return `Moved ${d.name || 'candidate'} from ${d.from || '?'} to ${d.to || '?'}`
 
     case 'SCHEDULE':
       return `Scheduled interview — ${d.title || ''}${name ? ` with ${name}` : ''}`
@@ -195,12 +202,15 @@ export default function AuditLogsPage() {
       {/* ── Search + Date Range ── */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Search input */}
-        <div style={{ display: 'flex', gap: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--table-border)', background: 'var(--kpi-bg)', flex: '1 1 200px', maxWidth: 300 }}>
+        <div style={{ display: 'flex', gap: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--table-border)', background: 'var(--kpi-bg)', flex: '1 1 200px', maxWidth: 300, alignItems: 'center' }}>
+          <div style={{ paddingLeft: 12, color: 'var(--violet)' }}>
+            <GlassIcon icon="Search" variant="violet" size={24} iconSize={12} glow={false} />
+          </div>
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="🔍  Search by user name…"
+            placeholder="Search by user name…"
             style={{ flex: 1, padding: '8px 12px', border: 'none', background: 'transparent', fontSize: 12, color: 'var(--text)', outline: 'none' }}
           />
           <button onClick={handleSearch} style={{ padding: '8px 14px', background: 'var(--violet)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>Go</button>
@@ -234,7 +244,7 @@ export default function AuditLogsPage() {
                 activeBg={as?.bg ?? 'rgba(108,71,255,0.10)'}
                 onClick={() => { setAction(a); setPage(1) }}
               >
-                {a ? `${as?.icon ?? ''} ${as?.label ?? a}` : 'All Actions'}
+                {a ? <div className="flex items-center gap-1.5">{as?.icon}{as?.label ?? a}</div> : 'All Actions'}
               </Pill>
             )
           })}
@@ -245,7 +255,7 @@ export default function AuditLogsPage() {
               activeColor="#059669" activeBg="rgba(16,185,129,0.08)"
               onClick={() => { setResourceType(r); setPage(1) }}
             >
-              {r ? `${RESOURCE_ICON[r] ?? ''} ${r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' ')}` : 'All Resources'}
+              {r ? <div className="flex items-center gap-1.5">{RESOURCE_ICON[r] ?? ''} {r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' ')}</div> : 'All Resources'}
             </Pill>
           ))}
         </div>
@@ -270,7 +280,9 @@ export default function AuditLogsPage() {
         </div>
       ) : !data?.items.length ? (
         <div style={{ padding: '60px 0', textAlign: 'center' }}>
-          <span style={{ fontSize: 40 }}>📋</span>
+          <div className="flex justify-center mb-4">
+            <GlassIcon icon="ClipboardList" variant="violet" size={60} iconSize={28} />
+          </div>
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginTop: 12 }}>No audit logs found</p>
           <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>
             {hasActiveFilters ? 'Try adjusting your filters' : 'Actions will be logged here automatically'}
@@ -318,13 +330,13 @@ export default function AuditLogsPage() {
                 >
                   {/* Action badge */}
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: as.bg, color: as.color, width: 'fit-content' }}>
-                    <span style={{ fontSize: 12 }}>{as.icon}</span>
+                    {as.icon}
                     {as.label}
                   </span>
 
                   {/* Resource */}
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)' }}>
-                    {RESOURCE_ICON[log.resource_type] ?? ''}{' '}
+                  <span className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)' }}>
+                    {RESOURCE_ICON[log.resource_type] ?? null}
                     {log.resource_type
                       ? (log.resource_type.charAt(0).toUpperCase() + log.resource_type.slice(1)).replace('_', ' ')
                       : '—'}

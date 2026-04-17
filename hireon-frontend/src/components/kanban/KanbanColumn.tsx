@@ -32,8 +32,8 @@ export function KanbanColumn({ stage, cards, onCardClick }: KanbanColumnProps) {
           className="w-2 h-2 rounded-full" 
           style={{ backgroundColor: config.color }} 
         />
-        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{config.label}</span>
-        <span className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full px-2 py-0.5 font-medium">
+        <span className="text-sm font-semibold text-gray-700 dark:text-[#b0a8d8]">{config.label}</span>
+        <span className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-[#b0a8d8] rounded-full px-2 py-0.5 font-medium">
           {cards.length}
         </span>
       </div>

@@ -13,7 +13,7 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function SkeletonCard() {
   return (
-    <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 space-y-3">
+    <div className="p-5 rounded-2xl border border-gray-200 dark:border-[#2a2550] space-y-3">
       <div className="flex items-center gap-3">
         <Skeleton className="w-10 h-10 rounded-full" />
         <div className="flex-1 space-y-2">

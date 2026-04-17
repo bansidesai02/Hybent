@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { talentPoolApi } from '@/api/talentPool'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import type { Candidate } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -16,6 +17,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Modal } from '@/components/ui/Modal'
 import { formatDate } from '@/utils/formatters'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
+import { ArrowRight, Check, Zap } from 'lucide-react'
 
 // ─── Abbreviation expansion map ──────────────────────────────────────────────
 // Maps shorthand/acronym → expanded search terms
@@ -81,9 +83,9 @@ function StatCard({ title, value, subtitle, icon, trend }: {
   trend?: { label: string; color: string }
 }) {
   return (
-    <Card className="relative overflow-hidden group border-none bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl shadow-sm hover:shadow-md transition-all duration-300">
+    <Card className="relative overflow-hidden group border-none bg-white dark:bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all duration-300">
       <div className="flex justify-between items-start">
-        <div className="p-3 bg-violet-100 dark:bg-violet-900/30 rounded-2xl text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform">
+        <div className="p-3 bg-violet-100 dark:bg-[var(--color-bg-sidebar)] rounded-2xl text-[var(--violet)] group-hover:scale-110 transition-transform">
           {icon}
         </div>
         {trend && (
@@ -93,10 +95,10 @@ function StatCard({ title, value, subtitle, icon, trend }: {
         )}
       </div>
       <div className="mt-4">
-        <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{value}</h3>
+        <h3 className="text-3xl font-black text-gray-900 dark:text-[var(--text)] tracking-tight">{value}</h3>
         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">{title}</p>
         <div className="mt-4 flex items-center justify-between">
-          <p className="text-[10px] text-gray-500 font-medium">{subtitle}</p>
+          <p className="text-[10px] text-gray-500 dark:text-[var(--text-mid)] font-medium">{subtitle}</p>
           <span className="text-[10px] text-emerald-500 font-bold px-2 py-0.5 bg-emerald-500/10 rounded-full">All time</span>
         </div>
       </div>
@@ -113,15 +115,15 @@ function SuggestedMatchItem({ candidate, jobTitle, highlightTerm }: {
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white/80 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-700/50 group hover:border-violet-200 dark:hover:border-violet-800/50 transition-all shadow-sm gap-4"
+      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-gray-100 dark:border-[var(--card-border)] group hover:border-[var(--violet)]/30 transition-all shadow-sm gap-4"
     >
       <div className="flex items-center gap-4 w-full">
-        <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" className="ring-2 ring-violet-100 dark:ring-violet-900/30 flex-shrink-0" />
+        <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" className="ring-2 ring-violet-100 dark:ring-[var(--violet)] flex-shrink-0" />
         <div className="min-w-0 flex-1">
-          <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-violet-600 transition-colors truncate">
-            {candidate.full_name} — {candidate.current_title}
+          <h4 className="font-bold text-gray-900 dark:text-[var(--text)] group-hover:text-[var(--violet)] transition-colors truncate">
+            {candidate.full_name} <ArrowRight size={12} className="inline mx-1 opacity-50" /> {candidate.current_title}
           </h4>
-          <p className="text-[11px] text-gray-400 mt-0.5">
+          <p className="text-[11px] text-gray-400 dark:text-[var(--text-mid)] mt-0.5">
             AI Score match for {jobTitle}: <span className="font-bold text-emerald-500">{candidate.match_score}%</span>
           </p>
           <div className="flex gap-1 mt-1.5 flex-wrap">
@@ -130,21 +132,21 @@ function SuggestedMatchItem({ candidate, jobTitle, highlightTerm }: {
               return (
                 <span key={s} className={`text-[9px] uppercase tracking-tighter px-2 py-0.5 rounded border font-bold transition-all ${
                   isMatch 
-                  ? "bg-violet-600 text-white border-violet-600 shadow-sm" 
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 border-gray-100 dark:border-gray-600"
+                  ? "bg-[var(--violet)] text-white border-[var(--violet)] shadow-sm" 
+                  : "bg-gray-100 dark:bg-[var(--card-bg)] text-gray-500 dark:text-[var(--text-mid)] border-gray-100 dark:border-[var(--card-border)]"
                 }`}>
                   {s}
                 </span>
               )
             })}
           </div>
-          <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1.5 font-bold uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
-            Added By: <span className="text-violet-600 dark:text-violet-400">{candidate.created_by_name || 'Admin'}</span>
+          <p className="text-[10px] text-gray-400 dark:text-[var(--text-mid)] mt-2 flex items-center gap-1.5 font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--violet)]"></span>
+            Added By: <span className="text-[var(--violet)]">{candidate.created_by_name || 'Admin'}</span>
           </p>
         </div>
       </div>
-      <Button size="sm" className="w-full max-w-[150px] bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black px-6 py-2.5 shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:scale-105 active:scale-95">
+      <Button size="sm" className="w-full max-w-[150px] bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-white rounded-xl text-xs font-black px-6 py-2.5 shadow-lg shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all hover:scale-105 active:scale-95">
         Re-engage
       </Button>
     </motion.div>
@@ -201,21 +203,23 @@ function ShortcutDropdown({ suggestions, onSelect }: {
   return (
     <motion.div
       initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-      className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 border border-violet-100 dark:border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden"
+      className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[var(--card-bg)] border border-violet-100 dark:border-[var(--card-border)] rounded-2xl shadow-2xl z-50 overflow-hidden"
     >
-      <div className="p-2 border-b border-gray-100 dark:border-gray-800 px-4 py-2">
-        <span className="text-[10px] font-black uppercase tracking-widest text-violet-500">⚡ Shortcuts</span>
+      <div className="p-2 border-b border-gray-100 dark:border-[var(--card-border)] px-4 py-2">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--violet)] flex items-center gap-1">
+          <Zap size={10} fill="currentColor" /> Shortcuts
+        </span>
       </div>
       {suggestions.map(({ shortcut, expanded }) => (
         <button
           key={shortcut}
           onClick={() => onSelect(expanded)}
-          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors group"
+          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-violet-50 dark:hover:bg-[var(--violet)]/10 transition-colors group"
         >
-          <span className="font-black text-violet-600 text-xs bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-lg min-w-[40px] text-center">
+          <span className="font-black text-[var(--violet)] text-xs bg-violet-100 dark:bg-[var(--violet-10)] px-2 py-0.5 rounded-lg min-w-[40px] text-center">
             {shortcut}
           </span>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-violet-700 dark:group-hover:text-violet-300">
+          <span className="text-sm font-medium text-gray-700 dark:text-[var(--text-mid)] group-hover:text-[var(--violet)] dark:group-hover:text-[var(--violet)]">
             {expanded}
           </span>
         </button>
@@ -335,21 +339,21 @@ export default function TalentPoolPage() {
     <div className="max-w-7xl mx-auto space-y-10 pb-20">
       {/* Header */}
       <div className="px-4 md:px-0">
-        <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight" style={{ fontFamily: "'Fraunces', serif" }}>
+        <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-[var(--text)] tracking-tight" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
           Talent Database
         </h1>
-        <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-2 font-medium">
+        <p className="text-sm md:text-base text-gray-500 dark:text-[var(--text-mid)] mt-2 font-medium">
           All candidates ever assessed — searchable and re-matchable forever.
         </p>
       </div>
 
       {/* ── Smart Search ── */}
-      <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-2xl p-6 rounded-3xl border border-white dark:border-gray-800 shadow-xl shadow-gray-200/50 dark:shadow-none space-y-5">
+      <div className="bg-white dark:bg-[var(--card-bg)] p-6 rounded-3xl border border-gray-100 dark:border-[var(--card-border)] shadow-xl shadow-gray-200/50 dark:shadow-none space-y-5">
         {/* Search bar with autocomplete */}
         <div className="flex gap-4">
           <div className="flex-1 relative group" ref={searchRef}>
             {/* Search icon */}
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-violet-500 z-10">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--violet)] z-10">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -367,15 +371,15 @@ export default function TalentPoolPage() {
                 if (e.key === 'Escape') setDropdownOpen(false)
               }}
               placeholder="Try: BDE, SDE, MERN, or type a skill / name…"
-              className="w-full pl-12 pr-4 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 h-14 text-base rounded-2xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all text-gray-900 dark:text-white"
+              className="w-full pl-12 pr-4 bg-gray-50 dark:bg-[var(--color-bg-sidebar)] border border-gray-100 dark:border-[var(--card-border)] h-14 text-base rounded-2xl focus:outline-none focus:ring-2 focus:ring-[var(--violet)] focus:border-transparent transition-all text-gray-900 dark:text-[var(--text)]"
               style={{ fontSize: 15 }}
             />
 
             {/* Expanded shortcut indicator */}
             {search && search !== searchInput && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-violet-500 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
-                  ⚡ {search}
+                <span className="text-[10px] font-bold text-[var(--violet)] bg-violet-50 dark:bg-[var(--violet-25)] px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Zap size={10} fill="currentColor" /> {search}
                 </span>
               </div>
             )}
@@ -390,15 +394,15 @@ export default function TalentPoolPage() {
 
           <button
             onClick={handleSearchSubmit}
-            className="h-14 px-8 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-bold shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:scale-[1.02] text-sm"
+            className="h-14 px-8 bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-white rounded-2xl font-bold shadow-lg shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all hover:scale-[1.02] text-sm"
           >
             Search Talent DB
           </button>
         </div>
 
         {/* Hint text for shortcuts */}
-        <p className="text-[11px] text-gray-400 font-medium">
-          ⚡ <strong>Shortcuts:</strong> Type <span className="text-violet-500 font-bold">BDE</span> → Business Development Executive, <span className="text-violet-500 font-bold">SDE</span> → Software Development Engineer, <span className="text-violet-500 font-bold">DS</span> → Data Scientist, and more.
+        <p className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+          <GlassIcon icon="Zap" variant="violet" size={24} iconSize={12} /> <strong>Shortcuts:</strong> Type <span className="text-[var(--violet)] font-bold">BDE</span> <ArrowRight size={10} className="inline mx-0.5" /> Business Development Executive, <span className="text-[var(--violet)] font-bold">SDE</span> <ArrowRight size={10} className="inline mx-0.5" /> Software Development Engineer, <span className="text-[var(--violet)] font-bold">DS</span> <ArrowRight size={10} className="inline mx-0.5" /> Data Scientist, and more.
         </p>
 
         {/* Active Jobs filter chips */}
@@ -420,13 +424,18 @@ export default function TalentPoolPage() {
                   onClick={() => handleJobChip(job.title)}
                   className={`px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
                     selectedJobTitle === job.title
-                      ? 'bg-violet-600 text-white border-violet-600 shadow-md shadow-violet-200'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200'
+                      ? 'bg-[var(--violet)] text-white border-[var(--violet)] shadow-md shadow-violet-200'
+                      : 'bg-gray-100 dark:bg-[var(--card-bg)] text-gray-500 dark:text-[var(--text-mid)] border-gray-200 dark:border-[var(--card-border)] hover:bg-violet-50 hover:text-[var(--violet)] hover:border-violet-200'
                   }`}
                 >
-                  💼 {job.title}
+                  <div className="flex items-center gap-2">
+                    <GlassIcon icon="Briefcase" variant="violet" size={18} iconSize={10} glow={false} />
+                    <span>{job.title}</span>
+                  </div>
                   {selectedJobTitle === job.title && (
-                    <span className="ml-1 bg-white/30 px-1 rounded">✓</span>
+                    <span className="ml-1 bg-white/30 px-1 rounded flex items-center justify-center">
+                      <Check size={10} strokeWidth={3} />
+                    </span>
                   )}
                 </button>
               ))}
@@ -460,13 +469,13 @@ export default function TalentPoolPage() {
       </div>
 
       {/* Suggested Matches */}
-      <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-2xl rounded-3xl border border-white dark:border-gray-800 shadow-xl overflow-hidden p-8 space-y-6">
+      <div className="bg-white dark:bg-[var(--card-bg)] rounded-3xl border border-gray-100 dark:border-[var(--card-border)] shadow-xl overflow-hidden p-8 space-y-6">
         <div className="flex justify-between items-center sm:items-end flex-wrap gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-[var(--text)] flex items-center gap-2">
               Recent DB Matches
               {currentJobSuggestions?.job_title && (
-                <> — <span className="text-violet-600">{currentJobSuggestions.job_title}</span></>
+                <> — <span className="text-[var(--violet)]">{currentJobSuggestions.job_title}</span></>
               )}
             </h2>
             {hasRealSuggestions && (
@@ -477,8 +486,8 @@ export default function TalentPoolPage() {
                     onClick={() => setSelectedJobIndex(idx)}
                     className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all border ${
                       selectedJobIndex === idx
-                      ? "bg-violet-600 text-white border-violet-600 shadow-sm"
-                      : "bg-white dark:bg-gray-800 text-gray-400 border-gray-100 dark:border-gray-700 hover:border-violet-200"
+                      ? "bg-[var(--violet)] text-white border-[var(--violet)] shadow-sm"
+                      : "bg-white dark:bg-[var(--card-bg)] text-gray-400 dark:text-[var(--text-mid)] border-gray-100 dark:border-[var(--card-border)] hover:border-violet-200"
                     }`}
                   >
                     {s.job_title}
@@ -488,7 +497,7 @@ export default function TalentPoolPage() {
             )}
           </div>
           {!suggestionsLoading && hasRealSuggestions && (
-            <span className="text-xs font-bold text-violet-500 bg-violet-500/10 px-3 py-1 rounded-full">
+            <span className="text-xs font-bold text-[var(--violet)] bg-[var(--violet)]/10 px-3 py-1 rounded-full">
               {currentJobSuggestions?.candidates?.length ?? 0} found
             </span>
           )}
@@ -521,10 +530,10 @@ export default function TalentPoolPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-end flex-wrap gap-2">
           <div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-[var(--text)]">
               All Talent
               {(search || selectedJobTitle) && (
-                <span className="ml-3 text-base font-medium text-violet-500">
+                <span className="ml-3 text-base font-medium text-[var(--violet)]">
                   — filtered by "{selectedJobTitle || search}"
                 </span>
               )}
@@ -538,7 +547,7 @@ export default function TalentPoolPage() {
         {isLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="p-6 rounded-3xl bg-white/20 dark:bg-gray-800/20 border border-gray-100 dark:border-gray-800 space-y-4">
+              <div key={i} className="p-6 rounded-3xl bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] space-y-4">
                 <Skeleton className="w-12 h-12 rounded-full" />
                 <Skeleton className="h-6 w-48" />
                 <Skeleton className="h-4 w-32" />
@@ -552,13 +561,13 @@ export default function TalentPoolPage() {
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {data.items.map((candidate, i) => (
               <motion.div key={candidate.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card hover className="p-6 rounded-3xl border-none shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all bg-white dark:bg-gray-900 group flex flex-col h-full">
+                <Card hover className="p-6 rounded-3xl border-none shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all bg-white dark:bg-[var(--card-bg)] group flex flex-col h-full">
                   <div className="flex justify-between items-start">
-                    <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" className="ring-4 ring-violet-50 dark:ring-violet-900/20" />
+                    <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" className="ring-4 ring-violet-50 dark:ring-[var(--violet)]/20" />
                     <ScoreRing score={candidate.match_score} size={56} strokeWidth={4} />
                   </div>
                   <div className="mt-4">
-                    <h3 className="text-lg font-bold text-violet-600 dark:text-violet-400 group-hover:text-violet-700 transition-colors">{candidate.full_name}</h3>
+                    <h3 className="text-lg font-bold text-[var(--violet)] group-hover:text-[var(--violet)]/80 transition-colors">{candidate.full_name}</h3>
                     <p className="text-sm font-medium text-gray-400 mt-0.5">{candidate.current_title || "Full Stack Developer"}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -569,7 +578,7 @@ export default function TalentPoolPage() {
                     </div>
                   </div>
                   <div className="mt-4">
-                    <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider line-clamp-2">
+                    <p className="text-[11px] font-bold text-gray-500 dark:text-[var(--text-mid)] uppercase tracking-wider line-clamp-2">
                       {candidate.skills?.length > 0 ? candidate.skills.join(' • ') : "NO SKILLS LISTED"}
                     </p>
                   </div>
@@ -586,30 +595,30 @@ export default function TalentPoolPage() {
                   
                   {/* Added By Name */}
                   <div className="mt-4 flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                      <svg className="w-3 h-3 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="w-5 h-5 rounded-full bg-violet-100 dark:bg-[var(--violet)]/10 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-[var(--violet)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      Added By: <span className="text-violet-600 dark:text-violet-400 ml-1">{candidate.created_by_name || 'Admin'}</span>
+                      Added By: <span className="text-[var(--violet)] ml-1">{candidate.created_by_name || 'Admin'}</span>
                     </p>
                   </div>
 
                   {candidate.talent_pool_comment && (
-                    <div className="mt-6 p-3 bg-violet-50 dark:bg-violet-900/20 rounded-xl">
-                      <p className="text-[11px] font-medium text-violet-800 dark:text-violet-300 italic line-clamp-3">{candidate.talent_pool_comment}</p>
+                    <div className="mt-6 p-3 bg-violet-50 dark:bg-[var(--violet)]/10 rounded-xl">
+                      <p className="text-[11px] font-medium text-violet-800 dark:text-[var(--violet)]/70 italic line-clamp-3">{candidate.talent_pool_comment}</p>
                     </div>
                   )}
                   <div className="mt-auto pt-6 flex flex-col gap-2">
-                    <Button variant="outline" className="w-full rounded-2xl text-xs font-bold text-violet-600 border border-violet-100 dark:border-violet-900/50 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors duration-200"
+                    <button className="w-full rounded-2xl text-xs font-bold text-[var(--violet)] border border-violet-100 dark:border-[var(--violet)]/20 hover:bg-violet-50 dark:hover:bg-[var(--violet)]/10 transition-colors duration-200"
                       onClick={() => setCommentTarget(candidate)} style={{ height: '44px' }}>
                       {candidate.talent_pool_comment ? 'Edit Comment' : 'Add a Comment'}
-                    </Button>
-                    <Button className="w-full bg-violet-500 hover:bg-violet-600 text-white rounded-2xl text-xs font-bold shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:-translate-y-0.5"
+                    </button>
+                    <button className="w-full bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-white rounded-2xl text-xs font-bold shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:-translate-y-0.5"
                       onClick={() => setViewTarget(candidate)} style={{ height: '44px' }}>
                       View Profile
-                    </Button>
+                    </button>
                   </div>
                 </Card>
               </motion.div>

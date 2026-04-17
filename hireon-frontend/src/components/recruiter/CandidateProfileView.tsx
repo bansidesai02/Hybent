@@ -10,6 +10,34 @@ import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { 
+  ArrowRight, 
+  Check, 
+  ChevronDown, 
+  Mic, 
+  Lock, 
+  ClipboardList, 
+  Phone, 
+  Mail, 
+  Target, 
+  MapPin, 
+  Clock, 
+  CircleDollarSign, 
+  Calendar, 
+  Link, 
+  PenTool,
+  Sparkles,
+  Star,
+  HelpingHand,
+  X,
+  Ban,
+  Zap,
+  ExternalLink,
+  ChevronRight,
+  User,
+  AlertTriangle
+} from 'lucide-react'
 
 
 interface CandidateProfileViewProps {
@@ -17,7 +45,7 @@ interface CandidateProfileViewProps {
 }
 
 const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
-  applied:                      { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', label: 'Applied' },
+  applied:                      { color: 'var(--violet)', bg: 'rgba(167,139,250,0.10)', label: 'Applied' },
   screening:                    { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Screening' },
   interview:                    { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interview' },
   pre_screening:                { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Pre-screening' },
@@ -27,27 +55,27 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   management_round:             { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Management Round' },
   hr_round:                     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'HR Round' },
   interviewed:                  { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interviewed' },
-  offer:                        { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offer' },
-  hired:                        { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired' },
+  offer:                        { color: 'var(--amber, #f59e0b)', bg: 'rgba(245,158,11,0.10)', label: 'Offer' },
+  hired:                        { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Hired' },
   rejected:                     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Rejected' },
-  pre_screening_selected:       { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Pre-screening Selected' },
+  pre_screening_selected:       { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Pre-screening Selected' },
   pre_screening_rejected:       { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Pre-screening Rejected' },
-  technical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Technical Round Selected' },
+  technical_round_selected:     { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Technical Round Selected' },
   technical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Technical Round Rejected' },
-  technical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Technical Round Back Out' },
-  practical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Practical Round Selected' },
+  technical_round_back_out:     { color: 'var(--amber, #f59e0b)', bg: 'rgba(245,158,11,0.10)', label: 'Technical Round Back Out' },
+  practical_round_selected:     { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Practical Round Selected' },
   practical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Practical Round Rejected' },
-  practical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Practical Round Back Out' },
-  techno_functional_selected:   { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Techno-Functional Selected' },
+  practical_round_back_out:     { color: 'var(--amber, #f59e0b)', bg: 'rgba(245,158,11,0.10)', label: 'Practical Round Back Out' },
+  techno_functional_selected:   { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Techno-Functional Selected' },
   techno_functional_rejected:   { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Techno-Functional Rejected' },
-  management_round_selected:    { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Management Round Selected' },
+  management_round_selected:    { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Management Round Selected' },
   management_round_rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Management Round Rejected' },
-  hr_round_selected:            { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'HR Round Selected' },
+  hr_round_selected:            { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'HR Round Selected' },
   hr_round_rejected:            { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'HR Round Rejected' },
-  offered:                      { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offered' },
+  offered:                      { color: 'var(--amber, #f59e0b)', bg: 'rgba(245,158,11,0.10)', label: 'Offered' },
   offered_back_out:             { color: '#f97316', bg: 'rgba(249,115,22,0.10)', label: 'Offered Back Out' },
   offer_withdrawn:              { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Offer Withdrawn' },
-  hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
+  hired_joined:                 { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
 }
 
 /** Stages that have past pre-screening and qualify for interview feedback */
@@ -61,17 +89,17 @@ const INTERVIEW_STAGES = new Set([
   'offered', 'offer', 'hired', 'hired_joined', 'rejected',
 ])
 
-const REC_CFG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  strong_yes: { label: 'Strong Hire',  color: '#059669', bg: 'rgba(16,185,129,0.12)', icon: '🌟' },
-  yes:        { label: 'Hire',         color: '#10b981', bg: 'rgba(16,185,129,0.10)', icon: '✅' },
-  maybe:      { label: 'Maybe',        color: '#d97706', bg: 'rgba(251,191,36,0.12)', icon: '🤔' },
-  no:         { label: 'No Hire',      color: '#ef4444', bg: 'rgba(239,68,68,0.10)',  icon: '❌' },
-  strong_no:  { label: 'Strong No',   color: '#dc2626', bg: 'rgba(239,68,68,0.12)',  icon: '🚫' },
+const REC_CFG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  strong_yes: { label: 'Strong Hire',  color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)', icon: <Star size={12} fill="currentColor" /> },
+  yes:        { label: 'Hire',         color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', icon: <Check size={12} strokeWidth={3} /> },
+  maybe:      { label: 'Maybe',        color: 'var(--amber, #d97706)', bg: 'rgba(251,191,36,0.12)', icon: <HelpingHand size={12} /> },
+  no:         { label: 'No Hire',      color: '#ef4444', bg: 'rgba(239,68,68,0.10)',  icon: <X size={12} strokeWidth={3} /> },
+  strong_no:  { label: 'Strong No',   color: '#dc2626', bg: 'rgba(239,68,68,0.12)',  icon: <Ban size={12} /> },
 }
 
 function scoreColor(s: number) {
-  if (s >= 80) return { text: '#059669', bg: 'rgba(16,185,129,0.12)', track: '#10b981' }
-  if (s >= 60) return { text: '#d97706', bg: 'rgba(251,191,36,0.12)', track: '#f59e0b' }
+  if (s >= 80) return { text: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)', track: 'var(--teal, #10b981)' }
+  if (s >= 60) return { text: 'var(--amber, #d97706)', bg: 'rgba(251,191,36,0.12)', track: 'var(--amber, #f59e0b)' }
   return { text: '#ef4444', bg: 'rgba(239,68,68,0.10)', track: '#ef4444' }
 }
 
@@ -87,18 +115,18 @@ function AiSummaryBlock({ interviewId }: { interviewId: string }) {
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(108,71,255,0.06), rgba(168,85,247,0.06))',
-      border: '1px solid rgba(108,71,255,0.18)',
+      background: 'linear-gradient(135deg, var(--violet)/6, rgba(168,85,247,0.06))',
+      border: '1px solid var(--violet)/18',
       borderRadius: 14,
       padding: '16px 20px',
     }}>
-      <p style={{ fontSize: 11, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
-        ✨ AI Summary
+      <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--violet)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Sparkles size={12} /> AI Summary
       </p>
 
       {isLoading ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 14, height: 14, border: '2px solid rgba(108,71,255,0.3)', borderTopColor: '#6c47ff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ width: 14, height: 14, border: '2px solid var(--violet)/30', borderTopColor: 'var(--violet)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           <span style={{ fontSize: 12, color: 'var(--text-light)', fontStyle: 'italic' }}>
             AI is synthesizing interviewers' feedback…
           </span>
@@ -139,7 +167,7 @@ function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, exp
         className="hover:bg-gray-50/50 transition-colors"
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #6c47ff, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, var(--violet), #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
             {(sc.submitted_by_name ?? 'R').charAt(0).toUpperCase()}
           </div>
           <div>
@@ -151,7 +179,13 @@ function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, exp
           {/* Star rating */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {[1, 2, 3, 4, 5].map((s: number) => (
-              <span key={s} style={{ fontSize: 15, color: s <= sc.overall_rating ? '#fbbf24' : 'rgba(0,0,0,0.12)' }}>★</span>
+              <Star 
+                key={s} 
+                size={14} 
+                fill={s <= sc.overall_rating ? 'var(--amber, #fbbf24)' : 'transparent'} 
+                stroke={s <= sc.overall_rating ? 'var(--amber, #fbbf24)' : 'var(--text-mid)'}
+                style={{ opacity: s <= sc.overall_rating ? 1 : 0.2 }}
+              />
             ))}
             <span style={{ fontSize: 12, fontWeight: 700, color: ratingColor.text, marginLeft: 4, background: ratingColor.bg, padding: '2px 8px', borderRadius: 20 }}>
               {sc.overall_rating}/5
@@ -162,13 +196,11 @@ function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, exp
               {rec.icon} {rec.label}
             </span>
           )}
-          <motion.div
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            style={{ color: 'var(--text-light)', fontSize: 14, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            ▼
-          </motion.div>
+          <ChevronDown 
+            size={14} 
+            className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+            style={{ color: 'var(--text-light)' }} 
+          />
         </div>
       </div>
 
@@ -194,8 +226,8 @@ function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, exp
                           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
                           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>{c.score}/5</span>
                         </div>
-                        <div style={{ height: 5, background: 'rgba(108,71,255,0.08)', borderRadius: 4 }}>
-                          <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg,#6c47ff,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' }} />
+                        <div style={{ height: 5, background: 'var(--violet)/10', borderRadius: 4 }}>
+                          <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg, var(--violet), #a855f7)', borderRadius: 4, transition: 'width 0.6s ease' }} />
                         </div>
                         {c.notes && <p style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontStyle: 'italic' }}>{c.notes}</p>}
                       </div>
@@ -209,19 +241,25 @@ function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, exp
                 <div style={{ borderTop: criteria.length > 0 ? '1px solid var(--table-border)' : 'none', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {sc.strengths && (
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>💪 Strengths</p>
+                      <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--teal, #10b981)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Star size={10} fill="currentColor" /> Strengths
+                      </p>
                       <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, margin: 0 }}>{sc.strengths}</p>
                     </div>
                   )}
                   {sc.weaknesses && (
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>⚡ Areas to Improve</p>
+                      <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Zap size={10} fill="currentColor" /> Areas to Improve
+                      </p>
                       <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, margin: 0 }}>{sc.weaknesses}</p>
                     </div>
                   )}
                   {sc.summary && (
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 800, color: '#6c47ff', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>📝 Summary</p>
+                      <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--violet)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <PenTool size={10} /> Summary
+                      </p>
                       <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, fontStyle: 'italic', margin: 0 }}>"{sc.summary}"</p>
                     </div>
                   )}
@@ -247,7 +285,7 @@ function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any
 
   // Build tab list: [AI Summary, ...interviewers]
   const tabs: { key: string; label: string; icon?: string }[] = [
-    ...(hasAiSummary ? [{ key: 'ai', label: 'AI Summary', icon: '✨' }] : []),
+    ...(hasAiSummary ? [{ key: 'ai', label: 'AI Summary', icon: <Sparkles size={12} /> }] : []),
     ...group.cards.map((sc: any, idx: number) => ({
       key: sc.id,
       label: sc.submitted_by_name?.split(' ')[0] ?? `Interviewer ${idx + 1}`,
@@ -262,7 +300,7 @@ function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any
     <div style={{
       background: 'var(--kpi-bg)',
       border: `1px solid var(--table-border)`,
-      borderLeft: `4px solid #6c47ff`,
+      borderLeft: `4px solid var(--violet)`,
       borderRadius: 16,
       overflow: 'hidden',
       marginBottom: 16,
@@ -280,7 +318,7 @@ function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any
       }}>
         {/* Left: round title */}
         <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={{ fontSize: 13 }}>🎙️</span> {group.title}
+          <Mic size={14} className="text-[var(--violet)]" /> {group.title}
         </span>
 
         {/* Divider */}
@@ -288,7 +326,7 @@ function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any
 
         {/* Avg score */}
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          Avg. Score: <span style={{ color: avgScore >= 4 ? '#10b981' : avgScore >= 3 ? '#fbbf24' : '#ef4444' }}>★ {avgScore.toFixed(1)}</span>
+          Avg. Score: <span style={{ color: avgScore >= 4 ? 'var(--teal, #10b981)' : avgScore >= 3 ? 'var(--amber, #fbbf24)' : '#ef4444' }}>★ {avgScore.toFixed(1)}</span>
         </span>
 
         {/* ── PILL TAB BUTTONS pushed to the right ── */}
@@ -309,9 +347,9 @@ function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any
                   fontWeight: isActive ? 700 : 500,
                   color: isActive ? '#fff' : 'var(--text-mid)',
                   background: isActive
-                    ? (tab.key === 'ai' ? 'linear-gradient(135deg,#6c47ff,#a855f7)' : 'linear-gradient(135deg,#6c47ff,#a855f7)')
-                    : 'rgba(108,71,255,0.06)',
-                  border: isActive ? '1px solid transparent' : '1px solid rgba(108,71,255,0.15)',
+                    ? (tab.key === 'ai' ? 'linear-gradient(135deg, var(--violet), #a855f7)' : 'linear-gradient(135deg, var(--violet), #a855f7)')
+                    : 'var(--violet)/10',
+                  border: isActive ? '1px solid transparent' : '1px solid var(--violet)/20',
                   cursor: 'pointer',
                   transition: 'all 0.18s',
                   whiteSpace: 'nowrap',
@@ -323,7 +361,7 @@ function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any
                     {/* Avatar circle inside pill */}
                     <div style={{
                       width: 18, height: 18, borderRadius: '50%',
-                      background: isActive ? 'rgba(255,255,255,0.25)' : 'linear-gradient(135deg,#6c47ff,#a855f7)',
+                      background: isActive ? 'rgba(255,255,255,0.25)' : 'linear-gradient(135deg, var(--violet), #a855f7)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: '#fff',
                       fontSize: 8, fontWeight: 900, flexShrink: 0,
@@ -334,7 +372,7 @@ function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any
                   </>
                 ) : (
                   <>
-                    <span style={{ fontSize: 13, lineHeight: 1 }}>{tab.icon}</span>
+                    {tab.icon}
                     {tab.label}
                   </>
                 )}
@@ -395,14 +433,14 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
   if (!hasInterviewStage) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: 16 }}>
-        <div style={{ fontSize: 56 }}>🔒</div>
+      <Lock size={48} className="text-[var(--text-light)] opacity-20" />
         <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Interview Feedback Not Available Yet</h3>
         <p style={{ fontSize: 13, color: 'var(--text-light)', lineHeight: 1.7, maxWidth: 340, margin: 0 }}>
           Interview feedback unlocks once the candidate has been{' '}
           {currentStageCfg && (
             <strong style={{ color: currentStageCfg.color }}>{currentStageCfg.label}</strong>
           )}{' '}
-          and progressed to at least the <strong style={{ color: '#8b5cf6' }}>Technical Round</strong>. Update the
+          and progressed to at least the <strong style={{ color: 'var(--brand2, #8b5cf6)' }}>Technical Round</strong>. Update the
           candidate's stage using the Action dropdown to unlock this section.
         </p>
       </div>
@@ -423,8 +461,8 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
   if (!scorecards.length) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: 16 }}>
-        <div style={{ fontSize: 48 }}>📋</div>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>No Feedback Submitted Yet</h3>
+      <ClipboardList size={48} className="text-[var(--text-light)] opacity-20" />
+      <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>No Feedback Submitted Yet</h3>
         <p style={{ fontSize: 13, color: 'var(--text-light)', lineHeight: 1.7, maxWidth: 340, margin: 0 }}>
           The candidate is in the interview pipeline. Interviewers can submit feedback from the <strong>Schedule</strong> page after completing an interview.
         </p>
@@ -442,7 +480,7 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
           const cfg = REC_CFG[r]
           return (
             <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: cfg.bg, border: `1px solid ${cfg.color}22` }}>
-              <span>{cfg.icon}</span>
+              <span className="flex items-center">{cfg.icon}</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>{count} × {cfg.label}</span>
             </div>
           )
@@ -458,17 +496,17 @@ function FeedbackTab({ candidate }: { candidate: Candidate }) {
           else ratingCategory = 'Excellent'
 
           // Optional: Add some subtle color-coding based on the category
-          let colorTheme = '#6c47ff' // Default Good
+          let colorTheme = 'var(--violet)' // Default Good
           if (ratingCategory === 'Below Average') colorTheme = '#ef4444' // Red
-          else if (ratingCategory === 'Average') colorTheme = '#f59e0b' // Amber
-          else if (ratingCategory === 'Excellent') colorTheme = '#10b981' // Emerald
+          else if (ratingCategory === 'Average') colorTheme = 'var(--amber, #f59e0b)' // Amber
+          else if (ratingCategory === 'Excellent') colorTheme = 'var(--teal, #10b981)' // Emerald
 
           return (
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
               {/* Numeric Badge */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.15)' }}>
-                <span style={{ fontSize: 12 }}>⭐</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#6c47ff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'var(--violet)/10', border: '1px solid var(--violet)/20' }}>
+                <Star size={12} fill="currentColor" className="text-[var(--violet)]" />
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--violet)' }}>
                   {avgRatingNum.toFixed(1)} / 5
                 </span>
               </div>
@@ -609,7 +647,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
             <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="gap-2 rounded-xl text-xs h-8">
               Cancel
             </Button>
-            <Button size="sm" onClick={() => saveDetailsMutation.mutate(formData)} loading={saveDetailsMutation.isPending} className="gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-xs h-8">
+            <Button size="sm" onClick={() => saveDetailsMutation.mutate(formData)} loading={saveDetailsMutation.isPending} className="gap-2 rounded-xl bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-xs h-8">
               Save Changes
             </Button>
           </div>
@@ -628,9 +666,11 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
             <Input label="You will able to join within" value={formData.availability_status} onChange={(e: any) => handleInputChange('availability_status', e.target.value)} placeholder="e.g. 15 Days" />
           </div>
 
-          <div className="flex flex-col gap-4 mt-2 p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="flex flex-col gap-4 mt-2 p-4 bg-[var(--card-bg)]/50 rounded-xl border border-[var(--card-border)]">
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">📅 Interview Availability</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <Calendar size={12} /> Interview Availability
+              </p>
               <p className="text-sm font-semibold text-gray-800">
                 {[candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'Not provided by candidate'}
               </p>
@@ -649,18 +689,20 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col sm:grid sm:grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { label: '📞 Phone Number', value: candidate.phone, show: !!candidate.phone },
-              { label: '✉ Email ID', value: candidate.email, show: true },
-              { label: '🎯 Experience', value: candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} Yrs` : null) || 'N/A', show: true },
-              { label: '📍 Location', value: candidate.location || 'Remote', show: true },
-              { label: '⏳ Notice Period', value: candidate.notice_period_days || 'N/A', show: true },
-              { label: '💰 Current CTC', value: candidate.current_ctc || 'N/A', show: true },
-              { label: '💰 Expected CTC', value: candidate.expected_ctc || 'N/A', show: true },
-              { label: '📅 Pref. Interview', value: [candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'N/A', show: !!(candidate.interview_availability_days || candidate.interview_time_slot) },
-              { label: '🔗 Source', value: candidate.source || 'Sourced', show: true },
+              { label: 'Phone Number', icon: <Phone size={10} />, value: candidate.phone, show: !!candidate.phone },
+              { label: 'Email ID', icon: <Mail size={10} />, value: candidate.email, show: true },
+              { label: 'Experience', icon: <Target size={10} />, value: candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} Yrs` : null) || 'N/A', show: true },
+              { label: 'Location', icon: <MapPin size={10} />, value: candidate.location || 'Remote', show: true },
+              { label: 'Notice Period', icon: <Clock size={10} />, value: candidate.notice_period_days || 'N/A', show: true },
+              { label: 'Current CTC', icon: <CircleDollarSign size={10} />, value: candidate.current_ctc || 'N/A', show: true },
+              { label: 'Expected CTC', icon: <CircleDollarSign size={10} />, value: candidate.expected_ctc || 'N/A', show: true },
+              { label: 'Pref. Interview', icon: <Calendar size={10} />, value: [candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'N/A', show: !!(candidate.interview_availability_days || candidate.interview_time_slot) },
+              { label: 'Source', icon: <Link size={10} />, value: candidate.source || 'Sourced', show: true },
             ].filter((f: any) => f.show).map((item: any, i: any) => (
               <div key={i} style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-                <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>{item.label}</p>
+                <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {item.icon} {item.label}
+                </p>
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word' }}>{item.value}</p>
               </div>
             ))}
@@ -696,7 +738,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {candidate.skills.map((skill: any) => (
-              <span key={skill} style={{ fontSize: 11, fontWeight: 600, padding: '6px 14px', borderRadius: 10, background: '#fff', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.15)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <span key={skill} style={{ fontSize: 11, fontWeight: 600, padding: '6px 14px', borderRadius: 10, background: 'var(--card-bg)', color: 'var(--violet)', border: '1px solid var(--violet)/20', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                 {skill}
               </span>
             ))}
@@ -713,9 +755,9 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {(candidate.parsed_data?.experience as any[]).map((exp: any, idx: number) => (
               <div key={idx} style={{ position: 'relative', paddingLeft: 20 }}>
-                <div style={{ position: 'absolute', left: 0, top: 4, bottom: 0, width: 2, background: 'linear-gradient(to bottom, #6c47ff, transparent)', borderRadius: 1 }} />
+                <div style={{ position: 'absolute', left: 0, top: 4, bottom: 0, width: 2, background: 'linear-gradient(to bottom, var(--violet), transparent)', borderRadius: 1 }} />
                 <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{exp.title}</h4>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#6c47ff', marginBottom: 6 }}>{exp.company} <span style={{ color: 'var(--text-mid)', fontWeight: 500, marginLeft: 6 }}>· {exp.duration}</span></p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--violet)', marginBottom: 6 }}>{exp.company} <span style={{ color: 'var(--text-mid)', fontWeight: 500, marginLeft: 6 }}>· {exp.duration}</span></p>
                 {exp.description && <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{exp.description}</p>}
               </div>
             ))}
@@ -748,9 +790,9 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              📝 HR Confidential Notes
+              <Lock size={12} /> HR Confidential Notes
             </p>
-            {saveNotesMutation.isPending && <span style={{ fontSize: 11, color: '#6c47ff', fontWeight: 600 }}>Saving...</span>}
+            {saveNotesMutation.isPending && <span style={{ fontSize: 11, color: 'var(--violet)', fontWeight: 600 }}>Saving...</span>}
           </div>
           <textarea
             value={notes}
@@ -772,12 +814,12 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
               transition: 'border-color 0.2s, background 0.2s',
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = '#6c47ff'
-              e.currentTarget.style.background = '#fff'
+              e.currentTarget.style.borderColor = 'var(--violet)'
+              e.currentTarget.style.background = 'var(--card-bg)'
             }}
             onBlurCapture={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'
-              e.currentTarget.style.background = 'rgba(0,0,0,0.01)'
+              e.currentTarget.style.borderColor = 'var(--card-border)'
+              e.currentTarget.style.background = 'var(--card-bg)/50'
             }}
           />
           <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 8, fontStyle: 'italic' }}>

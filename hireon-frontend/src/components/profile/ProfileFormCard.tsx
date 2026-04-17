@@ -9,6 +9,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useProfile } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
 import ImageCropperModal from '@/components/common/ImageCropperModal'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { Camera } from 'lucide-react'
 
 interface ProfileFormCardProps {
   portalTitle?: string
@@ -179,7 +181,7 @@ export default function ProfileFormCard({
                 <span className="profile-avatar-initials">{initials}</span>
               )}
               <div className="profile-avatar-overlay">
-                {isUploadingAvatar ? '...' : '📷'}
+                {isUploadingAvatar ? '...' : <Camera size={18} />}
               </div>
             </div>
             <input

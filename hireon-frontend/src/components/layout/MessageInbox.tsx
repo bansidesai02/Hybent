@@ -47,12 +47,12 @@ export function MessageInbox() {
         className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         title="Messages"
       >
-        <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-5 h-5 text-gray-600 dark:text-[var(--text-mid)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold shadow-sm ring-2 ring-white dark:ring-gray-900">
+          <span className="absolute -top-1 -right-1 bg-[var(--violet)] text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold shadow-sm ring-2 ring-white dark:ring-gray-900">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -65,12 +65,12 @@ export function MessageInbox() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-12 w-80 bg-white dark:bg-gray-900 rounded-2x border border-gray-200 dark:border-gray-800 shadow-2xl z-50 overflow-hidden"
+            className="absolute right-0 top-12 w-80 bg-white dark:bg-[var(--card-bg)] rounded-2x border border-gray-200 dark:border-[var(--card-border)] shadow-2xl z-50 overflow-hidden"
             style={{ borderRadius: '24px' }}
           >
-            <div className="p-4 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/30">
-              <h3 className="text-sm font-black text-gray-900 dark:text-white">Active Chats</h3>
-              <span className="text-[10px] uppercase tracking-wider font-bold text-violet-500">Real-time</span>
+            <div className="p-4 border-b border-gray-50 dark:border-[var(--card-border)] flex items-center justify-between bg-gray-50 dark:bg-[var(--bg2)]">
+              <h3 className="text-sm font-black text-gray-900 dark:text-[var(--text)]">Active Chats</h3>
+              <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--violet)]">Real-time</span>
             </div>
 
             <div className="max-h-96 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-800">
@@ -90,22 +90,22 @@ export function MessageInbox() {
                         avatar_url: c.other_user_avatar_url
                       })
                     }}
-                    className="w-full flex items-center gap-3 p-4 hover:bg-violet-50 dark:hover:bg-violet-900/10 transition-all text-left group"
+                    className="w-full flex items-center gap-3 p-4 hover:bg-[var(--violet)]/5 dark:hover:bg-[var(--violet)]/10 transition-all text-left group"
                   >
                     <div className="relative flex-shrink-0">
                       <Avatar name={c.other_user_full_name} src={c.other_user_avatar_url || ''} size="md" />
                       {c.unread_count > 0 && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-violet-600 rounded-full border-2 border-white dark:border-gray-900" />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--violet)] rounded-full border-2 border-white dark:border-gray-900" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
-                        <p className="text-[13px] font-bold text-gray-900 dark:text-white truncate group-hover:text-violet-600 transition-colors">
+                        <p className="text-[13px] font-bold text-gray-900 dark:text-[var(--text)] truncate group-hover:text-[var(--violet)] transition-colors">
                           {c.other_user_full_name}
                         </p>
                         <span className="text-[10px] text-gray-400">{timeAgo(c.last_message_at)}</span>
                       </div>
-                      <p className={`text-xs truncate ${c.unread_count > 0 ? 'font-black text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <p className={`text-xs truncate ${c.unread_count > 0 ? 'font-black text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-[var(--text-mid)]'}`}>
                         {c.last_message}
                       </p>
                     </div>

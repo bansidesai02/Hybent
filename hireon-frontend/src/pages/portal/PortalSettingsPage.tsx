@@ -1,5 +1,7 @@
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { ArrowRight } from 'lucide-react'
 
 export default function PortalSettingsPage() {
   const [emailAlerts, setEmailAlerts] = useState(true)
@@ -14,17 +16,17 @@ export default function PortalSettingsPage() {
     {
       title: 'General',
       items: [
-        { label: 'Account Email', sub: 'Change your login email address', icon: '📧' },
-        { label: 'Security & Password', sub: 'Manage your authentication methods', icon: '🔒' },
-        { label: 'Language', sub: 'English (US)', icon: '🌐' },
+        { label: 'Account Email', sub: 'Change your login email address', icon: 'Mail', variant: 'blue' as const },
+        { label: 'Security & Password', sub: 'Manage your authentication methods', icon: 'Lock', variant: 'amber' as const },
+        { label: 'Language', sub: 'English (US)', icon: 'Globe', variant: 'indigo' as const },
       ]
     },
     {
       title: 'Privacy & Data',
       items: [
-        { label: 'Profile Visibility', sub: 'Control who can view your resume', icon: '👁️' },
-        { label: 'Data Export', sub: 'Download a copy of your application data', icon: '📥' },
-        { label: 'Delete Account', sub: 'Permanently remove your account and data', icon: '🗑️' },
+        { label: 'Profile Visibility', sub: 'Control who can view your resume', icon: 'Eye', variant: 'violet' as const },
+        { label: 'Data Export', sub: 'Download a copy of your application data', icon: 'Download', variant: 'emerald' as const },
+        { label: 'Delete Account', sub: 'Permanently remove your account and data', icon: 'Trash2', variant: 'rose' as const },
       ]
     }
   ]
@@ -32,7 +34,7 @@ export default function PortalSettingsPage() {
   return (
     <div className="page active" id="page-settings">
       <div className="ph" style={{ marginBottom: 30 }}>
-        <div className="pt">Settings ⚙️</div>
+        <div className="pt flex items-center gap-2">Settings <GlassIcon icon="Settings" variant="violet" size={24} iconSize={14} glow={false} /></div>
         <div className="ps">Manage your account preferences and security.</div>
       </div>
 
@@ -57,13 +59,13 @@ export default function PortalSettingsPage() {
                     className="w-full text-left px-8 py-5 flex items-center justify-between hover:bg-violet-50/50 active:bg-violet-100/50 transition-all group"
                   >
                     <div className="flex items-center gap-5">
-                      <span className="text-xl group-hover:scale-125 transition-transform duration-300">{item.icon}</span>
+                      <GlassIcon icon={item.icon || 'Circle'} variant={item.variant || 'gray'} size={40} iconSize={18} glow={false} />
                       <div>
                         <p className="text-[14px] font-bold text-gray-900">{item.label}</p>
                         <p className="text-[11px] text-gray-500 font-medium">{item.sub}</p>
                       </div>
                     </div>
-                    <span className="text-gray-300 group-hover:text-violet-500 group-hover:translate-x-1 transition-all">→</span>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-violet-500 group-hover:translate-x-1 transition-all" />
                   </button>
                 ))}
               </div>

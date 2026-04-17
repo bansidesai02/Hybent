@@ -8,6 +8,15 @@ import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { motion } from 'framer-motion'
 import { toast } from 'react-hot-toast'
+import { 
+  FileText, 
+  CheckCircle, 
+  AlertTriangle, 
+  XCircle, 
+  Download, 
+  Lightbulb 
+} from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import type { ReportSummary, User } from '@/types'
 import { 
   BarChart, 
@@ -27,7 +36,7 @@ import {
 function GlassCard({ children, className = '', style = {} }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
     <div
-      className={`rounded-[24px] p-6 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm ${className}`}
+      className={`rounded-[24px] p-6 bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] shadow-sm ${className}`}
       style={style}
     >
       {children}
@@ -35,7 +44,7 @@ function GlassCard({ children, className = '', style = {} }: { children: React.R
   )
 }
 
-const COLORS = ['#6c47ff', '#10b981', '#f59e0b', '#ff6bc6', '#3b82f6', '#8b5cf6', '#f97316', '#ef4444']
+const COLORS = ['var(--violet)', 'var(--teal, #10b981)', 'var(--amber, #f59e0b)', 'var(--pink, #ff6bc6)', '#3b82f6', '#8b5cf6', '#f97316', '#ef4444']
 
 export default function ReportsPage() {
   const { user } = useAuth()
@@ -93,9 +102,9 @@ export default function ReportsPage() {
   }
 
   const funnelData = [
-    { name: 'Applied', value: summary?.applied ?? 0, color: '#6c47ff' },
-    { name: 'Hired', value: summary?.hired ?? 0, color: '#10b981' },
-    { name: 'Backout', value: summary?.backout ?? 0, color: '#f59e0b' },
+    { name: 'Applied', value: summary?.applied ?? 0, color: 'var(--violet)' },
+    { name: 'Hired', value: summary?.hired ?? 0, color: 'var(--teal, #10b981)' },
+    { name: 'Backout', value: summary?.backout ?? 0, color: 'var(--amber, #f59e0b)' },
     { name: 'Rejected', value: summary?.rejected ?? 0, color: '#ff6bc6' },
   ]
 
@@ -114,33 +123,35 @@ export default function ReportsPage() {
     : []
 
   const stats = [
-    { label: 'Total Applied', value: summary?.applied ?? 0, color: '#6c47ff', icon: '📝' },
-    { label: 'Total Hired', value: summary?.hired ?? 0, color: '#10b981', icon: '✅' },
-    { label: 'Total Backout', value: summary?.backout ?? 0, color: '#f59e0b', icon: '⚠️' },
-    { label: 'Total Rejected', value: summary?.rejected ?? 0, color: '#ff6bc6', icon: '❌' },
+    { label: 'Total Applied', value: summary?.applied ?? 0, icon: <GlassIcon icon="FileText" variant="violet" size={48} iconSize={20} glow={false} />, color: 'var(--violet)' },
+    { label: 'Total Hired', value: summary?.hired ?? 0, icon: <GlassIcon icon="CheckCircle" variant="emerald" size={48} iconSize={20} glow={false} />, color: '#10b981' },
+    { label: 'Total Backout', value: summary?.backout ?? 0, icon: <GlassIcon icon="AlertTriangle" variant="amber" size={48} iconSize={20} glow={false} />, color: '#f59e0b' },
+    { label: 'Total Rejected', value: summary?.rejected ?? 0, icon: <GlassIcon icon="XCircle" variant="rose" size={48} iconSize={20} glow={false} />, color: '#ff6bc6' },
   ]
 
   return (
     <div className="space-y-8 select-none max-w-[1400px] mx-auto pb-10">
       {/* Page Header */}
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight" style={{ fontFamily: "'Fraunces', serif" }}>
-            Reports & Analytics
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-2">
+        <header className="page-header !mb-0">
+          <h1 className="page-title">
+            Advanced Analytics
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">Detailed recruitment metrics and data export.</p>
-        </div>
+          <p className="page-subtitle">
+            Detailed recruitment metrics and data export.
+          </p>
+        </header>
         <button
           onClick={handleDownload}
-          className="text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-xl shadow-violet-200"
-          style={{ background: 'linear-gradient(135deg, #6c47ff 0%, #ff6bc6 100%)' }}
+          className="text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-xl shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+          style={{ background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)' }}
         >
-          <span>📊</span> Download Excel Report
+          <Download size={18} /> Download Excel Report
         </button>
       </div>
 
       {/* Filters for Admin */}
-      <GlassCard className="bg-gray-50/30">
+      <GlassCard className="bg-gray-50/30 dark:bg-[var(--color-bg-sidebar)]">
         <div className="flex flex-col lg:flex-row gap-6 items-end w-full">
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
             <Select
@@ -202,18 +213,13 @@ export default function ReportsPage() {
           >
             <GlassCard className="relative overflow-hidden group hover:border-violet-200 transition-colors">
               <div className="flex items-center gap-4">
-                <div 
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner"
-                  style={{ backgroundColor: `${stat.color}15`, color: stat.color }}
-                >
                   {stat.icon}
-                </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[2px] text-gray-400">{stat.label}</p>
                   {isLoading ? (
                     <Skeleton className="h-8 w-16 mt-1" />
                   ) : (
-                    <h2 className="text-3xl font-black text-gray-900 dark:text-white">
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-[var(--text)]">
                       {stat.value}
                     </h2>
                   )}
@@ -233,12 +239,12 @@ export default function ReportsPage() {
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         className="relative overflow-hidden rounded-[28px] p-8 text-white shadow-2xl shadow-violet-200 dark:shadow-none"
-        style={{ background: 'linear-gradient(135deg, #6c47ff 0%, #ff6bc6 100%)' }}
+        style={{ background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)' }}
       >
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
           <div className="flex-1">
-            <h2 className="text-2xl font-black mb-3" style={{ fontFamily: "'Fraunces', serif" }}>
-              Data Transparency & Insights 💡
+            <h2 className="text-2xl font-black mb-3 flex items-center gap-2" style={{ fontFamily: "'Fraunces', serif" }}>
+              Data Transparency & Insights <GlassIcon icon="Lightbulb" variant="amber" size={32} iconSize={18} glow={false} />
             </h2>
             <p className="text-white/80 font-medium leading-relaxed">
               Our reporting engine aggregates data from every touchpoint in your hiring funnel. 
@@ -268,13 +274,13 @@ export default function ReportsPage() {
         
         {/* Funnel Chart */}
         <div className="xl:col-span-2">
-          <GlassCard className="p-0 h-full overflow-hidden border-gray-100 flex flex-col">
-            <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+          <GlassCard className="p-0 h-full overflow-hidden border-gray-100 dark:border-[var(--card-border)] flex flex-col">
+            <div className="p-6 border-b border-gray-50 dark:border-[var(--card-border)] flex items-center justify-between bg-gray-50/50 dark:bg-[var(--color-bg-card)]">
                <div>
-                 <h3 className="font-bold text-gray-800">Recruitment Funnel Breakdown</h3>
-                 <p className="text-xs text-gray-400 font-medium">Visualizing candidate progression across major milestones</p>
+                 <h3 className="font-bold text-gray-800 dark:text-[var(--text)]">Recruitment Funnel Breakdown</h3>
+                 <p className="text-xs text-gray-400 dark:text-[var(--text-mid)] font-medium">Visualizing candidate progression across major milestones</p>
                </div>
-               <span className="text-[10px] text-violet-600 font-black bg-violet-100 px-3 py-1.5 rounded-xl uppercase tracking-wider">Live Insights</span>
+               <span className="text-[10px] text-[var(--violet)] dark:text-white font-black bg-violet-100 dark:bg-[var(--violet)] px-3 py-1.5 rounded-xl uppercase tracking-wider">Live Insights</span>
             </div>
             <div className="p-8 flex-1 min-h-[400px]">
                {isLoading ? (
@@ -292,12 +298,12 @@ export default function ReportsPage() {
                      />
                      <YAxis hide />
                      <Tooltip
-                        cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                        cursor={false}
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             return (
-                              <div className="bg-white p-4 rounded-2xl shadow-2xl border border-gray-100 min-w-[140px]">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{payload[0].payload.name}</p>
+                              <div className="bg-white dark:bg-[var(--card-bg)] p-4 rounded-2xl shadow-2xl border border-gray-100 dark:border-[var(--card-border)] min-w-[140px]">
+                                <p className="text-[10px] font-black text-gray-400 dark:text-[var(--text-mid)] uppercase tracking-widest mb-1">{payload[0].payload.name}</p>
                                 <p className="text-2xl font-black" style={{ color: payload[0].payload.color }}>
                                   {payload[0].value}
                                 </p>
@@ -321,10 +327,10 @@ export default function ReportsPage() {
         </div>
 
         {/* Stages Distribution Pie Chart */}
-        <GlassCard className="p-0 overflow-hidden border-gray-100 h-full flex flex-col">
-          <div className="p-6 border-b border-gray-50 bg-gray-50/50">
-            <h3 className="font-bold text-gray-800">Stages Distribution</h3>
-            <p className="text-xs text-gray-400 font-medium">Candidate spread across all active stages</p>
+        <GlassCard className="p-0 overflow-hidden border-gray-100 dark:border-[var(--card-border)] h-full flex flex-col">
+          <div className="p-6 border-b border-gray-50 dark:border-[var(--card-border)] bg-gray-50/50 dark:bg-[var(--color-bg-card)]">
+            <h3 className="font-bold text-gray-800 dark:text-[var(--text)]">Stages Distribution</h3>
+            <p className="text-xs text-gray-400 dark:text-[var(--text-mid)] font-medium">Candidate spread across all active stages</p>
           </div>
           <div className="p-4 flex-1 flex flex-col items-center justify-center min-h-[300px]">
              {isLoading ? <Skeleton className="w-48 h-48 rounded-full" /> : (
@@ -349,8 +355,8 @@ export default function ReportsPage() {
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             return (
-                              <div className="bg-white p-3 rounded-xl shadow-xl border border-gray-100">
-                                <p className="text-[11px] font-bold text-gray-800">{payload[0].name}</p>
+                              <div className="bg-white dark:bg-[var(--card-bg)] p-3 rounded-xl shadow-xl border border-gray-100 dark:border-[var(--card-border)]">
+                                <p className="text-[11px] font-bold text-gray-800 dark:text-[var(--text)]">{payload[0].name}</p>
                                 <p className="text-lg font-black" style={{ color: payload[0].payload.fill }}>{payload[0].value} Candidates</p>
                               </div>
                             )
@@ -365,7 +371,7 @@ export default function ReportsPage() {
                     {stagesData.map((entry, index) => (
                       <div key={entry.name} className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                        <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">{entry.name} ({entry.value})</span>
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-[var(--text-mid)] whitespace-nowrap">{entry.name} ({entry.value})</span>
                       </div>
                     ))}
                  </div>
@@ -376,13 +382,13 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Lower Row: Roles Analysis ── */}
-      <GlassCard className="p-0 overflow-hidden border-gray-100">
-        <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+      <GlassCard className="p-0 overflow-hidden border-gray-100 dark:border-[var(--card-border)]">
+        <div className="p-6 border-b border-gray-50 dark:border-[var(--card-border)] bg-gray-50/50 dark:bg-[var(--color-bg-card)] flex items-center justify-between">
            <div>
-             <h3 className="font-bold text-gray-800">Candidates by Open Position</h3>
-             <p className="text-xs text-gray-400 font-medium">Application volume across currently active roles</p>
+             <h3 className="font-bold text-gray-800 dark:text-[var(--text)]">Candidates by Open Position</h3>
+             <p className="text-xs text-gray-400 dark:text-[var(--text-mid)] font-medium">Application volume across currently active roles</p>
            </div>
-           <span className="text-[10px] text-emerald-600 font-black bg-emerald-50 px-3 py-1.5 rounded-xl uppercase tracking-wider">High Accuracy</span>
+           <span className="text-[10px] text-emerald-600 font-black bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">High Accuracy</span>
         </div>
         <div className="p-8 h-[350px]">
            {isLoading ? (
@@ -402,15 +408,15 @@ export default function ReportsPage() {
                     axisLine={false} 
                     tickLine={false}
                     width={90}
-                    tick={{ fontSize: 11, fontWeight: 700, fill: '#1e293b' }}
+                    tick={{ fontSize: 11, fontWeight: 700, fill: 'var(--text-mid)' }}
                  />
                  <Tooltip
-                    cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                    cursor={{ fill: 'rgba(139, 92, 246, 0.05)' }}
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         return (
-                          <div className="bg-white p-3 rounded-xl shadow-xl border border-gray-100">
-                             <p className="text-[11px] font-bold text-gray-800 mb-1">{payload[0].payload.name}</p>
+                          <div className="bg-white dark:bg-[var(--card-bg)] p-3 rounded-xl shadow-xl border border-gray-100 dark:border-[var(--card-border)]">
+                             <p className="text-[11px] font-bold text-gray-800 dark:text-[var(--text)] mb-1">{payload[0].payload.name}</p>
                              <p className="text-base font-black text-emerald-500">{payload[0].value} Applications</p>
                           </div>
                         )
@@ -418,11 +424,11 @@ export default function ReportsPage() {
                       return null
                     }}
                  />
-                 <Bar dataKey="value" fill="#6c47ff" radius={[0, 10, 10, 0]} barSize={32}>
+                 <Bar dataKey="value" fill="var(--violet)" radius={[0, 10, 10, 0]} barSize={32}>
                    {rolesData.map((_entry, index) => (
-                     <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#6c47ff' : '#8b5cf6'} />
+                     <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--violet)' : 'var(--brand2, #8b5cf6)'} />
                    ))}
-                   <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: '#64748b' }} offset={14} />
+                   <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: 'var(--text-mid)' }} offset={14} />
                  </Bar>
                </BarChart>
              </ResponsiveContainer>

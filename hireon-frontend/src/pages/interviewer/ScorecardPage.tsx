@@ -12,6 +12,20 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatDateTime, formatDate } from '@/utils/formatters'
+import { 
+  Settings, 
+  MessageSquare, 
+  Users, 
+  Puzzle, 
+  Check, 
+  CircleHelp, 
+  X, 
+  Star, 
+  Calendar, 
+  Sparkles,
+  ArrowLeft
+} from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,17 +42,17 @@ interface CriterionConfig {
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const CRITERIA: CriterionConfig[] = [
-  { key: 'technical', label: 'Technical Skills', emoji: '⚙️', description: 'Depth of technical knowledge and ability to apply it' },
-  { key: 'communication', label: 'Communication', emoji: '💬', description: 'Clarity, listening, and articulation skills' },
-  { key: 'culture_fit', label: 'Culture Fit', emoji: '🤝', description: 'Alignment with team values and work style' },
-  { key: 'problem_solving', label: 'Problem Solving', emoji: '🧩', description: 'Approach to ambiguous problems and critical thinking' },
+  { key: 'technical', label: 'Technical Skills', emoji: 'Settings', description: 'Depth of technical knowledge and ability to apply it' },
+  { key: 'communication', label: 'Communication', emoji: 'MessageSquare', description: 'Clarity, listening, and articulation skills' },
+  { key: 'culture_fit', label: 'Culture Fit', emoji: 'Users', description: 'Alignment with team values and work style' },
+  { key: 'problem_solving', label: 'Problem Solving', emoji: 'Puzzle', description: 'Approach to ambiguous problems and critical thinking' },
 ]
 
-const REC_OPTIONS: { value: Recommendation; label: string; emoji: string; mapTo: string; color: string; bg: string; border: string; selectedBg: string }[] = [
+const REC_OPTIONS: { value: Recommendation; label: string; emoji: React.ReactNode; mapTo: string; color: string; bg: string; border: string; selectedBg: string }[] = [
   {
     value: 'hire',
     label: 'Hire',
-    emoji: '✅',
+    emoji: <Check size={14} strokeWidth={3} />,
     mapTo: 'yes',
     color: '#059669',
     bg: 'rgba(16,185,129,0.05)',
@@ -48,7 +62,7 @@ const REC_OPTIONS: { value: Recommendation; label: string; emoji: string; mapTo:
   {
     value: 'maybe',
     label: 'Maybe',
-    emoji: '🤔',
+    emoji: <CircleHelp size={14} />,
     mapTo: 'maybe',
     color: '#d97706',
     bg: 'rgba(251,191,36,0.05)',
@@ -58,7 +72,7 @@ const REC_OPTIONS: { value: Recommendation; label: string; emoji: string; mapTo:
   {
     value: 'no_hire',
     label: 'No Hire',
-    emoji: '❌',
+    emoji: <X size={14} strokeWidth={3} />,
     mapTo: 'no',
     color: '#ef4444',
     bg: 'rgba(239,68,68,0.05)',
@@ -219,11 +233,11 @@ function ExistingCard({ card }: { card: Scorecard }) {
       {card.criteria_scores && Array.isArray(card.criteria_scores) && (
         <div className="grid grid-cols-2 gap-2 pt-1">
           {card.criteria_scores.map((s: any, i: number) => (
-            <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 px-2 py-1 rounded-lg border border-gray-100 dark:border-gray-800">
+            <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-[#1e1a35]/50 px-2 py-1 rounded-lg border border-gray-100 dark:border-[#2a2550]">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{s.criterion}</span>
               <div className="flex text-amber-400">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className={`text-[10px] ${star <= s.score ? 'opacity-100' : 'opacity-20'}`}>★</span>
+                  <Star key={star} size={10} fill={star <= s.score ? 'currentColor' : 'none'} className={star <= s.score ? 'opacity-100' : 'opacity-20'} />
                 ))}
               </div>
             </div>
@@ -300,7 +314,7 @@ export default function ScorecardPage() {
 
     if (rawNotes && !hasTriggeredAiRef.current) {
       hasTriggeredAiRef.current = true
-      setNotes('✨ AI is summarizing your live notes...')
+      setNotes('Analyzing your live notes with AI...')
       setAiLoading(true)
       
       aiApi.evaluateNotes(rawNotes)
@@ -447,9 +461,7 @@ export default function ScorecardPage() {
             flexShrink: 0,
           }}
         >
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
+          <ArrowLeft size={18} />
         </button>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
@@ -486,7 +498,7 @@ export default function ScorecardPage() {
             fontSize: 18,
           }}
         >
-          📅
+          <Calendar size={18} className="text-[var(--violet)]" />
         </div>
         <div>
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{interview.title}</p>
@@ -508,8 +520,8 @@ export default function ScorecardPage() {
             boxShadow: '0 4px 20px rgba(108,71,255,0.08)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
-                🌟 Your Submitted Scorecard
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Star size={20} fill="var(--amber, #fbbf24)" className="text-[var(--amber, #fbbf24)]" /> Your Submitted Scorecard
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                  <StarRating value={displayScorecard.overall_rating} size={20} />
@@ -604,8 +616,8 @@ export default function ScorecardPage() {
                   }}
                 >
                   <div style={{ minWidth: 140 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-                      {crit.emoji} {crit.label}
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <GlassIcon icon={crit.emoji as any} variant="gray" size={24} iconSize={12} glow={false} /> {crit.label}
                     </p>
                     <p style={{ fontSize: 10, color: 'var(--text-lite)', marginTop: 2 }}>{crit.description}</p>
                   </div>
@@ -647,7 +659,7 @@ export default function ScorecardPage() {
                       fontFamily: "'Sora', sans-serif",
                     }}
                   >
-                    {opt.emoji} {opt.label}
+                    <div className="flex items-center justify-center gap-1.5">{opt.emoji} {opt.label}</div>
                   </button>
                 )
               })}

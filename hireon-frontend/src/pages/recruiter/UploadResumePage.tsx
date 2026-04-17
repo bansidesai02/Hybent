@@ -5,8 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { resumesApi } from '@/api/resumes'
 import { jobsApi } from '@/api/jobs'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { Select } from '@/components/ui/Select'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import type { Candidate, Job } from '@/types'
+import { Plus, Search, X, AlertTriangle, FileText, CheckCircle, Upload, Trash2, Eye, ExternalLink, Star, Mail, Calendar } from 'lucide-react'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,12 +36,12 @@ interface JobReq {
 type Stage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error' | 'duplicate'
 
 const ANALYSIS_STEPS = [
-  { id: 'parse', icon: '📄', label: 'Parsing document', getDetail: (c: Candidate) => `Extracted ${(c.summary?.length || 0) + 500} tokens` },
-  { id: 'skills', icon: '🏷️', label: 'Extracting explicit skills', getDetail: (c: Candidate) => `Found: ${c.skills.slice(0, 4).join(', ')}` },
-  { id: 'score', icon: '🎯', label: 'Generating match score', getDetail: (_: Candidate, s?: ScoringResult) => `Match: ${s?.final_score ?? '?'}% · ${s?.shortlisted ? '✅ Passes' : '❌ Below threshold'}` },
-  { id: 'decide', icon: '⚡', label: 'Making shortlist decision', getDetail: (_: Candidate, s?: ScoringResult) => {
-    if (s?.shortlisted) return `✅ Shortlisted`
-    return `⏸ Needs review`
+  { id: 'parse', icon: <GlassIcon icon="FileText" variant="violet" size={24} iconSize={12} />, label: 'Parsing document', getDetail: (c: Candidate) => `Extracted ${(c.summary?.length || 0) + 500} tokens` },
+  { id: 'skills', icon: <GlassIcon icon="Search" variant="blue" size={24} iconSize={12} />, label: 'Extracting explicit skills', getDetail: (c: Candidate) => `Found: ${c.skills.slice(0, 4).join(', ')}` },
+  { id: 'score', icon: <GlassIcon icon="Target" variant="teal" size={24} iconSize={12} />, label: 'Generating match score', getDetail: (_: Candidate, s?: ScoringResult) => `Match: ${s?.final_score ?? '?'}% · ${s?.shortlisted ? 'Passes' : 'Below threshold'}` },
+  { id: 'decide', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={24} iconSize={12} />, label: 'Making shortlist decision', getDetail: (_: Candidate, s?: ScoringResult) => {
+    if (s?.shortlisted) return `Shortlisted`
+    return `Needs review`
   }},
 ]
 
@@ -180,7 +183,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
                 onMouseOver={e => !loading && (e.currentTarget.style.transform = 'translateY(-1px)')}
                 onMouseOut={e => !loading && (e.currentTarget.style.transform = 'none')}
               >
-                {loading === 'applied' ? 'Adding...' : '➕ Add in Pipeline'}
+                {loading === 'applied' ? 'Adding...' : <><Plus size={16} /> Add in Pipeline</>}
               </button>
             )}
 
@@ -199,7 +202,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
                 onMouseOver={e => (e.currentTarget.style.background = 'rgba(108,71,255,0.1)')}
                 onMouseOut={e => (e.currentTarget.style.background = 'rgba(108,71,255,0.05)')}
               >
-                🔍 View Candidate
+                <Search size={14} /> View Candidate
               </button>
 
               <button
@@ -215,7 +218,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
                 onMouseOver={e => (e.currentTarget.style.background = 'rgba(108,71,255,0.1)')}
                 onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
               >
-                📅 Schedule Interview
+                <Calendar size={18} className="mr-1.5" /> Schedule Interview
               </button>
             </div>
           </div>
@@ -286,7 +289,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
               onMouseOver={e => !loading && currentStage !== 'rejected' && (e.currentTarget.style.transform = 'translateY(-1px)')}
               onMouseOut={e => !loading && currentStage !== 'rejected' && (e.currentTarget.style.transform = 'none')}
             >
-              {loading === 'reject' ? 'Rejecting...' : currentStage === 'rejected' ? '✉ Sent' : '❌ Reject'}
+              {loading === 'reject' ? 'Rejecting...' : currentStage === 'rejected' ? '✉ Sent' : <><X size={14} /> Reject</>}
             </button>
 
             <button
@@ -304,7 +307,7 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
               onMouseOver={e => !loading && (e.currentTarget.style.background = 'rgba(217,119,6,0.07)')}
               onMouseOut={e => !loading && (e.currentTarget.style.background = 'transparent')}
             >
-              {loading === 'screening' ? 'Adding...' : '📥 Talent DB'}
+              {loading === 'screening' ? 'Adding...' : <><GlassIcon icon="Inbox" variant="violet" size={18} iconSize={10} className="mr-2" /> Talent DB</>}
             </button>
           </div>
 
@@ -446,14 +449,14 @@ export default function UploadResumePage() {
   return (
     <div style={{ minHeight: '100%' }}>
       {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 26, fontWeight: 900, color: 'var(--text)', marginBottom: 6 }}>
+      <header className="page-header">
+        <h1 className="page-title">
           Upload Resume
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-mid)' }}>
+        <p className="page-subtitle">
           Drop a resume and watch Hireon AI analyse it against your job requirements.
         </p>
-      </div>
+      </header>
 
       <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 items-start">
 
@@ -538,14 +541,18 @@ export default function UploadResumePage() {
             onDrop={onDrop}
             onClick={() => !isAnalyzing && inputRef.current?.click()}
             style={{
-              border: `2px dashed ${dragOver ? '#6c47ff' : 'rgba(108,71,255,0.28)'}`,
+              border: `2px dashed ${dragOver ? 'var(--violet)' : 'var(--card-border)'}`,
               borderRadius: 14,
               padding: '44px 20px',
               textAlign: 'center',
               cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-              background: dragOver ? 'rgba(108,71,255,0.05)' : 'var(--upload-zone, rgba(255,255,255,0.45))',
+              background: dragOver ? 'var(--sb-hover)' : 'var(--upload-zone, #ffffff)',
               transition: 'all 0.3s',
               opacity: isAnalyzing ? 0.6 : 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             <input
@@ -555,7 +562,9 @@ export default function UploadResumePage() {
               style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
             />
-            <div style={{ fontSize: 44, marginBottom: 14 }}>📄</div>
+            <div style={{ marginBottom: 14 }}>
+              <GlassIcon icon="FileText" variant="violet" size={44} iconSize={24} />
+            </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
               {isAnalyzing ? 'Analysing…' : 'Drop a resume here or click to browse'}
             </div>
@@ -566,12 +575,12 @@ export default function UploadResumePage() {
               ))}
             </div>
           </div>
-
-          {error && (
-            <div style={{ marginTop: 12, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ef4444' }}>
-              ⚠️ {error}
-            </div>
-          )}
+          
+            {error && (
+              <div style={{ marginTop: 12, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> {error}
+              </div>
+            )}
         </div>
 
         {/* ── RIGHT PANEL ── */}
@@ -580,8 +589,10 @@ export default function UploadResumePage() {
             {/* Placeholder when idle */}
             {stage === 'idle' && (
               <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 40, textAlign: 'center', boxShadow: 'var(--shadow)' }}>
-                  <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', boxShadow: 'var(--shadow)' }}>
+                  <div className="mb-4">
+                    <GlassIcon icon="Brain" variant="pink" size={60} iconSize={30} />
+                  </div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>AI Analysis Ready</div>
                   <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
                     Fill in the job requirements and drop a resume to get an AI-powered match score, skill analysis, and shortlisting decision.
@@ -595,8 +606,10 @@ export default function UploadResumePage() {
               <motion.div key="duplicate" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                 <div style={{ background: 'var(--card-bg)', border: '1px solid #f59e0b', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 20px rgba(245,158,11,0.15)' }}>
                   <div style={{ padding: '32px 24px', textAlign: 'center', background: 'rgba(245,158,11,0.05)' }}>
-                    <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-                    <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700, color: '#d97706', marginBottom: 12 }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <GlassIcon icon="AlertTriangle" variant="amber" size={48} iconSize={24} />
+                    </div>
+                    <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: 22, fontWeight: 700, color: '#d97706', marginBottom: 12 }}>
                       Duplicate Detected
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 24, maxWidth: 320, margin: '0 auto 24px auto' }}>
@@ -615,7 +628,7 @@ export default function UploadResumePage() {
                       onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
                       onMouseOut={e => e.currentTarget.style.transform = 'none'}
                     >
-                      🔍 View Existing Profile
+                      <Search size={14} /> View Existing Profile
                     </button>
                     
                     <div style={{ marginTop: 20 }}>
@@ -634,12 +647,12 @@ export default function UploadResumePage() {
             {/* Analysis steps while uploading / analyzing */}
             {isAnalyzing && (
               <motion.div key="analyzing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
                   {/* Header */}
-                  <div style={{ padding: '15px 18px', background: 'linear-gradient(135deg,rgba(108,71,255,.07),rgba(255,107,198,.04))', borderBottom: '1px solid var(--table-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ padding: '15px 18px', background: 'var(--sb-hover)', borderBottom: '1px solid var(--table-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
-                      width: 20, height: 20, border: '2px solid rgba(108,71,255,0.2)',
-                      borderTopColor: '#6c47ff', borderRadius: '50%',
+                      width: 20, height: 20, border: '2px solid var(--card-border)',
+                      borderTopColor: 'var(--violet)', borderRadius: '50%',
                       animation: 'spin 0.7s linear infinite', flexShrink: 0
                     }} />
                     <div>
@@ -690,8 +703,8 @@ export default function UploadResumePage() {
               <motion.div key="done" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
 
                 {/* Analysis complete header */}
-                <div style={{ background: 'var(--kpi-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-                  <div style={{ padding: '15px 18px', background: 'linear-gradient(135deg,rgba(108,71,255,.07),rgba(255,107,198,.04))', borderBottom: '1px solid var(--table-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+                  <div style={{ padding: '15px 18px', background: 'var(--sb-hover)', borderBottom: '1px solid var(--table-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 20, height: 20, border: '2px solid #10b981', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#10b981', fontWeight: 700 }}>✓</div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Analysis complete</div>
                     <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-mid)' }}>
@@ -720,13 +733,13 @@ export default function UploadResumePage() {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  style={{ background: 'linear-gradient(135deg,rgba(108,71,255,.07),rgba(255,107,198,.04))', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}
+                  style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}
                 >
                   {/* Candidate header */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
                     {scoring && <ScoreRing score={scoring.final_score} />}
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                      <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
                         {result.full_name}
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 10 }}>
@@ -754,10 +767,20 @@ export default function UploadResumePage() {
                     {[
                       { val: result.experience_years || (result.years_experience != null ? `${result.years_experience}y` : '—'), lbl: 'Years Exp.' },
                       { val: scoring?.final_score ?? '—', lbl: 'AI Score' },
-                      { val: scoring?.shortlisted ? '✅ YES' : '⏸ REVIEW', lbl: 'Shortlist' },
+                      { val: scoring?.shortlisted ? (
+                        <div className="flex items-center gap-1">
+                          <GlassIcon icon="CheckCircle" variant="emerald" size={16} iconSize={10} />
+                          <span>YES</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <GlassIcon icon="Pause" variant="amber" size={16} iconSize={10} />
+                          <span>REVIEW</span>
+                        </div>
+                      ), lbl: 'Shortlist' },
                     ].map((m: any) => (
-                      <div key={m.lbl} style={{ background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-                        <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>{m.val}</div>
+                      <div key={m.lbl} style={{ background: 'var(--bg)', border: '1px solid var(--table-border)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+                        <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: 22, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{m.val}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 4 }}>{m.lbl}</div>
                       </div>
                     ))}
@@ -781,7 +804,17 @@ export default function UploadResumePage() {
                         color: scoring.shortlisted ? '#059669' : '#d97706',
                         border: `1px solid ${scoring.shortlisted ? 'rgba(16,185,129,0.25)' : 'rgba(251,191,36,0.25)'}`,
                       }}>
-                        {scoring.shortlisted ? '✅ Auto-Shortlisted' : '⏸ In Review Queue'}
+                        {scoring.shortlisted ? (
+                          <div className="flex items-center gap-1">
+                            <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={10} />
+                            <span>Auto-Shortlisted</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <GlassIcon icon="Pause" variant="amber" size={18} iconSize={10} />
+                            <span>In Review Queue</span>
+                          </div>
+                        )}
                       </span>
                     </div>
                   )}
