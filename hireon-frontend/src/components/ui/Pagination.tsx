@@ -15,7 +15,7 @@ export function Pagination({ page, pages, total, limit, onPage }: PaginationProp
 
   return (
     <div className="flex items-center justify-between px-1 py-3">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-sm text-gray-500 dark:text-[#b0a8d8]">
         Showing <span className="font-medium">{from}–{to}</span> of{' '}
         <span className="font-medium">{total}</span> results
       </p>

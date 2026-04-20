@@ -9,6 +9,10 @@ import { jobsApi } from '@/api/jobs'
 import { aiApi } from '@/api/ai'
 import type { Job } from '@/types'
 import { AIJDReviewModal } from '@/components/recruiter/AIJDReviewModal'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { Select } from '@/components/ui/Select'
+import { ArrowRight } from 'lucide-react'
+import { Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
 // ─── Schema ────────────────────────────────────────────────────────────────────
@@ -75,6 +79,7 @@ export default function AddJobPage() {
     watch,
     setValue,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -263,8 +268,8 @@ export default function AddJobPage() {
       </div>
 
       {serverError && (
-        <div style={{ marginBottom: 16, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ef4444' }}>
-          ⚠️ {serverError}
+        <div style={{ marginBottom: 16, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <GlassIcon icon="AlertTriangle" variant="rose" size={20} iconSize={12} glow={false} /> {serverError}
         </div>
       )}
 
@@ -285,13 +290,23 @@ export default function AddJobPage() {
             {/* Status & Location */}
             <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 mb-3.5">
               <div>
-                <label style={labelStyle}>Status</label>
-                <select className="input-base" {...register('status')}>
-                  <option value="active">Active</option>
-                  <option value="draft">Draft</option>
-                  <option value="paused">Paused</option>
-                  <option value="closed">Closed</option>
-                </select>
+                <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Status"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={[
+                        { value: 'active', label: 'Active' },
+                        { value: 'draft', label: 'Draft' },
+                        { value: 'paused', label: 'Paused' },
+                        { value: 'closed', label: 'Closed' },
+                      ]}
+                    />
+                  )}
+                />
               </div>
               <div>
                 <label style={labelStyle}>Location</label>
@@ -301,14 +316,24 @@ export default function AddJobPage() {
 
             {/* Job Type only */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Job Type</label>
-              <select className="input-base" {...register('job_type')}>
-                <option value="full_time">Full-time</option>
-                <option value="part_time">Part-time</option>
-                <option value="contract">Contract</option>
-                <option value="internship">Internship</option>
-                <option value="freelance">Freelance</option>
-              </select>
+              <Controller
+                name="job_type"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Job Type"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={[
+                      { value: 'full_time', label: 'Full-time' },
+                      { value: 'part_time', label: 'Part-time' },
+                      { value: 'contract', label: 'Contract' },
+                      { value: 'internship', label: 'Internship' },
+                      { value: 'freelance', label: 'Freelance' },
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Min Exp + Experience Level */}
@@ -322,15 +347,25 @@ export default function AddJobPage() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Experience Level</label>
-                <select className="input-base" {...register('experience_level')}>
-                  <option value="">Select level</option>
-                  <option value="entry">Entry Level</option>
-                  <option value="mid">Mid Level</option>
-                  <option value="senior">Senior</option>
-                  <option value="lead">Lead / Principal</option>
-                  <option value="director">Director+</option>
-                </select>
+                <Controller
+                  name="experience_level"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Experience Level"
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="Select level"
+                      options={[
+                        { value: 'entry', label: 'Entry Level' },
+                        { value: 'mid', label: 'Mid Level' },
+                        { value: 'senior', label: 'Senior' },
+                        { value: 'lead', label: 'Lead / Principal' },
+                        { value: 'director', label: 'Director+' },
+                      ]}
+                    />
+                  )}
+                />
               </div>
             </div>
 
@@ -404,8 +439,9 @@ export default function AddJobPage() {
                 opacity: mutation.isPending ? 0.7 : 1,
               }}
             >
-              {mutation.isPending ? '⏳ Saving…' : saved ? '✅ Saved!' : '💾 Save Job Description'}
-            </button>
+            {mutation.isPending ? <>Saving...</> : saved ? <>Saved!</> : <>Save Job Description</>}
+            {!mutation.isPending && !saved && <GlassIcon icon="Save" variant="violet" size={16} iconSize={10} glow={false} />}
+          </button>
           </div>
 
           {/* ── RIGHT PANEL ── */}
@@ -508,7 +544,9 @@ export default function AddJobPage() {
                     if (f) handleFileUpload(f)
                   }}
                 />
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+                  <GlassIcon icon="ClipboardList" variant="violet" size={60} iconSize={32} glow={false} />
+                </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Drop your JD file here</div>
                 <div style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 12 }}>
                   AI will auto-extract skills, experience &amp; requirements
@@ -546,8 +584,8 @@ export default function AddJobPage() {
                         onMouseOver={(e: any) => (e.currentTarget.style.background = 'var(--kpi-bg)')}
                         onMouseOut={(e: any) => (e.currentTarget.style.background = 'var(--activity-bg)')}
                       >
-                        <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0, background: ICON_COLORS[i % ICON_COLORS.length] }}>
-                          💼
+                        <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: ICON_COLORS[i % ICON_COLORS.length] }}>
+                          <GlassIcon icon="Briefcase" variant="violet" size={36} iconSize={18} glow={false} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -572,7 +610,7 @@ export default function AddJobPage() {
                   onClick={() => navigate(`${basePath}/jobs`)}
                   style={{ marginTop: 12, width: '100%', padding: 8, background: 'transparent', border: 'none', color: '#6c47ff', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                 >
-                  View all {allJobs.length} jobs →
+                  View all {allJobs.length} jobs <ArrowRight size={14} className="ml-1 inline" />
                 </button>
               )}
             </div>

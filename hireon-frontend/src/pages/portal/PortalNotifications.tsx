@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsApi } from '@/api/notifications'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import { useNotificationStore } from '@/store/notificationStore'
 import { timeAgo } from '@/utils/formatters'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -28,32 +29,32 @@ interface NotifMeta {
 function getNotifMeta(type: NotificationType): NotifMeta {
   switch (type) {
     case 'shortlisted':
-      return { icon: '🎯', gradient: 'from-violet-500/15 to-purple-500/5', border: 'border-violet-200/60', label: 'Shortlisted' }
+      return { icon: 'Target', gradient: 'from-violet-500/15 to-purple-500/5', border: 'border-violet-200/60', label: 'Shortlisted' }
     case 'interview_scheduled':
     case 'interview_updated':
-      return { icon: '📅', gradient: 'from-blue-500/15 to-sky-500/5', border: 'border-blue-200/60', label: 'Interview' }
+      return { icon: 'Calendar', gradient: 'from-blue-500/15 to-sky-500/5', border: 'border-blue-200/60', label: 'Interview' }
     case 'interview_cancelled':
     case 'interview_reminder':
-      return { icon: '⚠️', gradient: 'from-amber-500/15 to-yellow-500/5', border: 'border-amber-200/60', label: 'Interview' }
+      return { icon: 'AlertTriangle', gradient: 'from-amber-500/15 to-yellow-500/5', border: 'border-amber-200/60', label: 'Interview' }
     case 'offer_sent':
     case 'offer_received':
     case 'offer_accepted':
-      return { icon: '🎉', gradient: 'from-emerald-500/15 to-green-500/5', border: 'border-emerald-200/60', label: 'Offer' }
+      return { icon: 'PartyPopper', gradient: 'from-emerald-500/15 to-green-500/5', border: 'border-emerald-200/60', label: 'Offer' }
     case 'offer_declined':
-      return { icon: '📋', gradient: 'from-red-500/10 to-rose-500/5', border: 'border-red-200/60', label: 'Offer' }
+      return { icon: 'ClipboardList', gradient: 'from-red-500/10 to-rose-500/5', border: 'border-red-200/60', label: 'Offer' }
     case 'profile_viewed':
-      return { icon: '👁️', gradient: 'from-indigo-500/15 to-blue-500/5', border: 'border-indigo-200/60', label: 'Profile' }
+      return { icon: 'Eye', gradient: 'from-indigo-500/15 to-blue-500/5', border: 'border-indigo-200/60', label: 'Profile' }
     case 'stage_updated':
     case 'stage_changed':
-      return { icon: '🔄', gradient: 'from-cyan-500/15 to-teal-500/5', border: 'border-cyan-200/60', label: 'Status' }
+      return { icon: 'RefreshCw', gradient: 'from-cyan-500/15 to-teal-500/5', border: 'border-cyan-200/60', label: 'Status' }
     case 'message_received':
-      return { icon: '💬', gradient: 'from-sky-500/15 to-blue-500/5', border: 'border-sky-200/60', label: 'Message' }
+      return { icon: 'MessageSquare', gradient: 'from-sky-500/15 to-blue-500/5', border: 'border-sky-200/60', label: 'Message' }
     case 'application_received':
-      return { icon: '📝', gradient: 'from-rose-500/15 to-pink-500/5', border: 'border-rose-200/60', label: 'Application' }
+      return { icon: 'FileText', gradient: 'from-rose-500/15 to-pink-500/5', border: 'border-rose-200/60', label: 'Application' }
     case 'feedback_reminder':
-      return { icon: '✅', gradient: 'from-teal-500/15 to-green-500/5', border: 'border-teal-200/60', label: 'Feedback' }
+      return { icon: 'CheckCircle', gradient: 'from-teal-500/15 to-green-500/5', border: 'border-teal-200/60', label: 'Feedback' }
     default:
-      return { icon: '🔔', gradient: 'from-gray-500/10 to-slate-500/5', border: 'border-gray-200/60', label: 'System' }
+      return { icon: 'Bell', gradient: 'from-gray-500/10 to-slate-500/5', border: 'border-gray-200/60', label: 'System' }
   }
 }
 
@@ -264,9 +265,10 @@ export default function PortalNotifications() {
             animate={{ opacity: 1, y: 0 }}
             style={{ textAlign: 'center', padding: '60px 20px' }}
           >
-            <div style={{ fontSize: 52, marginBottom: 16 }}>
-              {activeTab === 'unread' ? '✅' : '📭'}
-            </div>
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ marginBottom: 16 }}>
+                <GlassIcon icon={activeTab === 'unread' ? 'CheckCircle' : 'Inbox'} variant={activeTab === 'unread' ? 'emerald' : 'violet'} size={52} iconSize={24} />
+              </div>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
               {activeTab === 'unread' ? 'All caught up!' : 'No notifications here'}
             </div>
@@ -275,6 +277,7 @@ export default function PortalNotifications() {
                 ? "You've read everything. Check back later for updates."
                 : `No ${activeTab === 'all' ? '' : activeTab + ' '}notifications yet.`}
             </div>
+          </div>
           </motion.div>
         ) : (
           <AnimatePresence initial={false}>
@@ -330,12 +333,11 @@ export default function PortalNotifications() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 20,
                     flexShrink: 0,
                     border: `1px solid`,
                     borderColor: meta.border,
                   }}>
-                    {meta.icon}
+                    <GlassIcon icon={meta.icon} variant="violet" size={32} iconSize={16} glow={false} />
                   </div>
 
                   {/* Content */}

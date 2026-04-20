@@ -12,8 +12,8 @@ export function ScoreRing({ score, size = 56, strokeWidth = 5 }: ScoreRingProps)
   const dashOffset = circumference - (progress / 100) * circumference
 
   const color =
-    score == null ? '#d1d5db'
-    : score >= 80 ? '#10b981'
+    score == null ? 'var(--text-light, #94a3b8)'
+    : score >= 80 ? 'var(--teal, #10b981)'
     : score >= 60 ? '#f59e0b'
     : '#ef4444'
 

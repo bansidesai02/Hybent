@@ -14,9 +14,9 @@ const variants = {
   warning: 'bg-[rgba(251,191,36,0.12)] text-[#d97706]',
   danger:  'bg-[rgba(239,68,68,0.10)] text-[#ef4444]',
   info:    'bg-[rgba(59,130,246,0.12)] text-[#1d4ed8]',
-  purple:  'bg-[rgba(108,71,255,0.12)] text-[#6c47ff]',
-  teal:    'bg-[rgba(0,212,200,0.10)] text-[#00d4c8]',
-  pink:    'bg-[rgba(255,107,198,0.10)] text-[#ff6bc6]',
+  purple:  'bg-[var(--violet)]/12 text-[var(--violet)]',
+  teal:    'bg-[var(--teal,rgba(0,212,200,0.10))] text-[var(--teal,#00d4c8)]',
+  pink:    'bg-[var(--brand2)]/10 text-[var(--brand2,#ff6bc6)]',
 }
 
 export function Badge({ children, variant = 'default', size = 'sm', className }: BadgeProps) {

@@ -9,6 +9,16 @@ import { clsx } from 'clsx'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/utils/cropImage'
 import type { Organization } from '@/types'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { 
+  Building2, 
+  ShieldCheck, 
+  Camera, 
+  Mail, 
+  Settings, 
+  Lock, 
+  Shield 
+} from 'lucide-react'
 
 export default function RecruiterSettingsPage() {
   const { user, isAdmin } = useAuth()
@@ -172,14 +182,14 @@ export default function RecruiterSettingsPage() {
         className="flex flex-col md:flex-row md:items-end justify-between gap-4"
       >
         <div>
-          <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <h1 className="text-4xl font-black text-gray-900 dark:text-[#ede9ff] tracking-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             Settings
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">
+          <p className="text-sm text-gray-500 dark:text-[#b0a8d8] mt-2 font-medium">
             Manage your {isAdmin ? 'company' : 'account'} preferences and security settings.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-full">
+        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-[#1e1a35] px-4 py-2 rounded-full">
           <span className={clsx("w-2 h-2 rounded-full animate-pulse", isAdmin ? "bg-violet-500" : "bg-emerald-500")}></span>
           Role: {user?.role || 'User'}
         </div>
@@ -193,13 +203,13 @@ export default function RecruiterSettingsPage() {
       >
         {/* Admin Section: Company Details */}
         {isAdmin && (
-          <motion.div variants={itemVariants} className="bg-white dark:bg-[#0f111a] rounded-[32px] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-            <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+          <motion.div variants={itemVariants} className="bg-white dark:bg-[#0f111a] rounded-[32px] border border-gray-100 dark:border-[#2a2550] shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+            <div className="px-8 py-6 border-b border-gray-50 dark:border-[#2a2550] flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">Company Details</h3>
                 <p className="text-[11px] text-gray-400 font-bold mt-0.5">MANAGE YOUR ORGANIZATION ASSETS</p>
               </div>
-              <span className="text-2xl">🏢</span>
+              <GlassIcon icon="Building2" variant="blue" size={32} iconSize={16} glow={false} />
             </div>
             
             <div className="p-8 space-y-8">
@@ -208,12 +218,12 @@ export default function RecruiterSettingsPage() {
                 <div className="relative group">
                   <div 
                     onClick={onLogoClick}
-                    className="w-24 h-24 rounded-3xl bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#6c47ff] group-hover:shadow-lg"
+                    className="w-24 h-24 rounded-3xl bg-gray-50 dark:bg-[#1e1a35] border-2 border-dashed border-gray-200 dark:border-[#4a4570] flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#6c47ff] group-hover:shadow-lg"
                   >
                     {organization?.logo_url ? (
                       <img src={organization.logo_url} alt="logo" className="w-full h-full object-contain p-2" />
                     ) : (
-                      <span className="text-2xl opacity-40 group-hover:scale-110 transition-transform">📸</span>
+                      <Camera className="w-8 h-8 opacity-40 group-hover:scale-110 transition-transform text-gray-400" />
                     )}
                     
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -237,7 +247,7 @@ export default function RecruiterSettingsPage() {
                         type="text" 
                         value={orgName}
                         onChange={(e) => setOrgName(e.target.value)}
-                        className="flex-1 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-3.5 text-sm font-bold focus:ring-2 focus:ring-[#6c47ff]/20 outline-none transition-all"
+                        className="flex-1 bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3.5 text-sm font-bold focus:ring-2 focus:ring-[#6c47ff]/20 outline-none transition-all"
                         placeholder="Acme Inc."
                       />
                       <button 
@@ -256,13 +266,13 @@ export default function RecruiterSettingsPage() {
         )}
 
         {/* Common Section: Account Security */}
-        <motion.div variants={itemVariants} className="bg-white dark:bg-[#0f111a] rounded-[32px] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-          <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+        <motion.div variants={itemVariants} className="bg-white dark:bg-[#0f111a] rounded-[32px] border border-gray-100 dark:border-[#2a2550] shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+          <div className="px-8 py-6 border-b border-gray-50 dark:border-[#2a2550] flex items-center justify-between">
             <div>
               <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">Account Security</h3>
               <p className="text-[11px] text-gray-400 font-bold mt-0.5">PROTECT YOUR ACCOUNT ACCESS</p>
             </div>
-            <span className="text-2xl">🔒</span>
+            <GlassIcon icon="ShieldCheck" variant="amber" size={32} iconSize={16} glow={false} />
           </div>
 
           <div className="p-8 space-y-10">
@@ -271,19 +281,19 @@ export default function RecruiterSettingsPage() {
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 block">Recovery Email Address</label>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative group">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg opacity-40 group-focus-within:opacity-100 transition-opacity">📧</span>
+                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 group-focus-within:opacity-100 transition-opacity text-gray-400" />
                   <input 
                     type="email" 
                     value={recoveryEmail}
                     onChange={(e) => setRecoveryEmail(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-bold focus:ring-2 focus:ring-[#6c47ff]/20 outline-none transition-all"
+                    className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl pl-12 pr-5 py-3.5 text-sm font-bold focus:ring-2 focus:ring-[#6c47ff]/20 outline-none transition-all"
                     placeholder="backup@email.com"
                   />
                 </div>
                 <button 
                   onClick={handleUpdateRecoveryEmail}
                   disabled={updateProfileMutation.isPending || !recoveryEmail || recoveryEmail === user?.recovery_email}
-                  className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-6 py-4 rounded-2xl text-xs font-black hover:bg-gray-200 dark:hover:bg-gray-700 transition-all disabled:opacity-50"
+                  className="bg-gray-100 dark:bg-[#1e1a35] text-gray-900 dark:text-gray-100 px-6 py-4 rounded-2xl text-xs font-black hover:bg-gray-200 dark:hover:bg-gray-700 transition-all disabled:opacity-50"
                 >
                   {updateProfileMutation.isPending ? 'Updating...' : 'Update Email'}
                 </button>
@@ -291,12 +301,12 @@ export default function RecruiterSettingsPage() {
               <p className="text-[10px] text-gray-400 font-medium mt-3 px-1">Used for password recovery and critical security alerts.</p>
             </div>
 
-            <div className="h-px bg-gray-50 dark:bg-gray-800" />
+            <div className="h-px bg-gray-50 dark:bg-[#1e1a35]" />
 
             {/* Password Change */}
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h4 className="text-[13px] font-black text-gray-900 dark:text-white">Change Password</h4>
+                <h4 className="text-[13px] font-black text-gray-900 dark:text-[#ede9ff]">Change Password</h4>
                 <button 
                   onClick={() => setIsPasswordChanging(!isPasswordChanging)}
                   className="text-[11px] font-black text-[#6c47ff] uppercase tracking-wider"
@@ -322,7 +332,7 @@ export default function RecruiterSettingsPage() {
                           required
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
+                          className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
                         />
                       </div>
                       <div />
@@ -333,7 +343,7 @@ export default function RecruiterSettingsPage() {
                           required
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
+                          className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
                         />
                       </div>
                       <div className="space-y-2">
@@ -343,7 +353,7 @@ export default function RecruiterSettingsPage() {
                           required
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
+                          className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
                         />
                       </div>
                     </div>
@@ -388,14 +398,14 @@ export default function RecruiterSettingsPage() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative w-full max-w-2xl bg-white dark:bg-[#0f111a] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden flex flex-col h-[80vh] sm:h-[600px]"
             >
-              <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
+              <div className="px-8 py-6 border-b border-gray-100 dark:border-[#2a2550] flex items-center justify-between shrink-0">
                 <div>
                   <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">Adjust Logo</h3>
                   <p className="text-[11px] text-gray-400 font-bold mt-0.5">CROP AND POSITION YOUR IMAGE</p>
                 </div>
                 <button 
                   onClick={handleCancelCrop}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-[#1e1a35] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 >
                   ✕
                 </button>
@@ -415,7 +425,7 @@ export default function RecruiterSettingsPage() {
                 />
               </div>
 
-              <div className="px-8 py-8 border-t border-gray-100 dark:border-gray-800 space-y-6 shrink-0">
+              <div className="px-8 py-8 border-t border-gray-100 dark:border-[#2a2550] space-y-6 shrink-0">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-[11px] font-black text-gray-400 uppercase tracking-widest">
                     <span>Zoom Level</span>
@@ -429,14 +439,14 @@ export default function RecruiterSettingsPage() {
                     step={0.1}
                     aria-labelledby="Zoom"
                     onChange={(e) => setZoom(Number(e.target.value))}
-                    className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-[#6c47ff]"
+                    className="w-full h-1.5 bg-gray-100 dark:bg-[#1e1a35] rounded-lg appearance-none cursor-pointer accent-[#6c47ff]"
                   />
                 </div>
 
                 <div className="flex gap-4">
                   <button 
                     onClick={handleCancelCrop}
-                    className="flex-1 px-6 py-4 rounded-2xl text-xs font-black text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 transition-all border border-gray-100 dark:border-gray-800"
+                    className="flex-1 px-6 py-4 rounded-2xl text-xs font-black text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 transition-all border border-gray-100 dark:border-[#2a2550]"
                   >
                     Cancel
                   </button>

@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
 import { Job, Application } from '@/types'
 import toast from 'react-hot-toast'
+import { Building2, CheckCircle, Lightbulb } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 export default function PortalOpenings() {
   const queryClient = useQueryClient()
@@ -28,7 +30,7 @@ export default function PortalOpenings() {
     mutationFn: (jobId: string) => portalApi.applyToJob(jobId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal', 'applications'] })
-      toast.success('Application submitted successfully! 🎉')
+      toast.success('Application submitted successfully!')
       setApplyTarget(null)
     },
     onError: (err: any) => {
@@ -41,7 +43,7 @@ export default function PortalOpenings() {
   const referMutation = useMutation({
     mutationFn: ({ jobId, data }: { jobId: string; data: FormData }) => portalApi.referJob(jobId, data),
     onSuccess: () => {
-      toast.success('Referral submitted successfully! 🎉')
+      toast.success('Referral submitted successfully!')
       setReferTarget(null)
     },
     onError: (err: any) => {
@@ -56,7 +58,9 @@ export default function PortalOpenings() {
       <div className="ph">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div className="pt">Current Openings 🏢</div>
+            <div className="pt" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              Current Openings <GlassIcon icon="Building2" variant="violet" size={28} iconSize={14} />
+            </div>
             <div className="ps">Explore other roles or refer a friend to earn rewards!</div>
           </div>
         </div>
@@ -102,7 +106,9 @@ export default function PortalOpenings() {
                       <button className="btn btn-outline" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setReferTarget({ ...job, referralBonus })}>Refer a Friend</button>
                     </>
                   ) : (
-                    <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center' }} disabled>Applied ✅</button>
+                    <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center', gap: 6 }} disabled>
+                      <CheckCircle size={14} /> Applied
+                    </button>
                   )}
                 </div>
               </div>
@@ -119,8 +125,9 @@ export default function PortalOpenings() {
             <br />
             Your current resume and profile will be submitted to the recruiter.
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-lite)', marginBottom: 20, padding: '10px 14px', borderRadius: 10, background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.1)' }}>
-            💡 Make sure your resume is up to date in your profile before applying.
+          <div style={{ fontSize: 12, color: 'var(--text-lite)', marginBottom: 20, padding: '10px 14px', borderRadius: 10, background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.1)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Lightbulb size={14} className="text-amber-500" />
+            <span>Make sure your resume is up to date in your profile before applying.</span>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button className="btn btn-outline" onClick={() => setApplyTarget(null)}>Cancel</button>

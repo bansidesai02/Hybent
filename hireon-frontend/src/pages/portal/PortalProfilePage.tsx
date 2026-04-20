@@ -5,6 +5,8 @@ import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
 import { formatSalary } from '@/utils/formatters'
 import ImageCropperModal from '@/components/common/ImageCropperModal'
+import { User, Loader2, Camera, Calendar, FileText, AlertTriangle, Paperclip, X, Check } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 function completionPercent(data: any): number {
   const fields = [
@@ -192,7 +194,7 @@ export default function PortalProfilePage() {
   return (
     <div className="page active" id="page-profile">
       <div className="ph">
-        <div className="pt">My Profile &amp; Resume 👤</div>
+        <div className="pt" style={{ display: 'flex', alignItems: 'center', gap: 10 }}> My Profile &amp; Resume <GlassIcon icon="User" variant="violet" size={30} iconSize={16} /></div>
         <div className="ps">Keep your profile up to date to help interviewers understand you better.</div>
       </div>
 
@@ -232,7 +234,7 @@ export default function PortalProfilePage() {
                   }}
                     className="prof-av-overlay"
                   >
-                    {avatarMutation.isPending ? '⏳' : '📷'}
+                    {avatarMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <Camera size={24} />}
                   </div>
                 </div>
                 <input
@@ -327,8 +329,8 @@ export default function PortalProfilePage() {
 
           {/* INTERVIEW AVAILABILITY */}
           <div style={{ borderTop: '1px solid var(--table-border)', paddingTop: 14, marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 10, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '.5px' }}>
-              📅 INTERVIEW AVAILABILITY
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 12, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '.8px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Calendar size={13} /> INTERVIEW AVAILABILITY
             </div>
             <div className="frow" style={{ marginBottom: 10 }}>
               <div>
@@ -417,7 +419,7 @@ export default function PortalProfilePage() {
 
             {profile?.resume_url && (
               <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span>📄</span>
+                <FileText size={16} />
                 <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', textDecoration: 'none' }}>
                   {profile.resume_filename || 'View Current Resume'}
                 </a>
@@ -425,8 +427,8 @@ export default function PortalProfilePage() {
             )}
 
             {uploadError && (
-              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', marginBottom: 12, fontSize: 13, color: '#ef4444' }}>
-                ⚠️ {uploadError}
+              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', marginBottom: 12, fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> {uploadError}
               </div>
             )}
 
@@ -446,13 +448,13 @@ export default function PortalProfilePage() {
                 opacity: uploadMutation.isPending ? 0.7 : 1,
               }}
             >
-              <div className="upload-zone-ico">
-                {uploadMutation.isPending ? '⏳' : '📎'}
+              <div className="upload-zone-ico" style={{ marginBottom: 12 }}>
+                {uploadMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <Paperclip size={24} />}
               </div>
-              <div className="upload-zone-title">
+              <div className="upload-zone-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
                 {uploadMutation.isPending ? 'Uploading & parsing resume...' : 'Drop your resume here'}
               </div>
-              <div className="upload-zone-sub">
+              <div className="upload-zone-sub" style={{ fontSize: 11, opacity: 0.7 }}>
                 {uploadMutation.isPending ? 'This may take a moment' : 'PDF, DOC, DOCX — max 5 MB'}
               </div>
               <input
@@ -472,9 +474,9 @@ export default function PortalProfilePage() {
                   <button 
                     type="button" 
                     onClick={() => setSkills(skills.filter(s => s !== skill))} 
-                    style={{ background: 'none', border: 'none', color: 'currentcolor', cursor: 'pointer', padding: 0, margin: 0, fontSize: 16, lineHeight: 1 }}
+                    style={{ background: 'none', border: 'none', color: 'currentcolor', cursor: 'pointer', padding: 0, margin: 0, display: 'flex', alignItems: 'center' }}
                   >
-                    &times;
+                    <X size={12} />
                   </button>
                 </span>
               ))}

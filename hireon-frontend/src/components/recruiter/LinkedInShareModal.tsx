@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Share2, Send, ArrowRight } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Modal } from '@/components/ui/Modal'
 import { aiApi } from '@/api/ai'
@@ -44,13 +46,13 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
     ctx.fill()
     ctx.restore()
   }
-  drawCircle(1050, 100, 200, '#6c47ff', 0.15)
+  drawCircle(1050, 100, 200, '#a78bfa', 0.15)
   drawCircle(200, 500, 150, '#0077b5', 0.12)
   drawCircle(900, 500, 120, '#9b59b6', 0.10)
 
   // Top accent bar
   const accentGrad = ctx.createLinearGradient(0, 0, 1200, 0)
-  accentGrad.addColorStop(0, '#6c47ff')
+  accentGrad.addColorStop(0, '#a78bfa')
   accentGrad.addColorStop(1, '#0077b5')
   ctx.fillStyle = accentGrad
   ctx.fillRect(0, 0, 1200, 6)
@@ -63,7 +65,7 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
   ctx.fillText('in LinkedIn', 80, 67)
 
   // "WE'RE HIRING" badge
-  ctx.fillStyle = 'rgba(108,71,255,0.85)'
+  ctx.fillStyle = 'rgba(167,139,250,0.85)'
   roundRect(ctx, 60, 110, 240, 48, 10)
   ctx.fillStyle = '#fff'
   ctx.font = 'bold 22px Arial, sans-serif'
@@ -79,7 +81,7 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
 
   // Divider
   const divGrad = ctx.createLinearGradient(60, 0, 600, 0)
-  divGrad.addColorStop(0, '#6c47ff')
+  divGrad.addColorStop(0, '#a78bfa')
   divGrad.addColorStop(1, 'transparent')
   ctx.fillStyle = divGrad
   ctx.fillRect(60, 340, 500, 3)
@@ -116,7 +118,7 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
       ctx.font = '14px Arial, sans-serif'
       const w = ctx.measureText(skill).width + 22
       if (skillX + w > 1100) return
-      ctx.fillStyle = 'rgba(108,71,255,0.5)'
+      ctx.fillStyle = 'rgba(167,139,250,0.5)'
       roundRect(ctx, skillX, 415, w, 28, 14)
       ctx.fillStyle = '#d4b4ff'
       ctx.font = 'bold 14px Arial, sans-serif'
@@ -131,7 +133,7 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
 
   // Hireon branding
   const brandGrad = ctx.createLinearGradient(60, 0, 300, 0)
-  brandGrad.addColorStop(0, '#6c47ff')
+  brandGrad.addColorStop(0, '#a78bfa')
   brandGrad.addColorStop(1, '#0077b5')
   ctx.fillStyle = brandGrad
   ctx.font = 'bold 28px Georgia, serif'
@@ -144,7 +146,7 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
   ctx.fillStyle = 'rgba(255,255,255,0.6)'
   ctx.font = '16px Arial, sans-serif'
   ctx.textAlign = 'right'
-  ctx.fillText('Apply now → gethireon.netlify.app', 1140, 596)
+  ctx.fillText('Apply now · gethireon.netlify.app', 1140, 596)
   ctx.textAlign = 'left'
 
   return canvas.toDataURL('image/png')
@@ -401,10 +403,10 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
               {isConnected ? (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700,
-                  color: '#059669', background: 'rgba(16,185,129,0.10)',
+                  color: 'var(--teal, #059669)', background: 'rgba(16,185,129,0.10)',
                   border: '1px solid rgba(16,185,129,0.25)', padding: '5px 12px', borderRadius: 20,
                 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--teal, #10b981)' }} />
                   Connected
                   <button
                     onClick={() => { linkedinApi.disconnect(); setIsConnected(false) }}
@@ -463,7 +465,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                   }}
                 >
-                  View Post →
+                   View Post <ArrowRight size={13} className="ml-1 inline" />
                 </a>
                 <button
                   onClick={onClose}
@@ -497,9 +499,9 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                    background: isGenerating ? 'rgba(108,71,255,0.5)' : 'linear-gradient(135deg, #6c47ff, #8b6bff)',
+                    background: isGenerating ? 'var(--violet)/50' : 'linear-gradient(135deg, var(--violet), var(--brand2, #6c47ff))',
                     color: '#fff', fontSize: 12, fontWeight: 700,
-                    boxShadow: '0 4px 12px rgba(108,71,255,0.30)',
+                    boxShadow: '0 4px 12px rgba(167, 139, 250, 0.30)',
                     transition: 'all 0.2s',
                   }}
                 >
@@ -509,7 +511,9 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                       Generating...
                     </>
                   ) : (
-                    <>✨ Generate with AI</>
+                    <>
+                      <GlassIcon icon="Sparkles" variant="violet" size={16} iconSize={10} glow={false} /> Generate with AI
+                    </>
                   )}
                 </button>
               </div>
@@ -523,9 +527,9 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                     style={{
                       padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
                       textTransform: 'capitalize', cursor: 'pointer', border: '1px solid var(--table-border)',
-                      background: selectedTone === t ? 'rgba(108,71,255,0.1)' : 'transparent',
-                      color: selectedTone === t ? '#6c47ff' : 'var(--text-light)',
-                      borderColor: selectedTone === t ? '#6c47ff' : 'var(--table-border)',
+                      background: selectedTone === t ? 'var(--violet)/10' : 'transparent',
+                      color: selectedTone === t ? 'var(--violet)' : 'var(--text-light)',
+                      borderColor: selectedTone === t ? 'var(--violet)' : 'var(--table-border)',
                       transition: 'all 0.2s'
                     }}
                   >
@@ -559,7 +563,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                     fontSize: 13, lineHeight: 1.7, resize: 'vertical',
                     fontFamily: 'inherit', transition: 'border-color 0.2s',
                   }}
-                  onFocus={e => e.target.style.borderColor = '#6c47ff'}
+                  onFocus={e => e.target.style.borderColor = 'var(--violet)'}
                   onBlur={e => e.target.style.borderColor = 'var(--table-border)'}
                 />
               )}
@@ -641,7 +645,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                         padding: '4px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
                         fontSize: 11, fontWeight: 700,
                         background: imageType === 'card' ? 'var(--card-bg)' : 'transparent',
-                        color: imageType === 'card' ? '#6c47ff' : 'var(--text-light)',
+                        color: imageType === 'card' ? 'var(--violet)' : 'var(--text-light)',
                         boxShadow: imageType === 'card' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                         transition: 'all 0.2s',
                       }}
@@ -657,7 +661,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                         padding: '4px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
                         fontSize: 11, fontWeight: 700,
                         background: imageType === 'ai' ? 'var(--card-bg)' : 'transparent',
-                        color: imageType === 'ai' ? '#6c47ff' : 'var(--text-light)',
+                        color: imageType === 'ai' ? 'var(--violet)' : 'var(--text-light)',
                         boxShadow: imageType === 'ai' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                         transition: 'all 0.2s',
                       }}
@@ -670,7 +674,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                         padding: '4px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
                         fontSize: 11, fontWeight: 700,
                         background: imageType === 'none' ? 'var(--card-bg)' : 'transparent',
-                        color: imageType === 'none' ? '#6c47ff' : 'var(--text-light)',
+                        color: imageType === 'none' ? 'var(--violet)' : 'var(--text-light)',
                         boxShadow: imageType === 'none' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                         transition: 'all 0.2s',
                       }}
@@ -693,7 +697,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                       <button
                         onClick={handleGenerateImagePrompt}
                         disabled={isGeneratingImage}
-                        style={{ background: 'none', border: 'none', color: '#6c47ff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--violet)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
                       >
                         {isGeneratingImage ? 'Generating...' : '↺ Redraft Prompt'}
                       </button>
@@ -711,8 +715,8 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                     <button
                       onClick={handleRefreshImage}
                       style={{
-                        padding: '8px', borderRadius: 10, border: '1px solid #6c47ff',
-                        background: 'rgba(108,71,255,0.05)', color: '#6c47ff',
+                        padding: '8px', borderRadius: 10, border: '1px solid var(--violet)',
+                        background: 'var(--violet)/5', color: 'var(--violet)',
                         fontSize: 11, fontWeight: 700, cursor: 'pointer'
                       }}
                     >
@@ -734,7 +738,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                         cursor: 'pointer', fontSize: 11, fontWeight: 700,
                       }}
                     >
-                      🎨 Change Variant
+                      <GlassIcon icon="Palette" variant="violet" size={16} iconSize={10} glow={false} /> Change Variant
                     </button>
                   </div>
                 )}

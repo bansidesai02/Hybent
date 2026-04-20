@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { formatDate, formatSalary } from '@/utils/formatters'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 function DeclineModal({
   offer,
@@ -90,7 +91,10 @@ function OfferCard({
         <div className="offer-banner">
           <div className="ob-bg"></div><div className="ob-bg ob-bg2"></div>
           <div className="ob-content">
-            <div className="ob-tag">✨ Pending Offer</div>
+            <div className="ob-tag" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <GlassIcon icon="Sparkles" variant="amber" size={18} iconSize={10} glow={false} />
+              Pending Offer
+            </div>
             <div className="ob-title">{offer.position_title}</div>
             <div className="ob-sub">
               {formatSalary(offer.base_salary, null, offer.salary_currency)} / year {offer.equity ? '· Plus Equity' : ''}
@@ -104,8 +108,9 @@ function OfferCard({
               <button className="btn btn-primary" style={{ background: 'var(--green)', boxShadow: '0 4px 14px rgba(16,185,129,.3)' }} onClick={onAccept}>Accept Offer</button>
               <button className="btn btn-outline" style={{ borderColor: 'rgba(255,255,255,.3)', color: '#fff' }} onClick={onDecline}>Decline</button>
               {offer.pdf_url && (
-                <a href={offer.pdf_url} target="_blank" rel="noreferrer" className="btn btn-ghost" style={{ color: '#fff', textDecoration: 'none' }}>
-                  📄 View PDF
+                <a href={offer.pdf_url} target="_blank" rel="noreferrer" className="btn btn-ghost" style={{ color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <GlassIcon icon="FileText" variant="gray" size={18} iconSize={10} glow={false} />
+                  View PDF
                 </a>
               )}
             </div>
@@ -121,8 +126,9 @@ function OfferCard({
               <div style={{ fontSize: 12, color: 'var(--text-lite)' }}>Status: <span style={{ textTransform: 'capitalize', color: isAccepted ? 'var(--green)' : isDeclined ? 'var(--red)' : '' }}>{offer.status}</span></div>
             </div>
             {offer.pdf_url && (
-              <a href={offer.pdf_url} className="btn btn-outline btn-sm" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-                📄 PDF
+              <a href={offer.pdf_url} className="btn btn-outline btn-sm" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <GlassIcon icon="FileText" variant="gray" size={18} iconSize={10} glow={false} />
+                PDF
               </a>
             )}
           </div>
@@ -148,7 +154,8 @@ function OfferCard({
 
         {isAccepted && (
           <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', color: 'var(--green)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span>🎉</span> Accepted on {formatDate(offer.responded_at as string)}
+            <GlassIcon icon="PartyPopper" variant="emerald" size={24} iconSize={12} glow={false} />
+            Accepted on {formatDate(offer.responded_at as string)}
           </div>
         )}
 
@@ -214,7 +221,10 @@ export default function PortalOffersPage() {
   return (
     <div className="page active">
       <div className="ph">
-        <div className="pt">Offer &amp; Documents 📄</div>
+        <div className="pt" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          Offer & Documents
+          <GlassIcon icon="FileText" variant="violet" size={32} iconSize={16} />
+        </div>
         <div className="ps">Review pending offers and complete your pre-joining documents.</div>
       </div>
 
@@ -227,7 +237,9 @@ export default function PortalOffersPage() {
                <div className="py-8 text-[var(--red)]">Failed to load offers.</div>
             ) : offers?.length === 0 ? (
                <div className="card py-12 text-center text-[var(--text-lite)]">
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>📬</div>
+                  <div className="flex justify-center mb-4">
+                    <GlassIcon icon="Inbox" variant="violet" size={60} iconSize={28} />
+                  </div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>No offers yet</div>
                   <div style={{ fontSize: 13 }}>When a company extends you an offer, it will appear here.</div>
                </div>
@@ -254,7 +266,7 @@ export default function PortalOffersPage() {
               {hasAccepted ? (
                 <div className="doc-list">
                   <div className="doc-item">
-                    <div className="doc-ico">📄</div>
+                    <GlassIcon icon="FileText" variant="violet" size={40} iconSize={18} />
                     <div className="doc-info">
                       <div className="doc-name">Signed Offer Letter</div>
                       <div className="doc-meta">Requires signature</div>
@@ -263,7 +275,7 @@ export default function PortalOffersPage() {
                   </div>
                   
                   <div className="doc-item">
-                    <div className="doc-ico">🏦</div>
+                    <GlassIcon icon="Banknote" variant="emerald" size={40} iconSize={18} />
                     <div className="doc-info">
                       <div className="doc-name">Bank Details Form</div>
                       <div className="doc-meta">For payroll processing</div>
@@ -272,7 +284,7 @@ export default function PortalOffersPage() {
                   </div>
 
                   <div className="doc-item">
-                    <div className="doc-ico">🪪</div>
+                    <GlassIcon icon="UserCheck" variant="amber" size={40} iconSize={18} />
                     <div className="doc-info">
                       <div className="doc-name">Government ID</div>
                       <div className="doc-meta">Aadhar / PAN / Passport</div>

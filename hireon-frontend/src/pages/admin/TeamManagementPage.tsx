@@ -125,14 +125,14 @@ export default function TeamManagementPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px,3vw,30px)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.5px', marginBottom: 4 }}>
-            Teams & Members
+        <header className="page-header !mb-0">
+          <h1 className="page-title">
+            Team
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-light)' }}>
+          <p className="page-subtitle">
             Your internal teams (Admins, HR Recruiters & Interviewers)
           </p>
-        </div>
+        </header>
         {currentUser?.role === 'admin' && (
           <button
             onClick={() => setShowInvite(true)}
@@ -162,7 +162,7 @@ export default function TeamManagementPage() {
           {/* ── Section 1: Internal Team ── */}
           <div>
             <SectionHeading
-              title="Internal Teams"
+              title="Team"
               count={teamMembers.length}
               subtitle="Admins, HR Recruiters & Interviewers"
             />

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
+import { Sparkles, Target, Lightbulb, ArrowRight, Loader2, FileText } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 interface Flashcard {
   topic: string
@@ -75,7 +77,7 @@ export default function PortalPrepHub() {
     return (
       <div className="page active">
         <div className="ph">
-          <div className="pt">Interview Prep Hub 🎯</div>
+          <div className="pt flex items-center justify-center gap-2">Interview Prep Hub <Target size={24} /></div>
           <div className="ps">Apply for a job to unlock tailored prep materials.</div>
         </div>
       </div>
@@ -106,7 +108,7 @@ export default function PortalPrepHub() {
       {/* HEADER SECTION MATCHING MOCKUP */}
       <div className="prep-header">
         <div>
-          <div className="pt">Interview Prep Hub 🎯</div>
+          <div className="pt flex items-center gap-2">Interview Prep Hub <Target size={24} /></div>
           <div className="ps">AI-generated tips, questions, and flashcards — tailored for your {titleStr} interview.</div>
         </div>
         {nextInterview && (
@@ -119,8 +121,8 @@ export default function PortalPrepHub() {
       </div>
 
       {prepLoading && (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--primary)', marginBottom: 24 }}>
-          <div style={{ fontSize: 24, marginBottom: 12 }}>✨</div>
+        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--primary)', marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <GlassIcon icon="Sparkles" variant="violet" size={48} iconSize={24} />
           <div style={{ fontWeight: 600 }}>Analyzing your resume and generating personalized prep questions...</div>
           <div style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 8 }}>This might take a few seconds.</div>
         </div>
@@ -130,7 +132,7 @@ export default function PortalPrepHub() {
         <div className="prep-hero" onClick={handleNextQ}>
           <div className="phero-tag">QUESTION {activeQuestion + 1} OF {flashcards.length} · {currentQ.topic}</div>
           <div className="phero-q">{currentQ.question}</div>
-          <div className="phero-foot">Tap to see next question &rarr;</div>
+          <div className="phero-foot flex items-center justify-center gap-2">Tap to see next question <ArrowRight size={16} /></div>
         </div>
       )}
 
@@ -150,7 +152,7 @@ export default function PortalPrepHub() {
                   <div key={idx} className="ptopic-item">
                     <div className="pti-top">
                       <div className="pti-name">
-                        <div className="pti-ico">💡</div>
+                        <div className="pti-ico"><Lightbulb size={14} /></div>
                         {area.topic}
                       </div>
                       <div className="pti-pri">{pri.text}</div>
@@ -175,7 +177,7 @@ export default function PortalPrepHub() {
             <div className="pcc-list">
               {flashcards.map((card, idx) => (
                 <div key={idx} className="pprac-item">
-                  <div className="ppi-ico">✨</div>
+                  <div className="pti-ico flex items-center justify-center"><Sparkles size={14} className="text-[var(--violet)]" /></div>
                   <div className="ppi-content">
                     <div className="ppi-q">{card.question}</div>
                     <div className="ppi-tag">{card.topic}</div>

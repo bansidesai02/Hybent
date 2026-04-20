@@ -115,9 +115,9 @@ export default function App() {
 
   return (
     <>
-      <AnimatePresence mode="wait">
+      {/* <AnimatePresence mode="wait">
         {(initialLoading || isLoading) && <AppLoader />}
-      </AnimatePresence>
+      </AnimatePresence> */}
 
       <Toaster 
         position="top-right" 

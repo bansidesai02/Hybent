@@ -10,17 +10,19 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { Avatar } from '@/components/ui/Avatar'
 import { ScoreRing } from '@/components/ui/ScoreRing'
-import { formatDate, timeAgo } from '@/utils/formatters'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Star, Mail } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { formatDate, timeAgo } from '@/utils/formatters'
 
 function ScorecardItem({ scorecard }: { scorecard: Scorecard }) {
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4 space-y-3 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] rounded-xl p-4 space-y-3 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Avatar name={scorecard.submitted_by_name ?? 'Reviewer'} size="sm" />
           <div>
-            <span className="text-sm font-bold text-gray-900 dark:text-white block leading-tight">
+            <span className="text-sm font-bold text-gray-900 dark:text-[var(--text)] block leading-tight">
               {scorecard.submitted_by_name ?? 'Anonymous'}
             </span>
             <span className="text-[10px] text-gray-400 uppercase tracking-widest">{formatDate(scorecard.submitted_at)}</span>
@@ -47,7 +49,7 @@ function ScorecardItem({ scorecard }: { scorecard: Scorecard }) {
       </div>
 
       {scorecard.summary && (
-        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed italic border-l-2 border-violet-100 dark:border-violet-900/40 pl-3">
+        <p className="text-sm text-gray-600 dark:text-[var(--text-light)] leading-relaxed italic border-l-2 border-violet-100 dark:border-[var(--violet)]/40 pl-3">
           "{scorecard.summary}"
         </p>
       )}
@@ -55,11 +57,16 @@ function ScorecardItem({ scorecard }: { scorecard: Scorecard }) {
       {scorecard.criteria_scores && Array.isArray(scorecard.criteria_scores) && scorecard.criteria_scores.length > 0 && (
         <div className="grid grid-cols-2 gap-2 py-1">
           {scorecard.criteria_scores.map((s, i) => (
-            <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/30 px-2 py-1.5 rounded-xl border border-gray-100 dark:border-gray-800/50">
+            <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-[var(--sb-hover)] px-2 py-1.5 rounded-xl border border-gray-100 dark:border-[var(--border)]/50">
               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight truncate mr-2">{s.criterion}</span>
               <div className="flex text-amber-400 flex-shrink-0">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className={`text-[10px] ${star <= s.score ? 'opacity-100' : 'opacity-20 text-gray-300 dark:text-gray-700'}`}>★</span>
+                  <Star 
+                    key={star} 
+                    size={10} 
+                    fill={star <= s.score ? 'currentColor' : 'transparent'} 
+                    className={star <= s.score ? 'opacity-100' : 'opacity-20 text-gray-300 dark:text-gray-700'} 
+                  />
                 ))}
               </div>
             </div>
@@ -73,24 +80,21 @@ function ScorecardItem({ scorecard }: { scorecard: Scorecard }) {
 function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => void }) {
   const { data: scorecards, isLoading: scLoading } = useQuery({
     queryKey: ['scorecards', 'candidate', card.id],
-    queryFn: () => scorecardsApi.getForApplication(card.id).then((r) => r.data).catch(() => []), // Fallback to card ID as global view doesn't have application IDs yet
+    queryFn: () => scorecardsApi.getForApplication(card.id).then((r) => r.data).catch(() => []),
   })
 
   return (
     <Modal open onClose={onClose} title="Candidate Details" size="lg">
       <div className="space-y-6">
-        {/* Profile Section */}
         <div className="flex items-center justify-between gap-5 p-1">
           <div className="flex items-center gap-5 min-w-0 font-sans">
             <Avatar name={card.candidate_name} src={card.avatar_url} size="xl" className="ring-4 ring-violet-50 shadow-sm" />
             <div className="min-w-0 space-y-0.5">
-              <h3 className="text-xl font-black text-gray-900 dark:text-white truncate" style={{ fontFamily: "'Fraunces', serif" }}>{card.candidate_name}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase tracking-wide">{card.current_title || 'Software Engineer'}</p>
+              <h3 className="text-xl font-black text-gray-900 dark:text-[var(--text)] truncate" style={{ fontFamily: "'Fraunces', serif" }}>{card.candidate_name}</h3>
+              <p className="text-gray-500 dark:text-[var(--text-mid)] text-sm font-bold uppercase tracking-wide">{card.current_title || 'Software Engineer'}</p>
               <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
                 <span className="flex items-center gap-1 shadow-sm">
-                  <svg className="w-3.5 h-3.5 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
+                  <Mail size={14} className="text-violet-500" />
                   {card.candidate_email}
                 </span>
                 <span className="opacity-30">•</span>
@@ -98,31 +102,30 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
               </div>
             </div>
           </div>
-          <div className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 bg-violet-50 dark:bg-violet-900/10 rounded-2xl border border-violet-100/50 dark:border-violet-900/20">
+          <div className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 bg-violet-50 dark:bg-[var(--violet)]/10 rounded-2xl border border-violet-100/50 dark:border-[var(--violet)]/20">
             <ScoreRing score={card.match_score} size={60} strokeWidth={5} />
-            <span className="text-[9px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">AI Match</span>
+            <span className="text-[9px] font-black text-violet-600 dark:text-[var(--violet)] uppercase tracking-widest">AI Match</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
+          <div className="bg-gray-50 dark:bg-[var(--sb-hover)] rounded-2xl p-4 border border-gray-100 dark:border-[var(--border)]">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Status</p>
-            <p className="text-sm font-bold text-violet-600 dark:text-violet-400">Active</p>
+            <p className="text-sm font-bold text-violet-600 dark:text-[var(--violet)]">Active</p>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
+          <div className="bg-gray-50 dark:bg-[var(--sb-hover)] rounded-2xl p-4 border border-gray-100 dark:border-[var(--border)]">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Last Activity</p>
-            <p className="text-sm font-bold text-gray-900 dark:text-white">{timeAgo(card.stage_changed_at || card.applied_at)}</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-[var(--text)]">{timeAgo(card.stage_changed_at || card.applied_at)}</p>
           </div>
         </div>
 
-        {/* Evaluation Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+            <h4 className="text-sm font-bold text-gray-900 dark:text-[var(--text)] uppercase tracking-wider flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-violet-500 shadow-sm shadow-violet-200"></span>
               Interview Evaluations
             </h4>
-            <span className="text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] bg-violet-100 dark:bg-[var(--violet)]/30 text-violet-600 dark:text-[var(--violet)] px-2 py-0.5 rounded-full font-bold">
               {scorecards?.length || 0} Submitted
             </span>
           </div>
@@ -131,7 +134,7 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
             {scLoading ? (
               [1, 2].map((i: number) => <Skeleton key={i} className="h-48 w-full rounded-2xl" />)
             ) : !scorecards || scorecards.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/30 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+              <div className="text-center py-10 bg-gray-50 dark:bg-[var(--sb-hover)] rounded-2xl border border-dashed border-gray-200 dark:border-[var(--border)]">
                 <p className="text-sm text-gray-400 italic">No evaluations submitted yet.</p>
               </div>
             ) : (
@@ -141,9 +144,9 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
         </div>
 
         {card.recruiter_notes && (
-          <div className="bg-violet-50 dark:bg-violet-950/20 rounded-2xl p-5 border border-violet-100 dark:border-violet-900/30">
-            <h4 className="text-[10px] font-bold text-violet-700 dark:text-violet-400 uppercase tracking-widest mb-2">AI Summary</h4>
-            <p className="text-sm text-violet-900 dark:text-violet-200 leading-relaxed font-medium">
+          <div className="bg-violet-50 dark:bg-[var(--violet)]/10 rounded-2xl p-5 border border-violet-100 dark:border-[var(--violet)]/30">
+            <h4 className="text-[10px] font-bold text-violet-700 dark:text-[var(--violet)] uppercase tracking-widest mb-2">AI Summary</h4>
+            <p className="text-sm text-violet-900 dark:text-[var(--text-mid)] leading-relaxed font-medium">
               {card.recruiter_notes}
             </p>
           </div>
@@ -160,7 +163,7 @@ function BoardSkeleton() {
         <div key={i} className="w-72 flex-shrink-0 space-y-3">
           <Skeleton className="h-6 w-24 rounded-lg" />
           {Array.from({ length: 3 }).map((_, j) => (
-            <div key={j} className="p-4 rounded-xl border border-gray-100 dark:border-gray-800 space-y-2 bg-white dark:bg-gray-900/50">
+            <div key={j} className="p-4 rounded-xl border border-gray-100 dark:border-[var(--border)] space-y-2 bg-white dark:bg-[var(--card-bg)]/50">
               <div className="flex items-center gap-2">
                 <Skeleton className="w-8 h-8 rounded-full" />
                 <Skeleton className="h-4 w-28" />
@@ -215,11 +218,11 @@ export default function PipelinePage() {
     <div className="h-full flex flex-col space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ fontFamily: "'Fraunces', serif" }}>Pipeline</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Drag candidates across stages — Hireon AI updates probabilities automatically.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-[var(--text)]" style={{ fontFamily: "'Fraunces', serif" }}>Pipeline</h1>
+        <p className="text-sm text-gray-500 dark:text-[var(--text-mid)] mt-1">Drag candidates across stages — Hireon AI updates probabilities automatically.</p>
       </div>
 
-      <div className="flex-1 min-h-0 pt-4 border-t border-gray-200 dark:border-gray-800">
+      <div className="flex-1 min-h-0 pt-4 border-t border-gray-200 dark:border-[var(--border)]">
         {isLoading ? (
           <BoardSkeleton />
         ) : pipelineData ? (

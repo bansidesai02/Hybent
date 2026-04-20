@@ -9,17 +9,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants = {
   primary:
-    'bg-gradient-to-br from-violet-600 to-violet-mid text-white border-0 shadow-violet hover:shadow-violet-lg hover:-translate-y-0.5',
+    'bg-gradient-to-br from-[var(--violet)] to-[var(--violet-mid)] text-white border-0 shadow-violet hover:shadow-violet-lg hover:-translate-y-0.5',
   secondary:
-    'bg-white/80 dark:bg-white/10 text-text-dark dark:text-white border border-white/60 dark:border-white/20 backdrop-blur-sm hover:-translate-y-0.5 hover:bg-white dark:hover:bg-white/20',
+    'bg-white/80 dark:bg-[var(--sb-hover)] text-text-dark dark:text-[var(--text)] border border-white/60 dark:border-[var(--card-border)] backdrop-blur-sm hover:-translate-y-0.5 hover:bg-white dark:hover:bg-[var(--sb-active)]',
   ghost:
-    'bg-[rgba(108,71,255,0.08)] text-violet-600 border-0 hover:bg-[rgba(108,71,255,0.14)]',
+    'bg-[rgba(167,139,250,0.08)] text-[var(--violet)] border-0 hover:bg-[rgba(167,139,250,0.14)]',
   glass:
-    'bg-[rgba(255,255,255,0.72)] dark:bg-[rgba(26,12,56,0.84)] text-text-dark dark:text-white border border-[rgba(255,255,255,0.6)] dark:border-[rgba(108,71,255,0.18)] backdrop-blur-xl hover:bg-white dark:hover:bg-[rgba(26,12,56,0.95)] hover:-translate-y-0.5',
+    'bg-[rgba(255,255,255,0.72)] dark:bg-[rgba(31,27,54,0.84)] text-text-dark dark:text-[var(--text)] border border-[rgba(255,255,255,0.6)] dark:border-[var(--card-border)] backdrop-blur-xl hover:bg-white dark:hover:bg-[var(--card-bg)] hover:-translate-y-0.5',
   danger:
     'bg-red-500 hover:bg-red-600 text-white border-0',
   outline:
-    'bg-transparent text-violet-600 border border-[rgba(108,71,255,0.30)] hover:bg-[rgba(108,71,255,0.07)]',
+    'bg-transparent text-[var(--violet)] border border-[rgba(167,139,250,0.30)] hover:bg-[rgba(167,139,250,0.07)]',
 }
 
 const sizes = {
@@ -34,7 +34,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={clsx(
-        'inline-flex items-center justify-center gap-1.5 font-semibold font-sora transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none',
+        'inline-flex items-center justify-center gap-1.5 font-semibold font-sora transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--violet)]/50 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none',
         variants[variant],
         sizes[size],
         className

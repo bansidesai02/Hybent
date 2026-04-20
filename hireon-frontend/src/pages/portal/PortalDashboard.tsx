@@ -4,6 +4,8 @@ import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate } from '@/utils/formatters'
 import { RecentActivityFeed } from '@/components/common/RecentActivityFeed'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { Check, Circle, CircleDashed, Calendar, FileText, Target, Map } from 'lucide-react'
 
 // Display stages shown in the tracker
 const STAGES = [
@@ -177,7 +179,9 @@ export default function PortalDashboard() {
     return (
       <div className="page active" id="page-journey">
         <div className="ph">
-          <div className="pt">Your Application Journey 🗺️</div>
+          <div className="pt flex items-center gap-2">
+            Your Application Journey <GlassIcon icon="Map" variant="violet" size={24} iconSize={14} glow={false} />
+          </div>
           <div className="ps">Start applying to open roles to track your progress!</div>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/portal/openings')}>View Openings</button>
@@ -202,7 +206,9 @@ export default function PortalDashboard() {
       <div className="ph">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div className="pt">Your Application Journey 🗺️</div>
+            <div className="pt flex items-center gap-2">
+              Your Application Journey <GlassIcon icon="Map" variant="violet" size={24} iconSize={14} glow={false} />
+            </div>
             <div className="ps">Applying for <strong>{displayApp.job?.title || (syntheticApp ? profile?.applied_job_title || 'Your Application' : 'Role')}</strong> · Applied {formatDate(displayApp.applied_at)}</div>
           </div>
           {isRejected ? (
@@ -229,10 +235,11 @@ export default function PortalDashboard() {
             {STAGES.map((s, i) => {
               const isDone = currentIdx > i
               const isActive = currentIdx === i
-              const dotChar = isDone ? '✓' : isActive ? '●' : '○'
               return (
                 <div key={s.key} className={`tstep ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}>
-                  <div className="tstep-dot">{dotChar}</div>
+                  <div className="tstep-dot">
+                    {isDone ? <Check size={12} /> : isActive ? <Circle size={8} fill="currentColor" /> : <CircleDashed size={8} />}
+                  </div>
                   <div className="tstep-label">{s.label}</div>
                   {s.sublabel && (
                     <div style={{ fontSize: 9, color: isActive ? '#06b6d4' : 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -257,7 +264,7 @@ export default function PortalDashboard() {
             {currentIdx === 3 && 'Round 2 — Techno-Functional Round'}
             {currentIdx === 4 && 'Round 3 — Final Round (Management)'}
             {currentIdx === 5 && 'HR Round'}
-            {currentIdx === 6 && (isHired ? 'Welcome to the team! 🎉' : 'Offer Stage')}
+            {currentIdx === 6 && (isHired ? <>Welcome to the team! <GlassIcon icon="PartyPopper" variant="emerald" size={24} iconSize={14} glow={false} className="inline-block" /></> : 'Offer Stage')}
             {isRejected && 'Application Closed'}
           </div>
           <div className="stage-sub">
@@ -271,9 +278,19 @@ export default function PortalDashboard() {
             {isRejected && "Thank you for your time. This application didn't proceed further."}
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            {(currentIdx >= 2 && currentIdx <= 5) && <button className="btn btn-teal btn-sm" onClick={() => navigate('/portal/interviews')}>📅 View Interviews</button>}
-            {currentIdx === 6 && <button className="btn btn-primary btn-sm" onClick={() => navigate('/portal/offers')}>📄 View Offer</button>}
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/portal/prep')}>🎯 Open Prep Hub</button>
+            {(currentIdx >= 2 && currentIdx <= 5) && (
+              <button className="btn btn-teal btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/interviews')}>
+                <Calendar size={13} /> View Interviews
+              </button>
+            )}
+            {currentIdx === 6 && (
+              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/offers')}>
+                <FileText size={13} /> View Offer
+              </button>
+            )}
+            <button className="btn btn-ghost btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/prep')}>
+              <Target size={13} /> Open Prep Hub
+            </button>
           </div>
         </div>
       </div>
@@ -339,7 +356,7 @@ export default function PortalDashboard() {
           <div className="ctitle">Your Application Stats</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="kpi" style={{ border: 'none', padding: 0, boxShadow: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div className="kpi-ico ki1">📅</div>
+              <GlassIcon icon="Calendar" variant="blue" size={40} iconSize={18} glow={false} />
               <div><div className="kpi-val" style={{ fontSize: 24 }}>{daysInProcess}</div><div className="kpi-lbl">Days in Process</div></div>
             </div>
             

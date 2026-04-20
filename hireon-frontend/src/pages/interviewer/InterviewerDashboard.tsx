@@ -5,6 +5,7 @@ import { interviewsApi } from '@/api/interviews'
 import type { Interview } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/store/authStore'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function isToday(dateStr: string) {
@@ -122,14 +123,9 @@ function ScheduleBadgeChip({ badge }: { badge: ScheduleBadge }) {
 }
 
 /* ── stat icon box ────────────────────────────────────────────────────── */
-function StatIcon({ emoji, bg }: { emoji: string; bg: string }) {
+function StatIcon({ icon, variant }: { icon: string; variant: any }) {
   return (
-    <div style={{
-      width: 40, height: 40, borderRadius: 10, background: bg,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0,
-    }}>
-      {emoji}
-    </div>
+    <GlassIcon icon={icon} variant={variant} size={40} iconSize={18} glow={false} />
   )
 }
 
@@ -161,43 +157,43 @@ export default function InterviewerDashboard() {
     {
       label: 'Interviews Today', value: todayScheduled.length,
       badge: 'Today', badgeColor: '#16a34a', badgeBg: '#dcfce7',
-      emoji: '📅', iconBg: '#e0e7ff',
+      icon: 'Calendar', variant: 'blue',
     },
     {
       label: 'Scorecards Due', value: scorecardsdue.length,
       badge: 'Pending', badgeColor: '#7c3aed', badgeBg: '#ede9fe',
-      emoji: '⏳', iconBg: '#fef3c7',
+      icon: 'Clock', variant: 'amber',
     },
     {
       label: 'Completed Today', value: completedToday.length,
       badge: 'Done', badgeColor: '#16a34a', badgeBg: '#dcfce7',
-      emoji: '✅', iconBg: '#d1fae5',
+      icon: 'CheckCircle', variant: 'emerald',
     },
     {
       label: 'Total Interviews', value: totalMonth.length,
       badge: 'This month', badgeColor: '#16a34a', badgeBg: '#dcfce7',
-      emoji: '📊', iconBg: '#fce7f3',
+      icon: 'BarChart3', variant: 'pink',
     },
   ]
 
   const QUICK_ACCESS = [
     {
-      label: 'Prep Kit', sub: 'Questions & checklist', emoji: '🗒️',
+      label: 'Prep Kit', sub: 'Questions & checklist', icon: 'ClipboardList', variant: 'emerald',
       bg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
       onClick: () => navigate('/interviewer/prep-kit-hub'),
     },
     {
-      label: 'Scorecard', sub: 'Rate candidates', emoji: '📊',
+      label: 'Scorecard', sub: 'Rate candidates', icon: 'BarChart2', variant: 'pink',
       bg: 'linear-gradient(135deg, #fdf4ff 0%, #fce7f3 100%)',
       onClick: () => navigate('/interviewer/scorecard-hub'),
     },
     {
-      label: 'Panel Collaboration', sub: 'Team discussion', emoji: '🤝',
+      label: 'Panel Collaboration', sub: 'Team discussion', icon: 'Users2', variant: 'teal',
       bg: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)',
       onClick: () => navigate('/interviewer/interviews'),
     },
     {
-      label: 'My Analytics', sub: 'Your performance', emoji: '📈',
+      label: 'My Analytics', sub: 'Your performance', icon: 'TrendingUp', variant: 'violet',
       bg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
       onClick: () => navigate('/interviewer/interviews'),
     },
@@ -208,8 +204,8 @@ export default function InterviewerDashboard() {
 
       {/* ── Greeting ─────────────────────────────────────────────────── */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", lineHeight: 1.2 }}>
-          {getGreeting()}{user ? `, ${user.full_name.split(' ')[0]}` : ''} 👋
+        <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: 10 }}>
+          {getGreeting()}{user ? `, ${user.full_name.split(' ')[0]}` : ''} <GlassIcon icon="Sparkles" variant="violet" size={32} iconSize={18} glow={false} />
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text)', marginTop: 6, fontWeight: 500 }}>
           {isLoading ? (
@@ -219,7 +215,8 @@ export default function InterviewerDashboard() {
               You have{' '}
               <strong>{todayScheduled.length} interview{todayScheduled.length !== 1 ? 's' : ''} today</strong>
               {liveNowCount > 0 && <>{' — '}{liveNowCount} live right now</>}
-              {". Let's go! 🎯"}
+              {". Let's go! "}
+              <GlassIcon icon="Target" variant="violet" size={20} iconSize={12} glow={false} className="inline-block" />
             </>
           )}
         </p>
@@ -243,7 +240,7 @@ export default function InterviewerDashboard() {
           >
             {/* top row: icon + badge */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-              <StatIcon emoji={s.emoji} bg={s.iconBg} />
+              <StatIcon icon={s.icon} variant={s.variant} />
               <span style={{
                 padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
                 background: s.badgeBg, color: s.badgeColor,
@@ -284,8 +281,9 @@ export default function InterviewerDashboard() {
               {[1, 2, 3].map((n) => <Skeleton key={n} className="h-14 w-full rounded-xl" />)}
             </div>
           ) : todayItems.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-lite)', fontSize: 13 }}>
-              🎉 No interviews scheduled today
+            <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-lite)', fontSize: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <GlassIcon icon="PartyPopper" variant="emerald" size={48} iconSize={24} glow={false} />
+              No interviews scheduled today
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -352,7 +350,7 @@ export default function InterviewerDashboard() {
               fontFamily: 'inherit',
             }}
           >
-            View All Interviews →
+            View All Interviews <GlassIcon icon="ArrowRight" variant="violet" size={16} iconSize={10} glow={false} className="inline-block ml-1" />
           </button>
         </div>
 
@@ -381,7 +379,7 @@ export default function InterviewerDashboard() {
                   fontFamily: 'inherit',
                 }}
               >
-                <span style={{ fontSize: 26 }}>{item.emoji}</span>
+                <GlassIcon icon={item.icon} variant={item.variant as any} size={48} iconSize={24} glow={false} />
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
                     {item.label}

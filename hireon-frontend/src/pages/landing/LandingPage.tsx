@@ -2,18 +2,20 @@ import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion, useScroll } from 'framer-motion'
 import MouseTrail from '@/components/common/MouseTrail'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { ArrowRight, Calendar } from 'lucide-react'
 
 // ─── Animation Variants ────────────────────────────────────────────────────────
 const fadeReveal = {
-  hidden: (direction: 'up' | 'down') => ({
-    y: direction === 'down' ? 40 : -40,
+  hidden: {
+    y: 30,
     opacity: 0,
-  }),
+  },
   visible: {
     y: 0,
     opacity: 1,
     transition: { 
-      duration: 1.2, 
+      duration: 1.0, 
       ease: [0.22, 1, 0.36, 1],
     }
   }
@@ -29,26 +31,26 @@ const staggerContainer = {
 }
 
 const scaleReveal = {
-  hidden: (direction: 'up' | 'down') => ({
-    scale: 0.95,
-    y: direction === 'down' ? 30 : -30,
+  hidden: {
+    scale: 0.96,
+    y: 20,
     opacity: 0,
-  }),
+  },
   visible: {
     scale: 1,
     y: 0,
     opacity: 1,
     transition: { 
-      duration: 1.2, 
+      duration: 1.0, 
       ease: [0.22, 1, 0.36, 1] 
     }
   }
 }
 
 const sideReveal = {
-  hidden: ({ direction, side }: { direction: 'up' | 'down', side: 'left' | 'right' }) => ({
-    x: side === 'left' ? -60 : 60,
-    y: direction === 'down' ? 30 : -30,
+  hidden: ({ side }: { side: 'left' | 'right' }) => ({
+    x: side === 'left' ? -30 : 30,
+    y: 20,
     opacity: 0,
   }),
   visible: {
@@ -56,7 +58,7 @@ const sideReveal = {
     y: 0,
     opacity: 1,
     transition: { 
-      duration: 1.2, 
+      duration: 1.0, 
       ease: [0.22, 1, 0.36, 1],
     }
   }
@@ -73,7 +75,8 @@ const stats = [
 
 const features = [
   {
-    emoji: '🧠',
+    icon: 'Brain',
+    variant: 'violet' as const,
     color: 'rgba(108,71,255,0.08)',
     title: 'AI Resume Intelligence',
     description: 'Parse any resume format in under 10 seconds. Get precise skills, experience years, and match scores automatically.',
@@ -86,7 +89,8 @@ const features = [
     ]
   },
   {
-    emoji: '🎯',
+    icon: 'Target',
+    variant: 'pink' as const,
     color: 'rgba(255,107,198,0.08)',
     title: 'Smart Auto-Shortlisting',
     description: 'Set your thresholds once. Hireon filters automatically — only the best candidates ever reach your desk.',
@@ -99,7 +103,8 @@ const features = [
     ]
   },
   {
-    emoji: '📅',
+    icon: 'Calendar',
+    variant: 'teal' as const,
     color: 'rgba(0,212,200,0.08)',
     title: 'Conflict-Free Scheduling',
     description: 'One-click interview scheduling that prevents double-booking and removes every back-and-forth email.',
@@ -112,7 +117,8 @@ const features = [
     ]
   },
   {
-    emoji: '💬',
+    icon: 'MessageSquare',
+    variant: 'violet' as const,
     color: 'rgba(108,71,255,0.08)',
     title: 'Interview Intelligence',
     description: 'Structure your feedback, remove bias, and continuously improve hiring decisions with AI-powered analysis.',
@@ -125,7 +131,8 @@ const features = [
     ]
   },
   {
-    emoji: '💾',
+    icon: 'Database',
+    variant: 'violet' as const,
     color: 'rgba(108,71,255,0.08)',
     title: 'Permanent Talent Database',
     description: "Every candidate you've ever considered is stored, indexed, and searchable — forever. Never lose great talent again.",
@@ -138,7 +145,8 @@ const features = [
     ]
   },
   {
-    emoji: '📊',
+    icon: 'BarChart3',
+    variant: 'teal' as const,
     color: 'rgba(0,212,200,0.08)',
     title: 'Predictive Analytics',
     description: 'Understand your pipeline health, spot bottlenecks, and continuously improve your hiring funnel with data.',
@@ -155,7 +163,8 @@ const features = [
 const howItWorks = [
   {
     phase: 'Phase 01 — Intake',
-    emoji: '🧠',
+    icon: 'Brain',
+    variant: 'violet' as const,
     title: 'AI Resume Intelligence',
     desc: "The moment a candidate uploads their resume, Hireon's AI engine kicks in. It parses the document, extracts explicit skills like React, Node.js and TypeScript, and infers hidden skills from context clues. Experience years are calculated precisely and seniority level is determined automatically.",
     tags: [
@@ -167,7 +176,8 @@ const howItWorks = [
   },
   {
     phase: 'Phase 02 — Scoring',
-    emoji: '🎯',
+    icon: 'Target',
+    variant: 'pink' as const,
     title: 'Smart Auto-Shortlisting',
     desc: "Hireon compares each candidate's profile against your requirements and generates a precise match score. If a candidate clears your threshold, they're instantly shortlisted, their status updated, your HR team notified, and the candidate gets an automated email — all without a single human action.",
     tags: [
@@ -179,7 +189,8 @@ const howItWorks = [
   },
   {
     phase: 'Phase 03 — Scheduling',
-    emoji: '📅',
+    icon: 'Calendar',
+    variant: 'amber' as const,
     title: 'Conflict-Free Scheduling',
     desc: "One click. Hireon cross-references the candidate's availability, the interviewer's calendar, and checks for existing bookings. It selects the optimal slot, generates a Google Meet link, and dispatches calendar invites to everyone involved. What used to take 15 emails and 3 days now takes 30 seconds.",
     tags: [
@@ -191,7 +202,8 @@ const howItWorks = [
   },
   {
     phase: 'Phase 04 — Decision',
-    emoji: '📊',
+    icon: 'BarChart3',
+    variant: 'teal' as const,
     title: 'Interview Intelligence & Hiring',
     desc: "Post-interview, the interviewer submits structured feedback. Hireon's AI analyzes it, generates a summary, updates the hire probability score, and surfaces a hiring recommendation to HR. Every decision is data-backed. Every candidate is stored permanently in your searchable talent database for future roles.",
     tags: [
@@ -363,17 +375,6 @@ export default function LandingPage() {
     }
   };
 
-  // ─── Scroll Direction Tracking ──────────────────────────────────────────────
-  const { scrollY } = useScroll()
-  const [direction, setDirection] = useState<'up' | 'down'>('down')
-
-  useEffect(() => {
-    return scrollY.on('change', (latest) => {
-      const prev = scrollY.getPrevious() ?? 0
-      if (latest > prev) setDirection('down')
-      else if (latest < prev) setDirection('up')
-    })
-  }, [scrollY])
 
   return (
     <div className="min-h-screen relative" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
@@ -510,11 +511,10 @@ export default function LandingPage() {
       >
         {/* Badge */}
         <motion.div
-          custom={direction}
           variants={fadeReveal}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
+          viewport={{ once: true, margin: "-50px" }}
           className="inline-flex items-center gap-2 mb-8 px-5 py-2 rounded-full text-[12px] font-semibold"
           style={{
             background: 'rgba(255,255,255,0.72)',
@@ -537,11 +537,10 @@ export default function LandingPage() {
 
         {/* Headline */}
         <motion.h1
-          custom={direction}
           variants={fadeReveal}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
+          viewport={{ once: true, margin: "-50px" }}
           className="font-black leading-[1.0] mb-7 max-w-[1000px]"
           style={{
             fontFamily: "'Fraunces', serif",
@@ -566,11 +565,10 @@ export default function LandingPage() {
 
         {/* Subheadline */}
         <motion.p
-          custom={direction}
           variants={fadeReveal}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
+          viewport={{ once: true, margin: "-50px" }}
           className="text-[18px] leading-[1.75] max-w-[600px] mb-14"
           style={{
             color: 'var(--text-mid)',
@@ -581,23 +579,22 @@ export default function LandingPage() {
 
         {/* CTA buttons */}
         <motion.div
-          custom={direction}
           variants={fadeReveal}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
+          viewport={{ once: true, margin: "-100px" }}
           className="flex gap-3.5 justify-center mb-8"
         >
           <Link to="/register">
             <button
-              className="px-10 py-4 border-0 rounded-[10px] text-[15px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px]"
+              className="px-10 py-4 border-0 rounded-[10px] text-[15px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
               style={{
                 background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
                 boxShadow: '0 8px 28px rgba(108,71,255,0.38)',
                 fontFamily: "'Sora', sans-serif",
               }}
             >
-              Start for Free →
+              Start for Free <ArrowRight size={18} />
             </button>
           </Link>
           <Link to="/register?demo=true">
@@ -611,7 +608,7 @@ export default function LandingPage() {
                 fontFamily: "'Sora', sans-serif",
               }}
             >
-              <span>🗓️</span> Book Demo
+              <Calendar size={18} className="text-[#6c47ff]" /> Book Demo
             </button>
           </Link>
         </motion.div>
@@ -628,7 +625,6 @@ export default function LandingPage() {
         >
           {stats.map((s) => (
             <motion.div
-              custom={direction}
               variants={fadeReveal}
               key={s.label}
               className="group relative rounded-[24px] p-10 text-center overflow-hidden transition-all duration-300 hover:-translate-y-[6px]"
@@ -669,11 +665,10 @@ export default function LandingPage() {
       <section id="how-it-works" className="relative z-10 py-16 px-6">
         <div className="max-w-5xl mx-auto">
           <motion.div
-            custom={direction}
             variants={fadeReveal}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-100px" }}
+            viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-20"
           >
             <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>How It Works</p>
@@ -707,13 +702,13 @@ export default function LandingPage() {
 
             {howItWorks.map((step, i) => (
               <motion.div
-                custom={{ direction, side: i % 2 === 0 ? 'left' : 'right' }}
+                custom={{ side: i % 2 === 0 ? 'left' : 'right' }}
                 variants={sideReveal}
                 key={step.phase}
-                className={`relative flex gap-0 md:gap-[60px] mb-[60px] items-start ${i % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
+                className={`relative flex gap-12 md:gap-[120px] mb-[80px] items-start ${i % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
                 initial="hidden"
                 whileInView="visible"
-                viewport={{ once: false, margin: "-100px" }}
+                viewport={{ once: true, margin: "-100px" }}
               >
                 {/* Content card */}
                 <div
@@ -752,15 +747,14 @@ export default function LandingPage() {
                 {/* Spacer (desktop only) */}
                 <div className="flex-1 hidden md:block" />
 
-                {/* Center dot */}
                 <div
-                  className="absolute left-1/2 -translate-x-1/2 top-6 w-[52px] h-[52px] rounded-full flex items-center justify-center text-[22px] z-10 hidden md:flex"
+                  className="absolute left-1/2 -translate-x-1/2 top-4 w-[60px] h-[60px] rounded-full flex items-center justify-center z-10 hidden md:flex shadow-sm"
                   style={{
-                    background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-                    boxShadow: '0 0 0 6px var(--bg), 0 4px 16px rgba(108,71,255,0.35)',
+                    background: 'white',
+                    boxShadow: '0 0 0 4px white',
                   }}
                 >
-                  {step.emoji}
+                  <GlassIcon icon={step.icon} variant={step.variant} size={50} iconSize={24} glow={false} rounded="50%" />
                 </div>
               </motion.div>
             ))}
@@ -772,11 +766,10 @@ export default function LandingPage() {
       <section id="features" className="relative z-10 py-16 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
-            custom={direction}
             variants={fadeReveal}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-100px" }}
+            viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-16"
           >
             <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Platform Features</p>
@@ -798,12 +791,11 @@ export default function LandingPage() {
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-100px" }}
+            viewport={{ once: true, margin: "-100px" }}
             className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {features.map((f) => (
               <motion.div
-                custom={direction}
                 variants={fadeReveal}
                 key={f.title}
                 className="rounded-[24px] p-8 transition-all duration-300 hover:-translate-y-1 text-left"
@@ -816,12 +808,12 @@ export default function LandingPage() {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'white' }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.72)' }}
               >
-                <span
-                  className="text-2xl w-14 h-14 rounded-[16px] flex items-center justify-center mb-6"
+                <div 
+                  className="w-16 h-16 rounded-[20px] mb-8 flex items-center justify-center"
                   style={{ background: f.color }}
                 >
-                  {f.emoji}
-                </span>
+                  <GlassIcon icon={f.icon} variant={f.variant} size={64} iconSize={28} glow={false} />
+                </div>
                 <h3 className="text-[18px] font-bold mb-3" style={{ color: 'var(--text)' }}>{f.title}</h3>
                 <p className="text-[14px] leading-relaxed mb-6" style={{ color: 'var(--text-mid)' }}>{f.description}</p>
                 <ul className="flex flex-col gap-2.5 list-none p-0 m-0">
@@ -846,11 +838,11 @@ export default function LandingPage() {
           <div className="flex flex-col lg:flex-row items-center gap-16">
             {/* Text content */}
             <motion.div 
-              custom={{ direction, side: 'left' }}
+              custom={{ side: 'left' }}
               variants={sideReveal}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: false, margin: "-100px" }}
+              viewport={{ once: true, margin: "-100px" }}
               className="flex-1 text-left"
             >
               <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>About Hireon</p>
@@ -878,11 +870,11 @@ export default function LandingPage() {
 
             {/* Founder Card */}
             <motion.div 
-              custom={{ direction, side: 'right' }}
+              custom={{ side: 'right' }}
               variants={sideReveal}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: false, margin: "-100px" }}
+              viewport={{ once: true, margin: "-100px" }}
               className="w-full lg:w-[460px] flex-shrink-0"
             >
               <div
@@ -900,25 +892,35 @@ export default function LandingPage() {
                   style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)' }}
                 />
 
-                <div className="relative z-10">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div
-                      className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-lg"
-                      style={{ background: 'linear-gradient(135deg, #f3f0ff, #ffffff)' }}
-                    >
-                      <img src="/bansi_desai.jpg" alt="Bansi Desai" className="w-full object-cover" />
-                    </div>
-                    <div>
-                      <h4 className="text-[18px] font-bold" style={{ color: 'var(--text)' }}>Bansi Desai</h4>
-                      <p className="text-[13px] font-medium" style={{ color: 'var(--violet)' }}>Founder,Hireon</p>
-                    </div>
+                <div className="relative z-10 text-right">
+                  {/* Quotes Icon at top - kept left aligned for standard structure or move to right? User said Sabse uper quotes, but usually they are left. I'll keep them left but move the profile to the right. */}
+                  <div className="mb-6 opacity-10 flex justify-start">
+                    <svg width="40" height="30" viewBox="0 0 40 30" fill="var(--violet)">
+                      <path d="M0 30V15C0 6.66667 6.66667 0 15 0V7.5C10.8333 7.5 7.5 10.8333 7.5 15H15V30H0ZM22 30V15C22 6.66667 28.6667 0 37 0V7.5C32.8333 7.5 29.5 10.8333 29.5 15H37V30H22Z" />
+                    </svg>
                   </div>
 
-                  <blockquote className="relative italic text-[18px] leading-[1.8] mb-0" style={{ color: 'var(--text)' }}>
-                    <span className="absolute -top-4 -left-6 text-[80px] opacity-[0.08] pointer-events-none" style={{ fontFamily: 'serif' }}>"</span>
+                  <blockquote className="text-[18px] sm:text-[20px] leading-[1.8] font-medium mb-10 text-left" style={{ color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
                     "I didn't want to build just another HR tool. I wanted to build the thing I wish existed — a recruiter's co-pilot that handles the boring parts so humans can focus on the human parts."
-                    <span className="absolute -bottom-10 -right-2 text-[80px] opacity-[0.08] pointer-events-none" style={{ fontFamily: 'serif' }}>"</span>
                   </blockquote>
+
+                  <div className="flex items-center justify-end gap-4">
+                    <div className="text-right">
+                      <h4 className="text-[16px] font-bold" style={{ color: 'var(--text)' }}>Bansi Desai</h4>
+                      <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--violet)' }}>Founder-Hireon</p>
+                    </div>
+                    <div
+                      className="w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-md flex-shrink-0 relative"
+                      style={{ background: 'linear-gradient(135deg, #f3f0ff, #ffffff)' }}
+                    >
+                      <img 
+                        src="/bansi_desai.jpg" 
+                        alt="Bansi Desai" 
+                        className="absolute inset-0 w-full h-full object-cover" 
+                        style={{ objectPosition: 'center 20%' }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -933,11 +935,10 @@ export default function LandingPage() {
 
         <div className="max-w-6xl mx-auto">
           <motion.div
-            custom={direction}
             variants={fadeReveal}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-100px" }}
+            viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-16"
           >
             <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Book a Demo</p>
@@ -958,11 +959,11 @@ export default function LandingPage() {
           <div className="flex flex-col lg:flex-row gap-12 items-start">
             {/* Form Column */}
             <motion.div 
-              custom={{ direction, side: 'left' }}
+              custom={{ side: 'left' }}
               variants={sideReveal}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: false, margin: "-100px" }}
+              viewport={{ once: true, margin: "-100px" }}
               className="flex-1 w-full"
             >
               <div
@@ -1036,33 +1037,53 @@ export default function LandingPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>Team Size</label>
-                          <select
-                            className="w-full px-5 py-3.5 rounded-[12px] border-none text-[15px] transition-all outline-none appearance-none"
-                            style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', color: 'var(--text)' }}
-                            value={demoForm.teamSize}
-                            onChange={e => setDemoForm({ ...demoForm, teamSize: e.target.value })}
-                          >
-                            <option>1-10</option>
-                            <option>11-50</option>
-                            <option>51-200</option>
-                            <option>201-500</option>
-                            <option>501+</option>
-                          </select>
+                          <div className="relative">
+                            <select
+                              className="w-full px-5 py-3.5 rounded-[12px] border-2 border-transparent text-[15px] transition-all outline-none appearance-none cursor-pointer hover:bg-gray-50/80 focus:border-violet-500/30 focus:bg-white"
+                              style={{ 
+                                background: 'white', 
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
+                                color: 'var(--text)',
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c47ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 16px center',
+                                backgroundSize: '16px'
+                              }}
+                              value={demoForm.teamSize}
+                              onChange={e => setDemoForm({ ...demoForm, teamSize: e.target.value })}
+                            >
+                              <option>1-10</option>
+                              <option>11-50</option>
+                              <option>51-200</option>
+                              <option>201-500</option>
+                              <option>501+</option>
+                            </select>
+                          </div>
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>Monthly Hires</label>
-                          <select
-                            className="w-full px-5 py-3.5 rounded-[12px] border-none text-[15px] transition-all outline-none appearance-none"
-                            style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', color: 'var(--text)' }}
-                            value={demoForm.monthlyHires}
-                            onChange={e => setDemoForm({ ...demoForm, monthlyHires: e.target.value })}
-                          >
-                            <option>1-5</option>
-                            <option>6-15</option>
-                            <option>16-30</option>
-                            <option>31-50</option>
-                            <option>50+</option>
-                          </select>
+                          <div className="relative">
+                            <select
+                              className="w-full px-5 py-3.5 rounded-[12px] border-2 border-transparent text-[15px] transition-all outline-none appearance-none cursor-pointer hover:bg-gray-50/80 focus:border-violet-500/30 focus:bg-white"
+                              style={{ 
+                                background: 'white', 
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
+                                color: 'var(--text)',
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c47ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 16px center',
+                                backgroundSize: '16px'
+                              }}
+                              value={demoForm.monthlyHires}
+                              onChange={e => setDemoForm({ ...demoForm, monthlyHires: e.target.value })}
+                            >
+                              <option>1-5</option>
+                              <option>6-15</option>
+                              <option>16-30</option>
+                              <option>31-50</option>
+                              <option>50+</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
 
@@ -1090,7 +1111,7 @@ export default function LandingPage() {
                           fontFamily: "'Sora', sans-serif"
                         }}
                       >
-                        {submitting ? 'Submitting...' : 'Book My Demo →'}
+                        {submitting ? 'Submitting...' : <>Book My Demo <ArrowRight size={18} className="inline ml-1" /></>}
                       </button>
                     </form>
                   </>
@@ -1118,24 +1139,26 @@ export default function LandingPage() {
 
             {/* Info Column */}
             <motion.div 
-              custom={{ direction, side: 'right' }}
+              custom={{ side: 'right' }}
               variants={sideReveal}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: false, margin: "-100px" }}
+              viewport={{ once: true, margin: "-100px" }}
               className="w-full lg:w-[420px] pt-10 px-4"
             >
               <h4 className="text-[20px] font-bold mb-8" style={{ color: 'var(--text)' }}>What to expect in your demo</h4>
 
               <div className="space-y-10">
                 {[
-                  { icon: '🧠', bg: 'rgba(108,71,255,0.08)', title: 'Live AI Resume Parsing', desc: 'Watch Hireon parse a real resume in under 10 seconds, extract skills, and generate match scores.' },
-                  { icon: '🎯', bg: 'rgba(255,107,198,0.08)', title: 'Auto-Shortlisting in Action', desc: 'See how Hireon automatically shortlists candidates and keeps everyone informed — without human input.' },
-                  { icon: '📅', bg: 'rgba(0,212,200,0.08)', title: 'One-Click Scheduling', desc: 'Experience conflict-free interview scheduling that takes 30 seconds instead of 3 days of emails.' },
-                  { icon: '📊', bg: 'rgba(108,71,255,0.08)', title: 'Your Custom Hiring Setup', desc: "We'll configure a demo environment matched to your actual roles, team size, and hiring workflow." },
+                  { icon: 'Brain' as const, variant: 'violet' as const, title: 'Live AI Resume Parsing', desc: 'Watch Hireon parse a real resume in under 10 seconds, extract skills, and generate match scores.' },
+                  { icon: 'Target' as const, variant: 'pink' as const, title: 'Auto-Shortlisting in Action', desc: 'See how Hireon automatically shortlists candidates and keeps everyone informed — without human input.' },
+                  { icon: 'Calendar' as const, variant: 'amber' as const, title: 'One-Click Scheduling', desc: 'Experience conflict-free interview scheduling that takes 30 seconds instead of 3 days of emails.' },
+                  { icon: 'BarChart3' as const, variant: 'teal' as const, title: 'Your Custom Hiring Setup', desc: "We'll configure a demo environment matched to your actual roles, team size, and hiring workflow." },
                 ].map((item) => (
-                  <div key={item.title} className="flex gap-5 group">
-                    <div className="w-12 h-12 rounded-[14px] flex-shrink-0 flex items-center justify-center text-xl transition-transform group-hover:scale-110" style={{ background: item.bg }}>{item.icon}</div>
+                  <div key={item.title} className="flex gap-5 group items-start">
+                    <div className="flex-shrink-0 transition-transform group-hover:scale-110">
+                      <GlassIcon icon={item.icon} variant={item.variant} size={48} iconSize={20} glow={false} rounded="14px" />
+                    </div>
                     <div>
                       <h5 className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--text)' }}>{item.title}</h5>
                       <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>{item.desc}</p>
@@ -1148,64 +1171,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA BANNER ── */}
-      <section className="relative z-10 py-16 px-6">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            custom={direction}
-            variants={scaleReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: false, margin: "-100px" }}
-            className="rounded-[32px] p-16 text-center relative overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #6c47ff 0%, #ff6bc6 60%, #00d4c8 100%)' }}
-          >
-            {/* Glow overlay */}
-            <div
-              className="absolute inset-0 opacity-30"
-              style={{ background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.3), transparent 70%)' }}
-            />
-            <div className="relative z-10">
-              {/* Badge */}
-              <div
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8"
-                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}
-              >
-                <span className="text-[12px] font-bold text-white tracking-[0.5px] uppercase">+ Start hiring smarter today</span>
-              </div>
-
-              <h2
-                className="font-black leading-tight text-white mb-6"
-                style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(38px,6vw,64px)', letterSpacing: '-2px' }}
-              >
-                Simple to start.<br />
-                Impossible to outgrow.
-              </h2>
-              <p className="text-[18px] mb-12 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.6 }}>
-                Get started in minutes — not days. Hireon is built to be simple enough for a team of one, yet powerful enough to scale with you.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-4">
-                <Link to="/register">
-                  <button
-                    className="px-14 py-5.5 rounded-[16px] text-[17px] font-bold text-violet-600 bg-white cursor-pointer shadow-xl transition-all hover:-translate-y-1.5 hover:shadow-2xl active:translate-y-0 active:scale-95"
-                    style={{ fontFamily: "'Sora', sans-serif" }}
-                  >
-                    Start Free Trial →
-                  </button>
-                </Link>
-                <Link to="#book-demo">
-                  <button
-                    className="px-14 py-5.5 rounded-[16px] text-[17px] font-bold text-white cursor-pointer transition-all hover:bg-white/10 active:scale-95"
-                    style={{ border: '2px solid rgba(255,255,255,0.4)', background: 'transparent', fontFamily: "'Sora', sans-serif" }}
-                  >
-                    Book a Demo
-                  </button>
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
 
       {/* ── FOOTER ── */}
       <footer

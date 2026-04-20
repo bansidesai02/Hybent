@@ -19,7 +19,7 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   return (
     <Modal open={open} onClose={onClose} title={title} size="sm">
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{message}</p>
+      <p className="text-sm text-gray-600 dark:text-[#b0a8d8] mb-6">{message}</p>
       {children}
       <div className="flex gap-3 justify-end">
         <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>

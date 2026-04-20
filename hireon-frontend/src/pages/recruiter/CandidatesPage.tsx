@@ -1,3 +1,4 @@
+import React from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -18,12 +19,15 @@ import { Select } from '@/components/ui/Select'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { formatDate } from '@/utils/formatters'
 // import { formatDistanceToNow } from 'date-fns'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
+import { GenerateOfferModal } from '@/components/recruiter/GenerateOfferModal'
+import { Search, Plus, Ban, Calendar, FileText } from 'lucide-react'
 
 // ─── Stage config (full pipeline) ─────────────────────────────────────────────
 
 const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
-  applied:                      { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', label: 'Applied' },
+  applied:                      { color: 'var(--violet)', bg: 'var(--violet)/10', label: 'Applied' },
   screening:                    { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Screening' },
   interview:                    { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interview' },
   pre_screening:                { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Pre-screening' },
@@ -34,26 +38,26 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   hr_round:                     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'HR Round' },
   interviewed:                  { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Interviewed' },
   offer:                        { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offer' },
-  hired:                        { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired' },
+  hired:                        { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Hired' },
   rejected:                     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Rejected' },
-  pre_screening_selected:       { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Pre-screening Selected' },
+  pre_screening_selected:       { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Pre-screening Selected' },
   pre_screening_rejected:       { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Pre-screening Rejected' },
-  technical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Technical Round Selected' },
+  technical_round_selected:     { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Technical Round Selected' },
   technical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Technical Round Rejected' },
   technical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Technical Round Back Out' },
-  practical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Practical Round Selected' },
+  practical_round_selected:     { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Practical Round Selected' },
   practical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Practical Round Rejected' },
   practical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Practical Round Back Out' },
-  techno_functional_selected:   { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Techno-Functional Selected' },
+  techno_functional_selected:   { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Techno-Functional Selected' },
   techno_functional_rejected:   { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Techno-Functional Rejected' },
-  management_round_selected:    { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Management Round Selected' },
+  management_round_selected:    { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Management Round Selected' },
   management_round_rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Management Round Rejected' },
-  hr_round_selected:            { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'HR Round Selected' },
+  hr_round_selected:            { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'HR Round Selected' },
   hr_round_rejected:            { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'HR Round Rejected' },
   offered:                      { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offered' },
   offered_back_out:             { color: '#f97316', bg: 'rgba(249,115,22,0.10)', label: 'Offered Back Out' },
   offer_withdrawn:              { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Offer Withdrawn' },
-  hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
+  hired_joined:                 { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
   inactive:                     { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: 'Inactive' },
   needs_review:                 { color: '#0891b2', bg: 'rgba(8,145,178,0.10)', label: 'Needs Review' },
 }
@@ -61,8 +65,8 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
 // ─── Status config ─────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { color: string; bg: string; dot: string; label: string }> = {
-  shortlisted: { color: '#059669', bg: 'rgba(16,185,129,0.12)', dot: '#10b981', label: 'Shortlisted' },
-  in_review:   { color: '#6c47ff', bg: 'rgba(108,71,255,0.10)', dot: '#6c47ff', label: 'In Review' },
+  shortlisted: { color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)', dot: 'var(--teal, #10b981)', label: 'Shortlisted' },
+  in_review:   { color: 'var(--violet)', bg: 'var(--violet)/10', dot: 'var(--violet)', label: 'In Review' },
   scheduled:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', dot: '#3b82f6', label: 'Scheduled' },
   rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', dot: '#ef4444', label: 'Rejected' },
   inactive:    { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', dot: '#94a3b8', label: 'Inactive' },
@@ -104,7 +108,7 @@ function getStatusFromStage(stage: string | undefined): string {
 }
 
 function scoreColor(s: number) {
-  if (s >= 80) return { text: '#059669', bg: 'rgba(16,185,129,0.12)', track: '#10b981' }
+  if (s >= 80) return { text: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)', track: 'var(--teal, #10b981)' }
   if (s >= 60) return { text: '#d97706', bg: 'rgba(251,191,36,0.12)', track: '#f59e0b' }
   return { text: '#ef4444', bg: 'rgba(239,68,68,0.10)', track: '#ef4444' }
 }
@@ -114,68 +118,68 @@ function scoreColor(s: number) {
 const STAGE_GROUPS = [
   {
     label: 'Pre-Screening',
-    icon: '🔍',
+    icon: <GlassIcon icon="Search" variant="blue" size={26} iconSize={14} ghost />,
     stages: [
-      { key: 'pre_screening',            icon: '⏲',  label: 'In Pre-screening' },
-      { key: 'pre_screening_selected',   icon: '✅', label: 'Pre-screening Selected' },
-      { key: 'pre_screening_rejected',   icon: '✗',  label: 'Pre-screening Rejected' },
+      { key: 'pre_screening',            icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} ghost />,  label: 'In Pre-screening' },
+      { key: 'pre_screening_selected',   icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} ghost />, label: 'Pre-screening Selected' },
+      { key: 'pre_screening_rejected',   icon: <GlassIcon icon="XCircle" variant="rose" size={20} iconSize={10} ghost />,  label: 'Pre-screening Rejected' },
     ],
   },
   {
     label: 'Technical Round',
-    icon: '💻',
+    icon: <GlassIcon icon="Code" variant="violet" size={26} iconSize={14} ghost />,
     stages: [
-      { key: 'technical_round',          icon: '⏲',  label: 'In Technical Round' },
-      { key: 'technical_round_selected', icon: '✅', label: 'Technical Round Selected' },
-      { key: 'technical_round_rejected', icon: '✗',  label: 'Technical Round Rejected' },
-      { key: 'technical_round_back_out', icon: '↩',  label: 'Technical Round Back Out' },
+      { key: 'technical_round',          icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} ghost />,  label: 'In Technical Round' },
+      { key: 'technical_round_selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} ghost />, label: 'Technical Round Selected' },
+      { key: 'technical_round_rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={20} iconSize={10} ghost />,  label: 'Technical Round Rejected' },
+      { key: 'technical_round_back_out', icon: <GlassIcon icon="RotateCcw" variant="amber" size={20} iconSize={10} ghost />,  label: 'Technical Round Back Out' },
     ],
   },
   {
     label: 'Practical Round',
-    icon: '📝',
+    icon: <GlassIcon icon="FileText" variant="violet" size={26} iconSize={14} ghost />,
     stages: [
-      { key: 'practical_round',          icon: '⏲',  label: 'In Practical Round' },
-      { key: 'practical_round_selected', icon: '✅', label: 'Practical Round Selected' },
-      { key: 'practical_round_rejected', icon: '✗',  label: 'Practical Round Rejected' },
-      { key: 'practical_round_back_out', icon: '↩',  label: 'Practical Round Back Out' },
+      { key: 'practical_round',          icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} ghost />,  label: 'In Practical Round' },
+      { key: 'practical_round_selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} ghost />, label: 'Practical Round Selected' },
+      { key: 'practical_round_rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={20} iconSize={10} ghost />,  label: 'Practical Round Rejected' },
+      { key: 'practical_round_back_out', icon: <GlassIcon icon="RotateCcw" variant="amber" size={20} iconSize={10} ghost />,  label: 'Practical Round Back Out' },
     ],
   },
   {
     label: 'Techno-Functional Round',
-    icon: '⚙️',
+    icon: <GlassIcon icon="Settings" variant="violet" size={26} iconSize={14} ghost />,
     stages: [
-      { key: 'techno_functional_round',    icon: '⏲',  label: 'In Techno-Functional' },
-      { key: 'techno_functional_selected', icon: '✅', label: 'Techno-Functional Selected' },
-      { key: 'techno_functional_rejected', icon: '✗',  label: 'Techno-Functional Rejected' },
+      { key: 'techno_functional_round',    icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} />,  label: 'In Techno-Functional' },
+      { key: 'techno_functional_selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} />, label: 'Techno-Functional Selected' },
+      { key: 'techno_functional_rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={20} iconSize={10} />,  label: 'Techno-Functional Rejected' },
     ],
   },
   {
     label: 'Management Round',
-    icon: '👔',
+    icon: <GlassIcon icon="Briefcase" variant="violet" size={26} iconSize={14} />,
     stages: [
-      { key: 'management_round',          icon: '⏲',  label: 'In Management Round' },
-      { key: 'management_round_selected', icon: '✅', label: 'Management Round Selected' },
-      { key: 'management_round_rejected', icon: '✗',  label: 'Management Round Rejected' },
+      { key: 'management_round',          icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} />,  label: 'In Management Round' },
+      { key: 'management_round_selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} />, label: 'Management Round Selected' },
+      { key: 'management_round_rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={20} iconSize={10} />,  label: 'Management Round Rejected' },
     ],
   },
   {
     label: 'HR Round',
-    icon: '🤝',
+    icon: <GlassIcon icon="Users" variant="violet" size={26} iconSize={14} />,
     stages: [
-      { key: 'hr_round',          icon: '⏲',  label: 'In HR Round' },
-      { key: 'hr_round_selected', icon: '✅', label: 'HR Round Selected' },
-      { key: 'hr_round_rejected', icon: '✗',  label: 'HR Round Rejected' },
+      { key: 'hr_round',          icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} />,  label: 'In HR Round' },
+      { key: 'hr_round_selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} />, label: 'HR Round Selected' },
+      { key: 'hr_round_rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={20} iconSize={10} />,  label: 'HR Round Rejected' },
     ],
   },
   {
     label: 'Offer & Joining',
-    icon: '🎉',
+    icon: <GlassIcon icon="PartyPopper" variant="emerald" size={26} iconSize={14} />,
     stages: [
-      { key: 'offered',           icon: '🏷️', label: 'Offered' },
-      { key: 'offered_back_out',  icon: '↩',  label: 'Offered Back Out' },
-      { key: 'offer_withdrawn',   icon: '🚫', label: 'Offer Withdrawn' },
-      { key: 'hired_joined',      icon: '🎊', label: 'Hired / Joined' },
+      { key: 'offered',           icon: <GlassIcon icon="Tag" variant="amber" size={20} iconSize={10} />, label: 'Offered' },
+      { key: 'offered_back_out',  icon: <GlassIcon icon="RotateCcw" variant="amber" size={20} iconSize={10} />,  label: 'Offered Back Out' },
+      { key: 'offer_withdrawn',   icon: <GlassIcon icon="Ban" variant="rose" size={20} iconSize={10} />,   label: 'Offer Withdrawn' },
+      { key: 'hired_joined',      icon: <GlassIcon icon="Trophy" variant="emerald" size={20} iconSize={10} />,      label: 'Hired / Joined' },
     ],
   },
 ]
@@ -214,6 +218,7 @@ function CandidateActionsDropdown({
   onInactivate,
   onClose,
   user,
+  onGenerateOffer,
 }: {
   candidateId: string
   currentStage: string
@@ -221,7 +226,8 @@ function CandidateActionsDropdown({
   onDelete: (id: string) => void
   onInactivate: (id: string) => void
   onClose: () => void
-  user: any // Add user prop
+  user: any
+  onGenerateOffer: () => void // Add this prop
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -263,9 +269,9 @@ function CandidateActionsDropdown({
             {group.stages.map((item) => {
               const cfg = STAGE_CFG[item.key] ?? STAGE_CFG.applied
               const isActive = currentStage === item.key
-              const isGreen = item.icon === '✅'
-              const isRed = item.icon === '✗'
-              const iconColor = isGreen ? '#10b981' : isRed ? '#ef4444' : cfg.color
+              const isGreen = React.isValidElement(item.icon) && (item.icon.props as any).variant === 'emerald'
+              const isRed = React.isValidElement(item.icon) && (item.icon.props as any).variant === 'rose'
+              const iconColor = isGreen ? 'var(--teal, #10b981)' : isRed ? '#ef4444' : cfg.color
               return (
                 <button
                   key={item.key}
@@ -297,8 +303,23 @@ function CandidateActionsDropdown({
         textTransform: 'uppercase', letterSpacing: '0.9px',
         padding: '6px 10px 4px', display: 'flex', alignItems: 'center', gap: 5,
       }}>
-        <span>⚙️</span> Management
+        <GlassIcon icon="Settings" variant="gray" size={20} iconSize={10} ghost glow={false} /> Management & Offers
       </p>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); onGenerateOffer() }}
+        style={{
+          width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 500, color: 'var(--teal, #10b981)',
+          display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      >
+        <GlassIcon icon="FileText" variant="teal" size={20} iconSize={12} ghost glow={false} />
+        <span style={{ flex: 1 }}>Generate Offer Letter</span>
+      </button>
 
       <button
         onClick={(e) => { e.stopPropagation(); onInactivate(candidateId) }}
@@ -356,6 +377,7 @@ export default function CandidatesPage() {
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [customDate, setCustomDate] = useState<string>('')
   const [candidateToAdd, setCandidateToAdd] = useState<{ id: string; name: string } | null>(null)
+  const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null)
 
   const inviteMutation = useMutation({
     mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
@@ -462,32 +484,30 @@ export default function CandidatesPage() {
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.5px', marginBottom: 4 }}>
+        <header className="page-header">
+          <h1 className="page-title">
             Candidates
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-light)' }}>
+          <p className="page-subtitle">
             {data ? `${data.total} total candidates` : 'All candidates in your organisation'}
           </p>
-        </div>
+        </header>
         <button
           onClick={() => navigate(`${basePath}/upload`)}
           style={{
             display: 'flex', alignItems: 'center', gap: 7, padding: '10px 20px', borderRadius: 12, border: 'none',
-            background: 'linear-gradient(135deg,#6c47ff,#8b6bff)', color: '#fff',
+            background: 'linear-gradient(135deg, var(--violet), var(--brand2, #6c47ff))', color: '#fff',
             fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(108,71,255,0.30)', transition: 'all 0.2s',
+            boxShadow: '0 4px 14px rgba(167, 139, 250, 0.30)', transition: 'all 0.2s',
           }}
         >
-          <svg style={{ width: 16, height: 16 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus size={16} />
           Add Candidate
         </button>
       </div>
 
       {/* Filters Row */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 bg-gray-50/50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 bg-white dark:bg-[var(--color-bg-sidebar)] p-4 rounded-2xl border border-gray-100 dark:border-[var(--card-border)]">
         <div className="flex flex-wrap items-center gap-3 flex-1 w-full">
           {/* Search Input */}
           <div className="w-full sm:max-w-[280px]">
@@ -495,11 +515,7 @@ export default function CandidatesPage() {
               placeholder="Search candidates…"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              leftIcon={
-                <svg style={{ width: 15, height: 15 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              }
+              leftIcon={<Search size={15} />}
             />
           </div>
 
@@ -564,11 +580,11 @@ export default function CandidatesPage() {
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2">Status:</span>
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { label: 'All', value: undefined, icon: '👥' },
-            { label: 'Shortlisted', value: 'shortlisted', icon: '⭐' },
-            { label: 'In Review', value: 'in_review', icon: '🔍' },
-            { label: 'Scheduled', value: 'scheduled', icon: '📅' },
-            { label: 'Rejected', value: 'rejected', icon: '🚫' },
+            { label: 'All', value: undefined, icon: <GlassIcon icon="Users" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
+            { label: 'New Apps', value: 'applied', icon: <GlassIcon icon="Inbox" variant="indigo" size={20} iconSize={10} ghost glow={false} /> },
+            { label: 'Shortlisted', value: 'shortlisted', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} ghost glow={false} /> },
+            { label: 'Scheduled', value: 'scheduled', icon: <GlassIcon icon="Calendar" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
+            { label: 'Rejected', value: 'rejected', icon: <GlassIcon icon="Ban" variant="rose" size={20} iconSize={10} ghost glow={false} /> },
           ].map((f) => {
             const isActive = statusFilter === f.value
             const statusCfg = f.value ? STATUS_CFG[f.value] : null
@@ -582,10 +598,10 @@ export default function CandidatesPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '7px 14px', borderRadius: 10,
-                  border: isActive ? `1.5px solid ${statusCfg?.dot ?? 'rgba(108,71,255,0.35)'}` : '1.5px solid var(--table-border)',
+                  border: isActive ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
                   fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  background: isActive ? (statusCfg?.bg ?? 'rgba(108,71,255,0.08)') : 'var(--kpi-bg)',
-                  color: isActive ? (statusCfg?.color ?? '#6c47ff') : 'var(--text-mid)',
+                  background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
+                  color: isActive ? 'var(--violet)' : 'var(--text-mid)',
                   transition: 'all 0.18s',
                   whiteSpace: 'nowrap',
                 }}
@@ -680,7 +696,7 @@ export default function CandidatesPage() {
                   }}
                   onMouseEnter={(e) => {
                     const el = e.currentTarget as HTMLElement
-                    el.style.borderColor = 'rgba(108,71,255,0.30)'
+                    el.style.borderColor = 'var(--violet)'
                     el.style.boxShadow = 'var(--shadow-h)'
                   }}
                   onMouseLeave={(e) => {
@@ -695,7 +711,7 @@ export default function CandidatesPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }} className="lg:w-auto">
                       <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: '#6c47ff', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {candidate.full_name}
                         </p>
                         <p style={{ fontSize: 11, color: 'var(--text-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -734,7 +750,7 @@ export default function CandidatesPage() {
                     <div className="lg:flex items-center gap-1.5 flex-wrap min-w-[120px]">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5 w-full">Skills</span>
                       {candidate.skills.slice(0, 2).map((skill: any) => (
-                        <span key={skill} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.08)', color: '#6c47ff' }}>
+                        <span key={skill} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--violet)', border: '1px solid var(--table-border)' }}>
                           {skill}
                         </span>
                       ))}
@@ -834,7 +850,7 @@ export default function CandidatesPage() {
 
                   {/* Actions */}
                   <div
-                    className="flex items-center lg:justify-end gap-2 pt-3 mt-1 lg:pt-0 lg:mt-0 border-t lg:border-none border-gray-100 dark:border-gray-800"
+                    className="flex items-center lg:justify-end gap-2 pt-3 mt-1 lg:pt-0 lg:mt-0 border-t lg:border-none border-gray-100 dark:border-[#2a2550]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
@@ -842,7 +858,7 @@ export default function CandidatesPage() {
                         e.stopPropagation()
                         inviteMutation.mutate({ email: candidate.email, full_name: candidate.full_name })
                       }}
-                      className="flex-1 lg:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 transition-colors"
+                      className="flex-1 lg:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 dark:bg-[#2e2855] dark:text-[#ede9ff] dark:border-[#2e2855] dark:hover:bg-[#3a326b] transition-colors"
                     >
                       ✉ {hasInvitation ? 'Resend' : 'Invite'}
                     </button>
@@ -852,17 +868,18 @@ export default function CandidatesPage() {
                         e.stopPropagation()
                         navigate(`${basePath}/interviews?candidateId=${candidate.id}`)
                       }}
-                      className="flex-1 lg:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-colors"
+                      className="flex-1 lg:flex-none text-[11px] flex items-center justify-center gap-1.5 font-bold px-3 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] dark:bg-[var(--violet)] dark:border-[var(--violet)] dark:hover:scale-105 transition-all"
                     >
-                      📅 Schedule
+                      <Calendar size={14} /> Schedule
                     </button>
+
 
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id)
                       }}
-                      className="w-10 h-10 lg:w-8 lg:h-8 rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                      className="w-10 h-10 lg:w-8 lg:h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]"
                     >
                       ⋯
                     </button>
@@ -876,6 +893,7 @@ export default function CandidatesPage() {
                         onInactivate={(id) => stageMutation.mutate({ id, stage: stage === 'inactive' ? 'applied' : 'inactive' })}
                         onDelete={(id) => deleteMutation.mutate(id)}
                         onClose={() => setOpenDropdownId(null)}
+                        onGenerateOffer={() => setOfferCandidate(candidate)}
                         user={user}
                       />
                     )}
@@ -897,7 +915,16 @@ export default function CandidatesPage() {
         </>
       )}
 
+
       {selected && <CandidateProfileModal candidate={selected} onClose={() => setSelected(null)} />}
+
+      {offerCandidate && (
+        <GenerateOfferModal 
+          candidate={offerCandidate} 
+          onClose={() => setOfferCandidate(null)}
+          application={{ job: { title: offerCandidate.applied_job_title } } as any}
+        />
+      )}
 
       {candidateToAdd && (
         <Modal

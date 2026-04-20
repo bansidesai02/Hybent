@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AnimatePresence, motion } from 'framer-motion'
 import { interviewsApi } from '@/api/interviews'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
 import { adminApi } from '@/api/admin'
@@ -21,6 +22,26 @@ import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatDateTime, formatDate } from '@/utils/formatters'
+import { 
+  Phone, 
+  Video, 
+  Laptop, 
+  Building2, 
+  User, 
+  Trophy, 
+  Star, 
+  ChevronDown, 
+  AlertTriangle, 
+  ChevronLeft, 
+  ChevronRight, 
+  Zap, 
+  Clock, 
+  Link as LinkIcon,
+  Check,
+  List as ListIcon,
+  Calendar as CalendarIcon,
+  ClipboardList
+} from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -29,22 +50,27 @@ const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 const STATUS_CONFIG: Record<InterviewStatus, { label: string; color: string; bg: string; border: string; variant: 'purple' | 'success' | 'warning' | 'danger' }> = {
-  scheduled: { label: 'Scheduled', color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', border: 'rgba(59,130,246,0.25)', variant: 'purple' },
-  completed: { label: 'Completed', color: '#10b981', bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.25)', variant: 'success' },
-  no_show: { label: 'No Show', color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.25)', variant: 'warning' },
-  cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.25)', variant: 'danger' },
+  scheduled: { label: 'Scheduled', color: 'var(--brand1, #3b82f6)', bg: 'var(--brand1-10, rgba(59,130,246,0.10))', border: 'var(--brand1-25, rgba(59,130,246,0.25))', variant: 'purple' },
+  completed: { label: 'Completed', color: 'var(--teal, #10b981)', bg: 'var(--teal-10, rgba(16,185,129,0.10))', border: 'var(--teal-25, rgba(16,185,129,0.25))', variant: 'success' },
+  no_show: { label: 'No Show', color: 'var(--amber, #f59e0b)', bg: 'var(--amber-10, rgba(245,158,11,0.10))', border: 'var(--amber-25, rgba(245,158,11,0.25))', variant: 'warning' },
+  cancelled: { label: 'Cancelled', color: 'var(--danger, #ef4444)', bg: 'var(--danger-10, rgba(239,68,68,0.10))', border: 'var(--danger-25, rgba(239,68,68,0.25))', variant: 'danger' },
 } as const
 
-const TYPE_ICONS: Record<string, string> = {
-  phone: '📞', video: '🎥', technical: '💻', onsite: '🏢', hr: '👤', final: '🏆',
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+  phone: <Phone size={14} />,
+  video: <Video size={14} />,
+  technical: <Laptop size={14} />,
+  onsite: <Building2 size={14} />,
+  hr: <User size={14} />,
+  final: <Trophy size={14} />,
 }
 
 const REC_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  strong_yes: { label: 'Strong Hire', color: '#059669', bg: 'rgba(16,185,129,0.12)' },
-  yes: { label: 'Hire', color: '#059669', bg: 'rgba(16,185,129,0.10)' },
-  maybe: { label: 'Maybe', color: '#d97706', bg: 'rgba(251,191,36,0.12)' },
-  no: { label: 'No Hire', color: '#ef4444', bg: 'rgba(239,68,68,0.10)' },
-  strong_no: { label: 'Strong No', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+  strong_yes: { label: 'Strong Hire', color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)' },
+  yes: { label: 'Hire', color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.10)' },
+  maybe: { label: 'Maybe', color: 'var(--amber, #d97706)', bg: 'rgba(251,191,36,0.12)' },
+  no: { label: 'No Hire', color: 'var(--danger, #ef4444)', bg: 'rgba(239,68,68,0.10)' },
+  strong_no: { label: 'Strong No', color: 'var(--danger, #ef4444)', bg: 'rgba(239,68,68,0.12)' },
 }
 
 const INTERVIEW_TYPES = [
@@ -98,9 +124,14 @@ function MiniStars({ value }: { value: number }) {
   return (
     <span style={{ display: 'inline-flex', gap: 2, alignItems: 'center' }}>
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} style={{ fontSize: 12, color: s <= value ? '#fbbf24' : 'rgba(108,71,255,0.18)' }}>★</span>
+        <Star 
+          key={s} 
+          size={12} 
+          fill={s <= value ? 'var(--amber, #fbbf24)' : 'transparent'} 
+          stroke={s <= value ? 'var(--amber, #fbbf24)' : 'var(--violet-20, rgba(108,71,255,0.18))'} 
+        />
       ))}
-      <span style={{ fontSize: 11, color: 'var(--text-light)', marginLeft: 4 }}>{value}/5</span>
+      <span style={{ fontSize: 11, color: 'var(--text-mid)', marginLeft: 4 }}>{value}/5</span>
     </span>
   )
 }
@@ -155,8 +186,8 @@ function ScorecardAccordion({ applicationId }: { applicationId: string }) {
                         <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
                         <span style={{ fontSize: 10, color: 'var(--text-light)' }}>{c.score}/5</span>
                       </div>
-                      <div style={{ height: 4, background: 'rgba(108,71,255,0.10)', borderRadius: 3 }}>
-                        <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg,#6c47ff,#ff6bc6)', borderRadius: 3 }} />
+                      <div style={{ height: 4, background: 'var(--violet)/10', borderRadius: 3 }}>
+                        <div style={{ height: '100%', width: `${(c.score / 5) * 100}%`, background: 'linear-gradient(90deg, var(--violet), var(--pink))', borderRadius: 3 }} />
                       </div>
                     </div>
                   ))}
@@ -202,14 +233,17 @@ function CustomNumberSelector({
         onMouseDown={(e) => { e.preventDefault(); setIsOpen(!isOpen); }}
         style={{
           width: '100%', padding: '12px 0', borderRadius: 12, border: '1px solid var(--sidebar-border)',
-          background: 'var(--input-bg)', color: 'var(--text)', fontSize: 14, fontWeight: 700,
+          background: 'var(--card-bg)', color: 'var(--text)', fontSize: 14, fontWeight: 700,
           textAlign: 'center', cursor: 'pointer', outline: 'none', transition: 'all 0.2s',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          boxShadow: isOpen ? '0 0 0 2px rgba(108,71,255,0.2)' : 'none'
+          boxShadow: isOpen ? '0 0 0 2px var(--violet)/20' : 'none'
         }}
       >
         <span>{String(value).padStart(2, '0')}</span>
-        <span style={{ fontSize: 9, opacity: 0.4, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
+        <ChevronDown 
+          size={10} 
+          style={{ opacity: 0.4, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }} 
+        />
       </button>
 
       <AnimatePresence>
@@ -238,7 +272,7 @@ function CustomNumberSelector({
                   style={{
                     padding: '8px 4px', borderRadius: 10, cursor: 'pointer',
                     fontSize: 14, fontWeight: 800, color: active ? '#fff' : 'var(--text)',
-                    background: active ? 'linear-gradient(135deg,#6c47ff,#8b6bff)' : 'transparent',
+                    background: active ? 'linear-gradient(135deg, var(--violet), var(--pink))' : 'transparent',
                     textAlign: 'center', transition: 'all 0.15s', marginBottom: 2
                   }}
                   onMouseOver={(e) => !active && (e.currentTarget.style.background = 'rgba(108,71,255,0.08)')}
@@ -332,9 +366,9 @@ function TimeSlotPicker({
               onClick={() => onSelect(s)}
               style={{
                 padding: '10px 0', borderRadius: 10, 
-                border: `1px solid ${active ? '#6c47ff' : blocked ? 'rgba(245,158,11,0.2)' : 'var(--table-border)'}`,
-                background: active ? 'rgba(108,71,255,0.1)' : blocked? 'rgba(245,158,11,0.08)' : 'var(--input-bg)',
-                color: active ? '#6c47ff' : blocked ? '#f59e0b' : 'var(--text-mid)',
+                border: `1px solid ${active ? 'var(--violet)' : blocked ? 'rgba(245,158,11,0.2)' : 'var(--card-border)'}`,
+                background: active ? 'var(--violet)/10' : blocked? 'rgba(245,158,11,0.08)' : 'var(--card-bg)',
+                color: active ? 'var(--violet)' : blocked ? 'var(--amber, #f59e0b)' : 'var(--text-mid)',
                 fontSize: 11, fontWeight: active ? 700 : 600, 
                 cursor: blocked ? 'not-allowed' : 'pointer', 
                 transition: 'all 0.15s',
@@ -352,8 +386,8 @@ function TimeSlotPicker({
 
       <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px dashed var(--table-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Or Enter Custom Time</p>
-          <span style={{ fontSize: 13, background: 'rgba(108,71,255,0.1)', padding: '4px 8px', borderRadius: 8, color: '#6c47ff', fontWeight: 700 }}>{formatAMPM(selected || '09:00')}</span>
+          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Or Enter Custom Time</p>
+          <span style={{ fontSize: 13, background: 'var(--violet)/10', padding: '4px 8px', borderRadius: 8, color: 'var(--violet)', fontWeight: 700 }}>{formatAMPM(selected || '09:00')}</span>
         </div>
         
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -403,8 +437,8 @@ function TimeSlotPicker({
                    }}
                    style={{
                      padding: '8px 12px', border: 'none', borderRadius: 9,
-                     background: active ? '#6c47ff' : 'transparent',
-                     color: active ? '#fff' : 'var(--text-light)',
+                     background: active ? 'var(--violet)' : 'transparent',
+                     color: active ? '#fff' : 'var(--text-mid)',
                      fontSize: 10, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s'
                    }}
                  >
@@ -421,7 +455,7 @@ function TimeSlotPicker({
             animate={{ opacity: 1, y: 0 }}
             style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            <span>⚠️</span> This time slot is {getSlotStatus(selected)}
+            <AlertTriangle size={12} /> This time slot is {getSlotStatus(selected)}
           </motion.p>
         )}
       </div>
@@ -461,10 +495,10 @@ function Calendar({
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   function statusColor(statuses: InterviewStatus[]) {
-    if (statuses.includes('scheduled')) return '#3b82f6'
-    if (statuses.includes('completed')) return '#10b981'
-    if (statuses.includes('no_show')) return '#f59e0b'
-    return '#ef4444'
+    if (statuses.includes('scheduled')) return 'var(--brand1, #3b82f6)'
+    if (statuses.includes('completed')) return 'var(--teal, #10b981)'
+    if (statuses.includes('no_show')) return 'var(--amber, #f59e0b)'
+    return 'var(--danger, #ef4444)'
   }
 
   return (
@@ -473,13 +507,17 @@ function Calendar({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <button
           onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid var(--table-border)', background: 'var(--input-bg)', cursor: 'pointer', color: 'var(--text)', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-        >‹</button>
+          style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid var(--table-border)', background: 'var(--input-bg)', cursor: 'pointer', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+        >
+          <ChevronLeft size={18} />
+        </button>
         <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{MONTHS[month]} {year}</span>
         <button
           onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid var(--table-border)', background: 'var(--input-bg)', cursor: 'pointer', color: 'var(--text)', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-        >›</button>
+          style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid var(--table-border)', background: 'var(--input-bg)', cursor: 'pointer', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+        >
+          <ChevronRight size={18} />
+        </button>
       </div>
 
       {/* Day labels */}
@@ -512,10 +550,10 @@ function Calendar({
                 position: 'relative',
                 aspectRatio: '1',
                 borderRadius: 12,
-                border: isSelected ? '2px solid #6c47ff' : isToday ? '1px solid rgba(108,71,255,0.3)' : '1px solid transparent',
+                border: isSelected ? '2px solid var(--violet)' : isToday ? '1px solid var(--violet)/30' : '1px solid transparent',
                 cursor: isPast ? 'not-allowed' : 'pointer',
-                background: isSelected ? 'rgba(108,71,255,0.15)' : isToday ? 'rgba(108,71,255,0.05)' : 'transparent',
-                color: isSelected ? '#6c47ff' : isToday ? '#6c47ff' : isPast ? 'var(--text-light)' : 'var(--text)',
+                background: isSelected ? 'var(--violet)/15' : isToday ? 'var(--violet)/5' : 'transparent',
+                color: isSelected ? 'var(--violet)' : isToday ? 'var(--violet)' : isPast ? 'var(--text-mid)' : 'var(--text)',
                 opacity: isPast ? 0.4 : 1,
                 fontSize: 13, fontWeight: isToday || isSelected ? 800 : 500,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
@@ -530,8 +568,8 @@ function Calendar({
       </div>
 
       {/* Legend */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--table-border)', flexWrap: 'wrap' }}>
-        {([['#3b82f6', 'Scheduled'], ['#10b981', 'Done'], ['#f59e0b', 'No Show'], ['#ef4444', 'Cancelled']] as const).map(([color, label]) => (
+      <div style={{ display: 'flex', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--card-border)', flexWrap: 'wrap' }}>
+        {([['var(--brand1, #3b82f6)', 'Scheduled'], ['var(--teal, #10b981)', 'Done'], ['var(--amber, #f59e0b)', 'No Show'], ['var(--danger, #ef4444)', 'Cancelled']] as const).map(([color, label]) => (
           <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text-light)', fontWeight: 600 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />{label}
           </span>
@@ -582,7 +620,7 @@ function MultiSelectPanelists({
 
   return (
     <div ref={containerRef} className="w-full relative" style={{ zIndex: 100 }}>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+      <label className="block text-sm font-medium text-gray-700 dark:text-[#b0a8d8] mb-1.5">
         Interviewers *
       </label>
       <div
@@ -591,17 +629,17 @@ function MultiSelectPanelists({
         style={{ position: 'relative', paddingRight: 36, userSelect: 'none' }}
       >
         {selectedLabels.length === 0 ? (
-          <span style={{ color: 'var(--text-light)', fontSize: 13 }}>Select interviewers...</span>
+          <span style={{ color: 'var(--text-mid)', fontSize: 13 }}>Select interviewers...</span>
         ) : (
           selectedLabels.map(l => (
             <span key={l} style={{
-              background: 'rgba(108,71,255,0.1)',
-              color: '#6c47ff',
+              background: 'var(--violet)/10',
+              color: 'var(--violet)',
               padding: '2px 10px',
               borderRadius: 20,
               fontSize: 11,
               fontWeight: 700,
-              border: '1px solid rgba(108,71,255,0.2)',
+              border: '1px solid var(--violet)/20',
               display: 'inline-flex',
               alignItems: 'center',
             }}>
@@ -614,17 +652,16 @@ function MultiSelectPanelists({
           position: 'absolute', right: 12, top: '50%',
           color: 'var(--text-light)', transition: 'transform 0.2s', pointerEvents: 'none',
           transform: isOpen ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%)',
+          display: 'flex', alignItems: 'center'
         }}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <ChevronDown size={14} />
         </div>
       </div>
       <AnimatePresence>
         {isOpen && (
           <motion.div 
             initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-            className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1b23] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl max-h-60 overflow-y-auto"
+            className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1b23] border border-gray-200 dark:border-[#2a2550] rounded-xl shadow-2xl max-h-60 overflow-y-auto"
           >
             {options.map(opt => (
               <div 
@@ -632,8 +669,8 @@ function MultiSelectPanelists({
                 onClick={() => toggleOption(opt.value)}
                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-[rgba(108,71,255,0.05)] cursor-pointer transition-colors"
               >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center ${value.includes(opt.value) ? 'bg-[#6c47ff] border-[#6c47ff]' : 'border-[var(--sidebar-border)]'}`}>
-                  {value.includes(opt.value) && <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                <div className={`w-4 h-4 rounded border flex items-center justify-center ${value.includes(opt.value) ? 'bg-[var(--violet)] border-[var(--violet)]' : 'border-[var(--card-border)]'}`}>
+                  {value.includes(opt.value) && <Check size={12} className="text-white" strokeWidth={3} />}
                 </div>
                 <span className="text-[13px] font-semibold text-[var(--text)]">{opt.label}</span>
               </div>
@@ -792,17 +829,43 @@ function ScheduleForm({
           type="submit"
           disabled={isSubmitting || mutation.isPending}
           style={{
-            flex: 1, padding: '12px 0', borderRadius: 12, border: 'none',
-            background: isSubmitting || mutation.isPending ? 'rgba(108,71,255,0.5)' : 'linear-gradient(135deg,#6c47ff,#8b6bff)',
-            color: '#fff', fontSize: 14, fontWeight: 800, cursor: isSubmitting || mutation.isPending ? 'not-allowed' : 'pointer',
-            boxShadow: '0 8px 24px rgba(108,71,255,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s'
+            flex: 1, 
+            padding: '14px 24px', 
+            borderRadius: 14, 
+            border: 'none',
+            background: isSubmitting || mutation.isPending 
+              ? 'var(--color-text-muted)' 
+              : 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)',
+            color: '#fff', 
+            fontSize: 14, 
+            fontWeight: 800, 
+            cursor: isSubmitting || mutation.isPending ? 'not-allowed' : 'pointer',
+            boxShadow: '0 8px 30px var(--color-bg-sidebar)',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: 10, 
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
+          onMouseEnter={(e) => {
+            if (!(isSubmitting || mutation.isPending)) {
+               e.currentTarget.style.transform = 'translateY(-2px)'
+               e.currentTarget.style.boxShadow = '0 12px 40px var(--color-bg-sidebar)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!(isSubmitting || mutation.isPending)) {
+               e.currentTarget.style.transform = 'translateY(0)'
+               e.currentTarget.style.boxShadow = '0 8px 30px var(--color-bg-sidebar)'
+            }
           }}
         >
-          <span>⚡</span>
-          {isSubmitting || mutation.isPending
-            ? 'Scheduling...'
-            : 'Schedule Interview'}
+          <Zap size={18} fill="currentColor" />
+          <span>
+            {isSubmitting || mutation.isPending
+              ? 'Scheduling...'
+              : 'Schedule Interview'}
+          </span>
         </button>
       </div>
     </form>
@@ -823,7 +886,7 @@ function InterviewCard({
 }) {
   const cfg = STATUS_CONFIG[interview.status] ?? STATUS_CONFIG.scheduled
   const d = parseISO(interview.scheduled_at)
-  const typeIcon = TYPE_ICONS[interview.interview_type] ?? '📋'
+  const typeIcon = TYPE_ICONS[interview.interview_type] ?? <ClipboardList size={14} />
   const queryClient = useQueryClient()
 
   return (
@@ -848,10 +911,10 @@ function InterviewCard({
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
         {/* Time Column */}
         <div className="shrink-0 w-auto sm:w-[70px] flex sm:block items-baseline gap-2 text-left sm:text-center">
-          <p className="text-[18px] font-black text-[#6c47ff] mb-0 sm:mb-[2px]">
+          <p className="text-[18px] font-black text-[var(--violet)] mb-0 sm:mb-[2px]">
             {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).split(' ')[0]}
           </p>
-          <p className="text-[10px] font-extrabold text-[var(--text-light)] opacity-60 uppercase tracking-[0.5px]">
+          <p className="text-[10px] font-extrabold text-[var(--text-mid)] opacity-60 uppercase tracking-[0.5px]">
             {d.getHours() >= 12 ? 'PM' : 'AM'}
           </p>
         </div>
@@ -873,23 +936,23 @@ function InterviewCard({
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>
-              <span>{typeIcon}</span> {interview.interview_type.replace(/_/g, ' ')}
+              {typeIcon} {interview.interview_type.replace(/_/g, ' ')}
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-light)', opacity: 0.4 }}>•</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: 'var(--text-light)' }}>
-              ⏱️ {interview.duration_minutes}m
+              <Clock size={12} /> {interview.duration_minutes}m
             </span>
             {interview.meeting_link && (
               <>
                  <span style={{ fontSize: 11, color: 'var(--text-light)', opacity: 0.4 }}>•</span>
                  <a 
-                  href={interview.meeting_link} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  style={{ fontSize: 11, fontWeight: 800, color: '#6c47ff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                  🔗 Meet Link
-                </a>
+                   href={interview.meeting_link} 
+                   target="_blank" 
+                   rel="noreferrer"
+                   style={{ fontSize: 11, fontWeight: 800, color: 'var(--violet)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                 >
+                   <LinkIcon size={12} /> Meet Link
+                 </a>
               </>
             )}
           </div>
@@ -914,13 +977,13 @@ function InterviewCard({
             <>
               <button 
                 onClick={() => onStatusUpdate('completed')}
-                style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.05)', color: '#10b981', border: '1px solid rgba(16,185,129,0.15)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
+                style={{ padding: '6px 14px', borderRadius: 10, background: 'var(--teal-10)', color: 'var(--teal, #10b981)', border: '1px solid var(--teal-25)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
               >
                 Complete
               </button>
               <button 
                 onClick={onCancel}
-                style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.05)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.15)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
+                style={{ padding: '6px 14px', borderRadius: 10, background: 'var(--danger-10)', color: 'var(--danger, #ef4444)', border: '1px solid var(--danger-25)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
               >
                 Cancel
               </button>
@@ -931,7 +994,17 @@ function InterviewCard({
                 {interview.application_id && (
                   <button 
                     onClick={onToggleScorecard}
-                    style={{ padding: '6px 14px', borderRadius: 10, background: expandedScorecard ? '#6c47ff15' : 'var(--input-bg)', color: expandedScorecard ? '#6c47ff' : 'var(--text-mid)', border: `1px solid ${expandedScorecard ? '#6c47ff30' : 'var(--sidebar-border)'}`, fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
+                    style={{ 
+                      padding: '6px 14px', 
+                      borderRadius: 10, 
+                      background: expandedScorecard ? 'var(--violet-25)' : 'var(--kpi-bg)', 
+                      color: expandedScorecard ? 'var(--violet)' : 'var(--text-mid)', 
+                      border: `1px solid ${expandedScorecard ? 'var(--violet)' : 'var(--card-border)'}`, 
+                      fontSize: 11, 
+                      fontWeight: 800, 
+                      cursor: 'pointer', 
+                      transition: 'all 0.2s' 
+                    }}
                   >
                     {expandedScorecard ? 'Close' : 'Scores'}
                   </button>
@@ -1040,12 +1113,14 @@ export default function InterviewsListPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
-        <div>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.8px', marginBottom: 4 }}>
+        <header className="page-header !mb-0">
+          <h1 className="page-title">
             Schedule
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-light)', fontWeight: 500 }}>Auto-conflict-free scheduling with instant Meet links.</p>
-        </div>
+          <p className="page-subtitle">
+            Auto-conflict-free scheduling with instant Meet links.
+          </p>
+        </header>
         <div style={{ display: 'flex', gap: 10 }}>
            {user && !user.is_calendar_connected && (
             <button
@@ -1057,20 +1132,20 @@ export default function InterviewsListPage() {
               style={{ 
                 display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 12, 
                 fontSize: 13, fontWeight: 700, cursor: 'pointer', 
-                background: 'rgba(108,71,255,0.1)', color: '#6c47ff', 
-                border: '1px solid rgba(108,71,255,0.2)',
+                background: 'var(--violet)/10', color: 'var(--violet)', 
+                border: '1px solid var(--violet)/20',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e: any) => {
-                e.currentTarget.style.background = 'rgba(108,71,255,0.15)'
+                e.currentTarget.style.background = 'var(--violet)/15'
                 e.currentTarget.style.transform = 'translateY(-1px)'
               }}
               onMouseLeave={(e: any) => {
-                e.currentTarget.style.background = 'rgba(108,71,255,0.1)'
+                e.currentTarget.style.background = 'var(--violet)/10'
                 e.currentTarget.style.transform = 'translateY(0)'
               }}
             >
-              📅 Connect Google Calendar
+              <CalendarIcon size={18} /> Connect Google Calendar
             </button>
           )}
           {user?.is_calendar_connected && (
@@ -1090,12 +1165,12 @@ export default function InterviewsListPage() {
             onClick={() => setActiveTab(tab)}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-[10px] text-[13px] font-bold transition-all duration-200"
             style={{
-              background: activeTab === tab ? 'rgba(108,71,255,0.1)' : 'transparent',
-              color: activeTab === tab ? '#6c47ff' : 'var(--text-mid)',
-              border: activeTab === tab ? '1px solid rgba(108,71,255,0.2)' : '1px solid transparent',
+              background: activeTab === tab ? 'var(--violet)/10' : 'transparent',
+              color: activeTab === tab ? 'var(--violet)' : 'var(--text-mid)',
+              border: activeTab === tab ? '1px solid var(--violet)/20' : '1px solid transparent',
             }}
           >
-            <span>{tab === 'schedule' ? '📅' : '📋'}</span>
+            <span>{tab === 'schedule' ? <CalendarIcon size={14} /> : <ListIcon size={14} />}</span>
             {tab === 'schedule' ? 'Schedule' : 'Interviews'}
           </button>
         ))}
@@ -1156,9 +1231,9 @@ export default function InterviewsListPage() {
                     onClick={() => setStatusFilter(f)}
                     style={{ 
                       padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', cursor: 'pointer',
-                      background: statusFilter === f ? '#6c47ff15' : 'transparent',
-                      color: statusFilter === f ? '#6c47ff' : 'var(--text-light)',
-                      border: `1px solid ${statusFilter === f ? '#6c47ff30' : 'var(--sidebar-border)'}`,
+                      background: statusFilter === f ? 'var(--violet)/15' : 'transparent',
+                      color: statusFilter === f ? 'var(--violet)' : 'var(--text-mid)',
+                      border: `1px solid ${statusFilter === f ? 'var(--violet)/30' : 'var(--card-border)'}`,
                       transition: 'all 0.2s'
                     }}
                   >

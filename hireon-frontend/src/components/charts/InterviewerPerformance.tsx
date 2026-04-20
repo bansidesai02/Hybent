@@ -8,12 +8,12 @@ export function InterviewerPerformanceTable({ data }: { data: InterviewerPerform
         <div key={row.interviewer_id} className="flex items-center gap-3 py-3">
           <Avatar name={row.interviewer_name} size="sm" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+            <p className="text-sm font-medium text-gray-900 dark:text-[#ede9ff] truncate">
               {row.interviewer_name}
             </p>
           </div>
           <div className="text-right space-y-0.5">
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <p className="text-sm font-semibold text-gray-700 dark:text-[#b0a8d8]">
               {row.interviews_conducted} interviews
             </p>
             <p className="text-xs text-gray-400">

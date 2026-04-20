@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
+import { ArrowRight } from 'lucide-react'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
@@ -112,7 +113,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0e0c1a] flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -134,15 +135,15 @@ export default function RegisterPage() {
             </div>
             <span className="logo-wordmark lwl" style={{ fontSize: '24px' }}>Hireon</span>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-[#ede9ff]">
             {isDemo ? 'Book your personalized demo' : 'Create your account'}
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-[#b0a8d8] mt-1">
             {isDemo ? 'See how Hireon can transform your hiring workflow' : "Start hiring smarter today — it's free"}
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-8 shadow-sm">
+        <div className="bg-white dark:bg-[#1a1730] rounded-2xl border border-gray-200 dark:border-[#2a2550] p-8 shadow-sm">
           {submitted ? (
             <div className="text-center py-6">
               <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
@@ -151,7 +152,7 @@ export default function RegisterPage() {
                 </svg>
               </div>
               <h2 className="text-xl font-bold mb-2">Request Received!</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              <p className="text-sm text-gray-500 dark:text-[#b0a8d8] mb-6">
                 Thank you. Our team will contact you shortly to schedule your demo.
               </p>
               <Button onClick={() => navigate('/')} variant="outline" className="w-full">
@@ -193,7 +194,7 @@ export default function RegisterPage() {
                   />
                 )}
 
-                <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                <div className="border-t border-gray-100 dark:border-[#2a2550] pt-4">
                   <p className="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-3">Organization</p>
                   <div className="space-y-4">
                     <Input
@@ -225,14 +226,14 @@ export default function RegisterPage() {
                   size="lg"
                   loading={isSubmitting}
                 >
-                  {isDemo ? 'Book Demo →' : 'Create Account'}
+                  {isDemo ? <>Book Demo <ArrowRight size={18} className="ml-1 inline" /></> : 'Create Account'}
                 </Button>
               </form>
             </>
           )}
         </div>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
+        <p className="text-center text-sm text-gray-500 dark:text-[#b0a8d8] mt-6">
           Already have an account?{' '}
           <Link to="/login" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">
             Sign in

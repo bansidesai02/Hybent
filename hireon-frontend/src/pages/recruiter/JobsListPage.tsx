@@ -5,6 +5,23 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { jobsApi } from '@/api/jobs'
 import { aiApi } from '@/api/ai'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { 
+  Plus, 
+  Search, 
+  MoreVertical, 
+  MapPin, 
+  Clock, 
+  Calendar, 
+  Briefcase, 
+  Filter, 
+  ChevronDown, 
+  Zap,
+  Edit2,
+  Trash2,
+  Eye,
+  ExternalLink
+} from 'lucide-react'
 import type { Job, JobStatus } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Pagination } from '@/components/ui/Pagination'
@@ -17,10 +34,10 @@ import { LinkedInShareModal } from '@/components/recruiter/LinkedInShareModal'
 
 // ─── Status badge ───────────────────────────────────────────────────────────────
 const STATUS_STYLE: Record<string, { color: string; bg: string; border: string; dot: string }> = {
-  active:  { color: '#059669', bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.25)', dot: '#10b981' },
-  draft:   { color: '#6b7280', bg: 'rgba(107,114,128,0.10)', border: 'rgba(107,114,128,0.20)', dot: '#9ca3af' },
-  paused:  { color: '#d97706', bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.25)', dot: '#fbbf24' },
-  closed:  { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.20)', dot: '#ef4444' },
+  active:  { color: 'var(--teal, #059669)', bg: 'var(--teal-10)', border: 'var(--teal-25)', dot: 'var(--teal, #10b981)' },
+  draft:   { color: 'var(--text-light)', bg: 'var(--color-bg-sidebar)', border: 'var(--color-border)', dot: '#9ca3af' },
+  paused:  { color: '#d97706', bg: 'var(--amber-10)', border: 'var(--amber-25)', dot: '#fbbf24' },
+  closed:  { color: '#ef4444', bg: 'var(--danger-10)', border: 'var(--danger-25)', dot: '#ef4444' },
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -109,14 +126,11 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            boxShadow: '0 4px 12px rgba(108,71,255,0.25)',
+            boxShadow: '0 4px 12px rgba(167, 139, 250, 0.25)',
             opacity: isExporting ? 0.7 : 1
           }}
         >
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
+          <Eye size={14} />
           {isExporting ? 'Generating...' : 'View JD'}
         </button>
       }
@@ -128,9 +142,9 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
           <div style={{ display: 'flex', gap: 16 }}>
             <div style={{
               width: 54, height: 54, borderRadius: 14,
-              background: 'linear-gradient(135deg, rgba(108,71,255,0.14), rgba(139,107,255,0.06))',
+              background: 'linear-gradient(135deg, var(--violet-10), var(--violet-25))',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
-            }}>💼</div>
+            }}><GlassIcon icon="Briefcase" variant="violet" size={40} iconSize={18} /></div>
             <div>
               <h3 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", marginBottom: 4 }}>{job.title}</h3>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -184,7 +198,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
           <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Required Skills</h4>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {job.skills_required.map((skill: any) => (
-                <span key={skill} className="px-3 py-1 bg-white/50 dark:bg-gray-800/50 rounded-lg text-[10px] font-bold text-gray-500 uppercase tracking-wider border border-gray-100 dark:border-gray-700">
+                <span key={skill} className="px-3 py-1 bg-white/50 dark:bg-[var(--color-bg-sidebar)] rounded-lg text-[10px] font-bold text-gray-500 uppercase tracking-wider border border-gray-100 dark:border-[var(--card-border)]">
                   {skill}
                 </span>
               ))}
@@ -252,9 +266,9 @@ export default function JobsListPage() {
         <button
           onClick={() => navigate(`${basePath}/jobs/new`)}
           className="btn-primary-gradient"
-          style={{ padding: '10px 20px', borderRadius: 12 }}
+          style={{ padding: '10px 20px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 7 }}
         >
-          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Post a Position
+          <Plus size={18} /> Post a Position
         </button>
       </div>
 
@@ -262,7 +276,9 @@ export default function JobsListPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full">
         {/* Search */}
         <div className="relative w-full sm:max-w-[400px] flex-1">
-          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: 14 }}>🔍</span>
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
+            <Search size={14} />
+          </span>
           <input
             placeholder="Search by title, location..."
             value={search}
@@ -282,8 +298,8 @@ export default function JobsListPage() {
                 onClick={() => { setStatusFilter(value); setPage(1) }}
                 style={{
                   padding: '6px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  background: isActive ? 'rgba(108,71,255,0.08)' : 'transparent',
-                  color: isActive ? '#6c47ff' : 'var(--text-mid)', transition: 'all 0.2s',
+                  background: isActive ? 'var(--violet-10)' : 'transparent',
+                  color: isActive ? 'var(--violet)' : 'var(--text-mid)', transition: 'all 0.2s',
                 }}
               >
                 {label}
@@ -314,7 +330,7 @@ export default function JobsListPage() {
         </div>
       ) : !data?.items.length ? (
         <EmptyState
-          icon={<span>💼</span>}
+          icon={<GlassIcon icon="Briefcase" variant="violet" size={60} iconSize={28} />}
           title="No positions found"
           description={search || statusFilter ? 'Try changing your filters' : 'Start by posting your first opening'}
         />
@@ -342,7 +358,7 @@ export default function JobsListPage() {
                 className="flex flex-col lg:grid lg:grid-cols-[2fr_1fr_1fr_100px_90px_100px_140px] gap-4 lg:gap-3 items-start lg:items-center p-4 lg:px-5 lg:py-[14px] rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-[var(--shadow)] cursor-pointer transition-all duration-150"
                 onMouseEnter={(e) => {
                   const el = e.currentTarget as HTMLElement
-                  el.style.borderColor = 'rgba(108,71,255,0.30)'
+                  el.style.borderColor = 'var(--violet)'
                   el.style.boxShadow = 'var(--shadow-h)'
                   el.style.transform = 'translateY(-1px)'
                 }}
@@ -355,7 +371,9 @@ export default function JobsListPage() {
               >
                 {/* Col 1 – Position (always visible) */}
                 <div className="flex items-center gap-3 w-full lg:w-auto min-w-0">
-                  <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 text-base" style={{ background: 'linear-gradient(135deg, rgba(108,71,255,0.1), rgba(139,107,255,0.05))' }}>💼</div>
+                  <div className="shrink-0 flex items-center justify-center">
+                    <GlassIcon icon="Briefcase" variant="violet" size={36} iconSize={16} rounded="10px" />
+                  </div>
                   <div className="min-w-0">
                     <p className="text-[14px] font-bold text-[var(--violet)] mb-[2px] truncate">{job.title}</p>
                     <p className="text-[11px] text-[var(--text-light)]">{JOB_TYPE_LABEL[job.job_type] || job.job_type}</p>
@@ -375,32 +393,32 @@ export default function JobsListPage() {
                 {/* Col 4 – Re-engage (desktop only) */}
                 <div className="hidden lg:flex lg:justify-center" onClick={(e) => e.stopPropagation()}>
                   {job.re_engage_count > 0 ? (
-                    <button
-                      onClick={() => navigate(`${basePath}/talent-db?search=${encodeURIComponent(job.title)}`)}
-                      style={{
-                        padding: '3px 10px',
-                        borderRadius: 20,
-                        background: 'rgba(108,71,255,0.08)',
-                        color: '#6c47ff',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        border: '1px solid rgba(108,71,255,0.20)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(108,71,255,0.15)'
-                        e.currentTarget.style.transform = 'scale(1.05)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(108,71,255,0.08)'
-                        e.currentTarget.style.transform = 'scale(1)'
-                      }}
-                    >
-                      <span style={{ fontSize: 13 }}>⚡</span>
+                      <button
+                        onClick={() => navigate(`${basePath}/talent-db?search=${encodeURIComponent(job.title)}`)}
+                        style={{
+                          padding: '3px 10px',
+                          borderRadius: 20,
+                          background: 'var(--violet-10)',
+                          color: 'var(--violet)',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: '1px solid var(--violet-25)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--violet)/20'
+                          e.currentTarget.style.transform = 'scale(1.05)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'var(--violet)/10'
+                          e.currentTarget.style.transform = 'scale(1)'
+                        }}
+                      >
+                      <Zap size={11} fill="currentColor" />
                       {job.re_engage_count}
                     </button>
                   ) : (
@@ -422,7 +440,7 @@ export default function JobsListPage() {
                       appearance: 'none',
                       border: `1px solid ${STATUS_STYLE[job.status]?.border ?? 'rgba(107,114,128,0.20)'}`,
                       background: STATUS_STYLE[job.status]?.bg ?? 'rgba(107,114,128,0.10)',
-                      color: STATUS_STYLE[job.status]?.color ?? '#6b7280',
+                      color: STATUS_STYLE[job.status]?.color ?? 'var(--text-light)',
                       fontSize: 11, fontWeight: 700,
                       padding: '3px 10px', borderRadius: 20,
                       cursor: 'pointer',
@@ -463,17 +481,15 @@ export default function JobsListPage() {
                         onClick={() => navigate(`${basePath}/jobs/${job.id}/edit`)}
                         title="Edit Position"
                         style={{
-                          width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(108,71,255,0.25)',
-                          background: 'rgba(108,71,255,0.08)', color: '#6c47ff',
+                          width: 32, height: 32, borderRadius: 8, border: '1px solid var(--violet)/25',
+                          background: 'var(--violet)/10', color: 'var(--violet)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
                         }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.18)' }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.08)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--violet)/20' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--violet)/10' }}
                       >
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
+                        <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => setDeleteTarget(job)}
@@ -487,9 +503,7 @@ export default function JobsListPage() {
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.16)' }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)' }}
                       >
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <Trash2 size={14} />
                       </button>
                     </>
                   )}
@@ -513,15 +527,18 @@ export default function JobsListPage() {
                         style={{
                           padding: '2px 8px',
                           borderRadius: 20,
-                          background: 'rgba(108,71,255,0.08)',
-                          color: '#6c47ff',
+                          background: 'var(--violet)/10',
+                          color: 'var(--violet)',
                           fontSize: 10,
                           fontWeight: 700,
-                          border: '1px solid rgba(108,71,255,0.20)',
+                          border: '1px solid var(--violet)/20',
                           width: 'fit-content',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
                         }}
                       >
-                        ⚡ {job.re_engage_count}
+                        <Zap size={10} fill="currentColor" /> {job.re_engage_count}
                       </button>
                     ) : (
                       <p className="text-[12px] text-[var(--text-light)] opacity-50">0</p>
@@ -540,7 +557,7 @@ export default function JobsListPage() {
                         appearance: 'none',
                         border: `1px solid ${STATUS_STYLE[job.status]?.border ?? 'rgba(107,114,128,0.20)'}`,
                         background: STATUS_STYLE[job.status]?.bg ?? 'rgba(107,114,128,0.10)',
-                        color: STATUS_STYLE[job.status]?.color ?? '#6b7280',
+                        color: STATUS_STYLE[job.status]?.color ?? 'var(--text-light)',
                         fontSize: 11, fontWeight: 700,
                         padding: '3px 10px', borderRadius: 20,
                         cursor: 'pointer', width: 'fit-content',

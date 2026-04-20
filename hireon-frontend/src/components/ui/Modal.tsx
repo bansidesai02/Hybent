@@ -57,14 +57,14 @@ export function Modal({ open, onClose, title, headerActions, children, size = 'm
             transition={{ duration: 0.15 }}
             onClick={(e) => e.stopPropagation()}
             className={clsx(
-              'relative w-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden',
+              'relative w-full bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-gray-200 dark:border-[var(--card-border)] overflow-hidden',
               sizes[size],
               className
             )}
           >
             {title && (
-              <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[var(--card-border)]">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-[var(--text)]">{title}</h2>
                 <div className="flex items-center gap-3">
                   {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
                   <button

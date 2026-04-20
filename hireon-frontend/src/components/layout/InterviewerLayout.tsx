@@ -11,8 +11,10 @@ export function InterviewerLayout() {
       <Sidebar role="interviewer" />
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-7">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-[28px_30px]">
+          <div className="main-content-container">
+            <Outlet />
+          </div>
         </main>
       </div>
       <GlobalChatOverlay />

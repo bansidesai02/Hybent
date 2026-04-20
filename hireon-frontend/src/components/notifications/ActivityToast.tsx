@@ -13,16 +13,17 @@ interface ActivityToastProps {
     timestamp: string
   }
 }
+import { GlassIcon } from '@/components/common/GlassIcon'
 
-const getEmoji = (type: string) => {
+const getIcon = (type: string) => {
   switch (type) {
-    case 'job': return '💼'
-    case 'candidate': return '👤'
-    case 'interview': return '📅'
-    case 'application': return '📝'
-    case 'scorecard': return '✅'
-    case 'offer': return '🎉'
-    default: return '🔔'
+    case 'job': return <GlassIcon icon="Briefcase" variant="violet" size={40} iconSize={18} glow={false} />
+    case 'candidate': return <GlassIcon icon="User" variant="blue" size={40} iconSize={18} glow={false} />
+    case 'interview': return <GlassIcon icon="Calendar" variant="indigo" size={40} iconSize={18} glow={false} />
+    case 'application': return <GlassIcon icon="FileText" variant="indigo" size={40} iconSize={18} glow={false} />
+    case 'scorecard': return <GlassIcon icon="CheckCircle" variant="emerald" size={40} iconSize={18} glow={false} />
+    case 'offer': return <GlassIcon icon="PartyPopper" variant="amber" size={40} iconSize={18} glow={false} />
+    default: return <GlassIcon icon="Bell" variant="violet" size={40} iconSize={18} glow={false} />
   }
 }
 
@@ -42,9 +43,7 @@ export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
       <div className="flex-1 w-0 p-4">
         <div className="flex items-start">
           <div className="flex-shrink-0 pt-0.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-transparent flex items-center justify-center border border-indigo-100/50 text-2xl shadow-inner">
-              {getEmoji(payload.resource_type)}
-            </div>
+            {getIcon(payload.resource_type)}
           </div>
           <div className="ml-4 flex-1">
             <div className="flex items-center justify-between">

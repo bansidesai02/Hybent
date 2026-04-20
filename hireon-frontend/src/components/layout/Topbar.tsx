@@ -6,6 +6,19 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { globalSearch } from '@/api/search'
 import type { SearchResults, SearchResult } from '@/types'
+import { 
+  Search, 
+  Sun, 
+  Moon, 
+  User, 
+  Settings, 
+  LogOut, 
+  Briefcase, 
+  Calendar, 
+  Users, 
+  SearchX,
+  Menu
+} from 'lucide-react'
 
 interface TopbarProps {
   title?: string
@@ -93,12 +106,12 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     setSearchFocused(false)
   }
 
-  const renderSearchSection = (title: string, icon: string, results: SearchResult[]) => {
+  const renderSearchSection = (title: string, icon: React.ReactNode, results: SearchResult[]) => {
     if (results.length === 0) return null
     return (
       <div className="mb-4 last:mb-0">
         <h4 className="px-4 py-2 text-[11px] font-black uppercase tracking-wider text-[var(--text-light)] opacity-60 flex items-center gap-2">
-          <span>{icon}</span> {title}
+          {icon} {title}
         </h4>
         <div className="space-y-0.5">
           {results.map((res) => (
@@ -130,11 +143,11 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     )
   }
 
-  const resultIconMap: Record<string, string> = {
-    candidate: '👤',
-    job: '💼',
-    interview: '🗓️',
-    user: '🧑‍💼'
+  const resultIconMap: Record<string, React.ReactNode> = {
+    candidate: <User size={14} />,
+    job: <Briefcase size={14} />,
+    interview: <Calendar size={14} />,
+    user: <Users size={14} />
   }
 
   const initials = user?.full_name
@@ -144,8 +157,8 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
   const profilePath = `${basePath}/profile`
 
   const menuItems = [
-    { label: 'My Profile', icon: '👤', path: profilePath },
-    { label: 'Settings', icon: '⚙️', path: `${basePath}/settings` },
+    { label: 'My Profile', icon: <User size={16} />, path: profilePath },
+    { label: 'Settings', icon: <Settings size={16} />, path: `${basePath}/settings` },
   ]
 
   return (
@@ -161,9 +174,9 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
       {/* Mobile Menu Toggle */}
       <button 
         onClick={onToggleMenu}
-        className="flex lg:hidden items-center justify-center w-9 h-9 rounded-xl bg-white/40 border border-white/60 shadow-sm"
+        className="flex lg:hidden items-center justify-center w-9 h-9 rounded-xl bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] shadow-sm"
       >
-        <span className="text-xl">☰</span>
+        <Menu size={20} className="text-[var(--text)]" />
       </button>
 
       {/* Search bar */}
@@ -173,18 +186,17 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
             className="flex items-center gap-2 w-full rounded-[12px] px-[16px] py-[8px] transition-all duration-200"
             style={{
               background: 'var(--search-bg)',
-              backdropFilter: 'blur(10px)',
-              border: `1.5px solid ${searchFocused ? '#6c47ff' : 'var(--input-border)'}`,
-              boxShadow: searchFocused ? '0 0 0 4px rgba(108, 71, 255, 0.1)' : 'none',
+              border: `1.5px solid ${searchFocused ? 'var(--violet)' : 'var(--input-border)'}`,
+              boxShadow: searchFocused ? '0 0 0 4px rgba(167, 139, 250, 0.1)' : 'none',
             }}
           >
-            <span style={{ fontSize: '14px', opacity: isSearching ? 0 : 0.5 }} className="transition-opacity">🔍</span>
+            <Search size={18} className="transition-opacity" style={{ opacity: isSearching ? 0 : 0.5 }} />
             {isSearching && (
               <div className="absolute left-[16px] flex items-center">
                 <motion.div 
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                  className="w-4 h-4 border-2 border-[#6c47ff] border-t-transparent rounded-full"
+                  className="w-4 h-4 border-2 border-[var(--violet)] border-t-transparent rounded-full"
                 />
               </div>
             )}
@@ -195,7 +207,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
               placeholder="Search candidates, roles, interviews..."
               onFocus={() => setSearchFocused(true)}
               className="border-none bg-transparent text-[13px] outline-none w-full"
-              style={{ fontFamily: "'Sora', sans-serif", color: 'var(--text)' }}
+              style={{ fontFamily: "'Poppins', sans-serif", color: 'var(--text)' }}
             />
           </div>
 
@@ -209,13 +221,12 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
                 style={{
                   background: 'var(--sidebar-bg)',
                   border: '1px solid var(--sidebar-border)',
-                  boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
-                  backdropFilter: 'blur(30px)',
+                  boxShadow: 'var(--shadow-h)',
                 }}
               >
                 {!searchResults && !isSearching && searchQuery && (
                   <div className="p-8 text-center">
-                    <p className="text-[24px] mb-2">🔎</p>
+                    <Search size={32} className="mx-auto mb-2 opacity-20" />
                     <p className="text-[13px] font-bold text-[var(--text)]">Search across everything</p>
                     <p className="text-[11px] text-[var(--text-light)]">Candidates, jobs, team members and more</p>
                   </div>
@@ -237,16 +248,16 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
                   <>
                     {searchResults.total === 0 ? (
                       <div className="p-8 text-center">
-                        <p className="text-[24px] mb-2">🛰️</p>
+                        <SearchX size={32} className="mx-auto mb-2 opacity-20" />
                         <p className="text-[13px] font-bold text-[var(--text)]">No results found</p>
                         <p className="text-[11px] text-[var(--text-light)]">Try searching for something else</p>
                       </div>
                     ) : (
                       <>
-                        {renderSearchSection('Candidates', '👤', searchResults.candidates)}
-                        {renderSearchSection('Jobs', '💼', searchResults.jobs)}
-                        {renderSearchSection('Interviews', '🗓️', searchResults.interviews)}
-                        {renderSearchSection('Team', '🧑‍💼', searchResults.users)}
+                        {renderSearchSection('Candidates', <User size={12} />, searchResults.candidates)}
+                        {renderSearchSection('Jobs', <Briefcase size={12} />, searchResults.jobs)}
+                        {renderSearchSection('Interviews', <Calendar size={12} />, searchResults.interviews)}
+                        {renderSearchSection('Team', <Users size={12} />, searchResults.users)}
                         
                         <div className="mt-2 p-2 border-t border-[var(--sidebar-border)] text-center">
                           <p className="text-[10px] text-[var(--text-light)] font-bold uppercase tracking-widest opacity-40">
@@ -269,14 +280,13 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
         {/* Theme toggle */}
         <button
           onClick={() => setIsDark(!isDark)}
-          className="w-[36px] h-[36px] rounded-[10px] flex items-center justify-center text-[16px] cursor-pointer transition-all duration-200 hover:scale-105 shadow-sm"
+          className="w-[36px] h-[36px] rounded-[10px] flex items-center justify-center text-[16px] cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
           style={{ 
             background: 'var(--search-bg)', 
             border: '1.5px solid var(--input-border)',
-            backdropFilter: 'blur(10px)'
           }}
         >
-          {isDark ? '☀️' : '🌙'}
+          {isDark ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
         {/* Messages */}
@@ -295,8 +305,8 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
             onClick={() => setMenuOpen(!menuOpen)}
             className="w-[36px] h-[36px] rounded-full flex items-center justify-center text-white text-[13px] font-black cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95"
             style={{
-              background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-              boxShadow: '0 4px 12px rgba(108,71,255,0.3)',
+              background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))',
+              boxShadow: '0 4px 12px rgba(167, 139, 250, 0.3)',
             }}
           >
             {user?.avatar_url ? (
@@ -317,10 +327,9 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   className="absolute right-0 top-[46px] w-60 rounded-[18px] z-40 overflow-hidden py-2"
                   style={{
-                    background: 'var(--sidebar-bg)',
+                    background: 'var(--modal-bg)',
                     border: '1px solid var(--sidebar-border)',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                    backdropFilter: 'blur(20px)',
+                    boxShadow: 'var(--shadow-h)',
                   }}
                 >
                   <div
@@ -350,7 +359,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
                       onClick={() => { setMenuOpen(false); logout() }}
                       className="w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-bold text-red-500 transition-all hover:bg-red-500/10"
                     >
-                      <span className="text-[16px]">🚪</span>
+                      <LogOut size={16} />
                       Sign out
                     </button>
                   </div>

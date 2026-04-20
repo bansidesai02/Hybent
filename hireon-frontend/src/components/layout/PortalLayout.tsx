@@ -221,8 +221,10 @@ export function PortalLayout() {
             </div>
           </div>
 
-          <div className="main flex-1 overflow-y-auto w-full relative">
-            <Outlet />
+          <div className="main flex-1 overflow-y-auto w-full relative p-4 md:p-6 lg:p-[28px_30px]">
+            <div className="main-content-container">
+              <Outlet />
+            </div>
           </div>
         </div>
       </div>

@@ -196,8 +196,10 @@ export function useWebSocket() {
     }
 
     ws.onclose = (e) => {
+      // 4001 is our custom code for "Authentication failed (Expired or Invalid Token)"
       if (e.code === 4001) {
-        console.warn('[WS] Authentication failed (Expired or Invalid Token). Stopping reconnection.')
+        console.warn('[WS] Authentication failed. Retrying in 5s (waiting for background token refresh)...')
+        reconnectTimeout.current = setTimeout(connect, 5000)
         return
       }
       console.log('[WS] Disconnected, reconnecting in 3s...', e.reason)
