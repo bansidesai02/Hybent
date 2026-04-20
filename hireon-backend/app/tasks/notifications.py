@@ -111,56 +111,70 @@ def send_feedback_reminder(interview_id: str, user_id: str, organization_id: str
     asyncio.run(_send_feedback_reminder_async(interview_id, user_id, organization_id, interview_title))
 
 
-async def _send_system_notification_async(user_id: str, org_id: str, type: str, title: str, message: str, data: dict | None = None):
+async def _send_system_notification_async(user_id: str, org_id: str, type: str, title: str, message: str, data: dict | None = None, persist: bool = True):
     async with AsyncSessionLocal() as db:
-        notification = Notification(
-            organization_id=uuid.UUID(org_id),
-            user_id=uuid.UUID(user_id),
-            type=type,
-            title=title,
-            message=message,
-            data=data or {},
-        )
-        db.add(notification)
-        await db.commit()
-        await db.refresh(notification)
-        
+        if persist:
+            notification = Notification(
+                organization_id=uuid.UUID(org_id),
+                user_id=uuid.UUID(user_id),
+                type=type,
+                title=title,
+                message=message,
+                data=data or {},
+            )
+            db.add(notification)
+            await db.commit()
+            await db.refresh(notification)
+            
+            notification_id = str(notification.id)
+            is_read = notification.is_read
+            created_at = notification.created_at.isoformat()
+        else:
+            # For non-persistent notifications (e.g. Chat alerts)
+            # We don't save to DB, just prepare metadata for WS/Push
+            notification_id = str(uuid.uuid4())
+            is_read = False
+            created_at = datetime.now(timezone.utc).isoformat()
+
         notification_payload = {
-            "id": str(notification.id),
-            "type": notification.type,
-            "title": notification.title,
-            "message": notification.message,
-            "data": notification.data,
-            "created_at": notification.created_at.isoformat(),
-            "is_read": notification.is_read
+            "id": notification_id,
+            "type": type,
+            "title": title,
+            "message": message,
+            "data": data or {},
+            "created_at": created_at,
+            "is_read": is_read
         }
 
-        # 1. Real-time WebSocket broadcast (in-app, when tab is open)
-        try:
-            await ws_manager.send_to_user(
-                user_id=user_id,
-                event="notification",
-                data=notification_payload,
-            )
-        except Exception as e:
-            logger.error(f"Failed to broadcast notification via WS: {e}")
+        # 1. Real-time WebSocket broadcast (Only if persistent)
+        # For non-persistent messages (Chat), the 'new_message' event already 
+        # handles the in-app experience. We don't want duplicate toasts.
+        if persist:
+            try:
+                await ws_manager.send_to_user(
+                    user_id=user_id,
+                    event="notification",
+                    data=notification_payload,
+                )
+            except Exception as e:
+                logger.error(f"Failed to broadcast notification via WS: {e}")
 
 
-        # 2. Firebase push notification (OS popup, works on other tabs / closed app)
+        # 2. Firebase push notification (Always send if persist=False for Chat, or for structural alerts)
         try:
             await ws_manager.send_push_notification(
                 user_id=user_id,
-                title=notification.title,
-                body=notification.message,
-                data={"id": str(notification.id), "type": notification.type},
+                title=title,
+                body=message,
+                data={"id": notification_id, "type": type},
             )
         except Exception as e:
             logger.error(f"Failed to send FCM push notification: {e}")
 
 
 @celery_app.task
-def send_system_notification(user_id: str, org_id: str, type: str, title: str, message: str, data: dict | None = None):
-    asyncio.run(_send_system_notification_async(user_id, org_id, type, title, message, data))
+def send_system_notification(user_id: str, org_id: str, type: str, title: str, message: str, data: dict | None = None, persist: bool = True):
+    asyncio.run(_send_system_notification_async(user_id, org_id, type, title, message, data, persist))
 
 
 

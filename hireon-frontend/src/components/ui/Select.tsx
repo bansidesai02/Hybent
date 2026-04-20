@@ -96,7 +96,7 @@ export const Select = forwardRef<HTMLDivElement, SelectProps>(
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="absolute z-[100] left-0 right-0 mt-2 p-1.5 rounded-2xl overflow-hidden overflow-y-auto max-h-[280px] custom-scrollbar"
+                className="absolute z-[1000] left-0 right-0 mt-2 p-1.5 rounded-2xl overflow-hidden overflow-y-auto max-h-[280px] custom-scrollbar"
                 style={{
                   background: 'var(--card-bg)',
                   backdropFilter: 'blur(20px)',

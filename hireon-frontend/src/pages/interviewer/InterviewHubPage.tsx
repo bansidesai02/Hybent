@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDateTime } from '@/utils/formatters'
+import { groupInterviewsByCandidate } from '@/utils/grouping'
+import { useInterviewStore } from '@/store/interviewStore'
+import { useAuthStore } from '@/store/authStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +80,8 @@ const MODE: Record<HubMode, ModeConfig> = {
 
 export default function InterviewHubPage({ mode }: { mode: HubMode }) {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isUnlocked = useInterviewStore(s => s.isComplete)
   const cfg = MODE[mode]
 
   const { data: interviews, isLoading, isError } = useQuery({
@@ -172,73 +177,112 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
           description={cfg.emptyDesc}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filtered.map((interview, i) => (
-            <motion.div
-              key={interview.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.045 }}
-            >
-              <Card
-                hover
-                style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}
-              >
-                {/* Accent bar */}
-                <div style={{
-                  width: 4, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0,
-                  background: `linear-gradient(180deg, ${cfg.accentColor}, ${cfg.accentColor}55)`,
-                  minHeight: 48,
-                }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {groupInterviewsByCandidate(filtered).map((group, gIdx) => (
+            <div key={group.candidate_id} style={{
+              display: 'flex', flexDirection: 'column', gap: 12,
+              background: 'var(--card-bg)', backdropFilter: 'blur(10px)',
+              padding: '24px', borderRadius: 24, border: '1px solid var(--card-border)'
+            }}>
+              {/* Candidate Info Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, paddingLeft: 4 }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>👤 {group.candidate_name}</span>
+                <span style={{
+                   fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 12,
+                   background: 'var(--hover-row)', color: 'var(--text-mid)', opacity: 0.8
+                }}>
+                  {group.interviews.length} Round{group.interviews.length !== 1 ? 's' : ''}
+                </span>
+              </div>
 
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                      {interview.title}
-                    </span>
-                    <Badge variant={statusVariant(interview.status)}>
-                      {interview.status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </Badge>
-                    <Badge variant="default">
-                      {interview.interview_type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </Badge>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--text-mid)', flexWrap: 'wrap' }}>
-                    <span>📅 {formatDateTime(interview.scheduled_at)}</span>
-                    <span>⏱ {interview.duration_minutes} min</span>
-                    {interview.meeting_link && (
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>🎥 Meet link available</span>
-                    )}
-                    {interview.candidate_name && (
-                      <span>👤 {interview.candidate_name}</span>
-                    )}
-                  </div>
-                </div>
+              {/* Rounds List inside Candidate Card */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {group.interviews.map((interview, i) => (
+                  <motion.div
+                    key={interview.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: (gIdx + i) * 0.045 }}
+                  >
+                    <Card
+                      hover
+                      style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '14px 20px' }}
+                    >
+                      {/* Accent bar */}
+                      <div style={{
+                        width: 4, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0,
+                        background: `linear-gradient(180deg, ${cfg.accentColor}, ${cfg.accentColor}55)`,
+                        minHeight: 38,
+                      }} />
 
-                {/* CTA */}
-                <button
-                  onClick={() => navigate(cfg.ctaPath(interview.id))}
-                  style={{
-                    padding: '10px 18px', borderRadius: 10, border: 'none',
-                    background: interview.status === 'completed' && mode === 'scorecard'
-                      ? 'rgba(108,71,255,0.12)'
-                      : cfg.ctaBg,
-                    color: interview.status === 'completed' && mode === 'scorecard'
-                      ? '#6c47ff'
-                      : '#fff',
-                    fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Sora', sans-serif",
-                    boxShadow: interview.status !== 'completed' || mode !== 'scorecard'
-                      ? `0 4px 12px ${cfg.accentColor}33`
-                      : 'none',
-                    whiteSpace: 'nowrap', flexShrink: 0,
-                  }}
-                >
-                  {cfg.ctaLabel(interview)}
-                </button>
-              </Card>
-            </motion.div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                            {interview.title === group.candidate_name ? 'General Interview' : (interview.title || 'General Interview')}
+                          </span>
+                          <Badge variant={statusVariant(interview.status)}>
+                            {interview.status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </Badge>
+                          <Badge variant="default">
+                            {interview.interview_type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </Badge>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: 'var(--text-mid)', flexWrap: 'wrap' }}>
+                          <span>📅 {formatDateTime(interview.scheduled_at)}</span>
+                          <span>⏱ {interview.duration_minutes} min</span>
+                          {interview.meeting_link && (
+                            isUnlocked(interview.id) || user?.role !== 'interviewer' ? (
+                              <a 
+                                href={interview.meeting_link} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                style={{ 
+                                  color: '#10b981', 
+                                  fontWeight: 600, 
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+                              >
+                                🎥 Link available
+                              </a>
+                            ) : (
+                              <span style={{ color: 'var(--text-lite)', fontWeight: 600, opacity: 0.7 }}>🔒 Prep required</span>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      {/* CTA */}
+                      <button
+                        onClick={() => navigate(cfg.ctaPath(interview.id))}
+                        style={{
+                          padding: '8px 16px', borderRadius: 10, border: 'none',
+                          background: interview.status === 'completed' && mode === 'scorecard'
+                            ? 'rgba(108,71,255,0.12)'
+                            : cfg.ctaBg,
+                          color: interview.status === 'completed' && mode === 'scorecard'
+                            ? '#6c47ff'
+                            : '#fff',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          fontFamily: "'Sora', sans-serif",
+                          boxShadow: interview.status !== 'completed' || mode !== 'scorecard'
+                            ? `0 4px 10px ${cfg.accentColor}22`
+                            : 'none',
+                          whiteSpace: 'nowrap', flexShrink: 0,
+                        }}
+                      >
+                        {cfg.ctaLabel(interview)}
+                      </button>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

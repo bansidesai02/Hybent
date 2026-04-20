@@ -64,7 +64,8 @@ async def send_message(
         NotificationType.MESSAGE_RECEIVED,
         "New Message Received 💬",
         f"You have a new message from {current_user.full_name}: \"{new_message.content[:50]}...\"",
-        {"sender_id": str(current_user.id)}
+        {"sender_id": str(current_user.id)},
+        persist=False
     )
 
     return APIResponse.success(

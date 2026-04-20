@@ -7,6 +7,8 @@ import { applicationsApi } from '@/api/applications'
 import { Card } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Avatar } from '@/components/ui/Avatar'
+import { useInterviewStore, CHECKLIST_CRITERIA } from '@/store/interviewStore'
+import { useAuthStore } from '@/store/authStore'
 
 // ─── Question Generator ────────────────────────────────────────────────────────
 
@@ -113,24 +115,22 @@ function generateQuestions(skills: string[], interviewType: string): Question[] 
   return result.slice(0, 8)
 }
 
-// ─── Pre-Interview Checklist ───────────────────────────────────────────────────
-
-const CHECKLIST = [
-  'Review candidate\'s resume and portfolio',
-  'Read the job description and required skills',
-  'Review any previous interview notes',
-  'Prepare your evaluation criteria',
-  'Test your audio and video setup',
-  'Keep a notepad ready for overall summary',
-  'Confirm meeting link is working',
-]
+// No local CHECKLIST constant needed, using CHECKLIST_CRITERIA from store
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PrepKitPage() {
   const { interviewId } = useParams<{ interviewId: string }>()
   const navigate = useNavigate()
-  const [checklist, setChecklist] = useState<Record<number, boolean>>({})
+  const { user } = useAuthStore()
+  
+  const toggleStep = useInterviewStore(s => s.toggleStep)
+  const checklists = useInterviewStore(s => s.checklists)
+  const isComplete = useInterviewStore(s => s.isComplete)
+
+  const interviewChecklist = checklists[interviewId!] || new Array(CHECKLIST_CRITERIA.length).fill(false)
+  const checkedCount = interviewChecklist.filter(Boolean).length
+  const isChecklistComplete = isComplete(interviewId!) || user?.role !== 'interviewer'
 
   const { data: interview, isLoading: intLoading } = useQuery({
     queryKey: ['interview', interviewId],
@@ -150,9 +150,6 @@ export default function PrepKitPage() {
   const questions = (candidate && interview)
     ? generateQuestions(candidate.skills ?? [], interview.interview_type)
     : (interview ? generateQuestions([], interview.interview_type) : [])
-
-  const checkedCount = Object.values(checklist).filter(Boolean).length
-  const isChecklistComplete = checkedCount === CHECKLIST.length
 
   if (isLoading) {
     return (
@@ -205,15 +202,30 @@ export default function PrepKitPage() {
           </p>
         </div>
         {interview.meeting_link && (
-          <a href={interview.meeting_link} target="_blank" rel="noreferrer">
-            <button style={{
-              display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px',
-              borderRadius: 8, background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.30)',
-              color: '#059669', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
-            }}>
-              🎥 Google Meet
+          isChecklistComplete ? (
+            <a href={interview.meeting_link} target="_blank" rel="noreferrer">
+              <button style={{
+                display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px',
+                borderRadius: 8, background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.30)',
+                color: '#059669', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
+              }}>
+                🎥 Google Meet
+              </button>
+            </a>
+          ) : (
+            <button 
+              onClick={() => {}}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px',
+                borderRadius: 8, background: 'var(--input-bg)', border: '1.5px solid var(--input-border)',
+                color: 'var(--text-lite)', fontSize: 12, fontWeight: 700, cursor: 'not-allowed', fontFamily: "'Sora', sans-serif",
+                opacity: 0.6
+              }}
+              title="Complete checklist to unlock link"
+            >
+              🔒 Link Locked
             </button>
-          </a>
+          )
         )}
       </div>
 
@@ -297,25 +309,25 @@ export default function PrepKitPage() {
               </p>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                background: checkedCount === CHECKLIST.length ? 'rgba(16,185,129,0.12)' : 'rgba(108,71,255,0.09)',
-                color: checkedCount === CHECKLIST.length ? '#059669' : '#6c47ff',
+                background: checkedCount === CHECKLIST_CRITERIA.length ? 'rgba(16,185,129,0.12)' : 'rgba(108,71,255,0.09)',
+                color: checkedCount === CHECKLIST_CRITERIA.length ? '#059669' : '#6c47ff',
               }}>
-                {checkedCount}/{CHECKLIST.length}
+                {checkedCount}/{CHECKLIST_CRITERIA.length}
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {CHECKLIST.map((item, idx) => (
+              {CHECKLIST_CRITERIA.map((item, idx) => (
                 <label key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
-                    checked={!!checklist[idx]}
-                    onChange={(e) => setChecklist((prev) => ({ ...prev, [idx]: e.target.checked }))}
+                    checked={!!interviewChecklist[idx]}
+                    onChange={() => toggleStep(interviewId!, idx)}
                     style={{ accentColor: '#6c47ff', width: 14, height: 14, cursor: 'pointer', flexShrink: 0, marginTop: 1 }}
                   />
                   <span style={{
-                    fontSize: 12, color: checklist[idx] ? 'var(--text-lite)' : 'var(--text-mid)',
-                    fontWeight: checklist[idx] ? 400 : 500,
-                    textDecoration: checklist[idx] ? 'line-through' : 'none',
+                    fontSize: 12, color: interviewChecklist[idx] ? 'var(--text-lite)' : 'var(--text-mid)',
+                    fontWeight: interviewChecklist[idx] ? 400 : 500,
+                    textDecoration: interviewChecklist[idx] ? 'line-through' : 'none',
                     lineHeight: 1.5, transition: 'all 0.15s',
                   }}>
                     {item}
@@ -439,7 +451,7 @@ export default function PrepKitPage() {
               fontSize: 11, color: '#6c47ff', marginTop: 12, textAlign: 'center',
               fontWeight: 600, background: 'rgba(108,71,255,0.06)', padding: '8px', borderRadius: 8
             }}>
-              ✨ Complete all {CHECKLIST.length} checklist items to unlock the Google Meet link
+              ✨ Complete all {CHECKLIST_CRITERIA.length} checklist items to unlock the Google Meet link
             </p>
           )}
 

@@ -69,7 +69,7 @@ const REC_BADGE: Record<string, { label: string; color: string; bg: string }> = 
   strong_yes: { label: 'Strong Hire', color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)' },
   yes: { label: 'Hire', color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.10)' },
   maybe: { label: 'Maybe', color: 'var(--amber, #d97706)', bg: 'rgba(251,191,36,0.12)' },
-  no: { label: 'No Hire', color: 'var(--danger, #ef4444)', bg: 'rgba(239,68,68,0.10)' },
+  no: { label: 'Rejected', color: 'var(--danger, #ef4444)', bg: 'rgba(239,68,68,0.10)' },
   strong_no: { label: 'Strong No', color: 'var(--danger, #ef4444)', bg: 'rgba(239,68,68,0.12)' },
 }
 
@@ -619,7 +619,7 @@ function MultiSelectPanelists({
   const selectedLabels = options.filter(o => value.includes(o.value)).map(o => o.label);
 
   return (
-    <div ref={containerRef} className="w-full relative" style={{ zIndex: 100 }}>
+    <div ref={containerRef} className="w-full relative">
       <label className="block text-sm font-medium text-gray-700 dark:text-[#b0a8d8] mb-1.5">
         Interviewers *
       </label>
@@ -661,7 +661,7 @@ function MultiSelectPanelists({
         {isOpen && (
           <motion.div 
             initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-            className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1b23] border border-gray-200 dark:border-[#2a2550] rounded-xl shadow-2xl max-h-60 overflow-y-auto"
+            className="absolute z-[1000] w-full mt-1 bg-white dark:bg-[#1a1b23] border border-gray-200 dark:border-[#2a2550] rounded-xl shadow-2xl max-h-60 overflow-y-auto"
           >
             {options.map(opt => (
               <div 
