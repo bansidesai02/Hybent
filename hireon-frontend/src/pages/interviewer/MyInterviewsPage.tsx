@@ -9,6 +9,10 @@ import type { Interview } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { FileText, CheckCircle, BarChart2, Inbox, Sparkles, X, Plus, Check, Clock, Link as LinkIcon, AlertTriangle, XCircle, Layout } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
+import { groupInterviewsByCandidate } from '@/utils/grouping'
+import { useInterviewStore } from '@/store/interviewStore'
+import { useAuthStore } from '@/store/authStore'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function isToday(dateStr: string) {
@@ -168,12 +172,13 @@ function ResumeModal({
 
 /* ── card component ───────────────────────────────────────────────────── */
 function InterviewCard({
-  interview, live, delay,
+  interview, live, delay, showName = true,
   onEnterRoom, onViewResume, onPrepKit, onReschedule, onScorecard, onComplete, onConfirm,
 }: {
   interview: Interview
   live: boolean
   delay: number
+  showName?: boolean
   onEnterRoom: () => void
   onViewResume: () => void
   onPrepKit: () => void
@@ -182,6 +187,9 @@ function InterviewCard({
   onComplete: () => void
   onConfirm: () => void
 }) {
+  const { user } = useAuthStore()
+  const isUnlocked = useInterviewStore(s => s.isComplete(interview.id)) || user?.role !== 'interviewer'
+
   const ampm = fmtAmPm(interview.scheduled_at)
   const hourMin = fmtHourOnly(interview.scheduled_at)
   const borderColor = live ? '#16a34a' : interview.status === 'completed' ? '#d1d5db' : '#6c47ff'
@@ -224,10 +232,10 @@ function InterviewCard({
       {/* Info Column */}
       <div style={{ flex: 1, padding: '22px 24px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: '0 0 4px 0' }}>
-            {interview.candidate_name || interview.title}
+          <h3 style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', margin: '0 0 4px 0' }}>
+            {showName ? (interview.candidate_name || interview.title) : (interview.title || 'General Round')}
           </h3>
-          <p style={{ fontSize: 13, color: 'var(--text-mid)', fontWeight: 500 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-mid)', fontWeight: 600 }}>
             {interviewTypeLabel(interview.interview_type)} · {interview.duration_minutes} min slot
           </p>
         </div>
@@ -253,19 +261,31 @@ function InterviewCard({
 
         {/* Meeting Link */}
         {interview.meeting_link && interview.status !== 'completed' && (
-          <a
-            href={interview.meeting_link}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              fontSize: 12, color: '#6c47ff', fontWeight: 700,
-              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
-              marginTop: 4
-            }}
-          >
-            <LinkIcon size={14} />
-            {interview.meeting_link.replace(/^https?:\/\//, '')}
-          </a>
+          isUnlocked ? (
+            <a
+              href={interview.meeting_link}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                fontSize: 12, color: '#6c47ff', fontWeight: 700,
+                textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+                marginTop: 4
+              }}
+            >
+              <LinkIcon size={14} />
+              {interview.meeting_link.replace(/^https?:\/\//, '')}
+            </a>
+          ) : (
+            <div style={{
+              fontSize: 11, color: 'var(--text-lite)', fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              marginTop: 4, background: 'var(--hover-row)', padding: '4px 8px', borderRadius: 6,
+              alignSelf: 'flex-start'
+            }}>
+              <span>🔒 Link Locked</span>
+              <span style={{ fontSize: 9, opacity: 0.7 }}>(Prep Required)</span>
+            </div>
+          )
         )}
       </div>
 
@@ -275,108 +295,128 @@ function InterviewCard({
         justifyContent: 'center', gap: 8, padding: '22px 24px', flexShrink: 0,
       }}>
         {live ? (
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-            onClick={onEnterRoom}
-            style={{
-              padding: '10px 24px', borderRadius: 12, background: '#6c47ff',
-              color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
-              cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(108,71,255,0.3)',
-            }}
-          >
-            Enter Room
-          </motion.button>
-        ) : interview.status === 'scheduled' ? (
-          <>
+          isUnlocked ? (
             <motion.button
-              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-              onClick={onComplete}
+              whileHover={{ scale: 1.02, boxShadow: '0 10px 25px rgba(108,71,255,0.35)' }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onEnterRoom}
               style={{
-                padding: '9px 24px', borderRadius: 10, background: 'rgba(16,185,129,0.1)',
-                color: '#16a34a', fontWeight: 800, fontSize: 13, border: '1px solid rgba(16,185,129,0.3)',
+                padding: '12px 28px', borderRadius: 14,
+                background: 'linear-gradient(135deg, #6c47ff 0%, #8b5cf6 100%)',
+                color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
                 cursor: 'pointer', whiteSpace: 'nowrap',
+                boxShadow: '0 8px 20px rgba(108,71,255,0.25)',
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', justifyContent: 'center'
               }}
             >
-              Mark Completed
+              <span>🚀</span> Enter Room
             </motion.button>
-            {!interview.is_confirmed && (
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onPrepKit}
+              style={{
+                padding: '12px 28px', borderRadius: 14, background: 'var(--hover-row)',
+                color: 'var(--text-mid)', fontWeight: 800, fontSize: 13, border: '1.5px dashed var(--card-border)',
+                cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', justifyContent: 'center'
+              }}
+            >
+              <span>🔒</span> Prep Required
+            </motion.button>
+          )
+        ) : interview.status === 'scheduled' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            {!interview.is_confirmed ? (
               <motion.button
-                whileHover={{ scale: 1.02, background: '#15803d' }} whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.02, background: 'linear-gradient(135deg, #16a34a 0%, #10b981 100%)' }}
+                whileTap={{ scale: 0.97 }}
                 onClick={onConfirm}
                 style={{
-                  padding: '9px 24px', borderRadius: 10, background: '#16a34a',
+                  padding: '12px 28px', borderRadius: 14,
+                  background: 'linear-gradient(135deg, #059669 0%, #16a34a 100%)',
                   color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
                   cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 10,
-                  boxShadow: '0 4px 12px rgba(22,163,74,0.2)',
+                  boxShadow: '0 8px 20px rgba(22,163,74,0.25)',
+                  width: '100%', justifyContent: 'center'
                 }}
               >
                 <Check size={16} /> Confirm
               </motion.button>
-            )}
-            {interview.is_confirmed && (
+            ) : (
               <div style={{
-                padding: '6px 12px', borderRadius: 10, background: 'rgba(22,163,74,0.1)',
-                color: '#16a34a', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6
+                padding: '10px 20px', borderRadius: 12, background: 'rgba(22,163,74,0.1)',
+                color: '#16a34a', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8,
+                border: '1px solid rgba(22,163,74,0.15)', width: '100%', justifyContent: 'center'
               }}>
                 <CheckCircle size={14} /> Confirmed
               </div>
             )}
-          </>
+            <motion.button
+              whileHover={{ scale: 1.02, background: 'rgba(16,185,129,0.15)' }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onComplete}
+              style={{
+                padding: '10px 24px', borderRadius: 12, background: 'rgba(16,185,129,0.08)',
+                color: '#16a34a', fontWeight: 800, fontSize: 12, border: '1px solid rgba(16,185,129,0.25)',
+                cursor: 'pointer', whiteSpace: 'nowrap', width: '100%', textAlign: 'center'
+              }}
+            >
+              Mark Completed
+            </motion.button>
+          </div>
         ) : interview.status === 'completed' && (
            <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.02, boxShadow: '0 10px 25px rgba(59,130,246,0.35)' }}
+            whileTap={{ scale: 0.97 }}
             onClick={onScorecard}
             style={{
-              padding: '10px 24px', borderRadius: 12, background: '#3b82f6',
+              padding: '12px 28px', borderRadius: 14,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
               color: '#fff', fontWeight: 800, fontSize: 13, border: 'none',
-              cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
-              display: 'flex', alignItems: 'center', gap: 12
+              cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 8px 20px rgba(59,130,246,0.25)',
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'center'
             }}
           >
             <BarChart2 size={16} /> Scorecard
           </motion.button>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-          <motion.button
-            whileHover={{ background: 'rgba(108,71,255,0.05)' }}
-            onClick={onViewResume}
-            style={{
-              padding: '8px 16px', borderRadius: 10, background: 'transparent',
-              border: '1px solid var(--card-border)', color: 'var(--text-mid)',
-              fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center'
-            }}
-          >
-            View Resume
-          </motion.button>
-
-          {interview.status === 'scheduled' && (
+        {/* Utility Belt for Secondary Actions */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginTop: 6
+        }}>
+          <Tooltip content="Review candidate resume">
             <motion.button
-              whileHover={{ background: 'rgba(108,71,255,0.05)' }}
-              onClick={onReschedule}
+              whileHover={{ scale: 1.05, background: 'rgba(108,71,255,0.12)' }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onViewResume}
               style={{
-                padding: '8px 16px', borderRadius: 10, background: 'transparent',
-                border: '1px solid var(--card-border)', color: 'var(--text-mid)',
-                fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center'
+                padding: '8px 16px', borderRadius: 10, background: 'rgba(108,71,255,0.06)',
+                border: '1px solid rgba(108,71,255,0.1)', color: '#6c47ff', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 11
               }}
             >
-              Reschedule
+              <span>📄</span> Resume
             </motion.button>
-          )}
+          </Tooltip>
 
-          {live && (
+          <Tooltip content="View prep checklist">
             <motion.button
-              whileHover={{ background: 'rgba(108,71,255,0.05)' }}
+              whileHover={{ scale: 1.05, background: 'rgba(108,71,255,0.12)' }}
+              whileTap={{ scale: 0.95 }}
               onClick={onPrepKit}
               style={{
-                padding: '8px 16px', borderRadius: 10, background: 'transparent',
-                border: '1px solid var(--card-border)', color: 'var(--text-mid)',
-                fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center'
+                padding: '8px 16px', borderRadius: 10, background: 'rgba(108,71,255,0.06)',
+                border: '1px solid rgba(108,71,255,0.1)', color: '#6c47ff', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 11
               }}
             >
-              Prep Kit
+              <span>🛡</span> Prep
             </motion.button>
-          )}
+          </Tooltip>
         </div>
       </div>
     </motion.div>
@@ -475,14 +515,15 @@ export default function MyInterviewsPage() {
 
         {firstLive ? (
           <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.02, boxShadow: '0 10px 25px rgba(108,71,255,0.45)' }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => navigate(`/interviewer/live-room/${firstLive.id}`)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
-              padding: '12px 24px', borderRadius: 14,
-              background: '#6c47ff', color: '#fff',
-              fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer',
-              flexShrink: 0, boxShadow: '0 8px 20px rgba(108,71,255,0.4)',
+              padding: '12px 28px', borderRadius: 16,
+              background: 'linear-gradient(135deg, #6c47ff 0%, #8b5cf6 100%)',
+              color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer',
+              flexShrink: 0, boxShadow: '0 8px 20px rgba(108,71,255,0.3)',
             }}
           >
              <span className="dot-pulse" style={{ width: 10, height: 10, borderRadius: '50%', background: '#4ade80' }} />
@@ -491,10 +532,10 @@ export default function MyInterviewsPage() {
         ) : (
           <div style={{ 
             display: 'inline-flex', alignItems: 'center', gap: 10,
-            padding: '12px 24px', borderRadius: 14,
-            background: 'var(--card-border)', color: 'var(--text-light)',
-            fontWeight: 800, fontSize: 14, border: 'none',
-            flexShrink: 0, opacity: 0.6
+            padding: '12px 28px', borderRadius: 16,
+            background: 'var(--hover-row)', color: 'var(--text-lite)',
+            fontWeight: 800, fontSize: 14, border: '1px solid var(--card-border)',
+            flexShrink: 0, opacity: 0.7, backdropFilter: 'blur(8px)'
           }}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#d1d5db' }} />
             Enter Live Room
@@ -543,8 +584,12 @@ export default function MyInterviewsPage() {
             <div>
               <SectionLabel dot="#16a34a" color="#16a34a" label="LIVE NOW" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {liveNow.map((i, idx) => (
-                  <InterviewCard key={i.id} interview={i} live delay={idx * 0.06} {...handlers(i)} />
+                {groupInterviewsByCandidate(liveNow).map((group, gIdx) => (
+                  <div key={group.candidate_id} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {group.interviews.map((i, idx) => (
+                      <InterviewCard key={i.id} interview={i} live delay={(gIdx + idx) * 0.05} showName={false} {...handlers(i)} />
+                    ))}
+                  </div>
                 ))}
               </div>
             </div>
@@ -554,8 +599,21 @@ export default function MyInterviewsPage() {
             <div>
               <SectionLabel dot="#6c47ff" color="#6c47ff" label="UPCOMING TODAY" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {upcomingToday.map((i, idx) => (
-                  <InterviewCard key={i.id} interview={i} live={false} delay={(liveNow.length + idx) * 0.06} {...handlers(i)} />
+                {groupInterviewsByCandidate(upcomingToday).map((group, gIdx) => (
+                  <div key={group.candidate_id} style={{
+                    display: 'flex', flexDirection: 'column',
+                    background: 'var(--card-bg)', backdropFilter: 'blur(10px)',
+                    padding: '20px', borderRadius: 24, border: '1px solid var(--card-border)'
+                  }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-mid)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      👤 {group.candidate_name}
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {group.interviews.map((i, idx) => (
+                        <InterviewCard key={i.id} interview={i} live={false} delay={(gIdx + idx) * 0.05} showName={false} {...handlers(i)} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -565,8 +623,20 @@ export default function MyInterviewsPage() {
             <div>
               <SectionLabel dot="#94a3b8" color="#64748b" label="COMPLETED" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {completedToday.map((i, idx) => (
-                  <InterviewCard key={i.id} interview={i} live={false} delay={(liveNow.length + upcomingToday.length + idx) * 0.06} {...handlers(i)} />
+                {groupInterviewsByCandidate(completedToday).map((group, gIdx) => (
+                  <div key={group.candidate_id} style={{
+                    display: 'flex', flexDirection: 'column',
+                    padding: '12px 0 0'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, paddingLeft: 8 }}>
+                       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lite)' }}>{group.candidate_name}:</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {group.interviews.map((i, idx) => (
+                        <InterviewCard key={i.id} interview={i} live={false} delay={(gIdx + idx) * 0.05} showName={false} {...handlers(i)} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

@@ -6,7 +6,9 @@ from app.models.scorecard import Scorecard
 from app.models.interview import Interview
 from app.schemas.scorecard import ScorecardCreate, ScorecardOut
 from app.schemas.response import APIResponse
-from app.tasks.notifications import notify_candidate_stage_change
+from app.tasks.notifications import notify_candidate_stage_change, send_system_notification
+from sqlalchemy.orm import selectinload
+from app.models.candidate import Candidate
 
 router = APIRouter(prefix="/v1/scorecards", tags=["scorecards"])
 interview_router = APIRouter(prefix="/v1/interviews", tags=["interviews"])
@@ -16,7 +18,9 @@ interview_router = APIRouter(prefix="/v1/interviews", tags=["interviews"])
 async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser, db: DB):
     # Validate interview belongs to org
     result = await db.execute(
-        select(Interview).where(
+        select(Interview)
+        .options(selectinload(Interview.candidate))
+        .where(
             Interview.id == uuid.UUID(data.interview_id),
             Interview.organization_id == current_user.organization_id,
         )
@@ -54,6 +58,23 @@ async def submit_scorecard(data: ScorecardCreate, current_user: InterviewerUser,
     # or overwriting the centralized HR notes.
     
     await db.commit()
+
+    # Notify HR / Scheduler
+    if interview.scheduled_by_id:
+        candidate_name = interview.candidate.full_name if interview.candidate else "Candidate"
+        send_system_notification.delay(
+            user_id=str(interview.scheduled_by_id),
+            org_id=str(interview.organization_id),
+            type="scorecard_submitted",
+            title=f"Feedback Received: {candidate_name}",
+            message=f"{current_user.full_name} has submitted feedback for the '{interview.title}' round.",
+            data={
+                "interview_id": str(interview.id),
+                "scorecard_id": str(scorecard.id),
+                "candidate_id": str(interview.candidate_id),
+                "application_id": str(interview.application_id) if interview.application_id else None
+            }
+        )
 
     out = ScorecardOut.model_validate(scorecard).model_dump()
     out["submitted_by_name"] = current_user.full_name

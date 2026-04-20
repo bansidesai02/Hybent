@@ -71,7 +71,7 @@ const REC_OPTIONS: { value: Recommendation; label: string; emoji: React.ReactNod
   },
   {
     value: 'no_hire',
-    label: 'No Hire',
+    label: 'Rejected',
     emoji: <X size={14} strokeWidth={3} />,
     mapTo: 'no',
     color: '#ef4444',
@@ -85,7 +85,7 @@ const REC_BADGE: Record<string, { label: string; color: string; bg: string }> = 
   strong_yes: { label: 'Strong Hire', color: '#059669', bg: 'rgba(16,185,129,0.12)' },
   yes: { label: 'Hire', color: '#059669', bg: 'rgba(16,185,129,0.10)' },
   maybe: { label: 'Maybe', color: '#d97706', bg: 'rgba(251,191,36,0.12)' },
-  no: { label: 'No Hire', color: '#ef4444', bg: 'rgba(239,68,68,0.10)' },
+  no: { label: 'Rejected', color: '#ef4444', bg: 'rgba(239,68,68,0.10)' },
   strong_no: { label: 'Strong No', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
 }
 

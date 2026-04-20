@@ -7,6 +7,8 @@ import { applicationsApi } from '@/api/applications'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatDateTime } from '@/utils/formatters'
+import { useInterviewStore } from '@/store/interviewStore'
+import { useAuthStore } from '@/store/authStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,6 +76,8 @@ function Toast({ message }: { message: string }) {
 export default function LiveRoomPage() {
   const { interviewId } = useParams<{ interviewId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isUnlocked = useInterviewStore(s => s.isComplete(interviewId!)) || user?.role !== 'interviewer'
 
   // Timer
   const [elapsed, setElapsed] = useState(0)
@@ -226,23 +230,39 @@ export default function LiveRoomPage() {
 
         {/* Google Meet link */}
         {interview.meeting_link ? (
-          <a href={interview.meeting_link} target="_blank" rel="noreferrer">
+          isUnlocked ? (
+            <a href={interview.meeting_link} target="_blank" rel="noreferrer">
+              <button
+                onClick={() => showToast('🎥 Opening Google Meet...')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px',
+                  borderRadius: 9, background: 'rgba(16,185,129,0.10)',
+                  border: '1.5px solid rgba(16,185,129,0.30)',
+                  color: '#059669', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: "'Sora', sans-serif", maxWidth: 220, overflow: 'hidden',
+                }}
+              >
+                <span>🎥</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {interview.meeting_link.replace(/^https?:\/\//, '')}
+                </span>
+              </button>
+            </a>
+          ) : (
             <button
-              onClick={() => showToast('🎥 Opening Google Meet...')}
+              onClick={() => navigate(`/interviewer/prep-kit/${interviewId}`)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px',
-                borderRadius: 9, background: 'rgba(16,185,129,0.10)',
-                border: '1.5px solid rgba(16,185,129,0.30)',
-                color: '#059669', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                borderRadius: 9, background: 'var(--hover-row)',
+                border: '1.5px solid var(--card-border)',
+                color: 'var(--text-lite)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 fontFamily: "'Sora', sans-serif", maxWidth: 220, overflow: 'hidden',
               }}
             >
-              <span>🎥</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {interview.meeting_link.replace(/^https?:\/\//, '')}
-              </span>
+              <span>🔒</span>
+              <span>Prep Required to Unlock</span>
             </button>
-          </a>
+          )
         ) : (
           <span style={{ fontSize: 12, color: 'var(--text-lite)' }}>No meeting link</span>
         )}
@@ -358,7 +378,7 @@ export default function LiveRoomPage() {
               {[
                 { value: 'hire' as const, label: 'Hire', emoji: '✅', color: '#059669', border: 'rgba(16,185,129,0.25)', selBg: 'rgba(16,185,129,0.12)' },
                 { value: 'maybe' as const, label: 'Maybe', emoji: '🤔', color: '#d97706', border: 'rgba(251,191,36,0.25)', selBg: 'rgba(251,191,36,0.12)' },
-                { value: 'no_hire' as const, label: 'No Hire', emoji: '❌', color: '#ef4444', border: 'rgba(239,68,68,0.25)', selBg: 'rgba(239,68,68,0.12)' },
+                { value: 'no_hire' as const, label: 'Rejected', emoji: '❌', color: '#ef4444', border: 'rgba(239,68,68,0.25)', selBg: 'rgba(239,68,68,0.12)' },
               ].map((opt) => (
                 <button
                   key={opt.value}

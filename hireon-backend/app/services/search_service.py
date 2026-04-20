@@ -154,6 +154,7 @@ async def _pg_search(
         .where(
             User.organization_id == organization_id,
             User.is_active == True,  # noqa: E712
+            User.role != 'candidate',
             or_(
                 User.full_name.ilike(q),
                 User.email.ilike(q),

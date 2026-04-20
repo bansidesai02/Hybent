@@ -335,7 +335,10 @@ async def search_all(
                     }
                 }
             ],
-            "filter": [org_filter],
+            "filter": [
+                org_filter,
+                {"bool": {"must_not": {"term": {"role": "candidate"}}}}
+            ],
         }
     }
 
