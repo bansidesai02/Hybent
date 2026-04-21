@@ -234,7 +234,7 @@ export default function PortalProfilePage() {
                   }}
                     className="prof-av-overlay"
                   >
-                    {avatarMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <Camera size={24} />}
+                    {avatarMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <GlassIcon icon="Camera" variant="gray" size={32} iconSize={18} ghost glow={false} />}
                   </div>
                 </div>
                 <input
@@ -329,8 +329,8 @@ export default function PortalProfilePage() {
 
           {/* INTERVIEW AVAILABILITY */}
           <div style={{ borderTop: '1px solid var(--table-border)', paddingTop: 14, marginTop: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 12, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '.8px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Calendar size={13} /> INTERVIEW AVAILABILITY
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '.8px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GlassIcon icon="Calendar" variant="violet" size={24} iconSize={12} ghost glow={false} /> INTERVIEW AVAILABILITY
             </div>
             <div className="frow" style={{ marginBottom: 10 }}>
               <div>
@@ -418,8 +418,8 @@ export default function PortalProfilePage() {
             <div className="ctitle">Resume <span className="ctag violet">Required</span></div>
 
             {profile?.resume_url && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <FileText size={16} />
+              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <GlassIcon icon="FileText" variant="emerald" size={24} iconSize={12} ghost glow={false} />
                 <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', textDecoration: 'none' }}>
                   {profile.resume_filename || 'View Current Resume'}
                 </a>
@@ -427,8 +427,8 @@ export default function PortalProfilePage() {
             )}
 
             {uploadError && (
-              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', marginBottom: 12, fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <AlertTriangle size={14} /> {uploadError}
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', marginBottom: 12, fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <GlassIcon icon="AlertTriangle" variant="rose" size={24} iconSize={12} ghost glow={false} /> {uploadError}
               </div>
             )}
 
@@ -449,7 +449,7 @@ export default function PortalProfilePage() {
               }}
             >
               <div className="upload-zone-ico" style={{ marginBottom: 12 }}>
-                {uploadMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <Paperclip size={24} />}
+                {uploadMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <GlassIcon icon="Paperclip" variant="violet" size={48} iconSize={24} />}
               </div>
               <div className="upload-zone-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
                 {uploadMutation.isPending ? 'Uploading & parsing resume...' : 'Drop your resume here'}

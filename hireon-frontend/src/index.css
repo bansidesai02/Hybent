@@ -444,27 +444,27 @@
 
   /* ---- Portal design system tokens ---- */
   :root {
-    --brand: #7c3aed;
-    --brand2: #a855f7;
-    --brand3: #c084fc;
-    --p-teal: #06b6d4;
+    --brand: #6c47ff;
+    --brand2: #ff6bc6;
+    --brand3: #8b6bff;
+    --p-teal: #00d4c8;
     --p-green: #10b981;
-    --p-amber: #f59e0b;
-    --p-red: #ef4444;
-    --p-pink: #ec4899;
-    --p-bg: #faf8ff;
-    --p-bg2: #f3f0ff;
+    --p-amber: #fbbf24;
+    --p-red: #f43f5e;
+    --p-pink: #ff6bc6;
+    --p-bg: #f0eeff;
+    --p-bg2: #ece8ff;
     --p-text: #1e1040;
     --p-text-mid: #6b5f8a;
-    --p-text-lite: #b0a4cc;
+    --p-text-lite: #cbd5e1;
     --p-surface: #ffffff;
-    --p-border: rgba(124, 58, 237, 0.10);
-    --p-shadow: 0 2px 16px rgba(124, 58, 237, 0.08);
-    --p-shadow-h: 0 8px 32px rgba(124, 58, 237, 0.15);
-    --p-input-bg: rgba(124, 58, 237, 0.05);
-    --p-input-border: rgba(124, 58, 237, 0.18);
+    --p-border: rgba(108, 71, 255, 0.08); /* Unified with Admin */
+    --p-shadow: 0 1px 3px rgba(108, 71, 255, 0.10);
+    --p-shadow-h: 0 12px 32px rgba(108, 71, 255, 0.15);
+    --p-input-bg: #ffffff;
+    --p-input-border: rgba(108, 71, 255, 0.15);
     --p-kpi: #ffffff;
-    --p-table-border: rgba(124, 58, 237, 0.08);
+    --p-table-border: rgba(108, 71, 255, 0.07);
   }
 
   /* Portal avatar spin border */

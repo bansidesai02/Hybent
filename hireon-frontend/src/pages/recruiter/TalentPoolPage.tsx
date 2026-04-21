@@ -17,7 +17,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Modal } from '@/components/ui/Modal'
 import { formatDate } from '@/utils/formatters'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
-import { ArrowRight, Check, Zap } from 'lucide-react'
+import { ArrowRight, Check, Zap, Pin } from 'lucide-react'
 
 // ─── Abbreviation expansion map ──────────────────────────────────────────────
 // Maps shorthand/acronym → expanded search terms
@@ -408,7 +408,9 @@ export default function TalentPoolPage() {
         {/* Active Jobs filter chips */}
         {activeJobs.length > 0 && (
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">📌 Filter by Active Job</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1">
+              <Pin size={10} className="rotate-45" /> Filter by Active Job
+            </p>
             <div className="flex flex-wrap gap-2">
               {hasActiveFilters && (
                 <button

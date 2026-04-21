@@ -5,6 +5,7 @@ import type { UserRole } from '@/types'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useAuth } from '@/hooks/useAuth'
 import { GlassIcon } from '@/components/common/GlassIcon'
+import { TeamIcon } from '@/components/common/CustomIcons'
 import { 
   Home, 
   Briefcase, 
@@ -18,9 +19,8 @@ import {
   Send, 
   Brain, 
   BarChart, 
-  LayoutDashboard, 
-  Inbox, 
-  BarChart2, 
+  LayoutGrid, 
+  ClipboardCheck, 
   FileSearch, 
   Video, 
   ChevronRight,
@@ -36,21 +36,6 @@ const PipelineIcon = ({ size = 14 }: { size?: number }) => (
   </svg>
 )
 
-const TeamLogoIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    {/* Top Person */}
-    <circle cx="12" cy="5" r="3" />
-    <path d="M8 10h8" />
-    <path d="M12 8v2" />
-    {/* Bottom 3 Persons */}
-    <circle cx="5" cy="16" r="3" />
-    <circle cx="12" cy="16" r="3" />
-    <circle cx="19" cy="16" r="3" />
-    <path d="M5 13v1.5" />
-    <path d="M12 13v1.5" />
-    <path d="M19 13v1.5" />
-  </svg>
-)
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -127,7 +112,7 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
       {
         label: 'SETTINGS',
         items: [
-          { to: '/admin/teams', label: 'Team', icon: <GlassIcon icon={<TeamLogoIcon size={14} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/admin/teams', label: 'Team', icon: <GlassIcon icon={<TeamIcon size={16} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
           { to: '/admin/audit', label: 'Audit Logs', icon: <GlassIcon icon="ClipboardList" variant="amber" ghost size={24} iconSize={14} glow={false} /> },
         ],
       },
@@ -137,11 +122,11 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
   if (role === 'interviewer') {
     return [
       {
-        label: 'MY PANEL',
+        label: '',
         items: [
-          { to: '/interviewer', label: 'Dashboard', icon: <GlassIcon icon="LayoutDashboard" variant="gray" ghost iconSize={14} /> },
-          { to: '/interviewer/interviews', label: 'My Interviews', icon: <GlassIcon icon="Inbox" variant="gray" ghost iconSize={14} /> },
-          { to: '/interviewer/scorecard-hub', label: 'Scorecard & Eval', icon: <GlassIcon icon="BarChart2" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/scorecard' },
+          { to: '/interviewer', label: 'Dashboard', icon: <GlassIcon icon="LayoutGrid" variant="gray" ghost iconSize={14} /> },
+          { to: '/interviewer/interviews', label: 'My Interviews', icon: <GlassIcon icon="Calendar" variant="gray" ghost iconSize={14} /> },
+          { to: '/interviewer/scorecard-hub', label: 'Scorecard & Eval', icon: <GlassIcon icon="ClipboardCheck" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/scorecard' },
           { to: '/interviewer/prep-kit-hub', label: 'Prep Kit', icon: <GlassIcon icon="FileSearch" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/prep-kit' },
           { to: '/interviewer/live-room-hub', label: 'Live Room', icon: <GlassIcon icon="Video" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/live-room' },
         ],
@@ -172,7 +157,7 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
     {
       label: 'SETTINGS',
       items: [
-        { to: `${basePath}/teams`, label: 'Team', icon: <GlassIcon icon={<TeamLogoIcon size={14} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
+        { to: `${basePath}/teams`, label: 'Team', icon: <GlassIcon icon={<TeamIcon size={16} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
       ],
     },
   ]
@@ -295,7 +280,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
       <nav className="flex-1 px-[10px] py-2 overflow-y-auto space-y-0.5">
         {sections.map((section) => (
           <div key={section.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {!collapsed && (
+            {!collapsed && section.label && (
               <p className="text-[10px] font-bold tracking-[1.5px] uppercase text-[var(--text)] dark:text-[var(--text-light)] px-3 pt-3 pb-1 opacity-60">
                 {section.label}
               </p>

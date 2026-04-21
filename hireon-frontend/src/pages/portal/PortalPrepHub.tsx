@@ -108,7 +108,7 @@ export default function PortalPrepHub() {
       {/* HEADER SECTION MATCHING MOCKUP */}
       <div className="prep-header">
         <div>
-          <div className="pt flex items-center gap-2">Interview Prep Hub <Target size={24} /></div>
+          <div className="pt flex items-center gap-2">Interview Prep Hub <GlassIcon icon="Target" variant="violet" size={24} iconSize={14} glow={false} /></div>
           <div className="ps">AI-generated tips, questions, and flashcards — tailored for your {titleStr} interview.</div>
         </div>
         {nextInterview && (
@@ -132,7 +132,9 @@ export default function PortalPrepHub() {
         <div className="prep-hero" onClick={handleNextQ}>
           <div className="phero-tag">QUESTION {activeQuestion + 1} OF {flashcards.length} · {currentQ.topic}</div>
           <div className="phero-q">{currentQ.question}</div>
-          <div className="phero-foot flex items-center justify-center gap-2">Tap to see next question <ArrowRight size={16} /></div>
+          <div className="phero-foot flex items-center justify-center gap-2">
+            Tap to see next question <GlassIcon icon="ArrowRight" variant="violet" size={20} iconSize={12} ghost glow={false} />
+          </div>
         </div>
       )}
 
@@ -152,7 +154,7 @@ export default function PortalPrepHub() {
                   <div key={idx} className="ptopic-item">
                     <div className="pti-top">
                       <div className="pti-name">
-                        <div className="pti-ico"><Lightbulb size={14} /></div>
+                        <div className="pti-ico"><GlassIcon icon="Lightbulb" variant="amber" size={24} iconSize={12} ghost glow={false} /></div>
                         {area.topic}
                       </div>
                       <div className="pti-pri">{pri.text}</div>
@@ -177,7 +179,9 @@ export default function PortalPrepHub() {
             <div className="pcc-list">
               {flashcards.map((card, idx) => (
                 <div key={idx} className="pprac-item">
-                  <div className="pti-ico flex items-center justify-center"><Sparkles size={14} className="text-[var(--violet)]" /></div>
+                  <div className="pti-ico flex items-center justify-center">
+                    <GlassIcon icon="Sparkles" variant="violet" size={24} iconSize={12} ghost glow={false} />
+                  </div>
                   <div className="ppi-content">
                     <div className="ppi-q">{card.question}</div>
                     <div className="ppi-tag">{card.topic}</div>

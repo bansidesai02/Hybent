@@ -157,19 +157,19 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
 
         {/* Info Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
-          <div className="glass" style={{ padding: 14, borderRadius: 12 }}>
+          <div style={{ padding: 14, borderRadius: 12, border: '1px solid #e5e7eb', background: 'var(--card-bg)' }}>
              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 4 }}>Job Type</p>
              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{JOB_TYPE_LABEL[job.job_type] || job.job_type}</p>
           </div>
-          <div className="glass" style={{ padding: 14, borderRadius: 12 }}>
+          <div style={{ padding: 14, borderRadius: 12, border: '1px solid #e5e7eb', background: 'var(--card-bg)' }}>
              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 4 }}>Experience</p>
              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{job.experience_level}</p>
           </div>
-          <div className="glass" style={{ padding: 14, borderRadius: 12 }}>
+          <div style={{ padding: 14, borderRadius: 12, border: '1px solid #e5e7eb', background: 'var(--card-bg)' }}>
              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 4 }}>Posted</p>
              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{formatDate(job.created_at)}</p>
           </div>
-          <div className="glass" style={{ padding: 14, borderRadius: 12 }}>
+          <div style={{ padding: 14, borderRadius: 12, border: '1px solid #e5e7eb', background: 'var(--card-bg)' }}>
              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 4 }}>Applicants</p>
              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)' }}>{job.application_count} Total</p>
           </div>

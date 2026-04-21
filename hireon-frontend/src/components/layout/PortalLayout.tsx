@@ -6,15 +6,17 @@ import { portalApi } from '@/api/portal'
 import { NotificationBell } from './NotificationBell'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { Search, Moon, Sun, User, LogOut, Map, Calendar, Bell, Target, Building2, FileText, Brain } from 'lucide-react'
+import { GlassIcon } from '@/components/common/GlassIcon'
 
 const NAV_ITEMS = [
-  { to: '/portal', label: 'Application Journey', icon: '🗺️', end: true },
-  { to: '/portal/interviews', label: 'My Interviews', icon: '📅', end: false },
-  { to: '/portal/profile', label: 'My Profile & Resume', icon: '👤', end: false },
-  { to: '/portal/notifications', label: 'Notifications', icon: '🔔', end: false },
-  { to: '/portal/prep', label: 'Interview Prep Hub', icon: '🎯', end: false },
-  { to: '/portal/openings', label: 'Current Openings', icon: '🏢', end: false },
-  { to: '/portal/offers', label: 'Offer & Documents', icon: '📄', end: false },
+  { to: '/portal', label: 'Application Journey', icon: 'Map', end: true },
+  { to: '/portal/interviews', label: 'My Interviews', icon: 'Calendar', end: false },
+  { to: '/portal/profile', label: 'My Profile & Resume', icon: 'User', end: false },
+  { to: '/portal/notifications', label: 'Notifications', icon: 'Bell', end: false },
+  { to: '/portal/prep', label: 'Interview Prep Hub', icon: 'Target', end: false },
+  { to: '/portal/openings', label: 'Current Openings', icon: 'Building2', end: false },
+  { to: '/portal/offers', label: 'Offer & Documents', icon: 'FileText', end: false },
 ]
 
 export function PortalLayout() {
@@ -101,16 +103,32 @@ export function PortalLayout() {
             <div className="sb-cat">
               <div className="sb-cat-title">Main</div>
               <NavLink to="/portal" end className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">🗺️</span> Application Journey
+                {({ isActive }) => (
+                  <>
+                    <GlassIcon icon="Map" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Application Journey
+                  </>
+                )}
               </NavLink>
               <NavLink to="/portal/notifications" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">🔔</span> Notifications
+                {({ isActive }) => (
+                  <>
+                    <GlassIcon icon="Bell" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Notifications
+                  </>
+                )}
               </NavLink>
               <NavLink to="/portal/openings" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">💼</span> Job Openings
+                {({ isActive }) => (
+                  <>
+                    <GlassIcon icon="Briefcase" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Job Openings
+                  </>
+                )}
               </NavLink>
               <NavLink to="/portal/interviews" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">📅</span> My Interviews
+                {({ isActive }) => (
+                  <>
+                    <GlassIcon icon="Calendar" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> My Interviews
+                  </>
+                )}
               </NavLink>
             </div>
 
@@ -118,7 +136,11 @@ export function PortalLayout() {
             <div className="sb-cat">
               <div className="sb-cat-title">Intelligence</div>
               <NavLink to="/portal/prep" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                <span className="sb-ico">🧠</span> Preparation Hub
+                {({ isActive }) => (
+                  <>
+                    <GlassIcon icon="Brain" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Preparation Hub
+                  </>
+                )}
               </NavLink>
             </div>
 
@@ -127,8 +149,12 @@ export function PortalLayout() {
               <div className="sb-cat">
                 <div className="sb-cat-title">Resources</div>
                 <NavLink to="/portal/offers" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                  <span className="sb-ico">📄</span> Offers &amp; Documents
-                  <span className="sb-badge new">New</span>
+                  {({ isActive }) => (
+                    <>
+                      <GlassIcon icon="FileText" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Offers &amp; Documents
+                      <span className="sb-badge new">New</span>
+                    </>
+                  )}
                 </NavLink>
               </div>
             )}
@@ -160,7 +186,7 @@ export function PortalLayout() {
             {/* Search bar */}
             <div className="topbar-search-wrap">
               <div className={`topbar-search ${searchFocused ? 'focused' : ''}`}>
-                <span style={{ fontSize: '14px', opacity: 0.5 }}>🔍</span>
+                <Search size={14} style={{ opacity: 0.6, color: 'var(--violet)' }} />
                 <input
                   type="text"
                   placeholder="Search openings, prep topics, jobs..."
@@ -173,7 +199,7 @@ export function PortalLayout() {
             
             <div className="topbar-right">
               <button className="tb-toggle" onClick={toggleTheme} title="Toggle Dark/Light Mode">
-                {theme === 'light' ? '🌙' : '☀️'}
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
 
               <div className="cand-notif">
@@ -207,11 +233,11 @@ export function PortalLayout() {
                         <p className="menu-email">{user?.email}</p>
                       </div>
                       <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/portal/profile') }}>
-                        <span>👤</span> My Profile
+                        <User size={14} /> My Profile
                       </button>
                       <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', marginTop: 4, paddingTop: 4 }}>
                         <button className="menu-item red" onClick={() => { setMenuOpen(false); logout() }}>
-                          <span>🚪</span> Sign Out
+                          <LogOut size={14} /> Sign Out
                         </button>
                       </div>
                     </motion.div>

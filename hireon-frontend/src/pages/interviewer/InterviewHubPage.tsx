@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { 
+  ClipboardCheck, 
+  BookOpen, 
+  Video, 
+  User, 
+  Calendar, 
+  Clock, 
+  Link as LinkIcon, 
+  Lock, 
+  ChevronRight 
+} from 'lucide-react'
 import { interviewsApi } from '@/api/interviews'
 import type { Interview, InterviewStatus } from '@/types'
 import { Card } from '@/components/ui/Card'
@@ -21,13 +32,13 @@ function statusVariant(s: InterviewStatus): 'info' | 'success' | 'danger' | 'war
 }
 
 interface ModeConfig {
-  icon: string
+  icon: any
   title: string
   subtitle: string
   filter: (i: Interview) => boolean
   accentColor: string
   accentBg: string
-  ctaLabel: (i: Interview) => string
+  ctaLabel: (i: Interview) => React.ReactNode
   ctaPath: (id: string) => string
   ctaBg: string
   emptyTitle: string
@@ -36,39 +47,41 @@ interface ModeConfig {
 
 const MODE: Record<HubMode, ModeConfig> = {
   scorecard: {
-    icon: '📊',
+    icon: <ClipboardCheck size={20} />,
     title: 'Scorecard & Eval',
     subtitle: 'Select an interview to submit or review your evaluation',
     filter: () => true,
     accentColor: '#6c47ff',
     accentBg: 'rgba(108,71,255,0.09)',
-    ctaLabel: (i) => i.status === 'completed' ? 'View Scorecard' : '📊 Submit Scorecard',
+    ctaLabel: (i) => i.status === 'completed' 
+      ? 'View Scorecard' 
+      : <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ClipboardCheck size={14} /> Submit Scorecard</span>,
     ctaPath: (id) => `/interviewer/scorecard/${id}`,
     ctaBg: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
     emptyTitle: 'No interviews assigned yet',
     emptyDesc: 'Interviews assigned to you will appear here',
   },
   prepkit: {
-    icon: '🗒️',
+    icon: <BookOpen size={20} />,
     title: 'Prep Kit',
-    subtitle: 'Open AI-generated questions tailored to the candidate\'s resume',
+    subtitle: "Open AI-generated questions tailored to the candidate's resume",
     filter: (i) => i.status === 'scheduled',
     accentColor: '#f59e0b',
     accentBg: 'rgba(245,158,11,0.09)',
-    ctaLabel: () => '🗒️ Open Prep Kit',
+    ctaLabel: () => <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BookOpen size={14} /> Open Prep Kit</span>,
     ctaPath: (id) => `/interviewer/prep-kit/${id}`,
     ctaBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
     emptyTitle: 'No upcoming interviews',
     emptyDesc: 'Scheduled interviews will show prep kits here',
   },
   liveroom: {
-    icon: '🟢',
+    icon: <Video size={20} />,
     title: 'Live Room',
     subtitle: 'Enter the live interview room — track ratings, overall summary & meeting link',
     filter: (i) => i.status === 'scheduled',
     accentColor: '#10b981',
     accentBg: 'rgba(16,185,129,0.09)',
-    ctaLabel: () => '🟢 Enter Live Room',
+    ctaLabel: () => <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Video size={14} /> Enter Live Room</span>,
     ctaPath: (id) => `/interviewer/live-room/${id}`,
     ctaBg: 'linear-gradient(135deg, #10b981, #059669)',
     emptyTitle: 'No scheduled interviews',
@@ -106,7 +119,7 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
           border: `1px solid ${cfg.accentColor}22`,
           marginBottom: 10,
         }}>
-          <span style={{ fontSize: 16 }}>{cfg.icon}</span>
+          <span style={{ color: cfg.accentColor, display: 'flex', alignItems: 'center' }}>{cfg.icon}</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: cfg.accentColor, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
             {cfg.title}
           </span>
@@ -168,11 +181,7 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={
-            <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          }
+          icon={<Calendar size={48} strokeWidth={1.5} />}
           title={cfg.emptyTitle}
           description={cfg.emptyDesc}
         />
@@ -186,7 +195,9 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
             }}>
               {/* Candidate Info Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, paddingLeft: 4 }}>
-                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>👤 {group.candidate_name}</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <User size={18} style={{ color: 'var(--violet)' }} /> {group.candidate_name}
+                </span>
                 <span style={{
                    fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 12,
                    background: 'var(--hover-row)', color: 'var(--text-mid)', opacity: 0.8
@@ -229,8 +240,8 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
                           </Badge>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: 'var(--text-mid)', flexWrap: 'wrap' }}>
-                          <span>📅 {formatDateTime(interview.scheduled_at)}</span>
-                          <span>⏱ {interview.duration_minutes} min</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> {formatDateTime(interview.scheduled_at)}</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> {interview.duration_minutes} min</span>
                           {interview.meeting_link && (
                             isUnlocked(interview.id) || user?.role !== 'interviewer' ? (
                               <a 
@@ -242,16 +253,19 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
                                   fontWeight: 600, 
                                   textDecoration: 'none',
                                   display: 'inline-flex',
-                                  alignItems: 'center'
+                                  alignItems: 'center',
+                                  gap: 4
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                                 onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
                                 onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                               >
-                                🎥 Link available
+                                <Video size={12} /> Link available
                               </a>
                             ) : (
-                              <span style={{ color: 'var(--text-lite)', fontWeight: 600, opacity: 0.7 }}>🔒 Prep required</span>
+                              <span style={{ color: 'var(--text-lite)', fontWeight: 600, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <Lock size={12} /> Prep required
+                              </span>
                             )
                           )}
                         </div>

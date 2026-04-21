@@ -36,7 +36,8 @@ import {
   ExternalLink,
   ChevronRight,
   User,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from 'lucide-react'
 
 
@@ -676,7 +677,9 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
               </p>
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">🔗 Social Links</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Link size={12} /> Social Links
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Input label="LinkedIn URL" value={formData.linkedin_url} onChange={(e: any) => handleInputChange('linkedin_url', e.target.value)} placeholder="linkedin.com/in/username" />
                 <Input label="GitHub URL" value={formData.github_url} onChange={(e: any) => handleInputChange('github_url', e.target.value)} placeholder="github.com/username" />
@@ -710,19 +713,21 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
 
           {/* Social Links — always visible, show Add if missing */}
           <div className="flex flex-wrap gap-2 items-center">
-            <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginRight: 4 }}>🔗 Links:</p>
+            <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginRight: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Link size={12} /> Links:
+            </p>
             {candidate.linkedin_url ? (
-              <a href={candidate.linkedin_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">LinkedIn Profile ↗</a>
+              <a href={candidate.linkedin_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5">LinkedIn Profile <ExternalLink size={10} /></a>
             ) : (
               <button onClick={() => setIsEditing(true)} className="text-xs font-bold px-3 py-1.5 border border-dashed border-blue-200 text-blue-400 rounded-lg hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors">+ Add LinkedIn</button>
             )}
             {candidate.github_url ? (
-              <a href={candidate.github_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">GitHub Profile ↗</a>
+              <a href={candidate.github_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5">GitHub Profile <ExternalLink size={10} /></a>
             ) : (
               <button onClick={() => setIsEditing(true)} className="text-xs font-bold px-3 py-1.5 border border-dashed border-gray-200 text-gray-400 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600 transition-colors">+ Add GitHub</button>
             )}
             {candidate.portfolio_url ? (
-              <a href={candidate.portfolio_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-100 transition-colors">Portfolio ↗</a>
+              <a href={candidate.portfolio_url} target="_blank" rel="noreferrer" className="text-xs font-bold px-3 py-1.5 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-100 transition-colors flex items-center gap-1.5">Portfolio <ExternalLink size={10} /></a>
             ) : (
               <button onClick={() => setIsEditing(true)} className="text-xs font-bold px-3 py-1.5 border border-dashed border-violet-200 text-violet-400 rounded-lg hover:bg-violet-50 hover:border-violet-400 hover:text-violet-600 transition-colors">+ Add Portfolio</button>
             )}
@@ -840,8 +845,8 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
   const stageCfg = candidate.pipeline_stage ? STAGE_CFG[stage] : null
 
   const tabs = [
-    { key: 'details',  label: '📋 Candidate Details' },
-    { key: 'feedback', label: '🎙️ Interview Feedback' },
+    { key: 'details',  label: <span className="flex items-center gap-2"><User size={14} /> Candidate Details</span> },
+    { key: 'feedback', label: <span className="flex items-center gap-2"><Mic size={14} /> Interview Feedback</span> },
   ] as const
 
   return (
@@ -872,14 +877,14 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
               const sc = scoreColor(candidate.match_score)
               return (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20, background: sc.bg, color: sc.text, border: `1px solid ${sc.track}30` }}>
-                  ⚡ {Math.round(candidate.match_score)}% Match
+                  <Zap size={12} fill="currentColor" /> {Math.round(candidate.match_score)}% Match
                 </span>
               )
             })()}
             {candidate.resume_url && (
               <a href={candidate.resume_url} target="_blank" rel="noreferrer"
                 style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', background: 'rgba(108,71,255,0.08)', padding: '4px 12px', borderRadius: 20 }}>
-                📄 Resume
+                <FileText size={14} /> Resume
               </a>
             )}
           </div>

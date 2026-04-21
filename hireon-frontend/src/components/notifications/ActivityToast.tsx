@@ -22,7 +22,7 @@ const getIcon = (type: string) => {
     case 'interview': return <GlassIcon icon="Calendar" variant="indigo" size={40} iconSize={18} glow={false} />
     case 'application': return <GlassIcon icon="FileText" variant="indigo" size={40} iconSize={18} glow={false} />
     case 'scorecard': return <GlassIcon icon="CheckCircle" variant="emerald" size={40} iconSize={18} glow={false} />
-    case 'offer': return <GlassIcon icon="PartyPopper" variant="amber" size={40} iconSize={18} glow={false} />
+    case 'offer': return <GlassIcon icon="Trophy" variant="amber" size={40} iconSize={18} glow={false} />
     default: return <GlassIcon icon="Bell" variant="violet" size={40} iconSize={18} glow={false} />
   }
 }

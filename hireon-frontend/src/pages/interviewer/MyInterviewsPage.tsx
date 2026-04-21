@@ -7,7 +7,7 @@ import { interviewsApi } from '@/api/interviews'
 import { candidatesApi } from '@/api/candidates'
 import type { Interview } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { FileText, CheckCircle, BarChart2, Inbox, Sparkles, X, Plus, Check, Clock, Link as LinkIcon, AlertTriangle, XCircle, Layout } from 'lucide-react'
+import { FileText, CheckCircle, BarChart2, Inbox, Sparkles, X, Plus, Check, Clock, Link as LinkIcon, AlertTriangle, XCircle, Layout, Video, Lock, ShieldCheck, User, ExternalLink } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { groupInterviewsByCandidate } from '@/utils/grouping'
 import { useInterviewStore } from '@/store/interviewStore'
@@ -145,7 +145,7 @@ function ResumeModal({
                       <div className="logo-box">
                         <Layout size={14} color="white" strokeWidth={3} />
                       </div>
-                      Open in new tab ↗
+                      Open in new tab <ExternalLink size={12} />
                     </a>
                   </div>
                   <iframe
@@ -282,7 +282,7 @@ function InterviewCard({
               marginTop: 4, background: 'var(--hover-row)', padding: '4px 8px', borderRadius: 6,
               alignSelf: 'flex-start'
             }}>
-              <span>🔒 Link Locked</span>
+              <Lock size={12} /> Link Locked
               <span style={{ fontSize: 9, opacity: 0.7 }}>(Prep Required)</span>
             </div>
           )
@@ -310,7 +310,7 @@ function InterviewCard({
                 width: '100%', justifyContent: 'center'
               }}
             >
-              <span>🚀</span> Enter Room
+              <Video size={15} /> Enter Room
             </motion.button>
           ) : (
             <motion.button
@@ -324,7 +324,7 @@ function InterviewCard({
                 width: '100%', justifyContent: 'center'
               }}
             >
-              <span>🔒</span> Prep Required
+              <Lock size={14} /> Prep Required
             </motion.button>
           )
         ) : interview.status === 'scheduled' ? (
@@ -399,7 +399,7 @@ function InterviewCard({
                 display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 11
               }}
             >
-              <span>📄</span> Resume
+              <FileText size={13} /> Resume
             </motion.button>
           </Tooltip>
 
@@ -414,7 +414,7 @@ function InterviewCard({
                 display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 11
               }}
             >
-              <span>🛡</span> Prep
+              <ShieldCheck size={13} /> Prep
             </motion.button>
           </Tooltip>
         </div>
@@ -605,8 +605,8 @@ export default function MyInterviewsPage() {
                     background: 'var(--card-bg)', backdropFilter: 'blur(10px)',
                     padding: '20px', borderRadius: 24, border: '1px solid var(--card-border)'
                   }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-mid)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      👤 {group.candidate_name}
+                    <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-mid)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <User size={13} /> {group.candidate_name}
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {group.interviews.map((i, idx) => (

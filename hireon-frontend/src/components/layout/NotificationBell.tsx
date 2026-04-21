@@ -9,7 +9,7 @@ import {
   Target, 
   Calendar, 
   AlertTriangle, 
-  PartyPopper, 
+  Trophy, 
   Eye, 
   RefreshCw, 
   MessageCircle, 
@@ -28,7 +28,7 @@ function getNotifIcon(type: NotificationType): React.ReactNode {
     case 'interview_reminder':   return <GlassIcon icon="AlertTriangle" variant="amber" size={24} iconSize={12} ghost glow={false} />
     case 'offer_sent':
     case 'offer_received':
-    case 'offer_accepted':       return <GlassIcon icon="PartyPopper" variant="pink" size={24} iconSize={12} ghost glow={false} />
+    case 'offer_accepted':       return <GlassIcon icon="Trophy" variant="pink" size={24} iconSize={12} ghost glow={false} />
     case 'profile_viewed':       return <GlassIcon icon="Eye" variant="indigo" size={24} iconSize={12} ghost glow={false} />
     case 'stage_updated':
     case 'stage_changed':        return <GlassIcon icon="RefreshCw" variant="emerald" size={24} iconSize={12} ghost glow={false} />

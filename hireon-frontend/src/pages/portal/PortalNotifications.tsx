@@ -39,7 +39,7 @@ function getNotifMeta(type: NotificationType): NotifMeta {
     case 'offer_sent':
     case 'offer_received':
     case 'offer_accepted':
-      return { icon: 'PartyPopper', gradient: 'from-emerald-500/15 to-green-500/5', border: 'border-emerald-200/60', label: 'Offer' }
+      return { icon: 'Trophy', gradient: 'from-emerald-500/15 to-green-500/5', border: 'border-emerald-200/60', label: 'Offer' }
     case 'offer_declined':
       return { icon: 'ClipboardList', gradient: 'from-red-500/10 to-rose-500/5', border: 'border-red-200/60', label: 'Offer' }
     case 'profile_viewed':
@@ -171,7 +171,7 @@ export default function PortalNotifications() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 5,
-                  background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                  background: 'linear-gradient(135deg, var(--brand), var(--brand2))',
                   color: '#fff',
                   fontSize: 11,
                   fontWeight: 700,
@@ -179,7 +179,7 @@ export default function PortalNotifications() {
                   padding: '2px 10px',
                   letterSpacing: 0.3,
                 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--brand)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
                   {unreadCount} new
                 </span>
               )}
@@ -224,7 +224,7 @@ export default function PortalNotifications() {
                   border: '1.5px solid',
                   borderColor: activeTab === tab.key ? 'var(--accent)' : 'var(--border)',
                   background: activeTab === tab.key
-                    ? 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(79,70,229,0.08))'
+                    ? 'var(--sb-active)'
                     : 'transparent',
                   color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-lite)',
                   fontSize: 12,
@@ -243,8 +243,8 @@ export default function PortalNotifications() {
                     fontWeight: 700,
                     padding: '1px 6px',
                     borderRadius: 8,
-                    background: activeTab === tab.key ? 'rgba(124,58,237,0.2)' : 'var(--border)',
-                    color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-lite)',
+                    background: activeTab === tab.key ? 'var(--sb-active)' : 'var(--border)',
+                    color: activeTab === tab.key ? 'var(--brand)' : 'var(--text-lite)',
                   }}>
                     {tabCount}
                   </span>
@@ -263,21 +263,32 @@ export default function PortalNotifications() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{ textAlign: 'center', padding: '60px 20px' }}
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              textAlign: 'center', 
+              padding: '80px 20px',
+              width: '100%'
+            }}
           >
-            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <div style={{ marginBottom: 16 }}>
-                <GlassIcon icon={activeTab === 'unread' ? 'CheckCircle' : 'Inbox'} variant={activeTab === 'unread' ? 'emerald' : 'violet'} size={52} iconSize={24} />
-              </div>
+            <div style={{ marginBottom: 20 }}>
+              <GlassIcon 
+                icon={activeTab === 'unread' ? 'CheckCircle' : 'Inbox'} 
+                variant={activeTab === 'unread' ? 'emerald' : 'violet'} 
+                size={64} 
+                iconSize={28} 
+              />
+            </div>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
               {activeTab === 'unread' ? 'All caught up!' : 'No notifications here'}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-lite)' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-lite)', maxWidth: 300 }}>
               {activeTab === 'unread'
                 ? "You've read everything. Check back later for updates."
                 : `No ${activeTab === 'all' ? '' : activeTab + ' '}notifications yet.`}
             </div>
-          </div>
           </motion.div>
         ) : (
           <AnimatePresence initial={false}>
@@ -299,9 +310,9 @@ export default function PortalNotifications() {
                     padding: '16px 18px',
                     borderRadius: 18,
                     border: `1.5px solid`,
-                    borderColor: !n.is_read ? 'rgba(124,58,237,0.25)' : 'var(--border)',
+                    borderColor: !n.is_read ? 'var(--brand)' : 'var(--border)',
                     background: !n.is_read
-                      ? 'linear-gradient(135deg, rgba(124,58,237,0.06), rgba(79,70,229,0.03))'
+                      ? 'linear-gradient(135deg, var(--sb-active), var(--sb-hover))'
                       : 'var(--card)',
                     cursor: 'pointer',
                     position: 'relative',
@@ -319,8 +330,8 @@ export default function PortalNotifications() {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-                      boxShadow: '0 0 6px rgba(124,58,237,0.5)',
+                      background: 'linear-gradient(135deg, var(--brand), var(--brand2))',
+                      boxShadow: '0 0 6px var(--brand)',
                     }} />
                   )}
 
@@ -351,7 +362,7 @@ export default function PortalNotifications() {
                         color: 'var(--accent)',
                         padding: '1px 7px',
                         borderRadius: 6,
-                        background: 'rgba(124,58,237,0.08)',
+                        background: 'var(--sb-active)',
                       }}>
                         {meta.label}
                       </span>

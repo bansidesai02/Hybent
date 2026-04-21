@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Calendar, Clock, Monitor, Video, Lock } from 'lucide-react'
 import { interviewsApi } from '@/api/interviews'
 import { Interview, InterviewStatus } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -170,8 +171,8 @@ export default function InterviewerDashboard() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: 10 }}>
-          {getGreeting()}{user ? `, ${user.full_name.split(' ')[0]}` : ''} <GlassIcon icon="Sparkles" variant="violet" size={32} iconSize={18} glow={false} />
+        <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", lineHeight: 1.2 }}>
+          {getGreeting()}{user ? `, ${user.full_name.split(' ')[0]}` : ''}
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text)', marginTop: 6, fontWeight: 500 }}>
           {isLoading ? (
@@ -268,10 +269,10 @@ export default function InterviewerDashboard() {
             border: '2px dashed var(--card-border)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12
           }}>
-            <span style={{ fontSize: 40 }}>📅</span>
+            <GlassIcon icon="Calendar" variant="violet" size={56} iconSize={24} glow={false} />
             <div>
               <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>No interviews today</p>
-              <p style={{ fontSize: 13, color: 'var(--text-mid)', margin: '4px 0 0' }}>Your schedule is clear. Take a breather! ☕</p>
+              <p style={{ fontSize: 13, color: 'var(--text-mid)', margin: '4px 0 0' }}>Your schedule is clear for today.</p>
             </div>
           </div>
         ) : (
@@ -361,9 +362,9 @@ export default function InterviewerDashboard() {
                               <ScheduleBadgeChip badge={badge} />
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-mid)', fontWeight: 600, marginTop: 2 }}>
-                              <span>💻 {interview.interview_type || 'Video'}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Monitor size={11} /> {interview.interview_type || 'Video'}</span>
                               <span style={{ opacity: 0.4 }}>|</span>
-                              <span>⏱️ {interview.duration_minutes}m</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {interview.duration_minutes}m</span>
                             </div>
                           </div>
 
@@ -375,9 +376,9 @@ export default function InterviewerDashboard() {
                                   <button style={{
                                     padding: '7px 14px', borderRadius: 8, border: 'none',
                                     background: 'rgba(16,185,129,0.12)', color: '#059669',
-                                    fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif"
+                                    fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
                                   }}>
-                                    🎥 Join
+                                    <Video size={13} /> Join
                                   </button>
                                 </a>
                               ) : (
@@ -386,12 +387,12 @@ export default function InterviewerDashboard() {
                                   style={{
                                     padding: '7px 14px', borderRadius: 8, border: 'none',
                                     background: 'var(--hover-row)', color: 'var(--text-lite)',
-                                    fontSize: 12, fontWeight: 700, cursor: 'not-allowed', fontFamily: "'Sora', sans-serif",
+                                    fontSize: 12, fontWeight: 700, cursor: 'not-allowed',
                                     display: 'flex', alignItems: 'center', gap: 6, opacity: 0.7
                                   }}
                                   title="Complete Prep Kit to unlock"
                                 >
-                                  🔒 Locked
+                                  <Lock size={12} /> Locked
                                 </button>
                               )
                             )}

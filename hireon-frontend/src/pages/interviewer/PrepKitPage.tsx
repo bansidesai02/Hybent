@@ -2,6 +2,17 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
+import { 
+  BookOpen, 
+  Video, 
+  Lock, 
+  FileText, 
+  User, 
+  Sparkles, 
+  Mic, 
+  ClipboardCheck, 
+  ArrowLeft 
+} from 'lucide-react'
 import { interviewsApi } from '@/api/interviews'
 import { applicationsApi } from '@/api/applications'
 import { Card } from '@/components/ui/Card'
@@ -189,13 +200,11 @@ export default function PrepKitPage() {
             alignItems: 'center', justifyContent: 'center', color: 'var(--text-mid)', flexShrink: 0,
           }}
         >
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
+          <ArrowLeft size={18} />
         </button>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
-            🗒️ Interview Prep Kit
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 10 }}>
+            <BookOpen size={22} className="text-[var(--violet)]" /> Interview Prep Kit
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2 }}>
             {interview.title} · AI-generated questions tailored to role + resume
@@ -209,7 +218,7 @@ export default function PrepKitPage() {
                 borderRadius: 8, background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.30)',
                 color: '#059669', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
               }}>
-                🎥 Google Meet
+                <Video size={14} /> Google Meet
               </button>
             </a>
           ) : (
@@ -223,7 +232,7 @@ export default function PrepKitPage() {
               }}
               title="Complete checklist to unlock link"
             >
-              🔒 Link Locked
+              <Lock size={14} /> Link Locked
             </button>
           )
         )}
@@ -282,15 +291,16 @@ export default function PrepKitPage() {
                       width: '100%', padding: '8px', borderRadius: 8, border: '1.5px solid rgba(108,71,255,0.25)',
                       background: 'rgba(108,71,255,0.05)', color: '#6c47ff', fontSize: 12,
                       fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                     }}>
-                      📄 View Resume
+                      <FileText size={14} /> View Resume
                     </button>
                   </a>
                 )}
               </div>
             ) : (
               <div style={{ padding: '16px 0', textAlign: 'center' }}>
-                <p style={{ fontSize: 22 }}>👤</p>
+                <p style={{ fontSize: 22, color: 'var(--text-mid)', display: 'flex', justifyContent: 'center' }}><User size={32} /></p>
                 <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 6, fontWeight: 600 }}>
                   {interview.candidate_name ?? 'Candidate'}
                 </p>
@@ -343,8 +353,8 @@ export default function PrepKitPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="md:col-span-3">
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                🤖 AI-Generated Questions
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={16} className="text-[var(--violet)]" /> AI-Generated Questions
               </h3>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
@@ -404,8 +414,9 @@ export default function PrepKitPage() {
                     background: 'linear-gradient(135deg, #10b981, #059669)',
                     color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Sora', sans-serif",
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
                   }}>
-                    🎥 Enter Google Meet
+                    <Video size={14} /> Enter Google Meet
                   </button>
                 </a>
               ) : (
@@ -415,8 +426,9 @@ export default function PrepKitPage() {
                     background: 'var(--input-bg)',
                     color: 'var(--text-lite)', fontSize: 13, fontWeight: 700, cursor: 'not-allowed',
                     fontFamily: "'Sora', sans-serif",
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
                   }}>
-                    🎥 Enter Google Meet
+                    <Video size={14} /> Enter Google Meet
                   </button>
                 </div>
               )
@@ -429,9 +441,10 @@ export default function PrepKitPage() {
                 color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 fontFamily: "'Sora', sans-serif",
                 boxShadow: '0 4px 14px rgba(108,71,255,0.28)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
               }}
             >
-              🎙️ Start Interview Mode
+              <Mic size={14} /> Start Interview Mode
             </button>
             <button
               onClick={() => navigate(`/interviewer/scorecard/${interviewId}`)}
@@ -440,9 +453,10 @@ export default function PrepKitPage() {
                 border: '1.5px solid rgba(108,71,255,0.30)',
                 background: 'none', color: '#6c47ff', fontSize: 13, fontWeight: 700,
                 cursor: 'pointer', fontFamily: "'Sora', sans-serif",
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
               }}
             >
-              📊 Scorecard
+              <ClipboardCheck size={14} /> Scorecard
             </button>
           </div>
 
@@ -451,7 +465,7 @@ export default function PrepKitPage() {
               fontSize: 11, color: '#6c47ff', marginTop: 12, textAlign: 'center',
               fontWeight: 600, background: 'rgba(108,71,255,0.06)', padding: '8px', borderRadius: 8
             }}>
-              ✨ Complete all {CHECKLIST_CRITERIA.length} checklist items to unlock the Google Meet link
+              <Sparkles size={14} className="inline-block mr-1" /> Complete all {CHECKLIST_CRITERIA.length} checklist items to unlock the Google Meet link
             </p>
           )}
 

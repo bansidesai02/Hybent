@@ -65,7 +65,7 @@ export default function PortalSettingsPage() {
                         <p className="text-[11px] text-gray-500 font-medium">{item.sub}</p>
                       </div>
                     </div>
-                    <ArrowRight size={16} className="text-gray-300 group-hover:text-violet-500 group-hover:translate-x-1 transition-all" />
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-violet-500 group-hover:translate-x-1.5 transition-all duration-300" />
                   </button>
                 ))}
               </div>

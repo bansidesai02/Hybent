@@ -8,13 +8,13 @@ const PIPELINE_STAGES = ['applied', 'screening', 'interview', 'interviewed', 'of
 type PipelineStage = (typeof PIPELINE_STAGES)[number]
 
 const STAGE_CFG: Record<string, { bg: string; color: string }> = {
-  applied:   { bg: 'rgba(124,58,237,0.10)', color: '#7c3aed' },
-  screening: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' },
-  interview: { bg: 'rgba(6,182,212,0.12)',  color: '#06b6d4' },
-  interviewed: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4' },
-  offer:     { bg: 'rgba(16,185,129,0.12)', color: '#10b981' },
-  hired:     { bg: 'rgba(16,185,129,0.16)', color: '#059669' },
-  rejected:  { bg: 'rgba(239,68,68,0.10)',  color: '#ef4444' },
+  applied:   { bg: 'var(--sb-active)', color: 'var(--brand)' },
+  screening: { bg: 'rgba(245,158,11,0.12)', color: 'var(--amber)' },
+  interview: { bg: 'rgba(6,182,212,0.12)',  color: 'var(--teal)' },
+  interviewed: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)' },
+  offer:     { bg: 'rgba(16,185,129,0.12)', color: 'var(--green)' },
+  hired:     { bg: 'rgba(16,185,129,0.16)', color: 'var(--green)' },
+  rejected:  { bg: 'rgba(239,68,68,0.10)',  color: 'var(--red)' },
 }
 
 function StageChip({ stage }: { stage: string }) {
@@ -59,9 +59,9 @@ function StageBar({ stage }: { stage: string }) {
                   borderRadius: '50%',
                   flexShrink: 0,
                   background: isDone
-                    ? 'linear-gradient(135deg,#7c3aed,#a855f7)'
+                    ? 'linear-gradient(135deg,var(--brand),var(--brand2))'
                     : isActive
-                    ? 'linear-gradient(135deg,#06b6d4,#22d3ee)'
+                    ? 'linear-gradient(135deg,var(--teal),var(--brand3))'
                     : 'rgba(176,164,204,0.30)',
                   boxShadow: isActive ? '0 0 0 3px rgba(6,182,212,0.20)' : undefined,
                 }}
@@ -73,7 +73,7 @@ function StageBar({ stage }: { stage: string }) {
                     height: 3,
                     borderRadius: 2,
                     background: isDone
-                      ? 'linear-gradient(90deg,#7c3aed,#a855f7)'
+                      ? 'linear-gradient(90deg,var(--brand),var(--brand2))'
                       : 'rgba(176,164,204,0.22)',
                     margin: '0 2px',
                   }}
@@ -89,7 +89,7 @@ function StageBar({ stage }: { stage: string }) {
             key={s}
             style={{
               fontSize: 10,
-              color: s === stage ? '#7c3aed' : 'var(--p-text-lite)',
+              color: s === stage ? 'var(--brand)' : 'var(--p-text-lite)',
               fontWeight: s === stage ? 700 : 500,
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               textTransform: 'capitalize',
@@ -140,7 +140,7 @@ export default function PortalApplicationsPage() {
               style={{
                 height: 120,
                 borderRadius: 16,
-                background: 'rgba(124,58,237,0.05)',
+                background: 'var(--sb-hover)',
               }}
             />
           ))}
