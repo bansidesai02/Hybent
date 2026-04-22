@@ -22,7 +22,7 @@ import { formatDate } from '@/utils/formatters'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
 import { GenerateOfferModal } from '@/components/recruiter/GenerateOfferModal'
-import { Search, Plus, Ban, Calendar, FileText } from 'lucide-react'
+import { Search, Plus, Ban, Calendar, FileText, Trash2, Play, Pause, Inbox, Users, CheckCircle, XCircle } from 'lucide-react'
 
 // ─── Stage config (full pipeline) ─────────────────────────────────────────────
 
@@ -174,7 +174,7 @@ const STAGE_GROUPS = [
   },
   {
     label: 'Offer & Joining',
-    icon: <GlassIcon icon="PartyPopper" variant="emerald" size={26} iconSize={14} />,
+    icon: <GlassIcon icon="Trophy" variant="emerald" size={26} iconSize={14} />,
     stages: [
       { key: 'offered',           icon: <GlassIcon icon="Tag" variant="amber" size={20} iconSize={10} />, label: 'Offered' },
       { key: 'offered_back_out',  icon: <GlassIcon icon="RotateCcw" variant="amber" size={20} iconSize={10} />,  label: 'Offered Back Out' },
@@ -332,8 +332,8 @@ function CandidateActionsDropdown({
         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(148,163,184,0.1)' }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
       >
-        <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 12, textAlign: 'center' }}>
-          {currentStage === 'inactive' ? '▶' : '⏸'}
+        <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 14, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {currentStage === 'inactive' ? <Play size={10} fill="currentColor" /> : <Pause size={10} fill="currentColor" />}
         </span>
         <span style={{ flex: 1 }}>{currentStage === 'inactive' ? 'Activate Candidate' : 'Inactivate Candidate'}</span>
       </button>
@@ -351,7 +351,7 @@ function CandidateActionsDropdown({
           onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
         >
-          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, minWidth: 12, textAlign: 'center' }}>🗑</span>
+          <Trash2 size={12} />
           <span style={{ flex: 1 }}>Delete Candidate</span>
         </button>
       )}
@@ -639,11 +639,7 @@ export default function CandidatesPage() {
         </div>
       ) : !displayItems.length ? (
         <EmptyState
-          icon={
-            <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          }
+          icon={<Users size={48} className="text-gray-200 dark:text-gray-700" />}
           title="No candidates found"
           description={search ? 'Try adjusting your search.' : 'Upload resumes or invite candidates to get started.'}
         />

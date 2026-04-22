@@ -87,7 +87,7 @@ export default function PortalOpenings() {
 
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
                   {job.skills_required?.slice(0, 4).map(t => (
-                    <span key={t} style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: 'rgba(124,58,237,.06)', color: 'var(--brand)' }}>
+                    <span key={t} style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: 'var(--sb-active)', color: 'var(--brand)' }}>
                       {t}
                     </span>
                   ))}
@@ -125,8 +125,8 @@ export default function PortalOpenings() {
             <br />
             Your current resume and profile will be submitted to the recruiter.
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-lite)', marginBottom: 20, padding: '10px 14px', borderRadius: 10, background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.1)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Lightbulb size={14} className="text-amber-500" />
+          <div style={{ fontSize: 12, color: 'var(--text-lite)', marginBottom: 20, padding: '12px 16px', borderRadius: 12, background: 'var(--sb-hover)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <GlassIcon icon="Lightbulb" variant="amber" size={28} iconSize={12} ghost glow={false} />
             <span>Make sure your resume is up to date in your profile before applying.</span>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>

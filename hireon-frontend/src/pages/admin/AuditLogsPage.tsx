@@ -6,6 +6,8 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatDateTime } from '@/utils/formatters'
 import { GlassIcon } from '@/components/common/GlassIcon'
+import { TeamIcon } from '@/components/common/CustomIcons'
+
 
 // ─── Action styling ───────────────────────────────────────────────────────────
 const ACTION_STYLE: Record<string, { bg: string; color: string; icon: React.ReactNode; label: string }> = {
@@ -29,7 +31,7 @@ const RESOURCE_ICON: Record<string, React.ReactNode> = {
   candidate: <GlassIcon icon="User" variant="violet" size={18} iconSize={10} glow={false} />, 
   interview: <GlassIcon icon="Calendar" variant="violet" size={18} iconSize={10} glow={false} />, 
   offer: <GlassIcon icon="FileText" variant="violet" size={18} iconSize={10} glow={false} />,
-  user: <GlassIcon icon="Users" variant="violet" size={18} iconSize={10} glow={false} />, 
+  user: <GlassIcon icon={<TeamIcon size={10} />} variant="violet" size={18} iconSize={10} glow={false} />,
   organization: <GlassIcon icon="Building2" variant="violet" size={18} iconSize={10} glow={false} />, 
   application: <GlassIcon icon="ClipboardList" variant="violet" size={18} iconSize={10} glow={false} />,
   hr_note: <GlassIcon icon="Lock" variant="violet" size={18} iconSize={10} glow={false} />, 

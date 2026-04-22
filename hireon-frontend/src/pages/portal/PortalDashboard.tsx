@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { formatDate } from '@/utils/formatters'
 import { RecentActivityFeed } from '@/components/common/RecentActivityFeed'
 import { GlassIcon } from '@/components/common/GlassIcon'
-import { Check, Circle, CircleDashed, Calendar, FileText, Target, Map } from 'lucide-react'
+import { Check, Circle, CircleDashed, Calendar, FileText, Target, Map, Trophy } from 'lucide-react'
 
 // Display stages shown in the tracker
 const STAGES = [
@@ -48,19 +48,19 @@ function getProgressPercent(currentIndex: number): number {
 
 function StageChip({ stage }: { stage: string }) {
   const cfg: Record<string, { bg: string; color: string; label: string }> = {
-    applied:   { bg: 'rgba(124,58,237,0.10)', color: '#7c3aed', label: 'Applied' },
-    screening: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: 'Screening' },
-    pre_screening: { bg: 'rgba(59,130,246,0.10)', color: '#3b82f6', label: 'Pre-screening' },
-    technical_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Technical Round' },
-    practical_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Practical Round' },
-    techno_functional_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Techno-Functional Round' },
-    management_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Management Round' },
-    hr_round: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'HR Round' },
-    interview: { bg: 'rgba(6,182,212,0.12)',  color: '#06b6d4', label: 'Interview' },
-    interviewed: { bg: 'rgba(6,182,212,0.12)', color: '#06b6d4', label: 'Interviewed' },
-    offer:     { bg: 'rgba(16,185,129,0.12)', color: '#10b981', label: 'Offer' },
-    hired:     { bg: 'rgba(16,185,129,0.16)', color: '#059669', label: 'Hired' },
-    rejected:  { bg: 'rgba(239,68,68,0.10)',  color: '#ef4444', label: 'Rejected' },
+    applied:   { bg: 'var(--sb-active)', color: 'var(--brand)', label: 'Applied' },
+    screening: { bg: 'rgba(245,158,11,0.12)', color: 'var(--amber)', label: 'Screening' },
+    pre_screening: { bg: 'rgba(59,130,246,0.10)', color: 'var(--indigo)', label: 'Pre-screening' },
+    technical_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Technical Round' },
+    practical_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Practical Round' },
+    techno_functional_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Techno-Functional Round' },
+    management_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Management Round' },
+    hr_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'HR Round' },
+    interview: { bg: 'rgba(6,182,212,0.12)',  color: 'var(--teal)', label: 'Interview' },
+    interviewed: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Interviewed' },
+    offer:     { bg: 'rgba(16,185,129,0.12)', color: 'var(--green)', label: 'Offer' },
+    hired:     { bg: 'rgba(16,185,129,0.16)', color: 'var(--green)', label: 'Hired' },
+    rejected:  { bg: 'rgba(239,68,68,0.10)',  color: 'var(--red)', label: 'Rejected' },
   }
   const c = cfg[stage] ?? cfg.applied
   return (
@@ -102,9 +102,9 @@ function StageTracker({ stage }: { stage: string }) {
                 borderRadius: '50%',
                 flexShrink: 0,
                 background: isDone
-                  ? 'linear-gradient(135deg,#7c3aed,#a855f7)'
+                  ? 'linear-gradient(135deg,var(--brand),var(--brand2))'
                   : isActive
-                  ? 'linear-gradient(135deg,#06b6d4,#22d3ee)'
+                  ? 'linear-gradient(135deg,var(--teal),var(--brand3))'
                   : 'rgba(176,164,204,0.35)',
                 boxShadow: isActive ? '0 0 0 4px rgba(6,182,212,0.18)' : undefined,
                 animation: isActive ? 'portal-stage-pulse 2s ease-in-out infinite' : undefined,
@@ -119,7 +119,7 @@ function StageTracker({ stage }: { stage: string }) {
                   height: 3,
                   borderRadius: 2,
                   background: isDone || isActive
-                    ? 'linear-gradient(90deg,#7c3aed,#a855f7)'
+                    ? 'linear-gradient(90deg,var(--brand),var(--brand2))'
                     : 'rgba(176,164,204,0.25)',
                   margin: '0 2px',
                   transition: 'background 0.3s',
@@ -264,7 +264,7 @@ export default function PortalDashboard() {
             {currentIdx === 3 && 'Round 2 — Techno-Functional Round'}
             {currentIdx === 4 && 'Round 3 — Final Round (Management)'}
             {currentIdx === 5 && 'HR Round'}
-            {currentIdx === 6 && (isHired ? <>Welcome to the team! <GlassIcon icon="PartyPopper" variant="emerald" size={24} iconSize={14} glow={false} className="inline-block" /></> : 'Offer Stage')}
+            {currentIdx === 6 && (isHired ? <>Welcome to the team! <GlassIcon icon="Trophy" variant="emerald" size={24} iconSize={14} glow={false} className="inline-block" /></> : 'Offer Stage')}
             {isRejected && 'Application Closed'}
           </div>
           <div className="stage-sub">

@@ -195,7 +195,7 @@ const NOTIFICATION_MAP: Record<string, { icon: React.ReactNode; bg: string }> = 
   interview_reminder: { icon: <GlassIcon icon="Clock" variant="violet" size={32} iconSize={14} />, bg: 'rgba(108, 71, 255, 0.1)' },
   scorecard_submitted: { icon: <GlassIcon icon="Brain" variant="indigo" size={32} iconSize={14} />, bg: 'rgba(139, 92, 246, 0.1)' },
   offer_sent: { icon: <GlassIcon icon="Send" variant="amber" size={32} iconSize={14} />, bg: 'rgba(251, 191, 36, 0.1)' },
-  offer_accepted: { icon: <GlassIcon icon="PartyPopper" variant="emerald" size={32} iconSize={14} />, bg: 'rgba(10, 185, 129, 0.1)' },
+  offer_accepted: { icon: <GlassIcon icon="Trophy" variant="emerald" size={32} iconSize={14} />, bg: 'rgba(10, 185, 129, 0.1)' },
   default: { icon: <GlassIcon icon="Bell" variant="violet" size={32} iconSize={14} />, bg: 'rgba(108, 71, 255, 0.1)' },
 }
 
@@ -228,7 +228,7 @@ export default function OverviewPage() {
     { label: 'Resumes Processed', value: analytics?.total_applications ?? 0, icon: <GlassIcon icon="FileText" variant="violet" size={42} iconSize={20} ghost />, delta: { label: '↑ 18%', up: true } },
     { label: 'Auto-Shortlisted', value: analytics?.total_candidates ?? 0, icon: <GlassIcon icon="CheckCircle" variant="emerald" size={42} iconSize={20} ghost />, delta: { label: '↑ 12%', up: true } },
     { label: 'Interviews Booked', value: analytics?.interviews_scheduled ?? 0, icon: <GlassIcon icon="Calendar" variant="violet" size={42} iconSize={20} ghost />, delta: { label: '↑ 7%', up: true } },
-    { label: 'Hires Made', value: analytics?.offers_accepted ?? 0, icon: <GlassIcon icon="PartyPopper" variant="emerald" size={42} iconSize={20} ghost />, delta: { label: '2', up: true } },
+    { label: 'Hires Made', value: analytics?.offers_accepted ?? 0, icon: <GlassIcon icon="Trophy" variant="emerald" size={42} iconSize={20} ghost />, delta: { label: '2', up: true } },
   ]
 
   const funnelTotal = analytics?.total_applications ?? 1

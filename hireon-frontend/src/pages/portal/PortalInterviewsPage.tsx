@@ -48,28 +48,28 @@ function InterviewCard({ interview }: { interview: Interview }) {
           {interview.interview_type.replace(/_/g, ' ')} · {interview.duration_minutes} min 
           {interview.status !== 'scheduled' && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--green)' }}>
-              · Completed <CheckCircle size={12} />
+              · Completed <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={10} ghost glow={false} />
             </span>
           )}
         </div>
         
         <div className="int-meta">
           <div className="int-meta-item">
-            <User size={12} /> <span>Panel: {panelists}</span>
+            <User size={12} style={{ color: 'var(--violet)' }} /> <span>Panel: {panelists}</span>
           </div>
           <div className="int-meta-item">
-            <Clock size={12} /> <span>{interview.duration_minutes} minutes</span>
+            <Clock size={12} style={{ color: 'var(--violet)' }} /> <span>{interview.duration_minutes} minutes</span>
           </div>
         </div>
 
         {interview.meeting_link && interview.status === 'scheduled' ? (
           <div className="int-link">
-            <Video size={14} /> 
+            <Video size={14} style={{ color: 'var(--brand)' }} /> 
             <a href={interview.meeting_link} target="_blank" rel="noreferrer">Join Meeting</a>
           </div>
         ) : interview.location && interview.status === 'scheduled' ? (
           <div className="int-link">
-            <MapPin size={14} /> {interview.location}
+            <MapPin size={14} style={{ color: 'var(--brand)' }} /> {interview.location}
           </div>
         ) : null}
 
@@ -89,7 +89,7 @@ function InterviewCard({ interview }: { interview: Interview }) {
               </a>
             )}
             <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => navigate('/portal/prep')}>
-              <Target size={14} /> Prep Kit
+              <GlassIcon icon="Target" variant="violet" size={24} iconSize={12} ghost glow={false} /> Prep Kit
             </button>
           </>
         ) : (

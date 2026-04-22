@@ -11,7 +11,7 @@ import type { Job } from '@/types'
 import { AIJDReviewModal } from '@/components/recruiter/AIJDReviewModal'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { Select } from '@/components/ui/Select'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Loader2 } from 'lucide-react'
 import { Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
@@ -471,7 +471,7 @@ export default function AddJobPage() {
                     opacity: (isGenerating || !aiPrompt.trim()) ? 0.6 : 1
                   }}
                 >
-                  {isGenerating ? '⌛' : 'Generate'}
+                  {isGenerating ? <Loader2 className="animate-spin" size={14} /> : 'Generate'}
                 </button>
               </div>
 

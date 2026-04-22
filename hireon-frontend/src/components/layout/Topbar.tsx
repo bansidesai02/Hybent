@@ -1,5 +1,6 @@
 import { useAuth } from '@/hooks/useAuth'
 import { NotificationBell } from './NotificationBell'
+import { TeamIcon } from '@/components/common/CustomIcons'
 import { MessageInbox } from './MessageInbox'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -19,6 +20,7 @@ import {
   SearchX,
   Menu
 } from 'lucide-react'
+
 
 interface TopbarProps {
   title?: string
@@ -147,7 +149,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     candidate: <User size={14} />,
     job: <Briefcase size={14} />,
     interview: <Calendar size={14} />,
-    user: <Users size={14} />
+    user: <TeamIcon size={14} />
   }
 
   const initials = user?.full_name

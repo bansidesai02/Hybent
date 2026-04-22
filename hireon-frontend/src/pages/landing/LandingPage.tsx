@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { motion, useScroll } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { motion, useScroll, AnimatePresence } from 'framer-motion'
 import MouseTrail from '@/components/common/MouseTrail'
+import { TeamIcon } from '@/components/common/CustomIcons'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { ArrowRight, Calendar } from 'lucide-react'
 
 // ─── Animation Variants ────────────────────────────────────────────────────────
+
 const fadeReveal = {
   hidden: {
     y: 30,
@@ -330,6 +332,90 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
+// ─── Custom Components ────────────────────────────────────────────────────────
+
+const FormDropdown = ({ 
+  label, 
+  options, 
+  value, 
+  onChange, 
+  placeholder 
+}: { 
+  label: string, 
+  options: string[], 
+  value: string, 
+  onChange: (val: string) => void,
+  placeholder?: string
+}) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div className="space-y-2 relative" ref={containerRef}>
+      <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>
+        {label}
+      </label>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-6 py-4 rounded-[14px] border-2 transition-all cursor-pointer flex items-center justify-between select-none
+          ${isOpen ? 'border-[#6c47ff]/40 bg-white shadow-[0_4px_20px_rgba(108,71,255,0.12)]' : 'border-transparent bg-white shadow-[0_2px_12px_rgba(108,71,255,0.04)]'}
+        `}
+      >
+        <span className="text-[15px]" style={{ color: value ? 'var(--text)' : '#cbd5e1' }}>
+          {value || placeholder}
+        </span>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c47ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </motion.div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 5, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute left-0 right-0 z-[100] mt-1 overflow-hidden rounded-[16px] border border-white bg-white/95 backdrop-blur-xl shadow-[0_20px_64px_rgba(108,71,255,0.18)]"
+          >
+            <div className="py-2 max-h-[240px] overflow-y-auto scrollbar-hide">
+              {options.map((opt) => (
+                <div
+                  key={opt}
+                  onClick={() => {
+                    onChange(opt)
+                    setIsOpen(false)
+                  }}
+                  className={`px-6 py-3 text-[14px] font-medium transition-colors cursor-pointer hover:bg-[#6c47ff]/05
+                    ${value === opt ? 'text-[#6c47ff] bg-[#6c47ff]/05' : 'text-gray-700'}
+                  `}
+                >
+                  {opt}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export default function LandingPage() {
   const [demoForm, setDemoForm] = useState({
     firstName: '',
@@ -452,7 +538,7 @@ export default function LandingPage() {
             <li key={item}>
               <a
                 href={item === 'Book Demo' ? '#book-demo' : `#${item.toLowerCase().replace(/\s+/g, '-')}`}
-                className="block px-4 py-2 text-[14px] font-medium rounded-[10px] no-underline transition-all duration-200 hover:bg-[rgba(108,71,255,0.07)]"
+                className="block px-4 py-2 text-[16px] font-medium rounded-[10px] no-underline transition-all duration-200 hover:bg-[rgba(108,71,255,0.07)]"
                 style={{ color: 'var(--text-mid)' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#6c47ff')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-mid)')}
@@ -515,7 +601,7 @@ export default function LandingPage() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="inline-flex items-center gap-2 mb-8 px-5 py-2 rounded-full text-[12px] font-semibold"
+          className="inline-flex items-center gap-2 mb-8 px-5 py-2 rounded-full text-[14px] font-semibold"
           style={{
             background: 'rgba(255,255,255,0.72)',
             border: '1px solid rgba(255,255,255,1)',
@@ -569,7 +655,7 @@ export default function LandingPage() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="text-[18px] leading-[1.75] max-w-[600px] mb-14"
+          className="text-[22px] leading-[1.75] max-w-[800px] mb-14"
           style={{
             color: 'var(--text-mid)',
           }}
@@ -587,19 +673,19 @@ export default function LandingPage() {
         >
           <Link to="/register">
             <button
-              className="px-10 py-4 border-0 rounded-[10px] text-[15px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
+              className="px-10 py-4 border-0 rounded-[10px] text-[17px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
               style={{
                 background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
                 boxShadow: '0 8px 28px rgba(108,71,255,0.38)',
                 fontFamily: "'Sora', sans-serif",
               }}
             >
-              Start for Free <ArrowRight size={18} />
+              Start for Free <ArrowRight size={20} />
             </button>
           </Link>
           <Link to="/register?demo=true">
             <button
-              className="px-10 py-4 rounded-[10px] text-[15px] font-semibold cursor-pointer transition-all duration-300 hover:bg-white hover:-translate-y-[2px] flex items-center gap-2"
+              className="px-10 py-4 rounded-[10px] text-[17px] font-semibold cursor-pointer transition-all duration-300 hover:bg-white hover:-translate-y-[2px] flex items-center gap-2"
               style={{
                 background: 'rgba(255,255,255,0.72)',
                 border: '1px solid rgba(255,255,255,0.6)',
@@ -608,7 +694,7 @@ export default function LandingPage() {
                 fontFamily: "'Sora', sans-serif",
               }}
             >
-              <Calendar size={18} className="text-[#6c47ff]" /> Book Demo
+              <Calendar size={20} className="text-[#6c47ff]" /> Book Demo
             </button>
           </Link>
         </motion.div>
@@ -646,7 +732,7 @@ export default function LandingPage() {
                 className="block font-black leading-none mb-3"
                 style={{
                   fontFamily: "'Fraunces', serif",
-                  fontSize: '60px',
+                  fontSize: '64px',
                   background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
@@ -655,7 +741,7 @@ export default function LandingPage() {
               >
                 {s.value}
               </span>
-              <p className="text-[14px] font-medium" style={{ color: 'var(--text-mid)', lineHeight: 1.5 }}>{s.label}</p>
+              <p className="text-[16px] font-medium" style={{ color: 'var(--text-mid)', lineHeight: 1.5 }}>{s.label}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -671,17 +757,17 @@ export default function LandingPage() {
             viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-20"
           >
-            <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>How It Works</p>
+            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>How It Works</p>
             <h2
               className="font-black leading-tight mb-5"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(36px,5vw,60px)', color: 'var(--text)', letterSpacing: '-1px' }}
+              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
             >
               From application to offer,<br />
               <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                 all automated.
               </span>
             </h2>
-            <p className="text-[17px] max-w-[560px] mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.7 }}>
+            <p className="text-[20px] max-w-[640px] mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.7 }}>
               Four intelligent phases that take a candidate from resume submission to hiring decision — with AI doing the heavy lifting at every step.
             </p>
           </motion.div>
@@ -722,9 +808,9 @@ export default function LandingPage() {
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(108,71,255,0.18)'; (e.currentTarget as HTMLElement).style.background = 'white' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(108,71,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.72)' }}
                 >
-                  <p className="text-[11px] font-bold tracking-[2px] uppercase mb-3" style={{ color: 'var(--violet)' }}>{step.phase}</p>
-                  <h3 className="text-[20px] font-bold mb-3" style={{ color: 'var(--text)' }}>{step.title}</h3>
-                  <p className="text-[14px] leading-[1.7] mb-5" style={{ color: 'var(--text-mid)' }}>{step.desc}</p>
+                  <p className="text-[12px] font-bold tracking-[2px] uppercase mb-3" style={{ color: 'var(--violet)' }}>{step.phase}</p>
+                  <h3 className="text-[24px] font-bold mb-3" style={{ color: 'var(--text)' }}>{step.title}</h3>
+                  <p className="text-[16px] leading-[1.7] mb-5" style={{ color: 'var(--text-mid)' }}>{step.desc}</p>
                   <div className="flex flex-wrap gap-2">
                     {step.tags.map((tag) => (
                       <span
@@ -772,17 +858,17 @@ export default function LandingPage() {
             viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-16"
           >
-            <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Platform Features</p>
+            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Platform Features</p>
             <h2
               className="font-black leading-tight mb-4"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(36px,5vw,56px)', color: 'var(--text)', letterSpacing: '-1px' }}
+              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
             >
               Everything your hiring<br />
               <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                 team actually needs.
               </span>
             </h2>
-            <p className="text-[17px] max-w-xl mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.6 }}>
+            <p className="text-[20px] max-w-2xl mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.6 }}>
               No fluff, no bloat. Every feature in Hireon was built to eliminate a specific friction point in the recruiting process.
             </p>
           </motion.div>
@@ -814,8 +900,8 @@ export default function LandingPage() {
                 >
                   <GlassIcon icon={f.icon} variant={f.variant} size={64} iconSize={28} glow={false} />
                 </div>
-                <h3 className="text-[18px] font-bold mb-3" style={{ color: 'var(--text)' }}>{f.title}</h3>
-                <p className="text-[14px] leading-relaxed mb-6" style={{ color: 'var(--text-mid)' }}>{f.description}</p>
+                <h3 className="text-[22px] font-bold mb-3" style={{ color: 'var(--text)' }}>{f.title}</h3>
+                <p className="text-[16px] leading-relaxed mb-6" style={{ color: 'var(--text-mid)' }}>{f.description}</p>
                 <ul className="flex flex-col gap-2.5 list-none p-0 m-0">
                   {f.bullets.map((bullet) => (
                     <li key={bullet} className="flex items-start gap-2.5 text-[13px] font-medium" style={{ color: 'var(--text-mid)' }}>
@@ -845,17 +931,17 @@ export default function LandingPage() {
               viewport={{ once: true, margin: "-100px" }}
               className="flex-1 text-left"
             >
-              <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>About Hireon</p>
+              <p className="text-[13px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>About Hireon</p>
               <h2
                 className="font-black leading-tight mb-8"
-                style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(36px,5vw,56px)', color: 'var(--text)', letterSpacing: '-1px' }}
+                style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px,5vw,52px)', color: 'var(--text)', letterSpacing: '-1px' }}
               >
                 Reimagining the Future<br />
                 <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                   of Talent Acquisition.
                 </span>
               </h2>
-              <div className="space-y-6 text-[17px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
+              <div className="space-y-6 text-[18px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
                 <p>
                   Hireon was born from a simple mission by Bansi Desai: to fix a recruiting process that hadn't meaningfully changed in decades. As an IIT Engineer, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
                 </p>
@@ -900,26 +986,11 @@ export default function LandingPage() {
                     </svg>
                   </div>
 
-                  <blockquote className="text-[18px] sm:text-[20px] leading-[1.8] font-medium mb-10 text-left" style={{ color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
+                  <blockquote className="text-[18px] sm:text-[20px] leading-[1.8] font-medium text-left mb-6" style={{ color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
                     "I didn't want to build just another HR tool. I wanted to build the thing I wish existed — a recruiter's co-pilot that handles the boring parts so humans can focus on the human parts."
                   </blockquote>
-
-                  <div className="flex items-center justify-end gap-4">
-                    <div className="text-right">
-                      <h4 className="text-[16px] font-bold" style={{ color: 'var(--text)' }}>Bansi Desai</h4>
-                      <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--violet)' }}>Founder-Hireon</p>
-                    </div>
-                    <div
-                      className="w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-md flex-shrink-0 relative"
-                      style={{ background: 'linear-gradient(135deg, #f3f0ff, #ffffff)' }}
-                    >
-                      <img 
-                        src="/bansi_desai.jpg" 
-                        alt="Bansi Desai" 
-                        className="absolute inset-0 w-full h-full object-cover" 
-                        style={{ objectPosition: 'center 20%' }}
-                      />
-                    </div>
+                  <div className="text-right">
+                    <span className="text-[15px] font-bold" style={{ color: 'var(--text)', opacity: 0.9 }}>— Bansi Desai</span>
                   </div>
                 </div>
               </div>
@@ -941,17 +1012,17 @@ export default function LandingPage() {
             viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-16"
           >
-            <p className="text-[12px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Book a Demo</p>
+            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Book a Demo</p>
             <h2
               className="font-black leading-tight mb-4"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(36px,5vw,56px)', color: 'var(--text)', letterSpacing: '-1px' }}
+              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
             >
               See Hireon in action.<br />
               <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                 Live, just for you.
               </span>
             </h2>
-            <p className="text-[17px] max-w-xl mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.6 }}>
+            <p className="text-[20px] max-w-2xl mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.6 }}>
               Get a personalized walkthrough with one of our team members. We'll show you exactly how Hireon fits your hiring workflow.
             </p>
           </motion.div>
@@ -969,10 +1040,10 @@ export default function LandingPage() {
               <div
                 className="rounded-[32px] p-10 relative overflow-hidden"
                 style={{
-                  background: 'rgba(255,255,255,0.78)',
-                  backdropFilter: 'blur(32px) saturate(180%)',
-                  border: '1px solid rgba(255,255,255,0.95)',
-                  boxShadow: '0 24px 80px rgba(108,71,255,0.12)',
+                  background: 'rgba(255,255,255,0.85)',
+                  backdropFilter: 'blur(40px) saturate(200%)',
+                  border: '1px solid rgba(255,255,255,1)',
+                  boxShadow: '0 32px 96px -12px rgba(108,71,255,0.15)',
                 }}
               >
                 {!submitted ? (
@@ -982,118 +1053,82 @@ export default function LandingPage() {
 
                     <form onSubmit={handleDemoSubmit} className="space-y-5">
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>First Name</label>
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>First Name</label>
                           <input
                             required
                             type="text"
                             placeholder="John"
-                            className="w-full px-5 py-3.5 rounded-[12px] border-none text-[15px] transition-all outline-none"
-                            style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', color: 'var(--text)' }}
+                            className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                            style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
                             value={demoForm.firstName}
                             onChange={e => setDemoForm({ ...demoForm, firstName: e.target.value })}
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>Last Name</label>
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>Last Name</label>
                           <input
                             required
                             type="text"
                             placeholder="Doe"
-                            className="w-full px-5 py-3.5 rounded-[12px] border-none text-[15px] transition-all outline-none"
-                            style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', color: 'var(--text)' }}
+                            className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                            style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
                             value={demoForm.lastName}
                             onChange={e => setDemoForm({ ...demoForm, lastName: e.target.value })}
                           />
                         </div>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>Work Email</label>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>Work Email</label>
                         <input
                           required
                           type="email"
                           placeholder="john@company.com"
-                          className="w-full px-5 py-3.5 rounded-[12px] border-none text-[15px] transition-all outline-none"
-                          style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', color: 'var(--text)' }}
+                          className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                          style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
                           value={demoForm.workEmail}
                           onChange={e => setDemoForm({ ...demoForm, workEmail: e.target.value })}
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>Company Name</label>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>Company Name</label>
                         <input
                           required
                           type="text"
                           placeholder="Your Company Inc."
-                          className="w-full px-5 py-3.5 rounded-[12px] border-none text-[15px] transition-all outline-none"
-                          style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', color: 'var(--text)' }}
+                          className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                          style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
                           value={demoForm.companyName}
                           onChange={e => setDemoForm({ ...demoForm, companyName: e.target.value })}
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>Team Size</label>
-                          <div className="relative">
-                            <select
-                              className="w-full px-5 py-3.5 rounded-[12px] border-2 border-transparent text-[15px] transition-all outline-none appearance-none cursor-pointer hover:bg-gray-50/80 focus:border-violet-500/30 focus:bg-white"
-                              style={{ 
-                                background: 'white', 
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
-                                color: 'var(--text)',
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c47ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                                backgroundRepeat: 'no-repeat',
-                                backgroundPosition: 'right 16px center',
-                                backgroundSize: '16px'
-                              }}
-                              value={demoForm.teamSize}
-                              onChange={e => setDemoForm({ ...demoForm, teamSize: e.target.value })}
-                            >
-                              <option>1-10</option>
-                              <option>11-50</option>
-                              <option>51-200</option>
-                              <option>201-500</option>
-                              <option>501+</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>Monthly Hires</label>
-                          <div className="relative">
-                            <select
-                              className="w-full px-5 py-3.5 rounded-[12px] border-2 border-transparent text-[15px] transition-all outline-none appearance-none cursor-pointer hover:bg-gray-50/80 focus:border-violet-500/30 focus:bg-white"
-                              style={{ 
-                                background: 'white', 
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
-                                color: 'var(--text)',
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c47ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                                backgroundRepeat: 'no-repeat',
-                                backgroundPosition: 'right 16px center',
-                                backgroundSize: '16px'
-                              }}
-                              value={demoForm.monthlyHires}
-                              onChange={e => setDemoForm({ ...demoForm, monthlyHires: e.target.value })}
-                            >
-                              <option>1-5</option>
-                              <option>6-15</option>
-                              <option>16-30</option>
-                              <option>31-50</option>
-                              <option>50+</option>
-                            </select>
-                          </div>
-                        </div>
+                        <FormDropdown
+                          label="Team Size"
+                          options={['1-10', '11-50', '51-200', '201-500', '501+']}
+                          value={demoForm.teamSize}
+                          onChange={val => setDemoForm({ ...demoForm, teamSize: val })}
+                          placeholder="Select size"
+                        />
+                        <FormDropdown
+                          label="Monthly Hires"
+                          options={['1-5', '6-15', '16-30', '31-50', '50+']}
+                          value={demoForm.monthlyHires}
+                          onChange={val => setDemoForm({ ...demoForm, monthlyHires: val })}
+                          placeholder="Select count"
+                        />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-bold uppercase tracking-[0.5px] ml-1" style={{ color: 'var(--text-light)' }}>What's your biggest hiring challenge?</label>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>What's your biggest hiring challenge?</label>
                         <textarea
                           placeholder="e.g. Resume screening takes too long..."
                           rows={3}
-                          className="w-full px-5 py-3.5 rounded-[12px] border-none text-[15px] transition-all outline-none resize-none"
-                          style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', color: 'var(--text)' }}
+                          className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none resize-none focus:border-[#6c47ff]/30"
+                          style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
                           value={demoForm.hiringChallenge}
                           onChange={e => setDemoForm({ ...demoForm, hiringChallenge: e.target.value })}
                         />
@@ -1104,14 +1139,14 @@ export default function LandingPage() {
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="w-full py-4 rounded-[14px] text-white font-bold text-[16px] transition-all hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70"
+                        className="w-full py-4 rounded-[14px] text-white font-bold text-[16px] transition-all hover:shadow-[0_12px_40px_rgba(108,71,255,0.35)] hover:-translate-y-1 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
                         style={{
                           background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
                           boxShadow: '0 8px 24px rgba(108,71,255,0.25)',
                           fontFamily: "'Sora', sans-serif"
                         }}
                       >
-                        {submitting ? 'Submitting...' : <>Book My Demo <ArrowRight size={18} className="inline ml-1" /></>}
+                        {submitting ? 'Submitting...' : <>Book My Demo <ArrowRight size={20} /></>}
                       </button>
                     </form>
                   </>
@@ -1146,22 +1181,22 @@ export default function LandingPage() {
               viewport={{ once: true, margin: "-100px" }}
               className="w-full lg:w-[420px] pt-10 px-4"
             >
-              <h4 className="text-[20px] font-bold mb-8" style={{ color: 'var(--text)' }}>What to expect in your demo</h4>
+              <h4 className="text-[24px] font-bold mb-8" style={{ color: 'var(--text)' }}>What to expect in your demo</h4>
 
               <div className="space-y-10">
                 {[
                   { icon: 'Brain' as const, variant: 'violet' as const, title: 'Live AI Resume Parsing', desc: 'Watch Hireon parse a real resume in under 10 seconds, extract skills, and generate match scores.' },
                   { icon: 'Target' as const, variant: 'pink' as const, title: 'Auto-Shortlisting in Action', desc: 'See how Hireon automatically shortlists candidates and keeps everyone informed — without human input.' },
                   { icon: 'Calendar' as const, variant: 'amber' as const, title: 'One-Click Scheduling', desc: 'Experience conflict-free interview scheduling that takes 30 seconds instead of 3 days of emails.' },
-                  { icon: 'BarChart3' as const, variant: 'teal' as const, title: 'Your Custom Hiring Setup', desc: "We'll configure a demo environment matched to your actual roles, team size, and hiring workflow." },
+                  { icon: <TeamIcon size={20} />, variant: 'teal' as const, title: 'Your Custom Hiring Setup', desc: "We'll configure a demo environment matched to your actual roles, team size, and hiring workflow." },
                 ].map((item) => (
                   <div key={item.title} className="flex gap-5 group items-start">
                     <div className="flex-shrink-0 transition-transform group-hover:scale-110">
                       <GlassIcon icon={item.icon} variant={item.variant} size={48} iconSize={20} glow={false} rounded="14px" />
                     </div>
                     <div>
-                      <h5 className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--text)' }}>{item.title}</h5>
-                      <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>{item.desc}</p>
+                      <h5 className="text-[18px] font-bold mb-1.5" style={{ color: 'var(--text)' }}>{item.title}</h5>
+                      <p className="text-[16px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -1210,17 +1245,20 @@ export default function LandingPage() {
                   {col.heading}
                 </h4>
                 <ul className="space-y-2">
-                  {col.links.map((link) => (
-                    <li key={link}>
-                      <a
-                        href="#"
-                        className="text-[13px] no-underline transition-colors hover:text-violet-600"
-                        style={{ color: 'var(--text-mid)' }}
-                      >
-                        {link}
-                      </a>
-                    </li>
-                  ))}
+                  {col.links.map((link) => {
+                    const href = link === 'Features' ? '#features' : link === 'About' ? '#about' : '#';
+                    return (
+                      <li key={link}>
+                        <a
+                          href={href}
+                          className="text-[13px] no-underline transition-colors hover:text-violet-600"
+                          style={{ color: 'var(--text-mid)' }}
+                        >
+                          {link}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}

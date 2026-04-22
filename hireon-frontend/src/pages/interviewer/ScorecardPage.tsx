@@ -23,9 +23,14 @@ import {
   Star, 
   Calendar, 
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  ClipboardList,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
+import { TeamIcon } from '@/components/common/CustomIcons'
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +40,7 @@ type CriterionKey = 'technical' | 'communication' | 'culture_fit' | 'problem_sol
 interface CriterionConfig {
   key: CriterionKey
   label: string
-  emoji: string
+  emoji: React.ReactNode
   description: string
 }
 
@@ -44,7 +49,7 @@ interface CriterionConfig {
 const CRITERIA: CriterionConfig[] = [
   { key: 'technical', label: 'Technical Skills', emoji: 'Settings', description: 'Depth of technical knowledge and ability to apply it' },
   { key: 'communication', label: 'Communication', emoji: 'MessageSquare', description: 'Clarity, listening, and articulation skills' },
-  { key: 'culture_fit', label: 'Culture Fit', emoji: 'Users', description: 'Alignment with team values and work style' },
+  { key: 'culture_fit', label: 'Culture Fit', emoji: <TeamIcon size={12} />, description: 'Alignment with team values and work style' },
   { key: 'problem_solving', label: 'Problem Solving', emoji: 'Puzzle', description: 'Approach to ambiguous problems and critical thinking' },
 ]
 
@@ -113,17 +118,21 @@ function StarRating({
           onMouseEnter={() => !isReadonly && setHover(star)}
           onMouseLeave={() => !isReadonly && setHover(0)}
           style={{
-            fontSize: size,
             cursor: isReadonly ? 'default' : 'pointer',
             color: star <= (hover || value) ? '#fbbf24' : 'rgba(108,71,255,0.18)',
-            transition: 'color 0.12s, transform 0.1s',
+            transition: 'all 0.12s',
             transform: hover === star && !isReadonly ? 'scale(1.15)' : 'scale(1)',
-            display: 'inline-block',
-            lineHeight: 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             userSelect: 'none',
           }}
         >
-          ★
+          <Star 
+            size={size} 
+            fill={star <= (hover || value) ? 'currentColor' : 'none'} 
+            strokeWidth={2}
+          />
         </span>
       ))}
       {value > 0 && (
@@ -268,9 +277,13 @@ function Toast({ message, type }: { message: string; type: 'success' | 'error' }
         fontWeight: 600,
         zIndex: 1000,
         boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
       }}
     >
-      {type === 'success' ? '✅ ' : '❌ '}{message}
+      {type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+      {message}
     </motion.div>
   )
 }
@@ -464,8 +477,8 @@ export default function ScorecardPage() {
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
-            📊 Scorecard & Evaluation
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ClipboardList size={22} className="text-[var(--violet)]" /> Scorecard & Evaluation
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2 }}>
             {interview.title} · Rate the candidate across key competencies
@@ -809,9 +822,13 @@ export default function ScorecardPage() {
                     fontWeight: 600,
                     color: '#059669',
                     textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
                   }}
                 >
-                  ✅ Scorecard submitted successfully!
+                  <CheckCircle2 size={16} /> Scorecard submitted successfully!
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 10 }}>
@@ -833,9 +850,13 @@ export default function ScorecardPage() {
                       fontFamily: "'Sora', sans-serif",
                       boxShadow: canSubmit ? '0 4px 14px rgba(108,71,255,0.30)' : 'none',
                       transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8
                     }}
                   >
-                    {mutation.isPending ? 'Submitting…' : '🧠 Submit Scorecard'}
+                    {mutation.isPending ? 'Submitting…' : <><Sparkles size={16} /> Submit Scorecard</>}
                   </button>
                   <Button
                     variant="outline"

@@ -2,10 +2,35 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
+import { 
+  Settings, 
+  MessageSquare, 
+  Users, 
+  Puzzle, 
+  Check, 
+  CircleHelp, 
+  X, 
+  FileText, 
+  Target, 
+  ClipboardList, 
+  Video, 
+  Clock, 
+  Lock, 
+  ArrowLeft,
+  ChevronLeft,
+  Mic,
+  Monitor,
+  Play,
+  Pause,
+  Square,
+  BarChart2,
+  Circle
+} from 'lucide-react'
 import { interviewsApi } from '@/api/interviews'
 import { applicationsApi } from '@/api/applications'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
+import { GlassIcon } from '@/components/common/GlassIcon'
 import { formatDateTime } from '@/utils/formatters'
 import { useInterviewStore } from '@/store/interviewStore'
 import { useAuthStore } from '@/store/authStore'
@@ -15,10 +40,10 @@ import { useAuthStore } from '@/store/authStore'
 type Verdict = 'hire' | 'maybe' | 'no_hire' | null
 
 const CRITERIA = [
-  { key: 'technical' as const, label: 'Technical', emoji: '⚙️' },
-  { key: 'communication' as const, label: 'Communication', emoji: '💬' },
-  { key: 'culture_fit' as const, label: 'Culture Fit', emoji: '🤝' },
-  { key: 'problem_solving' as const, label: 'Problem Solving', emoji: '🧩' },
+  { key: 'technical' as const, label: 'Technical', icon: 'Settings' },
+  { key: 'communication' as const, label: 'Communication', icon: 'MessageSquare' },
+  { key: 'culture_fit' as const, label: 'Culture Fit', icon: 'Users' },
+  { key: 'problem_solving' as const, label: 'Problem Solving', icon: 'Puzzle' },
 ]
 
 type CriterionKey = typeof CRITERIA[number]['key']
@@ -158,7 +183,7 @@ export default function LiveRoomPage() {
 
   const endInterview = () => {
     setRunning(false)
-    showToast('⏹ Interview ended — going to scorecard')
+    showToast('Interview ended — going to scorecard')
     setTimeout(() => navigate(`/interviewer/scorecard/${interviewId}`), 1600)
   }
 
@@ -199,9 +224,7 @@ export default function LiveRoomPage() {
             color: '#6c47ff', flexShrink: 0,
           }}
         >
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
+          <ChevronLeft size={18} strokeWidth={3} />
         </button>
 
         {/* Live badge + title */}
@@ -212,8 +235,10 @@ export default function LiveRoomPage() {
               background: running ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
               color: running ? '#ef4444' : '#059669',
               border: `1px solid ${running ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
+              display: 'flex', alignItems: 'center', gap: 4
             }}>
-              {running ? '🔴 LIVE' : '🟢 READY'}
+              <Circle size={8} fill={running ? '#ef4444' : '#059669'} />
+              {running ? 'LIVE' : 'READY'}
             </span>
             <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
               {interview.title}
@@ -233,7 +258,7 @@ export default function LiveRoomPage() {
           isUnlocked ? (
             <a href={interview.meeting_link} target="_blank" rel="noreferrer">
               <button
-                onClick={() => showToast('🎥 Opening Google Meet...')}
+                onClick={() => showToast('Opening Google Meet...')}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px',
                   borderRadius: 9, background: 'rgba(16,185,129,0.10)',
@@ -242,7 +267,7 @@ export default function LiveRoomPage() {
                   fontFamily: "'Sora', sans-serif", maxWidth: 220, overflow: 'hidden',
                 }}
               >
-                <span>🎥</span>
+                <Video size={14} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {interview.meeting_link.replace(/^https?:\/\//, '')}
                 </span>
@@ -259,7 +284,7 @@ export default function LiveRoomPage() {
                 fontFamily: "'Sora', sans-serif", maxWidth: 220, overflow: 'hidden',
               }}
             >
-              <span>🔒</span>
+              <Lock size={14} />
               <span>Prep Required to Unlock</span>
             </button>
           )
@@ -278,7 +303,7 @@ export default function LiveRoomPage() {
           </span>
           <button
             onClick={() => {
-              if (!running && elapsed === 0) showToast('🎙️ Interview started!')
+              if (!running && elapsed === 0) showToast('Interview started!')
               setRunning(!running)
             }}
             style={{
@@ -287,9 +312,11 @@ export default function LiveRoomPage() {
               border: `1.5px solid ${running ? 'rgba(239,68,68,0.30)' : 'rgba(108,71,255,0.30)'}`,
               color: running ? '#ef4444' : '#6c47ff',
               fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
+              display: 'flex', alignItems: 'center', gap: 6
             }}
           >
-            {running ? '⏸ Pause' : '▶ Start'}
+            {running ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+            {running ? 'Pause' : 'Start'}
           </button>
           <button
             onClick={endInterview}
@@ -298,9 +325,10 @@ export default function LiveRoomPage() {
               background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.25)',
               color: '#ef4444', fontSize: 11, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Sora', sans-serif",
+              display: 'flex', alignItems: 'center', gap: 6
             }}
           >
-            ⏹ End
+            <Square size={12} fill="currentColor" /> End
           </button>
         </div>
       </div>
@@ -321,16 +349,17 @@ export default function LiveRoomPage() {
                   background: ratings[crit.key] > 0 ? 'rgba(108,71,255,0.08)' : 'var(--card-bg)',
                   border: `1.5px solid ${ratings[crit.key] > 0 ? 'rgba(108,71,255,0.28)' : 'var(--card-border)'}`,
                   transition: 'all 0.2s',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8
                 }}
               >
-                <div style={{ fontSize: 24, marginBottom: 6 }}>{crit.emoji}</div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 9 }}>{crit.label}</p>
+                <GlassIcon icon={crit.icon as any} variant={ratings[crit.key] > 0 ? 'violet' : 'gray'} size={32} iconSize={16} glow={false} />
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 2 }}>{crit.label}</p>
                 <StarRating
                   value={ratings[crit.key]}
                   onChange={(v) => setRatings((prev) => ({ ...prev, [crit.key]: v }))}
                 />
                 {ratings[crit.key] > 0 && (
-                  <p style={{ fontSize: 10, color: '#6c47ff', fontWeight: 800, marginTop: 5 }}>
+                  <p style={{ fontSize: 10, color: '#6c47ff', fontWeight: 800, marginTop: 2 }}>
                     {ratings[crit.key]}/5
                   </p>
                 )}
@@ -341,17 +370,18 @@ export default function LiveRoomPage() {
           {/* Overall Summary */}
           <Card>
             <h3 style={{
-              fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 10,
-              display: 'flex', alignItems: 'center', gap: 7,
+              fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 12,
+              display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              📝 Overall Summary
+              <FileText size={16} className="text-[var(--violet)]" /> Overall Summary
               {running && (
                 <span style={{
                   fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
                   background: 'rgba(239,68,68,0.10)', color: '#ef4444',
                   animation: 'pulse 1.5s ease infinite',
+                  display: 'flex', alignItems: 'center', gap: 4
                 }}>
-                  ● REC
+                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} /> REC
                 </span>
               )}
             </h3>
@@ -371,14 +401,14 @@ export default function LiveRoomPage() {
 
           {/* Quick Verdict */}
           <Card>
-            <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
-              🎯 Quick Verdict
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Target size={16} className="text-[var(--violet)]" /> Quick Verdict
             </h3>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { value: 'hire' as const, label: 'Hire', emoji: '✅', color: '#059669', border: 'rgba(16,185,129,0.25)', selBg: 'rgba(16,185,129,0.12)' },
-                { value: 'maybe' as const, label: 'Maybe', emoji: '🤔', color: '#d97706', border: 'rgba(251,191,36,0.25)', selBg: 'rgba(251,191,36,0.12)' },
-                { value: 'no_hire' as const, label: 'Rejected', emoji: '❌', color: '#ef4444', border: 'rgba(239,68,68,0.25)', selBg: 'rgba(239,68,68,0.12)' },
+                { value: 'hire' as const, label: 'Hire', icon: <Check size={14} strokeWidth={3} />, color: '#059669', border: 'rgba(16,185,129,0.25)', selBg: 'rgba(16,185,129,0.12)' },
+                { value: 'maybe' as const, label: 'Maybe', icon: <CircleHelp size={14} />, color: '#d97706', border: 'rgba(251,191,36,0.25)', selBg: 'rgba(251,191,36,0.12)' },
+                { value: 'no_hire' as const, label: 'Rejected', icon: <X size={14} strokeWidth={3} />, color: '#ef4444', border: 'rgba(239,68,68,0.25)', selBg: 'rgba(239,68,68,0.12)' },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -389,9 +419,10 @@ export default function LiveRoomPage() {
                     background: verdict === opt.value ? opt.selBg : 'transparent',
                     color: opt.color, fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Sora', sans-serif", transition: 'all 0.18s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                   }}
                 >
-                  {opt.emoji} {opt.label}
+                  {opt.icon} {opt.label}
                 </button>
               ))}
             </div>
@@ -440,8 +471,8 @@ export default function LiveRoomPage() {
 
           {/* Questions Checklist */}
           <Card style={{ flex: 1 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.9px', marginBottom: 10 }}>
-              📋 Questions ({askedSet.size}/{questions.length} asked)
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.9px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ClipboardList size={14} className="text-[var(--violet)]" /> Questions ({askedSet.size}/{questions.length} asked)
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {questions.map((q, idx) => (
@@ -486,9 +517,10 @@ export default function LiveRoomPage() {
               color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Sora', sans-serif",
               boxShadow: '0 4px 14px rgba(108,71,255,0.30)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
             }}
           >
-            📊 Full Scorecard
+            <BarChart2 size={16} /> Full Scorecard
           </button>
 
         </div>

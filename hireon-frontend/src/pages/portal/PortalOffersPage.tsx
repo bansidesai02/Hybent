@@ -52,8 +52,8 @@ function CtcRow({ label, value, highlight = false }: { label: string; value: str
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px',
-      borderRadius: 10, background: highlight ? 'rgba(124,58,237,0.07)' : 'rgba(124,58,237,0.03)',
-      borderBottom: '1px solid rgba(124,58,237,0.06)', marginBottom: 4,
+      borderRadius: 10, background: highlight ? 'var(--sb-active)' : 'var(--sb-hover)',
+      borderBottom: '1px solid var(--border)', marginBottom: 4,
     }}>
       <span style={{ fontSize: 13, color: highlight ? 'var(--text)' : 'var(--text-mid)', fontWeight: highlight ? 700 : 500 }}>
         {label}
@@ -153,14 +153,14 @@ function OfferCard({
         )}
 
         {isAccepted && (
-          <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', color: 'var(--green)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <GlassIcon icon="PartyPopper" variant="emerald" size={24} iconSize={12} glow={false} />
+          <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--sb-active)', border: '1px solid var(--border)', color: 'var(--green)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <GlassIcon icon="Trophy" variant="emerald" size={24} iconSize={12} glow={false} />
             Accepted on {formatDate(offer.responded_at as string)}
           </div>
         )}
 
         {isDeclined && (
-          <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.15)', fontSize: 13, color: 'var(--red)' }}>
+          <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--red)' }}>
             Declined on {formatDate(offer.responded_at as string)}
             {offer.decline_reason && <div style={{ marginTop: 4, fontSize: 12, opacity: 0.8 }}>Reason: {offer.decline_reason}</div>}
           </div>
