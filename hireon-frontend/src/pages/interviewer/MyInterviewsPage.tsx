@@ -354,18 +354,6 @@ function InterviewCard({
                 <CheckCircle size={14} /> Confirmed
               </div>
             )}
-            <motion.button
-              whileHover={{ scale: 1.02, background: 'rgba(16,185,129,0.15)' }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onComplete}
-              style={{
-                padding: '10px 24px', borderRadius: 12, background: 'rgba(16,185,129,0.08)',
-                color: '#16a34a', fontWeight: 800, fontSize: 12, border: '1px solid rgba(16,185,129,0.25)',
-                cursor: 'pointer', whiteSpace: 'nowrap', width: '100%', textAlign: 'center'
-              }}
-            >
-              Mark Completed
-            </motion.button>
           </div>
         ) : interview.status === 'completed' && (
            <motion.button

@@ -28,6 +28,7 @@ import OffersPage from '@/pages/recruiter/OffersPage'
 import AnalyticsPage from '@/pages/recruiter/AnalyticsPage'
 import ReportsPage from '@/pages/recruiter/ReportsPage'
 import TalentPoolPage from '@/pages/recruiter/TalentPoolPage'
+import AllTalentListPage from '@/pages/recruiter/AllTalentListPage'
 import RecruiterProfilePage from '@/pages/recruiter/RecruiterProfilePage'
 import RecruiterSettingsPage from '@/pages/recruiter/RecruiterSettingsPage'
 
@@ -107,6 +108,7 @@ export default function App() {
       <Route path="analytics" element={<AnalyticsPage />} />
       <Route path="reports" element={<ReportsPage />} />
       <Route path="talent-pool" element={<TalentPoolPage />} />
+      <Route path="all-talent" element={<AllTalentListPage />} />
       <Route path="profile" element={<RecruiterProfilePage />} />
       <Route path="settings" element={<RecruiterSettingsPage />} />
       <Route path="teams" element={<TeamManagementPage />} />

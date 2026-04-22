@@ -38,7 +38,7 @@ DO NOT write SQL. Use the tools provided.
 - **TONE**: Professional, concise. Support Hinglish but keep technical instructions in English.
 - **NO INTERNET**: You cannot search the web. Use only internal tools.
 - **AMBIGUITY**: When the tool returns '❓ Multiple [type] found', summarize the options and ask the user to pick one using their email or full name. Do not proceed with scheduling until only 1 person is selected for each slot.
-- **TOOL_CALLING**: NEVER output raw XML or text tags like '<function>'. NEVER translate tool names. Use the official tool-calling API with the exact English names provided. If you need to perform an action, trigger the tool call immediately without saying you will do it.
+- **TOOL_CALLING**: You are an OpenAI-compatible agent. You MUST use the official tool-calling API. NEVER output text like `<function=...>` or `<tool>...</tool>`. If you need to search or schedule, just trigger the tool call directly. Any response containing `<` or `>` tags for tool calling will be rejected.
 """
 
 # ── Tool Definitions for Groq SDK ───────────────────────────────────────────
@@ -500,6 +500,51 @@ async def run_copilot_chat(
         return {"reply": reply, "error": False, "conversation_id": conversation_id}
 
     except Exception as e:
+        # ── Hallucination Recovery Logic ──────────────────────────────────────
+        # If Groq returns a 400 because of bad tool-call formatting, 
+        # we can still try to parse the "failed_generation" manually.
+        error_str = str(e)
+        if "failed_generation" in error_str:
+            try:
+                # Extract the hallucinated tag content
+                # Format: <function=name{"args":...}>
+                match = re.search(r"<function=(\w+)(.*?)>", error_str)
+                if not match:
+                    # Alternative format: <function=name args>
+                    match = re.search(r"<function=(\w+)\s+(.*?)>", error_str)
+                
+                if match:
+                    tool_name = match.group(1)
+                    args_str = match.group(2).strip()
+                    # Remove trailing </function> if present in args_str
+                    args_str = args_str.split("</function>")[0].strip()
+                    
+                    try:
+                        args = json.loads(args_str)
+                        logger.info(f"Recovered hallucinated tool call: {tool_name} with args {args}")
+                        
+                        # Handle Read vs Write tools like the main loop
+                        if tool_name in ["search_candidates", "search_jobs", "search_users"]:
+                            result = execute_read_tool(tool_name, args, oid_str)
+                            # Add a manual reply based on the tool result
+                            reply = f"I found some information for you:\n\n{result}" if "No" not in result else result
+                            await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
+                            return {"reply": reply, "error": False, "conversation_id": conversation_id}
+                        else:
+                            # Requires approval
+                            reply = "I've prepared an update. Please approve it to proceed."
+                            new_conv_id = await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
+                            return {
+                                "reply": reply,
+                                "requires_approval": True,
+                                "pending_tool_call": {"name": tool_name, "args": args},
+                                "conversation_id": new_conv_id
+                            }
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to parse args from hallucination: {args_str}")
+            except Exception as recovery_err:
+                logger.error(f"Recovery logic failed: {recovery_err}")
+
         logger.error(f"Copilot Error: {e}")
         return {"reply": "Sorry, I'm having trouble. Try again later.", "error": True}
 

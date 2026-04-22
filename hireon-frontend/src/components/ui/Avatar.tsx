@@ -35,25 +35,30 @@ function getColor(name: string) {
 }
 
 export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className={clsx('rounded-full object-cover flex-shrink-0', sizes[size], className)}
-      />
-    )
-  }
+  // Use professional placeholder if no src is provided
+  const avatarUrl = src || `https://i.pravatar.cc/150?u=${encodeURIComponent(name)}`
+
   return (
-    <div
-      className={clsx(
-        'rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0',
-        sizes[size],
-        getColor(name),
-        className
-      )}
-    >
-      {getInitials(name)}
-    </div>
+    <img
+      src={avatarUrl}
+      alt={name}
+      className={clsx('rounded-full object-cover flex-shrink-0 bg-gray-100', sizes[size], className)}
+      onError={(e) => {
+        // Fallback to initials if image fails to load
+        e.currentTarget.style.display = 'none'
+        const parent = e.currentTarget.parentElement
+        if (parent) {
+          const initials = document.createElement('div')
+          initials.className = clsx(
+            'rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0',
+            sizes[size],
+            getColor(name),
+            className
+          )
+          initials.innerText = getInitials(name)
+          parent.appendChild(initials)
+        }
+      }}
+    />
   )
 }

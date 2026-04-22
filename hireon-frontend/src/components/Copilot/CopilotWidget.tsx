@@ -43,6 +43,8 @@ const s: Record<string, React.CSSProperties> = {
   historyEmpty: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-mid)', fontSize: '14px', gap: '12px' },
   backBtn: { background: 'transparent', border: 'none', color: 'var(--text-mid)', cursor: 'pointer', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease' },
   loadingRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', color: 'var(--text-mid)', fontSize: '14px' },
+  micBtn: { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '12px', color: 'var(--text-mid)', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0 },
+  micBtnActive: { background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', animation: 'micPulse 1.5s infinite ease-in-out' },
 }
 
 const EXAMPLE_PROMPTS = [
@@ -59,6 +61,7 @@ const CloseIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="no
 const HistoryIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
 const BackIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
 const PlusIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+const MicIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
 
 // ── Date grouping helper ──────────────────────────────────────────────────────
 function groupConversationsByDate(convs: ConversationSummary[]) {
@@ -101,10 +104,13 @@ export function CopilotWidget() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [convLoading, setConvLoading] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   // Cleanup on unmount
   useEffect(() => () => { abortRef.current?.abort() }, [])
@@ -230,6 +236,62 @@ export function CopilotWidget() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
+  // Recording Logic
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+      audioChunksRef.current = []
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        setThinking(true)
+        try {
+          const res = await copilotApi.transcribe(audioBlob)
+          const text = res.data.text.trim()
+          if (text) {
+            setInput(text)
+            // Auto-resize textarea after setting text
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto'
+                textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
+                textareaRef.current.focus()
+              }
+            }, 0)
+          }
+        } catch (err) {
+          addMessage({ role: 'assistant', content: '⚠️ Failed to transcribe audio. Please try again.' })
+        } finally {
+          setThinking(false)
+        }
+        stream.getTracks().forEach(t => t.stop())
+      }
+
+      recorder.start()
+      setIsRecording(true)
+    } catch (err) {
+      addMessage({ role: 'assistant', content: '⚠️ Microphone access denied or not available.' })
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const toggleRecording = () => {
+    if (isRecording) stopRecording()
+    else startRecording()
+  }
+
   const handleNewChat = () => {
     startNewConversation()
     setHistoryOpen(false)
@@ -262,6 +324,7 @@ export function CopilotWidget() {
         .c-bot code{background:var(--bg2);border-radius:6px;padding:2px 6px;font-size:13px;font-family:ui-monospace,monospace;color:var(--pink);border:1px solid var(--input-border);}
         .c-bot pre{background:var(--bg2);padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--input-border);}
         .c-bot pre code{background:transparent;border:none;padding:0;color:var(--text);}
+        @keyframes micPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
       `}</style>
 
       {/* FAB */}
@@ -424,22 +487,31 @@ export function CopilotWidget() {
 
               {/* Input Footer */}
               <div style={s.footer}>
+                <button
+                  className="c-mic"
+                  style={{ ...s.micBtn, ...(isRecording ? s.micBtnActive : {}) }}
+                  onClick={toggleRecording}
+                  disabled={isThinking}
+                  title={isRecording ? "Stop Recording" : "Voice Command"}
+                >
+                  <MicIcon />
+                </button>
                 <textarea
                   ref={textareaRef}
                   className="c-input"
                   style={s.input}
-                  placeholder="Ask anything about your candidates..."
+                  placeholder={isRecording ? "Listening..." : "Ask anything about your candidates..."}
                   value={input}
                   rows={1}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  disabled={isThinking}
+                  disabled={isThinking || isRecording}
                 />
                 <button
                   className="c-send"
                   style={s.sendBtn}
                   onClick={() => handleSend()}
-                  disabled={isThinking || !input.trim()}
+                  disabled={isThinking || !input.trim() || isRecording}
                   title="Send"
                 >
                   <SendIcon />

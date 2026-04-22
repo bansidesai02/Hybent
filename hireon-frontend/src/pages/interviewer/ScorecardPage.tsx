@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
 import { interviewsApi } from '@/api/interviews'
+import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
 import { aiApi } from '@/api/ai'
 import type { Scorecard } from '@/types'
@@ -407,12 +408,29 @@ export default function ScorecardPage() {
         summary: notes || undefined,
       })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scorecards', 'application', interview?.application_id] })
-      queryClient.invalidateQueries({ queryKey: ['my_scorecard', interviewId] })
-      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
-      queryClient.invalidateQueries({ queryKey: ['candidates'] })
-      showToast('Scorecard submitted successfully!')
+    onSuccess: async () => {
+      try {
+        // Automatically mark interview as completed upon scorecard submission
+        await interviewsApi.update(interviewId!, { status: 'completed' })
+        
+        // Also update candidate stage to 'completed' so HR/Admin can see it clearly
+        if (interview?.candidate_id) {
+          await candidatesApi.updateStage(interview.candidate_id, 'completed')
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['my-interviews'] })
+        queryClient.invalidateQueries({ queryKey: ['interview', interviewId] })
+        queryClient.invalidateQueries({ queryKey: ['scorecards', 'application', interview?.application_id] })
+        queryClient.invalidateQueries({ queryKey: ['my_scorecard', interviewId] })
+        queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+        queryClient.invalidateQueries({ queryKey: ['candidates'] })
+        
+        showToast('Scorecard submitted & Interview completed!')
+      } catch (err) {
+        console.error('Failed to mark interview as completed', err)
+        showToast('Scorecard submitted, but failed to update status', 'error')
+      }
+      
       // Reset form
       setCriteria({ technical: 0, communication: 0, culture_fit: 0, problem_solving: 0 })
       setRecommendation(null)
