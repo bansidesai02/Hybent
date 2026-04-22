@@ -16,11 +16,12 @@ from app.models.job_referral import JobReferral
 from app.models.candidate_document import CandidateDocument
 from app.models.message import Message
 from app.models.ai_usage import AIUsage
+from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 
 __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
     "Application", "Interview", "InterviewPanelist", "Scorecard",
-    "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken", 
+    "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
     "OtherOffer", "JobReferral", "CandidateDocument", "Message",
-    "AIUsage"
+    "AIUsage", "CopilotConversation", "CopilotMessage"
 ]

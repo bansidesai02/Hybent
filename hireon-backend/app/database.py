@@ -74,6 +74,26 @@ def get_session_factory():
         )
     return _session_factory
 
+# ── Sync Engine for LangChain ────────────────────────────────────────────────
+_sync_engine = None
+
+def get_sync_engine():
+    """Lazily create a synchronous engine for LangChain SQL Toolkit."""
+    global _sync_engine, _pid
+    from sqlalchemy import create_engine
+    current_pid = os.getpid()
+    
+    if _sync_engine is None or _pid != current_pid:
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        if not sync_url.startswith("postgresql://") and sync_url.startswith("postgres://"):
+            # Ensure proper dialect string
+            pass
+        _sync_engine = create_engine(sync_url, echo=False)
+        _pid = current_pid
+    
+    return _sync_engine
+
+
 # ── Proxy Definitions ─────────────────────────────────────────────────────────
 class AsyncEngineProxy:
     """A proxy that always delegates to the engine valid for the current event loop."""

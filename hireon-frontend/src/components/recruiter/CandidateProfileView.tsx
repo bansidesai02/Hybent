@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
+import { useCopilotStore } from '@/store/useCopilotStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import type { Candidate, Scorecard } from '@/types'
@@ -840,9 +841,18 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
+  const setPageContext = useCopilotStore(s => s.setPageContext)
   const [activeTab, setActiveTab] = useState<'details' | 'feedback'>('details')
   const stage = candidate.pipeline_stage || 'applied'
   const stageCfg = candidate.pipeline_stage ? STAGE_CFG[stage] : null
+
+  useEffect(() => {
+    setPageContext({
+      candidate_id: candidate.id,
+      candidate_name: candidate.full_name
+    })
+    return () => setPageContext(null)
+  }, [candidate.id, candidate.full_name, setPageContext])
 
   const tabs = [
     { key: 'details',  label: <span className="flex items-center gap-2"><User size={14} /> Candidate Details</span> },

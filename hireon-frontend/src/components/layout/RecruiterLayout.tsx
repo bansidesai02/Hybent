@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { GlobalChatOverlay } from '../messaging/GlobalChatOverlay'
+import { CopilotWidget } from '../Copilot/CopilotWidget'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useState } from 'react'
@@ -44,6 +45,7 @@ export function RecruiterLayout() {
       </div>
 
       <GlobalChatOverlay />
+      <CopilotWidget />
     </div>
   )
 }
