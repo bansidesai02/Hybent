@@ -229,6 +229,63 @@ def parse_json_response(text: str):
         return json.loads(text.strip())
 
 
+async def transcribe_audio(
+    audio_data: bytes,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+):
+    """
+    Transcribe audio data using Hugging Face Free Serverless Inference (Whisper).
+    """
+    if not settings.huggingface_api_key:
+        logger.warning("No Hugging Face API key configured for STT.")
+        return {"error": "no_key", "detail": "Hugging Face API key is missing."}
+
+    # Using openai/whisper-large-v3 for high quality STT
+    MODEL_ID = "openai/whisper-large-v3"
+
+    start_time = time.time()
+    status = "success"
+    error_msg = None
+    transcription = ""
+
+    try:
+        client = InferenceClient(api_key=settings.huggingface_api_key)
+
+        def _transcribe():
+            # automatic_speech_recognition handles audio bytes directly
+            return client.automatic_speech_recognition(audio_data, model=MODEL_ID)
+
+        result = await asyncio.to_thread(_transcribe)
+        transcription = result.text if hasattr(result, 'text') else str(result)
+        
+        return {"text": transcription}
+
+    except Exception as e:
+        status = "failure"
+        error_msg = str(e)
+        logger.error(f"STT failure (HF/Serverless): {e}")
+        return {"error": "exception", "detail": str(e)}
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks:
+            background_tasks.add_task(
+                log_ai_usage,
+                provider="HuggingFace",
+                model=MODEL_ID,
+                feature="speech_to_text",
+                prompt_tokens=1, # Estimated
+                completion_tokens=1,
+                total_tokens=2,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
+
+
 COMBINED_FEEDBACK_PROMPT = """\
 You are an expert HR analyst reviewing interview feedback. Multiple interviewers have separately evaluated the same candidate.
 Your task: synthesize ALL the feedback into a single concise AI summary (3-5 sentences) that gives the recruiter a balanced, 

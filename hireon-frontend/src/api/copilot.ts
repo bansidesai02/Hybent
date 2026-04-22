@@ -70,4 +70,13 @@ export const copilotApi = {
   /** Delete a conversation and all its messages. */
   deleteConversation: (conversationId: string) =>
     axios.delete(`/v1/copilot/conversations/${conversationId}`),
+
+  /** Transcribe audio file to text. */
+  transcribe: (audioBlob: Blob) => {
+    const formData = new FormData()
+    formData.append('file', audioBlob, 'recording.webm')
+    return axios.post<{ text: string }>('/v1/copilot/transcribe', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }

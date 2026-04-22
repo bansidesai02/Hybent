@@ -58,6 +58,7 @@ const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = 
   offered_back_out:             { color: '#f97316', bg: 'rgba(249,115,22,0.10)', label: 'Offered Back Out' },
   offer_withdrawn:              { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Offer Withdrawn' },
   hired_joined:                 { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
+  completed:                    { color: 'var(--teal, #10b981)', bg: 'rgba(16,185,129,0.10)', label: 'Completed' },
   inactive:                     { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: 'Inactive' },
   needs_review:                 { color: '#0891b2', bg: 'rgba(8,145,178,0.10)', label: 'Needs Review' },
 }
@@ -88,7 +89,7 @@ const REJECTION_STAGES = [
 
 function getStatusFromStage(stage: string | undefined): string {
   if (!stage || stage === 'applied' || stage === 'needs_review') return 'in_review'
-  if (stage === 'pre_screening_selected') return 'shortlisted'
+  if (stage === 'pre_screening_selected' || stage === 'completed') return 'shortlisted'
   // Any round selected / offered = scheduled (actively moving forward)
   const scheduledStages = [
     'technical_round_selected', 'practical_round_selected',
@@ -105,6 +106,20 @@ function getStatusFromStage(stage: string | undefined): string {
   if (REJECTION_STAGES.includes(stage)) return 'rejected'
   // fallback
   return 'in_review'
+}
+
+function StatusBadge({ type, label }: { type: string; label: string }) {
+  const cfg = STATUS_CFG[type] || STATUS_CFG.in_review
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
+      background: cfg.bg, color: cfg.color,
+      display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+    }}>
+      <span style={{ width: 4, height: 4, borderRadius: '50%', background: cfg.dot }} />
+      {label}
+    </span>
+  )
 }
 
 function scoreColor(s: number) {
@@ -176,6 +191,7 @@ const STAGE_GROUPS = [
     label: 'Offer & Joining',
     icon: <GlassIcon icon="Trophy" variant="emerald" size={26} iconSize={14} />,
     stages: [
+      { key: 'completed',         icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} />, label: 'Interview Completed' },
       { key: 'offered',           icon: <GlassIcon icon="Tag" variant="amber" size={20} iconSize={10} />, label: 'Offered' },
       { key: 'offered_back_out',  icon: <GlassIcon icon="RotateCcw" variant="amber" size={20} iconSize={10} />,  label: 'Offered Back Out' },
       { key: 'offer_withdrawn',   icon: <GlassIcon icon="Ban" variant="rose" size={20} iconSize={10} />,   label: 'Offer Withdrawn' },
@@ -581,7 +597,7 @@ export default function CandidatesPage() {
         <div className="flex flex-wrap items-center gap-2">
           {[
             { label: 'All', value: undefined, icon: <GlassIcon icon="Users" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
-            { label: 'New Apps', value: 'applied', icon: <GlassIcon icon="Inbox" variant="indigo" size={20} iconSize={10} ghost glow={false} /> },
+            { label: 'In Review', value: 'in_review', icon: <GlassIcon icon="Search" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
             { label: 'Shortlisted', value: 'shortlisted', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} ghost glow={false} /> },
             { label: 'Scheduled', value: 'scheduled', icon: <GlassIcon icon="Calendar" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
             { label: 'Rejected', value: 'rejected', icon: <GlassIcon icon="Ban" variant="rose" size={20} iconSize={10} ghost glow={false} /> },
@@ -717,15 +733,8 @@ export default function CandidatesPage() {
                     </div>
 
                     {/* Status (Visible on mobile top right) */}
-                    <div className="lg:hidden">
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
-                        background: statusCfg.bg, color: statusCfg.color,
-                        display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
-                      }}>
-                        <span style={{ width: 4, height: 4, borderRadius: '50%', background: statusCfg.dot }} />
-                        {statusCfg.label}
-                      </span>
+                    <div className="lg:hidden flex items-center gap-2">
+                      <StatusBadge type={statusKey} label={statusCfg.label} />
                     </div>
                   </div>
 
@@ -824,15 +833,8 @@ export default function CandidatesPage() {
                     </div>
 
                     {/* Desktop Status */}
-                    <div className="hidden lg:flex justify-center">
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-                        background: statusCfg.bg, color: statusCfg.color,
-                        display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
-                      }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: statusCfg.dot }} />
-                        {statusCfg.label}
-                      </span>
+                    <div className="hidden lg:flex flex-col items-center gap-1.5 justify-center">
+                      <StatusBadge type={statusKey} label={statusCfg.label} />
                     </div>
 
                     {/* Added By */}

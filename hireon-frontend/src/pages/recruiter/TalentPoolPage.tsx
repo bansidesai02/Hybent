@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useAuth } from '@/hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { talentPoolApi } from '@/api/talentPool'
@@ -106,10 +108,11 @@ function StatCard({ title, value, subtitle, icon, trend }: {
   )
 }
 
-function SuggestedMatchItem({ candidate, jobTitle, highlightTerm }: { 
+function SuggestedMatchItem({ candidate, jobTitle, highlightTerm, onReengage }: { 
   candidate: any; 
   jobTitle: string;
   highlightTerm?: string;
+  onReengage?: () => void;
 }) {
   const highlight = highlightTerm?.toLowerCase() || ''
   return (
@@ -146,7 +149,11 @@ function SuggestedMatchItem({ candidate, jobTitle, highlightTerm }: {
           </p>
         </div>
       </div>
-      <Button size="sm" className="w-full max-w-[150px] bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-white rounded-xl text-xs font-black px-6 py-2.5 shadow-lg shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all hover:scale-105 active:scale-95">
+      <Button 
+        size="sm" 
+        onClick={onReengage}
+        className="w-full max-w-[150px] bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-white rounded-xl text-xs font-black px-6 py-2.5 shadow-lg shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all hover:scale-105 active:scale-95"
+      >
         Re-engage
       </Button>
     </motion.div>
@@ -230,6 +237,8 @@ function ShortcutDropdown({ suggestions, onSelect }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TalentPoolPage() {
+  const { basePath } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -333,18 +342,39 @@ export default function TalentPoolPage() {
   const currentJobSuggestions = suggestionsData?.[selectedJobIndex]
   const hasRealSuggestions = suggestionsData && suggestionsData.length > 0
 
+  const reengageMutation = useMutation({
+    mutationFn: ({ candidateId, jobId }: { candidateId: string; jobId: string }) => 
+      candidatesApi.updateStage(candidateId, 'applied', false, jobId),
+    onSuccess: (_, variables) => {
+      showToast('Candidate re-engaged and moved to pipeline!')
+      // Navigate to main candidates page
+      setTimeout(() => navigate(`${basePath}/candidates`), 1500)
+    },
+    onError: () => showToast('Failed to re-engage candidate.', 'error')
+  })
+
   const hasActiveFilters = search || selectedJobTitle || skill
 
   return (
     <div className="max-w-7xl mx-auto space-y-10 pb-20">
       {/* Header */}
-      <div className="px-4 md:px-0">
-        <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-[var(--text)] tracking-tight" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
-          Talent Database
-        </h1>
-        <p className="text-sm md:text-base text-gray-500 dark:text-[var(--text-mid)] mt-2 font-medium">
-          All candidates ever assessed — searchable and re-matchable forever.
-        </p>
+      <div className="px-4 md:px-0 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-[var(--text)] tracking-tight" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            Talent Database
+          </h1>
+          <p className="text-sm md:text-base text-gray-500 dark:text-[var(--text-mid)] mt-2 font-medium">
+            All candidates ever assessed — searchable and re-matchable forever.
+          </p>
+        </div>
+        
+        <button
+          onClick={() => navigate(`${basePath}/all-talent`)}
+          className="px-8 py-3 bg-white dark:bg-[var(--card-bg)] border-2 border-[var(--violet)] text-[var(--violet)] rounded-2xl text-sm font-black hover:bg-[var(--violet)] hover:text-white transition-all shadow-lg shadow-violet-100 dark:shadow-none flex items-center gap-3 group whitespace-nowrap"
+        >
+          View All Candidates
+          <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+        </button>
       </div>
 
       {/* ── Smart Search ── */}
@@ -400,10 +430,7 @@ export default function TalentPoolPage() {
           </button>
         </div>
 
-        {/* Hint text for shortcuts */}
-        <p className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
-          <GlassIcon icon="Zap" variant="violet" size={24} iconSize={12} /> <strong>Shortcuts:</strong> Type <span className="text-[var(--violet)] font-bold">BDE</span> <ArrowRight size={10} className="inline mx-0.5" /> Business Development Executive, <span className="text-[var(--violet)] font-bold">SDE</span> <ArrowRight size={10} className="inline mx-0.5" /> Software Development Engineer, <span className="text-[var(--violet)] font-bold">DS</span> <ArrowRight size={10} className="inline mx-0.5" /> Data Scientist, and more.
-        </p>
+        {/* Removed Shortcuts bar as requested */}
 
         {/* Active Jobs filter chips */}
         {activeJobs.length > 0 && (
@@ -447,7 +474,7 @@ export default function TalentPoolPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <StatCard
           title="Candidates Stored"
           value={stats?.total_candidates?.toLocaleString() || (isLoading ? "..." : "0")}
@@ -460,13 +487,6 @@ export default function TalentPoolPage() {
           subtitle="Candidates identified for new opportunities"
           icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}
           trend={{ label: "This quarter", color: "text-emerald-500" }}
-        />
-        <StatCard
-          title="Avg. Hire from DB"
-          value={stats?.avg_hire_time || "2.1d"}
-          subtitle="Speed of filling roles via DB vs fresh sourcing"
-          icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
-          trend={{ label: "vs 3 weeks", color: "text-violet-500" }}
         />
       </div>
 
@@ -518,6 +538,10 @@ export default function TalentPoolPage() {
               candidate={candidate}
               jobTitle={currentJobSuggestions?.job_title || ''}
               highlightTerm={search || selectedJobTitle || ''}
+              onReengage={() => reengageMutation.mutate({ 
+                candidateId: candidate.id, 
+                jobId: currentJobSuggestions?.job_id || '' 
+              })}
             />
           ))}
           {hasRealSuggestions && currentJobSuggestions?.candidates?.length === 0 && (
@@ -528,112 +552,7 @@ export default function TalentPoolPage() {
         </div>
       </div>
 
-      {/* All Talent */}
-      <div className="space-y-6">
-        <div className="flex justify-between items-end flex-wrap gap-2">
-          <div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-[var(--text)]">
-              All Talent
-              {(search || selectedJobTitle) && (
-                <span className="ml-3 text-base font-medium text-[var(--violet)]">
-                  — filtered by "{selectedJobTitle || search}"
-                </span>
-              )}
-            </h2>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
-              {data?.total || (isLoading ? "..." : 0)} Total Results
-            </p>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="p-6 rounded-3xl bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] space-y-4">
-                <Skeleton className="w-12 h-12 rounded-full" />
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-4 w-32" />
-                <div className="flex gap-2"><Skeleton className="h-6 w-16 rounded-full" /><Skeleton className="h-6 w-16 rounded-full" /></div>
-              </div>
-            ))}
-          </div>
-        ) : !data?.items.length ? (
-          <EmptyState title={`No candidates match "${search || selectedJobTitle || 'your search'}"`} />
-        ) : (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {data.items.map((candidate, i) => (
-              <motion.div key={candidate.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card hover className="p-6 rounded-3xl border-none shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all bg-white dark:bg-[var(--card-bg)] group flex flex-col h-full">
-                  <div className="flex justify-between items-start">
-                    <Avatar name={candidate.full_name} src={candidate.avatar_url} size="xl" className="ring-4 ring-violet-50 dark:ring-[var(--violet)]/20" />
-                    <ScoreRing score={candidate.match_score} size={56} strokeWidth={4} />
-                  </div>
-                  <div className="mt-4">
-                    <h3 className="text-lg font-bold text-[var(--violet)] group-hover:text-[var(--violet)]/80 transition-colors">{candidate.full_name}</h3>
-                    <p className="text-sm font-medium text-gray-400 mt-0.5">{candidate.current_title || "Full Stack Developer"}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} YRS EXP` : 'N/A')}
-                      </span>
-                      <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">AVAILABLE</span>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-[11px] font-bold text-gray-500 dark:text-[var(--text-mid)] uppercase tracking-wider line-clamp-2">
-                      {candidate.skills?.length > 0 ? candidate.skills.join(' • ') : "NO SKILLS LISTED"}
-                    </p>
-                  </div>
-                  {(candidate.linkedin_url || candidate.github_url) && (
-                    <div className="mt-4 flex gap-2">
-                      {candidate.linkedin_url && (
-                        <a href={candidate.linkedin_url} onClick={e => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md hover:bg-blue-100 transition-colors">LinkedIn</a>
-                      )}
-                      {candidate.github_url && (
-                        <a href={candidate.github_url} onClick={e => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-md hover:bg-gray-200 transition-colors">GitHub</a>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Added By Name */}
-                  <div className="mt-4 flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full bg-violet-100 dark:bg-[var(--violet)]/10 flex items-center justify-center">
-                      <svg className="w-3 h-3 text-[var(--violet)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      Added By: <span className="text-[var(--violet)] ml-1">{candidate.created_by_name || 'Admin'}</span>
-                    </p>
-                  </div>
-
-                  {candidate.talent_pool_comment && (
-                    <div className="mt-6 p-3 bg-violet-50 dark:bg-[var(--violet)]/10 rounded-xl">
-                      <p className="text-[11px] font-medium text-violet-800 dark:text-[var(--violet)]/70 italic line-clamp-3">{candidate.talent_pool_comment}</p>
-                    </div>
-                  )}
-                  <div className="mt-auto pt-6 flex flex-col gap-2">
-                    <button className="w-full rounded-2xl text-xs font-bold text-[var(--violet)] border border-violet-100 dark:border-[var(--violet)]/20 hover:bg-violet-50 dark:hover:bg-[var(--violet)]/10 transition-colors duration-200"
-                      onClick={() => setCommentTarget(candidate)} style={{ height: '44px' }}>
-                      {candidate.talent_pool_comment ? 'Edit Comment' : 'Add a Comment'}
-                    </button>
-                    <button className="w-full bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-white rounded-2xl text-xs font-bold shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:-translate-y-0.5"
-                      onClick={() => setViewTarget(candidate)} style={{ height: '44px' }}>
-                      View Profile
-                    </button>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {data && data.pages > 1 && (
-          <div className="flex justify-center mt-12">
-            <Pagination page={data.page} pages={data.pages} total={data.total} limit={data.limit} onPage={setPage} />
-          </div>
-        )}
-      </div>
+      {/* Candidate list removed from here as it is now on its own page */}
 
       {commentTarget && (
         <AddCommentModal candidate={commentTarget} onClose={() => setCommentTarget(null)}

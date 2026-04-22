@@ -7,12 +7,13 @@ DELETE /v1/copilot/conversations/{id} — delete a conversation
 """
 import uuid
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status, UploadFile, File
 from pydantic import BaseModel
 
 from app.dependencies import DB, CurrentUser
 from app.utils.permissions import RECRUITER_ROLES
 from app.services.copilot_service import run_copilot_chat
+from app.services.ai_evaluator import transcribe_audio
 
 router = APIRouter(prefix="/v1/copilot", tags=["copilot"])
 
@@ -102,6 +103,32 @@ async def copilot_chat(
     )
 
     return CopilotChatResponse(**result)
+
+
+@router.post("/transcribe")
+async def copilot_transcribe(
+    current_user: CurrentUser,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+):
+    """
+    Transcribe audio file for the Copilot.
+    """
+    if current_user.role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    audio_data = await file.read()
+    result = await transcribe_audio(
+        audio_data=audio_data,
+        background_tasks=background_tasks,
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result.get("detail", "Transcription failed"))
+        
+    return result
 
 
 # ── Conversation History Endpoints ────────────────────────────────────────────
