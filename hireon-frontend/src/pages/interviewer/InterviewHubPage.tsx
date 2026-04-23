@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { 
   ClipboardCheck, 
   BookOpen, 
+  Brain,
   Video, 
   User, 
   Calendar, 
@@ -48,7 +49,7 @@ interface ModeConfig {
 const MODE: Record<HubMode, ModeConfig> = {
   scorecard: {
     icon: <ClipboardCheck size={20} />,
-    title: 'Scorecard & Eval',
+    title: 'Scoreboard',
     subtitle: 'Select an interview to submit or review your evaluation',
     filter: () => true,
     accentColor: '#6c47ff',
@@ -62,13 +63,13 @@ const MODE: Record<HubMode, ModeConfig> = {
     emptyDesc: 'Interviews assigned to you will appear here',
   },
   prepkit: {
-    icon: <BookOpen size={20} />,
+    icon: <Brain size={20} />,
     title: 'Prep Kit',
     subtitle: "Open AI-generated questions tailored to the candidate's resume",
     filter: (i) => i.status === 'scheduled',
     accentColor: '#f59e0b',
     accentBg: 'rgba(245,158,11,0.09)',
-    ctaLabel: () => <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BookOpen size={14} /> Open Prep Kit</span>,
+    ctaLabel: () => <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Brain size={14} /> Open Prep Kit</span>,
     ctaPath: (id) => `/interviewer/prep-kit/${id}`,
     ctaBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
     emptyTitle: 'No upcoming interviews',

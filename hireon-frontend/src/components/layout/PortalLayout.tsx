@@ -75,7 +75,7 @@ export function PortalLayout() {
 
 
   return (
-    <div className={`portal-root ${theme}`} data-theme={theme} style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className={`portal-root ${theme}`} data-theme={theme} style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Poppins', sans-serif" }}>
       <div className="dot-grid"></div>
 
       <div className="app flex flex-row h-full z-10 relative">

@@ -7,7 +7,7 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 export function InterviewerLayout() {
   useWebSocket()
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-screen overflow-hidden interviewer-root" style={{ background: 'var(--bg)', fontFamily: "'Poppins', sans-serif" }}>
       <Sidebar role="interviewer" />
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
         <Topbar />
