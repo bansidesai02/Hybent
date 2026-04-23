@@ -44,12 +44,12 @@ function KpiCard({ icon, label, value, delta }: KpiCardProps) {
           </span>
         )}
       </div>
-      <p
-        className="font-black leading-none mb-1.5"
-        style={{ fontFamily: "'Poppins', sans-serif", fontSize: '36px', color: 'var(--text)', letterSpacing: '-1px', fontWeight: 800 }}
-      >
-        {value}
-      </p>
+        <p
+          className="font-black leading-none mb-1.5"
+          style={{ fontFamily: "'Poppins', sans-serif", fontSize: '36px', color: 'var(--text)', letterSpacing: '-1px', fontWeight: 700 }}
+        >
+          {value}
+        </p>
       <p className="text-[12px] font-semibold" style={{ color: 'var(--text-mid)' }}>{label}</p>
     </div>
   )
@@ -295,7 +295,7 @@ export default function OverviewPage() {
           }}
         >
           <div className="flex items-center justify-between mb-6 sm:mb-8">
-            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}>
               Hiring Funnel
             </h3>
             <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] uppercase tracking-wider" style={{ background: 'var(--violet)/10', color: 'var(--violet)' }}>
@@ -321,7 +321,7 @@ export default function OverviewPage() {
           }}
         >
           <div className="flex items-center justify-between mb-6 sm:mb-8">
-            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}>
               Recent Activity
             </h3>
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
@@ -347,7 +347,7 @@ export default function OverviewPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
           <div className="flex items-center gap-4">
-            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h3 className="text-[16px] font-black text-[var(--text)]" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}>
               Today's Interviews
             </h3>
             <span className="text-[10px] font-bold px-2 py-1 rounded-[6px] " style={{ background: 'var(--violet)/10', color: 'var(--violet)' }}>

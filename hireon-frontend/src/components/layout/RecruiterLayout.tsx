@@ -14,7 +14,7 @@ export function RecruiterLayout() {
   useWebSocket() // Start WebSocket for real-time notifications
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-screen overflow-hidden recruiter-root" style={{ background: 'var(--bg)', fontFamily: "'Poppins', sans-serif" }}>
 
       {/* Sidebar Overlay for mobile */}
       <AnimatePresence>

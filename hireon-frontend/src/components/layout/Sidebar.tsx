@@ -126,8 +126,8 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
         items: [
           { to: '/interviewer', label: 'Dashboard', icon: <GlassIcon icon="LayoutGrid" variant="gray" ghost iconSize={14} /> },
           { to: '/interviewer/interviews', label: 'My Interviews', icon: <GlassIcon icon="Calendar" variant="gray" ghost iconSize={14} /> },
-          { to: '/interviewer/scorecard-hub', label: 'Scorecard & Eval', icon: <GlassIcon icon="ClipboardCheck" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/scorecard' },
-          { to: '/interviewer/prep-kit-hub', label: 'Prep Kit', icon: <GlassIcon icon="FileSearch" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/prep-kit' },
+          { to: '/interviewer/scorecard-hub', label: 'Scoreboard', icon: <GlassIcon icon="ClipboardCheck" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/scorecard' },
+          { to: '/interviewer/prep-kit-hub', label: 'Prep Kit', icon: <GlassIcon icon="Brain" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/prep-kit' },
           { to: '/interviewer/live-room-hub', label: 'Live Room', icon: <GlassIcon icon="Video" variant="gray" ghost iconSize={14} />, customActivePath: '/interviewer/live-room' },
         ],
       },

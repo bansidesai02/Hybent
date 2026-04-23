@@ -496,7 +496,7 @@ export default function ScorecardPage() {
         </button>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ClipboardList size={22} className="text-[var(--violet)]" /> Scorecard & Evaluation
+            <ClipboardList size={22} className="text-[var(--violet)]" /> Scoreboard
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2 }}>
             {interview.title} · Rate the candidate across key competencies

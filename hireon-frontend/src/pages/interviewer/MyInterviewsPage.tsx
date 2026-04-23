@@ -7,7 +7,7 @@ import { interviewsApi } from '@/api/interviews'
 import { candidatesApi } from '@/api/candidates'
 import type { Interview } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { FileText, CheckCircle, BarChart2, Inbox, Sparkles, X, Plus, Check, Clock, Link as LinkIcon, AlertTriangle, XCircle, Layout, Video, Lock, ShieldCheck, User, ExternalLink } from 'lucide-react'
+import { FileText, CheckCircle, BarChart2, Inbox, Sparkles, X, Plus, Check, Clock, Link as LinkIcon, AlertTriangle, XCircle, Layout, Video, Lock, Brain, User, ExternalLink } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { groupInterviewsByCandidate } from '@/utils/grouping'
 import { useInterviewStore } from '@/store/interviewStore'
@@ -402,7 +402,7 @@ function InterviewCard({
                 display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 11
               }}
             >
-              <ShieldCheck size={13} /> Prep
+              <Brain size={13} /> Prep
             </motion.button>
           </Tooltip>
         </div>
@@ -494,7 +494,7 @@ export default function MyInterviewsPage() {
             fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 12,
             margin: 0
           }}>
-            My Interview Queue <GlassIcon icon="Inbox" variant="violet" size={36} iconSize={18} />
+            My Interview Queue
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-mid)', marginTop: 8, fontWeight: 500 }}>
             Your assigned interviews today — confirm, reschedule or jump into the live room.
