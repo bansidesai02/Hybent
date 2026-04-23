@@ -13,7 +13,6 @@ const NAV_ITEMS = [
   { to: '/portal', label: 'Application Journey', icon: 'Map', end: true },
   { to: '/portal/interviews', label: 'My Interviews', icon: 'Calendar', end: false },
   { to: '/portal/profile', label: 'My Profile & Resume', icon: 'User', end: false },
-  { to: '/portal/notifications', label: 'Notifications', icon: 'Bell', end: false },
   { to: '/portal/prep', label: 'Interview Prep Hub', icon: 'Target', end: false },
   { to: '/portal/openings', label: 'Current Openings', icon: 'Building2', end: false },
   { to: '/portal/offers', label: 'Offer & Documents', icon: 'FileText', end: false },
@@ -109,10 +108,10 @@ export function PortalLayout() {
                   </>
                 )}
               </NavLink>
-              <NavLink to="/portal/notifications" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/portal/interviews" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
-                    <GlassIcon icon="Bell" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Notifications
+                    <GlassIcon icon="Calendar" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> My Interviews
                   </>
                 )}
               </NavLink>
@@ -120,13 +119,6 @@ export function PortalLayout() {
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="Briefcase" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Job Openings
-                  </>
-                )}
-              </NavLink>
-              <NavLink to="/portal/interviews" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
-                {({ isActive }) => (
-                  <>
-                    <GlassIcon icon="Calendar" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> My Interviews
                   </>
                 )}
               </NavLink>
@@ -138,7 +130,7 @@ export function PortalLayout() {
               <NavLink to="/portal/prep" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
-                    <GlassIcon icon="Brain" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Preparation Hub
+                    <GlassIcon icon="FileSearch" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Preparation Hub
                   </>
                 )}
               </NavLink>

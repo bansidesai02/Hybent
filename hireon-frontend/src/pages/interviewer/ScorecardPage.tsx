@@ -411,12 +411,7 @@ export default function ScorecardPage() {
     onSuccess: async () => {
       try {
         // Automatically mark interview as completed upon scorecard submission
-        await interviewsApi.update(interviewId!, { status: 'completed' })
-        
-        // Also update candidate stage to 'completed' so HR/Admin can see it clearly
-        if (interview?.candidate_id) {
-          await candidatesApi.updateStage(interview.candidate_id, 'completed')
-        }
+        await interviewsApi.update(interviewId!, { status: 'completed', feedback: 'submitted' })
         
         queryClient.invalidateQueries({ queryKey: ['my-interviews'] })
         queryClient.invalidateQueries({ queryKey: ['interview', interviewId] })

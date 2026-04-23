@@ -44,7 +44,11 @@ export function NotificationBell() {
   const bellRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { markRead, markAllRead } = useNotifications()
-  const { notifications, unreadCount } = useNotificationStore()
+  const { notifications } = useNotificationStore()
+
+  // Only show the latest 5 notifications and calculate unread count from them
+  const displayNotifications = notifications.slice(0, 5)
+  const displayUnreadCount = displayNotifications.filter(n => !n.is_read).length
 
   // Handle click outside to close
   useEffect(() => {
@@ -69,7 +73,7 @@ export function NotificationBell() {
         <Bell className="w-5 h-5 text-gray-600 dark:text-[#b0a8d8]" strokeWidth={2} />
 
         {/* Badge with pulse ring */}
-        {unreadCount > 0 && (
+        {displayUnreadCount > 0 && (
           <span className="absolute -top-1 -right-1 flex items-center justify-center">
             {/* Pulse ring */}
             <span
@@ -96,7 +100,7 @@ export function NotificationBell() {
                 boxShadow: '0 2px 6px rgba(124,58,237,0.4)',
               }}
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {displayUnreadCount > 9 ? '9+' : displayUnreadCount}
             </span>
           </span>
         )}
@@ -115,7 +119,7 @@ export function NotificationBell() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#2a2550]">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-gray-900 dark:text-[#ede9ff] text-sm">Notifications</h3>
-                {unreadCount > 0 && (
+                {displayUnreadCount > 0 && (
                   <span style={{
                     fontSize: 10,
                     fontWeight: 700,
@@ -124,11 +128,11 @@ export function NotificationBell() {
                     background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(79,70,229,0.1))',
                     color: '#7c3aed',
                   }}>
-                    {unreadCount} new
+                    {displayUnreadCount} new
                   </span>
                 )}
               </div>
-              {unreadCount > 0 && (
+              {displayUnreadCount > 0 && (
                 <button
                   onClick={() => markAllRead()}
                   className="text-xs text-violet-600 hover:text-violet-700 font-medium transition-colors"
@@ -146,7 +150,7 @@ export function NotificationBell() {
                   <p className="text-sm text-gray-400">No notifications yet</p>
                 </div>
               ) : (
-                notifications.slice(0, 15).map((n) => (
+                displayNotifications.map((n) => (
                   <button
                     key={n.id}
                     onClick={() => { if (!n.is_read) markRead(n.id) }}
@@ -182,22 +186,7 @@ export function NotificationBell() {
               )}
             </div>
 
-            {/* Footer — View All */}
-            <div className="border-t border-gray-100 dark:border-[#2a2550] px-4 py-2.5">
-              <button
-                onClick={() => {
-                  setOpen(false)
-                  // Navigate to notifications page (works for both portal and recruiter)
-                  const path = window.location.pathname.startsWith('/portal')
-                    ? '/portal/notifications'
-                    : null
-                  if (path) navigate(path)
-                }}
-                className="w-full text-center text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors py-0.5 flex items-center justify-center gap-1"
-              >
-                View all notifications <GlassIcon icon="ArrowRight" variant="violet" size={16} iconSize={10} ghost glow={false} />
-              </button>
-            </div>
+
           </motion.div>
         )}
       </AnimatePresence>

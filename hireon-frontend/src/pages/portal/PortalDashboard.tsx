@@ -184,7 +184,46 @@ export default function PortalDashboard() {
           </div>
           <div className="ps">Start applying to open roles to track your progress!</div>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/portal/openings')}>View Openings</button>
+
+        {/* Tracker Card for empty state */}
+        <div className="card" style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <div className="ctitle">
+            Stage Progress
+            <span className="ctag teal">Step 0 of 7</span>
+          </div>
+          
+          <div className="tracker-wrap">
+            <div className="tracker-line"></div>
+            <div className="tracker-progress" style={{ width: '0%' }}></div>
+            <div className="tracker-steps">
+              {STAGES.map((s) => (
+                <div key={s.key} className="tstep pending">
+                  <div className="tstep-dot">
+                    <CircleDashed size={8} />
+                  </div>
+                  <div className="tstep-label">{s.label}</div>
+                  {s.sublabel && (
+                    <div style={{ fontSize: 9, color: 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                      {s.sublabel}
+                    </div>
+                  )}
+                  <div className="tstep-note">Pending</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="stage-detail-card" style={{ marginTop: 24 }}>
+            <div className="stage-label">Ready to Begin</div>
+            <div className="stage-title">Explore Open Roles</div>
+            <div className="stage-sub">Your journey starts here. Browse our open positions and find the perfect fit for your skills.</div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/openings')}>
+                View Openings
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
