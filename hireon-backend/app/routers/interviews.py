@@ -333,7 +333,9 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
             if not panelist_check.scalar_one_or_none():
                 raise HTTPException(status_code=403, detail="You can only complete interviews you are assigned to")
             # Clear everything else from data to prevent malicious updates
-            data = InterviewUpdate(status="completed")
+            # Also allow `feedback` to be updated so that the UI can detect scorecard completion
+            feedback_val = data.feedback or "submitted"
+            data = InterviewUpdate(status="completed", feedback=feedback_val)
         else:
             raise HTTPException(status_code=403, detail="Interviewers can only mark interviews as completed")
     elif current_user.role != "admin" and interview.organization_id != current_user.organization_id:

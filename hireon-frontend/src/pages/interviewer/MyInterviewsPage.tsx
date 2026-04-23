@@ -173,7 +173,7 @@ function ResumeModal({
 /* ── card component ───────────────────────────────────────────────────── */
 function InterviewCard({
   interview, live, delay, showName = true,
-  onEnterRoom, onViewResume, onPrepKit, onReschedule, onScorecard, onComplete, onConfirm,
+  onEnterRoom, onViewResume, onPrepKit, onReschedule, onScorecard, onConfirm,
 }: {
   interview: Interview
   live: boolean
@@ -184,7 +184,6 @@ function InterviewCard({
   onPrepKit: () => void
   onReschedule: () => void
   onScorecard: () => void
-  onComplete: () => void
   onConfirm: () => void
 }) {
   const { user } = useAuthStore()
@@ -464,22 +463,12 @@ export default function MyInterviewsPage() {
     }
   }
 
-  const handleComplete = async (id: string) => {
-    try {
-      await interviewsApi.update(id, { status: 'completed' })
-      refetch()
-    } catch (err) {
-      console.error('Failed to update interview status', err)
-    }
-  }
-
   const handlers = (i: Interview) => ({
     onEnterRoom:  () => navigate(`/interviewer/live-room/${i.id}`),
     onViewResume: () => setResumeInterview(i),
     onPrepKit:    () => navigate(`/interviewer/prep-kit/${i.id}`),
     onReschedule: () => navigate('/interviewer/interviews'),
     onScorecard:  () => navigate(`/interviewer/scorecard/${i.id}`),
-    onComplete:   () => handleComplete(i.id),
     onConfirm:    () => handleConfirm(i.id),
   })
 
