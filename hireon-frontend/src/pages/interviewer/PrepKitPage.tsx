@@ -203,7 +203,7 @@ export default function PrepKitPage() {
           <ArrowLeft size={18} />
         </button>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)', fontFamily: "'Poppins', sans-serif", lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 10 }}>
             <BookOpen size={22} className="text-[var(--violet)]" /> Interview Prep Kit
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2 }}>

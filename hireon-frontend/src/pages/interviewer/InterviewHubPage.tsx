@@ -125,7 +125,7 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
             {cfg.title}
           </span>
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
+        <h1 style={{ fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)', fontFamily: "'Poppins', sans-serif", lineHeight: 1.1 }}>
           Pick an Interview
         </h1>
         <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 4 }}>
