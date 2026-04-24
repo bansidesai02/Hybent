@@ -41,6 +41,6 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
           local-dir: hireon-frontend/dist/
-          server-dir: public_html/
+          server-dir: ./
           protocol: ftp
           state-name: .ftp-deploy-sync-state.json
