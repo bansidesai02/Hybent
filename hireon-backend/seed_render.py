@@ -5,7 +5,7 @@ import sys
 # Add the current directory to sys.path so 'app' can be imported
 sys.path.append(os.getcwd())
 
-from app.database import engine, SessionLocal
+from app.database import engine, AsyncSessionLocal
 from app.models.user import User
 from app.models.organization import Organization
 from app.utils.security import hash_password
@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 async def seed():
     print("Starting database seeding...")
-    async with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         # Create Org
         org_name = "BrainerHub"
         org_slug = "brainerhub"
