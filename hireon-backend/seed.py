@@ -13,6 +13,7 @@ Covers:
   - Interviews today + upcoming for dashboard
 """
 import asyncio
+import os
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import text, select
@@ -69,12 +70,15 @@ async def clear_all(db: AsyncSession):
 
 async def seed():
     async with Session() as db:
+        # Check if we should force seed
+        force_seed = os.getenv("FORCE_SEED", "false").lower() == "true"
+        
         # Check if admin already exists
         result = await db.execute(select(User).where(User.email == "admin@brainerhub.com"))
         existing_admin = result.scalar_one_or_none()
         
-        if existing_admin:
-            print("\n⏩  Database already seeded. Skipping truncation and seeding.\n")
+        if existing_admin and not force_seed:
+            print("\n⏩  Database already seeded. Skipping truncation and seeding. (Set FORCE_SEED=true to override)\n")
             return
 
         print("\n🌱 HireOn — Seeding full demo data...\n")
