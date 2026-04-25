@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: hireon-backend-docker
+    env: docker
+    repo: https://github.com/utkarsh-hhh/hireon-ai
+    branch: yash
+    rootDir: hireon-backend
+    plan: free
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hireon_db # Make sure this matches your Render DB name
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: hireon-redis # Make sure this matches your Render Redis name
+          property: connectionString
+      - fromGroup: hireon-secrets # If you have an environment group

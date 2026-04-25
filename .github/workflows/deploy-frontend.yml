@@ -3,7 +3,8 @@ name: Deploy Frontend to Hostinger
 on:
   push:
     branches:
-      - yash  # Change to main if you use main branch
+      - yash
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
