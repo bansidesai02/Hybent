@@ -500,7 +500,7 @@ export function CopilotWidget() {
                   ref={textareaRef}
                   className="c-input"
                   style={s.input}
-                  placeholder={isRecording ? "Listening..." : "Ask anything about your candidates..."}
+                  placeholder={isRecording ? "Listening..." : "Ask me about candidates..."}
                   value={input}
                   rows={1}
                   onChange={handleInputChange}
