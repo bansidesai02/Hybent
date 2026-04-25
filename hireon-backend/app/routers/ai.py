@@ -152,3 +152,30 @@ async def generate_image(
         )
 
     return APIResponse.success(message="Image generated successfully.", data={"image_base64": result.get("image_base64")})
+
+
+@router.get("/health-check")
+async def ai_health_check(current_user: RecruiterUser = Depends()):
+    """Diagnose AI provider availability from production server."""
+    from app.config import settings
+    result = {}
+    
+    # Check Gemini key
+    result["gemini_key_configured"] = bool(settings.gemini_api_key)
+    
+    # Check Groq key
+    result["groq_key_configured"] = bool(settings.groq_api_key)
+    
+    # Test Groq connectivity
+    if settings.groq_api_key:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.get("https://api.groq.com")
+            result["groq_reachable"] = True
+            result["groq_status"] = r.status_code
+        except Exception as e:
+            result["groq_reachable"] = False
+            result["groq_error"] = str(e)
+    
+    return APIResponse.success(message="AI diagnostics complete.", data=result)
