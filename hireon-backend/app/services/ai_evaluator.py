@@ -21,7 +21,7 @@ if settings.gemini_api_key:
     genai.configure(api_key=settings.gemini_api_key)
 
 # Configure Groq fallback
-groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+groq_client = Groq(api_key=settings.groq_api_key, timeout=30.0) if settings.groq_api_key else None
 
 async def generate_image_hf(
     prompt: str,
@@ -584,7 +584,7 @@ async def generate_jd_from_prompt(
     except Exception as e:
         status = "failure"
         error_msg = str(e)
-        logger.error(f"AI JD generation failure: {e}")
+        logger.error(f"AI JD generation failure [{type(e).__name__}]: {e}", exc_info=True)
         return None
     finally:
         duration_ms = (time.time() - start_time) * 1000

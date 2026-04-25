@@ -116,16 +116,18 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        settings.frontend_url,
-        "https://gethireon.netlify.app/", 
-        "http://localhost:5173", 
-        "http://localhost:3000",
+        settings.frontend_url,          # Pulled from FRONTEND_URL env var (production domain)
+        "https://hireon.com",           # Production domain
+        "https://www.hireon.com",       # Production domain with www
+        "https://gethireon.netlify.app", # No trailing slash — browsers send exact origin
+        "http://localhost:5173",         # Vite dev server
+        "http://localhost:3000",         # Docker local frontend
         "http://localhost",
         "http://127.0.0.1:3000",
         "http://127.0.0.1"
     ],
-    
-    allow_origin_regex="https?://.*",
+    # NOTE: allow_origin_regex removed — "https?://.*" matched any origin (security risk)
+    # and caused credential-mode CORS failures in some browsers.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
