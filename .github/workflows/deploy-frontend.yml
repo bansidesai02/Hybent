@@ -44,4 +44,3 @@ jobs:
           local-dir: hireon-frontend/dist/
           server-dir: ./
           protocol: ftp
-          dangerous-clean-slate: true
