@@ -89,8 +89,9 @@ import toast from 'react-hot-toast'
 
 // ─── Action Buttons ─────────────────────────────────────────────────────────────
 
-function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage, scoring, onAction }: {
+function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, currentStage, scoring, onAction }: {
   navigate: any
+  basePath: string
   candidateId: string
   jobId?: string
   threshold: number
@@ -100,7 +101,6 @@ function AnalysisActions({ navigate, candidateId, jobId, threshold, currentStage
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const queryClient = useQueryClient()
-  const { basePath } = useAuth()
 
   const handleStageUpdate = async (stage: string) => {
     setLoading(stage)
@@ -822,6 +822,7 @@ export default function UploadResumePage() {
                   {/* Action buttons */}
                   <AnalysisActions 
                     navigate={navigate} 
+                    basePath={basePath}
                     candidateId={result.id}
                     jobId={jobReq.job_id}
                     threshold={parseFloat(jobReq.match_threshold) || 70}

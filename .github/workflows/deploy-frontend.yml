@@ -44,4 +44,4 @@ jobs:
           local-dir: hireon-frontend/dist/
           server-dir: domains/hirreon.com/public_html/
           protocol: ftp
-          state-name: .ftp-deploy-sync-state.json
+          dangerous-clean-slate: true
