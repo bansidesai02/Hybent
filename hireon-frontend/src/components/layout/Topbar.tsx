@@ -182,7 +182,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
       </button>
 
       {/* Search bar */}
-      <div className="flex-1 hidden md:flex justify-center" ref={searchRef}>
+      <div className="flex-1 flex justify-center" ref={searchRef}>
         <div className="relative w-full max-w-[440px]">
           <div
             className="flex items-center gap-2 w-full rounded-[12px] px-[16px] py-[8px] transition-all duration-200"
@@ -277,7 +277,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-2 md:gap-3.5 flex-shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3.5 flex-shrink-0">
 
         {/* Theme toggle */}
         <button

@@ -1,9 +1,11 @@
 import uuid
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, BackgroundTasks
-from app.dependencies import DB, CurrentUser, RecruiterUser, AdminUser
+from app.dependencies import DB, get_current_user, require_recruiter, require_admin
+from app.models.user import User
+from typing import Annotated
 from app.models.job import Job
 from app.models.application import Application
 from app.models.candidate import Candidate
@@ -20,7 +22,7 @@ router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 
 @router.get("")
 async def list_jobs(
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(get_current_user)],
     db: DB,
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -74,7 +76,7 @@ async def list_jobs(
 
 
 @router.post("", response_model=JobOut, status_code=201)
-async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
+async def create_job(data: JobCreate, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
     job = Job(
         organization_id=current_user.organization_id,
         created_by_id=current_user.id,
@@ -102,7 +104,7 @@ async def create_job(data: JobCreate, current_user: RecruiterUser, db: DB, backg
 @router.post("/parse-jd")
 async def parse_jd_endpoint(
     background_tasks: BackgroundTasks,
-    current_user: RecruiterUser,
+    current_user: Annotated[User, Depends(require_recruiter)],
     file: UploadFile = File(...),
 ):
     """Parses a JD document and returns structured details via AI."""
@@ -131,7 +133,7 @@ async def parse_jd_endpoint(
 
 
 @router.get("/{job_id}", response_model=JobOut)
-async def get_job(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
+async def get_job(job_id: uuid.UUID, current_user: Annotated[User, Depends(get_current_user)], db: DB):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
     )
@@ -142,7 +144,7 @@ async def get_job(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
 
 
 @router.put("/{job_id}", response_model=JobOut)
-async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
+async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: Annotated[User, Depends(require_admin)], db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
     )
@@ -171,7 +173,7 @@ async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: AdminUser
 
 
 @router.delete("/{job_id}")
-async def delete_job(job_id: uuid.UUID, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
+async def delete_job(job_id: uuid.UUID, current_user: Annotated[User, Depends(require_admin)], db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
     )

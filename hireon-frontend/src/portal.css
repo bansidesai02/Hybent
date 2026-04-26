@@ -424,3 +424,103 @@ tbody tr:hover td{background:var(--sb-hover)}
 .ppi-content{flex:1}
 .ppi-q{font-size:13px;font-weight:500;color:var(--text);line-height:1.5;margin-bottom:8px}
 .ppi-tag{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(124,58,237,.08);color:var(--brand);display:inline-block;font-family:'Poppins',sans-serif}
+
+/* ══════════════════════════════
+   7. RESPONSIVE UTILITIES
+   ══════════════════════════════ */
+@media (max-width: 1024px) {
+  .portal-root {
+    --sidebar-w: 0px;
+  }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    width: 260px;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(0,0,0,0.2);
+  }
+  .topbar {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 20px 16px;
+  }
+  .g2, .g3, .frow, .frow3, .prep-cols {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  .pt {
+    font-size: 32px !important;
+  }
+  .kpi-val {
+    font-size: 28px;
+  }
+  .tracker-line, .tracker-progress {
+    left: 5%;
+    right: 5%;
+  }
+  .tracker-steps {
+    padding: 0 5%;
+  }
+  .tstep-label {
+    font-size: 11px;
+  }
+  .tstep-dot {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  .int-card {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .int-time {
+    text-align: left;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .int-hr {
+    font-size: 20px;
+  }
+  .topbar-search-wrap {
+    flex: 1;
+    max-width: none;
+    margin: 0 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  .card {
+    padding: 16px;
+  }
+  .ob-title {
+    font-size: 20px;
+  }
+  .profile-avatar-row, .danger-zone-content {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .profile-avatar-info {
+    margin-top: 12px;
+  }
+  .btn-danger-outline {
+    width: 100%;
+  }
+}
+

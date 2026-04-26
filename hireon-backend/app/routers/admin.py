@@ -3,21 +3,22 @@ Admin-only endpoints: audit logs, org settings, team management.
 """
 import uuid
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from sqlalchemy import select, func, or_
-from app.dependencies import DB, AdminUser
+from app.dependencies import DB, require_admin
 from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.models.ai_usage import AIUsage
 from app.utils.pagination import paginate
 from app.schemas.response import APIResponse
+from typing import Annotated
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
 @router.get("/audit-logs")
 async def list_audit_logs(
-    current_user: AdminUser,
+    current_user: Annotated[User, Depends(require_admin)],
     db: DB,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
@@ -91,7 +92,7 @@ async def list_audit_logs(
 
 @router.get("/ai-usage")
 async def list_ai_usage(
-    current_user: AdminUser,
+    current_user: Annotated[User, Depends(require_admin)],
     db: DB,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
@@ -156,7 +157,7 @@ async def list_ai_usage(
 
 
 @router.get("/stats")
-async def org_stats(current_user: AdminUser, db: DB):
+async def org_stats(current_user: Annotated[User, Depends(require_admin)], db: DB):
     """Admin dashboard stats."""
     total_users = (await db.execute(
         select(func.count(User.id)).where(User.organization_id == current_user.organization_id)
@@ -171,7 +172,7 @@ async def org_stats(current_user: AdminUser, db: DB):
 
 
 @router.get("/dashboard-stats")
-async def dashboard_stats(current_user: AdminUser, db: DB):
+async def dashboard_stats(current_user: Annotated[User, Depends(require_admin)], db: DB):
     """
     Extended dashboard stats including AI usage.
     """
@@ -204,7 +205,7 @@ async def dashboard_stats(current_user: AdminUser, db: DB):
 
 
 @router.post("/es/reindex")
-async def es_reindex_all(current_user: AdminUser, db: DB):
+async def es_reindex_all(current_user: Annotated[User, Depends(require_admin)], db: DB):
     """
     Bulk-index all existing Postgres data into Elasticsearch.
     Run once after the first deployment. New records are indexed automatically.

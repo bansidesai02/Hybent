@@ -4,7 +4,7 @@ import { motion, useScroll, AnimatePresence } from 'framer-motion'
 import MouseTrail from '@/components/common/MouseTrail'
 import { TeamIcon } from '@/components/common/CustomIcons'
 import { GlassIcon } from '@/components/common/GlassIcon'
-import { ArrowRight, Calendar } from 'lucide-react'
+import { ArrowRight, Calendar, Menu, X } from 'lucide-react'
 
 // ─── Animation Variants ────────────────────────────────────────────────────────
 
@@ -426,6 +426,7 @@ export default function LandingPage() {
     monthlyHires: '1-5',
     hiringChallenge: ''
   });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -480,9 +481,9 @@ export default function LandingPage() {
           top: '18px',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: 'calc(100% - 64px)',
+          width: 'min(calc(100% - 32px), 1200px)',
           maxWidth: '1200px',
-          padding: '14px 24px',
+          padding: '12px min(24px, 4vw)',
           background: 'rgba(255,255,255,0.75)',
           backdropFilter: 'blur(24px) saturate(180%)',
           WebkitBackdropFilter: 'blur(24px) saturate(180%)',
@@ -549,8 +550,8 @@ export default function LandingPage() {
           ))}
         </ul>
 
-        {/* CTA buttons */}
-        <div className="flex items-center gap-3">
+        {/* CTA buttons - Desktop only */}
+        <div className="hidden lg:flex items-center gap-3">
           <Link to="/login">
             <button
               className="px-6 py-2.5 bg-transparent border rounded-[12px] text-[14px] font-bold cursor-pointer transition-all duration-200 hover:bg-[rgba(108,71,255,0.06)] active:scale-95"
@@ -567,8 +568,6 @@ export default function LandingPage() {
                 boxShadow: '0 4px 16px rgba(255,107,198,0.35)',
                 fontFamily: "'Sora', sans-serif",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(255,107,198,0.45)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(255,107,198,0.35)' }}
             >
               Book Demo
             </button>
@@ -581,13 +580,81 @@ export default function LandingPage() {
                 boxShadow: '0 4px 16px rgba(108,71,255,0.35)',
                 fontFamily: "'Sora', sans-serif",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(108,71,255,0.45)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(108,71,255,0.35)' }}
             >
               Get Started Free
             </button>
           </Link>
         </div>
+
+        {/* Mobile Menu Toggle */}
+        <div className="lg:hidden flex items-center gap-1">
+          <Link to="/login" className="px-3 py-2 text-[13px] font-bold text-[#6c47ff]">Sign In</Link>
+          <Link to="/register">
+            <button
+              className="px-4 py-2 border-0 rounded-xl text-[13px] font-bold text-white cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
+                boxShadow: '0 4px 12px rgba(108,71,255,0.25)',
+              }}
+            >
+              Get Started
+            </button>
+          </Link>
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="w-9 h-9 rounded-xl bg-[rgba(108,71,255,0.08)] flex items-center justify-center text-[#6c47ff] ml-1"
+          >
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-[calc(100%+12px)] left-0 right-0 p-6 bg-white/95 backdrop-blur-2xl rounded-2xl border border-white shadow-2xl z-[201] flex flex-col gap-4 lg:hidden"
+            >
+              <ul className="flex flex-col gap-2 list-none m-0 p-0">
+                <li>
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-4 py-3 text-[16px] font-bold rounded-xl no-underline"
+                    style={{ color: 'var(--violet)' }}
+                  >
+                    Sign In
+                  </Link>
+                </li>
+                {['Features', 'How it works', 'About'].map((item) => (
+                  <li key={item}>
+                    <a
+                      href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block px-4 py-3 text-[16px] font-bold rounded-xl no-underline"
+                      style={{ color: 'var(--text-mid)' }}
+                    >
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <div className="h-px bg-gray-100 my-2" />
+              <Link to="/register?demo=true" onClick={() => setMobileMenuOpen(false)}>
+                <button className="w-full py-4 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#ff6bc6] to-[#ff8dc7]">
+                  Book Demo
+                </button>
+              </Link>
+              <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                <button className="w-full py-4 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#6c47ff] to-[#8b6bff]">
+                  Get Started Free
+                </button>
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* ── HERO ── */}
@@ -669,11 +736,11 @@ export default function LandingPage() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="flex gap-3.5 justify-center mb-8"
+          className="flex flex-col sm:flex-row gap-4 justify-center mb-8 w-full sm:w-auto px-6"
         >
-          <Link to="/register">
+          <Link to="/register" className="w-full sm:w-auto">
             <button
-              className="px-10 py-4 border-0 rounded-[10px] text-[17px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
+              className="w-full sm:px-10 py-4 border-0 rounded-[10px] text-[17px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
               style={{
                 background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
                 boxShadow: '0 8px 28px rgba(108,71,255,0.38)',
@@ -683,9 +750,9 @@ export default function LandingPage() {
               Start for Free <ArrowRight size={20} />
             </button>
           </Link>
-          <Link to="/register?demo=true">
+          <Link to="/register?demo=true" className="w-full sm:w-auto">
             <button
-              className="px-10 py-4 rounded-[10px] text-[17px] font-semibold cursor-pointer transition-all duration-300 hover:bg-white hover:-translate-y-[2px] flex items-center gap-2"
+              className="w-full sm:px-10 py-4 rounded-[10px] text-[17px] font-semibold cursor-pointer transition-all duration-300 hover:bg-white hover:-translate-y-[2px] flex items-center justify-center gap-2"
               style={{
                 background: 'rgba(255,255,255,0.72)',
                 border: '1px solid rgba(255,255,255,0.6)',
@@ -701,19 +768,19 @@ export default function LandingPage() {
       </section>
 
       {/* ── STATS ── */}
-      <section className="relative z-10 py-12 px-20">
+      <section className="relative z-10 py-12 px-6 md:px-20">
         <motion.div
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: false, margin: "-100px" }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-5"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5"
         >
           {stats.map((s) => (
             <motion.div
               variants={fadeReveal}
               key={s.label}
-              className="group relative rounded-[24px] p-10 text-center overflow-hidden transition-all duration-300 hover:-translate-y-[6px]"
+              className="group relative rounded-[24px] p-8 md:p-10 text-center overflow-hidden transition-all duration-300 hover:-translate-y-[6px]"
               style={{
                 background: 'rgba(255,255,255,0.72)',
                 backdropFilter: 'blur(20px)',
@@ -732,7 +799,7 @@ export default function LandingPage() {
                 className="block font-black leading-none mb-3"
                 style={{
                   fontFamily: "'Fraunces', serif",
-                  fontSize: '64px',
+                  fontSize: 'clamp(48px, 6vw, 64px)',
                   background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
@@ -741,7 +808,7 @@ export default function LandingPage() {
               >
                 {s.value}
               </span>
-              <p className="text-[16px] font-medium" style={{ color: 'var(--text-mid)', lineHeight: 1.5 }}>{s.label}</p>
+              <p className="text-[14px] md:text-[16px] font-medium" style={{ color: 'var(--text-mid)', lineHeight: 1.5 }}>{s.label}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -1052,7 +1119,7 @@ export default function LandingPage() {
                     <p className="text-[14px] mb-8" style={{ color: 'var(--text-mid)' }}>Fill in your details and we'll get back to you within 24 hours to schedule your personalized session.</p>
 
                     <form onSubmit={handleDemoSubmit} className="space-y-5">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>First Name</label>
                           <input
@@ -1105,7 +1172,7 @@ export default function LandingPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormDropdown
                           label="Team Size"
                           options={['1-10', '11-50', '51-200', '201-500', '501+']}
@@ -1213,7 +1280,7 @@ export default function LandingPage() {
         style={{ borderTop: '1px solid rgba(108,71,255,0.10)' }}
       >
         <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-10 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 mb-12">
             {/* Brand */}
             <div className="md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
