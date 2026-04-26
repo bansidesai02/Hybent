@@ -52,3 +52,4 @@ jobs:
           local-dir: hireon-frontend/dist/
           server-dir: ./
           protocol: ftp
+          security: loose

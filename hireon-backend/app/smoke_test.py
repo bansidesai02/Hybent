@@ -24,9 +24,16 @@ def test_app_initialization():
             
     except AssertionError as e:
         print(f"❌ Initialization failed with AssertionError: {e}")
+        print("This usually means there is a conflict in FastAPI Dependency Injection (Annotated vs Depends).")
+        sys.exit(1)
+    except ImportError as e:
+        print(f"❌ Import failed: {e}")
+        print("Check if all dependencies are installed in requirements.txt.")
         sys.exit(1)
     except Exception as e:
         print(f"❌ Unexpected error during initialization: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
