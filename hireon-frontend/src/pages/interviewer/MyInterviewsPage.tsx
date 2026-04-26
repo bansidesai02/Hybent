@@ -479,8 +479,8 @@ export default function MyInterviewsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
         <div>
           <h1 style={{
-            fontSize: 28, fontWeight: 900, color: 'var(--text)',
-            fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 12,
+            fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)',
+            fontFamily: "'Poppins', sans-serif", lineHeight: 1.1,
             margin: 0
           }}>
             My Interview Queue

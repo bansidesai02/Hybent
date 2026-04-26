@@ -3,10 +3,9 @@ services:
   - type: web
     name: hireon-backend
     env: docker
-    repo: https://github.com/bansidesai02/hireon-ai.git # Update this!
     dockerContext: ./hireon-backend
     dockerfilePath: Dockerfile
-    plan: starter # Adjust based on needs
+    plan: starter
     healthCheckPath: /health
     envVars:
       - key: APP_ENV
@@ -21,7 +20,7 @@ services:
           name: hireon-redis
           property: connectionString
       - key: FRONTEND_URL
-        value: https://hireon-frontend.onrender.com # Update this!
+        value: https://hireon-frontend.onrender.com # Update this after first deployment!
       - key: SECRET_KEY
         generateValue: true
       - key: GROQ_API_KEY
@@ -35,7 +34,6 @@ services:
   - type: web
     name: hireon-frontend
     env: docker
-    repo: https://github.com/bansidesai02/hireon-ai.git # Update this!
     dockerContext: ./hireon-frontend
     dockerfilePath: Dockerfile
     plan: starter
@@ -47,7 +45,6 @@ services:
   - type: worker
     name: hireon-worker
     env: docker
-    repo: https://github.com/bansidesai02/hireon-ai.git # Update this!
     dockerContext: ./hireon-backend
     dockerfilePath: Dockerfile
     dockerCommand: celery -A app.celery_app worker --loglevel=info
@@ -68,7 +65,6 @@ services:
   - type: worker
     name: hireon-beat
     env: docker
-    repo: https://github.com/bansidesai02/hireon-ai.git # Update this!
     dockerContext: ./hireon-backend
     dockerfilePath: Dockerfile
     dockerCommand: celery -A app.celery_app beat --loglevel=info

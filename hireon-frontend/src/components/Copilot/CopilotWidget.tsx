@@ -17,8 +17,8 @@ const s: Record<string, React.CSSProperties> = {
   userBubble: { alignSelf: 'flex-end', background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '12px 16px', maxWidth: '85%', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--shadow-card)' },
   botBubble: { alignSelf: 'flex-start', background: 'var(--kpi-bg)', backdropFilter: 'blur(16px)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', maxWidth: '90%', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--input-border)', boxShadow: 'var(--shadow-card)' },
   thinkingBubble: { alignSelf: 'flex-start', background: 'var(--kpi-bg)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--input-border)', display: 'flex', alignItems: 'center', gap: '6px' },
-  footer: { padding: '16px 24px', borderTop: '1px solid var(--card-border)', display: 'flex', gap: '12px', alignItems: 'flex-end', flexShrink: 0, background: 'var(--topbar-bg)' },
-  input: { flex: 1, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', color: 'var(--text)', fontSize: '14px', padding: '12px 16px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.5, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
+  footer: { padding: '14px 16px', borderTop: '1px solid var(--card-border)', display: 'flex', gap: '6px', alignItems: 'flex-end', flexShrink: 0, background: 'var(--topbar-bg)' },
+  input: { flex: 1, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', color: 'var(--text)', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
   sendBtn: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', border: 'none', borderRadius: '12px', color: '#fff', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0, boxShadow: 'var(--shadow-card)' },
   emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '32px 24px', textAlign: 'center' },
   emptyIcon: { fontSize: '48px', background: 'linear-gradient(135deg, var(--violet), var(--pink))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 8px 16px var(--hover-row))' },
@@ -500,7 +500,7 @@ export function CopilotWidget() {
                   ref={textareaRef}
                   className="c-input"
                   style={s.input}
-                  placeholder={isRecording ? "Listening..." : "Ask anything about your candidates..."}
+                  placeholder={isRecording ? "Listening..." : "Ask me about candidates..."}
                   value={input}
                   rows={1}
                   onChange={handleInputChange}

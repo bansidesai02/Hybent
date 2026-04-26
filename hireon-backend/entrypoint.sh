@@ -46,16 +46,23 @@ else
 fi
 
 # If a command is passed to the entrypoint, execute it. 
-# Otherwise, default to starting Uvicorn.
+# Otherwise, default to starting our multi-process stack.
 if [ $# -gt 0 ]; then
     echo "==> [entrypoint] Executing custom command: $@"
     exec "$@"
 else
+    echo "==> [entrypoint] Starting Celery Worker..."
+    celery -A app.celery_app worker --loglevel=info --concurrency=1 &
+
+    echo "==> [entrypoint] Starting Celery Beat..."
+    celery -A app.celery_app beat --loglevel=info &
+
     echo "==> [entrypoint] Starting Uvicorn..."
+    # Reduce workers to 1 to fit in 512MB RAM along with Celery
     exec uvicorn app.main:app \
         --host 0.0.0.0 \
         --port 8000 \
-        --workers 2 \
+        --workers 1 \
         --loop uvloop \
         --http httptools
 fi

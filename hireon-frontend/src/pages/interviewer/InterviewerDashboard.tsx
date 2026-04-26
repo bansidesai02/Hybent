@@ -171,7 +171,7 @@ export default function InterviewerDashboard() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', fontFamily: "'Fraunces', serif", lineHeight: 1.2 }}>
+        <h1 style={{ fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)', fontFamily: "'Poppins', sans-serif", lineHeight: 1.1 }}>
           {getGreeting()}{user ? `, ${user.full_name.split(' ')[0]}` : ''}
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text)', marginTop: 6, fontWeight: 500 }}>
