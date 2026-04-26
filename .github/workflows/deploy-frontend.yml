@@ -49,7 +49,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
-          local-dir: hireon-frontend/dist/
+          local-dir: hireon-frontend/dist
           server-dir: ./
           protocol: ftp
-          security: loose
+          log-level: verbose
