@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -6,7 +6,7 @@ import { portalApi } from '@/api/portal'
 import { NotificationBell } from './NotificationBell'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { Search, Moon, Sun, User, LogOut, Map, Calendar, Bell, Target, Building2, FileText, Brain } from 'lucide-react'
+import { Search, Moon, Sun, User, LogOut, Map, Calendar, Bell, Target, Building2, FileText, Brain, Menu, X } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
 
 const NAV_ITEMS = [
@@ -23,8 +23,10 @@ export function PortalLayout() {
   const navigate = useNavigate()
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const location = useLocation()
 
   // Establish WebSocket connection for real-time notifications in candidate portal
   useWebSocket()
@@ -41,6 +43,11 @@ export function PortalLayout() {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [menuOpen])
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [location.pathname])
 
   const { data: applications } = useQuery({
     queryKey: ['portal', 'applications'],
@@ -78,8 +85,21 @@ export function PortalLayout() {
       <div className="dot-grid"></div>
 
       <div className="app flex flex-row h-full z-10 relative">
+        {/* Sidebar Overlay for mobile */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] lg:hidden"
+            />
+          )}
+        </AnimatePresence>
+
         {/* SIDEBAR */}
-        <div className="sidebar">
+        <div className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
           <div className="sb-header">
             <div className="logo-wrap">
               <div className="logo-orbit">
@@ -175,6 +195,14 @@ export function PortalLayout() {
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* TOPBAR (Now inside the right column) */}
           <div className="topbar">
+            {/* Mobile Toggle */}
+            <button 
+              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-xl bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] shadow-sm mr-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <Menu size={18} className="text-[var(--text)]" />
+            </button>
+
             {/* Search bar */}
             <div className="topbar-search-wrap">
               <div className={`topbar-search ${searchFocused ? 'focused' : ''}`}>

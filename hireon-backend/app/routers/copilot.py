@@ -7,10 +7,12 @@ DELETE /v1/copilot/conversations/{id} — delete a conversation
 """
 import uuid
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status, UploadFile, File, Depends
 from pydantic import BaseModel
 
-from app.dependencies import DB, CurrentUser
+from app.dependencies import DB, get_current_user
+from app.models.user import User
+from typing import Annotated
 from app.utils.permissions import RECRUITER_ROLES
 from app.services.copilot_service import run_copilot_chat
 from app.services.ai_evaluator import transcribe_audio
@@ -71,7 +73,7 @@ class ConversationDetail(BaseModel):
 @router.post("/chat", response_model=CopilotChatResponse)
 async def copilot_chat(
     body: CopilotChatRequest,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(get_current_user)],
     db: DB,
     background_tasks: BackgroundTasks,
 ):
@@ -107,8 +109,8 @@ async def copilot_chat(
 
 @router.post("/transcribe")
 async def copilot_transcribe(
-    current_user: CurrentUser,
     background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Depends(get_current_user)],
     file: UploadFile = File(...),
 ):
     """
@@ -135,7 +137,7 @@ async def copilot_transcribe(
 
 @router.get("/conversations", response_model=list[ConversationSummary])
 async def list_conversations(
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(get_current_user)],
     db: DB,
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -173,7 +175,7 @@ async def list_conversations(
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
     conversation_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(get_current_user)],
     db: DB,
 ):
     """Return a single conversation with all its messages."""
@@ -226,7 +228,7 @@ async def get_conversation(
 @router.delete("/conversations/{conversation_id}", status_code=204)
 async def delete_conversation(
     conversation_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(get_current_user)],
     db: DB,
 ):
     """Delete a conversation and all its messages (cascade)."""

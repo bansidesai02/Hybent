@@ -41,7 +41,7 @@ export function KanbanBoard({ data, onCardClick }: KanbanBoardProps) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-4 pb-4 w-full items-start">
+      <div className="flex gap-4 pb-4 w-full items-start overflow-x-auto scrollbar-thin">
         {STAGES.map((stage) => (
           <KanbanColumn
             key={stage}
