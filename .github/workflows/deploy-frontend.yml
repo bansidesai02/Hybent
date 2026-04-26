@@ -34,6 +34,14 @@ jobs:
           VITE_API_BASE_URL: https://hireon-all-in-one.onrender.com
           VITE_APP_NAME: HireOn
 
+      - name: 🛡️ Validate Build Output
+        run: |
+          if [ ! -d "hireon-frontend/dist" ]; then
+            echo "❌ Build failed: 'dist' folder not found."
+            exit 1
+          fi
+          echo "✅ Build successful. Proceeding to deploy..."
+
       - name: 📂 Sync files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
