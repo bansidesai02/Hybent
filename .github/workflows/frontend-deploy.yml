@@ -79,3 +79,8 @@ jobs:
           git push origin hostinger-deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Hostinger Auto Deployment
+        run: |
+          curl -s -X POST "https://webhooks.hostinger.com/deploy/d612e0359bf8b5e3d348434e936ea113"
+          echo "Hostinger deployment triggered!"
