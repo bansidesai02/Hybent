@@ -1,4 +1,4 @@
-name: Frontend CI/CD
+# Frontend CI/CD - Triggering fresh run
 
 on:
   push:
