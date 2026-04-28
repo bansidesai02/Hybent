@@ -201,7 +201,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
   // Close sidebar on route change on mobile
   useEffect(() => {
     if (mobileOpen) setMobileOpen?.(false)
-  }, [location.pathname]) // eslint-disable-line
+  }, [location.pathname])
 
   // Calculate dynamic badges
   const candidateBadge = useMemo(() =>
