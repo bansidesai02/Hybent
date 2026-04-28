@@ -60,13 +60,22 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git checkout --orphan hostinger-deploy-temp
-          git rm -rf .
+          git fetch origin
+
+          # Checkout existing branch or create fresh orphan
+          if git rev-parse --verify origin/hostinger-deploy > /dev/null 2>&1; then
+            git checkout hostinger-deploy
+            git rm -rf . --quiet || true
+          else
+            git checkout --orphan hostinger-deploy
+            git rm -rf . --quiet || true
+          fi
+
           cp -r dist/. .
           rm -rf dist
           echo "Deployed: $(date)" > DEPLOY_INFO.txt
           git add -A
           git commit -m "Deploy: $(date)"
-          git push origin HEAD:hostinger-deploy --force
+          git push origin hostinger-deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
