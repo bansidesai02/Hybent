@@ -222,7 +222,7 @@ export default function OverviewPage() {
   const todayInterviews = interviews?.filter((i: any) => isToday(new Date(i.scheduled_at))) || []
 
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const greeting = hour < 12 ? 'Good morning [v2.0]' : hour < 17 ? 'Good afternoon [v2.0]' : 'Good evening [v2.0]'
 
   const kpis = [
     { label: 'Resumes Processed', value: analytics?.total_applications ?? 0, icon: <GlassIcon icon="FileText" variant="violet" size={42} iconSize={20} ghost />, delta: { label: '↑ 18%', up: true } },
