@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main, yash ]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-test:
     name: Build & Lint
@@ -40,6 +43,8 @@ jobs:
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
