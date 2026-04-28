@@ -3,8 +3,6 @@ name: Backend CD
 on:
   push:
     branches: [ yash ]
-    paths:
-      - 'hireon-backend/**'
 
 jobs:
   deploy:
