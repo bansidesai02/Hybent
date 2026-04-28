@@ -29,7 +29,7 @@ jobs:
         run: npm run build
         
       - name: Create Test File
-        run: echo "Deployed at $(date)" > hireon-frontend/dist/GITHUB_DEPLOYMENT_TEST.txt
+        run: echo "Unique ID: $(date +%s)" > hireon-frontend/dist/FINAL_TEST_VERIFICATION.txt
 
       - name: Upload Build Artifact
         if: github.event_name == 'push'
@@ -57,7 +57,6 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: public_html/
+          server-dir: ./
           security: loose
           timeout: 90000
-          log-level: verbose
