@@ -61,4 +61,4 @@ jobs:
           server-dir: public_html/
           dangerous-clean-slate: true
           security: loose
-          timeout: 90000
+          timeout: 180000
