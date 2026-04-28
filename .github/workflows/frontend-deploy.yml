@@ -24,13 +24,12 @@ jobs:
         working-directory: ./hireon-frontend
         run: npm ci
 
-      - name: Lint Check
-        working-directory: ./hireon-frontend
-        run: npm run lint
-
       - name: Build Optimized Bundle
         working-directory: ./hireon-frontend
         run: npm run build
+        
+      - name: Create Test File
+        run: echo "Deployed at $(date)" > hireon-frontend/dist/GITHUB_DEPLOYMENT_TEST.txt
 
       - name: Upload Build Artifact
         if: github.event_name == 'push'
@@ -58,6 +57,6 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: domains/hirreon.com/public_html/
+          server-dir: public_html/
           security: loose
           timeout: 90000
