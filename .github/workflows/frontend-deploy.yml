@@ -71,7 +71,10 @@ jobs:
             git rm -rf . --quiet || true
           fi
 
-          cp -r dist/. .
+          # Explicitly copy all files including hidden ones
+          cp -a dist/. .
+          # Verify .htaccess exists
+          ls -la .htaccess || echo ".htaccess NOT FOUND"
           rm -rf dist
           echo "Deployed: $(date)" > DEPLOY_INFO.txt
           git add -A
