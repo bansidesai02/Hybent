@@ -1,3 +1,4 @@
+# Hostinger SPA Routing Fix
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
