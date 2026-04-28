@@ -1,7 +1,9 @@
 import uuid
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from sqlalchemy import select, func
-from app.dependencies import DB, CurrentUser, RecruiterUser, AdminUser
+from app.dependencies import DB, get_current_user, require_recruiter, require_admin
+from app.models.user import User
+from typing import Annotated
 from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate
 from app.services.email_service import send_candidate_invite
@@ -35,7 +37,7 @@ REJECTION_STAGES = [
 
 @router.get("")
 async def list_candidates(
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(get_current_user)],
     db: DB,
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -165,7 +167,7 @@ STAGE_TO_BUCKET = {
 }
 
 @router.get("/pipeline")
-async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
+async def get_candidates_pipeline(current_user: Annotated[User, Depends(get_current_user)], db: DB):
     from app.models.application import Application
     from app.models.job import Job
     from app.utils.permissions import JobStatus
@@ -226,7 +228,7 @@ async def get_candidates_pipeline(current_user: CurrentUser, db: DB):
 
 
 @router.post("", response_model=CandidateOut, status_code=201)
-async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
+async def create_candidate(data: CandidateCreate, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
     # Check for existing candidate in org
     existing = await db.execute(
         select(Candidate)
@@ -278,7 +280,7 @@ async def create_candidate(data: CandidateCreate, current_user: RecruiterUser, d
 
 
 @router.post("/invite", status_code=201)
-async def invite_candidate(data: CandidateInvite, current_user: RecruiterUser, db: DB):
+async def invite_candidate(data: CandidateInvite, current_user: Annotated[User, Depends(require_recruiter)], db: DB):
     # Check if candidate exists, if not create a stub
     existing = await db.execute(
         select(Candidate).where(
@@ -339,7 +341,7 @@ async def invite_candidate(data: CandidateInvite, current_user: RecruiterUser, d
 
 
 @router.get("/{candidate_id}", response_model=CandidateOut)
-async def get_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: DB):
+async def get_candidate(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(get_current_user)], db: DB):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -354,7 +356,7 @@ async def get_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: 
 from app.utils.permissions import REJECTION_STAGES
 
 @router.put("/{candidate_id}", response_model=CandidateOut)
-async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
+async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -470,7 +472,7 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
 
 
 @router.patch("/{candidate_id}/stage", response_model=CandidateOut)
-async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUpdate, current_user: RecruiterUser, db: DB, background_tasks: BackgroundTasks):
+async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUpdate, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -677,7 +679,7 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
 
 
 @router.post("/{candidate_id}/reject", response_model=CandidateOut)
-async def reject_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+async def reject_candidate(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(require_recruiter)], db: DB):
     return await update_candidate_stage(
         candidate_id=candidate_id,
         data=CandidateStageUpdate(pipeline_stage="rejected", send_rejection_email=False),
@@ -687,7 +689,7 @@ async def reject_candidate(candidate_id: uuid.UUID, current_user: RecruiterUser,
 
 
 @router.delete("/{candidate_id}")
-async def delete_candidate(candidate_id: uuid.UUID, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
+async def delete_candidate(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(require_admin)], db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
@@ -726,7 +728,7 @@ async def delete_candidate(candidate_id: uuid.UUID, current_user: AdminUser, db:
 
 
 @router.get("/{candidate_id}/applications")
-async def get_candidate_applications(candidate_id: uuid.UUID, current_user: CurrentUser, db: DB):
+async def get_candidate_applications(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(get_current_user)], db: DB):
     from app.models.application import Application
     from app.schemas.application import ApplicationOut
     result = await db.execute(
@@ -739,7 +741,7 @@ async def get_candidate_applications(candidate_id: uuid.UUID, current_user: Curr
 
 
 @router.post("/{candidate_id}/view")
-async def record_profile_view(candidate_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+async def record_profile_view(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(require_recruiter)], db: DB):
     """
     Record that a recruiter viewed a candidate's profile.
     Sends a real-time notification to the candidate if they have a portal account.

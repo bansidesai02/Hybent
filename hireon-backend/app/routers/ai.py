@@ -1,15 +1,16 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Response, BackgroundTasks
-from app.dependencies import DB, InterviewerUser, RecruiterUser
+from app.dependencies import DB, require_recruiter, require_interviewer_or_above
 from app.services import ai_evaluator, jd_pdf_generator
 from app.schemas.response import APIResponse
-from typing import List, Optional
+from app.models.user import User
+from typing import List, Optional, Annotated
 
 router = APIRouter(prefix="/v1/ai", tags=["ai"])
 
 @router.post("/evaluate-notes")
 async def evaluate_notes(
-    current_user: InterviewerUser,
     background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Depends(require_interviewer_or_above)],
     raw_notes: str = Body(..., embed=True)
 ):
     """
@@ -31,8 +32,8 @@ async def evaluate_notes(
     return APIResponse.success(message="Interview notes evaluated successfully.", data=result)
 @router.post("/generate-jd")
 async def generate_jd(
-    current_user: RecruiterUser,
     background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Depends(require_recruiter)],
     prompt: str = Body(..., embed=True)
 ):
     """
@@ -55,8 +56,8 @@ async def generate_jd(
 
 @router.post("/generate-jd-pdf")
 async def generate_jd_pdf_endpoint(
-    data: dict = Body(...),
-    current_user: RecruiterUser = None
+    current_user: Annotated[User, Depends(require_recruiter)],
+    data: dict = Body(...)
 ):
     """
     Generate a professional JD PDF from the provided data.
@@ -76,8 +77,8 @@ async def generate_jd_pdf_endpoint(
 
 @router.post("/generate-linkedin-post")
 async def generate_linkedin_post(
-    current_user: RecruiterUser,
     background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Depends(require_recruiter)],
     data: dict = Body(...)
 ):
     """
@@ -99,8 +100,8 @@ async def generate_linkedin_post(
     return APIResponse.success(message="LinkedIn post generated successfully.", data=result)
 @router.post("/generate-image-prompt")
 async def generate_image_prompt(
-    current_user: RecruiterUser,
     background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Depends(require_recruiter)],
     data: dict = Body(...)
 ):
     """
@@ -122,8 +123,8 @@ async def generate_image_prompt(
     return APIResponse.success(message="Image prompt generated successfully.", data={"prompt": result})
 @router.post("/generate-image")
 async def generate_image(
-    current_user: RecruiterUser,
     background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Depends(require_recruiter)],
     prompt: str = Body(..., embed=True)
 ):
     """
@@ -155,7 +156,7 @@ async def generate_image(
 
 
 @router.get("/health-check")
-async def ai_health_check(current_user: RecruiterUser = Depends()):
+async def ai_health_check(current_user: Annotated[User, Depends(require_recruiter)]):
     """Diagnose AI provider availability from production server."""
     from app.config import settings
     result = {}

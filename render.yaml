@@ -1,20 +1,94 @@
 services:
+  # ── FastAPI Backend ───────────────────────────────────────────────────────
   - type: web
-    name: hireon-backend-docker
+    name: hireon-backend
     env: docker
-    repo: https://github.com/utkarsh-hhh/hireon-ai
-    branch: yash
-    rootDir: hireon-backend
-    plan: free
-    region: oregon
+    dockerContext: ./hireon-backend
+    dockerfilePath: Dockerfile
+    plan: starter
+    healthCheckPath: /health
     envVars:
+      - key: APP_ENV
+        value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: hireon_db # Make sure this matches your Render DB name
+          name: hireon-db
           property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
-          name: hireon-redis # Make sure this matches your Render Redis name
+          name: hireon-redis
           property: connectionString
-      - fromGroup: hireon-secrets # If you have an environment group
+      - key: FRONTEND_URL
+        value: https://hireon-frontend.onrender.com # Update this after first deployment!
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+
+  # ── React Frontend (Nginx) ────────────────────────────────────────────────
+  - type: web
+    name: hireon-frontend
+    env: docker
+    dockerContext: ./hireon-frontend
+    dockerfilePath: Dockerfile
+    plan: starter
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: "" # Empty means use relative paths (handled by Nginx proxy)
+
+  # ── Celery Worker ─────────────────────────────────────────────────────────
+  - type: worker
+    name: hireon-worker
+    env: docker
+    dockerContext: ./hireon-backend
+    dockerfilePath: Dockerfile
+    dockerCommand: celery -A app.celery_app worker --loglevel=info
+    envVars:
+      - key: SKIP_PRESTART
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hireon-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: hireon-redis
+          property: connectionString
+
+  # ── Celery Beat ───────────────────────────────────────────────────────────
+  - type: worker
+    name: hireon-beat
+    env: docker
+    dockerContext: ./hireon-backend
+    dockerfilePath: Dockerfile
+    dockerCommand: celery -A app.celery_app beat --loglevel=info
+    envVars:
+      - key: SKIP_PRESTART
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hireon-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: hireon-redis
+          property: connectionString
+
+# ── Databases ───────────────────────────────────────────────────────────────
+databases:
+  - name: hireon-db
+    plan: starter
+    postgresMajorVersion: 16
+
+# ── Redis ───────────────────────────────────────────────────────────────────
+redis:
+  - name: hireon-redis
+    plan: starter
+    ipAllowList: [] # Only allow internal traffic
