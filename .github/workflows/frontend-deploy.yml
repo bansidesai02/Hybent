@@ -58,5 +58,6 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: ./public_html/
-          delete-destination: false
+          server-dir: public_html/
+          security: loose
+          timeout: 90000
