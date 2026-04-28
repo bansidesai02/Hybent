@@ -1,0 +1,66 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [ yash ]
+    paths:
+      - 'hireon-frontend/**'
+  pull_request:
+    branches: [ main, yash ]
+    paths:
+      - 'hireon-frontend/**'
+
+jobs:
+  build-and-test:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'hireon-frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./hireon-frontend
+        run: npm ci
+
+      - name: Lint Check
+        working-directory: ./hireon-frontend
+        run: npm run lint
+
+      - name: Build Optimized Bundle
+        working-directory: ./hireon-frontend
+        run: npm run build
+
+      - name: Upload Build Artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: hireon-frontend/dist/
+
+  deploy:
+    name: Deploy to Hostinger
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+
+      - name: Sync to Hostinger (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ./public_html/
+          delete-destination: false
