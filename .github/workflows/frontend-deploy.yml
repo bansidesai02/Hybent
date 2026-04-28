@@ -29,7 +29,8 @@ jobs:
         run: npm run build
         
       - name: Create Test File
-        run: echo "Unique ID: $(date +%s)" > hireon-frontend/dist/FINAL_TEST_VERIFICATION.txt
+        run: |
+          echo "Unique ID: $(date +%s)" > hireon-frontend/dist/FINAL_TEST_VERIFICATION.txt
 
       - name: Upload Build Artifact
         if: github.event_name == 'push'
