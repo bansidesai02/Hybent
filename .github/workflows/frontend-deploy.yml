@@ -60,3 +60,4 @@ jobs:
           server-dir: public_html/
           security: loose
           timeout: 90000
+          log-level: verbose
