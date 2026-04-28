@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     max_file_size_mb: int = 10
 
     # ── CORS ───────────────────────────────────────────────────────────────────
-    frontend_url: str = "https://gethireon.netlify.app/"
+    frontend_url: str = "https://hirreon.com"
 
     # ── Logging ────────────────────────────────────────────────────────────────
     log_level: str = "INFO"

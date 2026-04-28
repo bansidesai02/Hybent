@@ -119,6 +119,8 @@ app.add_middleware(
         settings.frontend_url,          # Pulled from FRONTEND_URL env var (production domain)
         "https://hireon.com",           # Production domain
         "https://www.hireon.com",       # Production domain with www
+        "https://hirreon.com",          # Actual production domain (double 'r')
+        "https://www.hirreon.com",      # Actual production domain with www
         "https://gethireon.netlify.app", # No trailing slash — browsers send exact origin
         "http://localhost:5173",         # Vite dev server
         "http://localhost:3000",         # Docker local frontend
