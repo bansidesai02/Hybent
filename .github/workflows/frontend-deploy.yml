@@ -30,7 +30,7 @@ jobs:
         
       - name: Create Test File
         run: |
-          echo "DEPLOYED_AT: $(date)" > hireon-frontend/dist/DEPLOYMENT_SUCCESS_VERIFIED.txt
+          echo "DEPLOYMENT_VERIFIED_CLEAN_SLATE: $(date)" > hireon-frontend/dist/CLEAN_SLATE_SUCCESS.txt
 
       - name: Upload Build Artifact
         if: github.event_name == 'push'
@@ -51,14 +51,14 @@ jobs:
           name: frontend-dist
           path: dist/
 
-      - name: Sync to Hostinger (SFTP)
+      - name: Sync to Hostinger (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: 65002
           local-dir: ./dist/
           server-dir: public_html/
+          dangerous-clean-slate: true
           security: loose
           timeout: 90000
