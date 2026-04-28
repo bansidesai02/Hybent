@@ -199,12 +199,12 @@ export default function PortalApplicationsPage() {
                 transition: 'all 0.25s',
               }}
               onMouseEnter={(e) => {
-                ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--p-shadow-h)'
-                ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'
+                (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--p-shadow-h)'
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'
               }}
               onMouseLeave={(e) => {
-                ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--p-shadow)'
-                ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
+                (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--p-shadow)'
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
               }}
             >
               {/* Top row */}

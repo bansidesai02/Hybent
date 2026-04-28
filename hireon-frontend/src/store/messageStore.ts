@@ -35,7 +35,7 @@ export const useMessageStore = create<MessageState>()(
         const { conversations } = get()
         const existingIdx = conversations.findIndex(c => c.other_user_id === msg.sender_id)
         
-        let newConversations = [...conversations]
+        const newConversations = [...conversations]
         if (existingIdx > -1) {
           const existing = newConversations[existingIdx]
           newConversations[existingIdx] = {

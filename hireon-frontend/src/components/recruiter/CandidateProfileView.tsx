@@ -277,11 +277,11 @@ function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, exp
 
 
 function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any, expandedIds: Set<string>, toggleExpand: (id: string) => void }) {
-  if (!group.cards || group.cards.length === 0) return null
-
   const hasAiSummary = group.interview_id && !group.interview_id.startsWith('unknown_')
   // Default active tab: 'ai' if available, else first interviewer id
   const [activeTab, setActiveTab] = useState<string>(hasAiSummary ? 'ai' : group.cards[0]?.id)
+
+  if (!group.cards || group.cards.length === 0) return null
 
   const avgScore = group.cards.reduce((sum: number, sc: any) => sum + sc.overall_rating, 0) / group.cards.length
 
