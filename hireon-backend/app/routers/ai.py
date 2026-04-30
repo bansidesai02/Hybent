@@ -33,7 +33,7 @@ async def evaluate_notes(
 @router.post("/generate-jd")
 async def generate_jd(
     background_tasks: BackgroundTasks,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_recruiter)],
     prompt: str = Body(..., embed=True)
 ):
     """
