@@ -253,7 +253,8 @@ export default function AddJobPage() {
       const data = (err as any).response?.data
       let errorMsg = data?.detail || data?.message || (err as any).message || 'Failed to generate JD with AI.'
       
-      if (status === 500) {
+      // If backend gave a specific detail, use it. Otherwise fallback to hints.
+      if (status === 500 && !data?.detail) {
         errorMsg = "Server side error (Check Gemini API Key on Render dashboard)"
       } else if (status === 401 || status === 403) {
         errorMsg = "Authentication failed. Please re-login."

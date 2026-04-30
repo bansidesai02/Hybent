@@ -545,6 +545,12 @@ async def generate_jd_from_prompt(
         if settings.gemini_api_key:
             provider = "Gemini"
             model_name = "gemini-1.5-flash-latest"
+            
+            # Diagnostic check for the key format
+            key_status = "Loaded"
+            if not settings.gemini_api_key.startswith("AIza"):
+                key_status = "Invalid Prefix (Should start with AIza)"
+                
             try:
                 model = genai.GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
@@ -556,11 +562,11 @@ async def generate_jd_from_prompt(
                     
                 return parse_json_response(response.text), None
             except Exception as ge:
-                logger.error(f"Gemini JD generation failed, checking Groq: {ge}")
+                logger.error(f"Gemini JD generation failed (Key Status: {key_status}): {ge}")
+                error_msg = f"Gemini Error (Key: {key_status}): {str(ge)}"
                 if not settings.groq_api_key:
                     status = "failure"
-                    error_msg = str(ge)
-                    raise ge
+                    raise Exception(error_msg)
 
         if settings.groq_api_key:
             provider = "Groq"
