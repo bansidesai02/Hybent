@@ -543,6 +543,7 @@ async def generate_jd_from_prompt(
 
     try:
         if settings.gemini_api_key:
+            genai.configure(api_key=settings.gemini_api_key)
             provider = "Gemini"
             model_name = "gemini-1.5-flash-latest"
             

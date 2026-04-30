@@ -53,6 +53,28 @@ async def generate_jd(
         raise HTTPException(status_code=500, detail=f"AI JD generation failed: {error_detail or 'Check Gemini API key.'}")
 
     return APIResponse.success(message="Job description generated successfully.", data=result)
+    
+@router.get("/test-gemini")
+async def test_gemini():
+    from app.config import settings
+    import google.generativeai as genai
+    
+    status = {
+        "key_present": bool(settings.gemini_api_key),
+        "key_prefix_ok": settings.gemini_api_key.startswith("AIza") if settings.gemini_api_key else False,
+        "error": None
+    }
+    
+    try:
+        if not settings.gemini_api_key:
+            return {"status": "error", "message": "Key missing in settings"}
+            
+        genai.configure(api_key=settings.gemini_api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        response = await model.generate_content_async("Say hello")
+        return {"status": "success", "message": response.text, "diagnostics": status}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "diagnostics": status}
 
 @router.post("/generate-jd-pdf")
 async def generate_jd_pdf_endpoint(
