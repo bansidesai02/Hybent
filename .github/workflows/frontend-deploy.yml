@@ -39,6 +39,7 @@ jobs:
         with:
           name: frontend-dist
           path: hireon-frontend/dist/
+          include-hidden-files: true
 
   deploy:
     name: Deploy to Hostinger
