@@ -70,11 +70,33 @@ async def test_gemini():
             return {"status": "error", "message": "Key missing in settings"}
             
         genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Get list of models
+        models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                models.append(m.name)
+        
+        # Try a very basic model first
+        test_model = 'gemini-1.5-flash' if 'models/gemini-1.5-flash' in models else (models[0] if models else 'gemini-pro')
+        
+        model = genai.GenerativeModel(test_model)
         response = await model.generate_content_async("Say hello")
-        return {"status": "success", "message": response.text, "diagnostics": status}
+        return {
+            "status": "success", 
+            "message": response.text, 
+            "available_models": models,
+            "tested_with": test_model,
+            "diagnostics": status
+        }
     except Exception as e:
-        return {"status": "error", "message": str(e), "diagnostics": status}
+        # If it fails, still return the models we found
+        return {
+            "status": "error", 
+            "message": str(e), 
+            "available_models": locals().get('models', []),
+            "diagnostics": status
+        }
 
 @router.post("/generate-jd-pdf")
 async def generate_jd_pdf_endpoint(
