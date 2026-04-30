@@ -79,6 +79,7 @@ jobs:
           rm -rf dist
           echo "Deployed: $(date)" > DEPLOY_INFO.txt
           git add -A
+          git add .htaccess -f || true
           git commit -m "Deploy: $(date)"
           git push origin hostinger-deploy
         env:
