@@ -14,6 +14,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    from pydantic import field_validator
+
+    @field_validator("gemini_api_key", "groq_api_key", "huggingface_api_key", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
     # ── App ────────────────────────────────────────────────────────────────────
     app_name: str = "Hireon"
     app_env: str = "development"

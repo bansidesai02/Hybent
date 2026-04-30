@@ -249,8 +249,17 @@ export default function AddJobPage() {
       setAiPrompt('')
     } catch (err) {
       console.error('AI Generation Debug:', err)
-      const errorMsg = (err as any).response?.data?.message || (err as any).message || 'Failed to generate JD with AI.'
-      setServerError(`AI Generation Error: ${errorMsg}`)
+      const status = (err as any).response?.status
+      const data = (err as any).response?.data
+      let errorMsg = data?.detail || data?.message || (err as any).message || 'Failed to generate JD with AI.'
+      
+      if (status === 500) {
+        errorMsg = "Server side error (Check Gemini API Key on Render dashboard)"
+      } else if (status === 401 || status === 403) {
+        errorMsg = "Authentication failed. Please re-login."
+      }
+      
+      setServerError(`AI Status: ${errorMsg} (Code: ${status || 'Network'})`)
     } finally {
       setIsGenerating(false)
     }
