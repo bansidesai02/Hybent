@@ -545,7 +545,7 @@ async def generate_jd_from_prompt(
         if settings.gemini_api_key:
             genai.configure(api_key=settings.gemini_api_key)
             provider = "Gemini"
-            model_name = "gemini-1.5-flash-latest"
+            model_name = "gemini-1.5-flash"
             
             # Diagnostic check for the key format
             key_status = "Loaded"
@@ -780,7 +780,7 @@ async def generate_image_prompt(
     try:
         if settings.gemini_api_key:
             provider = "Gemini"
-            model_name = "gemini-1.5-flash-latest"
+            model_name = "gemini-1.5-flash"
             model = genai.GenerativeModel(model_name)
             response = await model.generate_content_async(prompt)
             

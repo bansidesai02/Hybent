@@ -70,7 +70,7 @@ async def test_gemini():
             return {"status": "error", "message": "Key missing in settings"}
             
         genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = await model.generate_content_async("Say hello")
         return {"status": "success", "message": response.text, "diagnostics": status}
     except Exception as e:
