@@ -582,9 +582,11 @@ async def generate_jd_from_prompt(
             except Exception as ge:
                 logger.error(f"Gemini JD generation failed (Key Status: {key_status}): {ge}")
                 error_msg = f"Gemini Error (Key: {key_status}): {str(ge)}"
+                # If Groq is available, let it try as fallback
                 if not settings.groq_api_key:
                     status = "failure"
-                    raise Exception(error_msg)
+                    return None, error_msg
+                # else: fall through to Groq below
 
         if settings.groq_api_key:
             provider = "Groq"

@@ -132,24 +132,27 @@ function ResumeModal({
                         {candidate.years_experience ? ` · ${candidate.years_experience} yrs exp` : ''}
                       </p>
                     </div>
-                    <a
-                      href={candidate.resume_url}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      onClick={() => {
+                        const url = candidate.resume_url!.startsWith('http')
+                          ? candidate.resume_url!
+                          : `${window.location.origin}${candidate.resume_url}`
+                        window.open(url, '_blank', 'noopener,noreferrer')
+                      }}
                       style={{
                         padding: '7px 14px', borderRadius: 8, background: '#6c47ff',
                         color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
-                        display: 'flex', alignItems: 'center', gap: 6
+                        display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer'
                       }}
                     >
                       <div className="logo-box">
                         <Layout size={14} color="white" strokeWidth={3} />
                       </div>
                       Open in new tab <ExternalLink size={12} />
-                    </a>
+                    </button>
                   </div>
                   <iframe
-                    src={`${candidate.resume_url}#toolbar=1&navpanes=0`}
+                    src={`${candidate.resume_url.startsWith('http') ? candidate.resume_url : `${window.location.origin}${candidate.resume_url}`}#toolbar=1&navpanes=0`}
                     title="Resume"
                     style={{ width: '100%', height: '68vh', borderRadius: 12, border: '1px solid #eee' }}
                   />
