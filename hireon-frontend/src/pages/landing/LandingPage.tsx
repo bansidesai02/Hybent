@@ -1325,16 +1325,21 @@ export default function LandingPage() {
                 </h4>
                 <ul className="space-y-2">
                   {col.links.map((link) => {
-                    const href = link === 'Features' ? '#features' : link === 'About' ? '#about' : '#';
+                    const targetId = link === 'Features' ? 'features' : link === 'About' ? 'about' : '';
                     return (
                       <li key={link}>
-                        <a
-                          href={href}
-                          className="text-[13px] no-underline transition-colors hover:text-violet-600"
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (targetId) {
+                              document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                          className="text-[13px] no-underline transition-colors hover:text-violet-600 bg-transparent border-none p-0 cursor-pointer text-left"
                           style={{ color: 'var(--text-mid)' }}
                         >
                           {link}
-                        </a>
+                        </button>
                       </li>
                     );
                   })}
