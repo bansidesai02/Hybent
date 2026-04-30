@@ -896,9 +896,10 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
+                  const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
                   const url = candidate.resume_url!.startsWith('http')
                     ? candidate.resume_url!
-                    : `${window.location.origin}${candidate.resume_url}`
+                    : `${baseUrl}${candidate.resume_url}`
                   window.open(url, '_blank', 'noopener,noreferrer')
                 }}
                 style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', background: 'rgba(108,71,255,0.08)', padding: '4px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>

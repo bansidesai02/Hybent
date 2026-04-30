@@ -134,9 +134,10 @@ function ResumeModal({
                     </div>
                     <button
                       onClick={() => {
+                        const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
                         const url = candidate.resume_url!.startsWith('http')
                           ? candidate.resume_url!
-                          : `${window.location.origin}${candidate.resume_url}`
+                          : `${baseUrl}${candidate.resume_url}`
                         window.open(url, '_blank', 'noopener,noreferrer')
                       }}
                       style={{
@@ -152,7 +153,7 @@ function ResumeModal({
                     </button>
                   </div>
                   <iframe
-                    src={`${candidate.resume_url.startsWith('http') ? candidate.resume_url : `${window.location.origin}${candidate.resume_url}`}#toolbar=1&navpanes=0`}
+                    src={`${candidate.resume_url.startsWith('http') ? candidate.resume_url : `${import.meta.env.VITE_API_BASE_URL || window.location.origin}${candidate.resume_url}`}#toolbar=1&navpanes=0`}
                     title="Resume"
                     style={{ width: '100%', height: '68vh', borderRadius: 12, border: '1px solid #eee' }}
                   />

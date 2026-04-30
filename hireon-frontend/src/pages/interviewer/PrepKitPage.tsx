@@ -288,9 +288,10 @@ export default function PrepKitPage() {
                 {candidate.resume_url && (
                   <button
                     onClick={() => {
+                      const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
                       const url = candidate.resume_url!.startsWith('http')
                         ? candidate.resume_url!
-                        : `${window.location.origin}${candidate.resume_url}`
+                        : `${baseUrl}${candidate.resume_url}`
                       window.open(url, '_blank', 'noopener,noreferrer')
                     }}
                     style={{
