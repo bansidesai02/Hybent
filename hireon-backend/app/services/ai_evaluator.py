@@ -530,7 +530,7 @@ async def generate_jd_from_prompt(
     """
     if not settings.gemini_api_key and not settings.groq_api_key:
         logger.warning("No AI API keys configured (Gemini/Groq)")
-        return None
+        return None, "No AI API keys configured on server."
 
     prompt = f"{JD_GENERATE_PROMPT}\n{user_prompt}"
     
@@ -554,7 +554,7 @@ async def generate_jd_from_prompt(
                     c_tokens = response.usage_metadata.candidates_token_count
                     t_tokens = response.usage_metadata.total_token_count
                     
-                return parse_json_response(response.text)
+                return parse_json_response(response.text), None
             except Exception as ge:
                 logger.error(f"Gemini JD generation failed, checking Groq: {ge}")
                 if not settings.groq_api_key:
@@ -579,13 +579,13 @@ async def generate_jd_from_prompt(
                 c_tokens = completion.usage.completion_tokens
                 t_tokens = completion.usage.total_tokens
                 
-            return json.loads(completion.choices[0].message.content)
+            return json.loads(completion.choices[0].message.content), None
 
     except Exception as e:
         status = "failure"
         error_msg = str(e)
         logger.error(f"AI JD generation failure [{type(e).__name__}]: {e}", exc_info=True)
-        return None
+        return None, error_msg
     finally:
         duration_ms = (time.time() - start_time) * 1000
         if background_tasks:

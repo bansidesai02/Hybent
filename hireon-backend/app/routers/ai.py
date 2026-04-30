@@ -42,7 +42,7 @@ async def generate_jd(
     if not prompt or len(prompt.strip()) < 5:
         raise HTTPException(status_code=400, detail="Prompt is too short to generate a JD.")
 
-    result = await ai_evaluator.generate_jd_from_prompt(
+    result, error_detail = await ai_evaluator.generate_jd_from_prompt(
         prompt,
         background_tasks=background_tasks,
         user_id=current_user.id,
@@ -50,7 +50,7 @@ async def generate_jd(
     )
     
     if not result:
-        raise HTTPException(status_code=500, detail="AI JD generation failed. Please try again or check your Gemini API key.")
+        raise HTTPException(status_code=500, detail=f"AI JD generation failed: {error_detail or 'Check Gemini API key.'}")
 
     return APIResponse.success(message="Job description generated successfully.", data=result)
 
