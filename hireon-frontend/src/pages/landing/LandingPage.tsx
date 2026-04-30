@@ -1010,7 +1010,7 @@ export default function LandingPage() {
               </h2>
               <div className="space-y-6 text-[18px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
                 <p>
-                  Hireon was born from a simple mission by Bansi Desai: to fix a recruiting process that hadn't meaningfully changed in decades. As an IIT Engineer, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
+                  Hireon was born from a simple mission by Bansi Desai: to fix a recruiting process that hadn't meaningfully changed in decades. From her experience in Human Resources and Talent Acquisition, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
                 </p>
                 <p>
                   She set out to build the co-pilot she always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
