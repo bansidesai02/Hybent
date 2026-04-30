@@ -545,7 +545,24 @@ async def generate_jd_from_prompt(
         if settings.gemini_api_key:
             genai.configure(api_key=settings.gemini_api_key)
             provider = "Gemini"
-            model_name = "models/gemini-1.5-flash"
+            
+            # Dynamic Model Selection
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            
+            if "models/gemini-1.5-flash" in available_models:
+                model_name = "models/gemini-1.5-flash"
+            elif "models/gemini-1.5-pro" in available_models:
+                model_name = "models/gemini-1.5-pro"
+            elif "models/gemini-2.0-flash" in available_models:
+                model_name = "models/gemini-2.0-flash"
+            elif available_models:
+                # Pick the first one that looks like a gemini model
+                gemini_models = [m for m in available_models if "gemini" in m.lower()]
+                model_name = gemini_models[0] if gemini_models else available_models[0]
+            else:
+                model_name = "models/gemini-1.5-flash" # Last resort fallback
+            
+            print(f"DEBUG: Using Gemini Model: {model_name}")
             
             # Diagnostic check for the key format
             key_status = "Loaded"

@@ -33,7 +33,7 @@ async def evaluate_notes(
 @router.post("/generate-jd")
 async def generate_jd(
     background_tasks: BackgroundTasks,
-    current_user: Annotated[User, Depends(require_recruiter)],
+    current_user: Annotated[User, Depends(get_current_user)],
     prompt: str = Body(..., embed=True)
 ):
     """
@@ -42,6 +42,7 @@ async def generate_jd(
     if not prompt or len(prompt.strip()) < 5:
         raise HTTPException(status_code=400, detail="Prompt is too short to generate a JD.")
 
+    print(f"DEBUG: Generating JD for prompt: {prompt[:50]}...")
     result, error_detail = await ai_evaluator.generate_jd_from_prompt(
         prompt,
         background_tasks=background_tasks,
@@ -50,8 +51,10 @@ async def generate_jd(
     )
     
     if not result:
+        print(f"DEBUG: JD Generation Failed: {error_detail}")
         raise HTTPException(status_code=500, detail=f"AI JD generation failed: {error_detail or 'Check Gemini API key.'}")
 
+    print("DEBUG: JD Generation Successful!")
     return APIResponse.success(message="Job description generated successfully.", data=result)
     
 @router.get("/test-gemini")
