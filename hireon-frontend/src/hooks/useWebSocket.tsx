@@ -191,6 +191,11 @@ export function useWebSocket() {
               })
             }
           }
+
+          if (msg.event === 'messages_read' && msg.data) {
+            // Dispatch custom event for ChatPanel to update ticks to blue
+            window.dispatchEvent(new CustomEvent('ws:messages_read', { detail: msg.data }))
+          }
         }
       } catch (_) { /* ignore */ }
     }

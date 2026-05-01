@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
-import { X, MessageSquare, Check, SendHorizontal } from 'lucide-react'
+import { X, MessageSquare, Check, CheckCheck, SendHorizontal } from 'lucide-react'
 
 interface ChatPanelProps {
   open: boolean
@@ -73,13 +73,48 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
   useEffect(() => {
     const handleNewMessage = (event: any) => {
       const msg = event.detail
-      if (msg.sender_id === recipient.id) {
-        setMessages((prev) => [...prev, msg])
+      
+      setMessages((prev) => {
+        // Prevent duplicates (e.g., from the tab that just sent the message via API)
+        if (prev.some(m => m.id === msg.id)) return prev
+
+        // Case 1: Message received from the person we are chatting with
+        if (msg.sender_id === recipient.id) {
+          // If chat panel is open, mark as read
+          if (open) {
+            messagesApi.markAsRead(recipient.id).catch(console.error)
+          }
+          return [...prev, msg]
+        }
+        
+        // Case 2: Message sent by us (from another tab) to this recipient
+        if (msg.sender_id === currentUser?.id && msg.receiver_id === recipient.id) {
+          return [...prev, msg]
+        }
+
+        return prev
+      })
+    }
+    
+    const handleMessagesRead = (event: any) => {
+      const { reader_id, message_ids } = event.detail
+      if (reader_id === recipient.id) {
+        setMessages((prev) => 
+          prev.map(msg => 
+            message_ids.includes(msg.id) ? { ...msg, is_read: true } : msg
+          )
+        )
       }
     }
+
     window.addEventListener('ws:new_message', handleNewMessage)
-    return () => window.removeEventListener('ws:new_message', handleNewMessage)
-  }, [recipient.id])
+    window.addEventListener('ws:messages_read', handleMessagesRead)
+    
+    return () => {
+      window.removeEventListener('ws:new_message', handleNewMessage)
+      window.removeEventListener('ws:messages_read', handleMessagesRead)
+    }
+  }, [recipient.id, open])
 
   return (
     <AnimatePresence>
@@ -217,7 +252,11 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
                               {format(new Date(group.timestamp), 'hh:mm a')}
                             </span>
                             {isMe && (
-                              <Check className="w-3 h-3 text-[var(--violet)]" strokeWidth={3} />
+                              group.messages[group.messages.length - 1].is_read ? (
+                                <CheckCheck className="w-3.5 h-3.5 text-blue-400" strokeWidth={3} />
+                              ) : (
+                                <Check className="w-3 h-3 text-gray-300" strokeWidth={3} />
+                              )
                             )}
                           </div>
                         </div>
