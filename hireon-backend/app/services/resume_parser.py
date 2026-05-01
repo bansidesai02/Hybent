@@ -70,8 +70,8 @@ Return ONLY a valid JSON object with this exact structure:
   "location": "string or null",
   "current_title": "string or null",
   "current_company": "string or null",
-  "years_experience": 5.5,
-  "experience_years": "5.5 Years",
+  "years_experience": 0.0,
+  "experience_years": "string (e.g. '3.5 Years') or null",
   "summary": "AI-generated analysis of the full resume",
   "skills": ["skill1", "skill2", ...],
   "education": [
@@ -274,11 +274,26 @@ def calculate_years_from_experience(experience_list: list) -> Optional[float]:
             flags=re.IGNORECASE,
         )
         years_found = re.findall(r'\b((?:19|20)\d{2})\b', norm)
+        
+        # Simple extraction of month names if present
+        months_found = re.findall(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b', norm.lower())
+        
         if len(years_found) >= 2:
             try:
                 y1, y2 = int(years_found[0]), int(years_found[-1])
                 if y2 >= y1:
-                    total_months += (y2 - y1) * 12
+                    months_diff = (y2 - y1) * 12
+                    # Rough month adjustment if months are mentioned
+                    if len(months_found) >= 2:
+                        m_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+                        m1 = m_map.get(months_found[0], 1)
+                        m2 = m_map.get(months_found[-1], 12)
+                        months_diff += (m2 - m1)
+                    
+                    if months_diff > 0:
+                        total_months += months_diff
+                    else:
+                        total_months += 12 # minimum 1 year
             except Exception:
                 pass
         elif len(years_found) == 1:
