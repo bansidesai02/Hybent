@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { Search, Moon, Sun, User, LogOut, Map, Calendar, Bell, Target, Building2, FileText, Brain, Menu, X } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
+import { Avatar } from '@/components/ui/Avatar'
 
 const NAV_ITEMS = [
   { to: '/portal', label: 'Application Journey', icon: 'Map', end: true },
@@ -72,7 +73,7 @@ export function PortalLayout() {
 
 
   const initials = user?.full_name
-    ? user.full_name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'C'
 
   const toggleTheme = () => {

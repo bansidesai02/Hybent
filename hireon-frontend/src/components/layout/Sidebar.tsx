@@ -181,7 +181,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
     if (!user?.full_name) return role.charAt(0).toUpperCase()
     return user.full_name
       .split(' ')
-      .map((n) => n[0])
+      .map((n: string) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2)
