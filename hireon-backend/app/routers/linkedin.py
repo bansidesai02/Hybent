@@ -294,11 +294,13 @@ async def create_linkedin_post(
 
         if post_resp.status_code not in (200, 201):
             logger.error(f"LinkedIn post failed: {post_resp.text}")
-            # If 401, clear the stale token
+            # If LinkedIn returns 401, the LinkedIn OAuth token has expired — NOT the user's session.
+            # Use 403 here so the frontend axios interceptor does NOT treat this as a session expiry
+            # and accidentally log the user out.
             if post_resp.status_code == 401:
                 user.linkedin_access_token = None
                 await db.commit()
-                raise HTTPException(status_code=401, detail="LinkedIn token expired. Please reconnect.")
+                raise HTTPException(status_code=403, detail="LinkedIn token expired. Please reconnect your LinkedIn account.")
             raise HTTPException(status_code=502, detail=f"LinkedIn post failed: {post_resp.text}")
 
         post_id = post_resp.headers.get("x-restli-id", "")

@@ -530,7 +530,7 @@ async def generate_jd_from_prompt(
     """
     if not settings.gemini_api_key and not settings.groq_api_key:
         logger.warning("No AI API keys configured (Gemini/Groq)")
-        return None
+        return None, "No AI API keys configured on server."
 
     prompt = f"{JD_GENERATE_PROMPT}\n{user_prompt}"
     
@@ -543,8 +543,32 @@ async def generate_jd_from_prompt(
 
     try:
         if settings.gemini_api_key:
+            genai.configure(api_key=settings.gemini_api_key)
             provider = "Gemini"
-            model_name = "gemini-1.5-flash-latest"
+            
+            # Dynamic Model Selection
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            
+            if "models/gemini-1.5-flash" in available_models:
+                model_name = "models/gemini-1.5-flash"
+            elif "models/gemini-1.5-pro" in available_models:
+                model_name = "models/gemini-1.5-pro"
+            elif "models/gemini-2.0-flash" in available_models:
+                model_name = "models/gemini-2.0-flash"
+            elif available_models:
+                # Pick the first one that looks like a gemini model
+                gemini_models = [m for m in available_models if "gemini" in m.lower()]
+                model_name = gemini_models[0] if gemini_models else available_models[0]
+            else:
+                model_name = "models/gemini-1.5-flash" # Last resort fallback
+            
+            print(f"DEBUG: Using Gemini Model: {model_name}")
+            
+            # Diagnostic check for the key format
+            key_status = "Loaded"
+            if not settings.gemini_api_key.startswith("AIza"):
+                key_status = "Invalid Prefix (Should start with AIza)"
+                
             try:
                 model = genai.GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
@@ -554,13 +578,15 @@ async def generate_jd_from_prompt(
                     c_tokens = response.usage_metadata.candidates_token_count
                     t_tokens = response.usage_metadata.total_token_count
                     
-                return parse_json_response(response.text)
+                return parse_json_response(response.text), None
             except Exception as ge:
-                logger.error(f"Gemini JD generation failed, checking Groq: {ge}")
+                logger.error(f"Gemini JD generation failed (Key Status: {key_status}): {ge}")
+                error_msg = f"Gemini Error (Key: {key_status}): {str(ge)}"
+                # If Groq is available, let it try as fallback
                 if not settings.groq_api_key:
                     status = "failure"
-                    error_msg = str(ge)
-                    raise ge
+                    return None, error_msg
+                # else: fall through to Groq below
 
         if settings.groq_api_key:
             provider = "Groq"
@@ -579,13 +605,13 @@ async def generate_jd_from_prompt(
                 c_tokens = completion.usage.completion_tokens
                 t_tokens = completion.usage.total_tokens
                 
-            return json.loads(completion.choices[0].message.content)
+            return json.loads(completion.choices[0].message.content), None
 
     except Exception as e:
         status = "failure"
         error_msg = str(e)
         logger.error(f"AI JD generation failure [{type(e).__name__}]: {e}", exc_info=True)
-        return None
+        return None, error_msg
     finally:
         duration_ms = (time.time() - start_time) * 1000
         if background_tasks:
@@ -773,7 +799,7 @@ async def generate_image_prompt(
     try:
         if settings.gemini_api_key:
             provider = "Gemini"
-            model_name = "gemini-1.5-flash-latest"
+            model_name = "gemini-1.5-flash"
             model = genai.GenerativeModel(model_name)
             response = await model.generate_content_async(prompt)
             

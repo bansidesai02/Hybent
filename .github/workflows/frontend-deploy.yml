@@ -1,0 +1,91 @@
+# Frontend CI/CD - Triggering fresh run
+
+on:
+  push:
+    branches: [ yash ]
+  pull_request:
+    branches: [ main, yash ]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'hireon-frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./hireon-frontend
+        run: npm ci
+
+      - name: Build Optimized Bundle
+        working-directory: ./hireon-frontend
+        env:
+          VITE_API_BASE_URL: https://hireon-all-in-one.onrender.com
+        run: npm run build
+
+      - name: Upload Build Artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: hireon-frontend/dist/
+          include-hidden-files: true
+
+  deploy:
+    name: Deploy to Hostinger
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+
+      - name: Push built files to hostinger-deploy branch
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git fetch origin
+
+          # Checkout existing branch or create fresh orphan
+          if git rev-parse --verify origin/hostinger-deploy > /dev/null 2>&1; then
+            git checkout hostinger-deploy
+            git rm -rf . --quiet || true
+          else
+            git checkout --orphan hostinger-deploy
+            git rm -rf . --quiet || true
+          fi
+
+          # Explicitly copy all files including hidden ones
+          cp -a dist/. .
+          # Verify .htaccess exists
+          ls -la .htaccess || echo ".htaccess NOT FOUND"
+          rm -rf dist
+          echo "Deployed: $(date)" > DEPLOY_INFO.txt
+          git add -A
+          git add .htaccess -f || true
+          git commit -m "Deploy: $(date)"
+          git push origin hostinger-deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Hostinger Auto Deployment
+        run: |
+          curl -s -X POST "https://webhooks.hostinger.com/deploy/d612e0359bf8b5e3d348434e936ea113"
+          echo "Hostinger deployment triggered!"

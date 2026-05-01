@@ -248,8 +248,14 @@ export default function AddJobPage() {
       setShowAIReview(true)
       setAiPrompt('')
     } catch (err) {
-      console.error(err)
-      setServerError('Failed to generate JD with AI. Please try again.')
+      console.error('AI Generation Debug:', err)
+      const status = (err as any).response?.status
+      const data = (err as any).response?.data
+      let errorMsg = data?.detail 
+        ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
+        : (data?.message || (err as any).message || 'Failed to generate JD with AI.')
+      
+      setServerError(`AI Status: ${errorMsg} (Code: ${status || 'Network'})`)
     } finally {
       setIsGenerating(false)
     }

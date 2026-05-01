@@ -73,7 +73,7 @@ export function useNotifications() {
     })
 
     return () => unsubscribe()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
   // ─────────────────────────────────────────────────────────────────────────
 
   const { data: notifications } = useQuery({

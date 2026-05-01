@@ -277,11 +277,11 @@ function SingleInterviewerCard({ sc, expandedIds, toggleExpand }: { sc: any, exp
 
 
 function RoundScorecardsGroup({ group, expandedIds, toggleExpand }: { group: any, expandedIds: Set<string>, toggleExpand: (id: string) => void }) {
-  if (!group.cards || group.cards.length === 0) return null
-
   const hasAiSummary = group.interview_id && !group.interview_id.startsWith('unknown_')
   // Default active tab: 'ai' if available, else first interviewer id
   const [activeTab, setActiveTab] = useState<string>(hasAiSummary ? 'ai' : group.cards[0]?.id)
+
+  if (!group.cards || group.cards.length === 0) return null
 
   const avgScore = group.cards.reduce((sum: number, sc: any) => sum + sc.overall_rating, 0) / group.cards.length
 
@@ -892,10 +892,19 @@ export function CandidateProfileView({ candidate }: CandidateProfileViewProps) {
               )
             })()}
             {candidate.resume_url && (
-              <a href={candidate.resume_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', background: 'rgba(108,71,255,0.08)', padding: '4px 12px', borderRadius: 20 }}>
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
+                  const url = candidate.resume_url!.startsWith('http')
+                    ? candidate.resume_url!
+                    : `${baseUrl}${candidate.resume_url}`
+                  window.open(url, '_blank', 'noopener,noreferrer')
+                }}
+                style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', background: 'rgba(108,71,255,0.08)', padding: '4px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
                 <FileText size={14} /> Resume
-              </a>
+              </button>
             )}
           </div>
         </div>

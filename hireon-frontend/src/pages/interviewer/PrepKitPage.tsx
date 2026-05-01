@@ -286,16 +286,24 @@ export default function PrepKitPage() {
                 )}
 
                 {candidate.resume_url && (
-                  <a href={candidate.resume_url} target="_blank" rel="noreferrer" style={{ display: 'block', marginTop: 12 }}>
-                    <button style={{
+                  <button
+                    onClick={() => {
+                      const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
+                      const url = candidate.resume_url!.startsWith('http')
+                        ? candidate.resume_url!
+                        : `${baseUrl}${candidate.resume_url}`
+                      window.open(url, '_blank', 'noopener,noreferrer')
+                    }}
+                    style={{
                       width: '100%', padding: '8px', borderRadius: 8, border: '1.5px solid rgba(108,71,255,0.25)',
                       background: 'rgba(108,71,255,0.05)', color: '#6c47ff', fontSize: 12,
                       fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                    }}>
-                      <FileText size={14} /> View Resume
-                    </button>
-                  </a>
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      marginTop: 12,
+                    }}
+                  >
+                    <FileText size={14} /> View Resume
+                  </button>
                 )}
               </div>
             ) : (

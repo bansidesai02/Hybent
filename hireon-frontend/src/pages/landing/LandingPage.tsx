@@ -535,19 +535,25 @@ export default function LandingPage() {
 
         {/* Nav links */}
         <ul className="hidden md:flex items-center gap-1 list-none m-0 p-0">
-          {['Features', 'How it works', 'About', 'Book Demo'].map((item) => (
-            <li key={item}>
-              <a
-                href={item === 'Book Demo' ? '#book-demo' : `#${item.toLowerCase().replace(/\s+/g, '-')}`}
-                className="block px-4 py-2 text-[16px] font-medium rounded-[10px] no-underline transition-all duration-200 hover:bg-[rgba(108,71,255,0.07)]"
-                style={{ color: 'var(--text-mid)' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#6c47ff')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-mid)')}
-              >
-                {item}
-              </a>
-            </li>
-          ))}
+          {['Features', 'How it works', 'About', 'Book Demo'].map((item) => {
+            const targetId = item === 'Book Demo' ? 'book-demo' : item.toLowerCase().replace(/\s+/g, '-');
+            return (
+              <li key={item}>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="block px-4 py-2 text-[16px] font-medium rounded-[10px] bg-transparent border-none cursor-pointer transition-all duration-200 hover:bg-[rgba(108,71,255,0.07)]"
+                  style={{ color: 'var(--text-mid)', fontFamily: 'inherit' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#6c47ff')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-mid)')}
+                >
+                  {item}
+                </button>
+              </li>
+            );
+          })}
         </ul>
 
         {/* CTA buttons - Desktop only */}
@@ -628,18 +634,24 @@ export default function LandingPage() {
                     Sign In
                   </Link>
                 </li>
-                {['Features', 'How it works', 'About'].map((item) => (
-                  <li key={item}>
-                    <a
-                      href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block px-4 py-3 text-[16px] font-bold rounded-xl no-underline"
-                      style={{ color: 'var(--text-mid)' }}
-                    >
-                      {item}
-                    </a>
-                  </li>
-                ))}
+                {['Features', 'How it works', 'About'].map((item) => {
+                  const targetId = item.toLowerCase().replace(/\s+/g, '-');
+                  return (
+                    <li key={item}>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMobileMenuOpen(false);
+                          document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="w-full text-left block px-4 py-3 text-[16px] font-bold rounded-xl bg-transparent border-none cursor-pointer"
+                        style={{ color: 'var(--text-mid)', fontFamily: 'inherit' }}
+                      >
+                        {item}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
               <div className="h-px bg-gray-100 my-2" />
               <Link to="/register?demo=true" onClick={() => setMobileMenuOpen(false)}>
@@ -1010,7 +1022,7 @@ export default function LandingPage() {
               </h2>
               <div className="space-y-6 text-[18px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
                 <p>
-                  Hireon was born from a simple mission by Bansi Desai: to fix a recruiting process that hadn't meaningfully changed in decades. As an IIT Engineer, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
+                  Hireon was born from a simple mission by Bansi Desai: to fix a recruiting process that hadn't meaningfully changed in decades. From her experience in Human Resources and Talent Acquisition, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
                 </p>
                 <p>
                   She set out to build the co-pilot she always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
@@ -1313,16 +1325,21 @@ export default function LandingPage() {
                 </h4>
                 <ul className="space-y-2">
                   {col.links.map((link) => {
-                    const href = link === 'Features' ? '#features' : link === 'About' ? '#about' : '#';
+                    const targetId = link === 'Features' ? 'features' : link === 'About' ? 'about' : '';
                     return (
                       <li key={link}>
-                        <a
-                          href={href}
-                          className="text-[13px] no-underline transition-colors hover:text-violet-600"
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (targetId) {
+                              document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                          className="text-[13px] no-underline transition-colors hover:text-violet-600 bg-transparent border-none p-0 cursor-pointer text-left"
                           style={{ color: 'var(--text-mid)' }}
                         >
                           {link}
-                        </a>
+                        </button>
                       </li>
                     );
                   })}

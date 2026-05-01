@@ -72,6 +72,5 @@ export async function requestNotificationPermission(vapidKey: string): Promise<s
 export function onForegroundMessage(
   callback: (payload: MessagePayload) => void
 ): Unsubscribe {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return onMessage(messaging, callback as any)
 }

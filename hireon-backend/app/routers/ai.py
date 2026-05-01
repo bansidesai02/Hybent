@@ -42,7 +42,8 @@ async def generate_jd(
     if not prompt or len(prompt.strip()) < 5:
         raise HTTPException(status_code=400, detail="Prompt is too short to generate a JD.")
 
-    result = await ai_evaluator.generate_jd_from_prompt(
+    print(f"DEBUG: Generating JD for prompt: {prompt[:50]}...")
+    result, error_detail = await ai_evaluator.generate_jd_from_prompt(
         prompt,
         background_tasks=background_tasks,
         user_id=current_user.id,
@@ -50,9 +51,55 @@ async def generate_jd(
     )
     
     if not result:
-        raise HTTPException(status_code=500, detail="AI JD generation failed. Please try again or check your Gemini API key.")
+        print(f"DEBUG: JD Generation Failed: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"AI JD generation failed: {error_detail or 'Check Gemini API key.'}")
 
+    print("DEBUG: JD Generation Successful!")
     return APIResponse.success(message="Job description generated successfully.", data=result)
+    
+@router.get("/test-gemini")
+async def test_gemini():
+    from app.config import settings
+    import google.generativeai as genai
+    
+    status = {
+        "key_present": bool(settings.gemini_api_key),
+        "key_prefix_ok": settings.gemini_api_key.startswith("AIza") if settings.gemini_api_key else False,
+        "error": None
+    }
+    
+    try:
+        if not settings.gemini_api_key:
+            return {"status": "error", "message": "Key missing in settings"}
+            
+        genai.configure(api_key=settings.gemini_api_key)
+        
+        # Get list of models
+        models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                models.append(m.name)
+        
+        # Try a very basic model first
+        test_model = 'gemini-1.5-flash' if 'models/gemini-1.5-flash' in models else (models[0] if models else 'gemini-pro')
+        
+        model = genai.GenerativeModel(test_model)
+        response = await model.generate_content_async("Say hello")
+        return {
+            "status": "success", 
+            "message": response.text, 
+            "available_models": models,
+            "tested_with": test_model,
+            "diagnostics": status
+        }
+    except Exception as e:
+        # If it fails, still return the models we found
+        return {
+            "status": "error", 
+            "message": str(e), 
+            "available_models": locals().get('models', []),
+            "diagnostics": status
+        }
 
 @router.post("/generate-jd-pdf")
 async def generate_jd_pdf_endpoint(

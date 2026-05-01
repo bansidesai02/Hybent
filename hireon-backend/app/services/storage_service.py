@@ -65,6 +65,27 @@ async def save_resume(file: UploadFile, organization_id: str) -> tuple[str, str]
     content = await file.read()
     if len(content) > settings.max_file_size_bytes:
         raise HTTPException(status_code=400, detail=f"File too large (max {settings.max_file_size_mb}MB)")
+
+    # 1. Cloudinary Upload Flow
+    if settings.cloudinary_cloud_name:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder=f"hireon_resumes/{organization_id}",
+                    public_id=f"resume_{uuid.uuid4().hex[:8]}{ext}",
+                    resource_type="raw"
+                )
+            )
+            return response.get("secure_url"), file.filename
+        except Exception as e:
+            print(f"ERROR: Cloudinary upload failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Resume upload to Cloudinary failed: {str(e)}")
+
+    # 2. Fallback Local Storage Flow
     filename = f"{uuid.uuid4()}{ext}"
     folder = UPLOAD_BASE / "resumes" / organization_id
     folder.mkdir(parents=True, exist_ok=True)
@@ -89,6 +110,27 @@ async def save_jd(file: UploadFile, organization_id: str) -> tuple[str, str]:
         raise HTTPException(status_code=400, detail=f"File too large (max {settings.max_file_size_mb}MB)")
 
     ext = ALLOWED_RESUME_TYPES[file.content_type]
+
+    # 1. Cloudinary Upload Flow
+    if settings.cloudinary_cloud_name:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder=f"hireon_jds/{organization_id}",
+                    public_id=f"jd_{uuid.uuid4().hex[:8]}{ext}",
+                    resource_type="raw"
+                )
+            )
+            return response.get("secure_url"), file.filename
+        except Exception as e:
+            print(f"ERROR: Cloudinary upload failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"JD upload to Cloudinary failed: {str(e)}")
+
+    # 2. Fallback Local Storage Flow
     filename = f"{uuid.uuid4()}{ext}"
     folder = UPLOAD_BASE / "jds" / organization_id
     folder.mkdir(parents=True, exist_ok=True)
