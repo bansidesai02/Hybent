@@ -80,24 +80,9 @@ function RequireAuth({
   return <>{children}</>
 }
 
-import { useUIStore } from '@/store/uiStore'
-import { AppLoader } from '@/components/ui/AppLoader'
 import { Toaster } from 'react-hot-toast'
 
-// A small fallback component for lazy loading
-const PageFallback = () => (
-  <div className="flex h-[50vh] w-full items-center justify-center">
-    <div className="flex items-center gap-2">
-      <div className="w-2 h-2 rounded-full bg-violet-500 animate-bounce [animation-delay:-0.3s]" />
-      <div className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.15s]" />
-      <div className="w-2 h-2 rounded-full bg-violet-300 animate-bounce" />
-    </div>
-  </div>
-)
-
 export default function App() {
-  const { isLoading } = useUIStore()
-
   const coreRoutes = (
     <>
       <Route index element={<OverviewPage />} />
@@ -121,8 +106,6 @@ export default function App() {
 
   return (
     <>
-      {isLoading && <AppLoader />}
-
       <Toaster 
         position="top-right" 
         toastOptions={{ 
@@ -145,7 +128,7 @@ export default function App() {
           },
         }} 
       />
-      <Suspense fallback={<PageFallback />}>
+      <Suspense fallback={null}>
         <Routes>
           {/* Public */}
           <Route path="/" element={<LandingPage />} />

@@ -5,7 +5,6 @@
  * - 401 auto-refresh interceptor with request retry
  */
 import axios, { type AxiosRequestConfig } from 'axios'
-import { useUIStore } from '@/store/uiStore'
 
 // Extend AxiosRequestConfig to include skipLoader
 declare module 'axios' {
@@ -24,11 +23,6 @@ const api = axios.create({
 
 // ── Request interceptor: inject access token & start loading ─────────────────
 api.interceptors.request.use((config) => {
-  // Start global loader if not skipped
-  if (!config.skipLoader) {
-    useUIStore.getState().startLoading()
-  }
-
   // Import lazily to avoid circular deps
   const token = localStorage.getItem('hireon_access_token')
   if (token) {
@@ -54,11 +48,6 @@ function processQueue(error: unknown, token: string | null) {
 
 api.interceptors.response.use(
   (response) => {
-    // Stop global loader
-    if (!response.config.skipLoader) {
-      useUIStore.getState().stopLoading()
-    }
-
     if (response.data && typeof response.data === 'object' && 'success' in response.data) {
       if (response.data.success) {
         response.data = response.data.data !== undefined ? response.data.data : response.data;
@@ -67,11 +56,6 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // Stop global loader on error too
-    if (error.config && !error.config.skipLoader) {
-      useUIStore.getState().stopLoading()
-    }
-
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
