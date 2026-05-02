@@ -51,10 +51,16 @@ async def send_message(
         "sender_id": str(new_message.sender_id),
         "sender_name": current_user.full_name,
         "sender_avatar": current_user.avatar_url,
+        "receiver_id": str(payload.receiver_id),
+        "receiver_name": receiver.full_name,
+        "receiver_avatar": receiver.avatar_url,
         "content": new_message.content,
         "created_at": new_message.created_at.isoformat(),
     }
     await ws_manager.send_to_user(str(payload.receiver_id), "new_message", message_data)
+    
+    # Notify sender as well (for multi-tab sync)
+    await ws_manager.send_to_user(str(current_user.id), "new_message", message_data)
 
     # 4. Trigger System Notification (Bell Alert)
     # This ensures the user gets a red dot/alert if they aren't looking at the chat
@@ -189,9 +195,60 @@ async def get_messages(
     
     if unread_messages:
         await db.commit()
+        # Notify the sender that their messages were read
+        await ws_manager.send_to_user(
+            str(other_user_id),
+            "messages_read",
+            {
+                "reader_id": str(current_user.id),
+                "message_ids": [str(msg.id) for msg in unread_messages]
+            }
+        )
 
     # Return in chronological order for the UI
     return APIResponse.success(
         message="Conversation retrieved.",
         data=[MessageRead.model_validate(m) for m in reversed(list(messages))]
     )
+
+
+@router.post("/{other_user_id}/read")
+async def mark_messages_as_read(
+    other_user_id: uuid.UUID,
+    db: DB,
+    current_user: CurrentUser,
+):
+    """
+    Manually mark all messages from a specific user as read.
+    Used when a new message arrives and the chat is already open.
+    """
+    unread_msgs_stmt = (
+        select(Message)
+        .where(
+            Message.sender_id == other_user_id,
+            Message.receiver_id == current_user.id,
+            Message.is_read == False
+        )
+    )
+    unread_result = await db.execute(unread_msgs_stmt)
+    unread_messages = unread_result.scalars().all()
+    
+    if not unread_messages:
+        return APIResponse.success(message="No unread messages.")
+
+    for msg in unread_messages:
+        msg.is_read = True
+    
+    await db.commit()
+
+    # Notify the sender
+    await ws_manager.send_to_user(
+        str(other_user_id),
+        "messages_read",
+        {
+            "reader_id": str(current_user.id),
+            "message_ids": [str(msg.id) for msg in unread_messages]
+        }
+    )
+
+    return APIResponse.success(message="Messages marked as read.")

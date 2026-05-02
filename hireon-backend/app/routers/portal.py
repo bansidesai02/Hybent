@@ -96,18 +96,28 @@ async def my_applications(current_user: CurrentUser, db: DB):
     """Candidate views their own applications."""
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
-    candidate = (await db.execute(
-        select(Candidate).where(Candidate.user_id == current_user.id)
-    )).scalar_one_or_none()
-    if not candidate:
-        return APIResponse.success(message="Applications retrieved.", data=[])
     from sqlalchemy.orm import selectinload
+    # 1. Fetch candidate ID first (indexed search)
+    cand_query = select(Candidate.id).where(Candidate.user_id == current_user.id)
+    cand_id = (await db.execute(cand_query)).scalar()
+    
+    if not cand_id:
+        return APIResponse.success(message="Applications retrieved.", data=[])
+
+    # 2. Fetch applications with all required nested data in one go
     result = await db.execute(
         select(Application)
-        .where(Application.candidate_id == candidate.id)
-        .options(selectinload(Application.job))
+        .where(Application.candidate_id == cand_id)
+        .options(
+            selectinload(Application.job),
+            selectinload(Application.candidate).selectinload(Candidate.invitations),
+            selectinload(Application.candidate).selectinload(Candidate.other_offers),
+            selectinload(Application.candidate).selectinload(Candidate.documents)
+        )
+        .order_by(Application.created_at.desc())
     )
-    return APIResponse.success(message="Applications retrieved.", data=[ApplicationOut.model_validate(a).model_dump() for a in result.scalars().all()])
+    apps = result.scalars().all()
+    return APIResponse.success(message="Applications retrieved.", data=[ApplicationOut.model_validate(a).model_dump() for a in apps])
 
 
 @router.get("/my-interviews")
@@ -115,13 +125,21 @@ async def my_interviews(current_user: CurrentUser, db: DB):
     """Candidate views their scheduled interviews."""
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
-    candidate = (await db.execute(
-        select(Candidate).where(Candidate.user_id == current_user.id)
-    )).scalar_one_or_none()
-    if not candidate:
+    cand_query = select(Candidate.id).where(Candidate.user_id == current_user.id)
+    cand_id = (await db.execute(cand_query)).scalar()
+    
+    if not cand_id:
         return APIResponse.success(message="Interviews retrieved.", data=[])
+
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Interview).where(Interview.candidate_id == candidate.id)
+        select(Interview)
+        .where(Interview.candidate_id == cand_id)
+        .options(
+            selectinload(Interview.application).selectinload(Application.job),
+            selectinload(Interview.scorecards)
+        )
+        .order_by(Interview.scheduled_at.desc())
     )
     return APIResponse.success(message="Interviews retrieved.", data=[InterviewOut.model_validate(i).model_dump() for i in result.scalars().all()])
 
@@ -131,19 +149,21 @@ async def my_offers(current_user: CurrentUser, db: DB):
     """Candidate views their offers."""
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
-    candidate = (await db.execute(
-        select(Candidate).where(Candidate.user_id == current_user.id)
-    )).scalar_one_or_none()
-    if not candidate:
+    cand_query = select(Candidate.id).where(Candidate.user_id == current_user.id)
+    cand_id = (await db.execute(cand_query)).scalar()
+    
+    if not cand_id:
         return APIResponse.success(message="Offers retrieved.", data=[])
-    apps = (await db.execute(
-        select(Application).where(Application.candidate_id == candidate.id)
-    )).scalars().all()
-    app_ids = [a.id for a in apps]
-    if not app_ids:
-        return APIResponse.success(message="Offers retrieved.", data=[])
+
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Offer).where(Offer.application_id.in_(app_ids))
+        select(Offer)
+        .join(Application, Offer.application_id == Application.id)
+        .where(Application.candidate_id == cand_id)
+        .options(
+            selectinload(Offer.application).selectinload(Application.job),
+            selectinload(Offer.application).selectinload(Application.candidate)
+        )
     )
     return APIResponse.success(message="Offers retrieved.", data=[OfferOut.model_validate(o).model_dump() for o in result.scalars().all()])
 
@@ -190,10 +210,19 @@ async def portal_profile(current_user: CurrentUser, db: DB):
     """Candidate views their own profile."""
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
+    from sqlalchemy.orm import selectinload
     from app.schemas.candidate import CandidateOut
-    candidate = (await db.execute(
-        select(Candidate).where(Candidate.user_id == current_user.id)
-    )).scalar_one_or_none()
+    query = (
+        select(Candidate)
+        .where(Candidate.user_id == current_user.id)
+        .options(
+            selectinload(Candidate.invitations),
+            selectinload(Candidate.other_offers),
+            selectinload(Candidate.documents)
+        )
+    )
+    result = await db.execute(query)
+    candidate = result.scalar_one_or_none()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
     return APIResponse.success(message="Profile retrieved.", data=CandidateOut.model_validate(candidate))

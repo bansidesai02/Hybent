@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import ImageCropperModal from '@/components/common/ImageCropperModal'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { Camera } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
 
 interface ProfileFormCardProps {
   portalTitle?: string

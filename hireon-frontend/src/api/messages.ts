@@ -27,4 +27,7 @@ export const messagesApi = {
     
   sendMessage: (data: { receiver_id: string; content: string }) =>
     api.post<Message>('/v1/messages', data),
+    
+  markAsRead: (otherUserId: string) =>
+    api.post(`/v1/messages/${otherUserId}/read`),
 }

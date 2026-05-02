@@ -105,14 +105,14 @@ export default function LoginPage() {
     :root[data-theme="dark"] .aurora {
       background: linear-gradient(135deg, #16132a 0%, #0a0818 100%);
     }
-    .aura { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; }
+    .aura { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; will-change: transform; }
     .a1 { width: 700px; height: 700px; background: radial-gradient(circle, rgba(108,71,255,.28), transparent 70%); top: -250px; right: -150px; animation: drift1 16s ease-in-out infinite alternate; }
     .a2 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,107,198,.22), transparent 70%); bottom: -200px; left: -150px; animation: drift2 20s ease-in-out infinite alternate; }
     .a3 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(0,212,200,.18), transparent 70%); top: 40%; left: 35%; animation: drift3 12s ease-in-out infinite alternate; }
     .a4 { width: 250px; height: 250px; background: radial-gradient(circle, rgba(251,191,36,.14), transparent 70%); bottom: 20%; right: 25%; animation: drift1 9s ease-in-out infinite alternate; }
-    @keyframes drift1 { to { transform: translate(40px, -50px); } }
-    @keyframes drift2 { to { transform: translate(-30px, 40px); } }
-    @keyframes drift3 { to { transform: translate(50px, -30px); } }
+    @keyframes drift1 { from { transform: translate(0, 0); } to { transform: translate(40px, -50px); } }
+    @keyframes drift2 { from { transform: translate(0, 0); } to { transform: translate(-30px, 40px); } }
+    @keyframes drift3 { from { transform: translate(0, 0); } to { transform: translate(50px, -30px); } }
     .float-card { position: absolute; background: rgba(255,255,255,.55); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.8); border-radius: 16px; padding: 14px 18px; box-shadow: 0 8px 32px rgba(108,71,255,.12); font-size: 12px; font-weight: 600; color: #5a4e7a; display: flex; align-items: center; gap: 9px; animation: floatAnim 6s ease-in-out infinite alternate; z-index: 1; }
     :root[data-theme="dark"] .float-card {
       background: var(--color-bg-card, #1f1b36);

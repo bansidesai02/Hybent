@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import type { UserRole } from '@/types'
 
@@ -7,57 +8,57 @@ import { RecruiterLayout } from '@/components/layout/RecruiterLayout'
 import { InterviewerLayout } from '@/components/layout/InterviewerLayout'
 import { PortalLayout } from '@/components/layout/PortalLayout'
 
-// Auth
-import LoginPage from '@/pages/auth/LoginPage'
-import RegisterPage from '@/pages/auth/RegisterPage'
-import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
+// Auth (Lazy)
+const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
+const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 
-// Landing
-import LandingPage from '@/pages/landing/LandingPage'
-import OnboardingPage from '@/pages/candidate/OnboardingPage'
+// Landing (Lazy)
+const LandingPage = lazy(() => import('@/pages/landing/LandingPage'))
+const OnboardingPage = lazy(() => import('@/pages/candidate/OnboardingPage'))
 
-// Recruiter pages
-import OverviewPage from '@/pages/recruiter/OverviewPage'
-import JobsListPage from '@/pages/recruiter/JobsListPage'
-import AddJobPage from '@/pages/recruiter/AddJobPage'
-import CandidatesPage from '@/pages/recruiter/CandidatesPage'
-import PipelinePage from '@/pages/recruiter/PipelinePage'
-import UploadResumePage from '@/pages/recruiter/UploadResumePage'
-import InterviewsListPage from '@/pages/recruiter/InterviewsListPage'
-import OffersPage from '@/pages/recruiter/OffersPage'
-import AnalyticsPage from '@/pages/recruiter/AnalyticsPage'
-import ReportsPage from '@/pages/recruiter/ReportsPage'
-import TalentPoolPage from '@/pages/recruiter/TalentPoolPage'
-import AllTalentListPage from '@/pages/recruiter/AllTalentListPage'
-import RecruiterProfilePage from '@/pages/recruiter/RecruiterProfilePage'
-import RecruiterSettingsPage from '@/pages/recruiter/RecruiterSettingsPage'
+// Recruiter pages (Lazy)
+const OverviewPage = lazy(() => import('@/pages/recruiter/OverviewPage'))
+const JobsListPage = lazy(() => import('@/pages/recruiter/JobsListPage'))
+const AddJobPage = lazy(() => import('@/pages/recruiter/AddJobPage'))
+const CandidatesPage = lazy(() => import('@/pages/recruiter/CandidatesPage'))
+const PipelinePage = lazy(() => import('@/pages/recruiter/PipelinePage'))
+const UploadResumePage = lazy(() => import('@/pages/recruiter/UploadResumePage'))
+const InterviewsListPage = lazy(() => import('@/pages/recruiter/InterviewsListPage'))
+const OffersPage = lazy(() => import('@/pages/recruiter/OffersPage'))
+const AnalyticsPage = lazy(() => import('@/pages/recruiter/AnalyticsPage'))
+const ReportsPage = lazy(() => import('@/pages/recruiter/ReportsPage'))
+const TalentPoolPage = lazy(() => import('@/pages/recruiter/TalentPoolPage'))
+const AllTalentListPage = lazy(() => import('@/pages/recruiter/AllTalentListPage'))
+const RecruiterProfilePage = lazy(() => import('@/pages/recruiter/RecruiterProfilePage'))
+const RecruiterSettingsPage = lazy(() => import('@/pages/recruiter/RecruiterSettingsPage'))
 
-// Interviewer pages
-import InterviewerDashboard from '@/pages/interviewer/InterviewerDashboard'
-import MyInterviewsPage from '@/pages/interviewer/MyInterviewsPage'
-import ScorecardPage from '@/pages/interviewer/ScorecardPage'
-import PrepKitPage from '@/pages/interviewer/PrepKitPage'
-import LiveRoomPage from '@/pages/interviewer/LiveRoomPage'
-import ScorecardHubPage from '@/pages/interviewer/ScorecardHubPage'
-import PrepKitHubPage from '@/pages/interviewer/PrepKitHubPage'
-import LiveRoomHubPage from '@/pages/interviewer/LiveRoomHubPage'
-import InterviewerProfilePage from '@/pages/interviewer/InterviewerProfilePage'
+// Interviewer pages (Lazy)
+const InterviewerDashboard = lazy(() => import('@/pages/interviewer/InterviewerDashboard'))
+const MyInterviewsPage = lazy(() => import('@/pages/interviewer/MyInterviewsPage'))
+const ScorecardPage = lazy(() => import('@/pages/interviewer/ScorecardPage'))
+const PrepKitPage = lazy(() => import('@/pages/interviewer/PrepKitPage'))
+const LiveRoomPage = lazy(() => import('@/pages/interviewer/LiveRoomPage'))
+const ScorecardHubPage = lazy(() => import('@/pages/interviewer/ScorecardHubPage'))
+const PrepKitHubPage = lazy(() => import('@/pages/interviewer/PrepKitHubPage'))
+const LiveRoomHubPage = lazy(() => import('@/pages/interviewer/LiveRoomHubPage'))
+const InterviewerProfilePage = lazy(() => import('@/pages/interviewer/InterviewerProfilePage'))
 
-// Portal pages
-import PortalDashboard from '@/pages/portal/PortalDashboard'
-import PortalApplicationsPage from '@/pages/portal/PortalApplicationsPage'
-import PortalInterviewsPage from '@/pages/portal/PortalInterviewsPage'
-import PortalOffersPage from '@/pages/portal/PortalOffersPage'
-import PortalProfilePage from '@/pages/portal/PortalProfilePage'
-import PortalPrepHub from '@/pages/portal/PortalPrepHub'
-import PortalOpenings from '@/pages/portal/PortalOpenings'
-import PortalNotifications from '@/pages/portal/PortalNotifications'
-import PortalSettingsPage from '@/pages/portal/PortalSettingsPage'
+// Portal pages (Lazy)
+const PortalDashboard = lazy(() => import('@/pages/portal/PortalDashboard'))
+const PortalApplicationsPage = lazy(() => import('@/pages/portal/PortalApplicationsPage'))
+const PortalInterviewsPage = lazy(() => import('@/pages/portal/PortalInterviewsPage'))
+const PortalOffersPage = lazy(() => import('@/pages/portal/PortalOffersPage'))
+const PortalProfilePage = lazy(() => import('@/pages/portal/PortalProfilePage'))
+const PortalPrepHub = lazy(() => import('@/pages/portal/PortalPrepHub'))
+const PortalOpenings = lazy(() => import('@/pages/portal/PortalOpenings'))
+const PortalNotifications = lazy(() => import('@/pages/portal/PortalNotifications'))
+const PortalSettingsPage = lazy(() => import('@/pages/portal/PortalSettingsPage'))
 
-// Admin pages
-import TeamManagementPage from '@/pages/admin/TeamManagementPage'
-import AuditLogsPage from '@/pages/admin/AuditLogsPage'
-import AdminProfilePage from '@/pages/admin/AdminProfilePage'
+// Admin pages (Lazy)
+const TeamManagementPage = lazy(() => import('@/pages/admin/TeamManagementPage'))
+const AuditLogsPage = lazy(() => import('@/pages/admin/AuditLogsPage'))
+const AdminProfilePage = lazy(() => import('@/pages/admin/AdminProfilePage'))
 
 // ── Protected route wrapper ────────────────────────────────────────────────────
 function RequireAuth({
@@ -79,20 +80,23 @@ function RequireAuth({
   return <>{children}</>
 }
 
-import React, { useState, useEffect } from 'react'
-import { AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/store/uiStore'
 import { AppLoader } from '@/components/ui/AppLoader'
 import { Toaster } from 'react-hot-toast'
 
+// A small fallback component for lazy loading
+const PageFallback = () => (
+  <div className="flex h-[50vh] w-full items-center justify-center">
+    <div className="flex items-center gap-2">
+      <div className="w-2 h-2 rounded-full bg-violet-500 animate-bounce [animation-delay:-0.3s]" />
+      <div className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:-0.15s]" />
+      <div className="w-2 h-2 rounded-full bg-violet-300 animate-bounce" />
+    </div>
+  </div>
+)
+
 export default function App() {
   const { isLoading } = useUIStore()
-  const [initialLoading, setInitialLoading] = useState(true)
-
-  useEffect(() => {
-    // Initial splash screen delay - reduced to minimum or immediate
-    setInitialLoading(false)
-  }, [])
 
   const coreRoutes = (
     <>
@@ -117,9 +121,7 @@ export default function App() {
 
   return (
     <>
-      {/* <AnimatePresence mode="wait">
-        {(initialLoading || isLoading) && <AppLoader />}
-      </AnimatePresence> */}
+      {isLoading && <AppLoader />}
 
       <Toaster 
         position="top-right" 
@@ -143,86 +145,89 @@ export default function App() {
           },
         }} 
       />
-      <Routes>
-        {/* Public */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/onboarding/:token" element={<OnboardingPage />} />
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          {/* Public */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/onboarding/:token" element={<OnboardingPage />} />
 
-        {/* Recruiter routes */}
-        <Route
-          path="/recruiter"
-          element={
-            <RequireAuth roles={['recruiter']}>
-              <RecruiterLayout />
-            </RequireAuth>
-          }
-        >
-          {coreRoutes}
-        </Route>
+          {/* Recruiter routes */}
+          <Route
+            path="/recruiter"
+            element={
+              <RequireAuth roles={['recruiter']}>
+                <RecruiterLayout />
+              </RequireAuth>
+            }
+          >
+            {coreRoutes}
+          </Route>
 
-        {/* Admin routes */}
-        <Route
-          path="/admin"
-          element={
-            <RequireAuth roles={['admin']}>
-              <RecruiterLayout />
-            </RequireAuth>
-          }
-        >
-          {/* Admin-specific routes first - ensures /admin/profile hits AdminProfilePage */}
-          <Route path="audit" element={<AuditLogsPage />} />
-          <Route path="profile" element={<AdminProfilePage />} />
-          
-          {/* Shared routes */}
-          {coreRoutes}
-        </Route>
+          {/* Admin routes */}
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth roles={['admin']}>
+                <RecruiterLayout />
+              </RequireAuth>
+            }
+          >
+            {/* Admin-specific routes first - ensures /admin/profile hits AdminProfilePage */}
+            <Route path="audit" element={<AuditLogsPage />} />
+            <Route path="profile" element={<AdminProfilePage />} />
+            
+            {/* Shared routes */}
+            {coreRoutes}
+          </Route>
 
-        {/* Interviewer routes */}
-        <Route
-          path="/interviewer"
-          element={
-            <RequireAuth roles={['admin', 'recruiter', 'interviewer']}>
-              <InterviewerLayout />
-            </RequireAuth>
-          }
-        >
-          <Route index element={<InterviewerDashboard />} />
-          <Route path="interviews" element={<MyInterviewsPage />} />
-          <Route path="scorecard-hub" element={<ScorecardHubPage />} />
-          <Route path="prep-kit-hub" element={<PrepKitHubPage />} />
-          <Route path="live-room-hub" element={<LiveRoomHubPage />} />
-          <Route path="scorecard/:interviewId" element={<ScorecardPage />} />
-          <Route path="prep-kit/:interviewId" element={<PrepKitPage />} />
-          <Route path="live-room/:interviewId" element={<LiveRoomPage />} />
-          <Route path="profile" element={<InterviewerProfilePage />} />
-        </Route>
+          {/* Interviewer routes */}
+          <Route
+            path="/interviewer"
+            element={
+              <RequireAuth roles={['admin', 'recruiter', 'interviewer']}>
+                <InterviewerLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<InterviewerDashboard />} />
+            <Route path="interviews" element={<MyInterviewsPage />} />
+            <Route path="scorecard-hub" element={<ScorecardHubPage />} />
+            <Route path="prep-kit-hub" element={<PrepKitHubPage />} />
+            <Route path="live-room-hub" element={<LiveRoomHubPage />} />
+            <Route path="scorecard/:interviewId" element={<ScorecardPage />} />
+            <Route path="prep-kit/:interviewId" element={<PrepKitPage />} />
+            <Route path="live-room/:interviewId" element={<LiveRoomPage />} />
+            <Route path="profile" element={<InterviewerProfilePage />} />
+          </Route>
 
-        {/* Candidate portal routes */}
-        <Route
-          path="/portal"
-          element={
-            <RequireAuth roles={['candidate']}>
-              <PortalLayout />
-            </RequireAuth>
-          }
-        >
-          <Route index element={<PortalDashboard />} />
-          <Route path="applications" element={<PortalApplicationsPage />} />
-          <Route path="interviews" element={<PortalInterviewsPage />} />
-          <Route path="offers" element={<PortalOffersPage />} />
-          <Route path="profile" element={<PortalProfilePage />} />
-          <Route path="prep" element={<PortalPrepHub />} />
-          <Route path="openings" element={<PortalOpenings />} />
-          <Route path="notifications" element={<PortalNotifications />} />
-          <Route path="settings" element={<PortalSettingsPage />} />
-        </Route>
+          {/* Candidate portal routes */}
+          <Route
+            path="/portal"
+            element={
+              <RequireAuth roles={['candidate']}>
+                <PortalLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<PortalDashboard />} />
+            <Route path="applications" element={<PortalApplicationsPage />} />
+            <Route path="interviews" element={<PortalInterviewsPage />} />
+            <Route path="offers" element={<PortalOffersPage />} />
+            <Route path="profile" element={<PortalProfilePage />} />
+            <Route path="prep" element={<PortalPrepHub />} />
+            <Route path="openings" element={<PortalOpenings />} />
+            <Route path="notifications" element={<PortalNotifications />} />
+            <Route path="settings" element={<PortalSettingsPage />} />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </>
   )
 }
+
