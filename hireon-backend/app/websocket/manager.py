@@ -105,7 +105,10 @@ class ConnectionManager:
     async def publish_notification(self, user_id: str | None, event: str, data: Any, org_id: str | None = None, exclude_user_id: str | None = None) -> None:
         """Publish a notification event to Redis Pub/Sub."""
         try:
-            r = redis.from_url(settings.redis_url)
+            # Re-use the existing redis client if possible, or create one and keep it
+            if not hasattr(self, '_redis') or self._redis is None:
+                self._redis = redis.from_url(settings.redis_url)
+            
             message = json.dumps({
                 "process_id": self.process_id,
                 "user_id": user_id,
@@ -115,10 +118,10 @@ class ConnectionManager:
                 "data": data,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
-            await r.publish("ws_notifications", message)
-            await r.aclose()
+            await self._redis.publish("ws_notifications", message)
         except Exception as e:
             logger.error(f"Failed to publish to Redis Pub/Sub: {e}")
+            self._redis = None # Reset on error to force reconnect next time
 
     async def listen_to_redis(self) -> None:
         """Background task to listen for notifications from other processes."""

@@ -1,15 +1,15 @@
-"""
-Audit logging middleware.
-Automatically logs mutating requests (POST, PUT, PATCH, DELETE) to audit_logs table.
-"""
 import json
 import logging
 import time
+import asyncio
 from typing import Callable
+from datetime import datetime, timezone
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+
+from app.websocket.manager import ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
         # If it's a creation (POST) and resource_id is None, try to get it from the response body
         if not resource_id and request.method == "POST" and response.status_code == 201:
             try:
-                # We can only safely read the body if it's JSON and not too large
-                # For now, we'll skip complex body reading to avoid performance issues
-                # But we can look for specific headers if they exist (e.g. Location)
                 location = response.headers.get("Location")
                 if location:
                     resource_id = location.strip("/").split("/")[-1]
@@ -70,10 +67,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
         # ── Real-time Activity Broadcast (WhatsApp-style popups) ─────────────
         if resource_type in {"job", "candidate", "interview", "application", "scorecard", "offer"}:
             if 200 <= response.status_code < 300 and org_id:
-                from app.websocket.manager import ws_manager
-                import asyncio
-                from datetime import datetime, timezone
-                
                 # Format a friendly message for the toast
                 message = f"{action.capitalize()}d {resource_type}"
                 

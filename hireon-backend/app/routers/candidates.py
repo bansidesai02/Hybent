@@ -69,7 +69,16 @@ async def list_candidates(
         "inactive": ["inactive"]
     }
 
-    query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.invitations), selectinload(Candidate.created_by))
+    query = (
+        select(Candidate)
+        .where(Candidate.organization_id == current_user.organization_id)
+        .options(
+            selectinload(Candidate.invitations),
+            selectinload(Candidate.created_by),
+            selectinload(Candidate.other_offers),
+            selectinload(Candidate.documents)
+        )
+    )
     
     # Filter by job_id (join with Application)
     if job_id:

@@ -16,10 +16,10 @@ class Candidate(Base):
     )
     # Optional link to a portal user account
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -56,7 +56,7 @@ class Candidate(Base):
     score_breakdown: Mapped[dict | None] = mapped_column(JSONB)
 
     # Pipeline stage — independent of any job
-    pipeline_stage: Mapped[str | None] = mapped_column(String(50), default=None, server_default=None, nullable=True)
+    pipeline_stage: Mapped[str | None] = mapped_column(String(50), default=None, server_default=None, nullable=True, index=True)
 
     # Talent pool tags
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)

@@ -294,6 +294,7 @@
     border-radius: 50%;
     filter: blur(90px);
     opacity: var(--blob-op, 0.5);
+    will-change: transform;
   }
 
   .blob-bg .blob-1 {

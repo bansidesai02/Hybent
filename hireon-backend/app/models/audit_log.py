@@ -16,11 +16,11 @@ class AuditLog(Base):
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
-    action: Mapped[str] = mapped_column(String(100), nullable=False)      # CREATE, UPDATE, DELETE, LOGIN, etc.
-    resource_type: Mapped[str] = mapped_column(String(100), nullable=False)  # job, candidate, offer, etc.
+    action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)      # CREATE, UPDATE, DELETE, LOGIN, etc.
+    resource_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)  # job, candidate, offer, etc.
     resource_id: Mapped[str | None] = mapped_column(String(255))
     details: Mapped[dict | None] = mapped_column(JSONB)   # before/after or extra context
     ip_address: Mapped[str | None] = mapped_column(String(50))
