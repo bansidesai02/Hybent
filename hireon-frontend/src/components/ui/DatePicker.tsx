@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
+import { formatDate } from '@/utils/formatters'
 
 interface DatePickerProps {
-  value: string // YYYY-MM-DD
-  onChange: (date: string) => void
+  value: string | string[] // YYYY-MM-DD or [YYYY-MM-DD, YYYY-MM-DD]
+  onChange: (date: any) => void
   placeholder?: string
   className?: string
 }
@@ -20,9 +21,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeho
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   
+  const isRange = Array.isArray(value)
+  const startDate = isRange ? (value[0] ? new Date(value[0]) : null) : (value ? new Date(value) : null)
+  const endDate = isRange ? (value[1] ? new Date(value[1]) : null) : null
+
   // Internal state for calendar navigation
   const [viewDate, setViewDate] = useState(() => {
-    if (value) return new Date(value)
+    if (startDate) return new Date(startDate)
     return new Date()
   })
 
@@ -42,26 +47,71 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeho
   const firstDayOfMonth = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   
-  const selectedDate = value ? new Date(value) : null
   const isSelected = (d: number) => {
-    if (!selectedDate) return false
-    return selectedDate.getFullYear() === year && 
-           selectedDate.getMonth() === month && 
-           selectedDate.getDate() === d
+    const current = new Date(year, month, d)
+    if (isRange) {
+      if (!startDate) return false
+      if (startDate.getTime() === current.getTime()) return true
+      if (endDate && endDate.getTime() === current.getTime()) return true
+      return false
+    } else {
+      if (!startDate) return false
+      return startDate.getFullYear() === year && 
+             startDate.getMonth() === month && 
+             startDate.getDate() === d
+    }
+  }
+
+  const isInRange = (d: number) => {
+    if (!isRange || !startDate || !endDate) return false
+    const current = new Date(year, month, d)
+    return current > startDate && current < endDate
   }
 
   const handleDateClick = (day: number) => {
-    // Construct local date string to avoid timezone shifts
     const d = new Date(year, month, day)
     const yearStr = d.getFullYear()
     const monthStr = String(d.getMonth() + 1).padStart(2, '0')
     const dayStr = String(d.getDate()).padStart(2, '0')
-    onChange(`${yearStr}-${monthStr}-${dayStr}`)
-    setIsOpen(false)
+    const dateStr = `${yearStr}-${monthStr}-${dayStr}`
+
+    if (isRange) {
+      if (!value[0] || (value[0] && value[1])) {
+        // Start new range
+        onChange([dateStr, ''])
+      } else {
+        // Select end date
+        const start = new Date(value[0])
+        const end = new Date(dateStr)
+        if (end < start) {
+          onChange([dateStr, value[0]])
+        } else {
+          onChange([value[0], dateStr])
+        }
+        // Don't close immediately in range mode if they might want to adjust?
+        // Actually, user expects it to close or they click outside.
+        // Let's close after full range selected.
+        setIsOpen(false)
+      }
+    } else {
+      onChange(dateStr)
+      setIsOpen(false)
+    }
   }
 
   const prevMonth = () => setViewDate(new Date(year, month - 1, 1))
   const nextMonth = () => setViewDate(new Date(year, month + 1, 1))
+
+  const formatDisplayDate = () => {
+    if (isRange) {
+      if (!value[0]) return placeholder
+      const s = formatDate(value[0] as string, 'dd MMM')
+      if (!value[1]) return `${s} - ...`
+      const e = formatDate(value[1] as string, 'dd MMM yyyy')
+      return `${s} - ${e}`
+    }
+    return value ? formatDate(value as string, 'dd MMM yyyy') : placeholder
+  }
 
   return (
     <div className={clsx('relative w-full', className)} ref={containerRef}>
@@ -69,13 +119,22 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeho
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="input-base flex items-center justify-between px-3 py-2 text-sm text-left truncate"
-        style={{ borderRadius: 12 }}
+        className="input-base flex items-center justify-between px-4 py-2 text-sm text-left group transition-all"
+        style={{ borderRadius: 12, minHeight: 42, gap: 12 }}
       >
-        <span className={clsx(!value && 'text-gray-400 font-medium')}>
-          {value ? new Date(value).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        <span className={clsx(
+          'truncate flex-1',
+          (!value || (isRange && !value[0])) && 'text-gray-400 font-medium'
+        )}>
+          {formatDisplayDate()}
         </span>
-        <svg style={{ width: 14, height: 14, opacity: 0.5 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg 
+          style={{ width: 16, height: 16, opacity: 0.4 }} 
+          className="flex-shrink-0 group-hover:opacity-70 transition-opacity" 
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       </button>
@@ -88,7 +147,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeho
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             style={{ 
-              position: 'absolute', top: 'calc(100% + 8px)', left: 0, 
+              position: 'absolute', top: 'calc(100% + 8px)', right: 0, 
               zIndex: 100, width: 280, padding: 20,
               background: '#fff', borderRadius: 24,
               boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
@@ -121,13 +180,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeho
               {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
                 const active = isSelected(day)
+                const inRange = isInRange(day)
                 return (
                   <button
                     key={day}
                     onClick={() => handleDateClick(day)}
                     className={clsx(
-                      'aspect-square flex items-center justify-center text-[13px] font-bold rounded-xl transition-all',
-                      active ? 'bg-[#f0edff] text-[#6c47ff] border-2 border-[#6c47ff]' : 'text-gray-700 hover:bg-gray-50'
+                      'aspect-square flex items-center justify-center text-[13px] font-bold rounded-xl transition-all relative',
+                      active ? 'bg-[#6c47ff] text-white' : 
+                      inRange ? 'bg-[#f0edff] text-[#6c47ff]' : 'text-gray-700 hover:bg-gray-50'
                     )}
                   >
                     {day}
@@ -137,9 +198,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeho
             </div>
 
             {/* Footer */}
-            <div className="mt-4 pt-4 border-top border-gray-50 flex justify-between">
+            <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between">
               <button 
-                onClick={() => { onChange(''); setIsOpen(false) }}
+                onClick={() => { onChange(isRange ? ['', ''] : ''); setIsOpen(false) }}
                 className="text-[11px] font-extrabold text-red-500 uppercase tracking-wider hover:opacity-70"
               >
                 Clear

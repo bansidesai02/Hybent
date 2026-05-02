@@ -27,8 +27,65 @@ async def list_talent_pool(
     tag: str | None = None,
     min_experience: int | None = None,
     job_title: str | None = None,   # Filter by active job title
+    status: str | None = None,
+    created_by_id: str | None = None,
+    job_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
 ):
+    from app.models.application import Application
+
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.created_by))
+
+    if job_id and job_id != "all":
+        query = query.join(Application, Application.candidate_id == Candidate.id).where(Application.job_id == job_id)
+
+    if created_by_id and created_by_id != "all":
+        query = query.where(Candidate.created_by_id == created_by_id)
+
+    if date_from:
+        try:
+            from datetime import datetime, timezone
+            dt_from = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+            query = query.where(Candidate.created_at >= dt_from)
+        except (ValueError, TypeError):
+            pass
+
+    if date_to:
+        try:
+            from datetime import datetime, timezone, timedelta
+            dt_to = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
+            if dt_to.hour == 0 and dt_to.minute == 0:
+                dt_to = dt_to + timedelta(days=1)
+            query = query.where(Candidate.created_at < dt_to)
+        except (ValueError, TypeError):
+            pass
+
+    status = (status or "").strip().lower() or None
+    if status:
+        STATUS_STAGE_MAP = {
+            "in_review":   ["applied", None, "screening", "", "needs_review"],
+            "shortlisted": ["pre_screening_selected"],
+            "scheduled":   [
+                "technical_round", "technical_round_selected", "practical_round",
+                "practical_round_selected", "hr_round", "hr_round_selected",
+                "management_round", "management_round_selected",
+                "techno_functional", "techno_functional_selected"
+            ],
+            "rejected":    [
+                "rejected", "pre_screening_rejected", "technical_round_rejected",
+                "practical_round_rejected", "hr_round_rejected", "technical_round_back_out",
+                "practical_round_back_out", "management_round_rejected", "techno_functional_rejected"
+            ]
+        }
+        stages = STATUS_STAGE_MAP.get(status)
+        if stages is not None:
+            if None in stages:
+                from sqlalchemy import or_
+                non_null_stages = [s for s in stages if s is not None]
+                query = query.where(or_(Candidate.pipeline_stage.in_(non_null_stages), Candidate.pipeline_stage.is_(None)))
+            else:
+                query = query.where(Candidate.pipeline_stage.in_(stages))
 
     if search:
         from sqlalchemy import cast, String as SAString

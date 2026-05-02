@@ -87,6 +87,16 @@ const REJECTION_STAGES = [
   'offer_withdrawn'
 ]
 
+// Stages where "+ Add in Pipeline" button should be shown
+// (candidates not yet in the main interview pipeline)
+const PRE_PIPELINE_STAGES: Array<string | null | undefined> = [
+  null,
+  undefined,
+  'needs_review',
+  'pre_screening',
+  'pre_screening_selected',
+]
+
 function getStatusFromStage(stage: string | undefined): string {
   if (!stage || stage === 'applied' || stage === 'needs_review') return 'in_review'
   if (stage === 'pre_screening_selected' || stage === 'completed') return 'shortlisted'
@@ -235,6 +245,8 @@ function CandidateActionsDropdown({
   onClose,
   user,
   onGenerateOffer,
+  onAddToPipeline,
+  hasActiveJobs,
 }: {
   candidateId: string
   currentStage: string
@@ -243,7 +255,9 @@ function CandidateActionsDropdown({
   onInactivate: (id: string) => void
   onClose: () => void
   user: any
-  onGenerateOffer: () => void // Add this prop
+  onGenerateOffer: () => void
+  onAddToPipeline: () => void
+  hasActiveJobs: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -271,6 +285,28 @@ function CandidateActionsDropdown({
       }}
       onClick={(e) => e.stopPropagation()}
     >
+
+      {/* "+ Add in Pipeline" at the top — above PRE-SCREENING */}
+      {hasActiveJobs && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddToPipeline(); onClose() }}
+            style={{
+              width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+              background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.20)',
+              cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#059669',
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.10)' }}
+          >
+            <Plus size={13} />
+            <span style={{ flex: 1 }}>Add in Pipeline</span>
+          </button>
+          <div style={{ height: 1, background: 'var(--table-border)', margin: '2px 6px 6px' }} />
+        </>
+      )}
+
       {STAGE_GROUPS.map((group, gi) => {
         return (
           <div key={group.label}>
@@ -391,9 +427,14 @@ export default function CandidatesPage() {
   const queryClient = useQueryClient()
   const [selectedJobId, setSelectedJobId] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
-  const [customDate, setCustomDate] = useState<string>('')
+  const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
   const [candidateToAdd, setCandidateToAdd] = useState<{ id: string; name: string } | null>(null)
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null)
+  const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
+  const [showAddJobModal, setShowAddJobModal] = useState(false)
+  const [newJobTitle, setNewJobTitle] = useState('')
+  const [isCreatingJob, setIsCreatingJob] = useState(false)
+  const newJobInputRef = useRef<HTMLInputElement>(null)
 
   const inviteMutation = useMutation({
     mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
@@ -434,8 +475,15 @@ export default function CandidatesPage() {
       if (dateFilter === 'today') return { date_from: new Date(now.setHours(0,0,0,0)).toISOString() }
       if (dateFilter === 'week') return { date_from: new Date(now.setDate(now.getDate() - 7)).toISOString() }
       if (dateFilter === 'month') return { date_from: new Date(now.setDate(now.getDate() - 30)).toISOString() }
-      if (dateFilter === 'custom' && customDate) {
-        return { date_from: customDate, date_to: customDate }
+      if (dateFilter === 'custom' && customDateRange[0]) {
+        const from = new Date(customDateRange[0]).toISOString()
+        let to = from
+        if (customDateRange[1]) {
+          const end = new Date(customDateRange[1])
+          end.setHours(23, 59, 59, 999)
+          to = end.toISOString()
+        }
+        return { date_from: from, date_to: to }
       }
       return {}
     })() : {}),
@@ -465,6 +513,26 @@ export default function CandidatesPage() {
       queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
     } catch (error) {
       toast.error('Failed to add to pipeline')
+    }
+  }
+
+  const handleCreateJob = async () => {
+    const title = newJobTitle.trim()
+    if (!title) return
+    setIsCreatingJob(true)
+    try {
+      const res = await jobsApi.create({ title, status: 'active', openings: 1, description: title, job_type: 'full_time' })
+      toast.success(`Designation "${title}" added!`)
+      setNewJobTitle('')
+      setShowAddJobModal(false)
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'active'] })
+      // Auto-select the new job tab
+      const newJob = (res as any).data
+      if (newJob?.id) setSelectedJobId(newJob.id)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to create designation')
+    } finally {
+      setIsCreatingJob(false)
     }
   }
 
@@ -552,11 +620,17 @@ export default function CandidatesPage() {
 
             <div className="w-[140px]">
               <Select
-                value={selectedJobId}
-                onChange={(e) => { setSelectedJobId(e.target.value); setPage(1) }}
+                value={statusFilter || 'all'}
+                onChange={(e) => { 
+                  setStatusFilter(e.target.value === 'all' ? undefined : e.target.value); 
+                  setPage(1); 
+                }}
                 options={[
-                  { value: 'all', label: 'All Roles' },
-                  ...(activeJobs || []).map((j: any) => ({ value: j.id, label: j.title }))
+                  { value: 'all', label: 'All Statuses' },
+                  { value: 'in_review', label: 'In Review' },
+                  { value: 'shortlisted', label: 'Shortlisted' },
+                  { value: 'scheduled', label: 'Scheduled' },
+                  { value: 'rejected', label: 'Rejected' },
                 ]}
               />
             </div>
@@ -578,10 +652,10 @@ export default function CandidatesPage() {
               </div>
 
               {dateFilter === 'custom' && (
-                <div className="w-[155px] flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="w-[180px] flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
                   <DatePicker
-                    value={customDate}
-                    onChange={(date) => { setCustomDate(date); setPage(1) }}
+                    value={customDateRange}
+                    onChange={(range) => { setCustomDateRange(range); setPage(1) }}
                     className="relative z-50"
                   />
                 </div>
@@ -591,26 +665,32 @@ export default function CandidatesPage() {
         </div>
       </div>
 
-      {/* Status Tabs Row */}
-      <div className="flex items-center gap-3 px-1">
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2">Status:</span>
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            { label: 'All', value: undefined, icon: <GlassIcon icon="Users" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
-            { label: 'In Review', value: 'in_review', icon: <GlassIcon icon="Search" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
-            { label: 'Shortlisted', value: 'shortlisted', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={20} iconSize={10} ghost glow={false} /> },
-            { label: 'Scheduled', value: 'scheduled', icon: <GlassIcon icon="Calendar" variant="violet" size={20} iconSize={10} ghost glow={false} /> },
-            { label: 'Rejected', value: 'rejected', icon: <GlassIcon icon="Ban" variant="rose" size={20} iconSize={10} ghost glow={false} /> },
-          ].map((f) => {
-            const isActive = statusFilter === f.value
-            const statusCfg = f.value ? STATUS_CFG[f.value] : null
+      {/* Jobs Tabs Row */}
+      <div className="flex items-center gap-3 px-1 mb-2 overflow-x-auto w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2 flex-shrink-0">Jobs:</span>
+        <div className="flex items-center gap-2 flex-nowrap">
+          <button
+            onClick={() => { setSelectedJobId('all'); setPage(1); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 10,
+              border: selectedJobId === 'all' ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              background: selectedJobId === 'all' ? 'var(--sb-active)' : 'var(--kpi-bg)',
+              color: selectedJobId === 'all' ? 'var(--violet)' : 'var(--text-mid)',
+              transition: 'all 0.18s',
+              whiteSpace: 'nowrap', flexShrink: 0
+            }}
+          >
+            All
+          </button>
+          {(activeJobs || []).map((job: any) => {
+            const isActive = selectedJobId === job.id;
             return (
               <button
-                key={f.label}
-                onClick={() => { 
-                  setStatusFilter(f.value); 
-                  setPage(1); 
-                }}
+                key={job.id}
+                onClick={() => { setSelectedJobId(job.id); setPage(1); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '7px 14px', borderRadius: 10,
@@ -619,17 +699,31 @@ export default function CandidatesPage() {
                   background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
                   color: isActive ? 'var(--violet)' : 'var(--text-mid)',
                   transition: 'all 0.18s',
-                  whiteSpace: 'nowrap',
+                  whiteSpace: 'nowrap', flexShrink: 0
                 }}
               >
-                <span style={{ fontSize: 12 }}>{f.icon}</span>
-                {f.label}
-                {isActive && statusCfg && (
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusCfg.dot, display: 'inline-block', marginLeft: 2 }} />
-                )}
+                {job.title}
               </button>
             )
           })}
+          {/* + Add Designation button */}
+          <button
+            onClick={() => { setShowAddJobModal(true); setTimeout(() => newJobInputRef.current?.focus(), 80) }}
+            title="Add new designation"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+              border: '1.5px dashed var(--violet)',
+              background: 'var(--sb-active)',
+              color: 'var(--violet)',
+              cursor: 'pointer', fontSize: 18, fontWeight: 700,
+              transition: 'all 0.18s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,71,255,0.18)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--sb-active)' }}
+          >
+            +
+          </button>
         </div>
       </div>
 
@@ -663,14 +757,13 @@ export default function CandidatesPage() {
         <>
           {/* Column header — now hidden on mobile */}
           <div className="hidden lg:grid" style={{
-            gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 120px 115px 100px 215px',
+            gridTemplateColumns: '2fr 96px 1.5fr 52px 68px 120px 115px 100px 215px',
             gap: 14, padding: '0 24px',
             fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px',
           }}>
             <span>Candidate</span>
             <span style={{ textAlign: 'center' }}>Date</span>
             <span>Role</span>
-            <span>Skills</span>
             <span style={{ textAlign: 'center' }}>Exp</span>
             <span style={{ textAlign: 'center' }}>Score</span>
             <span style={{ textAlign: 'center' }}>Stage</span>
@@ -691,19 +784,14 @@ export default function CandidatesPage() {
               return (
                 <div
                   key={candidate.id}
-                  onClick={() => {
-                    setSelected(candidate)
-                    candidatesApi.recordView(candidate.id)
-                  }}
                   className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
                   style={{
-                    gridTemplateColumns: '1.8fr 96px 1fr 1.5fr 52px 68px 120px 115px 100px 215px',
+                    gridTemplateColumns: '2fr 96px 1.5fr 52px 68px 120px 115px 100px 215px',
                     alignItems: 'center',
                     borderRadius: 14,
                     background: 'var(--kpi-bg)',
                     border: '1px solid var(--table-border)',
                     boxShadow: 'var(--shadow)',
-                    cursor: 'pointer',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
                   }}
                   onMouseEnter={(e) => {
@@ -742,7 +830,7 @@ export default function CandidatesPage() {
                     {/* Date */}
                     <p className="text-[12px] text-[var(--text-mid)] lg:text-center">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Applied</span>
-                      {formatDate(candidate.created_at)}
+                      {formatDate(candidate.created_at, 'dd MMM yyyy')}
                     </p>
 
                     {/* Role */}
@@ -750,19 +838,6 @@ export default function CandidatesPage() {
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Role</span>
                       {candidate.applied_job_title || candidate.current_title || '—'}
                     </p>
-
-                    {/* Skills */}
-                    <div className="lg:flex items-center gap-1.5 flex-wrap min-w-[120px]">
-                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5 w-full">Skills</span>
-                      {candidate.skills.slice(0, 2).map((skill: any) => (
-                        <span key={skill} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--violet)', border: '1px solid var(--table-border)' }}>
-                          {skill}
-                        </span>
-                      ))}
-                      {candidate.skills.length > 2 && (
-                        <span style={{ fontSize: 10, color: 'var(--text-light)', fontWeight: 600 }}>+{candidate.skills.length - 2}</span>
-                      )}
-                    </div>
 
                     {/* Exp */}
                     <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
@@ -786,7 +861,7 @@ export default function CandidatesPage() {
                       {!stageCfg && activeJobs && activeJobs.length > 0 && !isAccountCreated && (
                         candidate.match_score != null && candidate.match_score >= 70 ? (
                           <button
-                            onClick={(e: any) => {
+onClick={(e: any) => {
                               e.stopPropagation()
                               if (activeJobs.length === 1) {
                                 handleAddToPipeline(candidate.id, activeJobs[0].id)
@@ -837,40 +912,16 @@ export default function CandidatesPage() {
                       <StatusBadge type={statusKey} label={statusCfg.label} />
                     </div>
 
-                    {/* Added By */}
-                    <div className="flex flex-col gap-1 lg:items-center">
-                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Added By</span>
-                      <p className="text-[11px] font-semibold text-[var(--text-mid)] truncate max-w-[90px] lg:max-w-none">
-                        {candidate.created_by_name || 'Admin'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div
-                    className="flex items-center lg:justify-end gap-2 pt-3 mt-1 lg:pt-0 lg:mt-0 border-t lg:border-none border-gray-100 dark:border-[#2a2550]"
-                    onClick={(e) => e.stopPropagation()}
-                  >
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        inviteMutation.mutate({ email: candidate.email, full_name: candidate.full_name })
+                        setViewTarget(candidate)
+                        candidatesApi.recordView(candidate.id)
                       }}
-                      className="flex-1 lg:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 dark:bg-[#2e2855] dark:text-[#ede9ff] dark:border-[#2e2855] dark:hover:bg-[#3a326b] transition-colors"
+                      className="flex-1 lg:flex-none text-[11px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] dark:bg-[var(--violet)] dark:border-[var(--violet)] dark:hover:scale-105 transition-all"
                     >
-                      ✉ {hasInvitation ? 'Resend' : 'Invite'}
+                      View Full Profile
                     </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate(`${basePath}/interviews?candidateId=${candidate.id}`)
-                      }}
-                      className="flex-1 lg:flex-none text-[11px] flex items-center justify-center gap-1.5 font-bold px-3 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] dark:bg-[var(--violet)] dark:border-[var(--violet)] dark:hover:scale-105 transition-all"
-                    >
-                      <Calendar size={14} /> Schedule
-                    </button>
-
 
                     <button
                       onClick={(e) => {
@@ -892,7 +943,16 @@ export default function CandidatesPage() {
                         onDelete={(id) => deleteMutation.mutate(id)}
                         onClose={() => setOpenDropdownId(null)}
                         onGenerateOffer={() => setOfferCandidate(candidate)}
+                        onAddToPipeline={() => {
+                          if (activeJobs && activeJobs.length === 1) {
+                            handleAddToPipeline(candidate.id, activeJobs[0].id)
+                          } else {
+                            setCandidateToAdd({ id: candidate.id, name: candidate.full_name })
+                          }
+                        }}
+                        hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
                         user={user}
+
                       />
                     )}
                   </AnimatePresence>
@@ -957,6 +1017,64 @@ export default function CandidatesPage() {
                   <p className="text-sm text-gray-500 italic py-4">No active jobs found. Please create a job first.</p>
                 )}
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {/* Profile Modal */}
+      {viewTarget && (
+        <Modal open onClose={() => setViewTarget(null)} title="Candidate Profile" size="xl">
+          <CandidateProfileView 
+            candidate={viewTarget} 
+            onInvite={() => inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })}
+            onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
+            hasInvitation={Boolean(viewTarget.invitations && viewTarget.invitations.length > 0)}
+          />
+        </Modal>
+      )}
+
+      {/* Quick Add Designation Modal */}
+      {showAddJobModal && (
+        <Modal open onClose={() => { setShowAddJobModal(false); setNewJobTitle('') }} title="Add New Designation" size="sm">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
+              Create a new job designation. It will appear in the Jobs tabs immediately — even before any candidates are added.
+            </p>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
+                Designation / Job Title
+              </label>
+              <input
+                ref={newJobInputRef}
+                className="input-base"
+                placeholder="e.g. Senior React Developer"
+                value={newJobTitle}
+                onChange={e => setNewJobTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateJob(); if (e.key === 'Escape') { setShowAddJobModal(false); setNewJobTitle('') } }}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleCreateJob}
+                disabled={isCreatingJob || !newJobTitle.trim()}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 10,
+                  background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+                  color: '#fff', border: 'none', fontWeight: 700, fontSize: 13,
+                  cursor: isCreatingJob || !newJobTitle.trim() ? 'not-allowed' : 'pointer',
+                  opacity: isCreatingJob || !newJobTitle.trim() ? 0.6 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                {isCreatingJob ? 'Creating...' : '+ Add Designation'}
+              </button>
+              <button
+                onClick={() => { setShowAddJobModal(false); setNewJobTitle('') }}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--table-border)', background: 'var(--kpi-bg)', color: 'var(--text-mid)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </Modal>

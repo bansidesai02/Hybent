@@ -1,146 +1,667 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
-import { talentPoolApi } from '@/api/talentPool'
+import React, { useState, useRef, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
-import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Pagination } from '@/components/ui/Pagination'
 import { Modal } from '@/components/ui/Modal'
-import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
-import { ArrowLeft, Search, Filter } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
+import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2 } from 'lucide-react'
+import { talentPoolApi } from '@/api/talentPool'
+import { candidatesApi } from '@/api/candidates'
+import { jobsApi } from '@/api/jobs'
+import { adminApi } from '@/api/admin'
+import { Select } from '@/components/ui/Select'
+import { DatePicker } from '@/components/ui/DatePicker'
+import toast from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
+import { formatDate } from '@/utils/formatters'
 import type { Candidate } from '@/types'
 
+// ── Stage config ───────────────────────────────────────────────────────────────
+const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
+  applied:                      { color: 'var(--violet)', bg: 'var(--violet)/10', label: 'Applied' },
+  pre_screening:                { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Pre-screening' },
+  pre_screening_selected:       { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Pre-screening Selected' },
+  pre_screening_rejected:       { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Pre-screening Rejected' },
+  technical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Technical Round' },
+  technical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Technical Round Selected' },
+  technical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Technical Round Rejected' },
+  technical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Technical Round Back Out' },
+  practical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Practical Round' },
+  practical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Practical Round Selected' },
+  practical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Practical Round Rejected' },
+  hr_round:                     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'HR Round' },
+  hr_round_selected:            { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'HR Round Selected' },
+  hr_round_rejected:            { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'HR Round Rejected' },
+  offered:                      { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offered' },
+  hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
+  rejected:                     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Rejected' },
+  inactive:                     { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: 'Inactive' },
+}
+
+const STATUS_CFG: Record<string, { color: string; bg: string; dot: string; label: string }> = {
+  shortlisted: { color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)', dot: 'var(--teal, #10b981)', label: 'Shortlisted' },
+  in_review:   { color: 'var(--violet)', bg: 'var(--violet)/10', dot: 'var(--violet)', label: 'In Review' },
+  scheduled:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', dot: '#3b82f6', label: 'Scheduled' },
+  rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', dot: '#ef4444', label: 'Rejected' },
+  inactive:    { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', dot: '#94a3b8', label: 'Inactive' },
+}
+
+const REJECTION_STAGES = ['rejected','pre_screening_rejected','technical_round_rejected','technical_round_back_out','practical_round_rejected','hr_round_rejected']
+
+const STAGE_GROUPS = [
+  { label: 'Pre-Screening', stages: [
+    { key: 'pre_screening', label: 'In Pre-screening' },
+    { key: 'pre_screening_selected', label: 'Pre-screening Selected' },
+    { key: 'pre_screening_rejected', label: 'Pre-screening Rejected' },
+  ]},
+  { label: 'Technical Round', stages: [
+    { key: 'technical_round', label: 'In Technical Round' },
+    { key: 'technical_round_selected', label: 'Technical Round Selected' },
+    { key: 'technical_round_rejected', label: 'Technical Round Rejected' },
+    { key: 'technical_round_back_out', label: 'Technical Round Back Out' },
+  ]},
+  { label: 'Practical Round', stages: [
+    { key: 'practical_round', label: 'In Practical Round' },
+    { key: 'practical_round_selected', label: 'Practical Round Selected' },
+    { key: 'practical_round_rejected', label: 'Practical Round Rejected' },
+  ]},
+  { label: 'HR Round', stages: [
+    { key: 'hr_round', label: 'In HR Round' },
+    { key: 'hr_round_selected', label: 'HR Round Selected' },
+    { key: 'hr_round_rejected', label: 'HR Round Rejected' },
+  ]},
+  { label: 'Offer & Joining', stages: [
+    { key: 'offered', label: 'Offered' },
+    { key: 'hired_joined', label: 'Hired / Joined' },
+  ]},
+]
+
+// ── Mini stage dropdown ────────────────────────────────────────────────────────
+function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete, user, onAddToPipeline, hasActiveJobs }: {
+  candidateId: string; currentStage: string
+  onSelect: (s: string) => void; onClose: () => void
+  onDelete: (id: string) => void; user: any
+  onAddToPipeline: () => void; hasActiveJobs: boolean
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [onClose])
+
+  return (
+    <motion.div ref={ref}
+      initial={{ opacity: 0, scale: 0.95, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 6 }} transition={{ duration: 0.14 }}
+      style={{ position: 'absolute', top: 38, right: 0, zIndex: 9999, width: 240,
+        background: 'var(--kpi-bg)', borderRadius: 14,
+        boxShadow: '0 16px 48px rgba(0,0,0,0.22)', border: '1px solid var(--table-border)',
+        padding: '8px', transformOrigin: 'top right', maxHeight: 400, overflowY: 'auto' }}
+      onClick={e => e.stopPropagation()}
+    >
+
+      {hasActiveJobs && (
+        <>
+          <button onClick={e => { e.stopPropagation(); onAddToPipeline(); onClose() }}
+            style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+              background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.20)',
+              cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#059669',
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.10)' }}
+          >
+            <Plus size={13} /><span style={{ flex: 1 }}>Add in Pipeline</span>
+          </button>
+          <div style={{ height: 1, background: 'var(--table-border)', margin: '2px 6px 6px' }} />
+        </>
+      )}
+      {STAGE_GROUPS.map((group, gi) => (
+        <div key={group.label}>
+          {gi > 0 && <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />}
+          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase',
+            letterSpacing: '0.9px', padding: '6px 10px 4px' }}>{group.label}</p>
+          {group.stages.map(item => {
+            const cfg = STAGE_CFG[item.key] ?? STAGE_CFG.applied
+            const isActive = currentStage === item.key
+            return (
+              <button key={item.key} onClick={e => { e.stopPropagation(); onSelect(item.key) }}
+                style={{ width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+                  background: isActive ? cfg.bg : 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 12.5, fontWeight: isActive ? 700 : 500, color: isActive ? cfg.color : 'var(--text)',
+                  display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s' }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = cfg.bg }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'none' }}
+              >
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {isActive && <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>Active</span>}
+              </button>
+            )
+          })}
+        </div>
+      ))}
+      <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
+      {user?.role === 'admin' && (
+        <button onClick={e => { e.stopPropagation(); if (confirm('Delete this candidate?')) onDelete(candidateId) }}
+          style={{ width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+            background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 500, color: '#ef4444',
+            display: 'flex', alignItems: 'center', gap: 8 }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+        >
+          <Trash2 size={12} /> Delete Candidate
+        </button>
+      )}
+    </motion.div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AllTalentListPage() {
-  const { basePath } = useAuth()
+  const { basePath, user } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+  const [candidateToAdd, setCandidateToAdd] = useState<{ id: string; name: string } | null>(null)
+
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
+  const [recruiterId, setRecruiterId] = useState<string>('all')
+  const [selectedJobId, setSelectedJobId] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<string>('all')
+  const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
+  const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
+  const [showAddJobModal, setShowAddJobModal] = useState(false)
+  const [newJobTitle, setNewJobTitle] = useState('')
+  const [isCreatingJob, setIsCreatingJob] = useState(false)
+  const newJobInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    adminApi.listUsers().then((res: any) => {
+      const users = res.data
+        .filter((u: any) => u.role !== 'candidate')
+        .map((u: any) => ({ id: u.id, name: u.full_name }))
+      setRecruiters(users)
+    }).catch((err: any) => console.error("Failed to fetch recruiters", err))
+  }, [])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['all-talent-full', page, search],
-    queryFn: () =>
-      talentPoolApi.list({
-        page,
-        limit: 4, // Set to 4 so you can see pagination with your 6 candidates
+    queryKey: ['all-talent-full', page, search, statusFilter, recruiterId, selectedJobId, dateFilter, customDateRange],
+    queryFn: () => {
+      let date_from: string | undefined
+      let date_to: string | undefined
+      const now = new Date()
+      if (dateFilter === 'today') {
+        now.setHours(0,0,0,0)
+        date_from = now.toISOString()
+      } else if (dateFilter === 'week') {
+        const d = new Date(now)
+        d.setDate(d.getDate() - 7)
+        date_from = d.toISOString()
+      } else if (dateFilter === 'month') {
+        const d = new Date(now)
+        d.setMonth(d.getMonth() - 1)
+        date_from = d.toISOString()
+      } else if (dateFilter === 'custom' && customDateRange[0]) {
+        date_from = new Date(customDateRange[0]).toISOString()
+        if (customDateRange[1]) {
+          const end = new Date(customDateRange[1])
+          end.setHours(23, 59, 59, 999)
+          date_to = end.toISOString()
+        } else {
+          date_to = date_from
+        }
+      }
+
+      return talentPoolApi.list({ 
+        page, 
+        limit: 12, 
         search: search || undefined,
-      }).then(r => r.data),
+        status: statusFilter,
+        created_by_id: recruiterId !== 'all' ? recruiterId : undefined,
+        job_id: selectedJobId !== 'all' ? selectedJobId : undefined,
+        date_from,
+        date_to
+      }).then(r => r.data)
+    },
   })
 
+  const { data: activeJobs } = useQuery({
+    queryKey: ['jobs', 'active'],
+    queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r: any) => r.data.items),
+  })
+
+  const stageMutation = useMutation({
+    mutationFn: ({ id, stage }: { id: string; stage: string }) =>
+      candidatesApi.updateStage(id, stage, REJECTION_STAGES.includes(stage)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      toast.success('Stage updated')
+      setOpenDropdownId(null)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+  })
+
+  const inviteMutation = useMutation({
+    mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
+    onSuccess: (_, v) => { toast.success(`Invitation sent to ${v.full_name}`); queryClient.invalidateQueries({ queryKey: ['all-talent-full'] }) },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => candidatesApi.delete(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['all-talent-full'] }); toast.success('Candidate deleted') },
+    onError: () => toast.error('Failed to delete candidate'),
+  })
+
+  const handleAddToPipeline = async (candidateId: string, jobId: string) => {
+    try {
+      await candidatesApi.updateStage(candidateId, 'applied', false, jobId)
+      toast.success('Added to pipeline successfully')
+      setCandidateToAdd(null)
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    } catch {
+      toast.error('Failed to add to pipeline')
+    }
+  }
+
+
+  const handleCreateJob = async () => {
+    const title = newJobTitle.trim()
+    if (!title) return
+    setIsCreatingJob(true)
+    try {
+      const res = await jobsApi.create({ title, status: 'active', openings: 1, description: title, job_type: 'full_time' })
+      toast.success(`Designation "${title}" added!`)
+      setNewJobTitle('')
+      setShowAddJobModal(false)
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'active'] })
+      // Auto-select the new job tab
+      const newJob = (res as any).data
+      if (newJob?.id) setSelectedJobId(newJob.id)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to create designation')
+    } finally {
+      setIsCreatingJob(false)
+    }
+  }
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 80 }}>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[var(--violet)] transition-colors mb-4 group"
-          >
-            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-            Back to Talent DB
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <header className="page-header">
+          <button onClick={() => navigate(-1)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--text-light)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 8, padding: 0 }}>
+            <ArrowLeft size={15} /> Back to Dashboard
           </button>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-[var(--text)] tracking-tight">
-            All Talent <span className="text-[var(--violet)] text-xl ml-2">({data?.total || 0})</span>
+          <h1 className="page-title" style={{ margin: 0 }}>
+            All Talent <span style={{ color: 'var(--violet)', fontSize: 18 }}>({data?.total ?? 0})</span>
           </h1>
-          <p className="text-sm text-gray-500 dark:text-[var(--text-mid)] mt-1 font-medium">
+          <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
             Complete database of all assessed candidates.
           </p>
-        </div>
+        </header>
+      </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-80">
+      {/* Filters Row */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 bg-white dark:bg-[var(--color-bg-sidebar)] p-4 rounded-2xl border border-gray-100 dark:border-[var(--card-border)]">
+        <div className="flex flex-wrap items-center gap-3 flex-1 w-full">
+          {/* Search Input */}
+          <div className="w-full sm:max-w-[280px]">
             <Input
               placeholder="Search by name, skill, or role..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              leftIcon={<Search size={16} />}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              leftIcon={<Search size={15} />}
             />
+          </div>
+
+          <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block mx-1" />
+
+          {/* Core Selects Group */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-[140px]">
+              <Select
+                value={recruiterId}
+                onChange={(e) => { setRecruiterId(e.target.value); setPage(1) }}
+                options={[
+                  { value: 'all', label: 'All Recruiters' },
+                  ...recruiters.map(r => ({ value: r.id, label: r.name }))
+                ]}
+              />
+            </div>
+
+            <div className="w-[140px]">
+              <Select
+                value={statusFilter || 'all'}
+                onChange={(e) => { 
+                  setStatusFilter(e.target.value === 'all' ? undefined : e.target.value); 
+                  setPage(1); 
+                }}
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  { value: 'in_review', label: 'In Review' },
+                  { value: 'shortlisted', label: 'Shortlisted' },
+                  { value: 'scheduled', label: 'Scheduled' },
+                  { value: 'rejected', label: 'Rejected' },
+                ]}
+              />
+            </div>
+
+            {/* Date Group */}
+            <div className="flex items-center gap-2">
+              <div className="w-[130px]">
+                <Select
+                  value={dateFilter}
+                  onChange={(e) => { setDateFilter(e.target.value); setPage(1) }}
+                  options={[
+                    { value: 'all', label: 'Any Date' },
+                    { value: 'today', label: 'Today' },
+                    { value: 'week', label: 'Last 7 Days' },
+                    { value: 'month', label: 'Last 30 Days' },
+                    { value: 'custom', label: 'Custom Date…' },
+                  ]}
+                />
+              </div>
+
+              {dateFilter === 'custom' && (
+                <div className="w-[180px] flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <DatePicker
+                    value={customDateRange}
+                    onChange={(range) => { setCustomDateRange(range); setPage(1) }}
+                    className="relative z-50"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Jobs Tabs Row */}
+      <div className="flex items-center gap-3 px-1 mb-2 overflow-x-auto w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2 flex-shrink-0">Jobs:</span>
+        <div className="flex items-center gap-2 flex-nowrap">
+          <button
+            onClick={() => { setSelectedJobId('all'); setPage(1); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 10,
+              border: selectedJobId === 'all' ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              background: selectedJobId === 'all' ? 'var(--sb-active)' : 'var(--kpi-bg)',
+              color: selectedJobId === 'all' ? 'var(--violet)' : 'var(--text-mid)',
+              transition: 'all 0.18s',
+              whiteSpace: 'nowrap', flexShrink: 0
+            }}
+          >
+            All
+          </button>
+          {(activeJobs || []).map((job: any) => {
+            const isActive = selectedJobId === job.id;
+            return (
+              <button
+                key={job.id}
+                onClick={() => { setSelectedJobId(job.id); setPage(1); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 10,
+                  border: isActive ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
+                  color: isActive ? 'var(--violet)' : 'var(--text-mid)',
+                  transition: 'all 0.18s',
+                  whiteSpace: 'nowrap', flexShrink: 0
+                }}
+              >
+                {job.title}
+              </button>
+            )
+          })}
+          {/* + Add Designation button */}
+          <button
+            onClick={() => { setShowAddJobModal(true); setTimeout(() => newJobInputRef.current?.focus(), 80) }}
+            title="Add new designation"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+              border: '1.5px dashed var(--violet)',
+              background: 'var(--sb-active)',
+              color: 'var(--violet)',
+              cursor: 'pointer', fontSize: 18, fontWeight: 700,
+              transition: 'all 0.18s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,71,255,0.18)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--sb-active)' }}
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Column headers */}
+      <div className="hidden lg:grid" style={{
+        gridTemplateColumns: '2fr 96px 1.5fr 60px 120px 100px 210px',
+        gap: 14, padding: '0 24px',
+        fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px',
+      }}>
+        <span>Candidate</span>
+        <span style={{ textAlign: 'center' }}>Date</span>
+        <span>Role</span>
+        <span style={{ textAlign: 'center' }}>Exp</span>
+        <span style={{ textAlign: 'center' }}>Stage</span>
+        <span style={{ textAlign: 'center' }}>Added By</span>
+        <span style={{ textAlign: 'center' }}>Actions</span>
+      </div>
+
+      {/* Rows */}
       {isLoading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="p-6 rounded-3xl bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] space-y-4">
-              <Skeleton className="w-12 h-12 rounded-full" />
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-32" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 18, borderRadius: 14, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)' }}>
+              <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <Skeleton className="h-4 w-44" /><Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" /><Skeleton className="h-8 w-24 rounded-lg" />
             </div>
           ))}
         </div>
       ) : !data?.items.length ? (
-        <EmptyState title="No talent found matching your search" />
+        <EmptyState title="No talent found" description={search ? 'Try adjusting your search.' : 'No candidates in the talent pool yet.'} />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {data.items.map((candidate, i) => (
-            <motion.div
-              key={candidate.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-            >
-              <Card hover className="p-6 rounded-3xl border-none shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all bg-white dark:bg-[var(--card-bg)] group flex flex-col h-full">
-                <div className="flex justify-between items-center">
-                  <Avatar name={candidate.full_name} src={candidate.avatar_url} size="lg" className="ring-2 ring-violet-50 dark:ring-[var(--violet)]/20" />
-                  {candidate.match_score != null && (
-                    <span className="text-[11px] font-black px-2 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg">
-                      {Math.round(candidate.match_score)}% Score
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.items.map((candidate: any) => {
+            const stage = candidate.pipeline_stage
+            const stageCfg = stage ? STAGE_CFG[stage] : null
+            const hasInvitation = candidate.invitations?.length > 0
+
+            return (
+              <div key={candidate.id}
+                className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
+                style={{
+                  gridTemplateColumns: '2fr 96px 1.5fr 60px 120px 100px 210px',
+                  alignItems: 'center', borderRadius: 14,
+                  background: 'var(--kpi-bg)', border: '1px solid var(--table-border)',
+                  boxShadow: 'var(--shadow)', transition: 'border-color 0.15s, box-shadow 0.15s',
+                }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--violet)'; el.style.boxShadow = 'var(--shadow-h)' }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--table-border)'; el.style.boxShadow = 'var(--shadow)' }}
+              >
+                {/* Candidate */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidate.full_name}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidate.email}</p>
+                  </div>
+                </div>
+
+                {/* Date */}
+                <p className="text-[12px] text-[var(--text-mid)] lg:text-center">{formatDate(candidate.created_at, 'dd MMM yyyy')}</p>
+
+                {/* Role */}
+                <p className="text-[13px] text-[var(--text-mid)] truncate">{candidate.current_title || '—'}</p>
+
+                {/* Exp */}
+                <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
+                  {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : '—')}
+                </p>
+
+                {/* Stage */}
+                <div className="lg:flex lg:justify-center">
+                  {stageCfg ? (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, whiteSpace: 'nowrap' }}>{stageCfg.label}</span>
+                  ) : (
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.05)', color: 'var(--text-light)', border: '1px dashed var(--table-border)' }}>
+                      {candidate.match_score != null ? 'New' : 'Unprocessed'}
                     </span>
                   )}
                 </div>
-                <div className="mt-4">
-                  <h3 className="text-lg font-bold text-[var(--violet)] group-hover:text-[var(--violet)]/80 transition-colors">
-                    {candidate.full_name}
-                  </h3>
-                  <p className="text-sm font-medium text-gray-400 mt-0.5 truncate">
-                    {candidate.current_title || "Candidate"}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} YRS EXP` : 'N/A')}
-                    </span>
-                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">AVAILABLE</span>
-                  </div>
-                </div>
-                <div className="mt-4 flex-1">
-                  <p className="text-[11px] font-bold text-gray-500 dark:text-[var(--text-mid)] uppercase tracking-wider line-clamp-2">
-                    {candidate.skills?.length > 0 ? candidate.skills.join(' • ') : "NO SKILLS LISTED"}
-                  </p>
-                </div>
-                
-                <div className="mt-6 pt-4 border-t border-gray-50 dark:border-white/5">
-                  <button
-                    className="w-full bg-[var(--violet)] hover:bg-[var(--violet)]/90 text-white rounded-2xl text-xs font-bold py-3 shadow-lg shadow-violet-200 dark:shadow-none transition-all hover:-translate-y-0.5"
-                    onClick={() => setViewTarget(candidate)}
-                  >
+
+                {/* Added By */}
+                <p className="text-[11px] font-semibold text-[var(--text-mid)] lg:text-center">{candidate.created_by_name || 'Admin'}</p>
+
+                {/* Actions */}
+                <div className="flex items-center lg:justify-end gap-2" style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                  <button onClick={e => { e.stopPropagation(); setViewTarget(candidate) }}
+                    className="text-[11px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-all">
                     View Full Profile
                   </button>
+
+                  <div style={{ position: 'relative' }}>
+                    <button onClick={e => { e.stopPropagation(); setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id) }}
+                      className="w-8 h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]">
+                      ⋯
+                    </button>
+                    <AnimatePresence>
+                      {openDropdownId === candidate.id && (
+                        <StageDropdown
+                          candidateId={candidate.id}
+                          currentStage={stage || 'applied'}
+                          onSelect={s => stageMutation.mutate({ id: candidate.id, stage: s })}
+                          onDelete={id => deleteMutation.mutate(id)}
+                          onClose={() => setOpenDropdownId(null)}
+                          user={user}
+                          hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
+                          onAddToPipeline={() => {
+                            if (activeJobs && activeJobs.length === 1) {
+                              handleAddToPipeline(candidate.id, activeJobs[0].id)
+                            } else {
+                              setCandidateToAdd({ id: candidate.id, name: candidate.full_name })
+                            }
+                          }}
+
+                        />
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
-              </Card>
-            </motion.div>
-          ))}
+              </div>
+            )
+          })}
         </div>
       )}
 
       {/* Pagination */}
       {data && data.pages > 1 && (
-        <div className="mt-12 p-6 bg-white dark:bg-[var(--card-bg)] rounded-3xl border border-gray-100 dark:border-[var(--card-border)] shadow-sm">
-          <Pagination page={data.page} pages={data.pages} total={data.total} limit={data.limit} onPage={setPage} />
-        </div>
+        <Pagination page={data.page} pages={data.pages} total={data.total} limit={data.limit} onPage={setPage} />
       )}
 
       {/* Profile Modal */}
       {viewTarget && (
-        <Modal open onClose={() => setViewTarget(null)} title="Candidate Profile" size="lg">
-          <CandidateProfileView candidate={viewTarget} />
+        <Modal open onClose={() => setViewTarget(null)} title="Candidate Profile" size="xl">
+          <CandidateProfileView 
+            candidate={viewTarget} 
+            onInvite={() => inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })}
+            onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
+            hasInvitation={Boolean(viewTarget.invitations && viewTarget.invitations.length > 0)}
+          />
+        </Modal>
+      )}
+
+      {/* Job Picker Modal for Add in Pipeline */}
+      {candidateToAdd && (
+        <Modal open={!!candidateToAdd} onClose={() => setCandidateToAdd(null)} title={`Add ${candidateToAdd.name} to Pipeline`} size="sm">
+          <div className="space-y-4">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Select Active Job</label>
+            <div className="space-y-2">
+              {activeJobs && activeJobs.length > 0 ? (
+                activeJobs.map((job: any) => (
+                  <button key={job.id} onClick={() => handleAddToPipeline(candidateToAdd.id, job.id)}
+                    className="w-full p-4 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50 transition-all text-left flex items-center justify-between group">
+                    <div>
+                      <p className="font-bold text-gray-900 group-hover:text-violet-700">{job.title}</p>
+                      <p className="text-xs text-gray-500">{job.location} • {job.type}</p>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-300 group-hover:text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 italic py-4">No active jobs found. Please create a job first.</p>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+      {/* Quick Add Designation Modal */}
+      {showAddJobModal && (
+        <Modal open onClose={() => { setShowAddJobModal(false); setNewJobTitle('') }} title="Add New Designation" size="sm">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
+              Create a new job designation. It will appear in the Jobs tabs immediately — even before any candidates are added.
+            </p>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
+                Designation / Job Title
+              </label>
+              <input
+                ref={newJobInputRef}
+                className="input-base"
+                placeholder="e.g. Senior React Developer"
+                value={newJobTitle}
+                onChange={e => setNewJobTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateJob(); if (e.key === 'Escape') { setShowAddJobModal(false); setNewJobTitle('') } }}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleCreateJob}
+                disabled={isCreatingJob || !newJobTitle.trim()}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 10,
+                  background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+                  color: '#fff', border: 'none', fontWeight: 700, fontSize: 13,
+                  cursor: isCreatingJob || !newJobTitle.trim() ? 'not-allowed' : 'pointer',
+                  opacity: isCreatingJob || !newJobTitle.trim() ? 0.6 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                {isCreatingJob ? 'Creating...' : '+ Add Designation'}
+              </button>
+              <button
+                onClick={() => { setShowAddJobModal(false); setNewJobTitle('') }}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--table-border)', background: 'var(--kpi-bg)', color: 'var(--text-mid)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

@@ -10,6 +10,11 @@ export const talentPoolApi = {
     tag?: string
     min_experience?: number
     job_title?: string
+    status?: string
+    created_by_id?: string
+    job_id?: string
+    date_from?: string
+    date_to?: string
   }) => api.get<PaginatedResponse<Candidate>>('/v1/talent-pool', { params }),
 
   addTag: (candidateId: string, tag: string) =>
