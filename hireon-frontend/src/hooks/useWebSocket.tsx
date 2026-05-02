@@ -44,21 +44,21 @@ export function useWebSocket() {
         if (msg.type === 'event') {
           if (msg.event === 'notification' && msg.data) {
             addNotification(msg.data)
-            
+
             // Sync React Query state immediately
             queryClient.invalidateQueries({ queryKey: ['notifications'] })
             queryClient.invalidateQueries({ queryKey: ['notifications', 'count'] })
-            
+
             // Trigger WhatsApp-style popup (in-app)
             toast.custom((t) => (
-              <ActivityToast 
-                t={t} 
+              <ActivityToast
+                t={t}
                 payload={{
                   action: msg.data.type || 'notification',
                   resource_type: 'notification',
                   message: msg.data.message || 'New notification',
                   timestamp: new Date().toISOString()
-                }} 
+                }}
               />
             ), { id: `ws-notif-${msg.data.id || Date.now()}`, duration: 5000 })
 
@@ -77,7 +77,7 @@ export function useWebSocket() {
             const { user } = useAuthStore.getState()
             const isPortal = window.location.pathname.startsWith('/portal')
             const isInterviewer = window.location.pathname.startsWith('/interviewer')
-            
+
             // Relevance check for candidates
             const isRelevantToCandidate = isPortal && user?.candidate_id && msg.data.resource_id === user.candidate_id
             const isRelevantToInterviewer = isInterviewer && msg.data.user_id === user?.id
@@ -99,12 +99,12 @@ export function useWebSocket() {
             }
 
             const enhancedPayload = { ...msg.data, message: activityMessage };
-            
+
             // Skip noisy notifications like simply viewing a candidate profile
-            const isViewAction = 
+            const isViewAction =
               (msg.data.action && typeof msg.data.action === 'string' && ['view', 'viewed'].includes(msg.data.action.toLowerCase().trim())) ||
               (activityMessage && typeof activityMessage === 'string' && activityMessage.toLowerCase().includes('was view'));
-            
+
             if (!isViewAction) {
               // Trigger WhatsApp-style popup (in-app)
               toast.custom((t) => (
@@ -119,7 +119,7 @@ export function useWebSocket() {
                 })
               }
             }
-            
+
             // Invalidate queries based on resource type
             const resourceType = msg.data.resource_type
             if (resourceType === 'candidate') {
@@ -146,7 +146,7 @@ export function useWebSocket() {
               queryClient.invalidateQueries({ queryKey: ['notifications'] })
               queryClient.invalidateQueries({ queryKey: ['notifications', 'count'] })
             }
-            
+
             // Always refresh recent activities
             queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
           }
@@ -154,14 +154,14 @@ export function useWebSocket() {
           if (msg.event === 'new_message' && msg.data) {
             // Update global message store
             useMessageStore.getState().addOrUpdateConversation(msg.data)
-            
+
             // Dispatch custom event for ChatPanel (if it's already open for this user)
             window.dispatchEvent(new CustomEvent('ws:new_message', { detail: msg.data }))
-            
+
             // Show interactive toast
             toast.success(
               (t) => (
-                <div 
+                <div
                   className="flex flex-col cursor-pointer"
                   onClick={() => {
                     toast.dismiss(t.id)

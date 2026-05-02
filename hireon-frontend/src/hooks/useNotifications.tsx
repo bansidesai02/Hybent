@@ -60,7 +60,7 @@ export function useNotifications() {
 
       // Trigger Native browser popup (visible when in another app)
       const isNoisy = (body ?? '').toLowerCase().includes('was view') || (title ?? '').toLowerCase().includes('was view');
-      
+
       if (!isNoisy && Notification.permission === 'granted') {
         new Notification(title ?? 'Hireon Notification', {
           body: body ?? '',
