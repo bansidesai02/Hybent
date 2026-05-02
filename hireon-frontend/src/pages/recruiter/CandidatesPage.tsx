@@ -210,15 +210,6 @@ const STAGE_GROUPS = [
   },
 ]
 
-// ─── Candidate Profile Modal ───────────────────────────────────────────────────
-
-function CandidateProfileModal({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
-  return (
-    <Modal open onClose={onClose} title="Candidate Profile" size="xl">
-      <CandidateProfileView candidate={candidate} />
-    </Modal>
-  )
-}
 
 // ─── Score bar pill ───────────────────────────────────────────────────────────
 
@@ -246,6 +237,7 @@ function CandidateActionsDropdown({
   user,
   onGenerateOffer,
   onAddToPipeline,
+  onViewProfile,
   hasActiveJobs,
 }: {
   candidateId: string
@@ -257,6 +249,7 @@ function CandidateActionsDropdown({
   user: any
   onGenerateOffer: () => void
   onAddToPipeline: () => void
+  onViewProfile: () => void
   hasActiveJobs: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -285,6 +278,22 @@ function CandidateActionsDropdown({
       }}
       onClick={(e) => e.stopPropagation()}
     >
+      <button
+        onClick={(e) => { e.stopPropagation(); onViewProfile(); onClose() }}
+        style={{
+          width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 700, color: 'var(--violet)',
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(108,71,255,0.08)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      >
+        <Search size={13} />
+        <span style={{ flex: 1 }}>View Full Profile</span>
+      </button>
+
+      <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
 
       {/* "+ Add in Pipeline" at the top — above PRE-SCREENING */}
       {hasActiveJobs && (
@@ -418,12 +427,19 @@ export default function CandidatesPage() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Candidate | null>(null)
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [stageFilter, setStageFilter] = useState<string | undefined>(undefined)
   const [recruiterId, setRecruiterId] = useState<string>('all')
   const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+
+  const statusTabs = [
+    { id: 'all', label: 'All', icon: <Users size={14} /> },
+    { id: 'in_review', label: 'In Review', icon: <Search size={14} /> },
+    { id: 'shortlisted', label: 'Shortlisted', icon: <CheckCircle size={14} /> },
+    { id: 'scheduled', label: 'Scheduled', icon: <Calendar size={14} /> },
+    { id: 'rejected', label: 'Rejected', icon: <Ban size={14} /> },
+  ]
   const queryClient = useQueryClient()
   const [selectedJobId, setSelectedJobId] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
@@ -605,8 +621,18 @@ export default function CandidatesPage() {
 
           <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block mx-1" />
 
-          {/* Core Selects Group */}
           <div className="flex flex-wrap items-center gap-3">
+            <div className="w-[140px]">
+              <Select
+                value={selectedJobId}
+                onChange={(e) => { setSelectedJobId(e.target.value); setPage(1) }}
+                options={[
+                  { value: 'all', label: 'All Roles' },
+                  ...(activeJobs || []).map((j: any) => ({ value: j.id, label: j.title }))
+                ]}
+              />
+            </div>
+
             <div className="w-[140px]">
               <Select
                 value={recruiterId}
@@ -618,24 +644,6 @@ export default function CandidatesPage() {
               />
             </div>
 
-            <div className="w-[140px]">
-              <Select
-                value={statusFilter || 'all'}
-                onChange={(e) => { 
-                  setStatusFilter(e.target.value === 'all' ? undefined : e.target.value); 
-                  setPage(1); 
-                }}
-                options={[
-                  { value: 'all', label: 'All Statuses' },
-                  { value: 'in_review', label: 'In Review' },
-                  { value: 'shortlisted', label: 'Shortlisted' },
-                  { value: 'scheduled', label: 'Scheduled' },
-                  { value: 'rejected', label: 'Rejected' },
-                ]}
-              />
-            </div>
-
-            {/* Date Group: Keeps Select and Picker together */}
             <div className="flex items-center gap-2">
               <div className="w-[130px]">
                 <Select
@@ -665,67 +673,33 @@ export default function CandidatesPage() {
         </div>
       </div>
 
-      {/* Jobs Tabs Row */}
-      <div className="flex items-center gap-3 px-1 mb-2 overflow-x-auto w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2 flex-shrink-0">Jobs:</span>
-        <div className="flex items-center gap-2 flex-nowrap">
-          <button
-            onClick={() => { setSelectedJobId('all'); setPage(1); }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 10,
-              border: selectedJobId === 'all' ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              background: selectedJobId === 'all' ? 'var(--sb-active)' : 'var(--kpi-bg)',
-              color: selectedJobId === 'all' ? 'var(--violet)' : 'var(--text-mid)',
-              transition: 'all 0.18s',
-              whiteSpace: 'nowrap', flexShrink: 0
-            }}
-          >
-            All
-          </button>
-          {(activeJobs || []).map((job: any) => {
-            const isActive = selectedJobId === job.id;
-            return (
-              <button
-                key={job.id}
-                onClick={() => { setSelectedJobId(job.id); setPage(1); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 14px', borderRadius: 10,
-                  border: isActive ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
-                  color: isActive ? 'var(--violet)' : 'var(--text-mid)',
-                  transition: 'all 0.18s',
-                  whiteSpace: 'nowrap', flexShrink: 0
-                }}
-              >
-                {job.title}
-              </button>
-            )
-          })}
-          {/* + Add Designation button */}
-          <button
-            onClick={() => { setShowAddJobModal(true); setTimeout(() => newJobInputRef.current?.focus(), 80) }}
-            title="Add new designation"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-              border: '1.5px dashed var(--violet)',
-              background: 'var(--sb-active)',
-              color: 'var(--violet)',
-              cursor: 'pointer', fontSize: 18, fontWeight: 700,
-              transition: 'all 0.18s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,71,255,0.18)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'var(--sb-active)' }}
-          >
-            +
-          </button>
+      {/* Status Bar Tabs */}
+      <div className="flex flex-wrap items-center gap-6 px-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-2">Status:</span>
+          <div className="flex items-center p-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700">
+            {statusTabs.map(tab => {
+              const isActive = (statusFilter === tab.id) || (tab.id === 'all' && !statusFilter)
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => { setStatusFilter(tab.id === 'all' ? undefined : tab.id); setPage(1) }}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+                    isActive 
+                      ? 'bg-[#f5f3ff] text-[#6c47ff] border border-[#e8e4ff] shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700 border border-transparent'
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
+
+
 
 
       {/* Table */}
@@ -757,19 +731,20 @@ export default function CandidatesPage() {
         <>
           {/* Column header — now hidden on mobile */}
           <div className="hidden lg:grid" style={{
-            gridTemplateColumns: '2fr 96px 1.5fr 52px 68px 120px 115px 100px 215px',
+            gridTemplateColumns: '2.2fr 100px 1.5fr 110px 60px 60px 1.5fr 110px 100px 220px',
             gap: 14, padding: '0 24px',
             fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px',
           }}>
             <span>Candidate</span>
             <span style={{ textAlign: 'center' }}>Date</span>
             <span>Role</span>
+            <span>Skills</span>
             <span style={{ textAlign: 'center' }}>Exp</span>
             <span style={{ textAlign: 'center' }}>Score</span>
             <span style={{ textAlign: 'center' }}>Stage</span>
             <span style={{ textAlign: 'center' }}>Status</span>
             <span style={{ textAlign: 'center' }}>Added By</span>
-            {user?.role === 'admin' && <span style={{ textAlign: 'center' }}>Actions</span>}
+            <span style={{ textAlign: 'center' }}>Actions</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 80 }}>
@@ -782,18 +757,23 @@ export default function CandidatesPage() {
               const statusCfg = STATUS_CFG[statusKey]
 
               return (
-                <div
-                  key={candidate.id}
-                  className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
-                  style={{
-                    gridTemplateColumns: '2fr 96px 1.5fr 52px 68px 120px 115px 100px 215px',
-                    alignItems: 'center',
-                    borderRadius: 14,
-                    background: 'var(--kpi-bg)',
-                    border: '1px solid var(--table-border)',
-                    boxShadow: 'var(--shadow)',
-                    transition: 'border-color 0.15s, box-shadow 0.15s',
-                  }}
+                  <div
+                    key={candidate.id}
+                    onClick={() => {
+                      setViewTarget(candidate)
+                      candidatesApi.recordView(candidate.id)
+                    }}
+                    className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
+                    style={{
+                      gridTemplateColumns: '2.2fr 100px 1.5fr 110px 60px 60px 1.5fr 110px 100px 220px',
+                      alignItems: 'center',
+                      borderRadius: 14,
+                      background: 'var(--kpi-bg)',
+                      border: '1px solid var(--table-border)',
+                      boxShadow: 'var(--shadow)',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.15s, box-shadow 0.15s',
+                    }}
                   onMouseEnter={(e) => {
                     const el = e.currentTarget as HTMLElement
                     el.style.borderColor = 'var(--violet)'
@@ -830,13 +810,19 @@ export default function CandidatesPage() {
                     {/* Date */}
                     <p className="text-[12px] text-[var(--text-mid)] lg:text-center">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Applied</span>
-                      {formatDate(candidate.created_at, 'dd MMM yyyy')}
+                      {formatDate(candidate.created_at, 'MMM dd, yyyy')}
                     </p>
 
                     {/* Role */}
-                    <p className="text-[13px] text-[var(--text-mid)] truncate max-w-[150px] lg:max-w-none">
+                    <p className="text-[13px] text-[var(--text-mid)] truncate">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Role</span>
                       {candidate.applied_job_title || candidate.current_title || '—'}
+                    </p>
+
+                    {/* Skills */}
+                    <p className="text-[12px] text-[var(--text-mid)] truncate">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Skills</span>
+                      {candidate.skills?.slice(0, 3).join(', ') || '—'}
                     </p>
 
                     {/* Exp */}
@@ -912,26 +898,46 @@ onClick={(e: any) => {
                       <StatusBadge type={statusKey} label={statusCfg.label} />
                     </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setViewTarget(candidate)
-                        candidatesApi.recordView(candidate.id)
-                      }}
-                      className="flex-1 lg:flex-none text-[11px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] dark:bg-[var(--violet)] dark:border-[var(--violet)] dark:hover:scale-105 transition-all"
-                    >
-                      View Full Profile
-                    </button>
+                    {/* Added By */}
+                    <p className="text-[11px] font-semibold text-[var(--text-mid)] lg:text-center">
+                      <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Added By</span>
+                      {candidate.created_by_name || 'Admin'}
+                    </p>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id)
-                      }}
-                      className="w-10 h-10 lg:w-8 lg:h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]"
-                    >
-                      ⋯
-                    </button>
+                    {/* Actions Buttons Group */}
+                    <div className="flex items-center gap-2 lg:justify-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          inviteMutation.mutate({ email: candidate.email, full_name: candidate.full_name })
+                        }}
+                        className="flex-1 lg:flex-none text-[11px] flex items-center justify-center gap-1.5 font-bold px-3 py-2 rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 transition-all border border-violet-100"
+                      >
+                        <Inbox size={13} />
+                        Invite
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`${basePath}/interviews?candidateId=${candidate.id}`)
+                        }}
+                        className="flex-1 lg:flex-none text-[11px] flex items-center justify-center gap-1.5 font-bold px-3 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-all"
+                      >
+                        <Calendar size={13} />
+                        Schedule
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id)
+                        }}
+                        className="w-10 h-10 lg:w-8 lg:h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]"
+                      >
+                        ⋯
+                      </button>
+                    </div>
                   </div>
                   <AnimatePresence>
                     {openDropdownId === candidate.id && (
@@ -949,6 +955,10 @@ onClick={(e: any) => {
                           } else {
                             setCandidateToAdd({ id: candidate.id, name: candidate.full_name })
                           }
+                        }}
+                        onViewProfile={() => {
+                          setViewTarget(candidate)
+                          candidatesApi.recordView(candidate.id)
                         }}
                         hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
                         user={user}
@@ -974,7 +984,6 @@ onClick={(e: any) => {
       )}
 
 
-      {selected && <CandidateProfileModal candidate={selected} onClose={() => setSelected(null)} />}
 
       {offerCandidate && (
         <GenerateOfferModal 
