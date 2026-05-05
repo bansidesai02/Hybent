@@ -97,6 +97,14 @@ const PRE_PIPELINE_STAGES: Array<string | null | undefined> = [
   'pre_screening_selected',
 ]
 
+function isCandidateInActivePipeline(stage: string | null | undefined): boolean {
+  if (!stage) return false
+  if (stage === 'inactive') return false
+  if (PRE_PIPELINE_STAGES.includes(stage)) return false
+  if (REJECTION_STAGES.includes(stage)) return false
+  return true
+}
+
 function getStatusFromStage(stage: string | undefined): string {
   if (!stage || stage === 'applied' || stage === 'needs_review') return 'in_review'
   if (stage === 'pre_screening_selected' || stage === 'completed') return 'shortlisted'
@@ -239,6 +247,7 @@ function CandidateActionsDropdown({
   onAddToPipeline,
   onViewProfile,
   hasActiveJobs,
+  isInPipeline,
 }: {
   candidateId: string
   currentStage: string
@@ -251,6 +260,7 @@ function CandidateActionsDropdown({
   onAddToPipeline: () => void
   onViewProfile: () => void
   hasActiveJobs: boolean
+  isInPipeline: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -298,20 +308,34 @@ function CandidateActionsDropdown({
       {/* "+ Add in Pipeline" at the top — above PRE-SCREENING */}
       {hasActiveJobs && (
         <>
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddToPipeline(); onClose() }}
-            style={{
-              width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
-              background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.20)',
-              cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#059669',
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.10)' }}
-          >
-            <Plus size={13} />
-            <span style={{ flex: 1 }}>Add in Pipeline</span>
-          </button>
+          {isInPipeline ? (
+            <div
+              style={{
+                width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+                background: 'rgba(148, 163, 184, 0.1)', border: '1.5px solid rgba(148, 163, 184, 0.2)',
+                cursor: 'not-allowed', fontSize: 12.5, fontWeight: 700, color: '#94a3b8',
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+              }}
+            >
+              <CheckCircle size={13} />
+              <span style={{ flex: 1 }}>Already in Pipeline</span>
+            </div>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAddToPipeline(); onClose() }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+                background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.20)',
+                cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#059669',
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.10)' }}
+            >
+              <Plus size={13} />
+              <span style={{ flex: 1 }}>Add in Pipeline</span>
+            </button>
+          )}
           <div style={{ height: 1, background: 'var(--table-border)', margin: '2px 6px 6px' }} />
         </>
       )}
@@ -445,6 +469,7 @@ export default function CandidatesPage() {
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
   const [candidateToAdd, setCandidateToAdd] = useState<{ id: string; name: string } | null>(null)
+  const [inactivePipelineBlock, setInactivePipelineBlock] = useState<{ id: string; name: string } | null>(null)
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null)
   const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
   const [showAddJobModal, setShowAddJobModal] = useState(false)
@@ -515,7 +540,42 @@ export default function CandidatesPage() {
     queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r: any) => r.data.items),
   })
 
-  const handleAddToPipeline = async (candidateId: string, jobId: string) => {
+  const resolveJobForCandidate = (candidate: any): string | null => {
+    if (!activeJobs || activeJobs.length === 0) return null
+
+    const normalize = (v?: string | null) => (v || '').trim().toLowerCase()
+    const appliedTitle = normalize(candidate?.applied_job_title)
+    const currentTitle = normalize(candidate?.current_title)
+
+    const exactMatch =
+      activeJobs.find((j: any) => normalize(j.title) === appliedTitle) ||
+      activeJobs.find((j: any) => normalize(j.title) === currentTitle)
+    if (exactMatch?.id) return exactMatch.id
+
+    const partialMatch =
+      activeJobs.find((j: any) => appliedTitle && normalize(j.title).includes(appliedTitle)) ||
+      activeJobs.find((j: any) => currentTitle && normalize(j.title).includes(currentTitle))
+    if (partialMatch?.id) return partialMatch.id
+
+    return activeJobs[0]?.id || null
+  }
+
+  const handleAddToPipeline = async (
+    candidateId: string,
+    jobId: string,
+    candidateStage?: string | null,
+    candidateName?: string,
+  ) => {
+    const resolvedStage =
+      candidateStage ?? (displayItems.find((c: any) => c.id === candidateId)?.pipeline_stage as string | undefined)
+    if (resolvedStage === 'inactive') {
+      setInactivePipelineBlock({
+        id: candidateId,
+        name: candidateName || displayItems.find((c: any) => c.id === candidateId)?.full_name || 'this candidate',
+      })
+      return
+    }
+
     if (!jobId) {
       toast.error('Please select a job first')
       return
@@ -524,7 +584,6 @@ export default function CandidatesPage() {
     try {
       await candidatesApi.updateStage(candidateId, 'applied', false, jobId)
       toast.success('Added to pipeline successfully')
-      setCandidateToAdd(null)
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
     } catch (error) {
@@ -759,6 +818,7 @@ export default function CandidatesPage() {
             {displayItems.map((candidate: any, i: number) => {
               const stage = candidate.pipeline_stage
               const stageCfg = stage ? STAGE_CFG[stage] : null
+              const isAlreadyInPipeline = isCandidateInActivePipeline(stage)
               const hasInvitation = candidate.invitations?.length > 0
               const isAccountCreated = hasInvitation && candidate.invitations[0].is_used
               const statusKey = getStatusFromStage(candidate.pipeline_stage ?? undefined)
@@ -852,16 +912,17 @@ export default function CandidatesPage() {
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Pipeline Stage</span>
                       {/* Only show Reject / Talent DB for recruiter-uploaded candidates
                            who haven't set up a portal account yet */}
-                      {!stageCfg && activeJobs && activeJobs.length > 0 && !isAccountCreated && (
+                      {!isAlreadyInPipeline && activeJobs && activeJobs.length > 0 && !isAccountCreated && (
                         candidate.match_score != null && candidate.match_score >= 70 ? (
                           <button
-onClick={(e: any) => {
+                            onClick={(e: any) => {
                               e.stopPropagation()
-                              if (activeJobs.length === 1) {
-                                handleAddToPipeline(candidate.id, activeJobs[0].id)
-                              } else {
-                                setCandidateToAdd({ id: candidate.id, name: candidate.full_name })
+                              const resolvedJobId = resolveJobForCandidate(candidate)
+                              if (!resolvedJobId) {
+                                toast.error('No active jobs found. Please create a job first.')
+                                return
                               }
+                              handleAddToPipeline(candidate.id, resolvedJobId, stage, candidate.full_name)
                             }}
                             className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-emerald-500 text-white shadow-sm hover:scale-105 active:scale-95 transition-all w-fit"
                           >
@@ -958,17 +1019,19 @@ onClick={(e: any) => {
                         onClose={() => setOpenDropdownId(null)}
                         onGenerateOffer={() => setOfferCandidate(candidate)}
                         onAddToPipeline={() => {
-                          if (activeJobs && activeJobs.length === 1) {
-                            handleAddToPipeline(candidate.id, activeJobs[0].id)
-                          } else {
-                            setCandidateToAdd({ id: candidate.id, name: candidate.full_name })
+                          const resolvedJobId = resolveJobForCandidate(candidate)
+                          if (!resolvedJobId) {
+                            toast.error('No active jobs found. Please create a job first.')
+                            return
                           }
+                          handleAddToPipeline(candidate.id, resolvedJobId, stage, candidate.full_name)
                         }}
                         onViewProfile={() => {
                           setViewTarget(candidate)
                           candidatesApi.recordView(candidate.id)
                         }}
                         hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
+                        isInPipeline={isAlreadyInPipeline}
                         user={user}
 
                       />
@@ -1018,7 +1081,7 @@ onClick={(e: any) => {
                   activeJobs.map((job: any) => (
                     <button
                       key={job.id}
-                      onClick={() => handleAddToPipeline(candidateToAdd.id, job.id)}
+                      onClick={() => handleAddToPipeline(candidateToAdd.id, job.id, undefined, candidateToAdd.name)}
                       className="w-full p-4 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50 transition-all text-left flex items-center justify-between group"
                     >
                       <div>
@@ -1034,6 +1097,38 @@ onClick={(e: any) => {
                   <p className="text-sm text-gray-500 italic py-4">No active jobs found. Please create a job first.</p>
                 )}
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {inactivePipelineBlock && (
+        <Modal
+          open={!!inactivePipelineBlock}
+          onClose={() => setInactivePipelineBlock(null)}
+          title="Candidate is Inactive"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Please activate <strong>{inactivePipelineBlock.name}</strong> first, then move this candidate to pipeline.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  stageMutation.mutate({ id: inactivePipelineBlock.id, stage: 'applied' })
+                  setInactivePipelineBlock(null)
+                }}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg bg-[#6c47ff] text-white hover:bg-[#5a3ae6] transition-colors"
+              >
+                Activate Candidate
+              </button>
+              <button
+                onClick={() => setInactivePipelineBlock(null)}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </Modal>

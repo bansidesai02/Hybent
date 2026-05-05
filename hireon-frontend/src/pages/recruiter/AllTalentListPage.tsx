@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
-import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2 } from 'lucide-react'
+import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle } from 'lucide-react'
 import { talentPoolApi } from '@/api/talentPool'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
@@ -55,41 +55,119 @@ const STATUS_CFG: Record<string, { color: string; bg: string; dot: string; label
 const REJECTION_STAGES = ['rejected','pre_screening_rejected','technical_round_rejected','technical_round_back_out','practical_round_rejected','hr_round_rejected']
 
 const STAGE_GROUPS = [
-  { label: 'Pre-Screening', stages: [
-    { key: 'pre_screening', label: 'In Pre-screening' },
-    { key: 'pre_screening_selected', label: 'Pre-screening Selected' },
-    { key: 'pre_screening_rejected', label: 'Pre-screening Rejected' },
-  ]},
-  { label: 'Technical Round', stages: [
-    { key: 'technical_round', label: 'In Technical Round' },
-    { key: 'technical_round_selected', label: 'Technical Round Selected' },
-    { key: 'technical_round_rejected', label: 'Technical Round Rejected' },
-    { key: 'technical_round_back_out', label: 'Technical Round Back Out' },
-  ]},
-  { label: 'Practical Round', stages: [
-    { key: 'practical_round', label: 'In Practical Round' },
-    { key: 'practical_round_selected', label: 'Practical Round Selected' },
-    { key: 'practical_round_rejected', label: 'Practical Round Rejected' },
-  ]},
-  { label: 'HR Round', stages: [
-    { key: 'hr_round', label: 'In HR Round' },
-    { key: 'hr_round_selected', label: 'HR Round Selected' },
-    { key: 'hr_round_rejected', label: 'HR Round Rejected' },
-  ]},
-  { label: 'Offer & Joining', stages: [
-    { key: 'offered', label: 'Offered' },
-    { key: 'hired_joined', label: 'Hired / Joined' },
-  ]},
+  {
+    label: 'Pre-Screening',
+    icon: <GlassIcon icon="Search" variant="blue" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'pre_screening', label: 'In Pre-screening', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'pre_screening_selected', label: 'Pre-screening Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'pre_screening_rejected', label: 'Pre-screening Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'Technical Round',
+    icon: <GlassIcon icon="Code" variant="violet" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'technical_round', label: 'In Technical Round', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'technical_round_selected', label: 'Technical Round Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'technical_round_rejected', label: 'Technical Round Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+      { key: 'technical_round_back_out', label: 'Technical Round Back Out', icon: <GlassIcon icon="RotateCcw" variant="amber" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'Practical Round',
+    icon: <GlassIcon icon="FileText" variant="violet" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'practical_round', label: 'In Practical Round', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'practical_round_selected', label: 'Practical Round Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'practical_round_rejected', label: 'Practical Round Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'HR Round',
+    icon: <GlassIcon icon="Users" variant="violet" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'hr_round', label: 'In HR Round', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'hr_round_selected', label: 'HR Round Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'hr_round_rejected', label: 'HR Round Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'Offer & Joining',
+    icon: <GlassIcon icon="Trophy" variant="emerald" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'offered', label: 'Offered', icon: <GlassIcon icon="Tag" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'hired_joined', label: 'Hired / Joined', icon: <GlassIcon icon="Trophy" variant="emerald" size={18} iconSize={9} ghost /> },
+    ],
+  },
 ]
 
 // ── Mini stage dropdown ────────────────────────────────────────────────────────
-function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete, user, onAddToPipeline, hasActiveJobs }: {
+function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete, user, onAddToPipeline, onViewProfile, hasActiveJobs, isInPipeline, triggerEl }: {
   candidateId: string; currentStage: string
   onSelect: (s: string) => void; onClose: () => void
   onDelete: (id: string) => void; user: any
-  onAddToPipeline: () => void; hasActiveJobs: boolean
+  onAddToPipeline: () => void
+  onViewProfile: () => void
+  hasActiveJobs: boolean
+  isInPipeline: boolean
+  triggerEl: HTMLButtonElement | null
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [openUp, setOpenUp] = useState(false)
+  const [maxHeight, setMaxHeight] = useState(420)
+  const [menuTop, setMenuTop] = useState(0)
+  const [menuLeft, setMenuLeft] = useState(0)
+  const MENU_WIDTH = 268
+
+  const computePlacement = () => {
+    if (!ref.current || !triggerEl) return
+    const viewportPadding = 12
+    const horizontalPadding = 0
+    const gap = 8
+    const viewportHeight = window.innerHeight
+    const viewportWidth = window.innerWidth
+    const triggerRect = triggerEl.getBoundingClientRect()
+
+    const naturalHeight = Math.min(ref.current.scrollHeight, Math.floor(viewportHeight * 0.78))
+    const spaceBelow = viewportHeight - triggerRect.bottom - viewportPadding
+    const spaceAbove = triggerRect.top - viewportPadding
+
+    const shouldOpenUp = spaceBelow < Math.min(280, naturalHeight) && spaceAbove > spaceBelow
+    const available = shouldOpenUp ? spaceAbove : spaceBelow
+    const safeMaxHeight = Math.max(200, Math.floor(available - gap))
+
+    // Right-align to trigger by default, then clamp within viewport.
+    const desiredLeft = triggerRect.right - MENU_WIDTH
+    const clampedLeft = Math.max(
+      horizontalPadding,
+      Math.min(desiredLeft, viewportWidth - MENU_WIDTH - horizontalPadding),
+    )
+
+    const computedTop = shouldOpenUp
+      ? triggerRect.top - Math.min(naturalHeight, safeMaxHeight) - gap
+      : triggerRect.bottom + gap
+
+    setOpenUp(shouldOpenUp)
+    setMaxHeight(safeMaxHeight)
+    setMenuLeft(clampedLeft)
+    setMenuTop(Math.max(viewportPadding, computedTop))
+  }
+
+  useLayoutEffect(() => {
+    computePlacement()
+  }, [triggerEl])
+
+  useEffect(() => {
+    const onReflow = () => computePlacement()
+    window.addEventListener('resize', onReflow)
+    window.addEventListener('scroll', onReflow, true)
+    return () => {
+      window.removeEventListener('resize', onReflow)
+      window.removeEventListener('scroll', onReflow, true)
+    }
+  }, [triggerEl])
+
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
     document.addEventListener('mousedown', h)
@@ -98,27 +176,56 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
 
   return (
     <motion.div ref={ref}
-      initial={{ opacity: 0, scale: 0.95, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 6 }} transition={{ duration: 0.14 }}
-      style={{ position: 'absolute', top: 38, right: 0, zIndex: 9999, width: 240,
-        background: 'var(--kpi-bg)', borderRadius: 14,
-        boxShadow: '0 16px 48px rgba(0,0,0,0.22)', border: '1px solid var(--table-border)',
-        padding: '8px', transformOrigin: 'top right', maxHeight: 400, overflowY: 'auto' }}
+      initial={{ opacity: 0, scale: 0.95, y: openUp ? -6 : 6 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: openUp ? -6 : 6 }} transition={{ duration: 0.14 }}
+      style={{ position: 'fixed', top: menuTop, left: menuLeft, zIndex: 9999, width: MENU_WIDTH,
+        background: '#ffffff', borderRadius: 14,
+        boxShadow: '0 10px 28px rgba(15,23,42,0.12)', border: '1px solid rgba(148,163,184,0.22)',
+        padding: '8px', transformOrigin: openUp ? 'bottom right' : 'top right', maxHeight, overflowY: 'auto' }}
       onClick={e => e.stopPropagation()}
     >
+      <button
+        onClick={(e) => { e.stopPropagation(); onViewProfile(); onClose() }}
+        style={{
+          width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 700, color: 'var(--violet)',
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(108,71,255,0.08)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      >
+        <Search size={13} />
+        <span style={{ flex: 1 }}>View Full Profile</span>
+      </button>
+      <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
 
-      {hasActiveJobs && (
+      {(hasActiveJobs || isInPipeline) && (
         <>
-          <button onClick={e => { e.stopPropagation(); onAddToPipeline(); onClose() }}
-            style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
-              background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.20)',
-              cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#059669',
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.10)' }}
-          >
-            <Plus size={13} /><span style={{ flex: 1 }}>Add in Pipeline</span>
-          </button>
+          {isInPipeline ? (
+            <div
+              style={{
+                width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+                background: 'rgba(148, 163, 184, 0.1)', border: '1.5px solid rgba(148, 163, 184, 0.2)',
+                cursor: 'not-allowed', fontSize: 12.5, fontWeight: 700, color: '#94a3b8',
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+              }}
+            >
+              <CheckCircle size={13} />
+              <span style={{ flex: 1 }}>Already in Pipeline</span>
+            </div>
+          ) : (
+            <button onClick={e => { e.stopPropagation(); onAddToPipeline(); onClose() }}
+              style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+                background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.20)',
+                cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#059669',
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.10)' }}
+            >
+              <Plus size={13} /><span style={{ flex: 1 }}>Add in Pipeline</span>
+            </button>
+          )}
           <div style={{ height: 1, background: 'var(--table-border)', margin: '2px 6px 6px' }} />
         </>
       )}
@@ -126,7 +233,10 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
         <div key={group.label}>
           {gi > 0 && <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />}
           <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase',
-            letterSpacing: '0.9px', padding: '6px 10px 4px' }}>{group.label}</p>
+            letterSpacing: '0.9px', padding: '6px 10px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {group.icon}
+            {group.label}
+          </p>
           {group.stages.map(item => {
             const cfg = STAGE_CFG[item.key] ?? STAGE_CFG.applied
             const isActive = currentStage === item.key
@@ -139,6 +249,7 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
                 onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = cfg.bg }}
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'none' }}
               >
+                {item.icon}
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {isActive && <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>Active</span>}
               </button>
@@ -171,7 +282,6 @@ export default function AllTalentListPage() {
   const [search, setSearch] = useState('')
   const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
-  const [candidateToAdd, setCandidateToAdd] = useState<{ id: string; name: string } | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [recruiterId, setRecruiterId] = useState<string>('all')
@@ -183,6 +293,7 @@ export default function AllTalentListPage() {
   const [newJobTitle, setNewJobTitle] = useState('')
   const [isCreatingJob, setIsCreatingJob] = useState(false)
   const newJobInputRef = useRef<HTMLInputElement>(null)
+  const actionTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   useEffect(() => {
     adminApi.listUsers().then((res: any) => {
@@ -263,11 +374,41 @@ export default function AllTalentListPage() {
     onError: () => toast.error('Failed to delete candidate'),
   })
 
+  const resolveJobForCandidate = (candidate: any): string | null => {
+    if (!activeJobs || activeJobs.length === 0) return null
+
+    const normalize = (v?: string | null) =>
+      (v || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9+#.\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    const roles = [
+      candidate?.applied_job_title,
+      candidate?.current_title,
+      candidate?.parsed_data?.current_title,
+      candidate?.parsed_data?.role,
+    ]
+      .map((r: any) => normalize(typeof r === 'string' ? r : ''))
+      .filter(Boolean)
+
+    const exact = activeJobs.find((j: any) => roles.includes(normalize(j.title)))
+    if (exact?.id) return exact.id
+
+    const partial = activeJobs.find((j: any) => {
+      const jt = normalize(j.title)
+      return roles.some((r: string) => r.includes(jt) || jt.includes(r))
+    })
+    if (partial?.id) return partial.id
+
+    return null
+  }
+
   const handleAddToPipeline = async (candidateId: string, jobId: string) => {
     try {
       await candidatesApi.updateStage(candidateId, 'applied', false, jobId)
       toast.success('Added to pipeline successfully')
-      setCandidateToAdd(null)
       queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
     } catch {
@@ -295,6 +436,38 @@ export default function AllTalentListPage() {
       setIsCreatingJob(false)
     }
   }
+
+  const normalizeRole = (v?: string | null) =>
+    (v || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9+#.\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const selectedJobTitle =
+    selectedJobId === 'all'
+      ? ''
+      : ((activeJobs || []).find((j: any) => j.id === selectedJobId)?.title || '')
+
+  const filteredItems = (data?.items || []).filter((candidate: any) => {
+    if (selectedJobId === 'all') return true
+
+    const jobTitle = normalizeRole(selectedJobTitle)
+    if (!jobTitle) return true
+
+    const candidateRoles = [
+      candidate?.applied_job_title,
+      candidate?.current_title,
+      candidate?.parsed_data?.current_title,
+      candidate?.parsed_data?.role,
+    ]
+      .map((r: any) => normalizeRole(typeof r === 'string' ? r : ''))
+      .filter(Boolean)
+
+    if (!candidateRoles.length) return false
+
+    return candidateRoles.some((role) => role === jobTitle || role.includes(jobTitle) || jobTitle.includes(role))
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 80 }}>
@@ -479,11 +652,11 @@ export default function AllTalentListPage() {
             </div>
           ))}
         </div>
-      ) : !data?.items.length ? (
+      ) : !filteredItems.length ? (
         <EmptyState title="No talent found" description={search ? 'Try adjusting your search.' : 'No candidates in the talent pool yet.'} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {data.items.map((candidate: any) => {
+          {filteredItems.map((candidate: any) => {
             const stage = candidate.pipeline_stage
             const stageCfg = stage ? STAGE_CFG[stage] : null
             const hasInvitation = candidate.invitations?.length > 0
@@ -513,7 +686,7 @@ export default function AllTalentListPage() {
                 <p className="text-[12px] text-[var(--text-mid)] lg:text-center">{formatDate(candidate.created_at, 'dd MMM yyyy')}</p>
 
                 {/* Role */}
-                <p className="text-[13px] text-[var(--text-mid)] truncate">{candidate.current_title || '—'}</p>
+                <p className="text-[13px] text-[var(--text-mid)] truncate">{candidate.applied_job_title || candidate.current_title || '—'}</p>
 
                 {/* Exp */}
                 <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
@@ -542,7 +715,9 @@ export default function AllTalentListPage() {
                   </button>
 
                   <div style={{ position: 'relative' }}>
-                    <button onClick={e => { e.stopPropagation(); setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id) }}
+                    <button
+                      ref={(el) => { actionTriggerRefs.current[candidate.id] = el }}
+                      onClick={e => { e.stopPropagation(); setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id) }}
                       className="w-8 h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]">
                       ⋯
                     </button>
@@ -555,13 +730,20 @@ export default function AllTalentListPage() {
                           onDelete={id => deleteMutation.mutate(id)}
                           onClose={() => setOpenDropdownId(null)}
                           user={user}
+                          onViewProfile={() => {
+                            setViewTarget(candidate)
+                            candidatesApi.recordView(candidate.id)
+                          }}
                           hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
+                          isInPipeline={Boolean(stageCfg)}
+                          triggerEl={actionTriggerRefs.current[candidate.id] || null}
                           onAddToPipeline={() => {
-                            if (activeJobs && activeJobs.length === 1) {
-                              handleAddToPipeline(candidate.id, activeJobs[0].id)
-                            } else {
-                              setCandidateToAdd({ id: candidate.id, name: candidate.full_name })
+                            const resolvedJobId = resolveJobForCandidate(candidate)
+                            if (!resolvedJobId) {
+                              toast.error('No matching designation found from resume/profile for active jobs.')
+                              return
                             }
+                            handleAddToPipeline(candidate.id, resolvedJobId)
                           }}
 
                         />
@@ -592,32 +774,6 @@ export default function AllTalentListPage() {
         </Modal>
       )}
 
-      {/* Job Picker Modal for Add in Pipeline */}
-      {candidateToAdd && (
-        <Modal open={!!candidateToAdd} onClose={() => setCandidateToAdd(null)} title={`Add ${candidateToAdd.name} to Pipeline`} size="sm">
-          <div className="space-y-4">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Select Active Job</label>
-            <div className="space-y-2">
-              {activeJobs && activeJobs.length > 0 ? (
-                activeJobs.map((job: any) => (
-                  <button key={job.id} onClick={() => handleAddToPipeline(candidateToAdd.id, job.id)}
-                    className="w-full p-4 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50 transition-all text-left flex items-center justify-between group">
-                    <div>
-                      <p className="font-bold text-gray-900 group-hover:text-violet-700">{job.title}</p>
-                      <p className="text-xs text-gray-500">{job.location} • {job.type}</p>
-                    </div>
-                    <svg className="w-5 h-5 text-gray-300 group-hover:text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500 italic py-4">No active jobs found. Please create a job first.</p>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
       {/* Quick Add Designation Modal */}
       {showAddJobModal && (
         <Modal open onClose={() => { setShowAddJobModal(false); setNewJobTitle('') }} title="Add New Designation" size="sm">
