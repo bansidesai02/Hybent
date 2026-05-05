@@ -690,7 +690,15 @@ export default function CandidatesPage() {
                       : 'text-gray-500 hover:text-gray-700 border border-transparent'
                   }`}
                 >
-                  {tab.icon}
+                  <span className={isActive ? '' : (
+                    tab.id === 'all' ? 'text-violet-500' :
+                    tab.id === 'in_review' ? 'text-blue-500' :
+                    tab.id === 'shortlisted' ? 'text-emerald-500' :
+                    tab.id === 'scheduled' ? 'text-violet-600' :
+                    tab.id === 'rejected' ? 'text-rose-500' : ''
+                  )}>
+                    {tab.icon}
+                  </span>
                   {tab.label}
                 </button>
               )
