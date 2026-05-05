@@ -1046,6 +1046,8 @@ onClick={(e: any) => {
             onInvite={() => inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })}
             onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
             hasInvitation={Boolean(viewTarget.invitations && viewTarget.invitations.length > 0)}
+            hideInvite
+            hideSchedule
           />
         </Modal>
       )}

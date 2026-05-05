@@ -47,6 +47,8 @@ interface CandidateProfileViewProps {
   onInvite?: () => void
   onSchedule?: () => void
   hasInvitation?: boolean
+  hideInvite?: boolean
+  hideSchedule?: boolean
 }
 
 const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
@@ -843,7 +845,14 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
-export function CandidateProfileView({ candidate, onInvite, onSchedule, hasInvitation }: CandidateProfileViewProps) {
+export function CandidateProfileView({ 
+  candidate, 
+  onInvite, 
+  onSchedule, 
+  hasInvitation,
+  hideInvite,
+  hideSchedule
+}: CandidateProfileViewProps) {
   const setPageContext = useCopilotStore(s => s.setPageContext)
   const [activeTab, setActiveTab] = useState<'details' | 'feedback'>('details')
   const stage = candidate.pipeline_stage || 'applied'
@@ -909,7 +918,7 @@ export function CandidateProfileView({ candidate, onInvite, onSchedule, hasInvit
                 <FileText size={14} /> Resume
               </button>
             )}
-            {onInvite && (
+            {onInvite && !hideInvite && (
               <button
                 onClick={(e) => { e.stopPropagation(); onInvite() }}
                 style={{ fontSize: 11, fontWeight: 700, background: 'rgba(108,71,255,0.06)', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.15)', padding: '4px 14px', borderRadius: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
@@ -917,7 +926,7 @@ export function CandidateProfileView({ candidate, onInvite, onSchedule, hasInvit
                 <Mail size={12} /> {hasInvitation ? 'Resend Invite' : 'Invite'}
               </button>
             )}
-            {onSchedule && (
+            {onSchedule && !hideSchedule && (
               <button
                 onClick={(e) => { e.stopPropagation(); onSchedule() }}
                 style={{ fontSize: 11, fontWeight: 700, background: '#6c47ff', color: '#fff', border: 'none', padding: '4px 16px', borderRadius: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(108,71,255,0.25)' }}
