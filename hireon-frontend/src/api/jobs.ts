@@ -2,7 +2,7 @@ import api from './axios'
 import type { Job, PaginatedResponse } from '@/types'
 
 export const jobsApi = {
-  list: (params?: { page?: number; limit?: number; status?: string; search?: string }) =>
+  list: (params?: { page?: number; limit?: number; status?: string; search?: string; include_pool?: boolean }) =>
     api.get<PaginatedResponse<Job>>('/v1/jobs', { params }),
 
   create: (data: Partial<Job>) => api.post<Job>('/v1/jobs', data),

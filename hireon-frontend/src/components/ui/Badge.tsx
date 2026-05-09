@@ -71,7 +71,7 @@ export function StageBadge({ stage }: { stage: ApplicationStage }) {
 
 export function JobStatusBadge({ status }: { status: JobStatus }) {
   const map: Record<JobStatus, BadgeProps['variant']> = {
-    active: 'success', draft: 'default', paused: 'warning', closed: 'danger',
+    active: 'success', draft: 'default', paused: 'warning', closed: 'danger', pool: 'purple'
   }
   return <Badge variant={map[status]}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
 }

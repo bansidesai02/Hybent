@@ -38,7 +38,22 @@ async def list_talent_pool(
     query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.created_by))
 
     if job_id and job_id != "all":
-        query = query.join(Application, Application.candidate_id == Candidate.id).where(Application.job_id == job_id)
+        from app.models.job import Job
+        from sqlalchemy import or_
+        from app.utils.category import extract_core_category
+        job = await db.get(Job, job_id)
+        if job:
+            job_title = job.title
+            core_cat = extract_core_category(job_title)
+            query = query.where(
+                or_(
+                    Candidate.applied_job_title.ilike(f"%{job_title}%"),
+                    Candidate.applied_job_title.ilike(f"%{core_cat}%"),
+                    Candidate.current_title.ilike(f"%{job_title}%"),
+                    Candidate.current_title.ilike(f"%{core_cat}%"),
+                    Candidate.applications.any(Application.job_id == job_id)
+                )
+            )
 
     if created_by_id and created_by_id != "all":
         query = query.where(Candidate.created_by_id == created_by_id)

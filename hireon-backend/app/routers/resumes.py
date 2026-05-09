@@ -142,6 +142,66 @@ async def upload_and_create(
             }
         )
 
+    # Pre-check: Reject fundamentally mismatched roles early to save AI Analysis tokens
+    target_title = role_title
+    if job_id and job_id.lower() not in ("null", "undefined", ""):
+        from app.models.job import Job
+        try:
+            job_res = await db.execute(select(Job).where(Job.id == uuid.UUID(job_id)))
+            existing_job = job_res.scalar_one_or_none()
+            if existing_job:
+                target_title = existing_job.title
+        except ValueError:
+            pass
+            
+    from app.utils.category import extract_core_category, detect_category_from_skills, get_missing_skills_hint
+    target_category = extract_core_category(target_title)
+    
+    # Skill-based detection is more accurate than title (e.g. "Software Engineer" with MEAN skills → MEAN Stack)
+    candidate_skills_list = parsed.get("skills", [])
+    candidate_skills_str = " ".join(candidate_skills_list).lower()
+    parsed_category = detect_category_from_skills(candidate_skills_list) or extract_core_category(parsed.get("current_title", ""))
+    
+    def is_mismatch(cat1: str, cat2: str) -> bool:
+        if not cat1 or not cat2: return False
+        c1, c2 = cat1.lower(), cat2.lower()
+        if c1 in c2 or c2 in c1: return False
+        generics = ["software", "engineer", "developer", "backend", "frontend", "full stack", "programmer", "coder", "tech lead", "it", "web"]
+        is_c1_generic = any(g in c1 for g in generics)
+        is_c2_generic = any(g in c2 for g in generics)
+        if is_c1_generic and is_c2_generic: return False
+        
+        techs = ["python", "react", "node", "java", "php", "angular", "mern", "mean", "ios", "android", "flutter", "golang", "ruby", "c++", "c#", ".net"]
+        c2_techs = [t for t in techs if t in c2]
+        is_c1_tech = any(t in c1 for t in techs)
+        is_c2_tech = bool(c2_techs)
+        
+        # If candidate is generic/non-tech and job is specific tech
+        if is_c1_generic and is_c2_tech:
+            if not any(t in candidate_skills_str for t in c2_techs):
+                return True
+            return False
+            
+        # If job is generic and candidate is specific tech, allow it
+        if is_c2_generic and is_c1_tech:
+            return False
+            
+        return True
+
+    if is_mismatch(parsed_category, target_category):
+        missing = get_missing_skills_hint(candidate_skills_list, target_category)
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "type": "role_mismatch",
+                "candidate_category": parsed_category,
+                "target_category": target_category,
+                "missing_skills": missing,
+                "suggested_roles": [parsed_category] if parsed_category else [],
+                "message": f"Upload Rejected: Resume is a '{parsed_category}' profile, not a '{target_category}' profile."
+            }
+        )
+
     # Priority 1: compute score using the real ML scorer
     req_skills_list = [s.strip() for s in required_skills.split(",") if s.strip()]
     score: float | None = None
@@ -214,7 +274,9 @@ async def upload_and_create(
     candidate.phone = candidate.phone or parsed.get("phone")
     candidate.location = candidate.location or parsed.get("location")
     candidate.match_score = score
-    candidate.applied_job_title = job.title if job else (role_title or candidate.applied_job_title)
+    from app.utils.category import extract_core_category
+    actual_title = parsed.get("current_title") or role_title or ""
+    candidate.applied_job_title = extract_core_category(actual_title) if actual_title else candidate.applied_job_title
     # Priority 6: score breakdown is a separate field, not buried in parsed_data
     candidate.score_breakdown = breakdown
     candidate.parsed_data = parsed

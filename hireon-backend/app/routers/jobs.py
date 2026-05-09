@@ -28,11 +28,16 @@ async def list_jobs(
     limit: int = Query(20, ge=1, le=100),
     status: str | None = None,
     search: str | None = None,
+    include_pool: bool = False,
 ):
     query = select(Job).where(Job.organization_id == current_user.organization_id)
 
+    from app.utils.permissions import JobStatus
     if status:
         query = query.where(Job.status == status)
+    elif not include_pool:
+        query = query.where(Job.status != JobStatus.POOL)
+        
     if search:
         from sqlalchemy import cast, String as SAString
         query = query.where(
@@ -98,6 +103,33 @@ async def create_job(data: JobCreate, current_user: Annotated[User, Depends(requ
     await db.commit()
     await db.refresh(job)
     background_tasks.add_task(es_service.index_job, job)
+    # Auto-create talent pool category if this is a real job
+    from app.utils.permissions import JobStatus
+    from app.utils.category import extract_core_category
+    if job.status != JobStatus.POOL:
+        core_cat = extract_core_category(job.title)
+        
+        # Check if pool exists
+        res = await db.execute(
+            select(Job).where(
+                Job.organization_id == current_user.organization_id,
+                Job.status == JobStatus.POOL,
+                Job.title.ilike(core_cat)
+            )
+        )
+        if not res.scalar_one_or_none():
+            pool_job = Job(
+                organization_id=current_user.organization_id,
+                created_by_id=current_user.id,
+                title=core_cat,
+                description=core_cat,
+                status=JobStatus.POOL,
+                job_type='full_time',
+                openings=0
+            )
+            db.add(pool_job)
+            await db.commit()
+
     return APIResponse.success(message="Job successfully created.", data=JobOut.model_validate(job), status_code=201)
 
 

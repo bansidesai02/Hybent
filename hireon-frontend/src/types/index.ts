@@ -2,7 +2,7 @@
 
 export type UserRole = 'admin' | 'recruiter' | 'interviewer' | 'candidate'
 
-export type JobStatus = 'draft' | 'active' | 'paused' | 'closed'
+export type JobStatus = 'draft' | 'active' | 'paused' | 'closed' | 'pool'
 
 export type ApplicationStage =
   | 'applied'

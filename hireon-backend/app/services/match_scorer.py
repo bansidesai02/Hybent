@@ -72,6 +72,14 @@ SCORING RULES — READ CAREFULLY
    High School < Diploma < Bachelor's < Master's < PhD
 
 ════════════════════════════════════════
+CRITICAL PENALTY RULE FOR MISSING CORE SKILLS
+════════════════════════════════════════
+If the candidate is COMPLETELY MISSING the primary core technical skill required by the Job Title (e.g. missing "Python" for a "Python Developer" role, or missing "React" for a "React Developer" role), you MUST apply the following penalty:
+- Skills Score MUST be exactly 0.
+- Title Score MUST be exactly 10.
+- The overall final_score MUST NEVER exceed 40.0, regardless of experience or education.
+
+════════════════════════════════════════
 FINAL SCORE FORMULA
 ════════════════════════════════════════
 final_score = (skills_score × 0.50)

@@ -18,7 +18,7 @@ import {
   ChevronDown, 
   Zap,
   Edit2,
-  Trash2,
+  XCircle,
   Eye,
   ExternalLink
 } from 'lucide-react'
@@ -219,7 +219,7 @@ export default function JobsListPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<Job | null>(null)
+  const [closeTarget, setCloseTarget] = useState<Job | null>(null)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [linkedInJob, setLinkedInJob] = useState<Job | null>(null)
 
@@ -229,15 +229,6 @@ export default function JobsListPage() {
       jobsApi.list({ page, limit: 10, status: statusFilter || undefined, search: search || undefined }).then((r: any) => r.data),
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => jobsApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] })
-      toast.success('Position deleted successfully')
-      setDeleteTarget(null)
-    },
-    onError: () => toast.error('Failed to delete position'),
-  })
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: JobStatus }) => jobsApi.update(id, { status }),
@@ -491,20 +482,22 @@ export default function JobsListPage() {
                       >
                         <Edit2 size={14} />
                       </button>
-                      <button
-                        onClick={() => setDeleteTarget(job)}
-                        title="Delete Position"
-                        style={{
-                          width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)',
-                          background: 'rgba(239,68,68,0.07)', color: '#ef4444',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.16)' }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {job.status !== 'closed' && (
+                        <button
+                          onClick={() => setCloseTarget(job)}
+                          title="Close Position"
+                          style={{
+                            width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)',
+                            background: 'rgba(239,68,68,0.07)', color: '#ef4444',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.16)' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)' }}
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -598,16 +591,21 @@ export default function JobsListPage() {
         />
       )}
 
-      {/* Delete confirm */}
+      {/* Close confirm */}
       <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-        title="Delete Position"
-        message={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
-        confirmText="Delete Position"
+        open={!!closeTarget}
+        onClose={() => setCloseTarget(null)}
+        onConfirm={() => {
+          if (closeTarget) {
+            statusMutation.mutate({ id: closeTarget.id, status: 'closed' })
+            setCloseTarget(null)
+          }
+        }}
+        title="Close Position"
+        message={`Are you sure you want to close "${closeTarget?.title}"? It will be moved to the Closed tab and candidates will remain in the Talent Pool.`}
+        confirmText="Close Position"
         danger
-        loading={deleteMutation.isPending}
+        loading={statusMutation.isPending}
       />
     </div>
   )

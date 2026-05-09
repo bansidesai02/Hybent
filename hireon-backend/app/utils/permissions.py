@@ -48,6 +48,7 @@ class JobStatus(str, Enum):
     ACTIVE = "active"
     PAUSED = "paused"
     CLOSED = "closed"
+    POOL = "pool"
 
 
 class InterviewType(str, Enum):

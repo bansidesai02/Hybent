@@ -295,6 +295,12 @@ export default function AllTalentListPage() {
   const newJobInputRef = useRef<HTMLInputElement>(null)
   const actionTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
+  // Right-click context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; job: any } | null>(null)
+  const [renameModal, setRenameModal] = useState<{ job: any; title: string } | null>(null)
+  const [isRenamingJob, setIsRenamingJob] = useState(false)
+  const [isDeletingJob, setIsDeletingJob] = useState(false)
+
   useEffect(() => {
     adminApi.listUsers().then((res: any) => {
       const users = res.data
@@ -345,10 +351,12 @@ export default function AllTalentListPage() {
     },
   })
 
-  const { data: activeJobs } = useQuery({
-    queryKey: ['jobs', 'active'],
-    queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r: any) => r.data.items),
+  const { data: allJobs } = useQuery({
+    queryKey: ['jobs', 'all-for-filters'],
+    queryFn: () => jobsApi.list({ limit: 100, include_pool: true }).then((r: any) => r.data.items),
   })
+
+  const activeJobs = allJobs?.filter((j: any) => j.status === 'active') || []
 
   const stageMutation = useMutation({
     mutationFn: ({ id, stage }: { id: string; stage: string }) =>
@@ -422,11 +430,11 @@ export default function AllTalentListPage() {
     if (!title) return
     setIsCreatingJob(true)
     try {
-      const res = await jobsApi.create({ title, status: 'active', openings: 1, description: title, job_type: 'full_time' })
+      const res = await jobsApi.create({ title, status: 'pool', openings: 0, description: title, job_type: 'full_time' })
       toast.success(`Designation "${title}" added!`)
       setNewJobTitle('')
       setShowAddJobModal(false)
-      queryClient.invalidateQueries({ queryKey: ['jobs', 'active'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
       // Auto-select the new job tab
       const newJob = (res as any).data
       if (newJob?.id) setSelectedJobId(newJob.id)
@@ -434,6 +442,41 @@ export default function AllTalentListPage() {
       toast.error(err.response?.data?.detail || 'Failed to create designation')
     } finally {
       setIsCreatingJob(false)
+    }
+  }
+
+  const handleRenameJob = async () => {
+    if (!renameModal) return
+    const title = renameModal.title.trim()
+    if (!title) return
+    setIsRenamingJob(true)
+    try {
+      await jobsApi.update(renameModal.job.id, { title })
+      toast.success(`Renamed to "${title}"`)
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      setRenameModal(null)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to rename')
+    } finally {
+      setIsRenamingJob(false)
+    }
+  }
+
+  const handleDeleteJob = async (job: any) => {
+    if (!window.confirm(`Delete "${job.title}"? This cannot be undone.`)) return
+    setIsDeletingJob(true)
+    try {
+      await jobsApi.delete(job.id)
+      toast.success(`"${job.title}" deleted`)
+      if (selectedJobId === job.id) setSelectedJobId('all')
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to delete')
+    } finally {
+      setIsDeletingJob(false)
+      setContextMenu(null)
     }
   }
 
@@ -447,27 +490,9 @@ export default function AllTalentListPage() {
   const selectedJobTitle =
     selectedJobId === 'all'
       ? ''
-      : ((activeJobs || []).find((j: any) => j.id === selectedJobId)?.title || '')
+      : ((allJobs || []).find((j: any) => j.id === selectedJobId)?.title || '')
 
-  const filteredItems = (data?.items || []).filter((candidate: any) => {
-    if (selectedJobId === 'all') return true
-
-    const jobTitle = normalizeRole(selectedJobTitle)
-    if (!jobTitle) return true
-
-    const candidateRoles = [
-      candidate?.applied_job_title,
-      candidate?.current_title,
-      candidate?.parsed_data?.current_title,
-      candidate?.parsed_data?.role,
-    ]
-      .map((r: any) => normalizeRole(typeof r === 'string' ? r : ''))
-      .filter(Boolean)
-
-    if (!candidateRoles.length) return false
-
-    return candidateRoles.some((role) => role === jobTitle || role.includes(jobTitle) || jobTitle.includes(role))
-  })
+  const filteredItems = data?.items || []
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 80 }}>
@@ -562,10 +587,94 @@ export default function AllTalentListPage() {
         </div>
       </div>
 
+      {/* Context Menu for right-click on job tab */}
+      {contextMenu && (
+        <>
+          {/* Backdrop to close menu */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null) }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              zIndex: 9999,
+              background: 'var(--card-bg)',
+              border: '1px solid var(--card-border)',
+              borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
+              minWidth: 160,
+              overflow: 'hidden',
+              padding: '4px 0',
+            }}
+          >
+            <button
+              onClick={() => { setRenameModal({ job: contextMenu.job, title: contextMenu.job.title }); setContextMenu(null) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '10px 16px',
+                border: 'none', background: 'transparent',
+                fontSize: 13, fontWeight: 600, color: 'var(--text)',
+                cursor: 'pointer', textAlign: 'left',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--sb-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              ✏️ Rename
+            </button>
+            <div style={{ height: 1, background: 'var(--card-border)', margin: '2px 0' }} />
+            <button
+              onClick={() => handleDeleteJob(contextMenu.job)}
+              disabled={isDeletingJob}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '10px 16px',
+                border: 'none', background: 'transparent',
+                fontSize: 13, fontWeight: 600, color: '#ef4444',
+                cursor: isDeletingJob ? 'not-allowed' : 'pointer', textAlign: 'left',
+              }}
+              onMouseEnter={e => !isDeletingJob && (e.currentTarget.style.background = 'rgba(239,68,68,0.07)')}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              🗑️ {isDeletingJob ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Rename Modal */}
+      {renameModal && (
+        <Modal open onClose={() => setRenameModal(null)} title="Rename Designation">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-mid)' }}>Enter a new name for <strong>{renameModal.job.title}</strong></p>
+            <input
+              className="input-base"
+              value={renameModal.title}
+              autoFocus
+              onChange={e => setRenameModal(p => p ? { ...p, title: e.target.value } : null)}
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameJob() }}
+              placeholder="New designation name"
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setRenameModal(null)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--card-border)', background: 'transparent', color: 'var(--text-mid)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button
+                onClick={handleRenameJob}
+                disabled={isRenamingJob || !renameModal.title.trim()}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'var(--violet)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: isRenamingJob ? 'not-allowed' : 'pointer', opacity: isRenamingJob ? 0.7 : 1 }}
+              >
+                {isRenamingJob ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Jobs Tabs Row */}
       <div className="flex items-center gap-3 px-1 mb-2 overflow-x-auto w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2 flex-shrink-0">Jobs:</span>
         <div className="flex items-center gap-2 flex-nowrap">
           <button
             onClick={() => { setSelectedJobId('all'); setPage(1); }}
@@ -582,12 +691,16 @@ export default function AllTalentListPage() {
           >
             All
           </button>
-          {(activeJobs || []).map((job: any) => {
+          {(allJobs || []).map((job: any) => {
             const isActive = selectedJobId === job.id;
             return (
               <button
                 key={job.id}
                 onClick={() => { setSelectedJobId(job.id); setPage(1); }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, job });
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '7px 14px', borderRadius: 10,
@@ -596,7 +709,7 @@ export default function AllTalentListPage() {
                   background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
                   color: isActive ? 'var(--violet)' : 'var(--text-mid)',
                   transition: 'all 0.18s',
-                  whiteSpace: 'nowrap', flexShrink: 0
+                  whiteSpace: 'nowrap', flexShrink: 0,
                 }}
               >
                 {job.title}

@@ -33,7 +33,7 @@ interface JobReq {
   required_skills: string
 }
 
-type Stage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error' | 'duplicate'
+type Stage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error' | 'duplicate' | 'rejected'
 
 const ANALYSIS_STEPS = [
   { id: 'parse', icon: <GlassIcon icon="FileText" variant="violet" size={24} iconSize={12} />, label: 'Parsing document', getDetail: (c: Candidate) => `Extracted ${(c.summary?.length || 0) + 500} tokens` },
@@ -319,7 +319,39 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
+import React from 'react'
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, color: 'red', background: '#ffebee' }}>
+          <h2>Something went wrong in UploadResumePage.</h2>
+          <pre>{this.state.error?.toString()}</pre>
+          <pre>{this.state.error?.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function UploadResumePage() {
+  return (
+    <ErrorBoundary>
+      <UploadResumePageInner />
+    </ErrorBoundary>
+  )
+}
+
+function UploadResumePageInner() {
   const { basePath } = useAuth()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -331,6 +363,12 @@ export default function UploadResumePage() {
   const [completedSteps, setCompletedSteps] = useState(0)
   const [error, setError] = useState('')
   const [isAddedToPipeline, setIsAddedToPipeline] = useState(false)
+  const [rejectionInfo, setRejectionInfo] = useState<{
+    candidate_category: string
+    target_category: string
+    missing_skills: string[]
+    suggested_roles: string[]
+  } | null>(null)
   const [jobReq, setJobReq] = useState<JobReq>({
     job_id: undefined,
     role_title: '',
@@ -419,8 +457,30 @@ export default function UploadResumePage() {
         setStage('duplicate');
         return;
       }
+
+      // Structured role mismatch error from backend
+      const detail = resp?.data?.detail;
+      if (resp?.status === 400 && detail?.type === 'role_mismatch') {
+        setRejectionInfo({
+          candidate_category: detail.candidate_category || 'Unknown',
+          target_category: detail.target_category || jobReq.role_title,
+          missing_skills: detail.missing_skills || [],
+          suggested_roles: detail.suggested_roles || [],
+        })
+        setError(detail.message || 'Role mismatch detected.')
+        setStage('rejected')
+        return;
+      }
       
-      const msg = resp?.data?.message || resp?.data?.detail || 'Upload failed. Please try again.';
+      const msg = resp?.data?.message || (typeof detail === 'string' ? detail : null) || 'Upload failed. Please try again.';
+      
+      // Fallback: plain string rejection message
+      if (resp?.status === 400 && (typeof msg === 'string' && msg.startsWith('Upload Rejected'))) {
+        setError(msg)
+        setStage('rejected')
+        return;
+      }
+      
       setError(msg)
       setStage('error')
     }
@@ -439,6 +499,7 @@ export default function UploadResumePage() {
     setScoring(null)
     setCompletedSteps(0)
     setError('')
+    setRejectionInfo(null)
     setIsAddedToPipeline(false)
     setDuplicateParams(null)
     if (inputRef.current) inputRef.current.value = ''
@@ -576,7 +637,8 @@ export default function UploadResumePage() {
             </div>
           </div>
           
-            {error && (
+            {/* Only show small inline error for file-validation errors (not upload rejections) */}
+            {error && stage !== 'rejected' && stage !== 'error' && (
               <div style={{ marginTop: 12, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <AlertTriangle size={14} /> {error}
               </div>
@@ -587,15 +649,100 @@ export default function UploadResumePage() {
         <div>
           <AnimatePresence mode="wait">
             {/* Placeholder when idle */}
-            {stage === 'idle' && (
+            {(stage === 'idle' || stage === 'error') && (
               <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', boxShadow: 'var(--shadow)' }}>
-                  <div className="mb-4">
-                    <GlassIcon icon="Brain" variant="pink" size={60} iconSize={30} />
+                  {stage === 'error' && error ? (
+                    <>
+                      <div style={{ marginBottom: 16 }}>
+                        <GlassIcon icon="AlertTriangle" variant="amber" size={60} iconSize={30} />
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#ef4444', marginBottom: 8 }}>Upload Failed</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 20 }}>{error}</div>
+                      <button onClick={reset} style={{ border: 'none', background: 'transparent', color: '#6c47ff', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>Try again</button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-4">
+                        <GlassIcon icon="Brain" variant="pink" size={60} iconSize={30} />
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>AI Analysis Ready</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
+                        Fill in the job requirements and drop a resume to get an AI-powered match score, skill analysis, and shortlisting decision.
+                      </div>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Upload Rejected / Role Mismatch State — Option B */}
+            {stage === 'rejected' && (
+              <motion.div key="rejected" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid #ef4444', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 20px rgba(239,68,68,0.12)' }}>
+                  {/* Header */}
+                  <div style={{ padding: '20px 24px', background: 'rgba(239,68,68,0.06)', borderBottom: '1px solid rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <AlertTriangle size={20} color="#ef4444" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#ef4444' }}>Role Mismatch Detected</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 2 }}>This resume cannot be uploaded for the selected role</div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>AI Analysis Ready</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
-                    Fill in the job requirements and drop a resume to get an AI-powered match score, skill analysis, and shortlisting decision.
+
+                  {/* Body */}
+                  <div style={{ padding: '20px 24px' }}>
+                    {/* Candidate vs Job comparison */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                      <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, padding: '12px 14px' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: '#ef4444', marginBottom: 6 }}>Resume Category</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{rejectionInfo?.candidate_category || 'Unknown'}</div>
+                      </div>
+                      <div style={{ background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.15)', borderRadius: 10, padding: '12px 14px' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: '#6c47ff', marginBottom: 6 }}>Target Role</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{rejectionInfo?.target_category || jobReq.role_title}</div>
+                      </div>
+                    </div>
+
+                    {/* Missing skills */}
+                    {rejectionInfo?.missing_skills && rejectionInfo.missing_skills.length > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-mid)', marginBottom: 8 }}>Missing Skills for This Role</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {rejectionInfo.missing_skills.map(skill => (
+                            <span key={skill} style={{ padding: '3px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#ef4444' }}>{skill}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Suggested better fit */}
+                    {rejectionInfo?.suggested_roles && rejectionInfo.suggested_roles.length > 0 && (
+                      <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#10b981', marginBottom: 6 }}>Better Fit For</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {rejectionInfo.suggested_roles.map(role => (
+                            <span key={role} style={{ padding: '3px 12px', background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 20, fontSize: 12, fontWeight: 700, color: '#10b981' }}>{role}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action button */}
+                    <button
+                      onClick={reset}
+                      style={{
+                        width: '100%', padding: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff',
+                        border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        boxShadow: '0 4px 14px rgba(239,68,68,0.25)', transition: 'all 0.2s'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                      onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                    >
+                      <Upload size={14} /> Upload Correct Resume
+                    </button>
                   </div>
                 </div>
               </motion.div>

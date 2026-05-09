@@ -287,6 +287,10 @@ async def upload_portal_resume(
         candidate.years_experience = parsed["years_experience"]
     if parsed.get("current_title"):
         candidate.current_title = parsed["current_title"]
+        from app.utils.category import extract_core_category
+        core_cat = extract_core_category(parsed["current_title"])
+        if core_cat and not candidate.applied_job_title:
+            candidate.applied_job_title = core_cat
     if parsed.get("summary"):
         candidate.summary = parsed["summary"]
 
