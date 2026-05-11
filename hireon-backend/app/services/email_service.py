@@ -112,42 +112,10 @@ def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None,
     align = "center" if is_centered else "left"
     margin = "0 auto" if is_centered else "0"
     
-    if org_logo_url:
-        return f'<img src="{org_logo_url}" alt="{org_name or "Organization"}" style="max-height: 28px; max-width: 140px; display: block; margin: {margin};">'
-    
-    # Premium CSS-based fallback logo (Hireon Branding)
-    return f"""
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: {margin};">
-        <tr>
-            <td style="padding-right: 8px;">
-                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="28" height="28" style="background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 8px;">
-                    <tr>
-                        <td align="center" valign="middle">
-                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="12" height="12">
-                                <tr>
-                                    <td width="3" height="12" rowspan="3" style="background-color: #ffffff; border-radius: 1px;"></td>
-                                    <td width="6" height="4"></td>
-                                    <td width="3" height="12" rowspan="3" style="background-color: #ffffff; border-radius: 1px;"></td>
-                                </tr>
-                                <tr>
-                                    <td width="6" height="2" style="background-color: #ffffff; border-radius: 1px;"></td>
-                                </tr>
-                                <tr>
-                                    <td width="6" height="4"></td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-            <td>
-                <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 19px; font-weight: 800; letter-spacing: -0.8px; color: #1e293b;">
-                    <span style="color: #6c47ff;">Hi</span><span style="color: #9c57e6;">re</span><span style="color: #ff6bc6;">on</span>
-                </span>
-            </td>
-        </tr>
-    </table>
-    """
+    # Use BrainerHub logo as default fallback (or use provided URL if any)
+    logo_url = org_logo_url or "https://www.brainerhub.com/wp-content/uploads/2022/10/brainerhub_logo.png"
+    return f'<img src="{logo_url}" alt="{org_name or "BrainerHub Solutions"}" style="max-height: 35px; max-width: 180px; display: block; margin: {margin};">'
+
 
 def _get_base_template(content_html: str, org_logo_url: str | None = None, org_name: str | None = None) -> str:
     """Provides a consistent, premium wrapper for all emails."""
@@ -189,9 +157,50 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                 </div>
                 <div class="footer">
                     <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com">info@hirreon.com</a></p>
-
-                    <p style="margin: 0;">&copy; 2026 Hireon AI Platform. All rights reserved.</p>
+                    <p style="margin: 0 0 16px 0;">&copy; 2026 Hireon AI Platform. All rights reserved.</p>
+                    
+                    <!-- Powered by Section -->
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                        <tr>
+                            <td style="font-size: 11px; color: #70757a; text-transform: uppercase; letter-spacing: 0.5px; padding-right: 6px; vertical-align: middle;">
+                                Powered by
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding-right: 4px;">
+                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="20" height="20" style="background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 4px;">
+                                                <tr>
+                                                    <td align="center" valign="middle">
+                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="8" height="8">
+                                                            <tr>
+                                                                <td width="2" height="8" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
+                                                                <td width="4" height="2"></td>
+                                                                <td width="2" height="8" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td width="4" height="2" style="background-color: #ffffff; border-radius: 0.5px;"></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td width="4" height="4"></td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                        <td>
+                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 14px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b;">
+                                                <span style="color: #6c47ff;">Hi</span><span style="color: #9c57e6;">re</span><span style="color: #ff6bc6;">on</span>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
+
             </div>
         </div>
     </body>
@@ -452,7 +461,9 @@ def send_candidate_invite(
     portal_url: str,
     org_logo_url: str | None = None,
 ) -> bool:
-    subject = f"Join the {company_name} Candidate Portal - {candidate_name}"
+    import uuid
+    subject = f"Join the {company_name} Candidate Portal - {candidate_name} (#{uuid.uuid4().hex[:6].upper()})"
+
 
     content = f"""
         <h2 class="title" style="margin-top: 20px;">You're Invited!</h2>
