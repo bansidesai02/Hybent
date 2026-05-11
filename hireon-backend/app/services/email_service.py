@@ -21,7 +21,7 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
     msg["To"] = to
     msg.attach(MIMEText(html_body, "html"))
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=3) as server:
         server.ehlo()
         server.starttls()
         server.login(settings.smtp_user, settings.smtp_password)
