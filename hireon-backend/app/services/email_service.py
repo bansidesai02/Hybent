@@ -28,8 +28,10 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
         server.sendmail(settings.smtp_user, to, msg.as_string())
 
 
-def send_email(to: str, subject: str, html_body: str) -> None:
-    """Send email via SMTP or print to console if SMTP not configured."""
+def send_email(to: str, subject: str, html_body: str) -> bool:
+    """Send email via SMTP or print to console if SMTP not configured.
+    Returns True if sent successfully (or fallback used), False otherwise.
+    """
     if not settings.smtp_user or not settings.smtp_password:
         # Console fallback — active when SMTP credentials are missing
         logger.warning(
@@ -37,27 +39,33 @@ def send_email(to: str, subject: str, html_body: str) -> None:
             f"  Set SMTP_USER and SMTP_PASSWORD in .env to enable real delivery."
         )
         logger.debug(f"[CONSOLE EMAIL] To: {to} | Subject: {subject}")
-        return
+        return True
 
     try:
         _send_smtp(to, subject, html_body)
         logger.info(f"\u2705 Email sent \u2192 {to} | {subject}")
+        return True
     except smtplib.SMTPAuthenticationError as e:
         logger.error(
             f"\u274c SMTP Auth Failed for '{settings.smtp_user}': {e}\n"
             f"  Tip: Regenerate the Gmail App Password at myaccount.google.com/apppasswords"
         )
+        return False
     except smtplib.SMTPConnectError as e:
         logger.error(
             f"\u274c SMTP Connect Failed to {settings.smtp_host}:{settings.smtp_port}: {e}\n"
             f"  Tip: Check firewall/network rules blocking outbound port 587."
         )
+        return False
     except smtplib.SMTPRecipientsRefused as e:
         logger.error(f"\u274c SMTP Recipients Refused for '{to}': {e}")
+        return False
     except smtplib.SMTPException as e:
         logger.error(f"\u274c SMTP Error sending to '{to}': {e}")
+        return False
     except Exception as e:
         logger.error(f"\u274c Unexpected error sending email to '{to}': {e}", exc_info=True)
+        return False
 
 
 # ── Email templates ────────────────────────────────────────────────────────────
@@ -405,7 +413,7 @@ def send_candidate_invite(
     company_name: str,
     portal_url: str,
     org_logo_url: str | None = None,
-) -> None:
+) -> bool:
     subject = f"Join the {company_name} Candidate Portal"
     content = f"""
         <h2 class="title" style="margin-top: 20px;">You're Invited!</h2>
@@ -415,7 +423,7 @@ def send_candidate_invite(
             <a href="{portal_url}" class="button">Set Up Your Portal Profile</a>
         </div>
     """
-    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
+    return send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
 
 
 def send_team_invite(

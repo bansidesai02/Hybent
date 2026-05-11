@@ -68,7 +68,12 @@ async def create_invitation(
     if background_tasks is not None:
         background_tasks.add_task(send_candidate_invite, **invite_kwargs)
     else:
-        send_candidate_invite(**invite_kwargs)
+        success = send_candidate_invite(**invite_kwargs)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send invitation email. Please check SMTP configuration."
+            )
 
     return invitation
 
