@@ -42,6 +42,8 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "subject": subject,
         "html": html_body
     }
+    logger.info(f"Calling Resend API to send email to {to}")
+
 
 
     
@@ -67,9 +69,12 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
 
     try:
         if settings.resend_api_key:
+            logger.info("Using Resend API branch in send_email")
             _send_resend(to, subject, html_body)
         else:
+            logger.info("Using SMTP branch in send_email")
             _send_smtp(to, subject, html_body)
+
             
         logger.info(f"\u2705 Email sent \u2192 {to} | {subject}")
         return True
