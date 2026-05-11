@@ -116,7 +116,8 @@ export default function OnboardingPage() {
     .logo-orbit-ring { position: absolute; inset: 0; border: 2px dashed rgba(108, 71, 255, 0.15); border-radius: 50%; animation: orbitRotate 10s linear infinite; }
     .logo-orbit-dot { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #00D1FF; border-radius: 50%; box-shadow: 0 0 12px rgba(0, 209, 255, 0.6); }
     @keyframes orbitRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .logo-box { width: 36px; height: 36px; background: linear-gradient(135deg, #6C47FF 0%, #C471ED 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(108, 71, 255, 0.3); position: relative; z-index: 2; border: 1px solid rgba(255, 255, 255, 0.25); }
+    .logo-box { width: 36px; height: 36px; background: linear-gradient(135deg, #6C47FF 0%, #FF6BC6 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(108, 71, 255, 0.3); position: relative; z-index: 2; border: 1px solid rgba(255, 255, 255, 0.25); }
+
     .logo-wordmark { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -1px; color: #1A1040; position: relative; }
     .lwl { background: linear-gradient(135deg, #6C47FF 0%, #FF6BC6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
