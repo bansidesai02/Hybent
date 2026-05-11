@@ -266,11 +266,14 @@ async def es_reindex_all(current_user: Annotated[User, Depends(require_admin)], 
 
 
 @router.post("/test-email")
-async def test_email(current_user: Annotated[User, Depends(require_admin)]):
+async def test_email(
+    current_user: Annotated[User, Depends(require_admin)],
+    recipient: str | None = Query(None, description="Override recipient email. Defaults to current admin's email.")
+):
     """
-    Admin-only: send a test email to the current admin's address.
-    Use this to verify that SMTP is correctly configured and delivering mail.
-    After calling this, check backend logs for ✅ or ❌ status.
+    Admin-only: send a test email to verify SMTP is working.
+    Optionally pass ?recipient=your@email.com to send to a specific address.
+    Check backend logs for ✅ or ❌ status after calling this endpoint.
     """
     from fastapi import HTTPException
     from app.config import settings
@@ -283,8 +286,9 @@ async def test_email(current_user: Annotated[User, Depends(require_admin)]):
             detail="SMTP is not configured. Set SMTP_USER and SMTP_PASSWORD in your environment."
         )
 
+    target_email = recipient or current_user.email
     send_email(
-        to=current_user.email,
+        to=target_email,
         subject="✅ Hireon Email Test — SMTP Working",
         html_body=f"""
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:40px auto;padding:32px;border:1px solid #dadce0;border-radius:12px;">
@@ -292,7 +296,7 @@ async def test_email(current_user: Annotated[User, Depends(require_admin)]):
             <p style="color:#3c4043;">This test email was sent from the Hireon backend to confirm that SMTP is correctly configured.</p>
             <table style="width:100%;border-collapse:collapse;margin-top:16px;">
                 <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">From</td><td style="padding:6px 0;font-size:13px;">{settings.smtp_user}</td></tr>
-                <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">To</td><td style="padding:6px 0;font-size:13px;">{current_user.email}</td></tr>
+                <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">To</td><td style="padding:6px 0;font-size:13px;">{target_email}</td></tr>
                 <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">SMTP Host</td><td style="padding:6px 0;font-size:13px;">{settings.smtp_host}:{settings.smtp_port}</td></tr>
             </table>
             <p style="margin-top:24px;font-size:12px;color:#70757a;">Triggered by admin: {current_user.full_name}</p>
@@ -301,6 +305,6 @@ async def test_email(current_user: Annotated[User, Depends(require_admin)]):
     )
 
     return APIResponse.success(
-        message=f"Test email triggered to {current_user.email}. Check backend logs for delivery status.",
-        data={"smtp_user": settings.smtp_user, "smtp_host": settings.smtp_host, "recipient": current_user.email}
+        message=f"Test email triggered to {target_email}. Check backend logs for delivery status.",
+        data={"smtp_user": settings.smtp_user, "smtp_host": settings.smtp_host, "recipient": target_email}
     )
