@@ -452,7 +452,8 @@ def send_candidate_invite(
     portal_url: str,
     org_logo_url: str | None = None,
 ) -> bool:
-    subject = f"Join the {company_name} Candidate Portal"
+    subject = f"Join the {company_name} Candidate Portal - {candidate_name}"
+
     content = f"""
         <h2 class="title" style="margin-top: 20px;">You're Invited!</h2>
         <p class="description">Hi {candidate_name.split()[0]}, the team at <strong>{company_name}</strong> has invited you to join their candidate portal. This will allow you to track your applications, explore new roles, and stay connected with our team.</p>
