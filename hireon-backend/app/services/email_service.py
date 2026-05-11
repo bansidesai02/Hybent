@@ -28,23 +28,50 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
         server.sendmail(settings.smtp_user, to, msg.as_string())
 
 
+def _send_resend(to: str, subject: str, html_body: str) -> None:
+    """Send email via Resend API."""
+    import httpx
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {settings.resend_api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "from": "onboarding@resend.dev",  # Must use this sender for free tier without custom domain
+        "to": to,
+        "subject": subject,
+        "html": html_body
+    }
+    
+    with httpx.Client() as client:
+        response = client.post(url, headers=headers, json=payload, timeout=5)
+        if response.status_code >= 400:
+            raise Exception(f"Resend API error: {response.text}")
+
+
 def send_email(to: str, subject: str, html_body: str) -> bool:
     """Send email via SMTP or print to console if SMTP not configured.
     Returns True if sent successfully (or fallback used), False otherwise.
     """
-    if not settings.smtp_user or not settings.smtp_password:
-        # Console fallback — active when SMTP credentials are missing
+    if not settings.resend_api_key and (not settings.smtp_user or not settings.smtp_password):
+        # Console fallback — active when neither Resend nor SMTP is configured
         logger.warning(
-            f"\u26a0\ufe0f  SMTP not configured — email to '{to}' NOT sent (console fallback).\n"
-            f"  Set SMTP_USER and SMTP_PASSWORD in .env to enable real delivery."
+            f"\u26a0\ufe0f  Email not configured — email to '{to}' NOT sent (console fallback).\n"
+            f"  Set RESEND_API_KEY or SMTP_USER/SMTP_PASSWORD in .env."
         )
         logger.debug(f"[CONSOLE EMAIL] To: {to} | Subject: {subject}")
         return True
 
+
     try:
-        _send_smtp(to, subject, html_body)
+        if settings.resend_api_key:
+            _send_resend(to, subject, html_body)
+        else:
+            _send_smtp(to, subject, html_body)
+            
         logger.info(f"\u2705 Email sent \u2192 {to} | {subject}")
         return True
+
     except smtplib.SMTPAuthenticationError as e:
         logger.error(
             f"\u274c SMTP Auth Failed for '{settings.smtp_user}': {e}\n"

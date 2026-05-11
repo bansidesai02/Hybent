@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from_name: str = "HireOn"
+    resend_api_key: str = ""
 
     # ── Google Calendar ────────────────────────────────────────────────────────
     google_client_id: str = ""
