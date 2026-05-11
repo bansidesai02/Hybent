@@ -29,22 +29,35 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
 
 
 def send_email(to: str, subject: str, html_body: str) -> None:
-    """Send email or print to console if SMTP not configured."""
+    """Send email via SMTP or print to console if SMTP not configured."""
     if not settings.smtp_user or not settings.smtp_password:
-        # Console fallback — great for development
-        logger.info(f"\n{'='*60}")
-        logger.info(f"📧 EMAIL (console fallback)")
-        logger.info(f"To: {to}")
-        logger.info(f"Subject: {subject}")
-        logger.info(f"Body:\n{html_body}")
-        logger.info(f"{'='*60}\n")
+        # Console fallback — active when SMTP credentials are missing
+        logger.warning(
+            f"\u26a0\ufe0f  SMTP not configured — email to '{to}' NOT sent (console fallback).\n"
+            f"  Set SMTP_USER and SMTP_PASSWORD in .env to enable real delivery."
+        )
+        logger.debug(f"[CONSOLE EMAIL] To: {to} | Subject: {subject}")
         return
 
     try:
         _send_smtp(to, subject, html_body)
-        logger.info(f"Email sent to {to}: {subject}")
+        logger.info(f"\u2705 Email sent \u2192 {to} | {subject}")
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(
+            f"\u274c SMTP Auth Failed for '{settings.smtp_user}': {e}\n"
+            f"  Tip: Regenerate the Gmail App Password at myaccount.google.com/apppasswords"
+        )
+    except smtplib.SMTPConnectError as e:
+        logger.error(
+            f"\u274c SMTP Connect Failed to {settings.smtp_host}:{settings.smtp_port}: {e}\n"
+            f"  Tip: Check firewall/network rules blocking outbound port 587."
+        )
+    except smtplib.SMTPRecipientsRefused as e:
+        logger.error(f"\u274c SMTP Recipients Refused for '{to}': {e}")
+    except smtplib.SMTPException as e:
+        logger.error(f"\u274c SMTP Error sending to '{to}': {e}")
     except Exception as e:
-        logger.error(f"Failed to send email to {to}: {e}")
+        logger.error(f"\u274c Unexpected error sending email to '{to}': {e}", exc_info=True)
 
 
 # ── Email templates ────────────────────────────────────────────────────────────
