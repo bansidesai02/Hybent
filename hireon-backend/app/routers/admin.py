@@ -264,3 +264,43 @@ async def es_reindex_all(current_user: Annotated[User, Depends(require_admin)], 
         data=counts,
     )
 
+
+@router.post("/test-email")
+async def test_email(current_user: Annotated[User, Depends(require_admin)]):
+    """
+    Admin-only: send a test email to the current admin's address.
+    Use this to verify that SMTP is correctly configured and delivering mail.
+    After calling this, check backend logs for ✅ or ❌ status.
+    """
+    from fastapi import HTTPException
+    from app.config import settings
+    from app.services.email_service import send_email
+
+    # Quick SMTP configuration check before attempting
+    if not settings.smtp_user or not settings.smtp_password:
+        raise HTTPException(
+            status_code=503,
+            detail="SMTP is not configured. Set SMTP_USER and SMTP_PASSWORD in your environment."
+        )
+
+    send_email(
+        to=current_user.email,
+        subject="✅ Hireon Email Test — SMTP Working",
+        html_body=f"""
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:40px auto;padding:32px;border:1px solid #dadce0;border-radius:12px;">
+            <h2 style="color:#6c47ff;margin-top:0;">✅ SMTP is Working!</h2>
+            <p style="color:#3c4043;">This test email was sent from the Hireon backend to confirm that SMTP is correctly configured.</p>
+            <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+                <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">From</td><td style="padding:6px 0;font-size:13px;">{settings.smtp_user}</td></tr>
+                <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">To</td><td style="padding:6px 0;font-size:13px;">{current_user.email}</td></tr>
+                <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">SMTP Host</td><td style="padding:6px 0;font-size:13px;">{settings.smtp_host}:{settings.smtp_port}</td></tr>
+            </table>
+            <p style="margin-top:24px;font-size:12px;color:#70757a;">Triggered by admin: {current_user.full_name}</p>
+        </div>
+        """
+    )
+
+    return APIResponse.success(
+        message=f"Test email triggered to {current_user.email}. Check backend logs for delivery status.",
+        data={"smtp_user": settings.smtp_user, "smtp_host": settings.smtp_host, "recipient": current_user.email}
+    )
