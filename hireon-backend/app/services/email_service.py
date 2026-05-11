@@ -37,11 +37,12 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": f"{settings.smtp_from_name} <info@hirreon.com>",
+        "from": "HireOn <info@hirreon.com>",
         "to": to,
         "subject": subject,
         "html": html_body
     }
+
 
     
     with httpx.Client() as client:
