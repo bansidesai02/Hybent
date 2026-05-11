@@ -289,7 +289,7 @@ async def create_candidate(data: CandidateCreate, current_user: Annotated[User, 
 
 
 @router.post("/invite", status_code=201)
-async def invite_candidate(data: CandidateInvite, current_user: Annotated[User, Depends(require_recruiter)], db: DB):
+async def invite_candidate(data: CandidateInvite, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
     # Check if candidate exists, if not create a stub
     existing = await db.execute(
         select(Candidate).where(
@@ -319,7 +319,8 @@ async def invite_candidate(data: CandidateInvite, current_user: Annotated[User, 
         candidate_id=candidate.id,
         organization_id=current_user.organization_id,
         email=candidate.email,
-        full_name=candidate.full_name
+        full_name=candidate.full_name,
+        background_tasks=background_tasks
     )
     
     await log_activity(
@@ -386,23 +387,24 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
     for field, value in update_data.items():
         setattr(candidate, field, value)
         
-    # Automated rejection email
+    # Automated rejection email (non-blocking via background task)
     if new_stage and new_stage in REJECTION_STAGES and old_stage not in REJECTION_STAGES:
         from app.services.email_service import send_rejection_email
         from app.models.organization import Organization
-        
+
         org_res = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
         org = org_res.scalar_one_or_none()
         company_name = org.name if org else "the team"
-        
-        send_rejection_email(
+
+        background_tasks.add_task(
+            send_rejection_email,
             candidate_email=candidate.email,
             candidate_name=candidate.full_name,
             job_title=candidate.current_title or "the applied position",
             company_name=company_name,
             org_logo_url=org.logo_url if org else None
         )
-        
+
     await db.flush()
 
     # Log HR notes change
@@ -645,7 +647,8 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
         org = org_res.scalar_one_or_none()
         company_name = org.name if org else "the team"
 
-        send_rejection_email(
+        background_tasks.add_task(
+            send_rejection_email,
             candidate_email=candidate.email,
             candidate_name=candidate.full_name,
             job_title=candidate.current_title or "the applied position",

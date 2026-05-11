@@ -1,7 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +20,8 @@ async def create_invitation(
     candidate_id: uuid.UUID,
     organization_id: uuid.UUID,
     email: str,
-    full_name: str
+    full_name: str,
+    background_tasks: BackgroundTasks | None = None
 ) -> CandidateInvitation:
     # Check if candidate exists in org
     result = await db.execute(
@@ -56,13 +57,18 @@ async def create_invitation(
     # Assuming the onboarding page is at /onboarding/:token
     portal_url = f"{settings.frontend_url}/onboarding/{token}"
 
-    send_candidate_invite(
+    # Send candidate invite email (non-blocking if background_tasks available)
+    invite_kwargs = dict(
         candidate_email=email,
         candidate_name=full_name,
         company_name=company_name,
         portal_url=portal_url,
         org_logo_url=organization.logo_url if organization else None
     )
+    if background_tasks is not None:
+        background_tasks.add_task(send_candidate_invite, **invite_kwargs)
+    else:
+        send_candidate_invite(**invite_kwargs)
 
     return invitation
 
