@@ -37,13 +37,14 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": "Hireon <info@hirreon.com>",
+        "from": "BrainerHub Solutions <info@hirreon.com>",
 
         "to": to,
         "subject": subject,
         "html": html_body
     }
     logger.info(f"Calling Resend API to send email to {to}")
+
 
 
 
@@ -461,11 +462,13 @@ def send_candidate_invite(
     portal_url: str,
     org_logo_url: str | None = None,
 ) -> bool:
-    import uuid
-    subject = f"Join the {company_name} Candidate Portal - {candidate_name} (#{uuid.uuid4().hex[:6].upper()})"
+    from datetime import datetime
+    # Use timestamp to make subject unique and prevent Gmail grouping without using random numbers
+    subject = f"Join the {company_name} Candidate Portal - {candidate_name} ({datetime.now().strftime('%H:%M:%S')})"
 
 
     content = f"""
+
         <h2 class="title" style="margin-top: 20px;">You're Invited!</h2>
         <p class="description">Hi {candidate_name.split()[0]}, the team at <strong>{company_name}</strong> has invited you to join their candidate portal. This will allow you to track your applications, explore new roles, and stay connected with our team.</p>
         
