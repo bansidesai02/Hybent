@@ -188,7 +188,8 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                     {content_html}
                 </div>
                 <div class="footer">
-                    <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:support@hireon.ai">support@hireon.ai</a></p>
+                    <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com">info@hirreon.com</a></p>
+
                     <p style="margin: 0;">&copy; 2026 Hireon AI Platform. All rights reserved.</p>
                 </div>
             </div>
