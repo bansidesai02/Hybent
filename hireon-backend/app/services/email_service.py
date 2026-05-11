@@ -37,11 +37,12 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": "onboarding@resend.dev",  # Must use this sender for free tier without custom domain
+        "from": f"{settings.smtp_from_name} <info@hirreon.com>",
         "to": to,
         "subject": subject,
         "html": html_body
     }
+
     
     with httpx.Client() as client:
         response = client.post(url, headers=headers, json=payload, timeout=5)
