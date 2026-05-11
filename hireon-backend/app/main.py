@@ -68,6 +68,18 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Elasticsearch setup skipped: {exc}")
 
+    # ── SMTP health check ─────────────────────────────────────────────────────────
+    if settings.smtp_user and settings.smtp_password:
+        logger.info(
+            f"✅ SMTP configured: {settings.smtp_user} "
+            f"via {settings.smtp_host}:{settings.smtp_port}"
+        )
+    else:
+        logger.warning(
+            "⚠️  SMTP not configured — SMTP_USER or SMTP_PASSWORD is missing from env.\n"
+            "  Emails will print to console only. Set credentials in .env to enable delivery."
+        )
+
     yield
     
     # Clean up
