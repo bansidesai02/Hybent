@@ -258,7 +258,7 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
                       Missing Key Skills
                     </div>
                     <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.6, textAlign: 'left' }}>
-                      {scoring.missing_skills.map((skill, idx) => (
+                      {(Array.isArray(scoring.missing_skills) ? scoring.missing_skills : []).map((skill, idx) => (
                         <li key={idx} style={{ marginBottom: 4 }}>{skill}</li>
                       ))}
                     </ul>
@@ -710,7 +710,7 @@ function UploadResumePageInner() {
                       <div style={{ marginBottom: 14 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: 'var(--text-mid)', marginBottom: 8 }}>Missing Skills for This Role</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {rejectionInfo.missing_skills.map(skill => (
+                          {(Array.isArray(rejectionInfo.missing_skills) ? rejectionInfo.missing_skills : []).map(skill => (
                             <span key={skill} style={{ padding: '3px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#ef4444' }}>{skill}</span>
                           ))}
                         </div>
@@ -722,7 +722,7 @@ function UploadResumePageInner() {
                       <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#10b981', marginBottom: 6 }}>Better Fit For</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {rejectionInfo.suggested_roles.map(role => (
+                          {(Array.isArray(rejectionInfo.suggested_roles) ? rejectionInfo.suggested_roles : []).map(role => (
                             <span key={role} style={{ padding: '3px 12px', background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 20, fontSize: 12, fontWeight: 700, color: '#10b981' }}>{role}</span>
                           ))}
                         </div>
@@ -894,7 +894,7 @@ function UploadResumePageInner() {
                       </div>
                       {/* Skill tags */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                        {result.skills.slice(0, 7).map((skill: any) => (
+                        {(Array.isArray(result.skills) ? result.skills : []).slice(0, 7).map((skill: any) => (
                           <span key={skill} style={{
                             padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600,
                             background: (scoring?.matched_skills || []).map((s: any) => s.toLowerCase()).includes(skill.toLowerCase())
