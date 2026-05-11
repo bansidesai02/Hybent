@@ -461,10 +461,14 @@ def send_candidate_invite(
     company_name: str,
     portal_url: str,
     org_logo_url: str | None = None,
+    job_title: str | None = None,
 ) -> bool:
     from datetime import datetime
-    # Use timestamp to make subject unique and prevent Gmail grouping without using random numbers
-    subject = f"Join the {company_name} Candidate Portal - {candidate_name} ({datetime.now().strftime('%H:%M:%S')})"
+    subject = f"Join the {company_name} Candidate Portal - {candidate_name}"
+    if job_title:
+        subject += f" - {job_title}"
+
+
 
 
     content = f"""

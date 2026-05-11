@@ -63,8 +63,10 @@ async def create_invitation(
         candidate_name=full_name,
         company_name=company_name,
         portal_url=portal_url,
-        org_logo_url=organization.logo_url if organization else None
+        org_logo_url=organization.logo_url if organization else None,
+        job_title=candidate.applied_job_title if candidate else None
     )
+
     if background_tasks is not None:
         background_tasks.add_task(send_candidate_invite, **invite_kwargs)
     else:
