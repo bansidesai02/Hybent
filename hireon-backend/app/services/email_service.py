@@ -223,9 +223,14 @@ def _get_calendar_invite_template(
     org_name: str | None = None
 ) -> str:
     """Specialized template for Calendar-style invitations."""
+    # Ensure meeting link is clickable by adding protocol if missing
+    if meeting_link and not meeting_link.startswith('http'):
+        meeting_link = 'https://' + meeting_link
+
     guests_html = "".join([f'<div style="margin-bottom: 4px;">{g}</div>' for g in guests])
     
     branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
+
 
     return f"""
     <!DOCTYPE html>
@@ -297,7 +302,9 @@ def _get_calendar_invite_template(
                 <div style="clear: both;"></div>
             </div>
             <div class="footer">
+                <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hirreon.com</a></p>
                 <div style="margin-bottom: 8px; opacity: 0.6;">
+
                     <span style="font-size: 9px; text-transform: uppercase;">Powered by</span>
                     <div style="display: inline-block; vertical-align: middle; margin-left: 4px;">
                         <div class="logo-square">
