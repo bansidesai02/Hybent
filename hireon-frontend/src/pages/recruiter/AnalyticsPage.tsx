@@ -98,7 +98,8 @@ export default function AnalyticsPage() {
       {/* Page Header */}
       <header className="page-header">
         <h1 className="page-title flex items-center gap-3">
-          AI Insights <GlassIcon icon="Bot" variant="pink" size={32} iconSize={18} glow={false} /> <GlassIcon icon="Calendar" variant="violet" size={32} iconSize={18} glow={false} />
+          AI Insights
+
         </h1>
         <p className="page-subtitle">What Hireon AI has learned about your hiring pipeline.</p>
       </header>
