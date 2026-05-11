@@ -37,7 +37,8 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": "HireOn <info@hirreon.com>",
+        "from": "Hireon <info@hirreon.com>",
+
         "to": to,
         "subject": subject,
         "html": html_body
@@ -170,7 +171,8 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
             .section-title {{ font-size: 14px; font-weight: 700; color: #3c4043; margin-bottom: 4px; text-transform: capitalize; }}
             .section-value {{ font-size: 15px; color: #3c4043; margin-bottom: 24px; }}
             .button-wrap {{ margin: 32px 0 16px; text-align: left; }}
-            .button {{ display: inline-block; background-color: #6c47ff; color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
+            .button {{ display: inline-block; background: linear-gradient(135deg, #6c47ff, #ff6bc6); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
+
 
             .footer {{ background-color: #f8f9fa; padding: 24px; border-top: 1px solid #dadce0; text-align: center; color: #70757a; font-size: 12px; }}
             .footer a {{ color: #6c47ff; text-decoration: none; font-weight: 600; }}

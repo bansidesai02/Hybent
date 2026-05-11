@@ -118,7 +118,8 @@ export default function OnboardingPage() {
     @keyframes orbitRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .logo-box { width: 36px; height: 36px; background: linear-gradient(135deg, #6C47FF 0%, #C471ED 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(108, 71, 255, 0.3); position: relative; z-index: 2; border: 1px solid rgba(255, 255, 255, 0.25); }
     .logo-wordmark { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -1px; color: #1A1040; position: relative; }
-    .lwl { background: linear-gradient(135deg, #6C47FF 0%, #1A1040 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .lwl { background: linear-gradient(135deg, #6C47FF 0%, #FF6BC6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
     `
 
     return (
