@@ -303,7 +303,8 @@ def _get_calendar_invite_template(
             </div>
             <div class="footer">
                 <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hirreon.com</a></p>
-                <div style="margin-bottom: 8px; opacity: 0.6;">
+                <p style="margin: 0 0 12px 0;">&copy; {date_year} Hireon AI Platform. All rights reserved.</p>
+                <div style="margin-top: 8px; opacity: 0.6;">
 
                     <span style="font-size: 9px; text-transform: uppercase;">Powered by</span>
                     <div style="display: inline-block; vertical-align: middle; margin-left: 4px;">
@@ -333,7 +334,6 @@ def _get_calendar_invite_template(
                         </span>
                     </div>
                 </div>
-                &copy; {date_year} Hireon AI Platform. All rights reserved.
             </div>
         </div>
     </body>
