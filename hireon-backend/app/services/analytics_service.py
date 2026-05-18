@@ -23,6 +23,11 @@ from app.utils.permissions import ApplicationStage, OfferStatus
 async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID | None = None) -> AnalyticsOverview:
     """High-level KPI overview for the org, optionally filtered by user."""
 
+    # Period boundaries for delta calculation (last 30 days vs the 30 days before that)
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=30)   # current window start
+    prev_start   = now - timedelta(days=60)   # previous window start
+
     # Base conditions for subqueries
     job_cond = [Job.organization_id == org_id]
     app_cond = [Application.organization_id == org_id]
@@ -49,6 +54,7 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
         ))
 
     stmt = select(
+        # ── All-time KPIs ──────────────────────────────────────────────────────
         select(func.count(Job.id)).where(*job_cond).scalar_subquery().label("total_jobs"),
         select(func.count(Job.id)).where(*job_cond, Job.status == "active").scalar_subquery().label("active_jobs"),
         select(func.count(Application.id)).where(*app_cond).scalar_subquery().label("total_apps"),
@@ -62,11 +68,47 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
         ).scalar_subquery().label("offers_accepted"),
         select(func.avg(Application.match_score)).where(
             *app_cond, Application.match_score.isnot(None)
-        ).scalar_subquery().label("avg_score")
+        ).scalar_subquery().label("avg_score"),
+        # ── Current period: last 30 days ───────────────────────────────────────
+        select(func.count(Application.id)).where(
+            *app_cond, Application.applied_at >= period_start
+        ).scalar_subquery().label("curr_apps"),
+        select(func.count(Candidate.id)).where(
+            *cand_cond, Candidate.created_at >= period_start
+        ).scalar_subquery().label("curr_cands"),
+        select(func.count(Interview.id)).where(
+            *int_cond, Interview.scheduled_at >= period_start
+        ).scalar_subquery().label("curr_interviews"),
+        select(func.count(Offer.id)).where(
+            *off_cond, Offer.status == OfferStatus.ACCEPTED, Offer.responded_at >= period_start
+        ).scalar_subquery().label("curr_offers"),
+        # ── Previous period: 30–60 days ago ────────────────────────────────────
+        select(func.count(Application.id)).where(
+            *app_cond, Application.applied_at >= prev_start, Application.applied_at < period_start
+        ).scalar_subquery().label("prev_apps"),
+        select(func.count(Candidate.id)).where(
+            *cand_cond, Candidate.created_at >= prev_start, Candidate.created_at < period_start
+        ).scalar_subquery().label("prev_cands"),
+        select(func.count(Interview.id)).where(
+            *int_cond, Interview.scheduled_at >= prev_start, Interview.scheduled_at < period_start
+        ).scalar_subquery().label("prev_interviews"),
+        select(func.count(Offer.id)).where(
+            *off_cond, Offer.status == OfferStatus.ACCEPTED,
+            Offer.responded_at >= prev_start, Offer.responded_at < period_start
+        ).scalar_subquery().label("prev_offers"),
     )
 
     row = (await db.execute(stmt)).first()
-    
+
+    def calc_delta(curr: int, prev: int) -> float | None:
+        """Returns real % change only when both periods have data.
+        Returns None (badge hidden) when there is no previous period to compare against.
+        This ensures only genuine trend data is shown — never fake values.
+        """
+        if not prev:
+            return None
+        return round(((curr - prev) / prev) * 100, 1)
+
     return AnalyticsOverview(
         total_jobs=row.total_jobs or 0,
         active_jobs=row.active_jobs or 0,
@@ -77,6 +119,10 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
         offers_accepted=row.offers_accepted or 0,
         avg_match_score=round(float(row.avg_score), 1) if row.avg_score else None,
         time_to_hire_days=None,
+        total_applications_delta=calc_delta(row.curr_apps or 0, row.prev_apps or 0),
+        total_candidates_delta=calc_delta(row.curr_cands or 0, row.prev_cands or 0),
+        interviews_scheduled_delta=calc_delta(row.curr_interviews or 0, row.prev_interviews or 0),
+        offers_accepted_delta=calc_delta(row.curr_offers or 0, row.prev_offers or 0),
     )
 
 

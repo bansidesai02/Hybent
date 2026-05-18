@@ -224,11 +224,47 @@ export default function OverviewPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
+  // Returns a delta badge object only when the backend supplies a real numeric delta.
+  // If the field is absent or non-numeric, returns undefined → badge is hidden.
+  const getKpiDelta = (val: any): { label: string; up: boolean } | undefined => {
+    if (val === undefined || val === null) return undefined
+    const num = typeof val === 'number' ? val : parseFloat(val)
+    if (isNaN(num)) return undefined
+    const isUp = num >= 0
+    const arrow = isUp ? '↑' : '↓'
+    // Use the value as-is if the backend already formatted it (e.g. '↑ 18%'), otherwise format it.
+    const label =
+      typeof val === 'string' && (val.includes('%') || val.includes('↑') || val.includes('↓'))
+        ? val
+        : `${arrow} ${Math.abs(num)}%`
+    return { label, up: isUp }
+  }
+
   const kpis = [
-    { label: 'Resumes Processed', value: analytics?.total_applications ?? 0, icon: <GlassIcon icon="FileText" variant="violet" size={42} iconSize={20} ghost />, delta: { label: '↑ 18%', up: true } },
-    { label: 'Auto-Shortlisted', value: analytics?.total_candidates ?? 0, icon: <GlassIcon icon="CheckCircle" variant="emerald" size={42} iconSize={20} ghost />, delta: { label: '↑ 12%', up: true } },
-    { label: 'Interviews Booked', value: analytics?.interviews_scheduled ?? 0, icon: <GlassIcon icon="Calendar" variant="violet" size={42} iconSize={20} ghost />, delta: { label: '↑ 7%', up: true } },
-    { label: 'Hires Made', value: analytics?.offers_accepted ?? 0, icon: <GlassIcon icon="Trophy" variant="emerald" size={42} iconSize={20} ghost />, delta: { label: '2', up: true } },
+    {
+      label: 'Resumes Processed',
+      value: analytics?.total_applications ?? 0,
+      icon: <GlassIcon icon="FileText" variant="violet" size={42} iconSize={20} ghost />,
+      delta: getKpiDelta(analytics?.total_applications_delta),
+    },
+    {
+      label: 'Auto-Shortlisted',
+      value: analytics?.total_candidates ?? 0,
+      icon: <GlassIcon icon="CheckCircle" variant="emerald" size={42} iconSize={20} ghost />,
+      delta: getKpiDelta(analytics?.total_candidates_delta),
+    },
+    {
+      label: 'Interviews Booked',
+      value: analytics?.interviews_scheduled ?? 0,
+      icon: <GlassIcon icon="Calendar" variant="violet" size={42} iconSize={20} ghost />,
+      delta: getKpiDelta(analytics?.interviews_scheduled_delta),
+    },
+    {
+      label: 'Hires Made',
+      value: analytics?.offers_accepted ?? 0,
+      icon: <GlassIcon icon="Trophy" variant="emerald" size={42} iconSize={20} ghost />,
+      delta: getKpiDelta(analytics?.offers_accepted_delta),
+    },
   ]
 
   const funnelTotal = analytics?.total_applications ?? 1

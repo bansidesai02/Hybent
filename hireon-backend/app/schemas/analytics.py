@@ -17,6 +17,11 @@ class AnalyticsOverview(BaseModel):
     offers_accepted: int
     avg_match_score: float | None = None
     time_to_hire_days: float | None = None
+    # % change vs previous 30-day window — None when no prior data exists
+    total_applications_delta: float | None = None
+    total_candidates_delta: float | None = None
+    interviews_scheduled_delta: float | None = None
+    offers_accepted_delta: float | None = None
 
 
 class FunnelData(BaseModel):

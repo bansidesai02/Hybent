@@ -308,6 +308,11 @@ export interface AnalyticsOverview {
   offers_accepted: number
   avg_match_score: number | null
   time_to_hire_days: number | null
+  // % change vs previous 30-day window — null when no prior data exists
+  total_applications_delta?: number | null
+  total_candidates_delta?: number | null
+  interviews_scheduled_delta?: number | null
+  offers_accepted_delta?: number | null
 }
 
 export interface FunnelStage {
