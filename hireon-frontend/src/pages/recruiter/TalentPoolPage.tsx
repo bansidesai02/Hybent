@@ -80,8 +80,9 @@ function getSuggestions(input: string): { shortcut: string; expanded: string }[]
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function StatCard({ title, value, subtitle, icon, trend }: {
+function StatCard({ title, value, subtitle, icon, filterLabel, trend }: {
   title: string; value: string | number; subtitle: string; icon: React.ReactNode
+  filterLabel: string
   trend?: { label: string; color: string }
 }) {
   return (
@@ -101,7 +102,7 @@ function StatCard({ title, value, subtitle, icon, trend }: {
         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">{title}</p>
         <div className="mt-4 flex items-center justify-between">
           <p className="text-[10px] text-gray-500 dark:text-[var(--text-mid)] font-medium">{subtitle}</p>
-          <span className="text-[10px] text-emerald-500 font-bold px-2 py-0.5 bg-emerald-500/10 rounded-full">All time</span>
+          <span className="text-[10px] text-emerald-500 font-bold px-2 py-0.5 bg-emerald-500/10 rounded-full">{filterLabel}</span>
         </div>
       </div>
     </Card>
@@ -479,12 +480,14 @@ export default function TalentPoolPage() {
           title="Candidates Stored"
           value={stats?.total_candidates?.toLocaleString() || (isLoading ? "..." : "0")}
           subtitle="Candidates Stored"
+          filterLabel={selectedJobTitle ? `Filtered: ${selectedJobTitle}` : (search ? `Search: ${search}` : "All time")}
           icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
         />
         <StatCard
           title="Re-matched to New Roles"
           value={stats?.re_matched_count || (isLoading ? "..." : "0")}
           subtitle="Candidates identified for new opportunities"
+          filterLabel={selectedJobTitle ? `Filtered: ${selectedJobTitle}` : (search ? `Search: ${search}` : "All time")}
           icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}
           trend={{ label: "This quarter", color: "text-emerald-500" }}
         />
