@@ -92,15 +92,7 @@ export default function PortalPrepHub() {
     }
   }
 
-  const getPriorityInfo = (idx: number) => {
-    const priorities = [
-      { text: "High Priority", bar: "80%" },
-      { text: "High Priority", bar: "65%" },
-      { text: "Medium", bar: "45%" },
-      { text: "Medium", bar: "30%" }
-    ]
-    return priorities[idx % priorities.length]
-  }
+
 
   return (
     <div className="page active" id="page-prep">
@@ -149,7 +141,6 @@ export default function PortalPrepHub() {
             </div>
             <div className="pcc-list">
               {focusAreas.length > 0 ? focusAreas.map((area: any, idx: number) => {
-                const pri = getPriorityInfo(idx)
                 return (
                   <div key={idx} className="ptopic-item">
                     <div className="pti-top">
@@ -157,12 +148,8 @@ export default function PortalPrepHub() {
                         <div className="pti-ico"><GlassIcon icon="Lightbulb" variant="amber" size={24} iconSize={12} ghost glow={false} /></div>
                         {area.topic}
                       </div>
-                      <div className="pti-pri">{pri.text}</div>
                     </div>
-                    <div className="pti-bar-wrap">
-                      <div className="pti-bar" style={{ width: pri.bar }}></div>
-                    </div>
-                    <div className="pti-sub">AI Recommended Focus</div>
+                    <div className="pti-sub">{area.reason || "AI Recommended Focus Area"}</div>
                   </div>
                 )
               }) : (
