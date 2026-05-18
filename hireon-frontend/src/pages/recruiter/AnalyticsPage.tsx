@@ -93,6 +93,30 @@ export default function AnalyticsPage() {
     'rgba(0,212,200,0.9)',  // teal/90
   ]
 
+  const bannerContent = useMemo(() => {
+    if (!overview) return null
+    
+    let title = "Pipeline Intelligence Active"
+    if (overview.avg_match_score) {
+      title = `${formatScore(overview.avg_match_score)} Avg Match Score`
+    } else if (overview.total_applications > 0) {
+      title = `${overview.total_applications} Applications Tracked`
+    }
+
+    const parts = []
+    if (overview.avg_match_score) {
+      parts.push(`${formatScore(overview.avg_match_score)} avg match score this month.`)
+    }
+    if (talentStats?.re_matched_count) {
+      parts.push(`${talentStats.re_matched_count} past candidates re-matched to new roles.`)
+    }
+    
+    return {
+      title,
+      subtitle: parts.length > 0 ? parts.join(' ') : "Real-time analytics are being collected as candidates apply."
+    }
+  }, [overview, talentStats])
+
   return (
     <div className="space-y-8 select-none pb-10">
       {/* Page Header */}
@@ -105,29 +129,29 @@ export default function AnalyticsPage() {
       </header>
 
       {/* ── AI Summary Banner ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[28px] p-5 sm:p-8 text-white shadow-2xl shadow-violet-200 dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
-        style={{
-          background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)'
-        }}
-      >
-        <div className="relative z-10">
-          <p className="text-[10px] font-black uppercase tracking-[3px] mb-3 opacity-80">AI SUMMARY</p>
-          <h2 className="text-xl sm:text-3xl font-black mb-2 flex items-center gap-3" style={{ fontFamily: "'Fraunces', serif" }}>
-            Your pipeline is healthy <GlassIcon icon="Target" variant="violet" size={32} iconSize={18} ghost glow={false} />
-          </h2>
-          <p className="text-sm sm:text-lg font-medium opacity-90 max-w-2xl leading-relaxed">
-            {overview 
-              ? `${formatScore(overview.avg_match_score)} avg match score this month. ${talentStats?.re_matched_count || 0} past candidates re-matched to new roles. Hiring velocity is stable.`
-              : 'Aggregating latest pipeline intelligence...'}
-          </p>
-        </div>
-        {/* Decorative elements */}
-        <div className="absolute top-[-10%] right-[-5%] w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-20%] left-[10%] w-48 h-48 bg-violet-500/10 dark:bg-black/10 rounded-full blur-2xl" />
-      </motion.div>
+      {overview && !overviewLoading && bannerContent && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-[28px] p-5 sm:p-8 text-white shadow-2xl shadow-violet-200 dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
+          style={{
+            background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)'
+          }}
+        >
+          <div className="relative z-10">
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3 opacity-80">AI SUMMARY</p>
+            <h2 className="text-xl sm:text-3xl font-black mb-2 flex items-center gap-3" style={{ fontFamily: "'Fraunces', serif" }}>
+              {bannerContent.title} <GlassIcon icon="Target" variant="violet" size={32} iconSize={18} ghost glow={false} />
+            </h2>
+            <p className="text-sm sm:text-lg font-medium opacity-90 max-w-2xl leading-relaxed">
+              {bannerContent.subtitle}
+            </p>
+          </div>
+          {/* Decorative elements */}
+          <div className="absolute top-[-10%] right-[-5%] w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-[-20%] left-[10%] w-48 h-48 bg-violet-500/10 dark:bg-black/10 rounded-full blur-2xl" />
+        </motion.div>
+      )}
 
       {/* Main Charts Row */}
       <div className="grid lg:grid-cols-2 gap-6">
@@ -224,21 +248,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Intelligence Row */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Bias Detection */}
-        <GlassCard className="relative overflow-hidden group">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-[14px] font-bold text-gray-800 dark:text-[var(--text)]">Bias Detection</h3>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-tighter">Healthy</span>
-          </div>
-          <p className="text-sm text-gray-500 dark:text-[var(--text-mid)] leading-relaxed font-medium">
-            No significant bias detected. Candidate distribution is balanced across key metrics. Diversity score: <span className="text-emerald-500 font-bold">8.4/10</span>.
-          </p>
-          <div className="absolute bottom-4 right-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <GlassIcon icon="Scale" variant="emerald" size={60} iconSize={32} glow={false} />
-          </div>
-        </GlassCard>
-
+      <div className="grid md:grid-cols-2 gap-6">
         {/* Talent DB Match */}
         <GlassCard className="relative overflow-hidden group">
           <div className="flex justify-between items-start mb-4">
@@ -263,12 +273,13 @@ export default function AnalyticsPage() {
         <GlassCard className="relative overflow-hidden group">
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-[14px] font-bold text-gray-800 dark:text-[var(--text)]">Avg. Time-to-Hire</h3>
-            <span className="px-2 py-0.5 rounded-full bg-pink-100 text-pink-600 text-[10px] font-black uppercase tracking-tighter">Improving</span>
           </div>
-          <p className="text-sm text-gray-500 dark:text-[var(--text-mid)] leading-relaxed font-medium">
-            Current: <span className="text-pink-500 font-bold">{overview?.time_to_hire_days ? `${Math.round(overview.time_to_hire_days)} days` : '3.2 days'}</span> from application to interview. 
-            Down from 11.4 days. <span className="text-emerald-500 font-bold">72% improvement.</span>
-          </p>
+          <div className="text-sm text-gray-500 dark:text-[var(--text-mid)] leading-relaxed font-medium">
+            <span className="text-[var(--text)] font-bold text-2xl mb-1 block">
+              {overview?.time_to_hire_days ? `${Math.round(overview.time_to_hire_days)} days` : '—'}
+            </span> 
+            {overview?.time_to_hire_days ? 'Average from application to interview.' : 'Not enough data to calculate yet.'}
+          </div>
           <div className="absolute bottom-4 right-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <GlassIcon icon="Timer" variant="pink" size={60} iconSize={32} glow={false} />
           </div>
