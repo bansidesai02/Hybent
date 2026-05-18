@@ -158,9 +158,7 @@ export default function PrepKitPage() {
   const candidate = application?.candidate
   const isLoading = intLoading || appLoading
 
-  const questions = (candidate && interview)
-    ? generateQuestions(candidate.skills ?? [], interview.interview_type)
-    : (interview ? generateQuestions([], interview.interview_type) : [])
+  const questions = interview ? generateQuestions([], interview.interview_type) : []
 
   if (isLoading) {
     return (
@@ -207,7 +205,7 @@ export default function PrepKitPage() {
             <BookOpen size={22} className="text-[var(--violet)]" /> Interview Prep Kit
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2 }}>
-            {interview.title} · AI-generated questions tailored to role + resume
+            {interview.title} · Suggested questions from standard interview bank
           </p>
         </div>
         {interview.meeting_link && (
@@ -362,14 +360,14 @@ export default function PrepKitPage() {
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles size={16} className="text-[var(--violet)]" /> AI-Generated Questions
+                <BookOpen size={16} className="text-[var(--violet)]" /> Suggested Questions
               </h3>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                 background: 'rgba(108,71,255,0.09)', color: '#6c47ff',
                 border: '1px solid rgba(108,71,255,0.18)', textTransform: 'uppercase', letterSpacing: '0.8px',
               }}>
-                Role + Resume Based
+                Standard Bank
               </span>
             </div>
 
