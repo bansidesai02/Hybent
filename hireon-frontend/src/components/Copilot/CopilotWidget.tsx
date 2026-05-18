@@ -49,8 +49,8 @@ const s: Record<string, React.CSSProperties> = {
 
 const EXAMPLE_PROMPTS = [
   { icon: '🔍', title: 'Search Talent', prompt: 'Show top candidates for React role' },
-  { icon: '📅', title: 'Schedule Interview', prompt: 'Schedule Sarah\'s technical round for tomorrow at 2 pm with Carlo' },
-  { icon: '⚡', title: 'Update Stage', prompt: 'Move Sarah Chen to Technical Round Selected' },
+  { icon: '📅', title: 'Schedule Interview', prompt: 'Schedule a technical round for a candidate tomorrow at 2 pm' },
+  { icon: '⚡', title: 'Update Stage', prompt: 'Move a candidate to Technical Round Selected' },
   { icon: '📊', title: 'Pipeline Stats', prompt: 'What is the current pipeline summary?' },
 ]
 
