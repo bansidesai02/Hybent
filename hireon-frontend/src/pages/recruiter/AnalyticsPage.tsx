@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
           </h2>
           <p className="text-sm sm:text-lg font-medium opacity-90 max-w-2xl leading-relaxed">
             {overview 
-              ? `${formatScore(overview.avg_match_score)}% avg match score this month. ${talentStats?.re_matched_count || 0} past candidates re-matched to new roles. Hiring velocity is stable.`
+              ? `${formatScore(overview.avg_match_score)} avg match score this month. ${talentStats?.re_matched_count || 0} past candidates re-matched to new roles. Hiring velocity is stable.`
               : 'Aggregating latest pipeline intelligence...'}
           </p>
         </div>
