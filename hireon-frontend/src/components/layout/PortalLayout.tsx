@@ -25,7 +25,6 @@ export function PortalLayout() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [searchFocused, setSearchFocused] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
 
@@ -204,19 +203,7 @@ export function PortalLayout() {
               <Menu size={18} className="text-[var(--text)]" />
             </button>
 
-            {/* Search bar */}
-            <div className="topbar-search-wrap">
-              <div className={`topbar-search ${searchFocused ? 'focused' : ''}`}>
-                <Search size={14} style={{ opacity: 0.6, color: 'var(--violet)' }} />
-                <input
-                  type="text"
-                  placeholder="Search openings, prep topics, jobs..."
-                  className="topbar-search-input"
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                />
-              </div>
-            </div>
+            {/* Search bar removed as there is no scoped candidate search API */}
             
             <div className="topbar-right">
               <button className="tb-toggle" onClick={toggleTheme} title="Toggle Dark/Light Mode">
