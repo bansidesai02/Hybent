@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsApi } from '@/api/reports'
 import { adminApi } from '@/api/admin'
@@ -55,9 +55,23 @@ export default function ReportsPage() {
   const [recruiterId, setRecruiterId] = useState<string>('all')
   const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
 
+  // Single source of truth for all active filters — used by both the summary query and export
+  const filterParams = useMemo(() => {
+    const p: { days?: number; start_date?: string; end_date?: string; recruiter_id?: string } = {}
+    if (days === 'custom') {
+      if (startDate) p.start_date = startDate
+      if (endDate) p.end_date = endDate
+    } else if (days !== 'all') {
+      p.days = parseInt(days)
+    }
+    if (isAdmin && recruiterId !== 'all') p.recruiter_id = recruiterId
+    return p
+  }, [days, startDate, endDate, recruiterId, isAdmin])
+
   const { data: summary, isLoading } = useQuery<ReportSummary>({
-    queryKey: ['reports', 'summary', recruiterId],
-    queryFn: () => reportsApi.getSummary(isAdmin && recruiterId !== 'all' ? recruiterId : undefined).then((r) => r.data),
+    // Include full filterParams in the key so React Query refetches on any filter change
+    queryKey: ['reports', 'summary', filterParams],
+    queryFn: () => reportsApi.getSummary(filterParams).then((r) => r.data),
   })
 
   useEffect(() => {
@@ -74,17 +88,8 @@ export default function ReportsPage() {
 
   const handleDownload = async () => {
     try {
-      const params: any = {}
-      if (days === 'custom') {
-        if (startDate) params.start_date = startDate
-        if (endDate) params.end_date = endDate
-      } else if (days !== 'all') {
-        params.days = parseInt(days)
-      }
-      
-      if (isAdmin && recruiterId !== 'all') params.recruiter_id = recruiterId
-
-      const res = await reportsApi.export(params);
+      // Reuse the same filterParams object — export and on-screen data are always in sync
+      const res = await reportsApi.export(filterParams);
       const filename = `recruitment_report_${new Date().toISOString().split('T')[0]}.xlsx`;
 
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -197,7 +202,7 @@ export default function ReportsPage() {
             )}
           </div>
           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-3 shrink-0">
-            Filtering aggregates for export
+            Filters apply to cards, charts &amp; export
           </div>
         </div>
       </GlassCard>

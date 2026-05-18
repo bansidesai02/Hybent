@@ -1,5 +1,5 @@
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import Session
 from app.models.application import Application
@@ -15,13 +15,32 @@ BACKOUT_STAGES = [
     "offered_back_out",
 ]
 
-async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: bool, db: Session, recruiter_id: str | None = None):
-    print(f"DEBUG: get_report_summary called for org={organization_id}, admin={is_admin}, recruiter={recruiter_id}")
-    
+async def get_report_summary(
+    organization_id: UUID,
+    user_id: UUID,
+    is_admin: bool,
+    db: Session,
+    recruiter_id: str | None = None,
+    days: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    print(f"DEBUG: get_report_summary called for org={organization_id}, admin={is_admin}, recruiter={recruiter_id}, days={days}, start_date={start_date}, end_date={end_date}")
+
+    # Resolve date filter boundaries (mirrors export_report_excel logic)
+    date_from: datetime | None = None
+    date_to: datetime | None = None
+    if days:
+        date_from = datetime.now(timezone.utc) - timedelta(days=days)
+    elif start_date:
+        date_from = datetime.fromisoformat(start_date)
+        if end_date:
+            date_to = datetime.fromisoformat(end_date)
+
     # We want a comprehensive view of all candidates/applications in the org
     # For Applied, we count all distinct candidates in the org
     # For others, we look at the 'best' progress or recent status
-    
+
     # 1. Total Candidates (Applied)
     from app.models.candidate import Candidate
     cand_query = select(Candidate).where(Candidate.organization_id == organization_id)
@@ -29,16 +48,26 @@ async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: boo
         cand_query = cand_query.where(Candidate.created_by_id == user_id)
     elif recruiter_id:
         cand_query = cand_query.where(Candidate.created_by_id == UUID(recruiter_id))
-    
+    # Apply date filter to candidate creation date
+    if date_from:
+        cand_query = cand_query.where(Candidate.created_at >= date_from)
+    if date_to:
+        cand_query = cand_query.where(Candidate.created_at <= date_to)
+
     res_cands = await db.execute(cand_query)
     all_candidates = res_cands.scalars().all()
-    
+
     # 2. Get all Applications to find further progress
     app_query = select(Application).where(Application.organization_id == organization_id)
     if not is_admin:
         app_query = app_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == user_id)
     elif recruiter_id:
         app_query = app_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == UUID(recruiter_id))
+    # Apply date filter to application date
+    if date_from:
+        app_query = app_query.where(Application.applied_at >= date_from)
+    if date_to:
+        app_query = app_query.where(Application.applied_at <= date_to)
         
     res_apps = await db.execute(app_query)
     all_apps = res_apps.scalars().all()
@@ -61,6 +90,11 @@ async def get_report_summary(organization_id: UUID, user_id: UUID, is_admin: boo
         app_with_jobs_query = app_with_jobs_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == user_id)
     elif recruiter_id:
         app_with_jobs_query = app_with_jobs_query.join(Candidate, Application.candidate_id == Candidate.id).where(Candidate.created_by_id == UUID(recruiter_id))
+    # Apply same date filter to role-based query
+    if date_from:
+        app_with_jobs_query = app_with_jobs_query.where(Application.applied_at >= date_from)
+    if date_to:
+        app_with_jobs_query = app_with_jobs_query.where(Application.applied_at <= date_to)
     
     res_apps_jobs = await db.execute(app_with_jobs_query)
     for app_obj, job_title in res_apps_jobs.all():
