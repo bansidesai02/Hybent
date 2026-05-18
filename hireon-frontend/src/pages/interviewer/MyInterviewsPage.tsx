@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { AddToCalendarDropdown } from '@/components/calendar/AddToCalendarDropdown'
 import { motion, AnimatePresence } from 'framer-motion'
 import { interviewsApi } from '@/api/interviews'
 import { candidatesApi } from '@/api/candidates'
@@ -208,7 +209,7 @@ function InterviewCard({
         background: 'var(--card-bg)',
         border: '1px solid var(--card-border)',
         borderRadius: 20,
-        overflow: 'hidden',
+        overflow: 'visible',
         boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
         transition: 'all 0.3s ease',
       }}
@@ -218,7 +219,9 @@ function InterviewCard({
         width: 100, flexShrink: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', padding: '24px 0',
         borderRight: '1px solid var(--card-border)',
-        background: live ? 'rgba(22,163,74,0.03)' : 'transparent'
+        background: live ? 'rgba(22,163,74,0.03)' : 'transparent',
+        borderTopLeftRadius: 20,
+        borderBottomLeftRadius: 20
       }}>
         <span style={{
           fontSize: 28, fontWeight: 900, color: live ? '#16a34a' : '#6c47ff', lineHeight: 1,
@@ -379,6 +382,10 @@ function InterviewCard({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, marginTop: 6
         }}>
+          {interview.status === 'scheduled' && (
+            <AddToCalendarDropdown interview={interview} />
+          )}
+
           <Tooltip content="Review candidate resume">
             <motion.button
               whileHover={{ scale: 1.05, background: 'rgba(108,71,255,0.12)' }}

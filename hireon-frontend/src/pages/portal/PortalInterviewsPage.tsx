@@ -1,5 +1,6 @@
 import { portalApi } from '@/api/portal'
 import { useNavigate } from 'react-router-dom'
+import { AddToCalendarDropdown } from '@/components/calendar/AddToCalendarDropdown'
 import { useQuery } from '@tanstack/react-query'
 import type { Interview } from '@/types'
 import { CheckCircle, User, Clock, Video, MapPin, Target, Calendar, Check, FileText } from 'lucide-react'
@@ -83,6 +84,7 @@ function InterviewCard({ interview }: { interview: Interview }) {
       <div className="int-actions">
         {interview.status === 'scheduled' ? (
           <>
+            <AddToCalendarDropdown interview={interview} />
             {interview.meeting_link && (
               <a href={interview.meeting_link} target="_blank" rel="noreferrer" className="btn btn-teal btn-sm" style={{ textDecoration: 'none' }}>
                 Join Meet

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { AddToCalendarDropdown } from '@/components/calendar/AddToCalendarDropdown'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
@@ -902,11 +903,11 @@ function InterviewCard({
         background: 'var(--sidebar-bg)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'visible',
         flexShrink: 0
       }}
     >
-      <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: cfg.color }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: cfg.color, borderTopLeftRadius: 20, borderBottomLeftRadius: 20 }} />
       
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
         {/* Time Column */}
@@ -972,9 +973,10 @@ function InterviewCard({
         </div>
 
         {/* Actions Column */}
-        <div className="flex sm:flex-col gap-2 justify-end sm:justify-center mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-[var(--sidebar-border)] sm:border-none">
+        <div className="flex sm:flex-col gap-2 justify-end sm:justify-center mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-[var(--sidebar-border)] sm:border-none items-center">
           {interview.status === 'scheduled' && (
             <>
+              <AddToCalendarDropdown interview={interview} />
               <button 
                 onClick={() => onStatusUpdate('completed')}
                 style={{ padding: '6px 14px', borderRadius: 10, background: 'var(--teal-10)', color: 'var(--teal, #10b981)', border: '1px solid var(--teal-25)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}

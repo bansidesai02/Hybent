@@ -10,11 +10,12 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
-import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle, Bookmark, X } from 'lucide-react'
 import { talentPoolApi } from '@/api/talentPool'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
 import { adminApi } from '@/api/admin'
+import { useNotificationStore } from '@/store/notificationStore'
 import { Select } from '@/components/ui/Select'
 import { DatePicker } from '@/components/ui/DatePicker'
 import toast from 'react-hot-toast'
@@ -301,6 +302,63 @@ export default function AllTalentListPage() {
   const [isRenamingJob, setIsRenamingJob] = useState(false)
   const [isDeletingJob, setIsDeletingJob] = useState(false)
 
+  // Saved Views & Alerts State
+  const [savedViews, setSavedViews] = useState<any[]>(() => {
+    return JSON.parse(localStorage.getItem('hireon_talent_saved_views') || '[]')
+  })
+  const [newViewName, setNewViewName] = useState('')
+  const [activeViewId, setActiveViewId] = useState<string | null>(null)
+
+  const [alertMatchThreshold, setAlertMatchThreshold] = useState<number>(() => {
+    return parseInt(localStorage.getItem('hireon_alert_match_threshold') || '85')
+  })
+  const [alertOnOffer, setAlertOnOffer] = useState<boolean>(() => {
+    return localStorage.getItem('hireon_alert_on_offer') !== 'false'
+  })
+
+  const saveCurrentView = () => {
+    if (!newViewName.trim()) {
+      toast.error('Please enter a name for the view')
+      return
+    }
+    const newView = {
+      id: crypto.randomUUID(),
+      name: newViewName.trim(),
+      search,
+      statusFilter,
+      recruiterId,
+      selectedJobId,
+      dateFilter,
+      customDateRange,
+    }
+    const updated = [...savedViews, newView]
+    setSavedViews(updated)
+    localStorage.setItem('hireon_talent_saved_views', JSON.stringify(updated))
+    setActiveViewId(newView.id)
+    setNewViewName('')
+    toast.success(`View "${newView.name}" saved successfully!`)
+  }
+
+  const loadSavedView = (view: any) => {
+    setSearch(view.search || '')
+    setStatusFilter(view.statusFilter)
+    setRecruiterId(view.recruiterId || 'all')
+    setSelectedJobId(view.selectedJobId || 'all')
+    setDateFilter(view.dateFilter || 'all')
+    setCustomDateRange(view.customDateRange || ['', ''])
+    setActiveViewId(view.id)
+    toast.success(`Loaded view "${view.name}"`)
+  }
+
+  const deleteActiveView = () => {
+    if (!activeViewId) return
+    const updated = savedViews.filter(v => v.id !== activeViewId)
+    setSavedViews(updated)
+    localStorage.setItem('hireon_talent_saved_views', JSON.stringify(updated))
+    setActiveViewId(null)
+    toast.success('Saved view deleted')
+  }
+
   useEffect(() => {
     adminApi.listUsers().then((res: any) => {
       const users = res.data
@@ -350,6 +408,96 @@ export default function AllTalentListPage() {
       }).then(r => r.data)
     },
   })
+
+  // Real-time Candidate Alert Monitor
+  useEffect(() => {
+    const items = data?.items || []
+    if (items.length === 0) return
+
+    // Get notified candidate IDs
+    const notifiedIds = new Set<string>(
+      JSON.parse(localStorage.getItem('hireon_notified_candidate_ids') || '[]')
+    )
+
+    let updatedNotified = false
+
+    items.forEach((candidate: any) => {
+      if (notifiedIds.has(candidate.id)) return
+
+      // Alert Condition 1: High Match Score
+      const matchScore = candidate.match_score ?? candidate.parsed_data?.match_score ?? 0
+      const matchesScore = matchScore >= alertMatchThreshold
+
+      // Alert Condition 2: Candidate stage is "Offer" (offered)
+      const stage = candidate.pipeline_stage || ''
+      const isOffer = stage.toLowerCase() === 'offered' || stage.toLowerCase() === 'offer' || stage.toLowerCase() === 'hired_joined'
+      const matchesOffer = alertOnOffer && isOffer
+
+      if (matchesScore || matchesOffer) {
+        // Add to notified
+        notifiedIds.add(candidate.id)
+        updatedNotified = true
+
+        const title = matchesOffer ? 'Stage Reached: Offer' : 'High Match Score Alert'
+        const message = matchesOffer
+          ? `Candidate ${candidate.full_name} has entered the "Offer" stage!`
+          : `Candidate ${candidate.full_name} matches with a score of ${matchScore}%!`
+
+        // Trigger in-app notification in store
+        useNotificationStore.getState().addNotification({
+          id: crypto.randomUUID(),
+          organization_id: '',
+          user_id: '',
+          type: 'system',
+          title,
+          message,
+          data: null,
+          is_read: false,
+          read_at: null,
+          created_at: new Date().toISOString(),
+        })
+
+        // Show premium toast
+        toast.custom((t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-enter' : 'animate-leave'
+            } max-w-md w-full bg-white dark:bg-[#1a1730] shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 border border-violet-100 dark:border-[#2a2550]`}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <div className="h-10 w-10 rounded-full bg-violet-50 dark:bg-[#201c3b] flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold text-lg">
+                    ✨
+                  </div>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {title}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {message}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-gray-100 dark:border-[#201c3b]">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-xs font-bold text-violet-600 hover:text-violet-500 dark:text-violet-400 focus:outline-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ), { duration: 5000 })
+      }
+    })
+
+    if (updatedNotified) {
+      localStorage.setItem('hireon_notified_candidate_ids', JSON.stringify(Array.from(notifiedIds)))
+    }
+  }, [data?.items, alertMatchThreshold, alertOnOffer])
 
   const { data: allJobs } = useQuery({
     queryKey: ['jobs', 'all-for-filters'],
@@ -584,6 +732,117 @@ export default function AllTalentListPage() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Saved Views & Alerts Bar */}
+      <div 
+        className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 dark:border-[#2a2550] bg-white/60 dark:bg-[#161233]/60 backdrop-blur-md"
+        style={{
+          boxShadow: 'var(--shadow)',
+          marginTop: -8,
+          marginBottom: 8,
+        }}
+      >
+        {/* Saved Views Controls */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+            <GlassIcon icon="Bookmark" variant="violet" size={24} iconSize={12} ghost glow={false} />
+            <span>Saved Views:</span>
+          </div>
+
+          {savedViews.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {savedViews.map((view) => (
+                <div key={view.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => loadSavedView(view)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      activeViewId === view.id
+                        ? 'bg-violet-600 text-white shadow-sm'
+                        : 'bg-gray-100 hover:bg-gray-200 dark:bg-[#201c3b] dark:hover:bg-[#2a2550] text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    {view.name}
+                  </button>
+                  {activeViewId === view.id && (
+                    <button
+                      onClick={deleteActiveView}
+                      className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                      title="Delete saved view"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">No saved views yet</span>
+          )}
+
+          <div className="h-4 w-px bg-gray-200 dark:bg-[#201c3b]" />
+
+          {/* Save Current View Form */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="New view name..."
+              value={newViewName}
+              onChange={(e) => setNewViewName(e.target.value)}
+              className="px-3 py-1 text-xs rounded-lg border border-gray-200 dark:border-[#2a2550] bg-white dark:bg-[#1a1730] text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-violet-500"
+              style={{ width: '130px' }}
+            />
+            <button
+              onClick={saveCurrentView}
+              className="px-3 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-[#201c3b] dark:hover:bg-[#2a2550] text-violet-600 dark:text-[#ede9ff] text-xs font-bold transition-colors"
+            >
+              Save View
+            </button>
+          </div>
+        </div>
+
+        {/* Real-time Alerts Config */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="h-4 w-px bg-gray-200 dark:bg-[#201c3b] hidden lg:block" />
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+              <GlassIcon icon="Zap" variant="amber" size={24} iconSize={12} ghost glow={false} />
+              <span>Score Alert:</span>
+            </div>
+            <select
+              value={alertMatchThreshold}
+              onChange={(e) => {
+                const val = parseInt(e.target.value)
+                setAlertMatchThreshold(val)
+                localStorage.setItem('hireon_alert_match_threshold', String(val))
+                toast.success(`Match score alert set to ${val}%`)
+              }}
+              className="px-2 py-1 text-xs rounded-lg border border-gray-200 dark:border-[#2a2550] bg-white dark:bg-[#1a1730] text-gray-800 dark:text-white focus:outline-none"
+            >
+              <option value="70">≥ 70%</option>
+              <option value="75">≥ 75%</option>
+              <option value="80">≥ 80%</option>
+              <option value="85">≥ 85%</option>
+              <option value="90">≥ 90%</option>
+            </select>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={alertOnOffer}
+              onChange={(e) => {
+                const val = e.target.checked
+                setAlertOnOffer(val)
+                localStorage.setItem('hireon_alert_on_offer', String(val))
+                toast.success(val ? 'Offer stage alert enabled' : 'Offer stage alert disabled')
+              }}
+              className="rounded border-gray-300 dark:border-[#2a2550] text-violet-600 focus:ring-violet-500"
+            />
+            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Alert on "Offer" Stage</span>
+          </label>
         </div>
       </div>
 

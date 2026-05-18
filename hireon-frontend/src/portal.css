@@ -256,7 +256,7 @@
 /* ══════════════════════════════
    2. INTERVIEW SCHEDULE
 ══════════════════════════════ */
-.int-card{background:var(--kpi);border:1px solid var(--table-border);border-radius:14px;padding:20px;display:flex;align-items:flex-start;gap:18px;transition:all .3s;position:relative;overflow:hidden}
+.int-card{background:var(--kpi);border:1px solid var(--table-border);border-radius:14px;padding:20px;display:flex;align-items:flex-start;gap:18px;transition:all .3s;position:relative;overflow:visible}
 .int-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px 0 0 4px}
 .ic-live::before{background:linear-gradient(180deg,var(--teal),#22d3ee)}.ic-up::before{background:linear-gradient(180deg,var(--brand),var(--brand2))}.ic-done::before{background:rgba(107,114,128,.3)}
 .int-card:hover{box-shadow:var(--shadow-h);transform:translateY(-2px)}

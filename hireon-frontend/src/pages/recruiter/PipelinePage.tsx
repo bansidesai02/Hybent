@@ -11,7 +11,8 @@ import { Modal } from '@/components/ui/Modal'
 import { Avatar } from '@/components/ui/Avatar'
 import { ScoreRing } from '@/components/ui/ScoreRing'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Star, Mail } from 'lucide-react'
+import { Input } from '@/components/ui/Input'
+import { Star, Mail, Search, Bookmark, X } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { formatDate, timeAgo } from '@/utils/formatters'
 
@@ -179,6 +180,47 @@ function BoardSkeleton() {
 
 export default function PipelinePage() {
   const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null)
+  const [search, setSearch] = useState('')
+
+  // Saved Views State
+  const [savedViews, setSavedViews] = useState<any[]>(() => {
+    return JSON.parse(localStorage.getItem('hireon_pipeline_saved_views') || '[]')
+  })
+  const [newViewName, setNewViewName] = useState('')
+  const [activeViewId, setActiveViewId] = useState<string | null>(null)
+
+  const saveCurrentView = () => {
+    if (!newViewName.trim()) {
+      toast.error('Please enter a name for the view')
+      return
+    }
+    const newView = {
+      id: crypto.randomUUID(),
+      name: newViewName.trim(),
+      search,
+    }
+    const updated = [...savedViews, newView]
+    setSavedViews(updated)
+    localStorage.setItem('hireon_pipeline_saved_views', JSON.stringify(updated))
+    setActiveViewId(newView.id)
+    setNewViewName('')
+    toast.success(`Pipeline view "${newView.name}" saved successfully!`)
+  }
+
+  const loadSavedView = (view: any) => {
+    setSearch(view.search || '')
+    setActiveViewId(view.id)
+    toast.success(`Loaded pipeline view "${view.name}"`)
+  }
+
+  const deleteActiveView = () => {
+    if (!activeViewId) return
+    const updated = savedViews.filter(v => v.id !== activeViewId)
+    setSavedViews(updated)
+    localStorage.setItem('hireon_pipeline_saved_views', JSON.stringify(updated))
+    setActiveViewId(null)
+    toast.success('Saved view deleted')
+  }
 
   const { data: pipelineStages, isLoading } = useQuery({
     queryKey: ['candidates_pipeline'],
@@ -202,15 +244,26 @@ export default function PipelinePage() {
     }
   }, [])
 
+  const filterCandidates = useCallback((list: any[]) => {
+    if (!search.trim()) return list
+    const q = search.toLowerCase()
+    return list.filter((c: any) => 
+      c.candidate_name.toLowerCase().includes(q) ||
+      (c.candidate_email && c.candidate_email.toLowerCase().includes(q)) ||
+      (c.current_title && c.current_title.toLowerCase().includes(q)) ||
+      (c.skills && c.skills.some((s: string) => s.toLowerCase().includes(q)))
+    )
+  }, [search])
+
   const pipelineData = pipelineStages ? {
     stages: {
-      applied: (pipelineStages.applied || []).map(mapCandidateToCard),
-      screening: (pipelineStages.screening || []).map(mapCandidateToCard),
-      interview: (pipelineStages.interview || []).map(mapCandidateToCard),
-      interviewed: (pipelineStages.interviewed || []).map(mapCandidateToCard),
-      offer: (pipelineStages.offer || []).map(mapCandidateToCard),
-      rejected: (pipelineStages.rejected || []).map(mapCandidateToCard),
-      inactive: (pipelineStages.inactive || []).map(mapCandidateToCard),
+      applied: filterCandidates((pipelineStages.applied || []).map(mapCandidateToCard)),
+      screening: filterCandidates((pipelineStages.screening || []).map(mapCandidateToCard)),
+      interview: filterCandidates((pipelineStages.interview || []).map(mapCandidateToCard)),
+      interviewed: filterCandidates((pipelineStages.interviewed || []).map(mapCandidateToCard)),
+      offer: filterCandidates((pipelineStages.offer || []).map(mapCandidateToCard)),
+      rejected: filterCandidates((pipelineStages.rejected || []).map(mapCandidateToCard)),
+      inactive: filterCandidates((pipelineStages.inactive || []).map(mapCandidateToCard)),
     }
   } : null
 
@@ -220,6 +273,77 @@ export default function PipelinePage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-[var(--text)]" style={{ fontFamily: "'Fraunces', serif" }}>Pipeline</h1>
         <p className="text-sm text-gray-500 dark:text-[var(--text-mid)] mt-1">Drag candidates across stages — Hireon AI updates probabilities automatically.</p>
+      </div>
+
+      {/* Controls: Search & Saved Views */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 dark:border-[#2a2550] bg-white/60 dark:bg-[#161233]/60 backdrop-blur-md shadow-sm">
+        {/* Search */}
+        <div className="w-full sm:w-[320px]">
+          <Input
+            placeholder="Search candidate name, email, role, skill..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            leftIcon={<Search size={15} />}
+          />
+        </div>
+
+        {/* Saved Views */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+            <GlassIcon icon="Bookmark" variant="violet" size={24} iconSize={12} ghost glow={false} />
+            <span>Pipeline Views:</span>
+          </div>
+
+          {savedViews.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {savedViews.map((view) => (
+                <div key={view.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => loadSavedView(view)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      activeViewId === view.id
+                        ? 'bg-violet-600 text-white shadow-sm'
+                        : 'bg-gray-100 hover:bg-gray-200 dark:bg-[#201c3b] dark:hover:bg-[#2a2550] text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    {view.name}
+                  </button>
+                  {activeViewId === view.id && (
+                    <button
+                      onClick={deleteActiveView}
+                      className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                      title="Delete saved view"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">No saved views yet</span>
+          )}
+
+          <div className="h-4 w-px bg-gray-200 dark:bg-[#201c3b]" />
+
+          {/* Save view input */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Save as view..."
+              value={newViewName}
+              onChange={(e) => setNewViewName(e.target.value)}
+              className="px-3 py-1 text-xs rounded-lg border border-gray-200 dark:border-[#2a2550] bg-white dark:bg-[#1a1730] text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-violet-500"
+              style={{ width: '130px' }}
+            />
+            <button
+              onClick={saveCurrentView}
+              className="px-3 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-[#201c3b] dark:hover:bg-[#2a2550] text-violet-600 dark:text-[#ede9ff] text-xs font-bold transition-colors"
+            >
+              Save View
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 pt-4 border-t border-gray-200 dark:border-[var(--border)]">
