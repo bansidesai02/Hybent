@@ -70,7 +70,6 @@ export function MessageInbox() {
           >
             <div className="p-4 border-b border-gray-50 dark:border-[var(--card-border)] flex items-center justify-between bg-gray-50 dark:bg-[var(--bg2)]">
               <h3 className="text-sm font-black text-gray-900 dark:text-[var(--text)]">Active Chats</h3>
-              <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--violet)]">Real-time</span>
             </div>
 
             <div className="max-h-96 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-800">
