@@ -385,7 +385,7 @@ export default function JobsListPage() {
                 <div className="hidden lg:flex lg:justify-center" onClick={(e) => e.stopPropagation()}>
                   {job.re_engage_count > 0 ? (
                       <button
-                        onClick={() => navigate(`${basePath}/talent-db?search=${encodeURIComponent(job.title)}`)}
+                        onClick={() => navigate(`${basePath}/talent-pool?search=${encodeURIComponent(job.title)}`)}
                         style={{
                           padding: '3px 10px',
                           borderRadius: 20,
@@ -516,7 +516,7 @@ export default function JobsListPage() {
                     <span className="text-[10px] font-bold text-[var(--text-light)] uppercase tracking-wider">Re-engage</span>
                     {job.re_engage_count > 0 ? (
                       <button
-                        onClick={() => navigate(`${basePath}/talent-db?search=${encodeURIComponent(job.title)}`)}
+                        onClick={() => navigate(`${basePath}/talent-pool?search=${encodeURIComponent(job.title)}`)}
                         style={{
                           padding: '2px 8px',
                           borderRadius: 20,
