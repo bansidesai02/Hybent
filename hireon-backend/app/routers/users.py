@@ -48,9 +48,14 @@ from app.services.email_service import send_email
 
 @router.post("/invite", response_model=UserOut, status_code=201)
 async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
-    existing = await db.execute(select(User).where(User.email == data.email))
+    existing = await db.execute(
+        select(User).where(
+            User.email == data.email,
+            User.organization_id == current_user.organization_id,
+        )
+    )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="A user with this email is already registered in your organization.")
     
     # Ensure role is saved as a clean string value
     role_str = data.role.value if hasattr(data.role, 'value') else str(data.role)
@@ -65,26 +70,36 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
     )
     db.add(user)
     await db.flush()
-    
-    # Send invite email
+
+    # ── Commit user FIRST so they are saved even if email fails ──────────────
+    await db.commit()
+    await db.refresh(user)
+
+    # Send invite email (non-fatal — user is already saved above)
     from app.services.email_service import send_team_invite
     import os
+    import logging
+    logger = logging.getLogger(__name__)
+
     frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    
+
     org_res = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
     org = org_res.scalar_one_or_none()
     company_name = org.name if org else "HireOn"
-    
-    send_team_invite(
-        to_email=user.email,
-        to_name=user.full_name,
-        invited_by=current_user.full_name,
-        company_name=company_name,
-        role=role_str,
-        password=data.password,
-        login_url=f"{frontend_base}/login",
-        org_logo_url=org.logo_url if org else None
-    )
+
+    try:
+        send_team_invite(
+            to_email=user.email,
+            to_name=user.full_name,
+            invited_by=current_user.full_name,
+            company_name=company_name,
+            role=role_str,
+            password=data.password,
+            login_url=f"{frontend_base}/login",
+            org_logo_url=org.logo_url if org else None,
+        )
+    except Exception as e:
+        logger.warning(f"Invite email failed for {user.email} (user still created): {e}")
     
     background_tasks.add_task(es_service.index_user, user)
     return APIResponse.success(message="User invited successfully.", data=UserOut.model_validate(user))
