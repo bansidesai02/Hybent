@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useCopilotStore } from '@/store/useCopilotStore'
+import { useMessageStore } from '@/store/messageStore'
 import { copilotApi } from '@/api/copilot'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
@@ -96,6 +97,8 @@ export function CopilotWidget() {
     messages, addMessage, setMessages, startNewConversation,
     conversationId, setConversationId, pageContext,
   } = useCopilotStore()
+
+  const { activeChatRecipient } = useMessageStore()
 
   const queryClient = useQueryClient()
 
@@ -295,6 +298,10 @@ export function CopilotWidget() {
   const handleNewChat = () => {
     startNewConversation()
     setHistoryOpen(false)
+  }
+
+  if (activeChatRecipient) {
+    return null
   }
 
   const grouped = groupConversationsByDate(conversations)

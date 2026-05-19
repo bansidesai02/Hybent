@@ -158,37 +158,41 @@ export function useWebSocket() {
             // Dispatch custom event for ChatPanel (if it's already open for this user)
             window.dispatchEvent(new CustomEvent('ws:new_message', { detail: msg.data }))
 
-            // Show interactive toast
-            toast.success(
-              (t) => (
-                <div
-                  className="flex flex-col cursor-pointer"
-                  onClick={() => {
-                    toast.dismiss(t.id)
-                    useMessageStore.getState().openChat({
-                      id: msg.data.sender_id,
-                      full_name: msg.data.sender_name,
-                      avatar_url: msg.data.sender_avatar
-                    })
-                  }}
-                >
-                  <span className="font-bold">New message from {msg.data.sender_name}</span>
-                  <span className="text-xs truncate max-w-[200px]">{msg.data.content}</span>
-                </div>
-              ),
-              {
-                id: `msg-notif-${msg.data.id || Date.now()}`,
-                icon: '💬',
-                duration: 5000,
-              }
-            )
+            // Only show toast and notification if the message is from someone else
+            const { user: currentUser } = useAuthStore.getState()
+            if (msg.data.sender_id !== currentUser?.id) {
+              // Show interactive toast
+              toast.success(
+                (t) => (
+                  <div
+                    className="flex flex-col cursor-pointer"
+                    onClick={() => {
+                      toast.dismiss(t.id)
+                      useMessageStore.getState().openChat({
+                        id: msg.data.sender_id,
+                        full_name: msg.data.sender_name,
+                        avatar_url: msg.data.sender_avatar
+                      })
+                    }}
+                  >
+                    <span className="font-bold">New message from {msg.data.sender_name}</span>
+                    <span className="text-xs truncate max-w-[200px]">{msg.data.content}</span>
+                  </div>
+                ),
+                {
+                  id: `msg-notif-${msg.data.id || Date.now()}`,
+                  icon: '💬',
+                  duration: 5000,
+                }
+              )
 
-            // Trigger Native browser popup for chat specifically
-            if (Notification.permission === 'granted' && document.hidden) {
-              new Notification(`Message from ${msg.data.sender_name}`, {
-                body: msg.data.content,
-                icon: msg.data.sender_avatar || '/favicon.svg',
-              })
+              // Trigger Native browser popup for chat specifically
+              if (Notification.permission === 'granted' && document.hidden) {
+                new Notification(`Message from ${msg.data.sender_name}`, {
+                  body: msg.data.content,
+                  icon: msg.data.sender_avatar || '/favicon.svg',
+                })
+              }
             }
           }
 
