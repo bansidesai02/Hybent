@@ -1,5 +1,5 @@
 import api from './axios'
-import type { AnalyticsOverview, FunnelData, ScoreDistributionBucket, InterviewerPerformance } from '@/types'
+import type { AnalyticsOverview, FunnelData, ScoreDistributionBucket, InterviewerPerformance, FairnessMetrics } from '@/types'
 
 export const analyticsApi = {
   overview: () => api.get<AnalyticsOverview>('/v1/analytics/overview'),
@@ -12,4 +12,6 @@ export const analyticsApi = {
 
   interviewerPerformance: () =>
     api.get<InterviewerPerformance[]>('/v1/analytics/interviewer-performance'),
+
+  fairness: () => api.get<FairnessMetrics>('/v1/analytics/fairness'),
 }

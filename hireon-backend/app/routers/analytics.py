@@ -35,3 +35,10 @@ async def score_distribution(current_user: RecruiterUser, db: DB):
 async def interviewer_performance(current_user: RecruiterUser, db: DB):
     # Performance is usually an HR-wide report, keeping it org-wide unless requested.
     return APIResponse.success(message="Interviewer performance retrieved successfully.", data=await analytics_service.get_interviewer_performance(current_user.organization_id, db))
+
+
+@router.get("/fairness")
+async def fairness(current_user: RecruiterUser, db: DB):
+    """Retrieve fairness/bias metrics across the organization."""
+    return APIResponse.success(message="Fairness metrics retrieved successfully.", data=await analytics_service.get_fairness_metrics(current_user.organization_id, db))
+

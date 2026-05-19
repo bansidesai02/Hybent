@@ -45,3 +45,27 @@ class InterviewerPerformance(BaseModel):
     interviews_conducted: int
     avg_rating_given: float | None = None
     scorecards_submitted: int
+
+
+class StagePassRate(BaseModel):
+    stage: str
+    pass_rate: float
+
+
+class SourcePassRate(BaseModel):
+    source: str
+    pass_rate: float
+
+
+class InterviewerCalibration(BaseModel):
+    interviewer_name: str
+    avg_rating_given: float
+    global_avg_rating: float
+    variance: float
+
+
+class FairnessMetrics(BaseModel):
+    pass_rates_by_stage: list[StagePassRate]
+    pass_rates_by_source: list[SourcePassRate]
+    interviewer_calibration_variance: list[InterviewerCalibration]
+

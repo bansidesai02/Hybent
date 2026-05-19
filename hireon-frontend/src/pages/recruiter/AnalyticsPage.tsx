@@ -45,6 +45,11 @@ export default function AnalyticsPage() {
     queryFn: () => talentPoolApi.getStats().then((r: any) => r.data),
   })
 
+  const { data: fairnessData, isLoading: fairnessLoading } = useQuery({
+    queryKey: ['analytics', 'fairness'],
+    queryFn: () => analyticsApi.fairness().then((r: any) => r.data),
+  })
+
   const { data: candidatesData } = useQuery({
     queryKey: ['candidates', 'top-skills'],
     queryFn: () => candidatesApi.list({ limit: 100 }).then((r: any) => r.data),
@@ -285,6 +290,100 @@ export default function AnalyticsPage() {
           </div>
         </GlassCard>
       </div>
+
+      {/* Fairness & Bias Analytics Row */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Pass Rates By Stage */}
+        <GlassCard>
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-[15px] font-bold text-gray-800 dark:text-[var(--text)] uppercase tracking-wider">Pass Rates By Stage</h3>
+            <span className="text-[10px] text-emerald-600 font-black bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">Fairness</span>
+          </div>
+          <div className="space-y-6">
+            {fairnessLoading ? (
+              Array.from({ length: 4 }).map((_: any, i: any) => <Skeleton key={i} className="h-2 w-full rounded-full" />)
+            ) : fairnessData?.pass_rates_by_stage?.map((s: any, i: any) => (
+              <div key={s.stage} className="space-y-2">
+                <div className="flex justify-between text-[13px] font-bold text-gray-600 dark:text-[var(--text-mid)]">
+                  <span>{s.stage}</span>
+                  <span>{Math.round(s.pass_rate)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 dark:bg-[#100e1e] rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${s.pass_rate}%` }}
+                    transition={{ duration: 1, delay: i * 0.1 }}
+                    className="h-full rounded-full bg-emerald-500"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+
+        {/* Pass Rates By Source */}
+        <GlassCard>
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-[15px] font-bold text-gray-800 dark:text-[var(--text)] uppercase tracking-wider">Hires By Source</h3>
+            <span className="text-[10px] text-emerald-600 font-black bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">Fairness</span>
+          </div>
+          <div className="space-y-6">
+            {fairnessLoading ? (
+              Array.from({ length: 4 }).map((_: any, i: any) => <Skeleton key={i} className="h-2 w-full rounded-full" />)
+            ) : fairnessData?.pass_rates_by_source?.length === 0 ? (
+              <p className="text-sm text-gray-400 font-medium">No source data available.</p>
+            ) : fairnessData?.pass_rates_by_source?.map((s: any, i: any) => (
+              <div key={s.source} className="space-y-2">
+                <div className="flex justify-between text-[13px] font-bold text-gray-600 dark:text-[var(--text-mid)]">
+                  <span className="capitalize">{s.source.replace('_', ' ')}</span>
+                  <span>{Math.round(s.pass_rate)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 dark:bg-[#100e1e] rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${s.pass_rate}%` }}
+                    transition={{ duration: 1, delay: i * 0.1 }}
+                    className="h-full rounded-full bg-pink-500"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+
+        {/* Interviewer Calibration */}
+        <GlassCard>
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-[15px] font-bold text-gray-800 dark:text-[var(--text)] uppercase tracking-wider">Interviewer Bias</h3>
+            <span className="text-[10px] text-violet-600 font-black bg-violet-50 dark:bg-violet-900/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">Calibration</span>
+          </div>
+          <div className="space-y-4">
+            {fairnessLoading ? (
+              Array.from({ length: 3 }).map((_: any, i: any) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)
+            ) : fairnessData?.interviewer_calibration_variance?.length === 0 ? (
+              <p className="text-sm text-gray-400 font-medium">Not enough interview data for calibration.</p>
+            ) : fairnessData?.interviewer_calibration_variance?.map((c: any) => (
+              <div key={c.interviewer_name} className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 dark:bg-[var(--color-bg-card)] border border-gray-100 dark:border-[var(--card-border)]">
+                <div>
+                  <p className="text-[13px] font-bold text-gray-800 dark:text-[var(--text)]">{c.interviewer_name}</p>
+                  <p className="text-[11px] text-gray-500 font-medium">Avg Rating: {c.avg_rating_given}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Variance</p>
+                  <span className={`text-[13px] font-black px-2 py-1 rounded-md ${
+                    c.variance > 0.5 ? 'bg-rose-100 text-rose-600' :
+                    c.variance < -0.5 ? 'bg-amber-100 text-amber-600' :
+                    'bg-emerald-100 text-emerald-600'
+                  }`}>
+                    {c.variance > 0 ? '+' : ''}{c.variance}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      </div>
+
     </div>
   )
 }

@@ -15,7 +15,8 @@ from app.models.offer import Offer
 from app.models.scorecard import Scorecard
 from app.schemas.analytics import (
     AnalyticsOverview, FunnelStage, FunnelData,
-    ScoreDistributionBucket, TimeToHireData, InterviewerPerformance
+    ScoreDistributionBucket, TimeToHireData, InterviewerPerformance,
+    FairnessMetrics, StagePassRate, SourcePassRate, InterviewerCalibration
 )
 from app.utils.permissions import ApplicationStage, OfferStatus
 
@@ -211,3 +212,101 @@ async def get_interviewer_performance(org_id: uuid.UUID, db: AsyncSession) -> li
         )
         for row in rows
     ]
+
+
+async def get_fairness_metrics(org_id: uuid.UUID, db: AsyncSession) -> FairnessMetrics:
+    """Calculates fairness/bias analytics based on real tenant data."""
+    from app.models.user import User
+    from app.models.interview import InterviewPanelist
+
+    # 1. Pass rates by Stage
+    # A candidate "passes" a stage if their application stage is in a later bucket.
+    # To keep it simple, we use the broad funnel mapping and check how many people
+    # reached each stage versus the previous stage.
+    
+    stmt_stages = select(Application.stage, func.count(Application.id)).where(Application.organization_id == org_id).group_by(Application.stage)
+    rows_stages = (await db.execute(stmt_stages)).all()
+    counts = {row[0]: row[1] for row in rows_stages}
+    
+    # Mapping exact stages to buckets
+    def get_bucket(stage_val):
+        if not stage_val:
+            return None
+        s = stage_val.lower()
+        if s == 'applied': return 'Applied'
+        elif s in ['screening', 'pre_screening']: return 'Shortlisted'
+        elif s in ['technical_round', 'practical_round', 'techno_functional_round']: return 'Screened'
+        elif s in ['management_round', 'hr_round', 'interview']: return 'Interviewed'
+        elif s in ['interviewed', 'offer', 'offered', 'hired']: return 'Final Round'
+        return None
+
+    bucket_counts = {'Applied': 0, 'Shortlisted': 0, 'Screened': 0, 'Interviewed': 0, 'Final Round': 0}
+    for stage, count in counts.items():
+        bucket = get_bucket(stage)
+        if bucket:
+            bucket_counts[bucket] += count
+
+    # "Passed" logic: people currently in Shortlisted MUST have passed Applied.
+    # Therefore, total who reached Shortlisted = Shortlisted + Screened + Interviewed + Final Round
+    reach_final = bucket_counts['Final Round']
+    reach_inter = bucket_counts['Interviewed'] + reach_final
+    reach_screen = bucket_counts['Screened'] + reach_inter
+    reach_short = bucket_counts['Shortlisted'] + reach_screen
+    reach_applied = bucket_counts['Applied'] + reach_short
+
+    pass_rates_stage = [
+        StagePassRate(stage="Applied -> Shortlisted", pass_rate=round(reach_short / reach_applied * 100, 1) if reach_applied > 0 else 0.0),
+        StagePassRate(stage="Shortlisted -> Screened", pass_rate=round(reach_screen / reach_short * 100, 1) if reach_short > 0 else 0.0),
+        StagePassRate(stage="Screened -> Interviewed", pass_rate=round(reach_inter / reach_screen * 100, 1) if reach_screen > 0 else 0.0),
+        StagePassRate(stage="Interviewed -> Final", pass_rate=round(reach_final / reach_inter * 100, 1) if reach_inter > 0 else 0.0),
+    ]
+
+    # 2. Pass rates by Source
+    # We join Candidate and Application, grouping by Candidate.source
+    stmt_sources = select(
+        Candidate.source,
+        func.count(Application.id).label("total"),
+        func.count(Application.id).filter(Application.stage.in_(['interviewed', 'offer', 'offered', 'hired'])).label("finalists")
+    ).join(Candidate, Candidate.id == Application.candidate_id)\
+     .where(Application.organization_id == org_id)\
+     .group_by(Candidate.source)
+    
+    rows_sources = (await db.execute(stmt_sources)).all()
+    pass_rates_source = []
+    for row in rows_sources:
+        source_name = row.source or "Unknown"
+        rate = round((row.finalists / row.total) * 100, 1) if row.total > 0 else 0.0
+        pass_rates_source.append(SourcePassRate(source=source_name, pass_rate=rate))
+
+    # 3. Interviewer Calibration Variance
+    # We get avg rating for each interviewer, and also the global average rating.
+    stmt_global_avg = select(func.avg(Scorecard.overall_rating)).where(Scorecard.organization_id == org_id)
+    global_avg = (await db.execute(stmt_global_avg)).scalar()
+    global_avg = float(global_avg) if global_avg else 0.0
+
+    stmt_perf = select(
+        User.full_name,
+        func.avg(Scorecard.overall_rating).label("avg_rating")
+    ).join(Scorecard, Scorecard.submitted_by_id == User.id)\
+     .where(Scorecard.organization_id == org_id)\
+     .group_by(User.id, User.full_name)\
+     .having(func.count(Scorecard.id) > 1) # Only consider interviewers with >1 scorecard for variance
+     
+    rows_perf = (await db.execute(stmt_perf)).all()
+    calibration = []
+    for row in rows_perf:
+        avg_rating = float(row.avg_rating) if row.avg_rating else 0.0
+        variance = round(avg_rating - global_avg, 2)
+        calibration.append(InterviewerCalibration(
+            interviewer_name=row.full_name,
+            avg_rating_given=round(avg_rating, 2),
+            global_avg_rating=round(global_avg, 2),
+            variance=variance
+        ))
+
+    return FairnessMetrics(
+        pass_rates_by_stage=pass_rates_stage,
+        pass_rates_by_source=pass_rates_source,
+        interviewer_calibration_variance=calibration
+    )
+

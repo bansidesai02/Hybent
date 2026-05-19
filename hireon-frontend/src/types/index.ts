@@ -339,6 +339,29 @@ export interface InterviewerPerformance {
   scorecards_submitted: number
 }
 
+export interface StagePassRate {
+  stage: string
+  pass_rate: number
+}
+
+export interface SourcePassRate {
+  source: string
+  pass_rate: number
+}
+
+export interface InterviewerCalibration {
+  interviewer_name: string
+  avg_rating_given: number
+  global_avg_rating: number
+  variance: number
+}
+
+export interface FairnessMetrics {
+  pass_rates_by_stage: StagePassRate[]
+  pass_rates_by_source: SourcePassRate[]
+  interviewer_calibration_variance: InterviewerCalibration[]
+}
+
 // ── API Response Wrappers ──────────────────────────────────────────────────────
 
 export interface PaginatedResponse<T> {
