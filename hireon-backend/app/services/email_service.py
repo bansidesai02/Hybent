@@ -169,30 +169,30 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                             <td style="vertical-align: middle;">
                                 <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                                     <tr>
-                                        <td style="padding-right: 4px;">
-                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="20" height="20" style="background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 4px;">
+                                        <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
+                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
                                                 <tr>
-                                                    <td align="center" valign="middle">
-                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="8" height="8">
+                                                    <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
+                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
                                                             <tr>
-                                                                <td width="2" height="8" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
-                                                                <td width="4" height="2"></td>
-                                                                <td width="2" height="8" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td width="4" height="2" style="background-color: #ffffff; border-radius: 0.5px;"></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td width="4" height="4"></td>
+                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
+                                                                <td width="5" height="12" valign="middle" align="center" style="width: 5px; min-width: 5px; max-width: 5px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
+                                                                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="5" height="3" style="width: 5px; min-width: 5px; max-width: 5px; height: 3px; min-height: 3px; max-height: 3px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
+                                                                        <tr>
+                                                                            <td width="5" height="3" valign="top" align="center" style="background-color: #ffffff; border-radius: 0.5px; width: 5px; min-width: 5px; max-width: 5px; height: 3px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
+                                                                        </tr>
+                                                                    </table>
+                                                                </td>
+                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
                                                             </tr>
                                                         </table>
                                                     </td>
                                                 </tr>
                                             </table>
                                         </td>
-                                        <td>
-                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 14px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b;">
-                                                <span style="color: #6c47ff;">Hi</span><span style="color: #9c57e6;">re</span><span style="color: #ff6bc6;">on</span>
+                                        <td style="vertical-align: middle; padding-left: 2px;">
+                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
+                                                <span style="color: #6c47ff;">H</span><span style="color: #894ef3;">i</span><span style="color: #a655e8;">r</span><span style="color: #c45cdc;">e</span><span style="color: #e163d1;">o</span><span style="color: #ff6bc6;">n</span>
                                             </span>
                                         </td>
                                     </tr>
@@ -304,35 +304,46 @@ def _get_calendar_invite_template(
             <div class="footer">
                 <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hirreon.com</a></p>
                 <p style="margin: 0 0 12px 0;">&copy; {date_year} Hireon AI Platform. All rights reserved.</p>
-                <div style="margin-top: 8px; opacity: 0.6;">
-
-                    <span style="font-size: 9px; text-transform: uppercase;">Powered by</span>
-                    <div style="display: inline-block; vertical-align: middle; margin-left: 4px;">
-                        <div class="logo-square">
-                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="14" height="14">
-                                <tr>
-                                    <td align="center" valign="middle">
-                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="7" height="7">
-                                            <tr>
-                                                <td width="2" height="7" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
-                                                <td width="3" height="3"></td>
-                                                <td width="2" height="7" rowspan="3" style="background-color: #ffffff; border-radius: 0.5px;"></td>
-                                            </tr>
-                                            <tr>
-                                                <td width="3" height="1" style="background-color: #ffffff; border-radius: 0.5px;"></td>
-                                            </tr>
-                                            <tr>
-                                                <td width="3" height="3"></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                        <span class="logo-text" style="font-size: 12px;">
-                            <span style="color:#6c47ff;">H</span><span style="color:#894ef3;">i</span><span style="color:#a655e8;">r</span><span style="color:#c45cdc;">e</span><span style="color:#e163d1;">o</span><span style="color:#ff6bc6;">n</span>
-                        </span>
-                    </div>
+                <div style="margin-top: 8px;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                        <tr>
+                            <td style="font-size: 10px; color: #70757a; text-transform: uppercase; letter-spacing: 0.5px; padding-right: 6px; vertical-align: middle;">
+                                Powered by
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
+                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
+                                                <tr>
+                                                    <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
+                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
+                                                            <tr>
+                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
+                                                                <td width="5" height="12" valign="middle" align="center" style="width: 5px; min-width: 5px; max-width: 5px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
+                                                                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="5" height="3" style="width: 5px; min-width: 5px; max-width: 5px; height: 3px; min-height: 3px; max-height: 3px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
+                                                                        <tr>
+                                                                            <td width="5" height="3" valign="top" align="center" style="background-color: #ffffff; border-radius: 0.5px; width: 5px; min-width: 5px; max-width: 5px; height: 3px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
+                                                                        </tr>
+                                                                    </table>
+                                                                </td>
+                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 2px;">
+                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
+                                                <span style="color: #6c47ff;">H</span><span style="color: #894ef3;">i</span><span style="color: #a655e8;">r</span><span style="color: #c45cdc;">e</span><span style="color: #e163d1;">o</span><span style="color: #ff6bc6;">n</span>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </div>
         </div>
