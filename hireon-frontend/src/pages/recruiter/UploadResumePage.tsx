@@ -535,7 +535,7 @@ function UploadResumePageInner() {
               <Select
                 options={[
                   { value: '', label: 'Create custom requirement...' },
-                  ...(jobsData?.map((j: Job) => ({ value: j.id, label: j.title })) || [])
+                  ...(Array.isArray(jobsData) ? jobsData.map((j: Job) => ({ value: j.id, label: j.title })) : [])
                 ]}
                 onChange={(e) => handleJobSelect(e.target.value)}
                 value={jobReq.job_id || ''}
@@ -897,9 +897,9 @@ function UploadResumePageInner() {
                         {(Array.isArray(result.skills) ? result.skills : []).slice(0, 7).map((skill: any) => (
                           <span key={skill} style={{
                             padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                            background: (scoring?.matched_skills || []).map((s: any) => s.toLowerCase()).includes(skill.toLowerCase())
+                            background: (Array.isArray(scoring?.matched_skills) ? scoring.matched_skills : []).map((s: any) => (s || '').toLowerCase()).includes((skill || '').toLowerCase())
                               ? 'rgba(108,71,255,0.12)' : 'rgba(0,212,200,0.10)',
-                            color: (scoring?.matched_skills || []).map((s: any) => s.toLowerCase()).includes(skill.toLowerCase())
+                            color: (Array.isArray(scoring?.matched_skills) ? scoring.matched_skills : []).map((s: any) => (s || '').toLowerCase()).includes((skill || '').toLowerCase())
                               ? '#6c47ff' : '#00b4a8',
                           }}>
                             {skill}
