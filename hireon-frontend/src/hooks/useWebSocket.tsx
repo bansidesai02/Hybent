@@ -188,9 +188,17 @@ export function useWebSocket() {
 
               // Trigger Native browser popup for chat specifically
               if (Notification.permission === 'granted' && document.hidden) {
+                let avatarUrl = msg.data.sender_avatar;
+                if (!avatarUrl) {
+                  const encodedName = encodeURIComponent(msg.data.sender_name || 'User');
+                  avatarUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=6c47ff&color=fff&size=128`;
+                } else if (avatarUrl.startsWith('/')) {
+                  avatarUrl = window.location.origin + avatarUrl;
+                }
+
                 new Notification(`Message from ${msg.data.sender_name}`, {
                   body: msg.data.content,
-                  icon: msg.data.sender_avatar || '/favicon.svg',
+                  icon: avatarUrl,
                 })
               }
             }

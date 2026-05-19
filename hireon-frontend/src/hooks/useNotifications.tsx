@@ -62,9 +62,19 @@ export function useNotifications() {
       const isNoisy = (body ?? '').toLowerCase().includes('was view') || (title ?? '').toLowerCase().includes('was view');
 
       if (!isNoisy && Notification.permission === 'granted') {
+        let avatarUrl = data.sender_avatar;
+        if (!avatarUrl) {
+          const nameMatch = (title ?? '').match(/from\s+([^💬]+)/i) || (body ?? '').match(/from\s+([^💬]+)/i);
+          const name = nameMatch ? nameMatch[1].trim() : 'User';
+          const encodedName = encodeURIComponent(name);
+          avatarUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=6c47ff&color=fff&size=128`;
+        } else if (avatarUrl.startsWith('/')) {
+          avatarUrl = window.location.origin + avatarUrl;
+        }
+
         new Notification(title ?? 'Hireon Notification', {
           body: body ?? '',
-          icon: '/favicon.svg',
+          icon: avatarUrl,
         })
       }
 

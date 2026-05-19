@@ -57,6 +57,10 @@ async def send_push(
     try:
         from firebase_admin import messaging
 
+        icon_url = (data or {}).get("sender_avatar") or "/favicon.svg"
+        if not icon_url:
+            icon_url = "/favicon.svg"
+
         message = messaging.Message(
             notification=messaging.Notification(title=title, body=body),
             data={str(k): str(v) for k, v in (data or {}).items()},
@@ -65,7 +69,7 @@ async def send_push(
                 notification=messaging.WebpushNotification(
                     title=title,
                     body=body,
-                    icon="/favicon.svg",
+                    icon=icon_url,
                     badge="/favicon.svg",
                 ),
                 fcm_options=messaging.WebpushFCMOptions(link="/"),

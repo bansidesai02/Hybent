@@ -22,10 +22,21 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[SW] Background message received:', payload);
 
   const { title, body, icon } = payload.notification ?? {};
+  const data = payload.data ?? {};
+
+  let avatarUrl = data.sender_avatar || icon;
+  if (!avatarUrl || avatarUrl === '/favicon.svg') {
+    const nameMatch = title?.match(/from\s+([^💬]+)/i);
+    const name = nameMatch ? nameMatch[1].trim() : 'User';
+    const encodedName = encodeURIComponent(name);
+    avatarUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=6c47ff&color=fff&size=128`;
+  } else if (avatarUrl.startsWith('/')) {
+    avatarUrl = self.location.origin + avatarUrl;
+  }
 
   self.registration.showNotification(title ?? 'HireOn', {
     body: body ?? '',
-    icon: icon ?? '/favicon.svg',
+    icon: avatarUrl,
     badge: '/favicon.svg',
     data: payload.data,
   });

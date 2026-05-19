@@ -64,13 +64,23 @@ async def send_message(
 
     # 4. Trigger System Notification (Bell Alert)
     # This ensures the user gets a red dot/alert if they aren't looking at the chat
+    sender_avatar = current_user.avatar_url
+    if not sender_avatar:
+        import urllib.parse
+        encoded_name = urllib.parse.quote_plus(current_user.full_name)
+        sender_avatar = f"https://ui-avatars.com/api/?name={encoded_name}&background=6c47ff&color=fff&size=128"
+
     send_system_notification.delay(
         str(payload.receiver_id),
         str(current_user.organization_id),
         NotificationType.MESSAGE_RECEIVED,
         "New Message Received 💬",
         f"You have a new message from {current_user.full_name}: \"{new_message.content[:50]}...\"",
-        {"sender_id": str(current_user.id)},
+        {
+            "sender_id": str(current_user.id),
+            "sender_name": current_user.full_name,
+            "sender_avatar": sender_avatar
+        },
         persist=False
     )
 
