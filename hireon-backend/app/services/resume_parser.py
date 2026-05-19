@@ -241,13 +241,16 @@ def _detect_file_type(file_content: bytes, content_type: str, filename: str = ""
 
 # ─── Years experience calculation ────────────────────────────────────────────────
 
-def calculate_years_from_experience(experience_list: list) -> Optional[float]:
+def calculate_years_from_experience(experience_list: list) -> tuple[Optional[float], Optional[str]]:
     """
     Calculate total years of experience from experience entries.
     Never trust the LLM's years_experience — compute it from dates.
+    Returns: (years_float, experience_years_str)
     """
     total_months = 0
-    current_year = datetime.now().year
+    now = datetime.now()
+    current_year = now.year
+    current_month_name = now.strftime("%b")
 
     for exp in experience_list:
         if hasattr(exp, 'model_dump'):
@@ -266,10 +269,10 @@ def calculate_years_from_experience(experience_list: list) -> Optional[float]:
                 total_months += int(months_match.group(1))
             continue
 
-        # Pattern: date range — normalize "Present/Current/Now" to current year
+        # Pattern: date range — normalize "Present/Current/Now" to current month/year
         norm = re.sub(
             r'\b(present|current|now|today)\b',
-            f'Dec {current_year}',
+            f'{current_month_name} {current_year}',
             duration,
             flags=re.IGNORECASE,
         )
@@ -300,8 +303,14 @@ def calculate_years_from_experience(experience_list: list) -> Optional[float]:
             total_months += 12  # single year → assume ~1 year tenure
 
     if total_months == 0:
-        return None
-    return round(total_months / 12, 1)
+        return None, None
+
+    years = total_months // 12
+    months = total_months % 12
+    years_float = float(f"{years}.{months}")
+    experience_years_str = f"{years_float} {'Year' if years_float == 1.0 else 'Years'}"
+    
+    return years_float, experience_years_str
 
 
 # ─── Fallback ────────────────────────────────────────────────────────────────────
@@ -382,13 +391,15 @@ def _call_groq_with_retry(
             validated = ParsedResume(**raw)
             result = validated.model_dump()
 
-            # Use LLM-provided years_experience if valid, otherwise fallback to date calculation
-            if result.get("years_experience") is None:
-                result["years_experience"] = calculate_years_from_experience(validated.experience)
-            
-            # Ensure experience_years is also populated
-            if not result.get("experience_years") and result.get("years_experience") is not None:
-                result["experience_years"] = f"{result['years_experience']} Years"
+            # Always compute from dates because LLMs are not reliable at date math.
+            computed_years, computed_str = calculate_years_from_experience(validated.experience)
+            if computed_years is not None:
+                result["years_experience"] = computed_years
+                result["experience_years"] = computed_str
+            else:
+                # Fallback to LLM values
+                if result.get("years_experience") is not None and not result.get("experience_years"):
+                    result["experience_years"] = f"{result['years_experience']} Years"
 
             # Serialize experience to plain dicts
             result["experience"] = [
