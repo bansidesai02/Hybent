@@ -14,6 +14,7 @@ export const adminApi = {
     limit?: number
     action?: string
     resource_type?: string
+    resource_id?: string
     search?: string
     date_from?: string
     date_to?: string

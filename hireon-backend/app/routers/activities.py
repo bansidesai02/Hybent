@@ -14,7 +14,8 @@ HR_RESOURCE_TYPES = {"job", "candidate", "interview", "offer", "application"}
 async def list_activities(
     current_user: CurrentUser,
     db: DB,
-    limit: int = Query(20, gt=0, le=100)
+    limit: int = Query(20, gt=0, le=100),
+    resource_id: str | None = Query(None, description="Filter activities by resource ID")
 ):
     """Recent HR-related activities for the organisation (excludes admin/auth events)."""
     # Base query: filter by organization and HR resource types
@@ -26,6 +27,9 @@ async def list_activities(
             AuditLog.resource_type.in_(HR_RESOURCE_TYPES),
         )
     )
+
+    if resource_id:
+        query = query.where(AuditLog.resource_id == resource_id)
 
     # Role-based filtering
     if current_user.role == "recruiter":

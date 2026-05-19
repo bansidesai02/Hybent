@@ -9,6 +9,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import { formatDate } from '@/utils/formatters'
 import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
+import { activitiesApi } from '@/api/activities'
+import { Link as RouterLink } from 'react-router-dom'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { GlassIcon } from '@/components/common/GlassIcon'
@@ -38,7 +40,8 @@ import {
   ChevronRight,
   User,
   AlertTriangle,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react'
 
 
@@ -843,6 +846,62 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
   )
 }
 
+// ─── Timeline Tab ────────────────────────────────────────────────────────────
+
+function TimelineTab({ candidate }: { candidate: Candidate }) {
+  const { data: activities = [], isLoading } = useQuery({
+    queryKey: ['candidate-activities', candidate.id],
+    queryFn: () => activitiesApi.list(50, candidate.id).then((r: any) => r.data),
+  })
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '24px 0' }}>
+        <div style={{ height: 60, borderRadius: 16, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      </div>
+    )
+  }
+
+  if (!activities.length) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>No Audit Activity Logged</h3>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          Audit Trail
+        </p>
+        <RouterLink 
+          to={`/admin/audit?resource_id=${candidate.id}`}
+          style={{ fontSize: 11, fontWeight: 700, color: '#6c47ff', textDecoration: 'none', background: 'rgba(108,71,255,0.1)', padding: '4px 12px', borderRadius: 12 }}
+        >
+          View Full Audit Log
+        </RouterLink>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {activities.map((a: any) => (
+          <div key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6c47ff', marginTop: 6, opacity: 0.5 }} />
+            <div style={{ flex: 1, background: 'rgba(0,0,0,0.02)', padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(0,0,0,0.05)' }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', margin: '0 0 4px' }}>{a.action}</p>
+              <div style={{ fontSize: 11, color: 'var(--text-mid)', display: 'flex', justifyContent: 'space-between' }}>
+                <span>by {a.user_name || 'System'}</span>
+                <span>{new Date(a.created_at).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function CandidateProfileView({ 
@@ -854,7 +913,7 @@ export function CandidateProfileView({
   hideSchedule
 }: CandidateProfileViewProps) {
   const setPageContext = useCopilotStore(s => s.setPageContext)
-  const [activeTab, setActiveTab] = useState<'details' | 'feedback'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'feedback' | 'timeline'>('details')
   const stage = candidate.pipeline_stage || 'applied'
   const stageCfg = candidate.pipeline_stage ? STAGE_CFG[stage] : null
 
@@ -869,6 +928,7 @@ export function CandidateProfileView({
   const tabs = [
     { key: 'details',  label: <span className="flex items-center gap-2"><User size={14} /> Candidate Details</span> },
     { key: 'feedback', label: <span className="flex items-center gap-2"><Mic size={14} /> Interview Feedback</span> },
+    { key: 'timeline', label: <span className="flex items-center gap-2"><Activity size={14} /> Audit Trail</span> },
   ] as const
 
   return (
@@ -965,10 +1025,9 @@ export function CandidateProfileView({
       </div>
 
       {/* ── Tab Content ── */}
-      {activeTab === 'details'
-        ? <DetailsTab candidate={candidate} />
-        : <FeedbackTab candidate={candidate} />
-      }
+      {activeTab === 'details' && <DetailsTab candidate={candidate} />}
+      {activeTab === 'feedback' && <FeedbackTab candidate={candidate} />}
+      {activeTab === 'timeline' && <TimelineTab candidate={candidate} />}
     </div>
   )
 }

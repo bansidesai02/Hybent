@@ -24,6 +24,7 @@ async def list_audit_logs(
     limit: int = Query(50, ge=1, le=200),
     action: str | None = None,
     resource_type: str | None = None,
+    resource_id: str | None = None,
     search: str | None = None,      # filter by user name (partial, case-insensitive)
     date_from: str | None = None,   # ISO date e.g. 2025-01-01
     date_to: str | None = None,     # ISO date e.g. 2025-12-31
@@ -39,6 +40,8 @@ async def list_audit_logs(
         query = query.where(AuditLog.action == action.upper())
     if resource_type:
         query = query.where(AuditLog.resource_type == resource_type)
+    if resource_id:
+        query = query.where(AuditLog.resource_id == resource_id)
     if search:
         query = query.where(User.full_name.ilike(f"%{search}%"))
     if date_from:
@@ -66,6 +69,7 @@ async def list_audit_logs(
         .where(AuditLog.organization_id == current_user.organization_id)
         .where(*([AuditLog.action == action.upper()] if action else []))
         .where(*([AuditLog.resource_type == resource_type] if resource_type else []))
+        .where(*([AuditLog.resource_id == resource_id] if resource_id else []))
         .where(*([User.full_name.ilike(f"%{search}%")] if search else []))
         .subquery()
     )

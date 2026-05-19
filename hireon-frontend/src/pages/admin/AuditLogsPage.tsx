@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { adminApi } from '@/api/admin'
@@ -144,6 +145,9 @@ function Pill({ active, onClick, children, activeColor = '#6c47ff', activeBg = '
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AuditLogsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const resourceId = searchParams.get('resource_id')
+
   const [page, setPage] = useState(1)
   const [action, setAction] = useState('')
   const [resourceType, setResourceType] = useState('')
@@ -153,12 +157,13 @@ export default function AuditLogsPage() {
   const [dateTo, setDateTo] = useState('')
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['audit-logs', page, action, resourceType, search, dateFrom, dateTo],
+    queryKey: ['audit-logs', page, action, resourceType, resourceId, search, dateFrom, dateTo],
     queryFn: () =>
       adminApi.auditLogs({
         page, limit: 20,
         action: action || undefined,
         resource_type: resourceType || undefined,
+        resource_id: resourceId || undefined,
         search: search || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
@@ -172,9 +177,14 @@ export default function AuditLogsPage() {
 
   const handleClearFilters = () => {
     setAction(''); setResourceType(''); setSearch(''); setSearchInput(''); setDateFrom(''); setDateTo(''); setPage(1)
+    if (resourceId) {
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('resource_id')
+      setSearchParams(newParams)
+    }
   }
 
-  const hasActiveFilters = action || resourceType || search || dateFrom || dateTo
+  const hasActiveFilters = action || resourceType || search || dateFrom || dateTo || resourceId
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

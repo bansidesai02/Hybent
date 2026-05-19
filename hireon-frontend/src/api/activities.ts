@@ -11,5 +11,6 @@ export interface Activity {
 }
 
 export const activitiesApi = {
-  list: (limit = 20) => axiosInstance.get<Activity[]>(`/v1/activities?limit=${limit}`),
+  list: (limit = 20, resourceId?: string) => 
+    axiosInstance.get<Activity[]>(`/v1/activities`, { params: { limit, resource_id: resourceId } }),
 }

@@ -4,7 +4,7 @@ import { motion, useScroll, AnimatePresence } from 'framer-motion'
 import MouseTrail from '@/components/common/MouseTrail'
 import { TeamIcon } from '@/components/common/CustomIcons'
 import { GlassIcon } from '@/components/common/GlassIcon'
-import { ArrowRight, Calendar, Menu, X } from 'lucide-react'
+import { ArrowRight, Calendar, Menu, X, Check } from 'lucide-react'
 
 // ─── Animation Variants ────────────────────────────────────────────────────────
 
@@ -217,82 +217,7 @@ const howItWorks = [
   },
 ]
 
-const testimonials = [
-  {
-    quote: 'Hireon cut our screening time by 80%. We went from 2 weeks to 2 days for first-round shortlists.',
-    name: 'Priya Sharma',
-    role: 'Head of Talent @ Finlytic',
-    initials: 'PS',
-    gradient: 'linear-gradient(135deg, #ddd6fe, #a78bfa)',
-  },
-  {
-    quote: "The AI match scores are eerily accurate. We haven't made a bad hire since switching to Hireon.",
-    name: 'Marcus Chen',
-    role: 'Engineering Manager @ Orbitalync',
-    initials: 'MC',
-    gradient: 'linear-gradient(135deg, #fce7f3, #f9a8d4)',
-  },
-  {
-    quote: 'The pipeline view is a game-changer. My whole team knows exactly where every candidate stands.',
-    name: 'Aisha Okonkwo',
-    role: 'Talent Lead @ Nexlayer',
-    initials: 'AO',
-    gradient: 'linear-gradient(135deg, #d1fae5, #6ee7b7)',
-  },
-]
 
-const pricing = [
-  {
-    name: 'Starter',
-    price: '$0',
-    period: 'Free forever',
-    desc: 'Perfect for early-stage teams.',
-    features: ['Up to 5 active jobs', '50 candidate profiles', 'AI resume parsing', 'Basic pipeline', 'Email support'],
-    cta: 'Get Started Free',
-    featured: false,
-  },
-  {
-    name: 'Growth',
-    price: '$79',
-    period: 'per month',
-    desc: 'For growing recruitment teams.',
-    features: ['Unlimited jobs', 'Unlimited candidates', 'Advanced AI matching', 'Kanban pipeline', 'Interview scheduling', 'Offer letters', 'Analytics dashboard'],
-    cta: 'Start Free Trial',
-    featured: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: 'Contact us',
-    desc: 'For large organisations.',
-    features: ['Everything in Growth', 'Custom AI models', 'SSO / SAML', 'SLA & uptime guarantee', 'Dedicated success manager', 'Custom integrations'],
-    cta: 'Talk to Sales',
-    featured: false,
-  },
-]
-
-const faqs = [
-  {
-    q: 'How accurate is the AI matching?',
-    a: 'Our AI achieves ~90% precision on role-specific matching across 500+ job categories. It continuously improves as your team rates candidates.',
-  },
-  {
-    q: 'Can I import existing candidates?',
-    a: 'Yes. Upload a CSV or paste LinkedIn profiles — Hireon parses and enriches them automatically.',
-  },
-  {
-    q: 'Is my data secure?',
-    a: 'All data is encrypted at rest (AES-256) and in transit (TLS 1.3). We are SOC 2 Type II compliant.',
-  },
-  {
-    q: 'Does Hireon integrate with our ATS?',
-    a: 'We offer native integrations with Greenhouse, Lever, and Workday — plus a REST API for custom connections.',
-  },
-  {
-    q: 'Can I try it before paying?',
-    a: 'Absolutely. The Starter plan is free forever. Growth and Enterprise come with a 14-day free trial, no credit card required.',
-  },
-]
 
 // ─── FAQ Item ──────────────────────────────────────────────────────────────────
 function FaqItem({ q, a }: { q: string; a: string }) {
@@ -430,6 +355,19 @@ export default function LandingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [landingConfig, setLandingConfig] = useState<{
+    testimonials: any[]
+    pricing: any[]
+    faqs: any[]
+  }>({ testimonials: [], pricing: [], faqs: [] });
+
+  useEffect(() => {
+    fetch('/landing-config.json')
+      .then(res => res.json())
+      .then(data => setLandingConfig(data))
+      .catch(err => console.error('Failed to load landing config:', err));
+  }, []);
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1075,6 +1013,209 @@ export default function LandingPage() {
               </div>
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ── */}
+      <section id="testimonials" className="relative z-10 py-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            variants={fadeReveal}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-16"
+          >
+            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Wall of Love</p>
+            <h2
+              className="font-black leading-tight mb-4"
+              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
+            >
+              Loved by hiring<br />
+              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                teams everywhere.
+              </span>
+            </h2>
+          </motion.div>
+
+          <motion.div 
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid sm:grid-cols-2 md:grid-cols-3 gap-6"
+          >
+            {landingConfig.testimonials.map((t, i) => (
+              <motion.div
+                variants={fadeReveal}
+                key={i}
+                className="rounded-[24px] p-8 transition-all duration-300 hover:-translate-y-1 flex flex-col"
+                style={{
+                  background: 'rgba(255,255,255,0.72)',
+                  backdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255,255,255,0.95)',
+                  boxShadow: '0 4px 24px rgba(108,71,255,0.06)',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'white' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.72)' }}
+              >
+                <div className="flex-1">
+                  <div className="flex gap-1 mb-6 text-[#ff6bc6]">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg key={star} width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <p className="text-[17px] font-medium leading-[1.6] mb-8" style={{ color: 'var(--text-dark)' }}>"{t.quote}"</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-[15px]"
+                    style={{ background: t.gradient }}
+                  >
+                    {t.initials}
+                  </div>
+                  <div>
+                    <div className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>{t.name}</div>
+                    <div className="text-[13px] font-medium" style={{ color: 'var(--text-mid)' }}>{t.role}</div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── PRICING ── */}
+      <section id="pricing" className="relative z-10 py-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            variants={fadeReveal}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-16"
+          >
+            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Pricing</p>
+            <h2
+              className="font-black leading-tight mb-4"
+              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
+            >
+              Simple, transparent<br />
+              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                pricing for everyone.
+              </span>
+            </h2>
+          </motion.div>
+
+          <motion.div 
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-center"
+          >
+            {landingConfig.pricing.map((p, i) => (
+              <motion.div
+                variants={fadeReveal}
+                key={p.name}
+                className={`rounded-[32px] p-8 transition-all duration-300 flex flex-col relative ${p.featured ? 'md:-translate-y-4 shadow-xl border-[#6c47ff]/20 bg-white' : 'hover:-translate-y-1'}`}
+                style={{
+                  background: p.featured ? 'white' : 'rgba(255,255,255,0.72)',
+                  backdropFilter: 'blur(16px)',
+                  border: `1px solid ${p.featured ? 'rgba(108,71,255,0.2)' : 'rgba(255,255,255,0.95)'}`,
+                  boxShadow: p.featured ? '0 24px 80px rgba(108,71,255,0.15)' : '0 4px 24px rgba(108,71,255,0.06)',
+                  zIndex: p.featured ? 10 : 1,
+                  transform: p.featured ? 'scale(1.05)' : 'scale(1)',
+                }}
+              >
+                {p.featured && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-[#6c47ff] to-[#ff6bc6] text-white px-4 py-1.5 rounded-full text-[12px] font-bold tracking-wide shadow-lg">
+                    MOST POPULAR
+                  </div>
+                )}
+                <div className="mb-8 mt-2">
+                  <h3 className="text-[22px] font-bold mb-2" style={{ color: p.featured ? '#6c47ff' : 'var(--text)' }}>{p.name}</h3>
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <span className="text-[44px] font-black tracking-tight" style={{ color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>{p.price}</span>
+                    <span className="text-[14px] font-medium" style={{ color: 'var(--text-mid)' }}>{p.period}</span>
+                  </div>
+                  <p className="text-[15px] font-medium" style={{ color: 'var(--text-mid)' }}>{p.desc}</p>
+                </div>
+
+                <div className="flex-1 mb-8">
+                  <ul className="flex flex-col gap-4 list-none p-0 m-0">
+                    {p.features.map((f: string) => (
+                      <li key={f} className="flex items-start gap-3 text-[14px] font-medium" style={{ color: 'var(--text-dark)' }}>
+                        <Check size={18} className="flex-shrink-0 mt-0.5 text-[#00d4c8]" strokeWidth={3} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  className="w-full py-4 rounded-[12px] text-[15px] font-bold transition-all duration-300"
+                  style={{
+                    background: p.featured ? 'linear-gradient(135deg, #6c47ff, #8b6bff)' : 'rgba(108,71,255,0.05)',
+                    color: p.featured ? 'white' : '#6c47ff',
+                    boxShadow: p.featured ? '0 8px 24px rgba(108,71,255,0.3)' : 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!p.featured) {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.1)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!p.featured) {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.05)'
+                    }
+                  }}
+                >
+                  {p.cta}
+                </button>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── FAQS ── */}
+      <section id="faqs" className="relative z-10 py-16 px-6">
+        <div className="max-w-3xl mx-auto">
+          <motion.div
+            variants={fadeReveal}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-16"
+          >
+            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Got Questions?</p>
+            <h2
+              className="font-black leading-tight mb-4"
+              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(36px,5vw,56px)', color: 'var(--text)', letterSpacing: '-1px' }}
+            >
+              Frequently Asked<br />
+              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                Questions.
+              </span>
+            </h2>
+          </motion.div>
+
+          <motion.div 
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="flex flex-col gap-4"
+          >
+            {landingConfig.faqs.map((faq, i) => (
+              <motion.div variants={fadeReveal} key={i}>
+                <FaqItem q={faq.q} a={faq.a} />
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
