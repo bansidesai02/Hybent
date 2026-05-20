@@ -272,7 +272,7 @@ async def delete_user(user_id: uuid.UUID, current_user: AdminUser, db: DB, backg
         raise HTTPException(status_code=404, detail="User not found")
         
     # Optional: Delete from ES
-    background_tasks.add_task(es_service.delete_user, str(user.id))
+    background_tasks.add_task(es_service.delete_from_index, "users", str(user.id))
     
     await db.delete(user)
     await db.commit()
