@@ -56,7 +56,7 @@ function ScorecardItem({ scorecard }: { scorecard: Scorecard }) {
       )}
 
       {scorecard.criteria_scores && Array.isArray(scorecard.criteria_scores) && scorecard.criteria_scores.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 py-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 py-1">
           {scorecard.criteria_scores.map((s, i) => (
             <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-[var(--sb-hover)] px-2 py-1.5 rounded-xl border border-gray-100 dark:border-[var(--border)]/50">
               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight truncate mr-2">{s.criterion}</span>
@@ -87,13 +87,13 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
   return (
     <Modal open onClose={onClose} title="Candidate Details" size="lg">
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-5 p-1">
-          <div className="flex items-center gap-5 min-w-0 font-sans">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 p-1">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-5 min-w-0 font-sans">
             <Avatar name={card.candidate_name} src={card.avatar_url} size="xl" className="ring-4 ring-violet-50 shadow-sm" />
             <div className="min-w-0 space-y-0.5">
-              <h3 className="text-xl font-black text-gray-900 dark:text-[var(--text)] truncate" style={{ fontFamily: "'Fraunces', serif" }}>{card.candidate_name}</h3>
+              <h3 className="text-xl font-black text-gray-900 dark:text-[var(--text)]" style={{ fontFamily: "'Fraunces', serif" }}>{card.candidate_name}</h3>
               <p className="text-gray-500 dark:text-[var(--text-mid)] text-sm font-bold uppercase tracking-wide">{card.current_title || 'Software Engineer'}</p>
-              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-1.5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
                 <span className="flex items-center gap-1 shadow-sm">
                   <Mail size={14} className="text-violet-500" />
                   {card.candidate_email}
@@ -103,13 +103,13 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
               </div>
             </div>
           </div>
-          <div className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 bg-violet-50 dark:bg-[var(--violet)]/10 rounded-2xl border border-violet-100/50 dark:border-[var(--violet)]/20">
+          <div className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 bg-violet-50 dark:bg-[var(--violet)]/10 rounded-2xl border border-violet-100/50 dark:border-[var(--violet)]/20 w-32 sm:w-auto self-center sm:self-auto">
             <ScoreRing score={card.match_score} size={60} strokeWidth={5} />
             <span className="text-[9px] font-black text-violet-600 dark:text-[var(--violet)] uppercase tracking-widest">AI Match</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-gray-50 dark:bg-[var(--sb-hover)] rounded-2xl p-4 border border-gray-100 dark:border-[var(--border)]">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Status</p>
             <p className="text-sm font-bold text-violet-600 dark:text-[var(--violet)]">Active</p>
@@ -276,9 +276,9 @@ export default function PipelinePage() {
       </div>
 
       {/* Controls: Search & Saved Views */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 dark:border-[#2a2550] bg-white/60 dark:bg-[#161233]/60 backdrop-blur-md shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 dark:border-[#2a2550] bg-white/60 dark:bg-[#161233]/60 backdrop-blur-md shadow-sm">
         {/* Search */}
-        <div className="w-full sm:w-[320px]">
+        <div className="w-full md:w-[320px]">
           <Input
             placeholder="Search candidate name, email, role, skill..."
             value={search}
@@ -288,7 +288,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Saved Views */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
             <GlassIcon icon="Bookmark" variant="violet" size={24} iconSize={12} ghost glow={false} />
             <span>Pipeline Views:</span>
@@ -324,7 +324,7 @@ export default function PipelinePage() {
             <span className="text-xs text-gray-400">No saved views yet</span>
           )}
 
-          <div className="h-4 w-px bg-gray-200 dark:bg-[#201c3b]" />
+          <div className="hidden md:block h-4 w-px bg-gray-200 dark:bg-[#201c3b]" />
 
           {/* Save view input */}
           <div className="flex items-center gap-2">

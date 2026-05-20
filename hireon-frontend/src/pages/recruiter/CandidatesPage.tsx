@@ -733,36 +733,34 @@ export default function CandidatesPage() {
       </div>
 
       {/* Status Bar Tabs */}
-      <div className="flex flex-wrap items-center gap-6 px-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-2">Status:</span>
-          <div className="flex items-center p-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700">
-            {statusTabs.map(tab => {
-              const isActive = (statusFilter === tab.id) || (tab.id === 'all' && !statusFilter)
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => { setStatusFilter(tab.id === 'all' ? undefined : tab.id); setPage(1) }}
-                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
-                    isActive 
-                      ? 'bg-[#f5f3ff] text-[#6c47ff] border border-[#e8e4ff] shadow-sm' 
-                      : 'text-gray-500 hover:text-gray-700 border border-transparent'
-                  }`}
-                >
-                  <span className={isActive ? '' : (
-                    tab.id === 'all' ? 'text-violet-500' :
-                    tab.id === 'in_review' ? 'text-blue-500' :
-                    tab.id === 'shortlisted' ? 'text-emerald-500' :
-                    tab.id === 'scheduled' ? 'text-violet-600' :
-                    tab.id === 'rejected' ? 'text-rose-500' : ''
-                  )}>
-                    {tab.icon}
-                  </span>
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
+      <div className="flex items-center gap-2 px-1 w-full overflow-hidden">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-2 flex-shrink-0">Status:</span>
+        <div className="flex items-center p-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700 overflow-x-auto max-w-full scrollbar-none whitespace-nowrap flex-1">
+          {statusTabs.map(tab => {
+            const isActive = (statusFilter === tab.id) || (tab.id === 'all' && !statusFilter)
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setStatusFilter(tab.id === 'all' ? undefined : tab.id); setPage(1) }}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all flex-shrink-0 ${
+                  isActive 
+                    ? 'bg-[#f5f3ff] text-[#6c47ff] border border-[#e8e4ff] shadow-sm' 
+                    : 'text-gray-500 hover:text-gray-700 border border-transparent'
+                }`}
+              >
+                <span className={isActive ? '' : (
+                  tab.id === 'all' ? 'text-violet-500' :
+                  tab.id === 'in_review' ? 'text-blue-500' :
+                  tab.id === 'shortlisted' ? 'text-emerald-500' :
+                  tab.id === 'scheduled' ? 'text-violet-600' :
+                  tab.id === 'rejected' ? 'text-rose-500' : ''
+                )}>
+                  {tab.icon}
+                </span>
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -874,7 +872,7 @@ export default function CandidatesPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 lg:contents">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:contents gap-y-4 gap-x-3 w-full border-t border-dashed border-gray-200 dark:border-gray-800 lg:border-t-0 pt-3 lg:pt-0">
                     {/* Date */}
                     <p className="text-[12px] text-[var(--text-mid)] lg:text-center">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Applied</span>
@@ -974,7 +972,7 @@ export default function CandidatesPage() {
                     </p>
 
                     {/* Actions Buttons Group */}
-                    <div className="flex items-center gap-2 lg:justify-center">
+                    <div className="flex items-center gap-2 lg:justify-center col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-1 border-t border-gray-100 dark:border-gray-800 lg:border-none pt-3 lg:pt-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()

@@ -152,7 +152,7 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
             )}
 
             {scoring && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                 {[
                   { lbl: 'Skills', val: scoring.skills_score },
                   { lbl: 'Title', val: scoring.title_score },
@@ -188,11 +188,11 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
             )}
 
 
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <button
                 onClick={() => navigate(`${basePath}/candidates`)}
                 style={{
-                  flex: 1, padding: '10px 16px',
+                  width: '100%', padding: '10px 16px',
                   background: 'rgba(108,71,255,0.05)', color: '#6c47ff',
                   border: '1.5px solid rgba(108,71,255,0.2)', borderRadius: 10,
                   fontSize: 13, fontWeight: 600, cursor: 'pointer',
@@ -208,7 +208,7 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
               <button
                 onClick={() => navigate(`${basePath}/interviews`)}
                 style={{
-                  flex: 1, padding: '10px 16px',
+                  width: '100%', padding: '10px 16px',
                   background: 'transparent', color: '#6c47ff',
                   border: '1.5px solid rgba(108,71,255,0.2)', borderRadius: 10,
                   fontSize: 13, fontWeight: 600, cursor: 'pointer',
@@ -238,7 +238,7 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-3">
                   {[
                     { lbl: 'Skills', val: scoring.skills_score },
                     { lbl: 'Title', val: scoring.title_score },
@@ -271,12 +271,12 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
               </p>
             )}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <div className="flex flex-col sm:flex-row gap-2.5 mt-4">
             <button
               onClick={handleReject}
               disabled={!!loading || currentStage === 'rejected'}
               style={{
-                flex: 1, padding: '10px 16px',
+                width: '100%', padding: '10px 16px',
                 background: currentStage === 'rejected' ? 'rgba(239,68,68,0.1)' : '#ef4444', 
                 color: currentStage === 'rejected' ? '#ef4444' : '#fff',
                 border: currentStage === 'rejected' ? '1.5px solid rgba(239,68,68,0.2)' : 'none', 
@@ -296,7 +296,7 @@ function AnalysisActions({ navigate, basePath, candidateId, jobId, threshold, cu
               onClick={() => handleStageUpdate('screening')}
               disabled={!!loading}
               style={{
-                flex: 1, padding: '10px 16px',
+                width: '100%', padding: '10px 16px',
                 background: 'transparent', color: '#d97706',
                 border: '1.5px solid rgba(217,119,6,0.30)', borderRadius: 10,
                 fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
@@ -694,7 +694,7 @@ function UploadResumePageInner() {
                   {/* Body */}
                   <div style={{ padding: '20px 24px' }}>
                     {/* Candidate vs Job comparison */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                       <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, padding: '12px 14px' }}>
                         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: '#ef4444', marginBottom: 6 }}>Resume Category</div>
                         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{rejectionInfo?.candidate_category || 'Unknown'}</div>
@@ -883,17 +883,17 @@ function UploadResumePageInner() {
                   style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}
                 >
                   {/* Candidate header */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-6 mb-4 w-full">
                     {scoring && <ScoreRing score={scoring.final_score} />}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 4, wordBreak: 'break-word' }}>
                         {result.full_name}
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 10 }}>
                         {result.current_title || jobReq.role_title || 'Candidate'} · {result.experience_years || (result.years_experience != null ? `${result.years_experience} yrs` : '—')}
                       </div>
                       {/* Skill tags */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      <div className="flex flex-wrap gap-1.5 justify-center sm:justify-start">
                         {(Array.isArray(result.skills) ? result.skills : []).slice(0, 7).map((skill: any) => (
                           <span key={skill} style={{
                             padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600,

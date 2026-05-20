@@ -137,6 +137,8 @@ function Pill({ active, onClick, children, activeColor = '#6c47ff', activeBg = '
       background: active ? activeBg : 'var(--kpi-bg)',
       color: active ? activeColor : 'var(--text-mid)',
       borderColor: active ? activeColor + '55' : 'var(--table-border)',
+      flexShrink: 0,
+      whiteSpace: 'nowrap'
     }}>
       {children}
     </button>
@@ -246,8 +248,8 @@ export default function AuditLogsPage() {
       </div>
 
       {/* ── Action filter pills ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '100%', overflow: 'hidden' }}>
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0 w-[calc(100%+2rem)] sm:w-full">
           {ACTION_FILTERS.map(a => {
             const as = ACTION_STYLE[a]
             return (
@@ -261,7 +263,7 @@ export default function AuditLogsPage() {
             )
           })}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0 w-[calc(100%+2rem)] sm:w-full">
           {RESOURCE_FILTERS.map(r => (
             <Pill key={r || 'all-resources'} active={resourceType === r}
               activeColor="#059669" activeBg="rgba(16,185,129,0.08)"
@@ -302,89 +304,93 @@ export default function AuditLogsPage() {
         </div>
       ) : (
         <>
-          {/* Column headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '130px 100px 1fr 210px 150px', gap: 12, padding: '0 20px', fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-            <span>Action</span>
-            <span>Resource</span>
-            <span>Description</span>
-            <span>Edited By</span>
-            <span>When</span>
-          </div>
+          <div className="w-full overflow-x-auto pb-2">
+            <div className="min-w-[800px] flex flex-col gap-6">
+              {/* Column headers */}
+              <div style={{ display: 'grid', gridTemplateColumns: '130px 100px 1fr 210px 150px', gap: 12, padding: '0 20px', fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                <span>Action</span>
+                <span>Resource</span>
+                <span>Description</span>
+                <span>Edited By</span>
+                <span>When</span>
+              </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {data.items.map((log: any, i: number) => {
-              const as = ACTION_STYLE[log.action] ?? { bg: 'rgba(107,114,128,0.10)', color: '#6b7280', icon: '•', label: log.action }
-              const rs = ROLE_STYLE[log.user_role] ?? { bg: 'rgba(107,114,128,0.10)', color: '#6b7280' }
-              const description = buildDescription(log)
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {data.items.map((log: any, i: number) => {
+                  const as = ACTION_STYLE[log.action] ?? { bg: 'rgba(107,114,128,0.10)', color: '#6b7280', icon: '•', label: log.action }
+                  const rs = ROLE_STYLE[log.user_role] ?? { bg: 'rgba(107,114,128,0.10)', color: '#6b7280' }
+                  const description = buildDescription(log)
 
-              return (
-                <motion.div
-                  key={log.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.02 }}
-                  style={{
-                    display: 'grid', gridTemplateColumns: '130px 100px 1fr 210px 150px',
-                    gap: 12, alignItems: 'center', padding: '12px 20px',
-                    borderRadius: 12, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)',
-                    transition: 'border-color 0.15s, box-shadow 0.15s',
-                  }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget as HTMLElement
-                    el.style.borderColor = as.color + '44'
-                    el.style.boxShadow = `0 2px 12px ${as.color}18`
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget as HTMLElement
-                    el.style.borderColor = 'var(--table-border)'
-                    el.style.boxShadow = 'none'
-                  }}
-                >
-                  {/* Action badge */}
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: as.bg, color: as.color, width: 'fit-content' }}>
-                    {as.icon}
-                    {as.label}
-                  </span>
+                  return (
+                    <motion.div
+                      key={log.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.02 }}
+                      style={{
+                        display: 'grid', gridTemplateColumns: '130px 100px 1fr 210px 150px',
+                        gap: 12, alignItems: 'center', padding: '12px 20px',
+                        borderRadius: 12, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)',
+                        transition: 'border-color 0.15s, box-shadow 0.15s',
+                      }}
+                      onMouseEnter={e => {
+                        const el = e.currentTarget as HTMLElement
+                        el.style.borderColor = as.color + '44'
+                        el.style.boxShadow = `0 2px 12px ${as.color}18`
+                      }}
+                      onMouseLeave={e => {
+                        const el = e.currentTarget as HTMLElement
+                        el.style.borderColor = 'var(--table-border)'
+                        el.style.boxShadow = 'none'
+                      }}
+                    >
+                      {/* Action badge */}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: as.bg, color: as.color, width: 'fit-content' }}>
+                        {as.icon}
+                        {as.label}
+                      </span>
 
-                  {/* Resource */}
-                  <span className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)' }}>
-                    {RESOURCE_ICON[log.resource_type] ?? null}
-                    {log.resource_type
-                      ? (log.resource_type.charAt(0).toUpperCase() + log.resource_type.slice(1)).replace('_', ' ')
-                      : '—'}
-                  </span>
+                      {/* Resource */}
+                      <span className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)' }}>
+                        {RESOURCE_ICON[log.resource_type] ?? null}
+                        {log.resource_type
+                          ? (log.resource_type.charAt(0).toUpperCase() + log.resource_type.slice(1)).replace('_', ' ')
+                          : '—'}
+                      </span>
 
-                  {/* Human-readable description */}
-                  <span style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={description}>
-                    {description}
-                  </span>
+                      {/* Human-readable description */}
+                      <span style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={description}>
+                        {description}
+                      </span>
 
-                  {/* Edited By — avatar + name + role pill */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                    {log.user_name ? (
-                      <>
-                        <UserAvatar name={log.user_name} role={log.user_role} />
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                          {log.user_name}
-                        </span>
-                        {log.user_role && (
-                          <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: rs.bg, color: rs.color, textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>
-                            {log.user_role}
-                          </span>
+                      {/* Edited By — avatar + name + role pill */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                        {log.user_name ? (
+                          <>
+                            <UserAvatar name={log.user_name} role={log.user_role} />
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                              {log.user_name}
+                            </span>
+                            {log.user_role && (
+                              <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: rs.bg, color: rs.color, textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>
+                                {log.user_role}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 12, color: 'var(--text-light)', fontStyle: 'italic' }}>system</span>
                         )}
-                      </>
-                    ) : (
-                      <span style={{ fontSize: 12, color: 'var(--text-light)', fontStyle: 'italic' }}>system</span>
-                    )}
-                  </div>
+                      </div>
 
-                  {/* Timestamp */}
-                  <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
-                    {formatDateTime(log.created_at)}
-                  </span>
-                </motion.div>
-              )
-            })}
+                      {/* Timestamp */}
+                      <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
+                        {formatDateTime(log.created_at)}
+                      </span>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
           <Pagination page={data.page} pages={data.pages} total={data.total} limit={data.limit} onPage={setPage} />

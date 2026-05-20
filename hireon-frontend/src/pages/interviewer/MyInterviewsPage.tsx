@@ -204,8 +204,8 @@ function InterviewCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
       whileHover={{ y: -2, boxShadow: '0 8px 30px rgba(0,0,0,0.08)' }}
+      className="flex flex-col md:flex-row w-full"
       style={{
-        display: 'flex', gap: 0,
         background: 'var(--card-bg)',
         border: '1px solid var(--card-border)',
         borderRadius: 20,
@@ -215,28 +215,27 @@ function InterviewCard({
       }}
     >
       {/* Time Column */}
-      <div style={{
-        width: 100, flexShrink: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', padding: '24px 0',
-        borderRight: '1px solid var(--card-border)',
-        background: live ? 'rgba(22,163,74,0.03)' : 'transparent',
-        borderTopLeftRadius: 20,
-        borderBottomLeftRadius: 20
-      }}>
+      <div 
+        className="w-full md:w-[100px] flex md:flex-col flex-row items-center md:justify-center justify-between p-4 md:py-6 border-b md:border-b-0 md:border-r rounded-t-[19px] md:rounded-l-[19px] md:rounded-tr-none flex-shrink-0"
+        style={{
+          borderColor: 'var(--card-border)',
+          background: live ? 'rgba(22,163,74,0.03)' : 'transparent',
+        }}
+      >
         <span style={{
           fontSize: 28, fontWeight: 900, color: live ? '#16a34a' : '#6c47ff', lineHeight: 1,
           fontFamily: "'Fraunces', serif", letterSpacing: '-1px',
         }}>
           {hourMin}
         </span>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 4 }}>
+        <div className="flex md:flex-col flex-row items-center gap-2 md:gap-0" style={{ marginTop: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 800, color: live ? '#16a34a' : '#6c47ff', textTransform: 'uppercase' }}>{ampm}</span>
-          <span style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontWeight: 600 }}>Today</span>
+          <span className="hidden md:inline" style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, fontWeight: 600 }}>Today</span>
         </div>
       </div>
 
       {/* Info Column */}
-      <div style={{ flex: 1, padding: '22px 24px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="flex-1 p-4 sm:p-5 flex flex-col gap-2.5 min-w-0">
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', margin: '0 0 4px 0' }}>
             {showName ? (interview.candidate_name || interview.title) : (interview.title || 'General Round')}
@@ -296,10 +295,9 @@ function InterviewCard({
       </div>
 
       {/* Actions Column */}
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-        justifyContent: 'center', gap: 8, padding: '22px 24px', flexShrink: 0,
-      }}>
+      <div 
+        className="w-full md:w-auto p-4 sm:p-5 pt-0 md:pt-5 flex flex-col md:items-end justify-center gap-3 flex-shrink-0"
+      >
         {live ? (
           isUnlocked ? (
             <motion.button
@@ -379,9 +377,7 @@ function InterviewCard({
         )}
 
         {/* Utility Belt for Secondary Actions */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, marginTop: 6
-        }}>
+        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 mt-2.5 w-full">
           {interview.status === 'scheduled' && (
             <AddToCalendarDropdown interview={interview} />
           )}
@@ -418,6 +414,7 @@ function InterviewCard({
         </div>
       </div>
     </motion.div>
+
   )
 }
 
@@ -487,7 +484,7 @@ export default function MyInterviewsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingBottom: 40 }}>
 
       {/* ── header ───────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 style={{
             fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)',
@@ -506,25 +503,29 @@ export default function MyInterviewsPage() {
             whileHover={{ scale: 1.02, boxShadow: '0 10px 25px rgba(108,71,255,0.45)' }}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate(`/interviewer/live-room/${firstLive.id}`)}
+            className="w-full sm:w-auto justify-center"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
               padding: '12px 28px', borderRadius: 16,
               background: 'linear-gradient(135deg, #6c47ff 0%, #8b5cf6 100%)',
               color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer',
-              flexShrink: 0, boxShadow: '0 8px 20px rgba(108,71,255,0.3)',
+              boxShadow: '0 8px 20px rgba(108,71,255,0.3)',
             }}
           >
              <span className="dot-pulse" style={{ width: 10, height: 10, borderRadius: '50%', background: '#4ade80' }} />
             Enter Live Room
           </motion.button>
         ) : (
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: 10,
-            padding: '12px 28px', borderRadius: 16,
-            background: 'var(--hover-row)', color: 'var(--text-lite)',
-            fontWeight: 800, fontSize: 14, border: '1px solid var(--card-border)',
-            flexShrink: 0, opacity: 0.7, backdropFilter: 'blur(8px)'
-          }}>
+          <div 
+            className="w-full sm:w-auto justify-center"
+            style={{ 
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              padding: '12px 28px', borderRadius: 16,
+              background: 'var(--hover-row)', color: 'var(--text-lite)',
+              fontWeight: 800, fontSize: 14, border: '1px solid var(--card-border)',
+              opacity: 0.7, backdropFilter: 'blur(8px)'
+            }}
+          >
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#d1d5db' }} />
             Enter Live Room
           </div>

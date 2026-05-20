@@ -206,7 +206,7 @@ export default function PortalProfilePage() {
         <div className="card">
           <div className="ctitle">Profile</div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 22 }}>
+          <div className="profile-avatar-row">
             {/* Clickable avatar with upload buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               <div style={{ position: 'relative' }}>

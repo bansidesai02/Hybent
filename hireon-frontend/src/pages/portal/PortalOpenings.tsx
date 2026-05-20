@@ -71,7 +71,7 @@ export default function PortalOpenings() {
       ) : (jobs?.length === 0) ? (
         <div className="p-8 text-center text-[var(--text-lite)]">No open positions currently available.</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
           {jobs?.map(job => {
             const hasApplied = appliedJobIds.has(job.id)
             const referralBonus = job.title.includes('Senior') ? '$2,000' : '$1,500'
@@ -93,7 +93,7 @@ export default function PortalOpenings() {
                   ))}
                 </div>
 
-                <div style={{ marginTop: 'auto', display: 'flex', gap: 10, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div className="opening-card-actions" style={{ marginTop: 'auto', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
                   {!hasApplied ? (
                     <>
                       <button

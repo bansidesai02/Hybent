@@ -192,24 +192,26 @@ export default function PortalDashboard() {
             <span className="ctag teal">Step 0 of 7</span>
           </div>
           
-          <div className="tracker-wrap">
-            <div className="tracker-line"></div>
-            <div className="tracker-progress" style={{ width: '0%' }}></div>
-            <div className="tracker-steps">
-              {STAGES.map((s) => (
-                <div key={s.key} className="tstep pending">
-                  <div className="tstep-dot">
-                    <CircleDashed size={8} />
-                  </div>
-                  <div className="tstep-label">{s.label}</div>
-                  {s.sublabel && (
-                    <div style={{ fontSize: 9, color: 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                      {s.sublabel}
+          <div className="tracker-wrap overflow-x-auto scrollbar-none pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="w-full min-w-[750px] md:min-w-0 relative" style={{ padding: '44px 0 28px' }}>
+              <div className="tracker-line"></div>
+              <div className="tracker-progress" style={{ width: '0%' }}></div>
+              <div className="tracker-steps">
+                {STAGES.map((s) => (
+                  <div key={s.key} className="tstep pending">
+                    <div className="tstep-dot">
+                      <CircleDashed size={8} />
                     </div>
-                  )}
-                  <div className="tstep-note">Pending</div>
-                </div>
-              ))}
+                    <div className="tstep-label">{s.label}</div>
+                    {s.sublabel && (
+                      <div style={{ fontSize: 9, color: 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        {s.sublabel}
+                      </div>
+                    )}
+                    <div className="tstep-note">Pending</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -267,29 +269,31 @@ export default function PortalDashboard() {
           <span className="ctag teal">Step {Math.min(currentIdx + 1, 7)} of 7</span>
         </div>
         
-        <div className="tracker-wrap">
-          <div className="tracker-line"></div>
-          <div className="tracker-progress" style={{ width: progressWidth }}></div>
-          <div className="tracker-steps">
-            {STAGES.map((s, i) => {
-              const isDone = currentIdx > i
-              const isActive = currentIdx === i
-              return (
-                <div key={s.key} className={`tstep ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}>
-                  <div className="tstep-dot">
-                    {isDone ? <Check size={12} /> : isActive ? <Circle size={8} fill="currentColor" /> : <CircleDashed size={8} />}
-                  </div>
-                  <div className="tstep-label">{s.label}</div>
-                  {s.sublabel && (
-                    <div style={{ fontSize: 9, color: isActive ? '#06b6d4' : 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                      {s.sublabel}
+        <div className="tracker-wrap overflow-x-auto scrollbar-none pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="w-full min-w-[750px] md:min-w-0 relative" style={{ padding: '44px 0 28px' }}>
+            <div className="tracker-line"></div>
+            <div className="tracker-progress" style={{ width: progressWidth }}></div>
+            <div className="tracker-steps">
+              {STAGES.map((s, i) => {
+                const isDone = currentIdx > i
+                const isActive = currentIdx === i
+                return (
+                  <div key={s.key} className={`tstep ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}>
+                    <div className="tstep-dot">
+                      {isDone ? <Check size={12} /> : isActive ? <Circle size={8} fill="currentColor" /> : <CircleDashed size={8} />}
                     </div>
-                  )}
-                  {i === 0 && isActive && <div className="tstep-date">{formatDate(displayApp.applied_at)}</div>}
-                  {!isDone && !isActive && <div className="tstep-note">Pending</div>}
-                </div>
-              )
-            })}
+                    <div className="tstep-label">{s.label}</div>
+                    {s.sublabel && (
+                      <div style={{ fontSize: 9, color: isActive ? '#06b6d4' : 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        {s.sublabel}
+                      </div>
+                    )}
+                    {i === 0 && isActive && <div className="tstep-date">{formatDate(displayApp.applied_at)}</div>}
+                    {!isDone && !isActive && <div className="tstep-note">Pending</div>}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
 
@@ -349,15 +353,15 @@ export default function PortalDashboard() {
                 return (
                   <div className="rh-item" key={intv.id}>
                     <div className={`rh-dot ${isUpcoming ? 'rhd-active' : isPassed ? 'rhd-done' : 'rhd-pend'}`}></div>
-                    <div>
-                      <div className="rh-name">{intv.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-lite)' }}>
+                    <div className="min-w-0 flex-1">
+                      <div className="rh-name truncate" title={intv.title}>{intv.title}</div>
+                      <div className="truncate" style={{ fontSize: 11, color: 'var(--text-lite)' }}>
                         {intv.interview_type.replace('_', ' ')} · {intv.duration_minutes} min · {formatDate(intv.scheduled_at)}
                       </div>
                     </div>
-                    {isUpcoming && <span className="chip chip-teal">Upcoming</span>}
-                    {isPassed && <span className="chip chip-green">Passed ✓</span>}
-                    {isFailed && <span className="chip chip-gray">Closed</span>}
+                    {isUpcoming && <span className="chip chip-teal flex-shrink-0">Upcoming</span>}
+                    {isPassed && <span className="chip chip-green flex-shrink-0">Passed ✓</span>}
+                    {isFailed && <span className="chip chip-gray flex-shrink-0">Closed</span>}
                   </div>
                 )
               })
@@ -366,11 +370,11 @@ export default function PortalDashboard() {
             {currentIdx === 2 && (
               <div className="rh-item">
                 <div className="rh-dot rhd-pend"></div>
-                <div>
-                  <div className="rh-name">Next Rounds</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-lite)' }}>Pending HR scheduling</div>
+                <div className="min-w-0 flex-1">
+                  <div className="rh-name truncate" title="Next Rounds">Next Rounds</div>
+                  <div className="truncate" style={{ fontSize: 11, color: 'var(--text-lite)' }}>Pending HR scheduling</div>
                 </div>
-                <span className="chip chip-gray" style={{ fontSize: 10 }}>Upcoming</span>
+                <span className="chip chip-gray flex-shrink-0" style={{ fontSize: 10 }}>Upcoming</span>
               </div>
             )}
           </div>

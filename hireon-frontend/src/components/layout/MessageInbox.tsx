@@ -65,7 +65,7 @@ export function MessageInbox() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-12 w-80 bg-white dark:bg-[var(--card-bg)] rounded-2x border border-gray-200 dark:border-[var(--card-border)] shadow-2xl z-50 overflow-hidden"
+            className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-12 w-[calc(100vw-32px)] sm:w-80 bg-white dark:bg-[var(--card-bg)] border border-gray-200 dark:border-[var(--card-border)] shadow-2xl z-50 overflow-hidden"
             style={{ borderRadius: '24px' }}
           >
             <div className="p-4 border-b border-gray-50 dark:border-[var(--card-border)] flex items-center justify-between bg-gray-50 dark:bg-[var(--bg2)]">

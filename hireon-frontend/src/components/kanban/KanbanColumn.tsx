@@ -23,7 +23,7 @@ export function KanbanColumn({ stage, cards, onCardClick }: KanbanColumnProps) {
 
   return (
     <div 
-      className="flex flex-col flex-1 min-w-[200px] rounded-xl bg-[var(--bg2)] dark:bg-[var(--glass)] border border-gray-200 dark:border-[var(--glass-border)]"
+      className="flex flex-col min-w-[280px] sm:min-w-[250px] lg:min-w-[220px] flex-shrink-0 lg:flex-1 rounded-xl bg-[var(--bg2)] dark:bg-[var(--glass)] border border-gray-200 dark:border-[var(--glass-border)]"
       style={{ borderTop: `4px solid ${config.color}` }}
     >
       {/* Header */}

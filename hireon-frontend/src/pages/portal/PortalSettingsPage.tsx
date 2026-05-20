@@ -38,7 +38,7 @@ export default function PortalSettingsPage() {
         <div className="ps">Manage your account preferences and security.</div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_300px] gap-8 px-8 max-w-5xl">
+      <div className="grid lg:grid-cols-[1fr_300px] gap-8 px-4 sm:px-8 max-w-5xl">
         <div className="space-y-8">
           {sections.map((section, idx) => (
             <motion.div

@@ -44,60 +44,62 @@ function StageChip({ stage }: { stage: string }) {
 function StageBar({ stage }: { stage: string }) {
   const currentIdx = PIPELINE_STAGES.indexOf(stage as PipelineStage)
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-        {PIPELINE_STAGES.map((s, i) => {
-          const isDone = i < currentIdx
-          const isActive = i === currentIdx
-          return (
-            <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < PIPELINE_STAGES.length - 1 ? 1 : undefined }}>
-              <div
-                title={stageLabel(s)}
-                style={{
-                  width: isActive ? 12 : 8,
-                  height: isActive ? 12 : 8,
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  background: isDone
-                    ? 'linear-gradient(135deg,var(--brand),var(--brand2))'
-                    : isActive
-                    ? 'linear-gradient(135deg,var(--teal),var(--brand3))'
-                    : 'rgba(176,164,204,0.30)',
-                  boxShadow: isActive ? '0 0 0 3px rgba(6,182,212,0.20)' : undefined,
-                }}
-              />
-              {i < PIPELINE_STAGES.length - 1 && (
+    <div className="overflow-x-auto scrollbar-none pb-1 -mx-2 px-2 sm:mx-0 sm:px-0">
+      <div className="w-full min-w-[500px] md:min-w-0">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {PIPELINE_STAGES.map((s, i) => {
+            const isDone = i < currentIdx
+            const isActive = i === currentIdx
+            return (
+              <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < PIPELINE_STAGES.length - 1 ? 1 : undefined }}>
                 <div
+                  title={stageLabel(s)}
                   style={{
-                    flex: 1,
-                    height: 3,
-                    borderRadius: 2,
+                    width: isActive ? 12 : 8,
+                    height: isActive ? 12 : 8,
+                    borderRadius: '50%',
+                    flexShrink: 0,
                     background: isDone
-                      ? 'linear-gradient(90deg,var(--brand),var(--brand2))'
-                      : 'rgba(176,164,204,0.22)',
-                    margin: '0 2px',
+                      ? 'linear-gradient(135deg,var(--brand),var(--brand2))'
+                      : isActive
+                      ? 'linear-gradient(135deg,var(--teal),var(--brand3))'
+                      : 'rgba(176,164,204,0.30)',
+                    boxShadow: isActive ? '0 0 0 3px rgba(6,182,212,0.20)' : undefined,
                   }}
                 />
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        {PIPELINE_STAGES.map((s) => (
-          <span
-            key={s}
-            style={{
-              fontSize: 10,
-              color: s === stage ? 'var(--brand)' : 'var(--p-text-lite)',
-              fontWeight: s === stage ? 700 : 500,
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              textTransform: 'capitalize',
-            }}
-          >
-            {s}
-          </span>
-        ))}
+                {i < PIPELINE_STAGES.length - 1 && (
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 3,
+                      borderRadius: 2,
+                      background: isDone
+                        ? 'linear-gradient(90deg,var(--brand),var(--brand2))'
+                        : 'rgba(176,164,204,0.22)',
+                      margin: '0 2px',
+                    }}
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+          {PIPELINE_STAGES.map((s) => (
+            <span
+              key={s}
+              style={{
+                fontSize: 10,
+                color: s === stage ? 'var(--brand)' : 'var(--p-text-lite)',
+                fontWeight: s === stage ? 700 : 500,
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                textTransform: 'capitalize',
+              }}
+            >
+              {s}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )

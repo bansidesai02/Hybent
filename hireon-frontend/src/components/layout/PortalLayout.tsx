@@ -192,7 +192,7 @@ export function PortalLayout() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full max-w-full">
           {/* TOPBAR (Now inside the right column) */}
           <div className="topbar">
             {/* Mobile Toggle */}

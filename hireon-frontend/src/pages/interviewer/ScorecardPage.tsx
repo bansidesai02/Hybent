@@ -564,7 +564,7 @@ export default function ScorecardPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30 }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[30px]">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Competencies</h3>
                 {Array.isArray(displayScorecard.criteria_scores) && displayScorecard.criteria_scores.map((c: any) => (
@@ -604,7 +604,7 @@ export default function ScorecardPage() {
       )}
 
       {!displayScorecard && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
         {/* ── Left Column ───────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

@@ -200,9 +200,10 @@ export default function InterviewerDashboard() {
             key={s.label}
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.07 }}
+            className="p-3.5 sm:p-5"
             style={{
               background: 'var(--card-bg)', border: '1px solid var(--card-border)',
-              borderRadius: 16, padding: '18px 20px',
+              borderRadius: 16,
               boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
             }}
           >
@@ -218,7 +219,7 @@ export default function InterviewerDashboard() {
             </div>
             {/* number */}
             <p style={{
-              fontSize: 38, fontWeight: 900, color: 'var(--text)', lineHeight: 1,
+              fontSize: 'clamp(28px, 4vw, 38px)', fontWeight: 900, color: 'var(--text)', lineHeight: 1,
               fontFamily: "'Fraunces', serif",
             }}>
               {isLoading ? '–' : s.value}
@@ -232,13 +233,16 @@ export default function InterviewerDashboard() {
       </div>
 
       {/* ── Today's Schedule ─────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--card-bg)', border: '1px solid var(--card-border)',
-        borderRadius: 24, padding: '28px',
-        boxShadow: 'var(--shadow)',
-        backdropFilter: 'blur(20px)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div 
+        className="p-4 sm:p-7"
+        style={{
+          background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+          borderRadius: 24,
+          boxShadow: 'var(--shadow)',
+          backdropFilter: 'blur(20px)',
+        }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Today's Schedule
@@ -333,16 +337,15 @@ export default function InterviewerDashboard() {
                       return (
                         <div
                           key={interview.id}
+                          className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-5"
                           style={{
-                            display: 'flex', alignItems: 'center', gap: 20,
-                            padding: '16px 24px',
                             background: isLive ? 'rgba(22,163,74,0.03)' : 'transparent',
                             borderBottom: rIdx === group.interviews.length - 1 ? 'none' : '1px solid var(--card-border)',
                             transition: 'all 0.2s'
                           }}
                         >
                           {/* Time */}
-                          <div style={{ width: 85, flexShrink: 0 }}>
+                          <div className="w-full md:w-20 flex-shrink-0 flex md:flex-col flex-row items-center md:items-start justify-between md:justify-start gap-1">
                             <p style={{ fontSize: 13, fontWeight: 800, color: isLive ? '#16a34a' : 'var(--text)', margin: 0 }}>
                               {time}
                             </p>
@@ -354,14 +357,14 @@ export default function InterviewerDashboard() {
                           </div>
 
                           {/* Round Info */}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div className="flex-1 min-w-0 w-full">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
                                 {interview.title || 'General Interview'}
                               </span>
                               <ScheduleBadgeChip badge={badge} />
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-mid)', fontWeight: 600, marginTop: 2 }}>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5" style={{ fontSize: 11, color: 'var(--text-mid)', fontWeight: 600 }}>
                               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Monitor size={11} /> {interview.interview_type || 'Video'}</span>
                               <span style={{ opacity: 0.4 }}>|</span>
                               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {interview.duration_minutes}m</span>
@@ -369,7 +372,7 @@ export default function InterviewerDashboard() {
                           </div>
 
                           {/* Action Buttons */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto md:justify-end mt-2 md:mt-0">
                             {isLive && interview.meeting_link && (
                               isUnlocked(interview.id) || user?.role !== 'interviewer' ? (
                                 <a href={interview.meeting_link} target="_blank" rel="noreferrer">

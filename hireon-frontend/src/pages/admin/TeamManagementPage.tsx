@@ -178,39 +178,40 @@ export default function TeamManagementPage() {
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
+                    className="flex flex-col sm:flex-row sm:items-center items-start gap-4 p-4 md:p-[14px_20px] rounded-2xl bg-[var(--kpi-bg)] border border-[var(--table-border)] transition-all w-full"
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 14,
-                      padding: '14px 20px', borderRadius: 14,
-                      background: 'var(--kpi-bg)', border: '1px solid var(--table-border)',
                       transition: 'border-color 0.15s',
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(108,71,255,0.25)' }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--table-border)' }}
                   >
-                    {/* Avatar with online dot */}
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <Avatar name={member.full_name} src={member.avatar_url} size="md" />
-                      <span style={{
-                        position: 'absolute', bottom: -1, right: -1,
-                        width: 11, height: 11, borderRadius: '50%',
-                        background: member.is_active ? '#10b981' : '#9ca3af',
-                        border: '2px solid var(--kpi-bg)',
-                      }} />
-                    </div>
-
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{member.full_name}</p>
-                        {currentUser?.id === member.id && (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--violet)', background: 'rgba(108,71,255,0.08)', padding: '1px 6px', borderRadius: 20 }}>you</span>
-                        )}
+                    {/* Avatar and Info wrapper to stay horizontal on mobile */}
+                    <div className="flex items-center gap-3.5 w-full sm:w-auto flex-1 min-w-0">
+                      {/* Avatar with online dot */}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <Avatar name={member.full_name} src={member.avatar_url} size="md" />
+                        <span style={{
+                          position: 'absolute', bottom: -1, right: -1,
+                          width: 11, height: 11, borderRadius: '50%',
+                          background: member.is_active ? '#10b981' : '#9ca3af',
+                          border: '2px solid var(--kpi-bg)',
+                        }} />
                       </div>
-                      <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 1 }}>{member.email}</p>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{member.full_name}</p>
+                          {currentUser?.id === member.id && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--violet)', background: 'rgba(108,71,255,0.08)', padding: '1px 6px', borderRadius: 20 }}>you</span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 1 }}>{member.email}</p>
+                      </div>
                     </div>
 
                     {/* Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start mt-2 sm:mt-0 pl-[54px] sm:pl-0">
                       {currentUser?.id !== member.id && member.is_active && (
                         <button
                           onClick={() => openChat({

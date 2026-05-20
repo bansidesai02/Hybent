@@ -183,7 +183,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
       </button>
 
       {/* Search bar */}
-      <div className="flex-1 flex justify-center" ref={searchRef}>
+      <div className="hidden sm:flex flex-1 justify-center" ref={searchRef}>
         <div className="relative w-full max-w-[440px]">
           <div
             className="flex items-center gap-2 w-full rounded-[12px] px-[16px] py-[8px] transition-all duration-200"
