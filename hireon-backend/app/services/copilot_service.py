@@ -7,13 +7,12 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 
 from groq import Groq
-from sqlalchemy import text
+from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import BackgroundTasks
 import zoneinfo
 
 from app.config import settings
-from app.database import get_sync_engine
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +25,11 @@ You are a Recruiter Copilot. Help recruiters search for candidates, manage team 
 DO NOT write SQL. Use the tools provided.
 
 ### 2. TOOLS
-- search_candidates(name, email, status): Find people in the DB.
+- search_candidates(query, name, email, status): Find people in the DB.
 - search_users(name, email): Find team members (interviewers) in your organization.
 - search_jobs(title, status): Find job openings.
 - schedule_meeting(candidate_name, meeting_title, scheduled_at, interviewer_names, interview_stage): Book interviews.
+- get_pipeline_summary(): Retrieve counts of candidates across stages.
 
 ### 3. RULES
 - **CONTEXT**: If you see a context block like `[Viewing Candidate: Name (ID)]`, use that name automatically for tools. Do not ask for the name if it's in context.
@@ -39,6 +39,27 @@ DO NOT write SQL. Use the tools provided.
 - **NO INTERNET**: You cannot search the web. Use only internal tools.
 - **AMBIGUITY**: When the tool returns '❓ Multiple [type] found', summarize the options and ask the user to pick one using their email or full name. Do not proceed with scheduling until only 1 person is selected for each slot.
 - **TOOL_CALLING**: You are an OpenAI-compatible agent. You MUST use the official tool-calling API. NEVER output text like `<function=...>` or `<tool>...</tool>`. If you need to search or schedule, just trigger the tool call directly. Any response containing `<` or `>` tags for tool calling will be rejected.
+
+### 4. HIREON PLATFORM GUIDE & FAQ
+Use this knowledge to guide users through platform features, navigation, and workflows:
+- **General Navigation**:
+  - Recruiter Dashboard: Overview of candidate pipeline, upcoming interviews, recent activities, and performance metrics.
+  - Candidates page: List all candidates in the organization. Filter by stage, status, or search for skills.
+  - Kanban Pipeline: Visual board showing candidates grouped by high-level stages. Drag-and-drop to update candidate stage.
+  - Jobs page: Create and manage job openings. Active, drafted, or archived.
+  - Scheduler: Book and view scheduled interviews. Integration with Google Calendar and Google Meet.
+  - Team / Users page: Manage team members and assign recruiter or interviewer roles.
+- **Portal Structures**:
+  - Recruiter Portal: For recruiters and admins to manage jobs, candidates, schedule rounds, and view fairness/bias analytics.
+  - Candidate Portal: For candidates to view their application journey, complete assignments, view interview invites, access prep hub, and review offer documents.
+  - Interviewer Portal: For interviewers to view their schedule, access candidate details/resumes, and submit scorecards/feedback.
+- **Workflow Instructions**:
+  - *Add Candidate*: Go to Candidates page and click "Add Candidate" (manual form) or "Invite Candidate" (tokens/email).
+  - *Schedule Interview*: Select a candidate, choose "Schedule Round", select interviewers, set date/time, and save. The platform automatically generates a Google Meet link and sends invitations.
+  - *Evaluate Candidates*: After an interview, the interviewer submits a Scorecard. The recruiter reviews this feedback before moving the candidate to the "Offered" or "Rejected" stage.
+  - *Offers*: If a candidate is moved to HR Round Selected or Interviewed, the recruiter can issue an offer. Hired candidates cannot be rejected. Enforce this business logic.
+- **Intelligence Features**:
+  - Candidate Prep Hub: Candidate portal feature providing AI-powered mock interviews and preparation tailored to scheduled job roles.
 """
 
 # ── Tool Definitions for Groq SDK ───────────────────────────────────────────
@@ -48,14 +69,26 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_candidates",
-            "description": "Search for candidates by name, email, or status.",
+            "description": "Search for candidates by name, email, status, skill, or job title using a general query or specific fields.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "email": {"type": "string"},
-                    "status": {"type": "string"}
+                    "query": {"type": "string", "description": "General search term for skills, titles, company, or name (e.g. 'python', 'manager')."},
+                    "name": {"type": "string", "description": "Candidate's full name."},
+                    "email": {"type": "string", "description": "Candidate's email address."},
+                    "status": {"type": "string", "description": "Pipeline stage (e.g., applied, screening, technical_round, offered, rejected)."}
                 }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_pipeline_summary",
+            "description": "Retrieve the current counts of candidates in each stage (applied, screening, interview, interviewed, offer, rejected).",
+            "parameters": {
+                "type": "object",
+                "properties": {}
             }
         }
     },
@@ -143,37 +176,85 @@ TOOLS = [
 
 # ── Internal Tool Executors ──────────────────────────────────────────────────
 
-def execute_read_tool(name: str, args: dict, organization_id: str) -> str:
-    """Synchronous tool execution for read-only actions."""
-    engine = get_sync_engine()
+async def execute_read_tool(name: str, args: dict, organization_id: str, db: AsyncSession) -> str:
+    """Asynchronous tool execution for read-only actions."""
     try:
-        with engine.connect() as conn:
-            if name == "search_candidates":
-                conds, params = ["organization_id = :oid"], {"oid": organization_id}
-                if args.get("name"): conds.append("full_name ILIKE :n"); params["n"] = f"%{args['name']}%"
-                if args.get("status"): conds.append("pipeline_stage = :s"); params["s"] = args["status"]
-                
-                sql = f"SELECT full_name, email, pipeline_stage as status FROM candidates WHERE {' AND '.join(conds)} LIMIT 15"
-                res = conn.execute(text(sql), params).fetchall()
-                data = [dict(r._mapping) for r in res]
-                return json.dumps(data) if data else "No candidates found."
+        if name == "search_candidates":
+            conds, params = ["organization_id = :oid"], {"oid": organization_id}
+            if args.get("name"): 
+                conds.append("(full_name ILIKE :n OR current_title ILIKE :n OR CAST(skills as TEXT) ILIKE :n)")
+                params["n"] = f"%{args['name']}%"
+            if args.get("email"): 
+                conds.append("email ILIKE :e")
+                params["e"] = f"%{args['email']}%"
+            if args.get("status"): 
+                conds.append("pipeline_stage = :s")
+                params["s"] = args["status"]
+            if args.get("query"):
+                conds.append("(full_name ILIKE :q OR current_title ILIKE :q OR current_company ILIKE :q OR CAST(skills as TEXT) ILIKE :q)")
+                params["q"] = f"%{args['query']}%"
+            
+            sql = f"SELECT full_name, email, pipeline_stage as status FROM candidates WHERE {' AND '.join(conds)} LIMIT 15"
+            res = await db.execute(text(sql), params)
+            res_all = res.fetchall()
+            data = [dict(r._mapping) for r in res_all]
+            return json.dumps(data) if data else "No candidates found."
 
-            if name == "search_users":
-                conds, params = ["organization_id = :oid"], {"oid": organization_id}
-                if args.get("name"): conds.append("full_name ILIKE :n"); params["n"] = f"%{args['name']}%"
-                if args.get("email"): conds.append("email ILIKE :e"); params["e"] = f"%{args['email']}%"
-                
-                sql = f"SELECT full_name, email, role FROM users WHERE {' AND '.join(conds)} LIMIT 15"
-                res = conn.execute(text(sql), params).fetchall()
-                data = [dict(r._mapping) for r in res]
-                return json.dumps(data) if data else "No team members found."
+        if name == "get_pipeline_summary":
+            sql = """
+                SELECT pipeline_stage, COUNT(*) as count 
+                FROM candidates 
+                WHERE organization_id = :oid 
+                GROUP BY pipeline_stage
+            """
+            res = await db.execute(text(sql), {"oid": organization_id})
+            rows = res.fetchall()
+            
+            from app.routers.candidates import STAGE_TO_BUCKET, REJECTION_STAGES
+            
+            buckets = {
+                "applied": 0,
+                "screening": 0,
+                "interview": 0,
+                "interviewed": 0,
+                "offer": 0,
+                "rejected": 0
+            }
+            
+            for row in rows:
+                stage = row.pipeline_stage
+                count = row.count
+                bucket = STAGE_TO_BUCKET.get(stage)
+                if not bucket and stage in REJECTION_STAGES:
+                    bucket = "rejected"
+                if not bucket:
+                    if stage is None or stage == "needs_review":
+                        bucket = "applied"
+                    else:
+                        continue
+                if bucket in buckets:
+                    buckets[bucket] += count
+                    
+            return json.dumps(buckets)
 
-            if name == "search_jobs":
-                sql = "SELECT title, status, location FROM jobs WHERE organization_id = :oid LIMIT 10"
-                res = conn.execute(text(sql), {"oid": organization_id}).fetchall()
-                data = [dict(r._mapping) for r in res]
-                return json.dumps(data) if data else "No jobs found."
-                
+        if name == "search_users":
+            conds, params = ["organization_id = :oid"], {"oid": organization_id}
+            if args.get("name"): conds.append("full_name ILIKE :n"); params["n"] = f"%{args['name']}%"
+            if args.get("email"): conds.append("email ILIKE :e"); params["e"] = f"%{args['email']}%"
+            
+            sql = f"SELECT full_name, email, role FROM users WHERE {' AND '.join(conds)} LIMIT 15"
+            res = await db.execute(text(sql), params)
+            res_all = res.fetchall()
+            data = [dict(r._mapping) for r in res_all]
+            return json.dumps(data) if data else "No team members found."
+
+        if name == "search_jobs":
+            sql = "SELECT title, status, location FROM jobs WHERE organization_id = :oid LIMIT 10"
+            res = await db.execute(text(sql), {"oid": organization_id})
+            res_all = res.fetchall()
+            data = [dict(r._mapping) for r in res_all]
+            return json.dumps(data) if data else "No jobs found."
+            
         return "Unknown read tool."
     except Exception as e:
         return f"Error: {str(e)}"
@@ -388,10 +469,132 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
             await db.commit()
             return f"✅ Successfully moved {c.full_name} to stage: {new_stage}."
 
+        if name == "db_update":
+            table_name = args.get("table_name")
+            record_id = args.get("record_id")
+            update_data = args.get("update_data")
+            
+            if not table_name or not record_id or not update_data:
+                return "❌ Missing table_name, record_id, or update_data for update."
+            
+            # Simple whitelist of allowed tables for security/integrity
+            allowed_tables = ["candidates", "users", "jobs", "interviews", "applications"]
+            if table_name not in allowed_tables:
+                return f"❌ Updates to table '{table_name}' are not allowed."
+            
+            # Build safe update query
+            set_clauses = []
+            params = {
+                "rid": uuid.UUID(record_id) if isinstance(record_id, str) else record_id, 
+                "oid": uuid.UUID(organization_id) if isinstance(organization_id, str) else organization_id
+            }
+            
+            for k, v in update_data.items():
+                if not re.match(r"^[a-zA-Z0-9_]+$", k):
+                    return f"❌ Invalid column name: {k}"
+                
+                if isinstance(v, str):
+                    try:
+                        v = uuid.UUID(v)
+                    except ValueError:
+                        pass
+                
+                set_clauses.append(f"{k} = :{k}")
+                params[k] = v
+            
+            sql = f"UPDATE {table_name} SET {', '.join(set_clauses)}, updated_at = NOW() WHERE id = :rid AND organization_id = :oid"
+            await db.execute(text(sql), params)
+            await db.commit()
+            return f"✅ Successfully updated {table_name} record (ID: {record_id})."
+
         return "Write tool executed."
     except Exception as e:
+        await db.rollback()
         logger.error(f"Error in execute_write_tool: {e}")
         return f"Error during execution: {str(e)}"
+
+def extract_hallucinated_tool_call(text: str) -> Optional[tuple[str, dict]]:
+    known_tools = [
+        "search_candidates",
+        "search_users",
+        "search_jobs",
+        "schedule_meeting",
+        "db_update",
+        "update_candidate_stage",
+        "get_pipeline_summary"
+    ]
+    # Clean up escaped characters
+    text_clean = text.replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n')
+    
+    for tool_name in known_tools:
+        idx = text_clean.find(tool_name)
+        if idx != -1:
+            start_json = text_clean.find("{", idx)
+            if start_json != -1:
+                # Find matching closing brace to extract exactly the JSON string
+                braces = 0
+                for i in range(start_json, len(text_clean)):
+                    char = text_clean[i]
+                    if char == '{':
+                        braces += 1
+                    elif char == '}':
+                        braces -= 1
+                        if braces == 0:
+                            json_str = text_clean[start_json:i+1]
+                            try:
+                                args = json.loads(json_str)
+                                return tool_name, args
+                            except json.JSONDecodeError:
+                                try:
+                                    import ast
+                                    args = ast.literal_eval(json_str)
+                                    if isinstance(args, dict):
+                                        return tool_name, args
+                                except:
+                                    pass
+                                break
+            else:
+                return tool_name, {}
+    return None
+
+def resolve_tool_args_context(name: str, args: dict, page_context: Optional[dict]) -> dict:
+    if not isinstance(args, dict):
+        args = {}
+    # 1. Resolve candidate name placeholder from page context
+    c_name = args.get("candidate_name")
+    if c_name and name in ["schedule_meeting", "update_candidate_stage"]:
+        c_name_lower = c_name.lower().strip("[]() ")
+        placeholders = [
+            "currently viewed candidate's name",
+            "currently viewed candidate",
+            "candidate name",
+            "candidate's name",
+            "candidate_email",
+            "candidate",
+            "a candidate",
+            "the candidate",
+            "name",
+            "[candidate name]",
+            "placeholder",
+            "unknown"
+        ]
+        if c_name_lower in placeholders or any(p in c_name_lower for p in ["currently viewed", "placeholder", "candidate_name"]):
+            if page_context:
+                ctx_name = page_context.get("candidate_name")
+                if ctx_name:
+                    args["candidate_name"] = ctx_name
+                    logger.info(f"Resolved placeholder candidate_name '{c_name}' to '{ctx_name}' from page_context")
+    
+    # 2. Clean up placeholder interviewer names
+    ivs = args.get("interviewer_names")
+    if ivs:
+        ivs_lower = ivs.lower().strip("[]() ")
+        if ivs_lower in ["interviewer_names", "interviewer name", "interviewer", "interviewers", "placeholder"]:
+            args.pop("interviewer_names", None)
+            logger.info("Removed placeholder interviewer_names")
+            
+    return args
+
 
 # ── Chat Service ─────────────────────────────────────────────────────────────
 
@@ -417,7 +620,7 @@ async def run_copilot_chat(
         args = approved_tool_call.get("args", {})
         result_text = await execute_write_tool(name, args, oid_str, uid_str, db)
         # Add success to history and save
-        await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, result_text)
+        conversation_id = await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, result_text)
         return {"reply": result_text, "error": False, "conversation_id": conversation_id}
 
     # 2. Build Messages
@@ -451,17 +654,29 @@ async def run_copilot_chat(
         if resp_msg.tool_calls:
             tool_call = resp_msg.tool_calls[0]
             name = tool_call.function.name
-            args = json.loads(tool_call.function.arguments)
+            # Safely parse tool arguments
+            if tool_call.function.arguments:
+                try:
+                    args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse tool arguments for {name}, defaulting to empty dict.")
+                    args = {}
+            else:
+                args = {}
+                args = {}
+            
+            # Resolve placeholders
+            args = resolve_tool_args_context(name, args, page_context)
             
             # Read Tools -> Immediate
-            if name in ["search_candidates", "search_jobs"]:
-                result = execute_read_tool(name, args, oid_str)
+            if name in ["search_candidates", "search_jobs", "search_users", "get_pipeline_summary"]:
+                result = await execute_read_tool(name, args, oid_str, db)
                 # Second call for summary
                 messages.append(resp_msg)
                 messages.append({"role": "tool", "tool_call_id": tool_call.id, "name": name, "content": result})
                 final_resp = client.chat.completions.create(model=GROQ_MODEL, messages=messages)
                 final_text = final_resp.choices[0].message.content
-                await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, final_text)
+                conversation_id = await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, final_text)
                 return {"reply": final_text, "error": False, "conversation_id": conversation_id}
             
             # Write Tools -> Approval Required
@@ -496,52 +711,56 @@ async def run_copilot_chat(
                         }
                     except: continue
 
-        await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
+        conversation_id = await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
         return {"reply": reply, "error": False, "conversation_id": conversation_id}
 
     except Exception as e:
+        # Rollback the session first to reset transaction state
+        try:
+            await db.rollback()
+        except Exception as rollback_err:
+            logger.error(f"Failed to rollback DB session: {rollback_err}")
+
         # ── Hallucination Recovery Logic ──────────────────────────────────────
         # If Groq returns a 400 because of bad tool-call formatting, 
         # we can still try to parse the "failed_generation" manually.
-        error_str = str(e)
-        if "failed_generation" in error_str:
-            try:
-                # Extract the hallucinated tag content
-                # Format: <function=name{"args":...}>
-                match = re.search(r"<function=(\w+)(.*?)>", error_str)
-                if not match:
-                    # Alternative format: <function=name args>
-                    match = re.search(r"<function=(\w+)\s+(.*?)>", error_str)
+        failed_gen = None
+        if hasattr(e, 'body') and isinstance(e.body, dict):
+            failed_gen = e.body.get("error", {}).get("failed_generation")
+        
+        if not failed_gen:
+            error_str = str(e)
+            if "failed_generation" in error_str:
+                failed_gen = error_str
                 
-                if match:
-                    tool_name = match.group(1)
-                    args_str = match.group(2).strip()
-                    # Remove trailing </function> if present in args_str
-                    args_str = args_str.split("</function>")[0].strip()
+        if failed_gen:
+            try:
+                recovered = extract_hallucinated_tool_call(failed_gen)
+                if recovered:
+                    tool_name, args = recovered
+                    # Resolve placeholders
+                    args = resolve_tool_args_context(tool_name, args, page_context)
+                    logger.info(f"Recovered hallucinated tool call: {tool_name} with args {args}")
                     
-                    try:
-                        args = json.loads(args_str)
-                        logger.info(f"Recovered hallucinated tool call: {tool_name} with args {args}")
-                        
-                        # Handle Read vs Write tools like the main loop
-                        if tool_name in ["search_candidates", "search_jobs", "search_users"]:
-                            result = execute_read_tool(tool_name, args, oid_str)
-                            # Add a manual reply based on the tool result
-                            reply = f"I found some information for you:\n\n{result}" if "No" not in result else result
-                            await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
-                            return {"reply": reply, "error": False, "conversation_id": conversation_id}
-                        else:
-                            # Requires approval
-                            reply = "I've prepared an update. Please approve it to proceed."
-                            new_conv_id = await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
-                            return {
-                                "reply": reply,
-                                "requires_approval": True,
-                                "pending_tool_call": {"name": tool_name, "args": args},
-                                "conversation_id": new_conv_id
-                            }
-                    except json.JSONDecodeError:
-                        logger.warning(f"Failed to parse args from hallucination: {args_str}")
+                    # Handle Read vs Write tools like the main loop
+                    if tool_name in ["search_candidates", "search_jobs", "search_users", "get_pipeline_summary"]:
+                        result = await execute_read_tool(tool_name, args, oid_str, db)
+                        # Add a manual reply based on the tool result
+                        reply = f"I found some information for you:\n\n{result}" if "No" not in result else result
+                        conversation_id = await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
+                        return {"reply": reply, "error": False, "conversation_id": conversation_id}
+                    else:
+                        # Requires approval
+                        reply = "I've prepared an update. Please approve it to proceed."
+                        new_conv_id = await _save_conversation_to_db(db, organization_id, user_id, conversation_id, user_message, reply)
+                        return {
+                            "reply": reply,
+                            "requires_approval": True,
+                            "pending_tool_call": {"name": tool_name, "args": args},
+                            "conversation_id": new_conv_id
+                        }
+                else:
+                    logger.warning("Could not recover hallucinated tool call from failed generation.")
             except Exception as recovery_err:
                 logger.error(f"Recovery logic failed: {recovery_err}")
 
@@ -567,5 +786,3 @@ async def _save_conversation_to_db(db, organization_id, user_id, conversation_id
     db.add(CopilotMessage(conversation_id=conversation.id, role="user", content=user_message))
     db.add(CopilotMessage(conversation_id=conversation.id, role="assistant", content=assistant_reply))
     return str(conversation.id)
-
-from sqlalchemy import select

@@ -155,6 +155,13 @@ export function CopilotWidget() {
     finally { setConvLoading(false) }
   }, [setMessages, setConversationId])
 
+  // Restore messages on mount/reload if conversationId is active but messages are cached empty
+  useEffect(() => {
+    if (conversationId && messages.length === 0) {
+      loadConversation(conversationId)
+    }
+  }, [conversationId, messages.length, loadConversation])
+
   // Delete a conversation
   const deleteConversation = useCallback(async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
@@ -417,7 +424,11 @@ export function CopilotWidget() {
             <>
               {/* Chat Messages */}
               <div className="c-messages" style={s.messages}>
-                {messages.length === 0 ? (
+                {convLoading ? (
+                  <div style={{ ...s.loadingRow, flex: 1 }}>
+                    <span className="c-dot" />&nbsp;<span className="c-dot" />&nbsp;<span className="c-dot" />
+                  </div>
+                ) : messages.length === 0 ? (
                   <div style={s.emptyState}>
                     <div style={s.emptyIcon}>✦</div>
                     <div style={s.emptyTitle}>Your Recruiter AI Copilot</div>

@@ -44,6 +44,7 @@ services:
       UPLOAD_DIR: /app/uploads
       APP_ENV: production
     volumes:
+      - ./hireon-backend:/app
       # Persists uploaded resumes, JDs, avatars across container rebuilds
       - uploads_data:/app/uploads
     ports:
@@ -90,6 +91,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       APP_ENV: production
       SKIP_PRESTART: "true"
+    volumes:
+      - ./hireon-backend:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,6 +116,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       APP_ENV: production
       SKIP_PRESTART: "true"
+    volumes:
+      - ./hireon-backend:/app
     depends_on:
       postgres:
         condition: service_healthy
