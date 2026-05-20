@@ -225,6 +225,8 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
                   background: 'var(--sidebar-bg)',
                   border: '1px solid var(--sidebar-border)',
                   boxShadow: 'var(--shadow-h)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
                 }}
               >
                 {!searchResults && !isSearching && searchQuery && (
