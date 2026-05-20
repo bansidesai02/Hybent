@@ -150,10 +150,10 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-[#2a2550]">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Invited Email</label>
-                            <p className="text-sm font-medium">{invitation?.email}</p>
+                            <p className="text-sm font-medium break-all">{invitation?.email}</p>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Expires In</label>

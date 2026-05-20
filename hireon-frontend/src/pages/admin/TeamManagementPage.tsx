@@ -97,6 +97,7 @@ export default function TeamManagementPage() {
   const { user: currentUser } = useAuthStore()
   const [showInvite, setShowInvite] = useState(false)
   const [toggleTarget, setToggleTarget] = useState<User | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
   const openChat = useMessageStore(s => s.openChat)
   // Team members (admin + recruiter + interviewer)
 
@@ -117,6 +118,16 @@ export default function TeamManagementPage() {
       setToggleTarget(null)
     },
     onError: () => toast.error('Failed to update user status'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User deleted permanently')
+      setDeleteTarget(null)
+    },
+    onError: () => toast.error('Failed to delete user'),
   })
 
   const isLoading = usersLoading
@@ -236,18 +247,36 @@ export default function TeamManagementPage() {
 
                       {/* Toggle active action - Admin only */}
                       {currentUser?.role === 'admin' && currentUser?.id !== member.id && (
-                        <button
-                          onClick={() => setToggleTarget(member)}
-                          style={{
-                            padding: '5px 12px', borderRadius: 8, border: '1px solid',
-                            fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                            background: 'transparent',
-                            color: member.is_active ? '#ef4444' : '#059669',
-                            borderColor: member.is_active ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)',
-                          }}
-                        >
-                          {member.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setToggleTarget(member)}
+                            style={{
+                              padding: '5px 12px', borderRadius: 8, border: '1px solid',
+                              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                              background: 'transparent',
+                              color: member.is_active ? '#ef4444' : '#059669',
+                              borderColor: member.is_active ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)',
+                            }}
+                          >
+                            {member.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+
+                          {/* Delete action - Admin only, visible only if deactivated */}
+                          {!member.is_active && (
+                            <button
+                              onClick={() => setDeleteTarget(member)}
+                              style={{
+                                padding: '5px 12px', borderRadius: 8, border: '1px solid',
+                                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                background: 'transparent',
+                                color: '#ef4444',
+                                borderColor: 'rgba(239,68,68,0.25)',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </motion.div>
@@ -285,6 +314,18 @@ export default function TeamManagementPage() {
         confirmText={toggleTarget?.is_active ? 'Deactivate' : 'Activate'}
         danger={toggleTarget?.is_active}
         loading={toggleActiveMutation.isPending}
+      />
+
+      {/* Delete Confirm */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        title="Delete User"
+        message={`Are you sure you want to permanently delete ${deleteTarget?.full_name}? This action cannot be undone.`}
+        confirmText="Delete Permanently"
+        danger={true}
+        loading={deleteMutation.isPending}
       />
     </div>
   )

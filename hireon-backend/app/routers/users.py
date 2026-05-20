@@ -257,3 +257,23 @@ async def update_user(user_id: uuid.UUID, data: UserUpdate, current_user: AdminU
     await db.refresh(user)
     background_tasks.add_task(es_service.index_user, user)
     return APIResponse.success(message="User updated successfully.", data=UserOut.model_validate(user))
+
+
+@router.delete("/{user_id}", response_model=UserOut)
+async def delete_user(user_id: uuid.UUID, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+        
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.organization_id == current_user.organization_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # Optional: Delete from ES
+    background_tasks.add_task(es_service.delete_user, str(user.id))
+    
+    await db.delete(user)
+    await db.commit()
+    return APIResponse.success(message="User deleted successfully.", data=UserOut.model_validate(user))

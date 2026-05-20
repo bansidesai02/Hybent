@@ -9,6 +9,8 @@ export const adminApi = {
 
   updateUser: (id: string, data: Partial<User>) => api.put<User>(`/v1/users/${id}`, data),
 
+  deleteUser: (id: string) => api.delete<User>(`/v1/users/${id}`),
+
   auditLogs: (params?: {
     page?: number
     limit?: number
