@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
-import { GlobalChatOverlay } from '../messaging/GlobalChatOverlay'
+import { GlobalChatOverlay } from '@/components/messaging/GlobalChatOverlay'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
