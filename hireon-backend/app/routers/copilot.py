@@ -120,12 +120,17 @@ async def copilot_transcribe(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
 
     audio_data = await file.read()
-    result = await transcribe_audio(
-        audio_data=audio_data,
-        background_tasks=background_tasks,
-        user_id=current_user.id,
-        organization_id=current_user.organization_id
-    )
+    try:
+        result = await transcribe_audio(
+            audio_data=audio_data,
+            background_tasks=background_tasks,
+            user_id=current_user.id,
+            organization_id=current_user.organization_id
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Transcription crashed: {type(e).__name__}: {str(e)}")
     
     if "error" in result:
         raise HTTPException(status_code=500, detail=result.get("detail", "Transcription failed"))

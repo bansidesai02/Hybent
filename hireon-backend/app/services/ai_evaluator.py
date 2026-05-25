@@ -236,54 +236,102 @@ async def transcribe_audio(
     organization_id: Optional[uuid.UUID] = None
 ):
     """
-    Transcribe audio data using Hugging Face Free Serverless Inference (Whisper).
+    Transcribe audio data to text.
+    Priority: Gemini (already configured) → HuggingFace Whisper (optional fallback).
     """
-    if not settings.huggingface_api_key:
-        logger.warning("No Hugging Face API key configured for STT.")
-        return {"error": "no_key", "detail": "Hugging Face API key is missing."}
-
-    # Using openai/whisper-large-v3 for high quality STT
-    MODEL_ID = "openai/whisper-large-v3"
-
     start_time = time.time()
     status = "success"
     error_msg = None
-    transcription = ""
+    provider = "unknown"
+    model_name = "unknown"
 
-    try:
-        client = InferenceClient(api_key=settings.huggingface_api_key)
+    # ── Strategy 1: Use Gemini (already configured) ─────────────────────────
+    if settings.gemini_api_key:
+        provider = "Gemini"
+        model_name = "gemini-2.0-flash"
+        try:
+            model = genai.GenerativeModel(model_name)
 
-        def _transcribe():
-            # automatic_speech_recognition handles audio bytes directly
-            return client.automatic_speech_recognition(audio_data, model=MODEL_ID)
+            # Use proper SDK types for inline audio data
+            import tempfile, os
+            tmp = tempfile.NamedTemporaryFile(suffix=".webm", delete=False)
+            try:
+                tmp.write(audio_data)
+                tmp.close()
+                audio_file = genai.upload_file(tmp.name, mime_type="audio/webm")
+            finally:
+                os.unlink(tmp.name)
 
-        result = await asyncio.to_thread(_transcribe)
-        transcription = result.text if hasattr(result, 'text') else str(result)
-        
-        return {"text": transcription}
-
-    except Exception as e:
-        status = "failure"
-        error_msg = str(e)
-        logger.error(f"STT failure (HF/Serverless): {e}")
-        return {"error": "exception", "detail": str(e)}
-    finally:
-        duration_ms = (time.time() - start_time) * 1000
-        if background_tasks:
-            background_tasks.add_task(
-                log_ai_usage,
-                provider="HuggingFace",
-                model=MODEL_ID,
-                feature="speech_to_text",
-                prompt_tokens=1, # Estimated
-                completion_tokens=1,
-                total_tokens=2,
-                duration_ms=duration_ms,
-                status=status,
-                error_detail=error_msg,
-                user_id=user_id,
-                organization_id=organization_id
+            prompt = (
+                "Transcribe the following audio recording into text. "
+                "Return ONLY the transcribed text, nothing else. "
+                "If the audio is silent or unintelligible, return an empty string."
             )
+
+            def _gemini_transcribe():
+                return model.generate_content([prompt, audio_file])
+
+            response = await asyncio.to_thread(_gemini_transcribe)
+            transcription = response.text.strip() if response.text else ""
+
+            return {"text": transcription}
+
+        except Exception as ge:
+            logger.error(f"Gemini transcription failed: {ge}")
+            error_msg = str(ge)
+            # Fall through to HuggingFace if available
+            if not settings.huggingface_api_key:
+                status = "failure"
+                # Log usage before returning
+                duration_ms = (time.time() - start_time) * 1000
+                if background_tasks:
+                    background_tasks.add_task(
+                        log_ai_usage,
+                        provider=provider, model=model_name,
+                        feature="speech_to_text",
+                        prompt_tokens=1, completion_tokens=1, total_tokens=2,
+                        duration_ms=duration_ms, status=status,
+                        error_detail=error_msg,
+                        user_id=user_id, organization_id=organization_id,
+                    )
+                return {"error": "exception", "detail": str(ge)}
+
+    # ── Strategy 2: HuggingFace Whisper (optional fallback) ─────────────────
+    if settings.huggingface_api_key:
+        provider = "HuggingFace"
+        model_name = "openai/whisper-large-v3"
+        try:
+            client = InferenceClient(api_key=settings.huggingface_api_key)
+
+            def _hf_transcribe():
+                return client.automatic_speech_recognition(audio_data, model=model_name)
+
+            result = await asyncio.to_thread(_hf_transcribe)
+            transcription = result.text if hasattr(result, 'text') else str(result)
+
+            return {"text": transcription}
+
+        except Exception as e:
+            status = "failure"
+            error_msg = str(e)
+            logger.error(f"HuggingFace STT failure: {e}")
+            duration_ms = (time.time() - start_time) * 1000
+            if background_tasks:
+                background_tasks.add_task(
+                    log_ai_usage,
+                    provider=provider, model=model_name,
+                    feature="speech_to_text",
+                    prompt_tokens=1, completion_tokens=1, total_tokens=2,
+                    duration_ms=duration_ms, status=status,
+                    error_detail=error_msg,
+                    user_id=user_id, organization_id=organization_id,
+                )
+            return {"error": "exception", "detail": str(e)}
+
+    # ── No provider available ───────────────────────────────────────────────
+    logger.warning("No AI API key configured for speech-to-text (need GEMINI_API_KEY or HUGGINGFACE_API_KEY).")
+    return {"error": "no_key", "detail": "No AI API key configured for transcription."}
+
 
 
 COMBINED_FEEDBACK_PROMPT = """\

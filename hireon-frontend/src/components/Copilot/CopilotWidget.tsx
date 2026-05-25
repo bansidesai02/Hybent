@@ -116,7 +116,16 @@ export function CopilotWidget() {
   const audioChunksRef = useRef<Blob[]>([])
 
   // Cleanup on unmount
-  useEffect(() => () => { abortRef.current?.abort() }, [])
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  // Ensure MediaRecorder stops on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+    }
+  }, [])
 
   // Auto-scroll
   useEffect(() => {
@@ -247,10 +256,24 @@ export function CopilotWidget() {
   }
 
   // Recording Logic
+  const getSupportedMimeType = (): string => {
+    const preferred = 'audio/webm;codecs=opus'
+    if (MediaRecorder.isTypeSupported(preferred)) return preferred
+    if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm'
+    // Fallback to default
+    return ''
+  }
+
   const startRecording = async () => {
     try {
+      if (typeof MediaRecorder === 'undefined') {
+        addMessage({ role: 'assistant', content: '⚠️ Your browser does not support audio recording.' })
+        return
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
+      const mimeType = getSupportedMimeType()
+      const options = mimeType ? { mimeType } : undefined
+      const recorder = new MediaRecorder(stream, options as any)
       mediaRecorderRef.current = recorder
       audioChunksRef.current = []
 
@@ -259,7 +282,8 @@ export function CopilotWidget() {
       }
 
       recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const mime = getSupportedMimeType() || 'audio/webm'
+        const audioBlob = new Blob(audioChunksRef.current, { type: mime })
         setThinking(true)
         try {
           const res = await copilotApi.transcribe(audioBlob)
@@ -275,8 +299,10 @@ export function CopilotWidget() {
               }
             }, 0)
           }
-        } catch (err) {
-          addMessage({ role: 'assistant', content: '⚠️ Failed to transcribe audio. Please try again.' })
+        } catch (err: any) {
+          const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
+          console.error('Transcription error:', err?.response?.data || err)
+          addMessage({ role: 'assistant', content: `⚠️ Transcription failed: ${detail}` })
         } finally {
           setThinking(false)
         }
@@ -293,6 +319,7 @@ export function CopilotWidget() {
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
+      mediaRecorderRef.current = null
       setIsRecording(false)
     }
   }
