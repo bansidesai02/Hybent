@@ -1,6 +1,6 @@
 """Repair bulk import schema drift
 
-Revision ID: 023_repair_bulk_import_schema_drift
+Revision ID: 023_repair_bulk_schema_drift
 Revises: 022_import_file_content
 Create Date: 2026-05-26
 """
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "023_repair_bulk_import_schema_drift"
+revision = "023_repair_bulk_schema_drift"
 down_revision = "022_import_file_content"
 branch_labels = None
 depends_on = None
