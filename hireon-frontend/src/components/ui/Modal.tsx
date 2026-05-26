@@ -40,56 +40,58 @@ export function Modal({ open, onClose, title, headerActions, children, size = 'm
     <AnimatePresence>
       {open && (
         <div
-          className="fixed inset-y-0 right-0 left-0 lg:left-60 z-[1000] flex items-center justify-center p-4"
+          className="app-modal-root"
           data-modal-root="true"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           role="presentation"
         >
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-slate-950/38 dark:bg-black/55 backdrop-blur-[2px]"
-            onClick={onClose}
-          />
-          {/* Panel */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.15 }}
-            onClick={(e) => e.stopPropagation()}
-            className={clsx(
-              'relative w-full bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-gray-200 dark:border-[var(--card-border)] overflow-hidden',
-              sizes[size],
-              className
-            )}
-          >
-            {title && (
-              <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[var(--card-border)]">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-[var(--text)]">{title}</h2>
-                <div className="flex items-center gap-3">
-                  {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
-                  <button
-                    onClick={onClose}
-                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+          <div className="app-modal-pane">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 app-modal-backdrop"
+              onClick={onClose}
+            />
+            {/* Panel */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15 }}
+              onClick={(e) => e.stopPropagation()}
+              className={clsx(
+                'relative w-full bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-gray-200 dark:border-[var(--card-border)] overflow-hidden',
+                sizes[size],
+                className
+              )}
+            >
+              {title && (
+                <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[var(--card-border)]">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-[var(--text)]">{title}</h2>
+                  <div className="flex items-center gap-3">
+                    {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
+                    <button
+                      onClick={onClose}
+                      className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+              )}
+              <div className={clsx(
+                'max-h-[85vh] overflow-y-auto',
+                hideScrollbar && 'scrollbar-hide'
+              )}>
+                <div className="p-8">{children}</div>
               </div>
-            )}
-            <div className={clsx(
-              'max-h-[85vh] overflow-y-auto',
-              hideScrollbar && 'scrollbar-hide'
-            )}>
-              <div className="p-8">{children}</div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       )}
     </AnimatePresence>

@@ -412,6 +412,39 @@
     border: 1px solid var(--border);
   }
 
+  .app-modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  .app-modal-pane {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    pointer-events: auto;
+  }
+
+  .app-modal-backdrop {
+    background: rgba(32, 27, 58, 0.28);
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+  }
+
+  .dark .app-modal-backdrop {
+    background: rgba(0, 0, 0, 0.58);
+  }
+
+  @media (min-width: 1024px) {
+    .app-modal-pane {
+      left: 15rem;
+    }
+  }
+
   /* Input base */
   .input-base {
     width: 100%;

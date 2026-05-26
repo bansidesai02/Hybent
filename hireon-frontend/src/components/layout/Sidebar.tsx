@@ -246,7 +246,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
   return (
     <aside
       className={clsx(
-        'h-screen flex flex-col flex-shrink-0 transition-all duration-300 z-[70]',
+        'h-screen flex flex-col flex-shrink-0 transition-all duration-300 z-[70] lg:relative lg:z-[1200]',
         'bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)]',
         'fixed lg:static inset-y-0 left-0',
         collapsed ? 'w-16' : 'w-60',
