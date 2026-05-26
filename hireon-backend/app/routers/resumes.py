@@ -132,8 +132,12 @@ async def upload_and_create(
     if candidate:
         logger.info(f"Duplicate email match found: {email} for existing candidate {candidate.full_name} (ID: {candidate.id})")
         creator_name = "Admin"
-        if candidate.created_by:
-            creator_name = candidate.created_by.full_name
+        try:
+            cb = candidate.created_by
+            if cb is not None:
+                creator_name = getattr(cb, "full_name", None) or "Admin"
+        except Exception:
+            pass
         raise HTTPException(
             status_code=409, 
             detail={

@@ -132,9 +132,17 @@ async def list_talent_pool(
 
     def transform_candidate(c: Candidate):
         d = CandidateOut.model_validate(c).model_dump()
-        if c.created_by:
-            d["created_by_name"] = c.created_by.full_name
-            d["created_by_id"] = str(c.created_by.id)
+        try:
+            cb = c.created_by
+            if cb is not None:
+                d["created_by_name"] = getattr(cb, "full_name", None) or "Admin"
+                d["created_by_id"] = str(getattr(cb, "id", ""))
+            else:
+                d["created_by_name"] = "Admin"
+                d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
+        except Exception:
+            d["created_by_name"] = "Admin"
+            d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
 
     return APIResponse.success(message="Talent pool retrieved.", data=paginate([transform_candidate(c) for c in items], total, page, limit))
@@ -217,7 +225,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
                 "match_score": candidate.match_score,
                 "skills": candidate.skills[:8] if candidate.skills else [],
                 "avatar_url": None,
-                "created_by_name": candidate.created_by.full_name if candidate.created_by else "Admin"
+                "created_by_name": getattr(candidate.created_by, "full_name", None) or "Admin" if getattr(candidate, "created_by", None) is not None else "Admin"
             })
             
         if job_suggestions:

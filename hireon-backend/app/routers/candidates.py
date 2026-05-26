@@ -144,9 +144,17 @@ async def list_candidates(
     
     def transform_candidate(c: Candidate):
         d = CandidateOut.model_validate(c).model_dump()
-        if c.created_by:
-            d["created_by_name"] = c.created_by.full_name
-            d["created_by_id"] = str(c.created_by.id)
+        try:
+            cb = c.created_by
+            if cb is not None:
+                d["created_by_name"] = getattr(cb, "full_name", None) or "Admin"
+                d["created_by_id"] = str(getattr(cb, "id", ""))
+            else:
+                d["created_by_name"] = "Admin"
+                d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
+        except Exception:
+            d["created_by_name"] = "Admin"
+            d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
 
     return APIResponse.success(message="Candidates retrieved successfully.", data=paginate([transform_candidate(c) for c in items], total, page, limit))
@@ -198,11 +206,17 @@ async def get_candidates_pipeline(current_user: Annotated[User, Depends(get_curr
     
     def transform_candidate(c: Candidate):
         d = CandidateOut.model_validate(c).model_dump()
-        if c.created_by:
-            d["created_by_name"] = c.created_by.full_name
-            d["created_by_id"] = str(c.created_by.id)
-        else:
+        try:
+            cb = c.created_by
+            if cb is not None:
+                d["created_by_name"] = getattr(cb, "full_name", None) or "Admin"
+                d["created_by_id"] = str(getattr(cb, "id", ""))
+            else:
+                d["created_by_name"] = "Admin"
+                d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
+        except Exception:
             d["created_by_name"] = "Admin"
+            d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
     
     stages = {
@@ -250,8 +264,12 @@ async def create_candidate(data: CandidateCreate, current_user: Annotated[User, 
     existing_candidate = existing.scalar_one_or_none()
     if existing_candidate:
         creator_name = "Admin"
-        if existing_candidate.created_by:
-            creator_name = existing_candidate.created_by.full_name
+        try:
+            cb = existing_candidate.created_by
+            if cb is not None:
+                creator_name = getattr(cb, "full_name", None) or "Admin"
+        except Exception:
+            pass
         raise HTTPException(
             status_code=409, 
             detail=f"Candidate with this email has already been added by {creator_name}"
