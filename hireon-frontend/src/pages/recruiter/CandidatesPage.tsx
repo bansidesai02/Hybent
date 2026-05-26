@@ -1,6 +1,6 @@
 import React from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -503,7 +503,7 @@ export default function CandidatesPage() {
     }).catch((err: any) => console.error("Failed to fetch recruiters", err))
   }, [])
 
-  const queryParams = {
+  const queryParams = useMemo(() => ({
     page,
     limit: 12,
     ...(search ? { search } : {}),
@@ -528,12 +528,22 @@ export default function CandidatesPage() {
       }
       return {}
     })() : {}),
-  }
+  }), [page, search, statusFilter, stageFilter, recruiterId, selectedJobId, dateFilter, customDateRange])
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['candidates', queryParams],
     queryFn: () => candidatesApi.list(queryParams).then((r: any) => r.data),
   })
+
+  useEffect(() => {
+    if (!isError) return
+    const err = error as any
+    console.error('Failed to load candidates', {
+      status: err?.response?.status,
+      body: err?.response?.data,
+      params: queryParams,
+    })
+  }, [isError, error, queryParams])
 
   const { data: activeJobs } = useQuery({
     queryKey: ['jobs', 'active'],

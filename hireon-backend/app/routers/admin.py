@@ -418,6 +418,26 @@ async def repair_db_schema_endpoint(
     from sqlalchemy import text
     
     statements = [
+        """
+        CREATE TABLE IF NOT EXISTS import_batches (
+            id UUID PRIMARY KEY,
+            organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+            imported_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+            file_name VARCHAR(255) NOT NULL,
+            file_path VARCHAR(600) NULL,
+            selected_panels VARCHAR[] NOT NULL DEFAULT '{}',
+            total_rows INTEGER NOT NULL DEFAULT 0,
+            success_count INTEGER NOT NULL DEFAULT 0,
+            failed_count INTEGER NOT NULL DEFAULT 0,
+            duplicate_count INTEGER NOT NULL DEFAULT 0,
+            status VARCHAR(50) NOT NULL DEFAULT 'completed',
+            failure_details JSONB NULL,
+            file_content BYTEA NULL,
+            deleted_at TIMESTAMP WITH TIME ZONE NULL,
+            deleted_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        );
+        """,
         # Missing columns from migration 019
         "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS reference VARCHAR(255);",
         "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS relevant_experience VARCHAR(100);",
@@ -449,6 +469,15 @@ async def repair_db_schema_endpoint(
         """
         DO $$
         BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_import_batches_organization_id') THEN
+                ALTER TABLE import_batches ADD CONSTRAINT fk_import_batches_organization_id FOREIGN KEY (organization_id) REFERENCES organizations (id) ON DELETE CASCADE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_import_batches_imported_by_id') THEN
+                ALTER TABLE import_batches ADD CONSTRAINT fk_import_batches_imported_by_id FOREIGN KEY (imported_by_id) REFERENCES users (id) ON DELETE SET NULL;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_import_batches_deleted_by_id') THEN
+                ALTER TABLE import_batches ADD CONSTRAINT fk_import_batches_deleted_by_id FOREIGN KEY (deleted_by_id) REFERENCES users (id) ON DELETE SET NULL;
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_candidates_import_batch_id') THEN
                 ALTER TABLE candidates ADD CONSTRAINT fk_candidates_import_batch_id FOREIGN KEY (import_batch_id) REFERENCES import_batches (id) ON DELETE SET NULL;
             END IF;
@@ -459,6 +488,8 @@ async def repair_db_schema_endpoint(
         """,
         
         # Create indexes
+        "CREATE INDEX IF NOT EXISTS ix_import_batches_organization_id ON import_batches (organization_id);",
+        "CREATE INDEX IF NOT EXISTS ix_import_batches_imported_by_id ON import_batches (imported_by_id);",
         "CREATE INDEX IF NOT EXISTS ix_candidates_import_batch_id ON candidates (import_batch_id);",
         "CREATE INDEX IF NOT EXISTS ix_candidates_imported_by_id ON candidates (imported_by_id);"
     ]
@@ -467,11 +498,11 @@ async def repair_db_schema_endpoint(
     for stmt in statements:
         try:
             await db.execute(text(stmt))
+            await db.commit()
             results.append({"statement": stmt.strip().split("\n")[0][:60] + "...", "status": "success"})
         except Exception as e:
+            await db.rollback()
             results.append({"statement": stmt.strip().split("\n")[0][:60] + "...", "status": "error", "message": str(e)})
-            
-    await db.commit()
     
     return APIResponse.success(
         message="Database repair statements executed.",

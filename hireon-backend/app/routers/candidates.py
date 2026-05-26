@@ -1,6 +1,8 @@
 import uuid
+import logging
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from sqlalchemy import select, func
+from sqlalchemy.exc import SQLAlchemyError
 from app.dependencies import DB, get_current_user, require_recruiter, require_admin
 from app.models.user import User
 from typing import Annotated
@@ -18,6 +20,7 @@ from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
 
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import selectinload
 
@@ -50,6 +53,21 @@ async def list_candidates(
     date_from: str | None = None,
     date_to: str | None = None,
 ):
+    logger.info(
+        "Candidate list request: user_id=%s role=%s org_id=%s page=%s limit=%s search=%r status=%r stage=%r created_by_id=%r job_id=%s date_from=%r date_to=%r",
+        current_user.id,
+        current_user.role,
+        current_user.organization_id,
+        page,
+        limit,
+        search,
+        status,
+        stage,
+        created_by_id,
+        job_id,
+        date_from,
+        date_to,
+    )
     status = (status or "").strip().lower() or None
     # Status → multiple pipeline_stage values
     STATUS_STAGE_MAP = {
@@ -134,13 +152,33 @@ async def list_candidates(
     elif stage:
         query = query.where(Candidate.pipeline_stage == stage)
 
-    total_query = select(func.count()).select_from(query.subquery())
-    total = (await db.execute(total_query)).scalar()
+    try:
+        total_query = select(func.count()).select_from(query.subquery())
+        logger.debug("Candidate count query: %s", total_query)
+        total = (await db.execute(total_query)).scalar()
 
-    # Apply order by created_at desc
-    query = query.order_by(Candidate.created_at.desc())
-    items_result = await db.execute(query.offset((page - 1) * limit).limit(limit))
-    items = items_result.scalars().all()
+        # Apply order by created_at desc
+        query = query.order_by(Candidate.created_at.desc())
+        paged_query = query.offset((page - 1) * limit).limit(limit)
+        logger.debug("Candidate page query: %s", paged_query)
+        items_result = await db.execute(paged_query)
+        items = items_result.scalars().all()
+        logger.info(
+            "Candidate list query returned: org_id=%s total=%s rows=%s page=%s limit=%s",
+            current_user.organization_id,
+            total,
+            len(items),
+            page,
+            limit,
+        )
+    except SQLAlchemyError:
+        await db.rollback()
+        logger.exception(
+            "Candidate list database failure: user_id=%s org_id=%s",
+            current_user.id,
+            current_user.organization_id,
+        )
+        raise
     
     def transform_candidate(c: Candidate):
         try:
@@ -184,7 +222,18 @@ async def list_candidates(
             d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
 
-    return APIResponse.success(message="Candidates retrieved successfully.", data=paginate([transform_candidate(c) for c in items], total, page, limit))
+    try:
+        payload = paginate([transform_candidate(c) for c in items], total, page, limit)
+    except Exception:
+        logger.exception(
+            "Candidate list serialization failure: user_id=%s org_id=%s rows=%s",
+            current_user.id,
+            current_user.organization_id,
+            len(items),
+        )
+        raise
+
+    return APIResponse.success(message="Candidates retrieved successfully.", data=payload)
 
 
 # Mapping of detailed stages to high-level buckets
