@@ -240,6 +240,10 @@ class BulkImportService:
         Handles sparse sheets and offset headers by counting non-empty rows,
         then subtracting one header row if present.
         """
+        # Fast path: use ws.max_row directly if available in openpyxl read-only mode.
+        if hasattr(ws, "max_row") and ws.max_row is not None:
+            return max(ws.max_row - 1, 0)
+
         non_empty_rows = 0
         for row in ws.iter_rows(values_only=True):
             if any(cell not in (None, "", " ") for cell in row):
@@ -559,6 +563,8 @@ class BulkImportService:
         auto_commit: bool = True,
         job_cache: dict[str, Job] | None = None,
         import_job: Job | None = None,
+        existing_emails: dict[str, Candidate] | None = None,
+        existing_phones: dict[str, Candidate] | None = None,
     ) -> BulkImportResult:
         """
         Import candidates from a sheet
@@ -578,6 +584,38 @@ class BulkImportService:
         try:
             if job_cache is None:
                 job_cache = {}
+
+            # Pre-populate job_cache with existing POOL jobs if it's empty
+            if not job_cache:
+                jobs_res = await db.execute(
+                    select(Job).where(
+                        Job.organization_id == organization_id,
+                        Job.status == JobStatus.POOL
+                    )
+                )
+                for j in jobs_res.scalars().all():
+                    if j.title:
+                        job_cache[j.title.lower().strip()] = j
+
+            # Pre-fetch existing candidates' emails and phones if caches are None
+            if existing_emails is None or existing_phones is None:
+                candidates_res = await db.execute(
+                    select(Candidate).where(
+                        Candidate.organization_id == organization_id
+                    )
+                )
+                candidates_list = candidates_res.scalars().all()
+                if existing_emails is None:
+                    existing_emails = {}
+                    for c in candidates_list:
+                        if c.email:
+                            existing_emails[c.email.lower().strip()] = c
+                if existing_phones is None:
+                    existing_phones = {}
+                    for c in candidates_list:
+                        if c.phone:
+                            existing_phones[c.phone.strip()] = c
+
             if import_job is None:
                 import_job = await BulkImportService._get_or_create_pool_job(
                     db=db,
@@ -613,13 +651,20 @@ class BulkImportService:
                         result.error_count += 1
                         continue
                     
-                    # Check for duplicates
-                    existing = await BulkImportService.check_duplicate(
-                        parsed_data.get('email', ''),
-                        parsed_data.get('phone'),
-                        organization_id,
-                        db
-                    )
+                    # Check for duplicates in-memory
+                    existing = None
+                    email_val = parsed_data.get('email')
+                    if email_val and str(email_val).strip():
+                        email_key = str(email_val).lower().strip()
+                        if email_key in existing_emails:
+                            existing = existing_emails[email_key]
+                    
+                    if not existing:
+                        phone_val = parsed_data.get('phone')
+                        if phone_val and str(phone_val).strip():
+                            phone_key = str(phone_val).strip()
+                            if phone_key in existing_phones:
+                                existing = existing_phones[phone_key]
                     
                     if existing:
                         result.duplicates.append({
@@ -645,6 +690,12 @@ class BulkImportService:
                     await db.flush()
                     result.created_count += 1
                     result.imported_candidates.append(str(candidate.id))
+
+                    # Track new candidate in memory to catch duplicates within the same sheet
+                    if candidate.email:
+                        existing_emails[candidate.email.lower().strip()] = candidate
+                    if candidate.phone:
+                        existing_phones[candidate.phone.strip()] = candidate
 
                     # Assign candidate to designations via applications:
                     # 1) Global "Import Candidates" (reused forever)
@@ -756,6 +807,33 @@ class BulkImportService:
 
         result = BulkImportResult()
         job_cache: dict[str, Job] = {}
+        
+        # Pre-populate cache with all existing POOL jobs
+        jobs_res = await db.execute(
+            select(Job).where(
+                Job.organization_id == organization_id,
+                Job.status == JobStatus.POOL
+            )
+        )
+        for j in jobs_res.scalars().all():
+            if j.title:
+                job_cache[j.title.lower().strip()] = j
+
+        # Pre-fetch all candidates' emails and phones
+        candidates_res = await db.execute(
+            select(Candidate).where(
+                Candidate.organization_id == organization_id
+            )
+        )
+        candidates_list = candidates_res.scalars().all()
+        existing_emails = {}
+        existing_phones = {}
+        for c in candidates_list:
+            if c.email:
+                existing_emails[c.email.lower().strip()] = c
+            if c.phone:
+                existing_phones[c.phone.strip()] = c
+
         import_job = await BulkImportService._get_or_create_pool_job(
             db=db,
             organization_id=organization_id,
@@ -763,6 +841,7 @@ class BulkImportService:
             title=BulkImportService.IMPORT_CANDIDATES_DESIGNATION_TITLE,
             cache=job_cache,
         )
+        
         sheets = BulkImportService.detect_sheets(file_path)
         for sheet in sheets:
             sheet_result = await BulkImportService.bulk_import_sheet(
@@ -776,6 +855,8 @@ class BulkImportService:
                 auto_commit=False,
                 job_cache=job_cache,
                 import_job=import_job,
+                existing_emails=existing_emails,
+                existing_phones=existing_phones,
             )
             result.total_rows += sheet_result.total_rows
             result.created_count += sheet_result.created_count

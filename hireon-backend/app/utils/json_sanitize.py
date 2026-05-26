@@ -13,7 +13,13 @@ def _sanitize_scalar(value: Any) -> Any:
     if value is None:
         return None
 
-    if isinstance(value, (datetime, date, str, bool, int)):
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    if isinstance(value, (str, bool, int)):
         return value
 
     if isinstance(value, Decimal):
