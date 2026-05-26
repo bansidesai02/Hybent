@@ -312,3 +312,95 @@ async def test_email(
         message=f"Test email triggered to {target_email}. Check backend logs for delivery status.",
         data={"smtp_user": settings.smtp_user, "smtp_host": settings.smtp_host, "recipient": target_email}
     )
+
+
+@router.get("/debug-db")
+async def debug_db(
+    current_user: Annotated[User, Depends(require_admin)],
+    db: DB,
+):
+    """
+    Admin-only endpoint to inspect database schema status.
+    """
+    from sqlalchemy import text
+
+    # Check alembic_version table
+    try:
+        version_result = await db.execute(text("SELECT version_num FROM alembic_version"))
+        version = version_result.scalars().first()
+    except Exception as e:
+        version = f"Error: {str(e)}"
+
+    # Check candidates table columns
+    try:
+        columns_result = await db.execute(text(
+            "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'candidates'"
+        ))
+        columns = [{"name": row[0], "type": row[1]} for row in columns_result.all()]
+    except Exception as e:
+        columns = f"Error: {str(e)}"
+
+    # Check import_batches table
+    try:
+        batches_result = await db.execute(text(
+            "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'import_batches'"
+        ))
+        batches_columns = [{"name": row[0], "type": row[1]} for row in batches_result.all()]
+    except Exception as e:
+        batches_columns = f"Error: {str(e)}"
+
+    return APIResponse.success(
+        message="Database status fetched successfully.",
+        data={
+            "alembic_version": version,
+            "candidates_columns": columns,
+            "import_batches_columns": batches_columns,
+        }
+    )
+
+
+@router.post("/run-migrations")
+async def run_migrations_endpoint(
+    current_user: Annotated[User, Depends(require_admin)],
+):
+    """
+    Admin-only endpoint to run Alembic migrations programmatically.
+    """
+    import threading
+    from alembic.config import Config
+    from alembic import command
+    from pathlib import Path
+
+    exception = None
+
+    def worker():
+        nonlocal exception
+        try:
+            # Resolve alembic.ini path relative to this file
+            current_dir = Path(__file__).resolve().parent
+            backend_root = current_dir.parent.parent
+            alembic_ini_path = str(backend_root / "alembic.ini")
+            
+            alembic_cfg = Config(alembic_ini_path)
+            # Ensure the config knows where script_location is if relative path is used
+            alembic_cfg.set_main_option("script_location", str(backend_root / "alembic"))
+            
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
+            exception = e
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+    thread.join()
+
+    if exception:
+        return APIResponse.error(
+            message=f"Migration failed: {str(exception)}",
+            status_code=500,
+            details={"error": str(exception)}
+        )
+
+    return APIResponse.success(
+        message="Migrations executed successfully.",
+        data={"status": "success"}
+    )

@@ -636,116 +636,117 @@ class BulkImportService:
             # Process each row
             for idx, row in df.iterrows():
                 try:
-                    row_dict = row.to_dict()
-                    parsed_data = BulkImportService.parse_row(row_dict)
-                    
-                    # Validate
-                    is_valid, validation_errors = BulkImportService.validate_candidate_data(parsed_data)
-                    
-                    if not is_valid:
-                        result.invalid_rows.append({
-                            'row_number': idx + 2,
-                            'raw_data': sanitize_json_data(row_dict),
-                            'errors': validation_errors
-                        })
-                        result.error_count += 1
-                        continue
-                    
-                    # Check for duplicates in-memory
-                    existing = None
-                    email_val = parsed_data.get('email')
-                    if email_val and str(email_val).strip():
-                        email_key = str(email_val).lower().strip()
-                        if email_key in existing_emails:
-                            existing = existing_emails[email_key]
-                    
-                    if not existing:
-                        phone_val = parsed_data.get('phone')
-                        if phone_val and str(phone_val).strip():
-                            phone_key = str(phone_val).strip()
-                            if phone_key in existing_phones:
-                                existing = existing_phones[phone_key]
-                    
-                    if existing:
-                        result.duplicates.append({
-                            'row_number': idx + 2,
-                            'email': parsed_data.get('email'),
-                            'full_name': parsed_data.get('full_name'),
-                            'existing_id': str(existing.id)
-                        })
-                        result.skipped_count += 1
-                        continue
-                    
-                    # Create candidate
-                    candidate = BulkImportService.create_candidate_from_data(
-                        parsed_data,
-                        organization_id,
-                        created_by_id,
-                        panel_name=sheet_name,
-                        import_batch_id=import_batch_id,
-                        imported_at=imported_at,
-                    )
-                    
-                    db.add(candidate)
-                    await db.flush()
-                    result.created_count += 1
-                    result.imported_candidates.append(str(candidate.id))
-
-                    # Track new candidate in memory to catch duplicates within the same sheet
-                    if candidate.email:
-                        existing_emails[candidate.email.lower().strip()] = candidate
-                    if candidate.phone:
-                        existing_phones[candidate.phone.strip()] = candidate
-
-                    # Assign candidate to designations via applications:
-                    # 1) Global "Import Candidates" (reused forever)
-                    # 2) Role/technology designation (sheet/panel name), created once then reused
-                    role_title = (
-                        BulkImportService._normalize_designation_title(sheet_name)
-                        or BulkImportService._normalize_designation_title(parsed_data.get("technical_panel"))
-                        or BulkImportService._normalize_designation_title(parsed_data.get("current_title"))
-                        or "Imported"
-                    )
-                    role_job = await BulkImportService._get_or_create_pool_job(
-                        db=db,
-                        organization_id=organization_id,
-                        created_by_id=created_by_id,
-                        title=role_title,
-                        cache=job_cache,
-                    )
-
-                    db.add(
-                        Application(
-                            organization_id=organization_id,
-                            job_id=import_job.id,
-                            candidate_id=candidate.id,
-                            stage=ApplicationStage.APPLIED,
-                            source="import",
+                    async with db.begin_nested():
+                        row_dict = row.to_dict()
+                        parsed_data = BulkImportService.parse_row(row_dict)
+                        
+                        # Validate
+                        is_valid, validation_errors = BulkImportService.validate_candidate_data(parsed_data)
+                        
+                        if not is_valid:
+                            result.invalid_rows.append({
+                                'row_number': idx + 2,
+                                'raw_data': sanitize_json_data(row_dict),
+                                'errors': validation_errors
+                            })
+                            result.error_count += 1
+                            continue
+                        
+                        # Check for duplicates in-memory
+                        existing = None
+                        email_val = parsed_data.get('email')
+                        if email_val and str(email_val).strip():
+                            email_key = str(email_val).lower().strip()
+                            if email_key in existing_emails:
+                                existing = existing_emails[email_key]
+                        
+                        if not existing:
+                            phone_val = parsed_data.get('phone')
+                            if phone_val and str(phone_val).strip():
+                                phone_key = str(phone_val).strip()
+                                if phone_key in existing_phones:
+                                    existing = existing_phones[phone_key]
+                        
+                        if existing:
+                            result.duplicates.append({
+                                'row_number': idx + 2,
+                                'email': parsed_data.get('email'),
+                                'full_name': parsed_data.get('full_name'),
+                                'existing_id': str(existing.id)
+                            })
+                            result.skipped_count += 1
+                            continue
+                        
+                        # Create candidate
+                        candidate = BulkImportService.create_candidate_from_data(
+                            parsed_data,
+                            organization_id,
+                            created_by_id,
+                            panel_name=sheet_name,
+                            import_batch_id=import_batch_id,
+                            imported_at=imported_at,
                         )
-                    )
-                    if role_job.id != import_job.id:
+                        
+                        db.add(candidate)
+                        await db.flush()
+                        result.created_count += 1
+                        result.imported_candidates.append(str(candidate.id))
+
+                        # Track new candidate in memory to catch duplicates within the same sheet
+                        if candidate.email:
+                            existing_emails[candidate.email.lower().strip()] = candidate
+                        if candidate.phone:
+                            existing_phones[candidate.phone.strip()] = candidate
+
+                        # Assign candidate to designations via applications:
+                        # 1) Global "Import Candidates" (reused forever)
+                        # 2) Role/technology designation (sheet/panel name), created once then reused
+                        role_title = (
+                            BulkImportService._normalize_designation_title(sheet_name)
+                            or BulkImportService._normalize_designation_title(parsed_data.get("technical_panel"))
+                            or BulkImportService._normalize_designation_title(parsed_data.get("current_title"))
+                            or "Imported"
+                        )
+                        role_job = await BulkImportService._get_or_create_pool_job(
+                            db=db,
+                            organization_id=organization_id,
+                            created_by_id=created_by_id,
+                            title=role_title,
+                            cache=job_cache,
+                        )
+
                         db.add(
                             Application(
                                 organization_id=organization_id,
-                                job_id=role_job.id,
+                                job_id=import_job.id,
                                 candidate_id=candidate.id,
                                 stage=ApplicationStage.APPLIED,
                                 source="import",
                             )
                         )
-                        # Prefer the role designation for display in All Talent list.
-                        candidate.applied_job_title = role_job.title
-                    
-                    # Add to preview
-                    if len(result.preview_data) < 5:
-                        result.preview_data.append({
-                            'id': str(candidate.id),
-                            'name': candidate.full_name,
-                            'email': candidate.email,
-                            'phone': candidate.phone,
-                            'company': candidate.current_company,
-                            'experience': candidate.years_experience
-                        })
+                        if role_job.id != import_job.id:
+                            db.add(
+                                Application(
+                                    organization_id=organization_id,
+                                    job_id=role_job.id,
+                                    candidate_id=candidate.id,
+                                    stage=ApplicationStage.APPLIED,
+                                    source="import",
+                                )
+                            )
+                            # Prefer the role designation for display in All Talent list.
+                            candidate.applied_job_title = role_job.title
+                        
+                        # Add to preview
+                        if len(result.preview_data) < 5:
+                            result.preview_data.append({
+                                'id': str(candidate.id),
+                                'name': candidate.full_name,
+                                'email': candidate.email,
+                                'phone': candidate.phone,
+                                'company': candidate.current_company,
+                                'experience': candidate.years_experience
+                            })
                 
                 except Exception as e:
                     logger.error(f"Error processing row {idx}: {e}")
