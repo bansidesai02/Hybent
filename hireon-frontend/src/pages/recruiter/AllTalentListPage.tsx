@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
-import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle, Bookmark, X } from 'lucide-react'
+import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle, Bookmark, X, Upload, ChevronDown, Clock3 } from 'lucide-react'
 import { talentPoolApi } from '@/api/talentPool'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
@@ -18,10 +18,13 @@ import { adminApi } from '@/api/admin'
 import { useNotificationStore } from '@/store/notificationStore'
 import { Select } from '@/components/ui/Select'
 import { DatePicker } from '@/components/ui/DatePicker'
+import { BulkImportModal } from '@/components/recruiter/BulkImportModal'
+import { BulkImportHistoryModal } from '@/components/recruiter/BulkImportHistoryModal'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDate } from '@/utils/formatters'
 import type { Candidate } from '@/types'
+import type { ImportResultData } from '@/api/bulkImport'
 
 // ── Stage config ───────────────────────────────────────────────────────────────
 const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
@@ -291,10 +294,14 @@ export default function AllTalentListPage() {
   const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
   const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
   const [showAddJobModal, setShowAddJobModal] = useState(false)
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false)
+  const [showBulkImportHistoryModal, setShowBulkImportHistoryModal] = useState(false)
+  const [showImportActions, setShowImportActions] = useState(false)
   const [newJobTitle, setNewJobTitle] = useState('')
   const [isCreatingJob, setIsCreatingJob] = useState(false)
   const newJobInputRef = useRef<HTMLInputElement>(null)
   const actionTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const importActionsRef = useRef<HTMLDivElement>(null)
 
   // Right-click context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; job: any } | null>(null)
@@ -499,6 +506,16 @@ export default function AllTalentListPage() {
     }
   }, [data?.items, alertMatchThreshold, alertOnOffer])
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (importActionsRef.current && !importActionsRef.current.contains(event.target as Node)) {
+        setShowImportActions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const { data: allJobs } = useQuery({
     queryKey: ['jobs', 'all-for-filters'],
     queryFn: () => jobsApi.list({ limit: 100, include_pool: true }).then((r: any) => r.data.items),
@@ -641,6 +658,13 @@ export default function AllTalentListPage() {
       : ((allJobs || []).find((j: any) => j.id === selectedJobId)?.title || '')
 
   const filteredItems = data?.items || []
+  const handleBulkImportSuccess = (result: ImportResultData) => {
+    queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+    queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+    setShowBulkImportModal(false)
+    toast.success(`Imported ${result.created_count} candidates into Talent DB`)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 80 }}>
@@ -658,6 +682,70 @@ export default function AllTalentListPage() {
             Complete database of all assessed candidates.
           </p>
         </header>
+        <div className="relative flex items-center" ref={importActionsRef}>
+          <button
+            onClick={() => setShowBulkImportModal(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') setShowBulkImportModal(true)
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-l-xl text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95"
+            style={{
+              background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+              minHeight: 40,
+            }}
+          >
+            <Upload size={16} />
+            Import Candidates
+          </button>
+          <button
+            onClick={() => setShowImportActions((prev) => !prev)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setShowImportActions(false)
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setShowImportActions((prev) => !prev)
+              }
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setShowImportActions(true)
+              }
+            }}
+            aria-haspopup="menu"
+            aria-expanded={showImportActions}
+            className="inline-flex items-center justify-center px-3 py-2 rounded-r-xl text-white shadow-sm transition-all hover:opacity-95 border-l border-white/20"
+            style={{
+              background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+              minHeight: 40,
+            }}
+          >
+            <ChevronDown size={14} className={`transition-transform duration-200 ${showImportActions ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {showImportActions && (
+              <motion.div
+                role="menu"
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                transition={{ duration: 0.15 }}
+                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-gray-200 dark:border-[var(--card-border)] bg-white dark:bg-[var(--color-bg-sidebar)] shadow-xl z-[1200] p-2"
+              >
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setShowImportActions(false)
+                    setShowBulkImportHistoryModal(true)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-left text-gray-800 dark:text-gray-100 hover:bg-violet-50 dark:hover:bg-[#201c3b] transition-colors"
+                >
+                  <Clock3 size={15} />
+                  Import History
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Filters Row */}
@@ -1192,6 +1280,20 @@ export default function AllTalentListPage() {
           </div>
         </Modal>
       )}
+
+      <BulkImportModal
+        open={showBulkImportModal}
+        onClose={() => setShowBulkImportModal(false)}
+        onSuccess={handleBulkImportSuccess}
+      />
+      <BulkImportHistoryModal
+        open={showBulkImportHistoryModal}
+        onClose={() => setShowBulkImportHistoryModal(false)}
+        onRollbackSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+          queryClient.invalidateQueries({ queryKey: ['candidates'] })
+        }}
+      />
     </div>
   )
 }

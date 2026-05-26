@@ -43,13 +43,13 @@ async def list_talent_pool(
         from app.utils.category import extract_core_category
         job = await db.get(Job, job_id)
         if job:
-            job_title = job.title
-            core_cat = extract_core_category(job_title)
+            resolved_job_title = job.title
+            core_cat = extract_core_category(resolved_job_title)
             query = query.where(
                 or_(
-                    Candidate.applied_job_title.ilike(f"%{job_title}%"),
+                    Candidate.applied_job_title.ilike(f"%{resolved_job_title}%"),
                     Candidate.applied_job_title.ilike(f"%{core_cat}%"),
-                    Candidate.current_title.ilike(f"%{job_title}%"),
+                    Candidate.current_title.ilike(f"%{resolved_job_title}%"),
                     Candidate.current_title.ilike(f"%{core_cat}%"),
                     Candidate.applications.any(Application.job_id == job_id)
                 )

@@ -166,6 +166,21 @@ export interface Candidate {
   interview_time_slot?: string | null
   hr_notes?: string | null
   talent_pool_comment?: string | null
+  sr_no?: string | null
+  import_row_date?: string | null
+  hr_name?: string | null
+  technical_panel?: string | null
+  reference?: string | null
+  relevant_experience?: string | null
+  current_salary?: string | null
+  expected_salary?: string | null
+  import_status?: string | null
+  remarks_hr?: string | null
+  remarks_technical?: string | null
+  remarks_practical?: string | null
+  techno_functional_hr_interview?: string | null
+  import_panel_name?: string | null
+  import_date?: string | null
 }
 
 export interface Invitation {
@@ -375,6 +390,7 @@ export interface PaginatedResponse<T> {
 export interface AuthResponse {
   access_token: string
   token_type: string
+  refresh_token?: string
 }
 
 // ── Pipeline (Kanban) ──────────────────────────────────────────────────────────

@@ -21,6 +21,13 @@ class Candidate(Base):
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    import_batch_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_batches.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    imported_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    imported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(50))
@@ -71,6 +78,24 @@ class Candidate(Base):
     applied_job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     source: Mapped[str | None] = mapped_column(String(100))  # linkedin, referral, job_board, etc.
+    
+    # Bulk import specific fields
+    sr_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    import_row_date: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    hr_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    technical_panel: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    relevant_experience: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    current_salary: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    expected_salary: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    import_status: Mapped[str] = mapped_column(String(50), default="active", server_default="active")
+    remarks_hr: Mapped[str | None] = mapped_column(Text, nullable=True)
+    remarks_technical: Mapped[str | None] = mapped_column(Text, nullable=True)
+    remarks_practical: Mapped[str | None] = mapped_column(Text, nullable=True)
+    techno_functional_hr_interview: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    import_panel_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    import_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

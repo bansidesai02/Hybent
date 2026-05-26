@@ -30,7 +30,14 @@ async def login(data: LoginRequest, response: Response, db: DB):
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
     )
-    return APIResponse.success(message="Login successful.", data={"access_token": result["access_token"], "token_type": "bearer"})
+    return APIResponse.success(
+        message="Login successful.",
+        data={
+            "access_token": result["access_token"],
+            "refresh_token": result["refresh_token"],
+            "token_type": "bearer",
+        },
+    )
 
 
 @router.post("/refresh")
@@ -55,7 +62,14 @@ async def refresh(
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
     )
-    return APIResponse.success(message="Token refreshed successfully.", data={"access_token": result["access_token"], "token_type": "bearer"})
+    return APIResponse.success(
+        message="Token refreshed successfully.",
+        data={
+            "access_token": result["access_token"],
+            "refresh_token": result["refresh_token"],
+            "token_type": "bearer",
+        },
+    )
 
 
 @router.post("/logout")

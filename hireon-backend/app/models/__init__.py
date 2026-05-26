@@ -17,11 +17,12 @@ from app.models.candidate_document import CandidateDocument
 from app.models.message import Message
 from app.models.ai_usage import AIUsage
 from app.models.copilot_conversation import CopilotConversation, CopilotMessage
+from app.models.import_batch import ImportBatch
 
 __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
     "Application", "Interview", "InterviewPanelist", "Scorecard",
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
     "OtherOffer", "JobReferral", "CandidateDocument", "Message",
-    "AIUsage", "CopilotConversation", "CopilotMessage"
+    "AIUsage", "CopilotConversation", "CopilotMessage", "ImportBatch"
 ]

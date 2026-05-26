@@ -52,7 +52,7 @@ export default function LoginPage() {
     setServerError('')
     try {
       const { data } = await authApi.login(values.email, values.password)
-      setTokens(data.access_token, undefined)
+      setTokens(data.access_token, data.refresh_token)
       
       const { data: user } = await authApi.me()
       useAuthStore.getState().setUser(user)

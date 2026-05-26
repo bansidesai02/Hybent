@@ -43,9 +43,28 @@ class CandidateOut(OrmSchema):
     hr_notes: str | None = None
     talent_pool_comment: str | None = None
     source: str | None = None
+    # Bulk import fields
+    sr_no: str | None = None
+    import_row_date: str | None = None
+    hr_name: str | None = None
+    technical_panel: str | None = None
+    reference: str | None = None
+    relevant_experience: str | None = None
+    current_salary: str | None = None
+    expected_salary: str | None = None
+    import_status: str = "active"
+    remarks_hr: str | None = None
+    remarks_technical: str | None = None
+    remarks_practical: str | None = None
+    techno_functional_hr_interview: str | None = None
+    import_panel_name: str | None = None
+    import_date: datetime | None = None
     created_at: datetime
     updated_at: datetime
     created_by_id: str | None = None
+    import_batch_id: str | None = None
+    imported_by_id: str | None = None
+    imported_at: datetime | None = None
     created_by_name: str | None = None
     invitations: list[InvitationOut] = []
     other_offers: list[OtherOfferOut] = []

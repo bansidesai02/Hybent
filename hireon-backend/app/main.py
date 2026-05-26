@@ -27,7 +27,7 @@ from app.routers import (
     resumes, ai, applications, pipeline,
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
-    activities, reports, messages, linkedin, search, public, copilot
+    activities, reports, messages, linkedin, search, public, copilot, bulk_import
 )
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -181,6 +181,7 @@ app.include_router(messages.router)
 app.include_router(linkedin.router)
 app.include_router(search.router)
 app.include_router(copilot.router)
+app.include_router(bulk_import.router)
 app.include_router(public.router, prefix="/api")
 
 

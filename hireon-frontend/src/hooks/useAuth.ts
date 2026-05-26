@@ -10,7 +10,7 @@ export function useAuth() {
 
   const login = async (email: string, password: string) => {
     const { data } = await authApi.login(email, password)
-    setTokens(data.access_token, undefined)
+    setTokens(data.access_token, data.refresh_token)
     
     // Fetch profile
     const { data: user } = await authApi.me()
