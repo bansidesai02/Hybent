@@ -193,3 +193,68 @@ async def root():
 @app.get("/health", tags=["health"])
 async def health():
     return {"status": "healthy"}
+
+
+@app.get("/health/db", tags=["health"])
+async def health_db():
+    """Readiness check for database connectivity."""
+    from sqlalchemy import text
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        logger.exception("Database health check failed: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "down", "error": str(exc)},
+        )
+    return {"status": "healthy", "database": "ok"}
+
+
+@app.get("/ready", tags=["health"])
+async def ready():
+    """Production readiness check for API, DB, and critical candidate-import schema."""
+    from sqlalchemy import text
+
+    required_candidate_columns = {
+        "import_batch_id",
+        "imported_by_id",
+        "imported_at",
+        "import_status",
+    }
+    required_import_batch_columns = {"file_content"}
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+            candidate_rows = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'candidates'"
+            ))
+            batch_rows = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'import_batches'"
+            ))
+    except Exception as exc:
+        logger.exception("Readiness check failed: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unready", "database": "down", "error": str(exc)},
+        )
+
+    candidate_columns = {row[0] for row in candidate_rows}
+    import_batch_columns = {row[0] for row in batch_rows}
+    missing_candidate_columns = sorted(required_candidate_columns - candidate_columns)
+    missing_import_batch_columns = sorted(required_import_batch_columns - import_batch_columns)
+
+    if missing_candidate_columns or missing_import_batch_columns:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unready",
+                "database": "ok",
+                "missing_candidate_columns": missing_candidate_columns,
+                "missing_import_batch_columns": missing_import_batch_columns,
+            },
+        )
+
+    return {"status": "ready", "database": "ok", "schema": "ok"}
