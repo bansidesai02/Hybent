@@ -404,3 +404,74 @@ async def run_migrations_endpoint(
         message="Migrations executed successfully.",
         data={"status": "success"}
     )
+
+
+@router.post("/repair-db-schema")
+async def repair_db_schema_endpoint(
+    current_user: Annotated[User, Depends(require_admin)],
+    db: DB,
+):
+    """
+    Admin-only endpoint to repair database schema when migrations got out of sync.
+    Adds missing bulk import columns to the candidates table.
+    """
+    from sqlalchemy import text
+    
+    statements = [
+        # Missing columns from migration 019
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS reference VARCHAR(255);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS relevant_experience VARCHAR(100);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS import_status VARCHAR(50) DEFAULT 'active';",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS remarks_hr TEXT;",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS remarks_technical TEXT;",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS remarks_practical TEXT;",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS techno_functional_hr_interview VARCHAR(255);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS import_panel_name VARCHAR(255);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS import_date TIMESTAMP WITH TIME ZONE;",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_salary VARCHAR(100);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS expected_salary VARCHAR(100);",
+        
+        # Missing columns from migration 020
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS sr_no VARCHAR(50);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS import_row_date VARCHAR(100);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS hr_name VARCHAR(255);",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS technical_panel VARCHAR(255);",
+        
+        # Missing columns from migration 021
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS import_batch_id UUID;",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS imported_by_id UUID;",
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS imported_at TIMESTAMP WITH TIME ZONE;",
+        
+        # Add foreign key constraints using DO blocks (to avoid failure if they exist)
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_candidates_import_batch_id') THEN
+                ALTER TABLE candidates ADD CONSTRAINT fk_candidates_import_batch_id FOREIGN KEY (import_batch_id) REFERENCES import_batches (id) ON DELETE SET NULL;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_candidates_imported_by_id') THEN
+                ALTER TABLE candidates ADD CONSTRAINT fk_candidates_imported_by_id FOREIGN KEY (imported_by_id) REFERENCES users (id) ON DELETE SET NULL;
+            END IF;
+        END $$;
+        """,
+        
+        # Create indexes
+        "CREATE INDEX IF NOT EXISTS ix_candidates_import_batch_id ON candidates (import_batch_id);",
+        "CREATE INDEX IF NOT EXISTS ix_candidates_imported_by_id ON candidates (imported_by_id);"
+    ]
+    
+    results = []
+    for stmt in statements:
+        try:
+            await db.execute(text(stmt))
+            results.append({"statement": stmt.strip().split("\n")[0][:60] + "...", "status": "success"})
+        except Exception as e:
+            results.append({"statement": stmt.strip().split("\n")[0][:60] + "...", "status": "error", "message": str(e)})
+            
+    await db.commit()
+    
+    return APIResponse.success(
+        message="Database repair statements executed.",
+        data={"results": results}
+    )
+
