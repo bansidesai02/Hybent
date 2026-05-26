@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 
@@ -22,31 +23,35 @@ const sizes = {
 
 export function Modal({ open, onClose, title, headerActions, children, size = 'md', className, hideScrollbar }: ModalProps) {
   useEffect(() => {
+    if (!open) return
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, [open, onClose])
 
   useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = ''
-    return () => { document.body.style.overflow = '' }
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
   }, [open])
 
-  return (
+  const modal = (
     <AnimatePresence>
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-y-0 right-0 left-0 lg:left-60 z-[1000] flex items-center justify-center p-4"
+          data-modal-root="true"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
+          role="presentation"
         >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/38 dark:bg-black/55 backdrop-blur-[2px]"
             onClick={onClose}
           />
           {/* Panel */}
@@ -89,4 +94,6 @@ export function Modal({ open, onClose, title, headerActions, children, size = 'm
       )}
     </AnimatePresence>
   )
+
+  return createPortal(modal, document.body)
 }
