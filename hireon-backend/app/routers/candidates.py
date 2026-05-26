@@ -143,7 +143,34 @@ async def list_candidates(
     items = items_result.scalars().all()
     
     def transform_candidate(c: Candidate):
-        d = CandidateOut.model_validate(c).model_dump()
+        try:
+            d = CandidateOut.model_validate(c).model_dump()
+        except Exception:
+            # Fallback: build minimal dict manually so one bad record doesn't break the whole list
+            d = {
+                "id": str(c.id),
+                "organization_id": str(c.organization_id),
+                "email": c.email or "",
+                "full_name": c.full_name or "",
+                "skills": c.skills or [],
+                "tags": c.tags or [],
+                "pipeline_stage": c.pipeline_stage,
+                "match_score": c.match_score,
+                "current_title": c.current_title,
+                "current_company": c.current_company,
+                "applied_job_title": c.applied_job_title,
+                "years_experience": c.years_experience,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                "resume_url": c.resume_url,
+                "source": c.source,
+                "invitations": [],
+                "other_offers": [],
+                "documents": [],
+                "created_by_name": "Admin",
+                "created_by_id": str(c.created_by_id) if c.created_by_id else None,
+            }
+            return d
         try:
             cb = c.created_by
             if cb is not None:
@@ -205,7 +232,33 @@ async def get_candidates_pipeline(current_user: Annotated[User, Depends(get_curr
     items = (await db.execute(query)).scalars().all()
     
     def transform_candidate(c: Candidate):
-        d = CandidateOut.model_validate(c).model_dump()
+        try:
+            d = CandidateOut.model_validate(c).model_dump()
+        except Exception:
+            d = {
+                "id": str(c.id),
+                "organization_id": str(c.organization_id),
+                "email": c.email or "",
+                "full_name": c.full_name or "",
+                "skills": c.skills or [],
+                "tags": c.tags or [],
+                "pipeline_stage": c.pipeline_stage,
+                "match_score": c.match_score,
+                "current_title": c.current_title,
+                "current_company": c.current_company,
+                "applied_job_title": c.applied_job_title,
+                "years_experience": c.years_experience,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                "resume_url": c.resume_url,
+                "source": c.source,
+                "invitations": [],
+                "other_offers": [],
+                "documents": [],
+                "created_by_name": "Admin",
+                "created_by_id": str(c.created_by_id) if c.created_by_id else None,
+            }
+            return d
         try:
             cb = c.created_by
             if cb is not None:

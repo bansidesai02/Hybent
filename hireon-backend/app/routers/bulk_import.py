@@ -38,9 +38,6 @@ router = APIRouter(prefix="/v1/bulk-import", tags=["bulk-import"])
 # Temporary storage for uploaded files
 UPLOAD_TEMP_DIR = tempfile.gettempdir()
 MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024
-BULK_IMPORT_DIR = os.path.join(settings.upload_dir, "bulk_imports")
-UPLOAD_FILE_INDEX: dict[str, dict] = {}
-os.makedirs(BULK_IMPORT_DIR, exist_ok=True)
 
 
 @router.post("/upload")
@@ -74,49 +71,76 @@ async def upload_file(
                 detail="Only .xlsx and .csv files are supported"
             )
         
-        # Save upload file to persistent directory for history/downloads
         file_id = str(uuid.uuid4())
         ext = ".xlsx" if file_name_lower.endswith(".xlsx") else ".csv"
-        temp_file_path = os.path.join(BULK_IMPORT_DIR, f"bulk_import_{file_id}{ext}")
         
-        # Stream upload to disk in chunks to avoid loading whole file in memory.
+        # Write chunks to a temp file first to count size and run sheet detection
+        temp_file_path = os.path.join(UPLOAD_TEMP_DIR, f"bulk_import_{file_id}{ext}")
         file_size = 0
-        async with aiofiles.open(temp_file_path, "wb") as out_file:
-            while True:
-                chunk = await file.read(1024 * 1024)
-                if not chunk:
-                    break
-                file_size += len(chunk)
-                if file_size > MAX_UPLOAD_SIZE_BYTES:
-                    await out_file.close()
-                    try:
-                        os.unlink(temp_file_path)
-                    except Exception:
-                        pass
-                    raise HTTPException(
-                        status_code=413,
-                        detail="File size exceeds 50MB limit"
-                    )
-                await out_file.write(chunk)
-        
+        try:
+            async with aiofiles.open(temp_file_path, "wb") as out_file:
+                while True:
+                    chunk = await file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    file_size += len(chunk)
+                    if file_size > MAX_UPLOAD_SIZE_BYTES:
+                        raise HTTPException(
+                            status_code=413,
+                            detail="File size exceeds 50MB limit"
+                        )
+                    await out_file.write(chunk)
+        except Exception as e:
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass
+            raise e
+
+        # Read the file content bytes
+        try:
+            async with aiofiles.open(temp_file_path, "rb") as f:
+                file_content_bytes = await f.read()
+        except Exception as e:
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to read uploaded file: {str(e)}"
+            )
+
         # Detect sheets
         try:
             sheets_info = BulkImportService.detect_sheets(temp_file_path)
             sheets = [SheetInfoSchema(name=s.name, row_count=s.row_count) for s in sheets_info]
-            UPLOAD_FILE_INDEX[file_id] = {
-                "path": temp_file_path,
-                "file_name": file_name,
-                "uploaded_by": str(current_user.id) if current_user else None,
-                "uploaded_at": datetime.now(timezone.utc).isoformat(),
-                "sheets": [s.name for s in sheets_info],
-            }
         except Exception as e:
             logger.error(f"Error detecting sheets: {e}")
-            os.unlink(temp_file_path)
             raise HTTPException(
                 status_code=400,
                 detail=f"Failed to read file: {str(e)}"
             )
+        finally:
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass
+
+        # Create immediate ImportBatch record to hold the state
+        batch = ImportBatch(
+            id=uuid.UUID(file_id),
+            organization_id=current_user.organization_id,
+            imported_by_id=current_user.id,
+            file_name=file_name,
+            file_path=None,
+            selected_panels=[s.name for s in sheets_info],
+            total_rows=sum(s.row_count for s in sheets_info),
+            status="uploaded",
+            file_content=file_content_bytes,
+        )
+        db.add(batch)
+        await db.commit()
         
         return APIResponse.success(
             message="File uploaded successfully. Detected sheets above.",
@@ -146,6 +170,7 @@ async def preview_sheet(
     sheet_name: str | None = Query(None),
     import_all_sheets: bool = Query(False),
     current_user: RecruiterUser = None,
+    db: DB = None,
 ):
     """
     Preview data from a sheet before import
@@ -161,14 +186,28 @@ async def preview_sheet(
         - has_errors: Whether any preview rows have errors
     """
     try:
-        # Get temp file path
-        temp_file_path = _resolve_temp_file(file_id)
+        # Fetch the batch record
+        batch = (
+            await db.execute(
+                select(ImportBatch).where(
+                    ImportBatch.id == uuid.UUID(file_id),
+                    ImportBatch.organization_id == current_user.organization_id,
+                )
+            )
+        ).scalar_one_or_none()
         
-        if not os.path.exists(temp_file_path):
+        if not batch or not batch.file_content:
             raise HTTPException(
                 status_code=404,
-                detail="File not found. Please upload again."
+                detail="Uploaded file not found or expired. Please upload again."
             )
+        
+        ext = ".xlsx" if batch.file_name.lower().endswith(".xlsx") else ".csv"
+        temp_file_path = os.path.join(UPLOAD_TEMP_DIR, f"preview_{file_id}{ext}")
+        
+        # Write bytes from database to a temporary file
+        async with aiofiles.open(temp_file_path, "wb") as f:
+            await f.write(batch.file_content)
         
         # Preview data
         try:
@@ -195,6 +234,11 @@ async def preview_sheet(
                 status_code=400,
                 detail=f"Failed to preview data: {str(e)}"
             )
+        finally:
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass
     
     except HTTPException as e:
         raise e
@@ -231,15 +275,28 @@ async def execute_import(
         - errors: List of general errors
     """
     try:
-        # Get temp file path
-        temp_file_path = _resolve_temp_file(file_id)
-        file_meta = UPLOAD_FILE_INDEX.get(file_id) or {}
+        # Fetch the batch record
+        batch = (
+            await db.execute(
+                select(ImportBatch).where(
+                    ImportBatch.id == uuid.UUID(file_id),
+                    ImportBatch.organization_id == current_user.organization_id,
+                )
+            )
+        ).scalar_one_or_none()
         
-        if not os.path.exists(temp_file_path):
+        if not batch or not batch.file_content:
             raise HTTPException(
                 status_code=404,
-                detail="File not found. Please upload again."
+                detail="Uploaded file not found or expired. Please upload again."
             )
+        
+        ext = ".xlsx" if batch.file_name.lower().endswith(".xlsx") else ".csv"
+        temp_file_path = os.path.join(UPLOAD_TEMP_DIR, f"execute_{file_id}{ext}")
+        
+        # Write bytes from database to a temporary file
+        async with aiofiles.open(temp_file_path, "wb") as f:
+            await f.write(batch.file_content)
         
         # Execute import
         try:
@@ -260,21 +317,25 @@ async def execute_import(
                     db,
                     auto_commit=False,
                 )
+            
             selected_panels = (
-                file_meta.get("sheets", [])
+                batch.selected_panels
                 if import_all_sheets
                 else ([sheet_name] if sheet_name else [])
             )
-            batch = await BulkImportService.create_import_batch(
-                db=db,
-                organization_id=current_user.organization_id,
-                imported_by_id=current_user.id,
-                file_name=file_meta.get("file_name", os.path.basename(temp_file_path)),
-                file_path=temp_file_path,
-                selected_panels=selected_panels,
-                total_rows=result.total_rows,
-                result=result,
-            )
+            
+            batch.selected_panels = selected_panels
+            batch.total_rows = result.total_rows
+            batch.success_count = result.created_count
+            batch.failed_count = result.error_count
+            batch.duplicate_count = result.skipped_count
+            batch.status = "completed"
+            batch.failure_details = {
+                "errors": sanitize_json_data(result.errors),
+                "invalid_rows": sanitize_json_data(result.invalid_rows),
+                "duplicates": sanitize_json_data(result.duplicates),
+            }
+            
             imported_at = datetime.now(timezone.utc)
             # Link newly created candidates to batch in a single update
             if result.imported_candidates:
@@ -315,6 +376,11 @@ async def execute_import(
                 status_code=400,
                 detail=f"Import failed: {str(e)}"
             )
+        finally:
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass
     
     except HTTPException as e:
         raise e
@@ -535,6 +601,10 @@ async def download_original_file(
     ).scalar_one_or_none()
     if not batch:
         raise HTTPException(status_code=404, detail="Import batch not found")
-    if not batch.file_path or not os.path.exists(batch.file_path):
+    if not batch.file_content:
         raise HTTPException(status_code=404, detail="Original file is no longer available")
-    return FileResponse(batch.file_path, filename=batch.file_name)
+    return StreamingResponse(
+        io.BytesIO(batch.file_content),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename={batch.file_name}"},
+    )

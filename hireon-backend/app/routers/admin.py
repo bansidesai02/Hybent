@@ -442,6 +442,9 @@ async def repair_db_schema_endpoint(
         "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS imported_by_id UUID;",
         "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS imported_at TIMESTAMP WITH TIME ZONE;",
         
+        # Missing columns from migration 022
+        "ALTER TABLE import_batches ADD COLUMN IF NOT EXISTS file_content BYTEA;",
+        
         # Add foreign key constraints using DO blocks (to avoid failure if they exist)
         """
         DO $$
