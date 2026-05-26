@@ -598,8 +598,8 @@ function MultiSelectPanelists({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Don't close if a modal overlay is open (z-50 fixed overlay)
-      const modalOpen = document.querySelector('.fixed.inset-0.z-50')
+      // Don't close if a modal overlay is open.
+      const modalOpen = document.querySelector('[data-modal-root="true"]')
       if (modalOpen) return
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
