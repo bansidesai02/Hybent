@@ -10,7 +10,7 @@ import csv
 import io
 from datetime import datetime, timezone
 from fastapi import APIRouter, File, UploadFile, Query, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -24,7 +24,6 @@ from app.schemas.bulk_import import (
 )
 from app.services.bulk_import_service import BulkImportService
 from app.schemas.response import APIResponse
-from app.config import settings
 from app.models.import_batch import ImportBatch
 from app.models.user import User
 from app.models.candidate import Candidate
@@ -390,22 +389,6 @@ async def execute_import(
             status_code=500,
             detail=str(e)
         )
-
-
-def _resolve_temp_file(file_id: str) -> str:
-    if file_id in UPLOAD_FILE_INDEX and os.path.exists(UPLOAD_FILE_INDEX[file_id]["path"]):
-        return UPLOAD_FILE_INDEX[file_id]["path"]
-    candidates = [
-        os.path.join(BULK_IMPORT_DIR, f"bulk_import_{file_id}.xlsx"),
-        os.path.join(BULK_IMPORT_DIR, f"bulk_import_{file_id}.csv"),
-        os.path.join(UPLOAD_TEMP_DIR, f"bulk_import_{file_id}.xlsx"),
-        os.path.join(UPLOAD_TEMP_DIR, f"bulk_import_{file_id}.csv"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-    return os.path.join(BULK_IMPORT_DIR, f"bulk_import_{file_id}.xlsx")
-
 
 @router.get("/history")
 async def list_import_history(
