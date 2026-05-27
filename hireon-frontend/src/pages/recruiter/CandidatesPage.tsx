@@ -505,7 +505,7 @@ export default function CandidatesPage() {
 
   const queryParams = useMemo(() => ({
     page,
-    limit: 12,
+    limit: 50,
     ...(search ? { search } : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
     ...(stageFilter ? { stage: stageFilter } : {}),

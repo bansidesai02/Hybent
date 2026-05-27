@@ -306,7 +306,7 @@ export default function TalentPoolPage() {
     queryKey: ['talent-pool', page, search, skill, minExp, selectedJobTitle],
     queryFn: () =>
       talentPoolApi.list({
-        page, limit: 12,
+        page, limit: 50,
         search: search || undefined,
         skill: skill || undefined,
         min_experience: minExp ? parseInt(minExp) : undefined,

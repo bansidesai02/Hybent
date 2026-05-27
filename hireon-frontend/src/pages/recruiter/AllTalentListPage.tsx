@@ -405,7 +405,7 @@ export default function AllTalentListPage() {
 
       return talentPoolApi.list({ 
         page, 
-        limit: 12, 
+        limit: 50, 
         search: search || undefined,
         status: statusFilter,
         created_by_id: recruiterId !== 'all' ? recruiterId : undefined,
