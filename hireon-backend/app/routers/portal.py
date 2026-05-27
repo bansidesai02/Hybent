@@ -120,6 +120,39 @@ async def my_applications(current_user: CurrentUser, db: DB):
     return APIResponse.success(message="Applications retrieved.", data=[ApplicationOut.model_validate(a).model_dump() for a in apps])
 
 
+@router.get("/my-applications-summary")
+async def my_applications_summary(current_user: CurrentUser, db: DB):
+    """Small payload used by the portal shell to decide which nav items to show."""
+    if current_user.role != UserRole.CANDIDATE:
+        raise HTTPException(status_code=403, detail="Candidates only")
+
+    cand_id = (await db.execute(select(Candidate.id).where(Candidate.user_id == current_user.id))).scalar()
+    if not cand_id:
+        return APIResponse.success(message="Application summary retrieved.", data=[])
+
+    result = await db.execute(
+        select(
+            Application.id,
+            Application.stage,
+            Candidate.pipeline_stage,
+        )
+        .join(Candidate, Candidate.id == Application.candidate_id)
+        .where(Application.candidate_id == cand_id)
+        .order_by(Application.created_at.desc())
+    )
+    return APIResponse.success(
+        message="Application summary retrieved.",
+        data=[
+            {
+                "id": str(row.id),
+                "stage": row.stage,
+                "candidate_pipeline_stage": row.pipeline_stage,
+            }
+            for row in result
+        ],
+    )
+
+
 @router.get("/my-interviews")
 async def my_interviews(current_user: CurrentUser, db: DB):
     """Candidate views their scheduled interviews."""

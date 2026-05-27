@@ -1,21 +1,16 @@
-import { useState, useRef, useEffect } from 'react'
+import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { useMessageStore } from '@/store/messageStore'
 import { messagesApi } from '@/api/messages'
 import { Avatar } from '@/components/ui/Avatar'
 import { timeAgo } from '@/utils/formatters'
 import { motion, AnimatePresence } from 'framer-motion'
 
-export function MessageInbox() {
+function MessageInboxComponent() {
   const [open, setOpen] = useState(false)
   const inboxRef = useRef<HTMLDivElement>(null)
   const { conversations, unreadCount, setConversations, setUnreadCount, openChat } = useMessageStore()
 
-  // Fetch conversations on load and when opening
-  useEffect(() => {
-    loadConversations()
-  }, [])
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       const res = await messagesApi.getConversations()
       setConversations(res.data)
@@ -24,7 +19,7 @@ export function MessageInbox() {
     } catch (err) {
       console.error('Failed to load conversations', err)
     }
-  }
+  }, [setConversations, setUnreadCount])
 
   // Handle click outside to close
   useEffect(() => {
@@ -38,7 +33,7 @@ export function MessageInbox() {
       loadConversations() // refresh on open
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
+  }, [open, loadConversations])
 
   return (
     <div className="relative" ref={inboxRef}>
@@ -118,3 +113,5 @@ export function MessageInbox() {
     </div>
   )
 }
+
+export const MessageInbox = memo(MessageInboxComponent)

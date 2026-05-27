@@ -2,89 +2,81 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsApi } from '@/api/notifications'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useEffect } from 'react'
-import toast from 'react-hot-toast'
-import { ActivityToast } from '@/components/notifications/ActivityToast'
-import {
-  requestNotificationPermission,
-  onForegroundMessage,
-  type MessagePayload,
-} from '@/hooks/firebase'
+import type { MessagePayload } from '@/hooks/firebase'
 
-export function useNotifications() {
+export function useNotifications({ enablePush = false }: { enablePush?: boolean } = {}) {
   const { setNotifications, setUnreadCount, markRead, markAllRead, addNotification } =
     useNotificationStore()
   const queryClient = useQueryClient()
 
-  // ── Firebase Cloud Messaging ──────────────────────────────────────────────
   useEffect(() => {
+    if (!enablePush) return
+
+    let cancelled = false
+    let unsubscribe: (() => void) | undefined
     const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined
 
-    // Request permission and register the FCM token
-    requestNotificationPermission(vapidKey ?? '').then(async (token: string | null) => {
-      if (token) {
-        console.log('[FCM] Registration token:', token)
-        // Register token with the backend so it can send OS push notifications
+    async function startPushNotifications() {
+      const { requestNotificationPermission, onForegroundMessage } = await import('@/hooks/firebase')
+      if (cancelled) return
+
+      requestNotificationPermission(vapidKey ?? '').then(async (token: string | null) => {
+        if (!token) return
         try {
           await import('@/api/axios').then(({ default: api }) =>
             api.post('/v1/notifications/fcm-token', { token })
           )
-          console.log('[FCM] Token registered with backend.')
         } catch (err) {
           console.warn('[FCM] Failed to register token with backend:', err)
         }
-      }
-    })
-
-    // Listen for foreground messages and push them into the notification bell
-    const unsubscribe = onForegroundMessage((payload: MessagePayload) => {
-      console.log('[FCM] Foreground message:', payload)
-      const { title, body } = payload.notification ?? {}
-      const data = payload.data ?? {}
-
-      addNotification({
-        id: data.id ?? crypto.randomUUID(),
-        organization_id: data.organization_id ?? '',
-        user_id: data.user_id ?? '',
-        type: (data.type as import('@/types').NotificationType) ?? 'system',
-        title: title ?? 'New Notification',
-        message: body ?? '',
-        data: null,
-        is_read: false,
-        read_at: null,
-        created_at: new Date().toISOString(),
       })
 
-      // Removed: In-app toast.custom trigger was completely deleted since WebSockets (which are ultra-low-latency) 
-      // already generate in-app toasts natively on connection. Foreground FCM pushing duplicates was causing the 
-      // user to see a barrage of stale "queued" push toasts rendering on app load.
+      unsubscribe = onForegroundMessage((payload: MessagePayload) => {
+        const { title, body } = payload.notification ?? {}
+        const data = payload.data ?? {}
 
-      // Trigger Native browser popup (visible when in another app)
-      const isNoisy = (body ?? '').toLowerCase().includes('was view') || (title ?? '').toLowerCase().includes('was view');
+        addNotification({
+          id: data.id ?? crypto.randomUUID(),
+          organization_id: data.organization_id ?? '',
+          user_id: data.user_id ?? '',
+          type: (data.type as import('@/types').NotificationType) ?? 'system',
+          title: title ?? 'New Notification',
+          message: body ?? '',
+          data: null,
+          is_read: false,
+          read_at: null,
+          created_at: new Date().toISOString(),
+        })
 
-      if (!isNoisy && Notification.permission === 'granted') {
-        let avatarUrl = data.sender_avatar;
-        if (!avatarUrl) {
-          const nameMatch = (title ?? '').match(/from\s+([^💬]+)/i) || (body ?? '').match(/from\s+([^💬]+)/i);
-          const name = nameMatch ? nameMatch[1].trim() : 'User';
-          const encodedName = encodeURIComponent(name);
-          avatarUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=6c47ff&color=fff&size=128`;
-        } else if (avatarUrl.startsWith('/')) {
-          avatarUrl = window.location.origin + avatarUrl;
+        const isNoisy = (body ?? '').toLowerCase().includes('was view') || (title ?? '').toLowerCase().includes('was view')
+
+        if (!isNoisy && Notification.permission === 'granted') {
+          let avatarUrl = data.sender_avatar
+          if (!avatarUrl) {
+            const nameMatch = (title ?? '').match(/from\s+([^]+)/i) || (body ?? '').match(/from\s+([^]+)/i)
+            const name = nameMatch ? nameMatch[1].trim() : 'User'
+            avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6c47ff&color=fff&size=128`
+          } else if (avatarUrl.startsWith('/')) {
+            avatarUrl = window.location.origin + avatarUrl
+          }
+
+          new Notification(title ?? 'Hireon Notification', {
+            body: body ?? '',
+            icon: avatarUrl,
+          })
         }
 
-        new Notification(title ?? 'Hireon Notification', {
-          body: body ?? '',
-          icon: avatarUrl,
-        })
-      }
+        queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      })
+    }
 
-      // Also refresh the server-side list so unread count stays in sync
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-    })
+    startPushNotifications()
 
-    return () => unsubscribe()
-  }, [])
-  // ─────────────────────────────────────────────────────────────────────────
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+    }
+  }, [addNotification, enablePush, queryClient])
 
   const { data: notifications } = useQuery({
     queryKey: ['notifications'],

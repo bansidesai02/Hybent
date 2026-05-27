@@ -30,20 +30,32 @@ async def get_current_user(
     )
 
     if not credentials:
+        print("DEBUG AUTH: No credentials found in Authorization header")
         raise credentials_exception
 
     try:
         payload = decode_access_token(credentials.credentials)
         user_id: str = payload.get("sub")
         if user_id is None:
+            print("DEBUG AUTH: sub is missing in payload")
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        print(f"DEBUG AUTH: JWT decode failed: {str(e)} for token: {credentials.credentials[:30]}...")
         raise credentials_exception
 
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
-    user = result.scalar_one_or_none()
-    if user is None or not user.is_active:
+    try:
+        result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+        user = result.scalar_one_or_none()
+        if user is None:
+            print(f"DEBUG AUTH: User with ID {user_id} not found in DB")
+            raise credentials_exception
+        if not user.is_active:
+            print(f"DEBUG AUTH: User {user_id} is inactive")
+            raise credentials_exception
+    except Exception as db_err:
+        print(f"DEBUG AUTH: DB lookup failed: {str(db_err)}")
         raise credentials_exception
+
     return user
 
 

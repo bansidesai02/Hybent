@@ -36,6 +36,7 @@ async def login(data: LoginRequest, response: Response, db: DB):
             "access_token": result["access_token"],
             "refresh_token": result["refresh_token"],
             "token_type": "bearer",
+            "user": result.get("user"),
         },
     )
 

@@ -10,11 +10,8 @@ export function useAuth() {
 
   const login = async (email: string, password: string) => {
     const { data } = await authApi.login(email, password)
-    setTokens(data.access_token, data.refresh_token)
-    
-    // Fetch profile
-    const { data: user } = await authApi.me()
-    useAuthStore.getState().setUser(user)
+    const user = data.user ?? (await authApi.me()).data
+    setTokens(data.access_token, data.refresh_token, user)
 
     // Role-based redirect
     if (user.role === 'candidate') navigate('/portal')

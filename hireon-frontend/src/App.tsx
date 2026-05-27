@@ -82,6 +82,22 @@ function RequireAuth({
 
 import { Toaster } from 'react-hot-toast'
 
+function RouteFallback() {
+  return (
+    <div className="p-4 md:p-6 lg:p-[28px_30px]">
+      <div className="main-content-container space-y-4">
+        <div className="h-8 w-48 rounded-xl bg-[var(--kpi-bg,#f7f5ff)] animate-pulse" />
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="h-24 rounded-2xl bg-[var(--kpi-bg,#f7f5ff)] animate-pulse" />
+          <div className="h-24 rounded-2xl bg-[var(--kpi-bg,#f7f5ff)] animate-pulse" />
+          <div className="h-24 rounded-2xl bg-[var(--kpi-bg,#f7f5ff)] animate-pulse" />
+        </div>
+        <div className="h-80 rounded-2xl bg-[var(--kpi-bg,#f7f5ff)] animate-pulse" />
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const coreRoutes = (
     <>
@@ -128,7 +144,7 @@ export default function App() {
           },
         }} 
       />
-      <Suspense fallback={null}>
+      <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Public */}
           <Route path="/" element={<LandingPage />} />

@@ -11,6 +11,8 @@ export const portalApi = {
 
   myApplications: () => api.get<Application[]>('/v1/portal/my-applications'),
 
+  myApplicationsSummary: () => api.get<Array<{ id: string; stage: string; candidate_pipeline_stage: string | null }>>('/v1/portal/my-applications-summary'),
+
   myInterviews: () => api.get<Interview[]>('/v1/portal/my-interviews'),
 
   myOffers: () => api.get<Offer[]>('/v1/portal/my-offers'),

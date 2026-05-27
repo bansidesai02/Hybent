@@ -1,9 +1,6 @@
 import { useAuth } from '@/hooks/useAuth'
-import { NotificationBell } from './NotificationBell'
 import { TeamIcon } from '@/components/common/CustomIcons'
-import { MessageInbox } from './MessageInbox'
-import { Avatar } from '@/components/ui/Avatar'
-import { useState, useEffect, useRef } from 'react'
+import { memo, lazy, Suspense, useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { globalSearch } from '@/api/search'
@@ -22,13 +19,49 @@ import {
   Menu
 } from 'lucide-react'
 
+const MessageInbox = lazy(() => import('./MessageInbox').then((m) => ({ default: m.MessageInbox })))
+const NotificationBell = lazy(() => import('./NotificationBell').then((m) => ({ default: m.NotificationBell })))
 
 interface TopbarProps {
   title?: string
   onToggleMenu?: () => void
 }
 
-export function Topbar({ title, onToggleMenu }: TopbarProps) {
+function DeferredHeaderWidgets() {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const win = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number; cancelIdleCallback?: (id: number) => void }
+    if (win.requestIdleCallback) {
+      const id = win.requestIdleCallback(() => setReady(true), { timeout: 1400 })
+      return () => win.cancelIdleCallback?.(id)
+    }
+    const id = window.setTimeout(() => setReady(true), 900)
+    return () => window.clearTimeout(id)
+  }, [])
+
+  if (!ready) {
+    return (
+      <>
+        <div className="w-9 h-9 rounded-xl bg-[var(--search-bg)] border border-[var(--input-border)]" />
+        <div className="w-9 h-9 rounded-xl bg-[var(--search-bg)] border border-[var(--input-border)]" />
+      </>
+    )
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <div className="relative">
+        <MessageInbox />
+      </div>
+      <div className="relative">
+        <NotificationBell />
+      </div>
+    </Suspense>
+  )
+}
+
+function TopbarComponent({ title, onToggleMenu }: TopbarProps) {
   const { user, logout, basePath } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -93,7 +126,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleResultClick = (result: SearchResult) => {
+  const handleResultClick = useCallback((result: SearchResult) => {
     const path = result.type === 'candidate' ? `${basePath}/candidates` 
                : result.type === 'job' ? `${basePath}/jobs`
                : result.type === 'interview' ? `${basePath}/interviews`
@@ -107,9 +140,9 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     setSearchQuery('')
     setSearchResults(null)
     setSearchFocused(false)
-  }
+  }, [basePath, navigate])
 
-  const renderSearchSection = (title: string, icon: React.ReactNode, results: SearchResult[]) => {
+  const renderSearchSection = (title: string, icon: ReactNode, results: SearchResult[]) => {
     if (results.length === 0) return null
     return (
       <div className="mb-4 last:mb-0">
@@ -146,12 +179,12 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
     )
   }
 
-  const resultIconMap: Record<string, React.ReactNode> = {
+  const resultIconMap: Record<string, ReactNode> = useMemo(() => ({
     candidate: <User size={14} />,
     job: <Briefcase size={14} />,
     interview: <Calendar size={14} />,
     user: <TeamIcon size={14} />
-  }
+  }), [])
 
   const initials = user?.full_name
     ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -159,10 +192,10 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
 
   const profilePath = `${basePath}/profile`
 
-  const menuItems = [
+  const menuItems = useMemo(() => [
     { label: 'My Profile', icon: <User size={16} />, path: profilePath },
     { label: 'Settings', icon: <Settings size={16} />, path: `${basePath}/settings` },
-  ]
+  ], [basePath, profilePath])
 
   return (
     <header
@@ -294,15 +327,7 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
           {isDark ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
-        {/* Messages */}
-        <div className="relative">
-          <MessageInbox />
-        </div>
-
-        {/* Notifications */}
-        <div className="relative">
-          <NotificationBell />
-        </div>
+        <DeferredHeaderWidgets />
 
         {/* User avatar / menu */}
         <div className="relative ml-1">
@@ -378,4 +403,5 @@ export function Topbar({ title, onToggleMenu }: TopbarProps) {
   )
 }
 
+export const Topbar = memo(TopbarComponent)
 

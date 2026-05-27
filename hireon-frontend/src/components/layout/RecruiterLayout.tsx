@@ -9,6 +9,20 @@ import { AnimatePresence, motion } from 'framer-motion'
 const GlobalChatOverlay = lazy(() => import('@/components/messaging/GlobalChatOverlay').then((m) => ({ default: m.GlobalChatOverlay })))
 const CopilotWidget = lazy(() => import('@/components/Copilot/CopilotWidget').then((m) => ({ default: m.CopilotWidget })))
 
+function ContentFallback() {
+  return (
+    <div className="space-y-4">
+      <div className="h-8 w-52 rounded-xl bg-[var(--kpi-bg)] animate-pulse" />
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="h-24 rounded-2xl bg-[var(--kpi-bg)] animate-pulse" />
+        <div className="h-24 rounded-2xl bg-[var(--kpi-bg)] animate-pulse" />
+        <div className="h-24 rounded-2xl bg-[var(--kpi-bg)] animate-pulse" />
+      </div>
+      <div className="h-80 rounded-2xl bg-[var(--kpi-bg)] animate-pulse" />
+    </div>
+  )
+}
+
 export function RecruiterLayout() {
   const { user } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -40,7 +54,9 @@ export function RecruiterLayout() {
         <Topbar onToggleMenu={() => setMobileMenuOpen(!mobileMenuOpen)} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-[28px_30px]">
           <div className="main-content-container">
-            <Outlet />
+            <Suspense fallback={<ContentFallback />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

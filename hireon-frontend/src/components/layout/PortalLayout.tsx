@@ -1,25 +1,47 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { lazy, memo, Suspense, useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { portalApi } from '@/api/portal'
-import { NotificationBell } from './NotificationBell'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { Search, Moon, Sun, User, LogOut, Map, Calendar, Bell, Target, Building2, FileText, Brain, Menu, X } from 'lucide-react'
+import { Moon, Sun, User, LogOut, Menu } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
-import { Avatar } from '@/components/ui/Avatar'
+import { prefetchRoute } from '@/utils/routePrefetch'
 
-const NAV_ITEMS = [
-  { to: '/portal', label: 'Application Journey', icon: 'Map', end: true },
-  { to: '/portal/interviews', label: 'My Interviews', icon: 'Calendar', end: false },
-  { to: '/portal/profile', label: 'My Profile & Resume', icon: 'User', end: false },
-  { to: '/portal/prep', label: 'Interview Prep Hub', icon: 'Target', end: false },
-  { to: '/portal/openings', label: 'Current Openings', icon: 'Building2', end: false },
-  { to: '/portal/offers', label: 'Offer & Documents', icon: 'FileText', end: false },
-]
+const NotificationBell = lazy(() => import('./NotificationBell').then((m) => ({ default: m.NotificationBell })))
 
-export function PortalLayout() {
+function DeferredPortalNotifications() {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setReady(true), 700)
+    return () => window.clearTimeout(id)
+  }, [])
+
+  if (!ready) return <div className="w-9 h-9 rounded-xl bg-white/40 dark:bg-[var(--card-bg)]" />
+
+  return (
+    <Suspense fallback={null}>
+      <NotificationBell />
+    </Suspense>
+  )
+}
+
+function ContentFallback() {
+  return (
+    <div className="space-y-4">
+      <div className="h-8 w-52 rounded-xl bg-white/60 dark:bg-[var(--card-bg)] animate-pulse" />
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="h-28 rounded-2xl bg-white/60 dark:bg-[var(--card-bg)] animate-pulse" />
+        <div className="h-28 rounded-2xl bg-white/60 dark:bg-[var(--card-bg)] animate-pulse" />
+      </div>
+      <div className="h-80 rounded-2xl bg-white/60 dark:bg-[var(--card-bg)] animate-pulse" />
+    </div>
+  )
+}
+
+function PortalLayoutComponent() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
@@ -49,9 +71,10 @@ export function PortalLayout() {
     setMobileMenuOpen(false)
   }, [location.pathname])
 
-  const { data: applications } = useQuery({
-    queryKey: ['portal', 'applications'],
-    queryFn: () => portalApi.myApplications().then((r: any) => r.data),
+  const { data: applicationSummary } = useQuery({
+    queryKey: ['portal', 'applications-summary'],
+    queryFn: () => portalApi.myApplicationsSummary().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
   })
 
   // Stages that unlock the Offers & Documents section
@@ -66,8 +89,8 @@ export function PortalLayout() {
   ]
 
   // Show Offer & Docs tab only when HR round is completed
-  const offersUnlocked = applications?.some(
-    (a: any) => OFFER_ELIGIBLE_STAGES.includes(a.stage) || OFFER_ELIGIBLE_STAGES.includes(a.candidate?.pipeline_stage)
+  const offersUnlocked = applicationSummary?.some(
+    (a) => OFFER_ELIGIBLE_STAGES.includes(a.stage) || OFFER_ELIGIBLE_STAGES.includes(a.candidate_pipeline_stage || '')
   ) ?? false
 
 
@@ -121,21 +144,21 @@ export function PortalLayout() {
             {/* MAIN */}
             <div className="sb-cat">
               <div className="sb-cat-title">Main</div>
-              <NavLink to="/portal" end className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/portal" end onMouseEnter={() => prefetchRoute('/portal')} onFocus={() => prefetchRoute('/portal')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="Map" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Application Journey
                   </>
                 )}
               </NavLink>
-              <NavLink to="/portal/interviews" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/portal/interviews" onMouseEnter={() => prefetchRoute('/portal/interviews')} onFocus={() => prefetchRoute('/portal/interviews')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="Calendar" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> My Interviews
                   </>
                 )}
               </NavLink>
-              <NavLink to="/portal/openings" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/portal/openings" onMouseEnter={() => prefetchRoute('/portal/openings')} onFocus={() => prefetchRoute('/portal/openings')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="Briefcase" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Job Openings
@@ -147,7 +170,7 @@ export function PortalLayout() {
             {/* INTELLIGENCE */}
             <div className="sb-cat">
               <div className="sb-cat-title">Intelligence</div>
-              <NavLink to="/portal/prep" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/portal/prep" onMouseEnter={() => prefetchRoute('/portal/prep')} onFocus={() => prefetchRoute('/portal/prep')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="FileSearch" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Preparation Hub
@@ -160,7 +183,7 @@ export function PortalLayout() {
             {offersUnlocked && (
               <div className="sb-cat">
                 <div className="sb-cat-title">Resources</div>
-                <NavLink to="/portal/offers" className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/portal/offers" onMouseEnter={() => prefetchRoute('/portal/offers')} onFocus={() => prefetchRoute('/portal/offers')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                   {({ isActive }) => (
                     <>
                       <GlassIcon icon="FileText" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Offers &amp; Documents
@@ -211,7 +234,7 @@ export function PortalLayout() {
               </button>
 
               <div className="cand-notif">
-                <NotificationBell />
+                <DeferredPortalNotifications />
               </div>
 
               <div className="relative" ref={menuRef}>
@@ -257,7 +280,9 @@ export function PortalLayout() {
 
           <div className="main flex-1 overflow-y-auto w-full relative p-4 md:p-6 lg:p-[28px_30px]">
             <div className="main-content-container">
-              <Outlet />
+              <Suspense fallback={<ContentFallback />}>
+                <Outlet />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -265,3 +290,5 @@ export function PortalLayout() {
     </div>
   )
 }
+
+export const PortalLayout = memo(PortalLayoutComponent)

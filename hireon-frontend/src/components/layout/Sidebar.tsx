@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { memo, useState, useMemo, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import type { UserRole } from '@/types'
@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Building2
 } from 'lucide-react'
+import { prefetchRoute } from '@/utils/routePrefetch'
 
 // ─── Custom Icons ─────────────────────────────────────────────────────────────
 const PipelineIcon = ({ size = 14 }: { size?: number }) => (
@@ -172,7 +173,7 @@ interface SidebarProps {
   setMobileOpen?: (open: boolean) => void
 }
 
-export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobileOpen }: SidebarProps) {
+function SidebarComponent({ role, collapsed = false, mobileOpen = false, setMobileOpen }: SidebarProps) {
   const location = useLocation()
   const { notifications } = useNotificationStore()
   const { user } = useAuth()
@@ -231,14 +232,14 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
 
   const [expanded, setExpanded] = useState<Set<string>>(getInitialExpanded)
 
-  const toggleGroup = (label: string) => {
+  const toggleGroup = useCallback((label: string) => {
     setExpanded((prev) => {
       const next = new Set(prev)
       if (next.has(label)) next.delete(label)
       else next.add(label)
       return next
     })
-  }
+  }, [])
 
   const isGroupActive = (group: NavGroup) =>
     group.subPaths.some((p) => location.pathname.startsWith(p))
@@ -353,6 +354,8 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                             <NavLink
                               key={sub.to}
                               to={sub.to}
+                              onMouseEnter={() => prefetchRoute(sub.to)}
+                              onFocus={() => prefetchRoute(sub.to)}
                               className={clsx(
                                 'flex items-center gap-2 rounded-[9px] text-[12px] font-[500] transition-all duration-150 cursor-pointer select-none',
                                 'py-[7px] pr-3',
@@ -396,6 +399,8 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
                 <NavLink
                   key={item.to + (item.customActivePath ?? '') + item.label}
                   to={item.to}
+                  onMouseEnter={() => prefetchRoute(item.to)}
+                  onFocus={() => prefetchRoute(item.to)}
                   end={item.to === '/recruiter' || item.to === '/admin' || item.to === '/interviewer' || !!item.customActivePath}
                   className={({ isActive }) => {
                     const active = item.customActivePath
@@ -457,5 +462,7 @@ export function Sidebar({ role, collapsed = false, mobileOpen = false, setMobile
     </aside>
   )
 }
+
+export const Sidebar = memo(SidebarComponent)
 
 // Replaced inline SVGs with Lucide React icons

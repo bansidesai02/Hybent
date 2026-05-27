@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { memo, useState, useRef, useEffect, type ReactNode } from 'react'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useNotificationStore } from '@/store/notificationStore'
 import { timeAgo } from '@/utils/formatters'
@@ -19,7 +18,7 @@ import {
 import { GlassIcon } from '@/components/common/GlassIcon'
 import type { NotificationType } from '@/types'
 
-function getNotifIcon(type: NotificationType): React.ReactNode {
+function getNotifIcon(type: NotificationType): ReactNode {
   switch (type) {
     case 'shortlisted':          return <GlassIcon icon="Target" variant="violet" size={24} iconSize={12} ghost glow={false} />
     case 'interview_scheduled':
@@ -39,11 +38,10 @@ function getNotifIcon(type: NotificationType): React.ReactNode {
   }
 }
 
-export function NotificationBell() {
+function NotificationBellComponent() {
   const [open, setOpen] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
-  const { markRead, markAllRead } = useNotifications()
+  const { markRead, markAllRead } = useNotifications({ enablePush: open })
   const { notifications } = useNotificationStore()
 
   // Only show the latest 5 notifications and calculate unread count from them
@@ -200,3 +198,5 @@ export function NotificationBell() {
     </div>
   )
 }
+
+export const NotificationBell = memo(NotificationBellComponent)
