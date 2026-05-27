@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { motion, useScroll, AnimatePresence } from 'framer-motion'
-import MouseTrail from '@/components/common/MouseTrail'
+// import MouseTrail from '@/components/common/MouseTrail'
 import { TeamIcon } from '@/components/common/CustomIcons'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { ArrowRight, Calendar, Menu, X, Check } from 'lucide-react'
@@ -403,7 +403,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen relative" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      <MouseTrail />
+      {/* <MouseTrail /> */}
       {/* Background blobs */}
       <div className="blob-bg">
         <div className="blob blob-1" />
@@ -1017,6 +1017,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── TESTIMONIALS ── */}
+      {/*
       <section id="testimonials" className="relative z-10 py-16 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -1086,8 +1087,10 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+      */}
 
       {/* ── PRICING ── */}
+      {/*
       <section id="pricing" className="relative z-10 py-16 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -1180,6 +1183,7 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+      */}
 
       {/* ── FAQS ── */}
       <section id="faqs" className="relative z-10 py-16 px-6">
@@ -1456,7 +1460,7 @@ export default function LandingPage() {
 
             {/* Links */}
             {[
-              { heading: 'Product', links: ['Features', 'Pricing', 'Changelog', 'Roadmap'] },
+              { heading: 'Product', links: ['Features', /* 'Pricing', */ 'Changelog', 'Roadmap'] },
               { heading: 'Company', links: ['About', 'Blog', 'Careers', 'Press'] },
               { heading: 'Legal', links: ['Privacy', 'Terms', 'Security', 'Cookies'] },
             ].map((col) => (
