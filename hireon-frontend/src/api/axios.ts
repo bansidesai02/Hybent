@@ -58,7 +58,16 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const isAuthRouteToSkip = originalRequest.url && (
+      originalRequest.url.includes('/v1/auth/login') ||
+      originalRequest.url.includes('/v1/auth/register') ||
+      originalRequest.url.includes('/v1/auth/refresh') ||
+      originalRequest.url.includes('/v1/auth/forgot-password') ||
+      originalRequest.url.includes('/v1/auth/reset-password') ||
+      originalRequest.url.includes('/v1/auth/candidate/magic-link')
+    )
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRouteToSkip) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })

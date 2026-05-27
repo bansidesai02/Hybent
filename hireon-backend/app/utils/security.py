@@ -2,6 +2,7 @@
 JWT creation/verification and password hashing utilities.
 No database imports — pure crypto helpers.
 """
+import bcrypt
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -16,11 +17,20 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    # Use direct bcrypt for hashing for maximum speed and security (bypassing passlib fallback slowness)
+    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt(12)).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        # Standard bcrypt checkpw (extremely fast C implementation)
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        # Fallback to passlib if format is different (e.g. non-bcrypt formats, legacy hash formats)
+        try:
+            return pwd_context.verify(plain, hashed)
+        except Exception:
+            return False
 
 
 # ── JWT ────────────────────────────────────────────────────────────────────────

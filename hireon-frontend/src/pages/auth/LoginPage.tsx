@@ -61,9 +61,11 @@ export default function LoginPage() {
       else if (user.role === 'interviewer') navigate('/interviewer')
       else if (user.role === 'admin') navigate('/admin')
       else navigate('/recruiter')
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
         'Invalid email or password. Please try again.'
       setServerError(msg)
     }
@@ -284,7 +286,12 @@ export default function LoginPage() {
                   placeholder="you@company.com"
                   className="input-ctrl"
                   {...register('email')}
-                  style={{ border: errors.email ? '1.5px solid #ef4444' : '' }}
+                  disabled={isSubmitting}
+                  style={{ 
+                    border: errors.email ? '1.5px solid #ef4444' : '',
+                    opacity: isSubmitting ? 0.7 : 1,
+                    cursor: isSubmitting ? 'not-allowed' : 'text'
+                  }}
                 />
                 {errors.email && <div className="error-txt">{errors.email.message}</div>}
               </div>
@@ -296,9 +303,14 @@ export default function LoginPage() {
                     placeholder="••••••••••"
                     className="input-ctrl with-toggle"
                     {...register('password')}
-                    style={{ border: errors.password ? '1.5px solid #ef4444' : '' }}
+                    disabled={isSubmitting}
+                    style={{ 
+                      border: errors.password ? '1.5px solid #ef4444' : '',
+                      opacity: isSubmitting ? 0.7 : 1,
+                      cursor: isSubmitting ? 'not-allowed' : 'text'
+                    }}
                   />
-                  <button type="button" className="eye-btn" onClick={() => setShowPassword(p => !p)} tabIndex={-1}>
+                  <button type="button" className="eye-btn" onClick={() => setShowPassword(p => !p)} tabIndex={-1} disabled={isSubmitting}>
                     {showPassword ? (
                       <EyeOff size={16} />
                     ) : (
@@ -309,10 +321,10 @@ export default function LoginPage() {
                 {errors.password && <div className="error-txt">{errors.password.message}</div>}
               </div>
               <div className="row-utils">
-                <label className="remember-chk">
-                  <input type="checkbox" style={{ accentColor: '#6c47ff' }} /> Remember me
+                <label className="remember-chk" style={{ opacity: isSubmitting ? 0.6 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
+                  <input type="checkbox" style={{ accentColor: '#6c47ff' }} disabled={isSubmitting} /> Remember me
                 </label>
-                <button type="button" className="forgot-link" onClick={() => { setView('forgot'); setServerError(''); setFpError('') }}>
+                <button type="button" className="forgot-link" disabled={isSubmitting} style={{ opacity: isSubmitting ? 0.6 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }} onClick={() => { setView('forgot'); setServerError(''); setFpError('') }}>
                   Forgot password?
                 </button>
               </div>
@@ -329,7 +341,9 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="foot-note">No account? <Link to="/register">create one <ArrowRight size={14} className="ml-1 inline" /></Link></div>
+            <div className="foot-note" style={{ pointerEvents: isSubmitting ? 'none' : 'auto', opacity: isSubmitting ? 0.6 : 1 }}>
+              No account? <Link to="/register">create one <ArrowRight size={14} className="ml-1 inline" /></Link>
+            </div>
           </>
         )}
       </div>
