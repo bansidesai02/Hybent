@@ -287,7 +287,7 @@ export default function PipelinePage() {
           />
         </div>
 
-        {/* Saved Views */}
+        {/* Saved Views commented out
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
             <GlassIcon icon="Bookmark" variant="violet" size={24} iconSize={12} ghost glow={false} />
@@ -326,7 +326,6 @@ export default function PipelinePage() {
 
           <div className="hidden md:block h-4 w-px bg-gray-200 dark:bg-[#201c3b]" />
 
-          {/* Save view input */}
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -344,6 +343,7 @@ export default function PipelinePage() {
             </button>
           </div>
         </div>
+        */}
       </div>
 
       <div className="flex-1 min-h-0 pt-4 border-t border-gray-200 dark:border-[var(--border)]">

@@ -823,76 +823,16 @@ export default function AllTalentListPage() {
         </div>
       </div>
 
-      {/* Saved Views & Alerts Bar */}
+      {/* Saved Views & Alerts Bar commented out
       <div 
-        className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 dark:border-[#2a2550] bg-white/60 dark:bg-[#161233]/60 backdrop-blur-md"
+        className="flex flex-wrap items-center justify-end gap-4 p-4 rounded-xl border border-gray-100 dark:border-[#2a2550] bg-white/60 dark:bg-[#161233]/60 backdrop-blur-md"
         style={{
           boxShadow: 'var(--shadow)',
           marginTop: -8,
           marginBottom: 8,
         }}
       >
-        {/* Saved Views Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
-            <GlassIcon icon="Bookmark" variant="violet" size={24} iconSize={12} ghost glow={false} />
-            <span>Saved Views:</span>
-          </div>
-
-          {savedViews.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {savedViews.map((view) => (
-                <div key={view.id} className="flex items-center gap-1">
-                  <button
-                    onClick={() => loadSavedView(view)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      activeViewId === view.id
-                        ? 'bg-violet-600 text-white shadow-sm'
-                        : 'bg-gray-100 hover:bg-gray-200 dark:bg-[#201c3b] dark:hover:bg-[#2a2550] text-gray-600 dark:text-gray-300'
-                    }`}
-                  >
-                    {view.name}
-                  </button>
-                  {activeViewId === view.id && (
-                    <button
-                      onClick={deleteActiveView}
-                      className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
-                      title="Delete saved view"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <span className="text-xs text-gray-400">No saved views yet</span>
-          )}
-
-          <div className="h-4 w-px bg-gray-200 dark:bg-[#201c3b]" />
-
-          {/* Save Current View Form */}
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="New view name..."
-              value={newViewName}
-              onChange={(e) => setNewViewName(e.target.value)}
-              className="px-3 py-1 text-xs rounded-lg border border-gray-200 dark:border-[#2a2550] bg-white dark:bg-[#1a1730] text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-violet-500"
-              style={{ width: '130px' }}
-            />
-            <button
-              onClick={saveCurrentView}
-              className="px-3 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-[#201c3b] dark:hover:bg-[#2a2550] text-violet-600 dark:text-[#ede9ff] text-xs font-bold transition-colors"
-            >
-              Save View
-            </button>
-          </div>
-        </div>
-
-        {/* Real-time Alerts Config */}
         <div className="flex flex-wrap items-center gap-4">
-          <div className="h-4 w-px bg-gray-200 dark:bg-[#201c3b] hidden lg:block" />
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
@@ -933,6 +873,7 @@ export default function AllTalentListPage() {
           </label>
         </div>
       </div>
+      */}
 
       {/* Context Menu for right-click on job tab */}
       {contextMenu && (
