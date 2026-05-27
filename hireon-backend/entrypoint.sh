@@ -38,31 +38,28 @@ if [ "$SKIP_PRESTART" != "true" ]; then
         echo "==> [entrypoint] No /app/alembic directory found, skipping migrations."
     fi
 
-    echo "==> [entrypoint] Seeding database..."
-    python seed.py
-    echo "==> [entrypoint] Seeding complete."
+    if [ "$RUN_SEED" = "true" ]; then
+        echo "==> [entrypoint] Seeding database..."
+        python seed.py
+        echo "==> [entrypoint] Seeding complete."
+    else
+        echo "==> [entrypoint] RUN_SEED is not true, skipping seed."
+    fi
 else
     echo "==> [entrypoint] SKIP_PRESTART is true, skipping migrations and seeding."
 fi
 
-# If a command is passed to the entrypoint, execute it. 
-# Otherwise, default to starting our multi-process stack.
+# If a command is passed to the entrypoint, execute it.
+# Otherwise, start only the API process. Celery runs in its own compose services.
 if [ $# -gt 0 ]; then
     echo "==> [entrypoint] Executing custom command: $@"
     exec "$@"
 else
-    echo "==> [entrypoint] Starting Celery Worker..."
-    celery -A app.celery_app worker --loglevel=info --concurrency=1 &
-
-    echo "==> [entrypoint] Starting Celery Beat..."
-    celery -A app.celery_app beat --loglevel=info &
-
     echo "==> [entrypoint] Starting Uvicorn..."
-    # Reduce workers to 1 to fit in 512MB RAM along with Celery
     exec uvicorn app.main:app \
         --host 0.0.0.0 \
         --port 8000 \
-        --workers 1 \
+        --workers "${WEB_CONCURRENCY:-2}" \
         --loop uvloop \
         --http httptools
 fi

@@ -93,8 +93,6 @@ async def list_candidates(
         .options(
             selectinload(Candidate.invitations),
             selectinload(Candidate.created_by),
-            selectinload(Candidate.other_offers),
-            selectinload(Candidate.documents)
         )
     )
     

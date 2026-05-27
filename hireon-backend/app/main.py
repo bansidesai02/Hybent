@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -44,13 +45,15 @@ async def lifespan(app: FastAPI):
     """Startup/shutdown events."""
     logger.info(f"🚀 HireOn API starting in {settings.app_env} mode")
 
-    # Create all DB tables if they don't exist
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables ensured.")
-    except Exception as e:
-        logger.warning(f"Skipped table creation (likely concurrent creation by another worker): {e}")
+    # In production, Alembic owns schema changes. create_all on every boot adds
+    # avoidable startup DB work and can race when multiple workers start.
+    if not settings.is_production:
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database tables ensured.")
+        except Exception as e:
+            logger.warning(f"Skipped table creation (likely concurrent creation by another worker): {e}")
 
     # Ensure upload directories exist
     Path(settings.upload_dir).mkdir(exist_ok=True)
@@ -146,6 +149,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(AuditMiddleware)
 

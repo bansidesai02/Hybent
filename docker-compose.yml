@@ -43,8 +43,9 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       UPLOAD_DIR: /app/uploads
       APP_ENV: production
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      RUN_SEED: ${RUN_SEED:-false}
     volumes:
-      - ./hireon-backend:/app
       # Persists uploaded resumes, JDs, avatars across container rebuilds
       - uploads_data:/app/uploads
     ports:
@@ -92,7 +93,7 @@ services:
       APP_ENV: production
       SKIP_PRESTART: "true"
     volumes:
-      - ./hireon-backend:/app
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,7 +118,7 @@ services:
       APP_ENV: production
       SKIP_PRESTART: "true"
     volumes:
-      - ./hireon-backend:/app
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -155,7 +156,7 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1

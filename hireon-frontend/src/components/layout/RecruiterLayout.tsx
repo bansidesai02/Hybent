@@ -1,12 +1,13 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
-import { GlobalChatOverlay } from '@/components/messaging/GlobalChatOverlay'
-import { CopilotWidget } from '@/components/Copilot/CopilotWidget'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+
+const GlobalChatOverlay = lazy(() => import('@/components/messaging/GlobalChatOverlay').then((m) => ({ default: m.GlobalChatOverlay })))
+const CopilotWidget = lazy(() => import('@/components/Copilot/CopilotWidget').then((m) => ({ default: m.CopilotWidget })))
 
 export function RecruiterLayout() {
   const { user } = useAuth()
@@ -44,8 +45,10 @@ export function RecruiterLayout() {
         </main>
       </div>
 
-      <GlobalChatOverlay />
-      <CopilotWidget />
+      <Suspense fallback={null}>
+        <GlobalChatOverlay />
+        <CopilotWidget />
+      </Suspense>
     </div>
   )
 }

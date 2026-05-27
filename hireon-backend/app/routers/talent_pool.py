@@ -35,7 +35,14 @@ async def list_talent_pool(
 ):
     from app.models.application import Application
 
-    query = select(Candidate).where(Candidate.organization_id == current_user.organization_id).options(selectinload(Candidate.created_by))
+    query = (
+        select(Candidate)
+        .where(Candidate.organization_id == current_user.organization_id)
+        .options(
+            selectinload(Candidate.created_by),
+            selectinload(Candidate.invitations),
+        )
+    )
 
     if job_id and job_id != "all":
         from app.models.job import Job

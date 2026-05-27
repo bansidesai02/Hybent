@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
-import { GlobalChatOverlay } from '@/components/messaging/GlobalChatOverlay'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+
+const GlobalChatOverlay = lazy(() => import('@/components/messaging/GlobalChatOverlay').then((m) => ({ default: m.GlobalChatOverlay })))
 
 export function InterviewerLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -34,7 +35,9 @@ export function InterviewerLayout() {
           </div>
         </main>
       </div>
-      <GlobalChatOverlay />
+      <Suspense fallback={null}>
+        <GlobalChatOverlay />
+      </Suspense>
     </div>
   )
 }
