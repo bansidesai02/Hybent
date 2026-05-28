@@ -658,7 +658,7 @@ def send_demo_request_email(
 ) -> None:
     """Send demo request notification to Hireon admin."""
     subject = f"New Demo Request: {first_name} {last_name} from {company_name}"
-    recipient = "bansid.brainerhub@gmail.com"
+    recipient = "info@hirreon.com"
     
     content = f"""
         <h1 style="font-size: 20px; font-weight: 500; color: #3c4043; margin: 0 0 24px 0; border-bottom: 1px solid #dadce0; padding-bottom: 20px;">

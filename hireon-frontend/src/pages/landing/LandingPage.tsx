@@ -374,7 +374,8 @@ export default function LandingPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch('/api/public/demo-request', {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+      const response = await fetch(`${apiBase}/api/public/demo-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
