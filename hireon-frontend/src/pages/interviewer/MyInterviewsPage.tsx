@@ -54,7 +54,7 @@ function ResumeModal({
   interview, candidate, loading, onClose,
 }: {
   interview: Interview | null
-  candidate: { full_name: string; current_title?: string | null; years_experience?: number | null; resume_url: string | null } | null
+  candidate: { full_name: string; current_title?: string | null; years_experience?: number | null; relevant_experience?: string | null; resume_url: string | null } | null
   loading: boolean
   onClose: () => void
 }) {
@@ -130,7 +130,7 @@ function ResumeModal({
                       <p style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>{candidate.full_name}</p>
                       <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
                         {candidate.current_title ?? interview.title}
-                        {candidate.years_experience ? ` · ${candidate.years_experience} yrs exp` : ''}
+                        {candidate.years_experience ? ` · ${candidate.years_experience} yrs exp` : (candidate.relevant_experience ? ` · ${candidate.relevant_experience}` : '')}
                       </p>
                     </div>
                     <button

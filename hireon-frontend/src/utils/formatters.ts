@@ -15,6 +15,28 @@ export function formatDate(date: string | null | undefined, fmt = 'MMM d, yyyy')
   return format(d, fmt)
 }
 
+export function formatCandidateDate(candidate: { import_row_date?: string | null; created_at?: string | null }, fmt = 'MMM d, yyyy'): string {
+  if (candidate.import_row_date) {
+    let dateStr = candidate.import_row_date.trim()
+    // Strip time suffix like "00:00:00"
+    dateStr = dateStr.replace(/\s+\d{2}:\d{2}:\d{2}.*$/, '')
+    try {
+      // Clean DD-MM-YYYY to YYYY-MM-DD for standard browser parsing
+      let cleanedDate = dateStr
+      if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(dateStr)) {
+        const parts = dateStr.split(/[-/]/)
+        cleanedDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+      }
+      const d = new Date(cleanedDate)
+      if (!isNaN(d.getTime())) {
+        return format(d, fmt)
+      }
+    } catch (e) {}
+    return dateStr
+  }
+  return formatDate(candidate.created_at, fmt)
+}
+
 export function formatDateTime(date: string | null | undefined): string {
   const d = safeParseDate(date)
   if (!d) return '—'

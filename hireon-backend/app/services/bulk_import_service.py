@@ -26,6 +26,8 @@ COLUMN_MAPPING = {
     'sr no.': 'sr_no',
     'sr no': 'sr_no',
     'serial no': 'sr_no',
+    'no': 'sr_no',
+    'no.': 'sr_no',
     'date': 'import_row_date',
     'name': 'full_name',
     'full_name': 'full_name',
@@ -41,7 +43,8 @@ COLUMN_MAPPING = {
     'email_address': 'email',
     
     # Experience
-    'experience': 'experience',
+    'experience': 'experience_years',
+    'experience_years': 'experience_years',
     'years_experience': 'years_experience',
     'years exp': 'years_experience',
     'exp': 'years_experience',
@@ -66,9 +69,11 @@ COLUMN_MAPPING = {
     'current salary': 'current_salary',
     'current_salary': 'current_salary',
     'ctc': 'current_salary',
+    'current_ctc': 'current_salary',
     'expected': 'expected_salary',
     'expected salary': 'expected_salary',
     'expected_salary': 'expected_salary',
+    'expected_ctc': 'expected_salary',
     'salary': 'expected_salary',
     
     # Notice period
@@ -91,10 +96,14 @@ COLUMN_MAPPING = {
     
     # Status
     'status': 'import_status',
+    'final status': 'import_status',
+    'final_status': 'import_status',
+    'final status / status': 'import_status',
+    'status / final status': 'import_status',
     
     # Technical
     'technical panel': 'technical_panel',
-    'technical_panel': 'remarks_technical',
+    'technical_panel': 'technical_panel',
     'technical': 'remarks_technical',
     'remarks (technical)': 'remarks_technical',
     'remarks_technical': 'remarks_technical',
@@ -105,12 +114,26 @@ COLUMN_MAPPING = {
     'remarks_practical': 'remarks_practical',
     'practical remarks': 'remarks_practical',
     'practical': 'remarks_practical',
+    'practical round': 'remarks_practical',
+    'practical_round': 'remarks_practical',
     
     # Techno functional
     'techno functional & hr interview': 'techno_functional_hr_interview',
     'techno_functional_hr_interview': 'techno_functional_hr_interview',
     'techno functional hr': 'techno_functional_hr_interview',
     'techno_functional': 'techno_functional_hr_interview',
+    'hr interview': 'techno_functional_hr_interview',
+    'hr_interview': 'techno_functional_hr_interview',
+
+    # Designation / Position / Role
+    'position': 'applied_job_title',
+    'role': 'applied_job_title',
+    'designation': 'applied_job_title',
+    'position / role / designation': 'applied_job_title',
+    'position/role/designation': 'applied_job_title',
+
+    # Source
+    'source': 'source',
 }
 
 
@@ -338,22 +361,28 @@ class BulkImportService:
         if not full_name:
             errors.append("Name is required")
         
-        # Parse years of experience if present
-        if 'years_experience' in data and data['years_experience']:
-            try:
-                years_str = data['years_experience'].strip()
-                # Try to extract number from strings like "3.5", "3-4 years", etc.
-                import re
-                match = re.search(r'(\d+\.?\d*)', years_str)
-                if match:
-                    years_float = float(match.group(1))
-                    data['years_experience'] = years_float
-                else:
-                    errors.append(f"Invalid experience format: {years_str}")
-                    data.pop('years_experience', None)
-            except Exception as e:
-                errors.append(f"Error parsing experience: {str(e)}")
-                data.pop('years_experience', None)
+        # Parse experience if present
+        exp_val = data.get('experience_years') or data.get('years_experience')
+        if exp_val is not None:
+            if isinstance(exp_val, (int, float)):
+                data['years_experience'] = float(exp_val)
+                data['experience_years'] = f"{exp_val} Years"
+            else:
+                exp_str = str(exp_val).strip()
+                data['experience_years'] = exp_str
+                try:
+                    import re
+                    match = re.search(r'(\d+\.?\d*)', exp_str)
+                    if match:
+                        val = float(match.group(1))
+                        if 'month' in exp_str.lower():
+                            data['years_experience'] = round(val / 12.0, 2)
+                        else:
+                            data['years_experience'] = val
+                    else:
+                        data['years_experience'] = None
+                except Exception:
+                    data['years_experience'] = None
         
         return len(errors) == 0, errors
     
@@ -400,6 +429,57 @@ class BulkImportService:
         return None
     
     @staticmethod
+    def map_status_to_pipeline_stage(status_str: str | None) -> str:
+        if not status_str:
+            return "applied"
+        status_lower = status_str.strip().lower()
+        if "technical round rejected" in status_lower or "technical rejected" in status_lower:
+            return "technical_round_rejected"
+        elif "technical round backed out" in status_lower or "technical backed out" in status_lower or "technical round back out" in status_lower:
+            return "technical_round_back_out"
+        elif "hr round rejected" in status_lower or "hr rejected" in status_lower:
+            return "hr_round_rejected"
+        elif "offer accepted" in status_lower or "hired" in status_lower or "joined" in status_lower:
+            return "hired_joined"
+        elif "screening selected" in status_lower:
+            return "screening_selected"
+        elif "screening rejected" in status_lower:
+            return "screening_rejected"
+        elif "pre screening selected" in status_lower:
+            return "pre_screening_selected"
+        elif "pre screening rejected" in status_lower:
+            return "pre_screening_rejected"
+        elif "technical round selected" in status_lower:
+            return "technical_round_selected"
+        elif "practical round selected" in status_lower:
+            return "practical_round_selected"
+        elif "practical round rejected" in status_lower:
+            return "practical_round_rejected"
+        elif "practical round backed out" in status_lower:
+            return "practical_round_back_out"
+        elif "techno functional selected" in status_lower:
+            return "techno_functional_selected"
+        elif "techno functional rejected" in status_lower:
+            return "techno_functional_rejected"
+        elif "management round selected" in status_lower:
+            return "management_round_selected"
+        elif "management round rejected" in status_lower:
+            return "management_round_rejected"
+        elif "hr round selected" in status_lower:
+            return "hr_round_selected"
+        elif "offered" in status_lower:
+            return "offered"
+        elif "rejected" in status_lower:
+            return "rejected"
+        elif "applied" in status_lower:
+            return "applied"
+        elif "screening" in status_lower:
+            return "screening"
+        elif "interview" in status_lower:
+            return "interview"
+        return "applied"
+
+    @staticmethod
     def create_candidate_from_data(
         data: dict[str, Any],
         organization_id: uuid.UUID,
@@ -410,15 +490,6 @@ class BulkImportService:
     ) -> Candidate:
         """
         Create a Candidate instance from parsed data
-        
-        Args:
-            data: Parsed candidate data
-            organization_id: Organization ID
-            created_by_id: User ID who is importing
-            panel_name: Panel/sheet name where imported from
-            
-        Returns:
-            Candidate instance (not saved)
         """
         candidate = Candidate(
             organization_id=organization_id,
@@ -433,8 +504,11 @@ class BulkImportService:
             current_company=data.get('current_company'),
             current_title=data.get('current_title'),
             current_salary=data.get('current_salary'),
+            current_ctc=data.get('current_salary'),
             expected_salary=data.get('expected_salary'),
+            expected_ctc=data.get('expected_salary'),
             years_experience=data.get('years_experience'),
+            experience_years=data.get('experience_years'),
             relevant_experience=data.get('relevant_experience'),
             notice_period_days=data.get('notice_period_days'),
             reference=data.get('reference'),
@@ -449,9 +523,10 @@ class BulkImportService:
             import_status=data.get('import_status', 'active'),
             import_panel_name=panel_name,
             import_date=datetime.now(timezone.utc),
-            source='bulk_import',
+            source=data.get('source') or 'bulk_import',
             tags=['bulk_import'],
-            pipeline_stage='applied'
+            pipeline_stage=BulkImportService.map_status_to_pipeline_stage(data.get('import_status')),
+            applied_job_title=data.get('applied_job_title'),
         )
         
         return candidate
@@ -488,7 +563,7 @@ class BulkImportService:
                 is_valid, validation_errors = BulkImportService.validate_candidate_data(parsed)
                 
                 preview_data.append({
-                    'row_number': idx + 2,  # +2 because Excel is 1-indexed and has header
+                    'row_number': idx + 1,  # +1 because candidate indexing starts at 1
                     'raw_data': sanitize_json_data(row_dict),
                     'parsed_data': sanitize_json_data(parsed),
                     'is_valid': is_valid,
@@ -645,7 +720,7 @@ class BulkImportService:
                         
                         if not is_valid:
                             result.invalid_rows.append({
-                                'row_number': idx + 2,
+                                'row_number': idx + 1,
                                 'raw_data': sanitize_json_data(row_dict),
                                 'errors': validation_errors
                             })
@@ -669,7 +744,7 @@ class BulkImportService:
                         
                         if existing:
                             result.duplicates.append({
-                                'row_number': idx + 2,
+                                'row_number': idx + 1,
                                 'email': parsed_data.get('email'),
                                 'full_name': parsed_data.get('full_name'),
                                 'existing_id': str(existing.id)
@@ -702,7 +777,8 @@ class BulkImportService:
                         # 1) Global "Import Candidates" (reused forever)
                         # 2) Role/technology designation (sheet/panel name), created once then reused
                         role_title = (
-                            BulkImportService._normalize_designation_title(sheet_name)
+                            BulkImportService._normalize_designation_title(parsed_data.get("applied_job_title"))
+                            or BulkImportService._normalize_designation_title(sheet_name)
                             or BulkImportService._normalize_designation_title(parsed_data.get("technical_panel"))
                             or BulkImportService._normalize_designation_title(parsed_data.get("current_title"))
                             or "Imported"
@@ -715,12 +791,13 @@ class BulkImportService:
                             cache=job_cache,
                         )
 
+                        stage_val = candidate.pipeline_stage or ApplicationStage.APPLIED
                         db.add(
                             Application(
                                 organization_id=organization_id,
                                 job_id=import_job.id,
                                 candidate_id=candidate.id,
-                                stage=ApplicationStage.APPLIED,
+                                stage=stage_val,
                                 source="import",
                             )
                         )
@@ -730,7 +807,7 @@ class BulkImportService:
                                     organization_id=organization_id,
                                     job_id=role_job.id,
                                     candidate_id=candidate.id,
-                                    stage=ApplicationStage.APPLIED,
+                                    stage=stage_val,
                                     source="import",
                                 )
                             )
@@ -751,7 +828,7 @@ class BulkImportService:
                 except Exception as e:
                     logger.error(f"Error processing row {idx}: {e}")
                     result.errors.append({
-                        'row_number': idx + 2,
+                        'row_number': idx + 1,
                         'error': str(e)
                     })
                     result.error_count += 1

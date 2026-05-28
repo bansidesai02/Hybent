@@ -576,14 +576,28 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
     location: candidate.location || '',
     experience_years: candidate.experience_years || '',
     notice_period_days: candidate.notice_period_days || '',
-    current_ctc: candidate.current_ctc || '',
-    expected_ctc: candidate.expected_ctc || '',
+    current_ctc: candidate.current_ctc || candidate.current_salary || '',
+    expected_ctc: candidate.expected_ctc || candidate.expected_salary || '',
     availability_status: candidate.availability_status || '',
     interview_availability_days: candidate.interview_availability_days || '',
     interview_time_slot: candidate.interview_time_slot || '',
     linkedin_url: candidate.linkedin_url || '',
     github_url: candidate.github_url || '',
     portfolio_url: candidate.portfolio_url || '',
+    full_name: candidate.full_name || '',
+    current_company: candidate.current_company || '',
+    current_title: candidate.current_title || '',
+    applied_job_title: candidate.applied_job_title || '',
+    relevant_experience: candidate.relevant_experience || '',
+    remarks_hr: candidate.remarks_hr || '',
+    remarks_technical: candidate.remarks_technical || '',
+    remarks_practical: candidate.remarks_practical || '',
+    techno_functional_hr_interview: candidate.techno_functional_hr_interview || '',
+    technical_panel: candidate.technical_panel || '',
+    reference: candidate.reference || '',
+    import_status: candidate.import_status || 'active',
+    hr_name: candidate.hr_name || '',
+    sr_no: candidate.sr_no || '',
   })
 
   const queryClient = useQueryClient()
@@ -596,14 +610,28 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
       location: candidate.location || '',
       experience_years: candidate.experience_years || '',
       notice_period_days: candidate.notice_period_days || '',
-      current_ctc: candidate.current_ctc || '',
-      expected_ctc: candidate.expected_ctc || '',
+      current_ctc: candidate.current_ctc || candidate.current_salary || '',
+      expected_ctc: candidate.expected_ctc || candidate.expected_salary || '',
       availability_status: candidate.availability_status || '',
       interview_availability_days: candidate.interview_availability_days || '',
       interview_time_slot: candidate.interview_time_slot || '',
       linkedin_url: candidate.linkedin_url || '',
       github_url: candidate.github_url || '',
       portfolio_url: candidate.portfolio_url || '',
+      full_name: candidate.full_name || '',
+      current_company: candidate.current_company || '',
+      current_title: candidate.current_title || '',
+      applied_job_title: candidate.applied_job_title || '',
+      relevant_experience: candidate.relevant_experience || '',
+      remarks_hr: candidate.remarks_hr || '',
+      remarks_technical: candidate.remarks_technical || '',
+      remarks_practical: candidate.remarks_practical || '',
+      techno_functional_hr_interview: candidate.techno_functional_hr_interview || '',
+      technical_panel: candidate.technical_panel || '',
+      reference: candidate.reference || '',
+      import_status: candidate.import_status || 'active',
+      hr_name: candidate.hr_name || '',
+      sr_no: candidate.sr_no || '',
     })
   }, [candidate])
 
@@ -614,6 +642,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
       setIsEditing(false)
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] })
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
     },
     onError: () => toast.error('Failed to update details')
   })
@@ -624,6 +653,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
       toast.success('Notes saved')
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] })
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
     },
     onError: () => toast.error('Failed to save notes')
   })
@@ -638,13 +668,121 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const isEmpty = (val: any) => {
+    if (val === null || val === undefined) return true;
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      return trimmed === '' || trimmed.toLowerCase() === 'n/a' || trimmed.toLowerCase() === 'undefined' || trimmed.toLowerCase() === 'null';
+    }
+    return false;
+  };
+
+  const sections = [
+    {
+      title: 'Personal Information',
+      fields: [
+        { label: 'Name', icon: <User size={11} />, value: candidate.full_name },
+        { label: 'Phone Number', icon: <Phone size={11} />, value: candidate.phone },
+        { label: 'Email ID', icon: <Mail size={11} />, value: candidate.email },
+        { label: 'Current Location', icon: <MapPin size={11} />, value: candidate.location },
+      ].filter(f => !isEmpty(f.value)),
+    },
+    {
+      title: 'Experience Details',
+      fields: [
+        { label: 'Position', icon: <User size={11} />, value: candidate.applied_job_title || candidate.current_title },
+        { label: 'Current Employer', icon: <Target size={11} />, value: candidate.current_company },
+        { 
+          label: 'Experience', 
+          icon: <Clock size={11} />, 
+          value: candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} Yrs` : (candidate.relevant_experience || null))
+        },
+        { label: 'Relevant Experience', icon: <Sparkles size={11} />, value: candidate.relevant_experience },
+      ].filter(f => !isEmpty(f.value)),
+    },
+    {
+      title: 'Salary Details',
+      fields: [
+        { label: 'Current Salary', icon: <CircleDollarSign size={11} />, value: candidate.current_salary || candidate.current_ctc },
+        { label: 'Expected Salary', icon: <CircleDollarSign size={11} />, value: candidate.expected_salary || candidate.expected_ctc },
+        { label: 'Notice Period', icon: <Clock size={11} />, value: candidate.notice_period_days },
+        { label: 'Joining Availability', icon: <Clock size={11} />, value: candidate.availability_status },
+      ].filter(f => !isEmpty(f.value)),
+    },
+    {
+      title: 'Interview Details',
+      fields: [
+        { label: 'Practical Round', icon: <ClipboardList size={11} />, value: candidate.remarks_practical },
+        { label: 'HR Interview', icon: <Mic size={11} />, value: candidate.techno_functional_hr_interview },
+        { 
+          label: 'Final Status', 
+          icon: <Target size={11} />, 
+          value: candidate.import_status && candidate.import_status !== 'active' 
+            ? candidate.import_status 
+            : (candidate.pipeline_stage && STAGE_CFG[candidate.pipeline_stage] 
+                ? STAGE_CFG[candidate.pipeline_stage].label 
+                : 'Applied') 
+        },
+        { 
+          label: 'Preferred Interview Time', 
+          icon: <Calendar size={11} />, 
+          value: [candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') 
+        },
+      ].filter(f => !isEmpty(f.value)),
+    },
+    {
+      title: 'HR Feedback',
+      fields: [
+        { label: 'Remarks (HR)', icon: <ClipboardList size={11} />, value: candidate.remarks_hr },
+      ].filter(f => !isEmpty(f.value)),
+    },
+    {
+      title: 'Technical Feedback',
+      fields: [
+        { label: 'Technical Panel', icon: <User size={11} />, value: candidate.technical_panel },
+        { label: 'Remarks (Technical)', icon: <ClipboardList size={11} />, value: candidate.remarks_technical },
+      ].filter(f => !isEmpty(f.value)),
+    },
+    {
+      title: 'Source & Import Info',
+      fields: [
+        { label: 'Source', icon: <Link size={11} />, value: candidate.source },
+        { label: 'Reference / Referral', icon: <User size={11} />, value: candidate.reference },
+        { label: 'HR Name', icon: <User size={11} />, value: candidate.hr_name },
+        { label: 'Import Sheet/Panel Name', icon: <FileText size={11} />, value: candidate.import_panel_name },
+        { 
+          label: 'Import Date', 
+          icon: <Calendar size={11} />, 
+          value: (() => {
+            if (candidate.import_row_date) {
+              const datePart = candidate.import_row_date.split(' ')[0];
+              try {
+                const dateObj = new Date(datePart);
+                if (!isNaN(dateObj.getTime())) {
+                  return formatDate(dateObj.toISOString());
+                }
+              } catch (e) {}
+              return datePart;
+            }
+            return candidate.import_date 
+              ? formatDate(candidate.import_date) 
+              : (candidate.imported_at ? formatDate(candidate.imported_at) : null);
+          })()
+        },
+        { label: 'Serial No', icon: <FileText size={11} />, value: candidate.sr_no },
+      ].filter(f => !isEmpty(f.value)),
+    },
+  ];
+
+  const visibleSections = sections.filter(sec => sec.fields.length > 0);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       
       {/* HEADER WITH EDIT TOGGLE */}
       <div className="flex justify-between items-center -mb-2">
         <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-          Personal Information
+          Overview & Info
         </p>
         {!isEditing ? (
           user?.role === 'admin' && (
@@ -666,62 +804,185 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
 
       {isEditing ? (
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Phone" value={formData.phone} onChange={(e: any) => handleInputChange('phone', e.target.value)} placeholder="+1 555-0000" />
-            <Input label="Location" value={formData.location} onChange={(e: any) => handleInputChange('location', e.target.value)} placeholder="City, Country" />
-            <Input label="Experience" value={formData.experience_years} onChange={(e: any) => handleInputChange('experience_years', e.target.value)} placeholder="e.g. 5 Years" />
-            <Input label="Notice Period" value={formData.notice_period_days} onChange={(e: any) => handleInputChange('notice_period_days', e.target.value)} placeholder="e.g. 30 Days" />
-            <Input label="Current CTC" value={formData.current_ctc} onChange={(e: any) => handleInputChange('current_ctc', e.target.value)} placeholder="e.g. ₹22,00,000" />
-            <Input label="Expected CTC" value={formData.expected_ctc} onChange={(e: any) => handleInputChange('expected_ctc', e.target.value)} placeholder="e.g. ₹32,00,000" />
-            <Input label="You will able to join within" value={formData.availability_status} onChange={(e: any) => handleInputChange('availability_status', e.target.value)} placeholder="e.g. 15 Days" />
+          
+          {/* Section: Personal Information */}
+          <div className="flex flex-col gap-3 p-4 bg-[var(--card-bg)]/30 rounded-2xl border border-[var(--card-border)]">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <User size={13} /> Personal Information
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Full Name" value={formData.full_name} onChange={(e: any) => handleInputChange('full_name', e.target.value)} placeholder="e.g. John Doe" />
+              <Input label="Phone" value={formData.phone} onChange={(e: any) => handleInputChange('phone', e.target.value)} placeholder="+1 555-0000" />
+              <Input label="Email" value={formData.email} onChange={(e: any) => handleInputChange('email', e.target.value)} placeholder="name@company.com" disabled />
+              <Input label="Location" value={formData.location} onChange={(e: any) => handleInputChange('location', e.target.value)} placeholder="City, Country" />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4 mt-2 p-4 bg-[var(--card-bg)]/50 rounded-xl border border-[var(--card-border)]">
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <Calendar size={12} /> Interview Availability
-              </p>
-              <p className="text-sm font-semibold text-gray-800">
-                {[candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'Not provided by candidate'}
-              </p>
+          {/* Section: Experience Details */}
+          <div className="flex flex-col gap-3 p-4 bg-[var(--card-bg)]/30 rounded-2xl border border-[var(--card-border)]">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Target size={13} /> Experience Details
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Position" value={formData.current_title} onChange={(e: any) => handleInputChange('current_title', e.target.value)} placeholder="e.g. Senior Software Engineer" />
+              <Input label="Role / Designation" value={formData.applied_job_title} onChange={(e: any) => handleInputChange('applied_job_title', e.target.value)} placeholder="e.g. Fullstack Developer" />
+              <Input label="Current Employer" value={formData.current_company} onChange={(e: any) => handleInputChange('current_company', e.target.value)} placeholder="e.g. Google" />
+              <Input label="Experience" value={formData.experience_years} onChange={(e: any) => handleInputChange('experience_years', e.target.value)} placeholder="e.g. 5 Years" />
+              <Input label="Relevant Experience" value={formData.relevant_experience} onChange={(e: any) => handleInputChange('relevant_experience', e.target.value)} placeholder="e.g. 3 Years" />
             </div>
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Link size={12} /> Social Links
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Input label="LinkedIn URL" value={formData.linkedin_url} onChange={(e: any) => handleInputChange('linkedin_url', e.target.value)} placeholder="linkedin.com/in/username" />
-                <Input label="GitHub URL" value={formData.github_url} onChange={(e: any) => handleInputChange('github_url', e.target.value)} placeholder="github.com/username" />
-                <Input label="Portfolio URL" value={formData.portfolio_url} onChange={(e: any) => handleInputChange('portfolio_url', e.target.value)} placeholder="https://yoursite.com" />
+          </div>
+
+          {/* Section: Salary & Joining Details */}
+          <div className="flex flex-col gap-3 p-4 bg-[var(--card-bg)]/30 rounded-2xl border border-[var(--card-border)]">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <CircleDollarSign size={13} /> Salary & Joining Details
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Current Salary / CTC" value={formData.current_ctc} onChange={(e: any) => handleInputChange('current_ctc', e.target.value)} placeholder="e.g. ₹22,00,000" />
+              <Input label="Expected Salary / CTC" value={formData.expected_ctc} onChange={(e: any) => handleInputChange('expected_ctc', e.target.value)} placeholder="e.g. ₹32,00,000" />
+              <Input label="Notice Period" value={formData.notice_period_days} onChange={(e: any) => handleInputChange('notice_period_days', e.target.value)} placeholder="e.g. 30 Days" />
+              <Input label="You will able to join within" value={formData.availability_status} onChange={(e: any) => handleInputChange('availability_status', e.target.value)} placeholder="e.g. 15 Days" />
+            </div>
+          </div>
+
+          {/* Section: Interview & Feedback Details */}
+          <div className="flex flex-col gap-3 p-4 bg-[var(--card-bg)]/30 rounded-2xl border border-[var(--card-border)]">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <ClipboardList size={13} /> Interview & Feedback Details
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Technical Panel" value={formData.technical_panel} onChange={(e: any) => handleInputChange('technical_panel', e.target.value)} placeholder="e.g. Tech Panel A" />
+              <Input label="Final Status / Import Status" value={formData.import_status} onChange={(e: any) => handleInputChange('import_status', e.target.value)} placeholder="e.g. Hired / Joined" />
+              
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Practical Round Feedback</label>
+                <textarea
+                  value={formData.remarks_practical}
+                  onChange={(e: any) => handleInputChange('remarks_practical', e.target.value)}
+                  placeholder="Enter remarks for practical round..."
+                  style={{
+                    width: '100%',
+                    minHeight: 80,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    background: 'rgba(0,0,0,0.01)',
+                    fontSize: 13,
+                    color: 'var(--text)',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">HR Interview Remarks</label>
+                <textarea
+                  value={formData.techno_functional_hr_interview}
+                  onChange={(e: any) => handleInputChange('techno_functional_hr_interview', e.target.value)}
+                  placeholder="Enter remarks for HR Interview..."
+                  style={{
+                    width: '100%',
+                    minHeight: 80,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    background: 'rgba(0,0,0,0.01)',
+                    fontSize: 13,
+                    color: 'var(--text)',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks (HR)</label>
+                <textarea
+                  value={formData.remarks_hr}
+                  onChange={(e: any) => handleInputChange('remarks_hr', e.target.value)}
+                  placeholder="Enter remarks (HR)..."
+                  style={{
+                    width: '100%',
+                    minHeight: 80,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    background: 'rgba(0,0,0,0.01)',
+                    fontSize: 13,
+                    color: 'var(--text)',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks (Technical)</label>
+                <textarea
+                  value={formData.remarks_technical}
+                  onChange={(e: any) => handleInputChange('remarks_technical', e.target.value)}
+                  placeholder="Enter remarks (Technical)..."
+                  style={{
+                    width: '100%',
+                    minHeight: 80,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    background: 'rgba(0,0,0,0.01)',
+                    fontSize: 13,
+                    color: 'var(--text)',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                  }}
+                />
               </div>
             </div>
           </div>
+
+          {/* Section: Source, References & Links */}
+          <div className="flex flex-col gap-4 p-4 bg-[var(--card-bg)]/30 rounded-2xl border border-[var(--card-border)]">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Link size={13} /> References & Links
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input label="Reference / Referral" value={formData.reference} onChange={(e: any) => handleInputChange('reference', e.target.value)} placeholder="e.g. Ref Person Name" />
+              <Input label="HR Name" value={formData.hr_name} onChange={(e: any) => handleInputChange('hr_name', e.target.value)} placeholder="e.g. HR Recruiter Name" />
+              <Input label="Serial No" value={formData.sr_no} onChange={(e: any) => handleInputChange('sr_no', e.target.value)} placeholder="e.g. 1" />
+            </div>
+            
+            <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input label="LinkedIn URL" value={formData.linkedin_url} onChange={(e: any) => handleInputChange('linkedin_url', e.target.value)} placeholder="linkedin.com/in/username" />
+              <Input label="GitHub URL" value={formData.github_url} onChange={(e: any) => handleInputChange('github_url', e.target.value)} placeholder="github.com/username" />
+              <Input label="Portfolio URL" value={formData.portfolio_url} onChange={(e: any) => handleInputChange('portfolio_url', e.target.value)} placeholder="https://yoursite.com" />
+            </div>
+          </div>
+
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col sm:grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {[
-              { label: 'Phone Number', icon: <Phone size={10} />, value: candidate.phone, show: !!candidate.phone },
-              { label: 'Email ID', icon: <Mail size={10} />, value: candidate.email, show: true },
-              { label: 'Experience', icon: <Target size={10} />, value: candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience} Yrs` : null) || 'N/A', show: true },
-              { label: 'Location', icon: <MapPin size={10} />, value: candidate.location || 'Remote', show: true },
-              { label: 'Notice Period', icon: <Clock size={10} />, value: candidate.notice_period_days || 'N/A', show: true },
-              { label: 'Current CTC', icon: <CircleDollarSign size={10} />, value: candidate.current_ctc || 'N/A', show: true },
-              { label: 'Expected CTC', icon: <CircleDollarSign size={10} />, value: candidate.expected_ctc || 'N/A', show: true },
-              { label: 'Pref. Interview', icon: <Calendar size={10} />, value: [candidate.interview_availability_days, candidate.interview_time_slot].filter(Boolean).join(' • ') || 'N/A', show: !!(candidate.interview_availability_days || candidate.interview_time_slot) },
-              { label: 'Source', icon: <Link size={10} />, value: candidate.source || 'Sourced', show: true },
-            ].filter((f: any) => f.show).map((item: any, i: any) => (
-              <div key={i} style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
-                <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {item.icon} {item.label}
-                </p>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word' }}>{item.value}</p>
+          {visibleSections.map((sec, idx) => (
+            <div key={idx} className="flex flex-col gap-3">
+              <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {sec.title}
+              </p>
+              <div className="flex flex-col sm:grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {sec.fields.map((field, fIdx) => (
+                  <div key={fIdx} style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 16px' }}>
+                    <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {field.icon} {field.label}
+                    </p>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word' }}>{field.value}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
 
           {/* Social Links — always visible, show Add if missing */}
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center pt-2">
             <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', marginRight: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
               <Link size={12} /> Links:
             </p>
@@ -799,12 +1060,12 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
         </div>
       )}
 
-      {/* HR Notes section */}
+      {/* Recruitment Notes / Confidential Notes section */}
       {!isEditing && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div className="flex flex-col gap-3 pt-2">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Lock size={12} /> HR Confidential Notes
+              <Lock size={12} /> Recruitment Notes
             </p>
             {saveNotesMutation.isPending && <span style={{ fontSize: 11, color: 'var(--violet)', fontWeight: 600 }}>Saving...</span>}
           </div>
@@ -836,7 +1097,7 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
               e.currentTarget.style.background = 'var(--card-bg)/50'
             }}
           />
-          <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 8, fontStyle: 'italic' }}>
+          <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 0, fontStyle: 'italic' }}>
             Notes auto-save when you click outside the text box.
           </p>
         </div>

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { DatePicker } from '@/components/ui/DatePicker'
-import { formatDate } from '@/utils/formatters'
+import { formatDate, formatCandidateDate } from '@/utils/formatters'
 // import { formatDistanceToNow } from 'date-fns'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
@@ -886,7 +886,7 @@ export default function CandidatesPage() {
                     {/* Date */}
                     <p className="text-[12px] text-[var(--text-mid)] lg:text-center">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Applied</span>
-                      {formatDate(candidate.created_at, 'MMM dd, yyyy')}
+                      {formatCandidateDate(candidate, 'MMM dd, yyyy')}
                     </p>
 
                     {/* Role */}
@@ -904,7 +904,7 @@ export default function CandidatesPage() {
                     {/* Exp */}
                     <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
                       <span className="lg:hidden text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Experience</span>
-                      {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : '—')}
+                      {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : (candidate.relevant_experience || '—'))}
                     </p>
 
                     {/* Score */}

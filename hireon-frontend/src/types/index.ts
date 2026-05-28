@@ -181,6 +181,8 @@ export interface Candidate {
   techno_functional_hr_interview?: string | null
   import_panel_name?: string | null
   import_date?: string | null
+  import_batch_id?: string | null
+  imported_at?: string | null
 }
 
 export interface Invitation {

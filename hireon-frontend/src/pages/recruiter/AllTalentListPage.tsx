@@ -22,7 +22,7 @@ import { BulkImportModal } from '@/components/recruiter/BulkImportModal'
 import { BulkImportHistoryModal } from '@/components/recruiter/BulkImportHistoryModal'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
-import { formatDate } from '@/utils/formatters'
+import { formatDate, formatCandidateDate } from '@/utils/formatters'
 import type { Candidate } from '@/types'
 import type { ImportResultData } from '@/api/bulkImport'
 
@@ -1084,14 +1084,14 @@ export default function AllTalentListPage() {
                 </div>
 
                 {/* Date */}
-                <p className="text-[12px] text-[var(--text-mid)] lg:text-center">{formatDate(candidate.created_at, 'dd MMM yyyy')}</p>
+                <p className="text-[12px] text-[var(--text-mid)] lg:text-center">{formatCandidateDate(candidate, 'dd MMM yyyy')}</p>
 
                 {/* Role */}
                 <p className="text-[13px] text-[var(--text-mid)] truncate">{candidate.applied_job_title || candidate.current_title || '—'}</p>
 
                 {/* Exp */}
                 <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
-                  {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : '—')}
+                  {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : (candidate.relevant_experience || '—'))}
                 </p>
 
                 {/* Stage */}

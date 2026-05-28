@@ -260,9 +260,9 @@ export default function PrepKitPage() {
                   </div>
                 </div>
 
-                {candidate.years_experience != null && (
+                {(candidate.years_experience != null || candidate.relevant_experience) && (
                   <p style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 10 }}>
-                    <span style={{ fontWeight: 600 }}>Experience:</span> {candidate.years_experience} years
+                    <span style={{ fontWeight: 600 }}>Experience:</span> {candidate.years_experience != null ? `${candidate.years_experience} years` : candidate.relevant_experience}
                   </p>
                 )}
 

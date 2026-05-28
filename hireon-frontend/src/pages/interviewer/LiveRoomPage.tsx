@@ -448,9 +448,9 @@ export default function LiveRoomPage() {
                 <p style={{ fontSize: 11, color: 'var(--text-mid)' }}>
                   {candidate?.current_title ?? interview.interview_type.replace(/_/g, ' ')}
                 </p>
-                {candidate?.years_experience != null && (
+                {(candidate?.years_experience != null || candidate?.relevant_experience) && (
                   <p style={{ fontSize: 10, color: 'var(--text-lite)', marginTop: 1 }}>
-                    {candidate.years_experience} yrs exp
+                    {candidate.years_experience != null ? `${candidate.years_experience} yrs exp` : candidate.relevant_experience}
                   </p>
                 )}
               </div>

@@ -890,7 +890,7 @@ function UploadResumePageInner() {
                         {result.full_name}
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 10 }}>
-                        {result.current_title || jobReq.role_title || 'Candidate'} · {result.experience_years || (result.years_experience != null ? `${result.years_experience} yrs` : '—')}
+                        {result.current_title || jobReq.role_title || 'Candidate'} · {result.experience_years || (result.years_experience != null ? `${result.years_experience} yrs` : (result.relevant_experience || '—'))}
                       </div>
                       {/* Skill tags */}
                       <div className="flex flex-wrap gap-1.5 justify-center sm:justify-start">
@@ -912,7 +912,7 @@ function UploadResumePageInner() {
                   {/* Metrics row */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                     {[
-                      { val: result.experience_years || (result.years_experience != null ? `${result.years_experience}y` : '—'), lbl: 'Years Exp.' },
+                      { val: result.experience_years || (result.years_experience != null ? `${result.years_experience}y` : (result.relevant_experience || '—')), lbl: 'Years Exp.' },
                       { val: scoring?.final_score ?? '—', lbl: 'AI Score' },
                       { val: scoring?.shortlisted ? (
                         <div className="flex items-center gap-1">

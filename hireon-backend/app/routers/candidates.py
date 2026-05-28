@@ -497,6 +497,17 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
     update_data = data.model_dump(exclude_none=True)
     new_stage = update_data.get("pipeline_stage")
 
+    # Synchronize CTC and Salary fields
+    if "current_ctc" in update_data:
+        update_data["current_salary"] = update_data["current_ctc"]
+    elif "current_salary" in update_data:
+        update_data["current_ctc"] = update_data["current_salary"]
+
+    if "expected_ctc" in update_data:
+        update_data["expected_salary"] = update_data["expected_ctc"]
+    elif "expected_salary" in update_data:
+        update_data["expected_ctc"] = update_data["expected_salary"]
+
     # Track comment/note changes before applying
     old_hr_notes = candidate.hr_notes
     old_talent_pool_comment = candidate.talent_pool_comment

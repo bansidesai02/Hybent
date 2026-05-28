@@ -96,6 +96,22 @@ class CandidateUpdate(BaseModel):
     weekend_interviews: bool | None = None
     hr_notes: str | None = None
     talent_pool_comment: str | None = None
+    # Bulk import / Extended fields
+    current_company: str | None = None
+    current_title: str | None = None
+    applied_job_title: str | None = None
+    relevant_experience: str | None = None
+    current_salary: str | None = None
+    expected_salary: str | None = None
+    remarks_hr: str | None = None
+    remarks_technical: str | None = None
+    remarks_practical: str | None = None
+    techno_functional_hr_interview: str | None = None
+    technical_panel: str | None = None
+    reference: str | None = None
+    import_status: str | None = None
+    hr_name: str | None = None
+    sr_no: str | None = None
 
 class CandidateStageUpdate(BaseModel):
     pipeline_stage: str
