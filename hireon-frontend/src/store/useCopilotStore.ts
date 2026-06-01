@@ -32,6 +32,7 @@ interface CopilotState {
   toggle: () => void
   setThinking: (v: boolean) => void
   addMessage: (msg: Omit<ChatMessage, 'id'>) => void
+  updateLastMessageContent: (content: string) => void
   setMessages: (msgs: ChatMessage[]) => void
   setConversationId: (id: string | null) => void
   startNewConversation: () => void   // clears messages + conversationId
@@ -56,6 +57,18 @@ export const useCopilotStore = create<CopilotState>()(
         set((s) => ({
           messages: [...s.messages, { ...msg, id: genId() }],
         })),
+
+      updateLastMessageContent: (content) =>
+        set((s) => {
+          if (s.messages.length === 0) return s
+          const newMessages = [...s.messages]
+          const lastIndex = newMessages.length - 1
+          newMessages[lastIndex] = {
+            ...newMessages[lastIndex],
+            content: newMessages[lastIndex].content + content
+          }
+          return { messages: newMessages }
+        }),
 
       // Used when loading a conversation from history (API response)
       setMessages: (msgs) => set({ messages: msgs }),

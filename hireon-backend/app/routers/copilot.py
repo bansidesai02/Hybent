@@ -6,16 +6,20 @@ GET  /v1/copilot/conversations/{id} — load a conversation with messages
 DELETE /v1/copilot/conversations/{id} — delete a conversation
 """
 import uuid
+import logging
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status, UploadFile, File, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.dependencies import DB, get_current_user
 from app.models.user import User
 from typing import Annotated
 from app.utils.permissions import RECRUITER_ROLES
-from app.services.copilot_service import run_copilot_chat
-from app.services.ai_evaluator import transcribe_audio
+from app.services.copilot_service import stream_copilot_chat
+from app.services.ai_evaluator import transcribe_audio, clean_speech_transcript
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/copilot", tags=["copilot"])
 
@@ -45,6 +49,10 @@ class CopilotChatResponse(BaseModel):
     pending_tool_call: Optional[dict] = None
 
 
+class CleanTranscriptRequest(BaseModel):
+    text: str
+
+
 
 class ConversationSummary(BaseModel):
     id: str
@@ -70,7 +78,7 @@ class ConversationDetail(BaseModel):
 
 # ── Chat Endpoint ─────────────────────────────────────────────────────────────
 
-@router.post("/chat", response_model=CopilotChatResponse)
+@router.post("/chat")
 async def copilot_chat(
     body: CopilotChatRequest,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -81,7 +89,7 @@ async def copilot_chat(
     AI Copilot chat endpoint.
     - Only accessible by ADMIN and RECRUITER roles.
     - All DB queries inside are scoped to current_user.organization_id.
-    - Saves every successful exchange to copilot_messages for persistent history.
+    - Streams response via Server-Sent Events (SSE).
     """
     if current_user.role not in ALLOWED_ROLES:
         raise HTTPException(
@@ -92,7 +100,7 @@ async def copilot_chat(
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
-    result = await run_copilot_chat(
+    generator = stream_copilot_chat(
         user_message=body.message.strip(),
         history=[m.model_dump() for m in body.history],
         organization_id=current_user.organization_id,
@@ -104,7 +112,7 @@ async def copilot_chat(
         approved_tool_call=body.approved_tool_call,
     )
 
-    return CopilotChatResponse(**result)
+    return StreamingResponse(generator, media_type="text/event-stream")
 
 
 @router.post("/transcribe")
@@ -123,6 +131,8 @@ async def copilot_transcribe(
     try:
         result = await transcribe_audio(
             audio_data=audio_data,
+            filename=file.filename or "recording.webm",
+            content_type=file.content_type or "audio/webm",
             background_tasks=background_tasks,
             user_id=current_user.id,
             organization_id=current_user.organization_id
@@ -136,6 +146,32 @@ async def copilot_transcribe(
         raise HTTPException(status_code=500, detail=result.get("detail", "Transcription failed"))
         
     return result
+
+
+@router.post("/clean-transcript")
+async def copilot_clean_transcript(
+    body: CleanTranscriptRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    background_tasks: BackgroundTasks,
+):
+    """
+    Clean up speech-to-text transcript using an LLM to refine spelling,
+    terminology, grammar, and casing.
+    """
+    if current_user.role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+        
+    try:
+        cleaned = await clean_speech_transcript(
+            text=body.text,
+            background_tasks=background_tasks,
+            user_id=current_user.id,
+            organization_id=current_user.organization_id
+        )
+        return {"text": cleaned}
+    except Exception as e:
+        logger.error(f"Transcript cleanup error: {e}")
+        raise HTTPException(status_code=500, detail=f"Cleanup error: {str(e)}")
 
 
 # ── Conversation History Endpoints ────────────────────────────────────────────
@@ -228,6 +264,29 @@ async def get_conversation(
             for m in msgs
         ],
     )
+
+
+@router.delete("/conversations", status_code=204)
+async def delete_all_conversations(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: DB,
+):
+    """Delete all conversations and their messages for the current user."""
+    from app.models.copilot_conversation import CopilotConversation
+    from sqlalchemy import delete
+
+    if current_user.role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    try:
+        stmt = delete(CopilotConversation).where(
+            CopilotConversation.organization_id == current_user.organization_id,
+            CopilotConversation.user_id == current_user.id,
+        )
+        await db.execute(stmt)
+    except Exception as e:
+        logger.error(f"Error deleting all conversations: {e}")
+        raise HTTPException(status_code=500, detail="Database deletion failed.")
 
 
 @router.delete("/conversations/{conversation_id}", status_code=204)

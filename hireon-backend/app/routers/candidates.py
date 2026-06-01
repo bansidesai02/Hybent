@@ -1,7 +1,7 @@
 import uuid
 import logging
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from app.dependencies import DB, get_current_user, require_recruiter, require_admin
 from app.models.user import User
@@ -256,6 +256,38 @@ STAGE_TO_BUCKET = {
     "screening": "screening", # Legacy/Fallback
     "interview": "interview"  # Legacy/Fallback
 }
+
+@router.get("/suggest")
+async def suggest_candidates(
+    q: str = Query(..., min_length=1),
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: DB = None,
+):
+    """
+    Suggest candidates based on case-insensitive match on full_name.
+    Only returns candidates belonging to current_user.organization_id.
+    """
+    logger.info("Suggest candidates request: q=%r org_id=%s", q, current_user.organization_id)
+    try:
+        query = (
+            select(Candidate)
+            .where(
+                Candidate.organization_id == current_user.organization_id,
+                or_(
+                    Candidate.full_name.ilike(f"{q}%"),
+                    Candidate.full_name.ilike(f"% {q}%")
+                )
+            )
+            .limit(5)
+        )
+        res = await db.execute(query)
+        candidates = res.scalars().all()
+        
+        data = [{"id": str(c.id), "full_name": c.full_name} for c in candidates]
+        return APIResponse.success(message="Candidate suggestions fetched.", data=data)
+    except Exception as e:
+        logger.error(f"Error in candidate suggestions: {e}")
+        raise HTTPException(status_code=500, detail="Database query failed")
 
 @router.get("/pipeline")
 async def get_candidates_pipeline(current_user: Annotated[User, Depends(get_current_user)], db: DB):

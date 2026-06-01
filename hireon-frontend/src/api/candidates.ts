@@ -37,4 +37,7 @@ export const candidatesApi = {
   reject: (id: string) => api.post<Candidate>(`/v1/candidates/${id}/reject`),
 
   recordView: (id: string) => api.post(`/v1/candidates/${id}/view`),
+
+  suggest: (q: string) =>
+    api.get<any[]>('/v1/candidates/suggest', { params: { q } }),
 }

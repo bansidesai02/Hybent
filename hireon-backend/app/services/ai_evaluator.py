@@ -231,13 +231,15 @@ def parse_json_response(text: str):
 
 async def transcribe_audio(
     audio_data: bytes,
+    filename: str = "audio.webm",
+    content_type: str = "audio/webm",
     background_tasks: Optional[BackgroundTasks] = None,
     user_id: Optional[uuid.UUID] = None,
     organization_id: Optional[uuid.UUID] = None
 ):
     """
     Transcribe audio data to text.
-    Priority: Gemini (already configured) → HuggingFace Whisper (optional fallback).
+    Priority: OpenAI Whisper (whisper-1) -> Groq Whisper (whisper-large-v3) -> Gemini (gemini-2.0-flash) -> HuggingFace Whisper.
     """
     start_time = time.time()
     status = "success"
@@ -245,7 +247,115 @@ async def transcribe_audio(
     provider = "unknown"
     model_name = "unknown"
 
-    # ── Strategy 1: Use Gemini (already configured) ─────────────────────────
+    # ── Strategy 1: OpenAI Whisper (whisper-1) ─────────────────────────────
+    if settings.openai_api_key:
+        provider = "OpenAI"
+        model_name = "whisper-1"
+        try:
+            import tempfile, os
+            suffix = f".{filename.split('.')[-1]}" if filename and "." in filename else ".webm"
+            tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            try:
+                tmp.write(audio_data)
+                tmp.close()
+                
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    headers = {
+                        "Authorization": f"Bearer {settings.openai_api_key}"
+                    }
+                    with open(tmp.name, "rb") as f:
+                        files = {
+                            "file": (filename or "audio.webm", f, content_type or "audio/webm")
+                        }
+                        data = {
+                            "model": "whisper-1",
+                            "response_format": "json",
+                            "prompt": "English, Hindi, and Hinglish (mix of English and Hindi words written in Roman/Latin script). Example: Show React developers with 3 years experience. Candidate ka profile show karo. Interview schedule karo kal 2 baje. What is the current pipeline summary?"
+                        }
+                        response = await client.post(
+                            "https://api.openai.com/v1/audio/transcriptions",
+                            headers=headers,
+                            files=files,
+                            data=data
+                        )
+                    
+                    if response.status_code == 200:
+                        res_json = response.json()
+                        transcription = res_json.get("text", "").strip()
+                        
+                        # Log usage in background
+                        duration_ms = (time.time() - start_time) * 1000
+                        if background_tasks:
+                            background_tasks.add_task(
+                                log_ai_usage,
+                                provider=provider, model=model_name,
+                                feature="speech_to_text",
+                                prompt_tokens=1, completion_tokens=1, total_tokens=2,
+                                duration_ms=duration_ms, status=status,
+                                error_detail=None,
+                                user_id=user_id, organization_id=organization_id,
+                            )
+                        return {"text": transcription}
+                    else:
+                        resp_text = response.text
+                        logger.error(f"OpenAI Whisper error: {response.status_code} - {resp_text}")
+                        raise Exception(f"OpenAI error {response.status_code}: {resp_text}")
+            finally:
+                try:
+                    os.unlink(tmp.name)
+                except Exception:
+                    pass
+        except Exception as oe:
+            logger.error(f"OpenAI Whisper transcription failed, checking fallbacks: {oe}")
+            error_msg = str(oe)
+
+    # ── Strategy 2: Groq Whisper fallback ──────────────────────────────────
+    if settings.groq_api_key and groq_client:
+        provider = "Groq"
+        model_name = "whisper-large-v3"
+        try:
+            import tempfile, os
+            suffix = f".{filename.split('.')[-1]}" if filename and "." in filename else ".webm"
+            tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            try:
+                tmp.write(audio_data)
+                tmp.close()
+                
+                def _groq_transcribe():
+                    with open(tmp.name, "rb") as f:
+                        return groq_client.audio.transcriptions.create(
+                            file=(filename or "audio.webm", f),
+                            model="whisper-large-v3",
+                            response_format="json",
+                            prompt="English, Hindi, and Hinglish (mix of English and Hindi words written in Roman/Latin script). Example: Show React developers with 3 years experience. Candidate ka profile show karo. Interview schedule karo kal 2 baje. What is the current pipeline summary?"
+                        )
+                
+                result = await asyncio.to_thread(_groq_transcribe)
+                transcription = result.text.strip() if hasattr(result, 'text') else str(result).strip()
+                
+                # Log usage in background
+                duration_ms = (time.time() - start_time) * 1000
+                if background_tasks:
+                    background_tasks.add_task(
+                        log_ai_usage,
+                        provider=provider, model=model_name,
+                        feature="speech_to_text",
+                        prompt_tokens=1, completion_tokens=1, total_tokens=2,
+                        duration_ms=duration_ms, status="success",
+                        error_detail=None,
+                        user_id=user_id, organization_id=organization_id,
+                    )
+                return {"text": transcription}
+            finally:
+                try:
+                    os.unlink(tmp.name)
+                except Exception:
+                    pass
+        except Exception as ge:
+            logger.error(f"Groq Whisper fallback failed, checking Gemini fallback: {ge}")
+            error_msg = f"{error_msg} | Groq: {str(ge)}" if error_msg else str(ge)
+
+    # ── Strategy 3: Gemini fallback ─────────────────────────────────────────
     if settings.gemini_api_key:
         provider = "Gemini"
         model_name = "gemini-2.0-flash"
@@ -254,16 +364,22 @@ async def transcribe_audio(
 
             # Use proper SDK types for inline audio data
             import tempfile, os
-            tmp = tempfile.NamedTemporaryFile(suffix=".webm", delete=False)
+            suffix = f".{filename.split('.')[-1]}" if filename and "." in filename else ".webm"
+            tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
             try:
                 tmp.write(audio_data)
                 tmp.close()
-                audio_file = genai.upload_file(tmp.name, mime_type="audio/webm")
+                mime_type = content_type or "audio/webm"
+                audio_file = genai.upload_file(tmp.name, mime_type=mime_type)
             finally:
-                os.unlink(tmp.name)
+                try:
+                    os.unlink(tmp.name)
+                except Exception:
+                    pass
 
             prompt = (
                 "Transcribe the following audio recording into text. "
+                "The audio is expected to be in English, Hindi, or Hinglish (mix of English and Hindi written in Latin/Roman script). "
                 "Return ONLY the transcribed text, nothing else. "
                 "If the audio is silent or unintelligible, return an empty string."
             )
@@ -273,30 +389,26 @@ async def transcribe_audio(
 
             response = await asyncio.to_thread(_gemini_transcribe)
             transcription = response.text.strip() if response.text else ""
-
+            
+            # Log usage in background
+            duration_ms = (time.time() - start_time) * 1000
+            if background_tasks:
+                background_tasks.add_task(
+                    log_ai_usage,
+                    provider=provider, model=model_name,
+                    feature="speech_to_text",
+                    prompt_tokens=1, completion_tokens=1, total_tokens=2,
+                    duration_ms=duration_ms, status="success",
+                    error_detail=None,
+                    user_id=user_id, organization_id=organization_id,
+                )
             return {"text": transcription}
 
         except Exception as ge:
-            logger.error(f"Gemini transcription failed: {ge}")
-            error_msg = str(ge)
-            # Fall through to HuggingFace if available
-            if not settings.huggingface_api_key:
-                status = "failure"
-                # Log usage before returning
-                duration_ms = (time.time() - start_time) * 1000
-                if background_tasks:
-                    background_tasks.add_task(
-                        log_ai_usage,
-                        provider=provider, model=model_name,
-                        feature="speech_to_text",
-                        prompt_tokens=1, completion_tokens=1, total_tokens=2,
-                        duration_ms=duration_ms, status=status,
-                        error_detail=error_msg,
-                        user_id=user_id, organization_id=organization_id,
-                    )
-                return {"error": "exception", "detail": str(ge)}
+            logger.error(f"Gemini transcription failed, checking HF fallback: {ge}")
+            error_msg = f"{error_msg} | Gemini: {str(ge)}" if error_msg else str(ge)
 
-    # ── Strategy 2: HuggingFace Whisper (optional fallback) ─────────────────
+    # ── Strategy 4: HuggingFace Whisper (optional fallback) ─────────────────
     if settings.huggingface_api_key:
         provider = "HuggingFace"
         model_name = "openai/whisper-large-v3"
@@ -308,13 +420,8 @@ async def transcribe_audio(
 
             result = await asyncio.to_thread(_hf_transcribe)
             transcription = result.text if hasattr(result, 'text') else str(result)
-
-            return {"text": transcription}
-
-        except Exception as e:
-            status = "failure"
-            error_msg = str(e)
-            logger.error(f"HuggingFace STT failure: {e}")
+            
+            # Log usage in background
             duration_ms = (time.time() - start_time) * 1000
             if background_tasks:
                 background_tasks.add_task(
@@ -322,15 +429,32 @@ async def transcribe_audio(
                     provider=provider, model=model_name,
                     feature="speech_to_text",
                     prompt_tokens=1, completion_tokens=1, total_tokens=2,
-                    duration_ms=duration_ms, status=status,
-                    error_detail=error_msg,
+                    duration_ms=duration_ms, status="success",
+                    error_detail=None,
                     user_id=user_id, organization_id=organization_id,
                 )
-            return {"error": "exception", "detail": str(e)}
+            return {"text": transcription}
 
-    # ── No provider available ───────────────────────────────────────────────
-    logger.warning("No AI API key configured for speech-to-text (need GEMINI_API_KEY or HUGGINGFACE_API_KEY).")
-    return {"error": "no_key", "detail": "No AI API key configured for transcription."}
+        except Exception as e:
+            logger.error(f"HuggingFace STT failure: {e}")
+            error_msg = f"{error_msg} | HuggingFace: {str(e)}" if error_msg else str(e)
+
+    # ── Final Log & Return Error ───────────────────────────────────────────
+    status = "failure"
+    duration_ms = (time.time() - start_time) * 1000
+    if background_tasks:
+        background_tasks.add_task(
+            log_ai_usage,
+            provider=provider, model=model_name,
+            feature="speech_to_text",
+            prompt_tokens=1, completion_tokens=1, total_tokens=2,
+            duration_ms=duration_ms, status=status,
+            error_detail=error_msg,
+            user_id=user_id, organization_id=organization_id,
+        )
+
+    logger.warning("No speech-to-text transcription engine succeeded.")
+    return {"error": "transcription_failed", "detail": error_msg or "No API key configured or all engines failed."}
 
 
 
@@ -898,3 +1022,114 @@ async def generate_image_prompt(
                 user_id=user_id,
                 organization_id=organization_id
             )
+
+CLEAN_TRANSCRIPT_PROMPT = """You are an AI assistant specialized in cleaning and refining spoken voice transcripts for a recruiting platform (Hireon).
+Your task is to fix any transcription, grammar, punctuation, and capitalization errors in the user's input, particularly focusing on technical terms, HR terms, candidate stages, and locations.
+
+DO NOT change the core meaning or intent of the user. Only refine the syntax, correct misspelled names, capitalization, and recruiter-specific vocabulary.
+
+Here is a list of common recruiting/technical terms you should correct:
+- expected ctc / current ctc -> Expected CTC / Current CTC
+- notice period -> Notice Period
+- technical round / hr round / practical round -> Technical Round / HR Round / Practical Round
+- react / reactjs / react js -> ReactJS
+- node / nodejs / node js -> NodeJS
+- fastapi / fast api -> FastAPI
+- python / java / devops -> Python / Java / DevOps
+- brainerhub / brainer hub -> BrainerHub
+- hireon / hire on / hire-on -> Hireon
+- ahmedabad -> Ahmedabad
+- resume / cv -> Resume / CV
+
+Format rules:
+1. Return ONLY the refined text. Do not include any explanations, greetings, introduction, or conversational filler.
+2. Maintain the language style (e.g. if the input is in Hinglish, the output should remain in Hinglish with corrected spelling and punctuation).
+3. If the input is empty or silent, return an empty string.
+"""
+
+async def clean_speech_transcript(
+    text: str,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+) -> str:
+    """
+    Refine raw speech transcripts to correct terminology, capitalization, and grammar using LLM.
+    """
+    if not text or not text.strip():
+        return ""
+    
+    start_time = time.time()
+    status = "success"
+    error_msg = None
+    provider = "unknown"
+    model_name = "unknown"
+    p_tokens, c_tokens, t_tokens = 0, 0, 0
+    
+    try:
+        if settings.groq_api_key and groq_client:
+            provider = "Groq"
+            model_name = "llama-3.3-70b-versatile"
+            
+            def _groq_clean():
+                return groq_client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": CLEAN_TRANSCRIPT_PROMPT},
+                        {"role": "user", "content": text}
+                    ],
+                    temperature=0.0,
+                    max_tokens=256
+                )
+            
+            completion = await asyncio.to_thread(_groq_clean)
+            if hasattr(completion, 'usage') and completion.usage:
+                p_tokens = completion.usage.prompt_tokens
+                c_tokens = completion.usage.completion_tokens
+                t_tokens = completion.usage.total_tokens
+                
+            refined = completion.choices[0].message.content.strip()
+            if refined:
+                return refined
+                
+        # Fallback to Gemini
+        if settings.gemini_api_key:
+            provider = "Gemini"
+            model_name = "gemini-2.0-flash"
+            model = genai.GenerativeModel(
+                model_name,
+                system_instruction=CLEAN_TRANSCRIPT_PROMPT
+            )
+            
+            def _gemini_clean():
+                return model.generate_content(text)
+                
+            response = await asyncio.to_thread(_gemini_clean)
+            refined = response.text.strip()
+            if refined:
+                return refined
+                
+    except Exception as e:
+        status = "failure"
+        error_msg = str(e)
+        logger.error(f"Failed to clean speech transcript: {e}")
+    finally:
+        duration_ms = (time.time() - start_time) * 1000
+        if background_tasks and provider != "unknown":
+            background_tasks.add_task(
+                log_ai_usage,
+                provider=provider,
+                model=model_name,
+                feature="transcript_cleanup",
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=t_tokens,
+                duration_ms=duration_ms,
+                status=status,
+                error_detail=error_msg,
+                user_id=user_id,
+                organization_id=organization_id
+            )
+            
+    return text
+

@@ -5,6 +5,8 @@ import { useMessageStore } from '@/store/messageStore'
 import { copilotApi } from '@/api/copilot'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
+import { candidatesApi } from '@/api/candidates'
+import type { Candidate } from '@/types'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
@@ -15,9 +17,9 @@ const s: Record<string, React.CSSProperties> = {
   headerActions: { display: 'flex', gap: '8px' },
   iconBtn: { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '10px', color: 'var(--text-mid)', cursor: 'pointer', padding: '6px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   messages: { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  userBubble: { alignSelf: 'flex-end', background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '12px 16px', maxWidth: '85%', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--shadow-card)' },
-  botBubble: { alignSelf: 'flex-start', background: 'var(--kpi-bg)', backdropFilter: 'blur(16px)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', maxWidth: '90%', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--input-border)', boxShadow: 'var(--shadow-card)' },
-  thinkingBubble: { alignSelf: 'flex-start', background: 'var(--kpi-bg)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--input-border)', display: 'flex', alignItems: 'center', gap: '6px' },
+  userBubble: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box' },
+  botBubble: { background: 'var(--kpi-bg)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--input-border)', boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box' },
+  thinkingBubble: { background: 'var(--kpi-bg)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--input-border)', display: 'flex', alignItems: 'center', gap: '6px' },
   footer: { padding: '14px 16px', borderTop: '1px solid var(--card-border)', display: 'flex', gap: '6px', alignItems: 'flex-end', flexShrink: 0, background: 'var(--topbar-bg)' },
   input: { flex: 1, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', color: 'var(--text)', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
   sendBtn: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', border: 'none', borderRadius: '12px', color: '#fff', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0, boxShadow: 'var(--shadow-card)' },
@@ -49,10 +51,48 @@ const s: Record<string, React.CSSProperties> = {
 }
 
 const EXAMPLE_PROMPTS = [
-  { icon: '🔍', title: 'Search Talent', prompt: 'Show top candidates for React role' },
-  { icon: '📅', title: 'Schedule Interview', prompt: 'Schedule a technical round for a candidate tomorrow at 2 pm' },
-  { icon: '⚡', title: 'Update Stage', prompt: 'Move a candidate to Technical Round Selected' },
-  { icon: '📊', title: 'Pipeline Stats', prompt: 'What is the current pipeline summary?' },
+  { icon: '🔍', title: 'Search Talent', prompt: 'Show React developers with 3+ years experience' },
+  { icon: '📊', title: 'Analytics', prompt: 'Give me a hiring overview' },
+  { icon: '📅', title: 'Interviews', prompt: "What interviews are scheduled today?" },
+  { icon: '⚡', title: 'Pipeline', prompt: 'Show candidates in technical round' },
+]
+
+// Stopwords for candidate name suggestions — intentionally EXCLUDES tech skill names
+// (react, python, etc.) so that "schedule interview for React developer Amit" suggests "Amit"
+const COPILOT_STOPWORDS = [
+  // English common words
+  'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'as', 'at',
+  'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by',
+  'can', 'did', 'do', 'does', 'doing', 'down', 'during', 'each', 'few', 'for', 'from', 'further',
+  'had', 'has', 'have', 'having', 'he', 'her', 'here', 'hers', 'herself', 'him', 'himself', 'his', 'how',
+  'i', 'if', 'in', 'into', 'is', 'it', 'its', 'itself', 'me', 'more', 'most', 'my', 'myself',
+  'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
+  'same', 'she', 'should', 'so', 'some', 'such', 'than', 'that', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they',
+  'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', 'we', 'were', 'what', 'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'with',
+  'you', 'your', 'yours', 'yourself', 'yourselves',
+  // Conversational / Greetings
+  'hello', 'hi', 'hey', 'please', 'thanks', 'thank', 'ok', 'okay', 'yes', 'no', 'yeah', 'yep',
+  // Recruiter filler words (NOT tech skills — those are search terms)
+  'candidate', 'candidates', 'profile', 'profiles', 'resume', 'resumes', 'cv',
+  'job', 'jobs', 'vacancy', 'open', 'role', 'roles',
+  'experience', 'exp', 'year', 'years', 'month', 'months',
+  'ctc', 'salary', 'lpa', 'lakh', 'lakhs', 'expected', 'current',
+  'notice', 'period', 'days', 'immediate', 'joiner', 'joiners',
+  'location', 'city', 'live', 'living', 'added', 'week', 'today', 'yesterday',
+  'pipeline', 'stage', 'status', 'applied', 'screening',
+  'interview', 'interviews', 'interviewer', 'interviewers', 'panel', 'meeting', 'schedule', 'scheduler',
+  'technical', 'practical', 'round', 'rounds',
+  'feedback', 'scorecard', 'scorecards',
+  'offer', 'offered', 'hired', 'rejected', 'reject',
+  'developer', 'developers', 'engineer', 'engineers',
+  // Hinglish / Hindi filler words
+  'mein', 'hai', 'ke', 'ka', 'ki', 'ko', 'se', 'aur', 'bhi', 'toh',
+  'hi', 'ho', 'tha', 'thi', 'the', 'karo', 'do', 'kar',
+  'raha', 'rahi', 'rahe', 'gaya', 'gayi', 'gaye', 'hua', 'hue', 'hui',
+  'hain', 'par', 'pe', 'ek', 'ne', 'kiya', 'liye', 'kya',
+  'hu', 'hoon', 'aap', 'tum', 'main', 'hum', 'ye', 'wo', 'yeh', 'woh',
+  'isse', 'usse', 'na', 'kuch', 'hoga', 'hogi', 'honge',
+  'thaa', 'dhundo', 'nikalo', 'dikhao', 'db', 'show', 'find', 'list', 'search'
 ]
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
@@ -61,6 +101,8 @@ const TrashIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="no
 const CloseIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 const HistoryIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
 const BackIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+const MinimizeIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+const MaximizeIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
 const PlusIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 const MicIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
 
@@ -83,6 +125,188 @@ function groupConversationsByDate(convs: ConversationSummary[]) {
     else groups['Older'].push(c)
   }
   return groups
+}
+
+interface CandidateCardData {
+  name: string
+  email?: string
+  title?: string
+  location?: string
+  experience?: string
+  skills?: string
+  notice?: string
+  stage?: string
+  salary?: string
+}
+
+function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardData; onViewProfile?: (email: string) => void }) {
+  const initials = candidate.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  const getStageStyle = (stageText?: string): React.CSSProperties => {
+    const text = (stageText || '').toLowerCase()
+    if (text.includes('applied')) return { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)' }
+    if (text.includes('screening')) return { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }
+    if (text.includes('technical') || text.includes('practical') || text.includes('interview')) {
+      return { background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139,92,246,0.2)' }
+    }
+    if (text.includes('offered') || text.includes('hired')) return { background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }
+    if (text.includes('rejected')) return { background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }
+    
+    return { background: 'var(--input-bg)', color: 'var(--text-mid)', border: '1px solid var(--input-border)' }
+  }
+
+  return (
+    <div style={{
+      background: 'var(--topbar-bg)',
+      border: '1px solid var(--input-border)',
+      borderRadius: '16px',
+      padding: '16px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+      boxShadow: 'var(--shadow-card)',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      cursor: 'pointer',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = 'translateY(-2px)'
+      e.currentTarget.style.boxShadow = 'var(--shadow-hover)'
+      e.currentTarget.style.borderColor = 'var(--violet)'
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = 'none'
+      e.currentTarget.style.boxShadow = 'var(--shadow-card)'
+      e.currentTarget.style.borderColor = 'var(--input-border)'
+    }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{
+          width: '38px',
+          height: '38px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '14px',
+          fontWeight: 700,
+          flexShrink: 0
+        }}>
+          {initials}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {candidate.name}
+          </div>
+          {candidate.title && (
+            <div style={{ fontSize: '12px', color: 'var(--text-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {candidate.title}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {(candidate.email || candidate.location || candidate.experience || candidate.notice || candidate.salary) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '6px', fontSize: '12px', color: 'var(--text-mid)', borderTop: '1px solid var(--input-border)', paddingTop: '10px' }}>
+          {candidate.email && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📧</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidate.email}</span>
+            </div>
+          )}
+          {candidate.location && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📍</span>
+              <span>{candidate.location}</span>
+            </div>
+          )}
+          {candidate.experience && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⭐</span>
+              <span>{candidate.experience}</span>
+            </div>
+          )}
+          {candidate.notice && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⏳</span>
+              <span>{candidate.notice}</span>
+            </div>
+          )}
+          {candidate.salary && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>💰</span>
+              <span>{candidate.salary}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {candidate.skills && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', borderTop: '1px solid var(--input-border)', paddingTop: '8px' }}>
+          {candidate.skills.replace('Skills:', '').split(',').map((skill, sIdx) => {
+            const skillClean = skill.trim()
+            if (!skillClean) return null
+            return (
+              <span key={sIdx} style={{
+                background: 'var(--bg2)',
+                color: 'var(--text)',
+                padding: '3px 8px',
+                borderRadius: '8px',
+                fontSize: '10px',
+                border: '1px solid var(--input-border)'
+              }}>
+                {skillClean}
+              </span>
+            )
+          })}
+        </div>
+      )}
+
+      {(candidate.stage || (onViewProfile && candidate.email)) && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--input-border)', paddingTop: '8px' }}>
+          {candidate.stage ? (
+            <span style={{
+              padding: '3px 8px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: 600,
+              ...getStageStyle(candidate.stage)
+            }}>
+              {candidate.stage.replace('Stage:', '').trim()}
+            </span>
+          ) : <span />}
+          {onViewProfile && candidate.email && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onViewProfile(candidate.email!) }}
+              style={{
+                background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 600,
+                transition: 'opacity 0.2s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+            >
+              View Profile →
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function fmtTime(iso: string) {
@@ -108,6 +332,159 @@ export function CopilotWidget() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [convLoading, setConvLoading] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [audioError, setAudioError] = useState<string | null>(null)
+
+  const [sttStatus, setSttStatus] = useState<'idle' | 'listening' | 'refining' | 'ready'>('idle')
+  const [liveTranscript, setLiveTranscript] = useState('')
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false)
+  const recognitionRef = useRef<any>(null)
+  const stopRecordingRef = useRef<() => void>(() => {})
+
+  const [candidateSuggestions, setCandidateSuggestions] = useState<{ candidate: any; matchedWord: string }[]>([])
+  const updateSuggestionsRef = useRef<(val: string) => void>(() => {})
+  const suggestTimeoutRef = useRef<any>(null)
+
+  // Search database candidates for matches based on input keywords
+  const updateSuggestions = useCallback((val: string) => {
+    if (suggestTimeoutRef.current) {
+      clearTimeout(suggestTimeoutRef.current)
+    }
+
+    if (!val || val.trim().length < 2) {
+      setCandidateSuggestions([])
+      return
+    }
+
+    suggestTimeoutRef.current = setTimeout(async () => {
+      const words = val.split(/\s+/)
+        .map(w => w.replace(/[^a-zA-Z]/g, '').trim())
+        .filter(w => w.length >= 2 && !COPILOT_STOPWORDS.includes(w.toLowerCase()))
+        
+      if (words.length === 0) {
+        setCandidateSuggestions([])
+        return
+      }
+
+      try {
+        const allSuggestions: { candidate: any; matchedWord: string }[] = []
+        const seenIds = new Set<string>()
+
+        // Query the DB suggest endpoint for the last 2 non-stopword words
+        const targetWords = words.slice(-2)
+
+        for (const w of targetWords) {
+          const res = await candidatesApi.suggest(w)
+          const items = res.data || []
+          
+          for (const item of items) {
+            const nameLower = item.full_name.toLowerCase()
+            const wordLower = w.toLowerCase()
+            
+            // Strict prefix match on candidate name words
+            const nameWords = nameLower.split(/\s+/)
+            const isPrefixMatch = nameWords.some((nw: string) => nw.startsWith(wordLower))
+            
+            if (isPrefixMatch) {
+              if (!seenIds.has(item.id)) {
+                seenIds.add(item.id)
+                allSuggestions.push({
+                  candidate: item,
+                  matchedWord: w
+                })
+              }
+            }
+          }
+        }
+        
+        setCandidateSuggestions(allSuggestions.slice(0, 5))
+      } catch (err) {
+        console.error('Error fetching suggestions:', err)
+        setCandidateSuggestions([])
+      }
+    }, 250)
+  }, [])
+
+  const applySuggestion = useCallback((candidateName: string, matchedWord: string) => {
+    setInput(prev => {
+      // Split the input into tokens including whitespaces and punctuation.
+      const tokens = prev.split(/(\s+)/);
+
+      // Find the index of the token that matches matchedWord (case-insensitive)
+      let matchedIdx = -1;
+      for (let i = 0; i < tokens.length; i++) {
+        const cleanToken = tokens[i].replace(/[^a-zA-Z]/g, '').toLowerCase();
+        if (cleanToken === matchedWord.toLowerCase()) {
+          matchedIdx = i;
+          break;
+        }
+      }
+      
+      if (matchedIdx === -1) {
+        // Fallback: simple replace
+        return prev.replace(new RegExp(matchedWord, 'gi'), candidateName);
+      }
+      
+      // Expand left and right to include consecutive non-stopword tokens
+      const isNonStopword = (str: string) => {
+        const clean = str.replace(/[^a-zA-Z]/g, '').trim();
+        if (clean.length < 2) return false;
+        return !COPILOT_STOPWORDS.includes(clean.toLowerCase());
+      };
+      
+      let startIdx = matchedIdx;
+      while (startIdx > 0) {
+        const prevToken = tokens[startIdx - 1];
+        if (prevToken.trim() === '') {
+          if (startIdx - 2 >= 0 && isNonStopword(tokens[startIdx - 2])) {
+            startIdx -= 2;
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+      
+      let endIdx = matchedIdx;
+      while (endIdx < tokens.length - 1) {
+        const nextToken = tokens[endIdx + 1];
+        if (nextToken.trim() === '') {
+          if (endIdx + 2 < tokens.length && isNonStopword(tokens[endIdx + 2])) {
+            endIdx += 2;
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+      
+      // Replace tokens from startIdx to endIdx with candidateName
+      tokens.splice(startIdx, endIdx - startIdx + 1, candidateName);
+      const next = tokens.join('');
+      inputRef.current = next;
+      return next;
+    });
+    setCandidateSuggestions([]);
+  }, []);
+
+  // Sync updateSuggestions reference for mount useEffect
+  useEffect(() => {
+    updateSuggestionsRef.current = updateSuggestions
+  }, [updateSuggestions])
+
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('hireon_copilot_pos')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+  const [isDragging, setIsDragging] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -115,14 +492,113 @@ export function CopilotWidget() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
-  // Cleanup on unmount
-  useEffect(() => () => abortRef.current?.abort(), [])
+  const inputRef = useRef('')
+  const interruptedByTypingRef = useRef(false)
 
-  // Ensure MediaRecorder stops on unmount
+  const streamRef = useRef<MediaStream | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  const timerIntervalRef = useRef<number | null>(null)
+
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number; widgetX: number; widgetY: number } | null>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+
+  // Ensure everything stops on unmount and initialize SpeechRecognition
   useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SpeechRecognition) {
+      setIsSpeechSupported(true)
+      
+      const recognition = new SpeechRecognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'en-IN'
+      
+      let silenceTimer: number | null = null
+      
+      recognition.onresult = (event: any) => {
+        if (silenceTimer) {
+          window.clearTimeout(silenceTimer)
+          silenceTimer = null
+        }
+        
+        let interimTranscript = ''
+        let finalTranscript = ''
+        
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript
+          } else {
+            interimTranscript += transcript
+          }
+        }
+        
+        const fullTranscript = (recognitionRef.current.accumulated || '') + finalTranscript + interimTranscript
+        setLiveTranscript(fullTranscript)
+        setInput(fullTranscript)
+        inputRef.current = fullTranscript
+        updateSuggestionsRef.current(fullTranscript)
+        
+        if (finalTranscript) {
+          recognitionRef.current.accumulated = (recognitionRef.current.accumulated || '') + finalTranscript
+        }
+        
+        // VAD (Voice Activity Detection) - Auto stop after 2.2 seconds of silence
+        silenceTimer = window.setTimeout(() => {
+          if (recognitionRef.current && recognitionRef.current.isListening) {
+            stopRecordingRef.current()
+          }
+        }, 2200)
+      }
+      
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+        if (event.error === 'not-allowed') {
+          setAudioError('Microphone permission denied. Please allow mic access in your browser settings.')
+          setSttStatus('idle')
+          setIsRecording(false)
+        }
+      }
+      
+      recognition.onend = () => {
+        if (recognitionRef.current && recognitionRef.current.isListening) {
+          recognitionRef.current.isListening = false
+          setIsRecording(false)
+        }
+      }
+      
+      recognitionRef.current = recognition
+      recognitionRef.current.accumulated = ''
+      recognitionRef.current.isListening = false
+    }
+
     return () => {
+      if (suggestTimeoutRef.current) {
+        clearTimeout(suggestTimeoutRef.current)
+      }
+      abortRef.current?.abort()
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop()
+      }
+      if (recognitionRef.current && recognitionRef.current.isListening) {
+        try {
+          recognitionRef.current.stop()
+        } catch {}
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop())
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close()
       }
     }
   }, [])
@@ -130,7 +606,49 @@ export function CopilotWidget() {
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isThinking])
+  }, [messages, isThinking, isTranscribing])
+
+  const keepInBounds = useCallback((pos: { x: number; y: number } | null, minimized: boolean) => {
+    if (!pos) return
+    const panelEl = headerRef.current?.parentElement
+    if (!panelEl) return
+
+    const rect = panelEl.getBoundingClientRect()
+    // Check bounds against expanded height (600px) even if minimized to prevent offscreen maximize
+    const height = Math.max(rect.height || 600, minimized ? 600 : 0)
+    const width = rect.width || 400
+
+    const w = window.innerWidth
+    const h = window.innerHeight
+
+    const maxX = Math.max(10, w - width - 10)
+    const maxY = Math.max(10, h - height - 10)
+
+    let newX = Math.max(10, Math.min(pos.x, maxX))
+    let newY = Math.max(10, Math.min(pos.y, maxY))
+
+    if (newX !== pos.x || newY !== pos.y) {
+      const nextPos = { x: newX, y: newY }
+      setPosition(nextPos)
+      sessionStorage.setItem('hireon_copilot_pos', JSON.stringify(nextPos))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!position || !isOpen) return
+    const timer = setTimeout(() => {
+      keepInBounds(position, isMinimized)
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [isOpen, isMinimized, position, keepInBounds])
+
+  useEffect(() => {
+    const handleResize = () => {
+      keepInBounds(position, isMinimized)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [position, isMinimized, keepInBounds])
 
   // Load history panel conversations
   const loadHistory = useCallback(async () => {
@@ -182,11 +700,43 @@ export function CopilotWidget() {
     } catch { /* silent */ }
   }, [conversationId, startNewConversation])
 
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+
+  // Clear all conversations
+  const handleClearAll = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShowClearConfirm(true)
+  }, [])
+
+  const confirmClearAll = useCallback(async () => {
+    try {
+      await copilotApi.deleteAllConversations()
+      setConversations([])
+      startNewConversation()
+    } catch (err) {
+      console.error('Error clearing chat history:', err)
+    } finally {
+      setShowClearConfirm(false)
+    }
+  }, [startNewConversation])
+
   const [pendingApproval, setPendingApproval] = useState<any>(null)
 
   // Textarea auto-resize
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
+    inputRef.current = e.target.value
+    updateSuggestions(e.target.value)
+
+    // Stop recording immediately and cancel refinements if typing
+    if (isRecording) {
+      interruptedByTypingRef.current = true
+      if (recognitionRef.current) {
+        recognitionRef.current.interruptedByTyping = true
+      }
+      stopRecording()
+    }
+
     const el = e.target
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`
@@ -194,10 +744,12 @@ export function CopilotWidget() {
 
   // Send message
   const handleSend = useCallback(async (text?: string, approvedToolCall?: any) => {
-    // If it's just an approval (no text), we can send a system confirmation
     const isApproval = !!approvedToolCall
-    const msg = text !== undefined ? text.trim() : input.trim()
-    
+    // Use textarea DOM value as ground truth (always current regardless of how text was set)
+    // Fall back to inputRef then empty string
+    const currentValue = textareaRef.current?.value ?? inputRef.current
+    const msg = text !== undefined ? text.trim() : currentValue.trim()
+
     if (!msg && !isApproval) return
     if (isThinking) return
 
@@ -205,11 +757,17 @@ export function CopilotWidget() {
     const activeConvId = useCopilotStore.getState().conversationId
 
     addMessage({ role: 'user', content: isApproval ? '👍 Action Approved' : msg })
+
     if (!isApproval) {
       setInput('')
-      if (textareaRef.current) textareaRef.current.style.height = 'auto'
+      inputRef.current = ''
+      setCandidateSuggestions([])
+      if (textareaRef.current) {
+        textareaRef.current.value = ''
+        textareaRef.current.style.height = 'auto'
+      }
     }
-    
+
     setThinking(true)
     setPendingApproval(null)
 
@@ -218,42 +776,93 @@ export function CopilotWidget() {
     abortRef.current = controller
 
     try {
-      const res = await copilotApi.chat(
+      let messageAdded = false
+
+      await copilotApi.chatStream(
         isApproval ? 'User approved the action. Please proceed.' : msg,
         historySnapshot.slice(-10),
         pageContext ?? undefined,
         activeConvId,
         approvedToolCall,
         controller.signal,
+        {
+          onMeta: (data) => {
+            if (data.conversation_id) setConversationId(data.conversation_id)
+          },
+          onChunk: (content) => {
+            if (!messageAdded) {
+              messageAdded = true
+              setThinking(false)
+              addMessage({ role: 'assistant', content: '' })
+            }
+            useCopilotStore.getState().updateLastMessageContent(content)
+          },
+          onApproval: (data) => {
+            if (!messageAdded) {
+              messageAdded = true
+              setThinking(false)
+              addMessage({ role: 'assistant', content: data.reply || 'I need your approval to proceed.' })
+            }
+            if (data.pending_tool_call) {
+              setPendingApproval(data.pending_tool_call)
+            }
+          },
+          onDone: () => {
+            if (!messageAdded) {
+              setThinking(false)
+            }
+            if (isApproval) {
+              queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+              queryClient.invalidateQueries({ queryKey: ['candidates'] })
+              queryClient.invalidateQueries({ queryKey: ['interviews'] })
+              queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
+              queryClient.invalidateQueries({ queryKey: ['analytics-overview'] })
+              queryClient.invalidateQueries({ queryKey: ['candidates-for-schedule'] })
+            }
+          },
+          onError: (err) => {
+            if (controller.signal.aborted) return
+            const errMsg = err?.message || 'Sorry, I encountered an error. Please try again.'
+            if (!messageAdded) {
+              messageAdded = true
+              setThinking(false)
+              addMessage({ role: 'assistant', content: `⚠️ ${errMsg}` })
+            } else {
+              useCopilotStore.getState().updateLastMessageContent(`\n\n⚠️ ${errMsg}`)
+            }
+          }
+        }
       )
-      if (controller.signal.aborted) return
-      const { reply, conversation_id, requires_approval, pending_tool_call } = res.data
-      addMessage({ role: 'assistant', content: reply })
-      if (conversation_id) setConversationId(conversation_id)
-      
-      if (requires_approval && pending_tool_call) {
-        setPendingApproval(pending_tool_call)
-      } else if (isApproval) {
-        // If we just finished an approved action, refresh common data
-        queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
-        queryClient.invalidateQueries({ queryKey: ['candidates'] })
-        queryClient.invalidateQueries({ queryKey: ['interviews'] })
-        queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
-        queryClient.invalidateQueries({ queryKey: ['analytics-overview'] })
-        queryClient.invalidateQueries({ queryKey: ['candidates-for-schedule'] })
-      }
-    } catch (err: any) {
-      if (controller.signal.aborted) return
-      const errMsg = err?.response?.data?.detail || 'Sorry, I encountered an error. Please try again.'
-      addMessage({ role: 'assistant', content: `⚠️ ${errMsg}` })
-    } finally {
-      if (!controller.signal.aborted) setThinking(false)
-    }
-  }, [input, isThinking, pageContext, addMessage, setThinking, setConversationId])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-  }
+    } finally {
+      setThinking(false)
+      // Re-focus textarea so user can immediately type the next message
+      setTimeout(() => textareaRef.current?.focus(), 50)
+    }
+  }, [isThinking, pageContext, addMessage, setThinking, setConversationId, queryClient])
+
+  // ── Focus management ──────────────────────────────────────────────────────
+  // Auto-focus textarea when STT finishes and transcript is ready to send
+  useEffect(() => {
+    if (sttStatus === 'ready') {
+      setTimeout(() => textareaRef.current?.focus(), 50)
+    }
+  }, [sttStatus])
+
+  // Auto-focus textarea when copilot panel opens
+  useEffect(() => {
+    if (isOpen && !isMinimized) {
+      setTimeout(() => textareaRef.current?.focus(), 150)
+    }
+  }, [isOpen, isMinimized])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      e.stopPropagation()
+      handleSend()
+    }
+  }, [handleSend])
 
   // Recording Logic
   const getSupportedMimeType = (): string => {
@@ -264,13 +873,93 @@ export function CopilotWidget() {
     return ''
   }
 
-  const startRecording = async () => {
+  const drawWaveform = () => {
+    if (!analyserRef.current || !canvasRef.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const analyser = analyserRef.current
+    
+    // We want frequency data
+    analyser.fftSize = 64
+    const bufferLength = analyser.frequencyBinCount
+    const dataArray = new Uint8Array(bufferLength)
+    
+    const draw = () => {
+      if (!canvasRef.current) return
+      animationFrameRef.current = requestAnimationFrame(draw)
+      
+      analyser.getByteFrequencyData(dataArray)
+      
+      const w = canvas.width
+      const h = canvas.height
+      ctx.clearRect(0, 0, w, h)
+      
+      const centerY = h / 2
+      
+      // Draw 16 bars with rounded corners, symmetric
+      const barCount = 16
+      const barWidth = 4
+      const gap = 3
+      const startX = (w - (barCount * barWidth + (barCount - 1) * gap)) / 2
+      
+      for (let i = 0; i < barCount; i++) {
+        const dataIdx = Math.floor((i / barCount) * bufferLength)
+        const value = dataArray[dataIdx] || 0
+        const percent = value / 255
+        const barHeight = Math.max(3, percent * (h - 6))
+        
+        const x = startX + i * (barWidth + gap)
+        const y = centerY - barHeight / 2
+        
+        const grad = ctx.createLinearGradient(x, y, x, y + barHeight)
+        grad.addColorStop(0, '#EC4899') // pink
+        grad.addColorStop(0.5, '#8B5CF6') // violet
+        grad.addColorStop(1, '#EC4899') // pink
+        
+        ctx.fillStyle = grad
+        
+        ctx.beginPath()
+        if (ctx.roundRect) {
+          ctx.roundRect(x, y, barWidth, barHeight, 2)
+        } else {
+          ctx.rect(x, y, barWidth, barHeight)
+        }
+        ctx.fill()
+      }
+    }
+    
+    draw()
+  }
+
+  const startStandardAudioRecording = useCallback(async () => {
+    setAudioError(null)
     try {
       if (typeof MediaRecorder === 'undefined') {
-        addMessage({ role: 'assistant', content: '⚠️ Your browser does not support audio recording.' })
+        setAudioError('Audio recording is not supported by your browser.')
         return
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          noiseSuppression: true,
+          echoCancellation: true,
+          autoGainControl: true
+        }
+      })
+      streamRef.current = stream
+      
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx()
+        const analyser = audioCtx.createAnalyser()
+        const source = audioCtx.createMediaStreamSource(stream)
+        source.connect(analyser)
+        
+        audioContextRef.current = audioCtx
+        analyserRef.current = analyser
+      }
+      
       const mimeType = getSupportedMimeType()
       const options = mimeType ? { mimeType } : undefined
       const recorder = new MediaRecorder(stream, options as any)
@@ -282,57 +971,398 @@ export function CopilotWidget() {
       }
 
       recorder.onstop = async () => {
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current)
+          timerIntervalRef.current = null
+        }
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current)
+          animationFrameRef.current = null
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop())
+          streamRef.current = null
+        }
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close()
+          audioContextRef.current = null
+        }
+
+        if (interruptedByTypingRef.current) {
+          interruptedByTypingRef.current = false
+          setSttStatus('idle')
+          return
+        }
+
         const mime = getSupportedMimeType() || 'audio/webm'
         const audioBlob = new Blob(audioChunksRef.current, { type: mime })
-        setThinking(true)
+        
+        if (audioBlob.size === 0) return
+        
+        setIsTranscribing(true)
         try {
           const res = await copilotApi.transcribe(audioBlob)
           const text = res.data.text.trim()
           if (text) {
-            setInput(text)
-            // Auto-resize textarea after setting text
-            setTimeout(() => {
-              if (textareaRef.current) {
-                textareaRef.current.style.height = 'auto'
-                textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
-                textareaRef.current.focus()
-              }
-            }, 0)
+            setSttStatus('refining')
+            const cleanRes = await copilotApi.cleanTranscript(text)
+            const cleanedText = cleanRes.data.text.trim() || text
+            setInput(cleanedText)
+            inputRef.current = cleanedText
+            setLiveTranscript(cleanedText)
+            setSttStatus('ready')
+          } else {
+            setAudioError('No speech detected. Please speak clearly.')
           }
         } catch (err: any) {
           const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
           console.error('Transcription error:', err?.response?.data || err)
-          addMessage({ role: 'assistant', content: `⚠️ Transcription failed: ${detail}` })
+          setAudioError(`Transcription failed: ${detail}`)
         } finally {
-          setThinking(false)
+          setIsTranscribing(false)
         }
-        stream.getTracks().forEach(t => t.stop())
       }
 
       recorder.start()
       setIsRecording(true)
-    } catch (err) {
-      addMessage({ role: 'assistant', content: '⚠️ Microphone access denied or not available.' })
-    }
-  }
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+      setTimeout(() => {
+        if (analyserRef.current) {
+          drawWaveform()
+        }
+      }, 50)
+      
+      setRecordingSeconds(0)
+      timerIntervalRef.current = window.setInterval(() => {
+        setRecordingSeconds((prev) => {
+          if (prev >= 59) {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+              mediaRecorderRef.current.stop()
+            }
+            setIsRecording(false)
+            return 60
+          }
+          return prev + 1
+        })
+      }, 1000)
+
+    } catch (err: any) {
+      console.error('Microphone access error:', err)
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setAudioError('Microphone permission denied. Please allow mic access in your settings.')
+      } else {
+        setAudioError('Could not access microphone. Ensure it is connected and not in use.')
+      }
+    }
+  }, [])
+
+  const stopStandardAudioRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
-      mediaRecorderRef.current = null
-      setIsRecording(false)
     }
+    setIsRecording(false)
+  }, [])
+
+  const startSpeechRecognition = useCallback(() => {
+    setAudioError(null)
+    setLiveTranscript('')
+    if (recognitionRef.current) {
+      recognitionRef.current.accumulated = ''
+      recognitionRef.current.isListening = true
+      try {
+        recognitionRef.current.start()
+        setIsRecording(true)
+        setSttStatus('listening')
+      } catch (err: any) {
+        console.error('Failed to start speech recognition:', err)
+        startStandardAudioRecording()
+      }
+    } else {
+      startStandardAudioRecording()
+    }
+  }, [isSpeechSupported, startStandardAudioRecording])
+
+  const stopSpeechRecognition = useCallback(async () => {
+    if (recognitionRef.current) {
+      if (recognitionRef.current.isListening) {
+        recognitionRef.current.isListening = false
+        try {
+          recognitionRef.current.stop()
+        } catch (err) {
+          console.error(err)
+        }
+      }
+    }
+    
+    setIsRecording(false)
+
+    if (recognitionRef.current && recognitionRef.current.interruptedByTyping) {
+      recognitionRef.current.interruptedByTyping = false
+      interruptedByTypingRef.current = false
+      setSttStatus('idle')
+      return
+    }
+    if (interruptedByTypingRef.current) {
+      interruptedByTypingRef.current = false
+      setSttStatus('idle')
+      return
+    }
+
+    // Process the live transcript
+    const rawText = recognitionRef.current ? recognitionRef.current.accumulated : ''
+    if (!rawText.trim()) {
+      setSttStatus('idle')
+      return
+    }
+    
+    setSttStatus('refining')
+    try {
+      const res = await copilotApi.cleanTranscript(rawText)
+      const refinedText = res.data.text.trim()
+      if (refinedText) {
+        setInput(refinedText)
+        inputRef.current = refinedText
+        setLiveTranscript(refinedText)
+        setSttStatus('ready')
+      } else {
+        setSttStatus('idle')
+        setAudioError('Could not process speech. Please try again.')
+      }
+    } catch (err: any) {
+      console.error('Refinement failed:', err)
+      setInput(rawText)
+      inputRef.current = rawText
+      setLiveTranscript(rawText)
+      setSttStatus('ready')
+    }
+  }, [])
+
+  const startRecording = useCallback(() => {
+    if (isSpeechSupported) {
+      startSpeechRecognition()
+    } else {
+      startStandardAudioRecording()
+    }
+  }, [isSpeechSupported, startSpeechRecognition, startStandardAudioRecording])
+
+  const stopRecording = useCallback(() => {
+    if (isSpeechSupported) {
+      stopSpeechRecognition()
+    } else {
+      stopStandardAudioRecording()
+    }
+  }, [isSpeechSupported, stopSpeechRecognition, stopStandardAudioRecording])
+
+  const toggleRecording = useCallback(() => {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }, [isRecording, startRecording, stopRecording])
+
+  // Update the ref whenever stopRecording changes to break circular useEffect deps
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording
+  }, [stopRecording])
+
+  const formatTimer = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0')
+    const s = (secs % 60).toString().padStart(2, '0')
+    return `${m}:${s}`
   }
 
-  const toggleRecording = () => {
-    if (isRecording) stopRecording()
-    else startRecording()
+  // Drag-and-drop mouse move handler
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return // Left click only
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('textarea') || target.closest('.c-icon-btn')) {
+      return
+    }
+
+    const panelEl = headerRef.current?.parentElement
+    if (!panelEl) return
+
+    const rect = panelEl.getBoundingClientRect()
+    dragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      widgetX: rect.left,
+      widgetY: rect.top,
+    }
+
+    setIsDragging(true)
+    document.body.style.userSelect = 'none'
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!dragStartRef.current) return
+      const deltaX = moveEvent.clientX - dragStartRef.current.mouseX
+      const deltaY = moveEvent.clientY - dragStartRef.current.mouseY
+
+      let newX = dragStartRef.current.widgetX + deltaX
+      let newY = dragStartRef.current.widgetY + deltaY
+
+      const w = window.innerWidth
+      const h = window.innerHeight
+      newX = Math.max(10, Math.min(newX, w - rect.width - 10))
+      newY = Math.max(10, Math.min(newY, h - rect.height - 10))
+
+      const nextPos = { x: newX, y: newY }
+      setPosition(nextPos)
+      sessionStorage.setItem('hireon_copilot_pos', JSON.stringify(nextPos))
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
+
+  // Drag-and-drop touch move handler
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('textarea') || target.closest('.c-icon-btn')) {
+      return
+    }
+
+    const panelEl = headerRef.current?.parentElement
+    if (!panelEl) return
+
+    const rect = panelEl.getBoundingClientRect()
+    const touch = e.touches[0]
+    dragStartRef.current = {
+      mouseX: touch.clientX,
+      mouseY: touch.clientY,
+      widgetX: rect.left,
+      widgetY: rect.top,
+    }
+
+    setIsDragging(true)
+    document.body.style.userSelect = 'none'
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      if (!dragStartRef.current) return
+      const t = moveEvent.touches[0]
+      const deltaX = t.clientX - dragStartRef.current.mouseX
+      const deltaY = t.clientY - dragStartRef.current.mouseY
+
+      let newX = dragStartRef.current.widgetX + deltaX
+      let newY = dragStartRef.current.widgetY + deltaY
+
+      const w = window.innerWidth
+      const h = window.innerHeight
+      newX = Math.max(10, Math.min(newX, w - rect.width - 10))
+      newY = Math.max(10, Math.min(newY, h - rect.height - 10))
+
+      const nextPos = { x: newX, y: newY }
+      setPosition(nextPos)
+      sessionStorage.setItem('hireon_copilot_pos', JSON.stringify(nextPos))
+    }
+
+    const handleTouchEnd = () => {
+      setIsDragging(false)
+      document.body.style.userSelect = ''
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+    window.addEventListener('touchend', handleTouchEnd)
+  }
+
+  const parseCandidateCard = (text: string): CandidateCardData | null => {
+    if (!text.includes('👤')) return null
+    const lines = text.split('\n')
+    const card: CandidateCardData = { name: '' }
+    
+    for (const line of lines) {
+      const trimmed = line.trim()
+      
+      if (trimmed.includes('👤')) {
+        const match = trimmed.match(/👤\s*(.*)/)
+        if (match) {
+          card.name = match[1].replace(/\*\*/g, '').trim()
+        }
+      } else if (trimmed.includes('📧')) {
+        const match = trimmed.match(/📧\s*(.*)/)
+        if (match) card.email = match[1].replace(/\*\*/g, '').trim()
+      } else if (trimmed.includes('💼')) {
+        const match = trimmed.match(/💼\s*(.*)/)
+        if (match) card.title = match[1].replace(/\*\*/g, '').trim()
+      } else if (trimmed.includes('📍')) {
+        const match = trimmed.match(/📍\s*(.*)/)
+        if (match) card.location = match[1].replace(/\*\*/g, '').trim()
+      } else if (trimmed.includes('⭐')) {
+        const match = trimmed.match(/⭐\s*(.*)/)
+        if (match) card.experience = match[1].replace(/\*\*/g, '').trim()
+      } else if (trimmed.includes('🛠️')) {
+        const match = trimmed.match(/🛠️\s*(.*)/)
+        if (match) card.skills = match[1].replace(/\*\*/g, '').trim()
+      } else if (trimmed.includes('⏳')) {
+        const match = trimmed.match(/⏳\s*(.*)/)
+        if (match) card.notice = match[1].replace(/\*\*/g, '').trim()
+      } else if (trimmed.includes('📌')) {
+        const match = trimmed.match(/📌\s*(.*)/)
+        if (match) card.stage = match[1].replace(/\*\*/g, '').trim()
+      } else if (trimmed.includes('💰')) {
+        const match = trimmed.match(/💰\s*(.*)/)
+        if (match) card.salary = match[1].replace(/\*\*/g, '').trim()
+      }
+    }
+    
+    return card.name ? card : null
+  }
+
+  const handleViewProfile = useCallback(async (email: string) => {
+    try {
+      // Look up candidate by email in the current suggestion data
+      // Navigate to the candidates page filtered by this email
+      window.location.href = `/candidates?search=${encodeURIComponent(email)}`
+    } catch (err) {
+      console.error('View profile error:', err)
+    }
+  }, [])
+
+  const renderBotMessageContent = (content: string) => {
+    // Split on horizontal rule dividers (between candidate cards)
+    // Use a precise pattern that won't split markdown tables (which use --- inside cells)
+    const parts = content.split(/\n\n---\n\n|\n---\n/)
+    if (parts.length <= 1) {
+      return <ReactMarkdown>{content}</ReactMarkdown>
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+        {parts.map((part, idx) => {
+          const candidate = parseCandidateCard(part)
+          if (candidate) {
+            return <CandidateCard key={idx} candidate={candidate} onViewProfile={handleViewProfile} />
+          }
+          const trimmedPart = part.trim()
+          if (!trimmedPart) return null
+          return <ReactMarkdown key={idx}>{trimmedPart}</ReactMarkdown>
+        })}
+      </div>
+    )
   }
 
   const handleNewChat = () => {
     startNewConversation()
     setHistoryOpen(false)
   }
+
+  const dragStyle: React.CSSProperties = position
+    ? { left: `${position.x}px`, top: `${position.y}px`, bottom: 'auto', right: 'auto' }
+    : {}
+
+  const minimizeStyle: React.CSSProperties = isMinimized
+    ? { height: '56px', maxHeight: '56px', overflow: 'hidden' }
+    : {}
 
   if (activeChatRecipient) {
     return null
@@ -355,6 +1385,7 @@ export function CopilotWidget() {
         .c-input:focus { border-color:var(--violet) !important; box-shadow:0 0 0 3px var(--search-bg) !important; }
         .c-hist-item:hover { background:var(--hover-row) !important; border-color:var(--violet) !important; }
         .c-hist-del:hover { opacity:1 !important; color:var(--pink) !important; }
+        .c-clear-all:hover { opacity:0.8; color:var(--pink) !important; text-shadow: 0 0 4px rgba(236,72,153,0.2); }
         .c-new-chat:hover { opacity:0.9; transform:scale(1.02); }
         .c-back:hover { color:var(--text) !important; }
         .c-messages::-webkit-scrollbar,.c-hist-list::-webkit-scrollbar { width:5px; }
@@ -366,6 +1397,8 @@ export function CopilotWidget() {
         .c-bot pre{background:var(--bg2);padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--input-border);}
         .c-bot pre code{background:transparent;border:none;padding:0;color:var(--text);}
         @keyframes micPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        @keyframes recordBlink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        .c-blink { animation: recordBlink 1.5s infinite ease-in-out; }
       `}</style>
 
       {/* FAB */}
@@ -375,9 +1408,29 @@ export function CopilotWidget() {
 
       {/* Panel */}
       {isOpen && (
-        <div style={s.panel} role="dialog" aria-label="AI Copilot">
+        <div 
+          style={{ 
+            ...s.panel, 
+            ...dragStyle, 
+            ...minimizeStyle,
+            boxShadow: isDragging ? '0 20px 40px rgba(0,0,0,0.25)' : s.panel.boxShadow,
+            transition: isDragging ? 'none' : 'box-shadow 0.3s ease, height 0.3s ease, max-height 0.3s ease'
+          }} 
+          role="dialog" 
+          aria-label="AI Copilot"
+        >
           {/* Header */}
-          <div style={s.header}>
+          <div 
+            ref={headerRef}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            style={{ 
+              ...s.header, 
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: 'none',
+              WebkitUserSelect: 'none'
+            }}
+          >
             {historyOpen ? (
               <>
                 <button className="c-back" style={s.backBtn} onClick={() => setHistoryOpen(false)}>
@@ -395,6 +1448,9 @@ export function CopilotWidget() {
                   {isThinking && <span style={{ fontSize: '12px', opacity: 0.8, fontWeight: 400, color: 'var(--violet-light)' }}>thinking...</span>}
                 </div>
                 <div style={s.headerActions}>
+                  <button className="c-icon-btn" style={s.iconBtn} onClick={() => setIsMinimized(!isMinimized)} title={isMinimized ? "Maximize" : "Minimize"}>
+                    {isMinimized ? <MaximizeIcon /> : <MinimizeIcon />}
+                  </button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={openHistory} title="Chat history"><HistoryIcon /></button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={handleNewChat} title="New chat"><PlusIcon /></button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={close} title="Close"><CloseIcon /></button>
@@ -403,165 +1459,451 @@ export function CopilotWidget() {
             )}
           </div>
 
-          {/* History Panel */}
-          {historyOpen ? (
-            <div style={s.historyPanel}>
-              {historyLoading || convLoading ? (
-                <div style={s.loadingRow}>
-                  <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
-                </div>
-              ) : conversations.length === 0 ? (
-                <div style={s.historyEmpty}>
-                  <span style={{ fontSize: '36px' }}>🕐</span>
-                  <div>No past conversations yet.</div>
-                  <div style={{ fontSize: '12px', opacity: 0.7 }}>Your chats will appear here.</div>
-                </div>
-              ) : (
-                <div className="c-hist-list" style={s.historyList}>
-                  {Object.entries(grouped).map(([group, items]) =>
-                    items.length === 0 ? null : (
-                      <div key={group}>
-                        <div style={s.historyGroup}>{group}</div>
-                        {items.map((conv) => (
-                          <div
-                            key={conv.id}
-                            className="c-hist-item"
-                            style={{ ...s.historyItem, borderColor: conv.id === conversationId ? 'var(--violet)' : undefined }}
-                            onClick={() => loadConversation(conv.id)}
-                          >
-                            <div style={s.historyItemTitle} title={conv.title}>{conv.title}</div>
-                            <div style={s.historyItemDate}>{fmtTime(conv.updated_at)}</div>
-                            <button
-                              className="c-hist-del"
-                              style={s.historyDeleteBtn}
-                              onClick={(e) => deleteConversation(e, conv.id)}
-                              title="Delete"
-                            >
-                              <TrashIcon />
-                            </button>
+          {!isMinimized && (
+            <>
+              {/* History Panel */}
+              {historyOpen ? (
+                <div style={s.historyPanel}>
+                  {/* Global Clear All button */}
+                  {conversations.length > 0 && !historyLoading && !convLoading && (
+                    <div style={{ padding: '8px 24px 0', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        className="c-clear-all"
+                        onClick={handleClearAll}
+                        style={{
+                          background: 'transparent', border: 'none', color: 'var(--text-mid)',
+                          cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          padding: '4px 8px', borderRadius: '6px', transition: 'all 0.2s ease'
+                        }}
+                      >
+                        🗑️ Clear All History
+                      </button>
+                    </div>
+                  )}
+                  {historyLoading || convLoading ? (
+                    <div style={s.loadingRow}>
+                      <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
+                    </div>
+                  ) : conversations.length === 0 ? (
+                    <div style={s.historyEmpty}>
+                      <span style={{ fontSize: '36px' }}>🕐</span>
+                      <div>No past conversations yet.</div>
+                      <div style={{ fontSize: '12px', opacity: 0.7 }}>Your chats will appear here.</div>
+                    </div>
+                  ) : (
+                    <div className="c-hist-list" style={s.historyList}>
+                      {Object.entries(grouped).map(([group, items]) =>
+                        items.length === 0 ? null : (
+                          <div key={group}>
+                            <div style={{
+                              ...s.historyGroup,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <span>{group}</span>
+                              {group.toLowerCase() === 'today' && (
+                                <button
+                                  className="c-clear-all"
+                                  onClick={handleClearAll}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: 'var(--pink)',
+                                    cursor: 'pointer',
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    textTransform: 'uppercase',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    transition: 'all 0.2s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  Clear All
+                                </button>
+                              )}
+                            </div>
+                            {items.map((conv) => (
+                              <div
+                                key={conv.id}
+                                className="c-hist-item"
+                                style={{ ...s.historyItem, borderColor: conv.id === conversationId ? 'var(--violet)' : undefined }}
+                                onClick={() => loadConversation(conv.id)}
+                              >
+                                <div style={s.historyItemTitle} title={conv.title}>{conv.title}</div>
+                                <div style={s.historyItemDate}>{fmtTime(conv.updated_at)}</div>
+                                <button
+                                  className="c-hist-del"
+                                  style={s.historyDeleteBtn}
+                                  onClick={(e) => deleteConversation(e, conv.id)}
+                                  title="Delete"
+                                >
+                                  <TrashIcon />
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )
+                        )
+                      )}
+
+                      {/* Custom Delete Confirmation Overlay */}
+                      {showClearConfirm && (
+                        <div style={{
+                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                          background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(2px)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          zIndex: 10, padding: '20px', textAlign: 'center'
+                        }}>
+                          <div style={{
+                            background: '#fff', border: '1px solid var(--violet-light)', borderRadius: '12px',
+                            padding: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', maxWidth: '280px'
+                          }}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text)', fontSize: '15px' }}>Delete All History?</h4>
+                            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-mid)' }}>This action cannot be undone and will permanently delete all chat history.</p>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button onClick={() => setShowClearConfirm(false)} style={{ flex: 1, padding: '8px', background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                              <button onClick={confirmClearAll} style={{ flex: 1, padding: '8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Delete All</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Chat Messages */}
-              <div className="c-messages" style={s.messages}>
-                {convLoading ? (
-                  <div style={{ ...s.loadingRow, flex: 1 }}>
-                    <span className="c-dot" />&nbsp;<span className="c-dot" />&nbsp;<span className="c-dot" />
+              ) : (
+                <>
+                  {/* Chat Messages */}
+                  <div className="c-messages" style={s.messages}>
+                    {convLoading ? (
+                      <div style={{ ...s.loadingRow, flex: 1 }}>
+                        <span className="c-dot" />&nbsp;<span className="c-dot" />&nbsp;<span className="c-dot" />
+                      </div>
+                    ) : messages.length === 0 ? (
+                      <div style={s.emptyState}>
+                        <div style={s.emptyIcon}>✦</div>
+                        <div style={s.emptyTitle}>Your Recruiter AI Copilot</div>
+                        <div style={s.emptySubtitle}>Ask me anything — candidates, jobs, interviews, offers, or pipeline stats.</div>
+                        <div style={s.promptGrid}>
+                          {EXAMPLE_PROMPTS.map((item) => (
+                            <button key={item.title} className="c-card" style={s.promptCard} onClick={() => handleSend(item.prompt)}>
+                              <div style={s.promptCardIcon}>{item.icon}</div>
+                              <div style={s.promptCardTitle}>{item.title}</div>
+                              <div style={s.promptCardText}>{item.prompt}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {messages.map((msg) => (
+                          <div 
+                            key={msg.id} 
+                            style={{ 
+                              display: 'flex', 
+                              gap: '10px', 
+                              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
+                              maxWidth: '85%', 
+                              flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', 
+                              alignItems: 'flex-start',
+                              width: '100%'
+                            }}
+                          >
+                            {/* Avatar */}
+                            {msg.role === 'user' ? (
+                              <div style={{ 
+                                width: '32px', 
+                                height: '32px', 
+                                borderRadius: '50%', 
+                                background: 'var(--violet-light)', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                fontSize: '11px', 
+                                fontWeight: 700, 
+                                color: 'var(--violet)', 
+                                flexShrink: 0, 
+                                border: '1px solid var(--violet-light)'
+                              }}>
+                                HR
+                              </div>
+                            ) : (
+                              <div style={{ 
+                                width: '32px', 
+                                height: '32px', 
+                                borderRadius: '50%', 
+                                background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                color: '#fff',
+                                fontSize: '14px', 
+                                flexShrink: 0 
+                              }}>
+                                ✦
+                              </div>
+                            )}
+                            
+                            {/* Bubble */}
+                            <div style={msg.role === 'user' ? s.userBubble : s.botBubble}>
+                              {msg.role === 'user' ? (
+                                msg.content
+                              ) : (
+                                renderBotMessageContent(msg.content)
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {isThinking && (
+                          <div style={{ display: 'flex', gap: '10px', alignSelf: 'flex-start', maxWidth: '85%', alignItems: 'flex-start', width: '100%' }}>
+                            <div style={{ 
+                              width: '32px', 
+                              height: '32px', 
+                              borderRadius: '50%', 
+                              background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              color: '#fff',
+                              fontSize: '14px', 
+                              flexShrink: 0 
+                            }}>
+                              ✦
+                            </div>
+                            <div style={s.thinkingBubble}>
+                              <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
+                            </div>
+                          </div>
+                        )}
+                        {isTranscribing && (
+                          <div style={{ display: 'flex', gap: '10px', alignSelf: 'flex-start', maxWidth: '85%', alignItems: 'flex-start', width: '100%' }}>
+                            <div style={{ 
+                              width: '32px', 
+                              height: '32px', 
+                              borderRadius: '50%', 
+                              background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              color: '#fff',
+                              fontSize: '14px', 
+                              flexShrink: 0 
+                            }}>
+                              ✦
+                            </div>
+                            <div style={{ ...s.thinkingBubble, background: 'rgba(139, 92, 246, 0.05)', borderColor: 'var(--violet-light)' }}>
+                              <span className="c-dot" style={{ animationDelay: '0s' }} /><span className="c-dot" style={{ animationDelay: '0.2s' }} /><span className="c-dot" style={{ animationDelay: '0.4s' }} />
+                              <span style={{ fontSize: '13px', color: 'var(--violet)', fontWeight: 500, marginLeft: '6px' }}>Transcribing voice...</span>
+                            </div>
+                          </div>
+                        )}
+                        {pendingApproval && (
+                          <div style={{ padding: '14px', background: 'rgba(139,92,246,0.04)', borderRadius: '12px', border: '1px solid var(--violet-light)', margin: '4px 0' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>⚠️</span>
+                              <span>Approval Required: {(pendingApproval.name as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-mid)', marginBottom: '12px' }}>
+                              Review the action below and confirm to proceed.
+                            </div>
+                            <div style={{
+                              fontSize: '12px', color: 'var(--text-mid)', marginBottom: '16px',
+                              background: 'var(--topbar-bg)', padding: '10px 12px', borderRadius: '8px',
+                              display: 'flex', flexDirection: 'column', gap: '6px',
+                              border: '1px solid var(--input-border)'
+                            }}>
+                              {Object.entries(pendingApproval.args).map(([k, v]) => (
+                                <div key={k} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--text)', minWidth: '120px', flexShrink: 0 }}>
+                                    {k.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}:
+                                  </span>
+                                  <span style={{ color: 'var(--text)', wordBreak: 'break-word' }}>{String(v)}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => handleSend(undefined, pendingApproval)}
+                                style={{
+                                  flex: 1, padding: '9px', background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))',
+                                  color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer',
+                                  fontWeight: 600, fontSize: '13px', transition: 'opacity 0.2s ease'
+                                }}
+                                disabled={isThinking}
+                                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88' }}
+                                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+                              >
+                                ✓ Approve
+                              </button>
+                              <button
+                                onClick={() => setPendingApproval(null)}
+                                style={{
+                                  flex: 1, padding: '9px', background: 'transparent',
+                                  border: '1px solid var(--input-border)', color: 'var(--text)',
+                                  borderRadius: '8px', cursor: 'pointer', fontWeight: 500, fontSize: '13px'
+                                }}
+                                disabled={isThinking}
+                              >
+                                ✕ Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                      </>
+                    )}
                   </div>
-                ) : messages.length === 0 ? (
-                  <div style={s.emptyState}>
-                    <div style={s.emptyIcon}>✦</div>
-                    <div style={s.emptyTitle}>Your Recruiter AI Copilot</div>
-                    <div style={s.emptySubtitle}>Ask me anything — candidates, jobs, interviews, offers, or pipeline stats.</div>
-                    <div style={s.promptGrid}>
-                      {EXAMPLE_PROMPTS.map((item) => (
-                        <button key={item.title} className="c-card" style={s.promptCard} onClick={() => handleSend(item.prompt)}>
-                          <div style={s.promptCardIcon}>{item.icon}</div>
-                          <div style={s.promptCardTitle}>{item.title}</div>
-                          <div style={s.promptCardText}>{item.prompt}</div>
+
+                  {/* Audio Error Banner */}
+                  {audioError && (
+                    <div style={{
+                      padding: '10px 16px',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      borderTop: '1px solid rgba(239, 68, 68, 0.15)',
+                      borderBottom: '1px solid rgba(239, 68, 68, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px'
+                    }}>
+                      <span style={{ fontSize: '13px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500 }}>
+                        ⚠️ {audioError}
+                      </span>
+                      <button 
+                        onClick={() => setAudioError(null)}
+                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Candidate suggestions chips */}
+                  {candidateSuggestions.length > 0 && (
+                    <div style={{
+                      padding: '8px 16px',
+                      background: 'var(--bg2)',
+                      borderTop: '1px solid var(--input-border)',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-mid)', fontWeight: 600 }}>Did you mean:</span>
+                      {candidateSuggestions.map((item, idx) => (
+                        <button
+                          key={`${item.candidate.id}-${idx}`}
+                          onClick={() => applySuggestion(item.candidate.full_name, item.matchedWord)}
+                          style={{
+                            background: 'var(--kpi-bg)',
+                            border: '1px solid var(--input-border)',
+                            borderRadius: '12px',
+                            padding: '4px 10px',
+                            fontSize: '12px',
+                            color: 'var(--text)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--violet)'
+                            e.currentTarget.style.background = 'var(--hover-row)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--input-border)'
+                            e.currentTarget.style.background = 'var(--kpi-bg)'
+                          }}
+                        >
+                          👤 {item.candidate.full_name}
                         </button>
                       ))}
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    {messages.map((msg) =>
-                      msg.role === 'user' ? (
-                        <div key={msg.id} style={s.userBubble}>{msg.content}</div>
-                      ) : (
-                        <div key={msg.id} className="c-bot" style={s.botBubble}>
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
-                        </div>
-                      )
-                    )}
-                    {isThinking && (
-                      <div style={s.thinkingBubble}>
-                        <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
-                      </div>
-                    )}
-                    {pendingApproval && (
-                      <div style={{ padding: '12px', background: 'var(--bg2)', borderRadius: '8px', border: '1px solid var(--violet-light)', margin: '10px 0' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text)' }}>
-                          ⚠️ Approval Required: {pendingApproval.name.replace('_', ' ')}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-mid)', marginBottom: '12px' }}>
-                          Review the details below and approve to proceed.
-                        </div>
-                        <div style={{ 
-                          fontSize: '11px', color: 'var(--text-mid)', marginBottom: '16px', 
-                          background: 'rgba(0,0,0,0.03)', padding: '10px', borderRadius: '8px',
-                          display: 'flex', flexDirection: 'column', gap: '4px',
-                          border: '1px solid rgba(0,0,0,0.05)'
-                        }}>
-                          {Object.entries(pendingApproval.args).map(([k, v]) => (
-                            <div key={k} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{k.replace('_', ' ')}:</span>
-                              <span style={{ textAlign: 'right', flex: 1, marginLeft: '10px' }}>{String(v)}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button 
-                            onClick={() => handleSend(undefined, pendingApproval)}
-                            style={{ flex: 1, padding: '8px', background: 'var(--violet)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}
-                            disabled={isThinking}
-                          >
-                            Approve
-                          </button>
-                          <button 
-                            onClick={() => setPendingApproval(null)}
-                            style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--input-border)', color: 'var(--text)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}
-                            disabled={isThinking}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </>
-                )}
-              </div>
+                  )}
 
-              {/* Input Footer */}
-              <div style={s.footer}>
-                <button
-                  className="c-mic"
-                  style={{ ...s.micBtn, ...(isRecording ? s.micBtnActive : {}) }}
-                  onClick={toggleRecording}
-                  disabled={isThinking}
-                  title={isRecording ? "Stop Recording" : "Voice Command"}
-                >
-                  <MicIcon />
-                </button>
-                <textarea
-                  ref={textareaRef}
-                  className="c-input"
-                  style={s.input}
-                  placeholder={isRecording ? "Listening..." : "Ask me about candidates..."}
-                  value={input}
-                  rows={1}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  disabled={isThinking || isRecording}
-                />
-                <button
-                  className="c-send"
-                  style={s.sendBtn}
-                  onClick={() => handleSend()}
-                  disabled={isThinking || !input.trim() || isRecording}
-                  title="Send"
-                >
-                  <SendIcon />
-                </button>
-              </div>
+                  {/* Input Footer */}
+                  <div style={s.footer}>
+                    <button
+                      className="c-mic"
+                      style={{ ...s.micBtn, ...(isRecording ? s.micBtnActive : {}) }}
+                      onClick={toggleRecording}
+                      disabled={isThinking || isTranscribing || sttStatus === 'refining'}
+                      title={isRecording ? "Stop Recording" : "Voice Command"}
+                    >
+                      <MicIcon />
+                    </button>
+                    
+                    {isRecording && !isSpeechSupported ? (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', height: '42px', boxSizing: 'border-box' }}>
+                        <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <span className="c-blink" style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
+                          {formatTimer(recordingSeconds)}
+                        </div>
+                        <canvas
+                          ref={canvasRef}
+                          width="180"
+                          height="24"
+                          style={{ flex: 1, height: '24px', background: 'transparent' }}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{ flex: 1, position: 'relative' }}>
+                        <textarea
+                          ref={textareaRef}
+                          className="c-input"
+                          style={s.input}
+                          placeholder={
+                            isTranscribing
+                              ? 'Transcribing voice...'
+                              : sttStatus === 'listening'
+                                ? 'Listening… speak now'
+                                : sttStatus === 'refining'
+                                  ? 'Refining transcript…'
+                                  : sttStatus === 'ready'
+                                    ? 'Review & press Enter to send'
+                                    : 'Ask me anything about candidates, jobs, interviews…'
+                          }
+                          value={input}
+                          rows={1}
+                          onChange={handleInputChange}
+                          onKeyDown={handleKeyDown}
+                          disabled={isThinking || isTranscribing || sttStatus === 'refining'}
+                        />
+                        {sttStatus === 'ready' && (
+                          <div style={{
+                            position: 'absolute', bottom: '-18px', left: '4px',
+                            fontSize: '10px', color: 'var(--violet)', fontWeight: 600, opacity: 0.85
+                          }}>
+                            ↵ Press Enter to send
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      className="c-send"
+                      style={{
+                        ...s.sendBtn,
+                        background: isRecording ? 'linear-gradient(135deg, #ef4444, #dc2626)' : s.sendBtn.background
+                      }}
+                      onClick={isRecording ? stopRecording : () => handleSend()}
+                      disabled={isThinking || isTranscribing || sttStatus === 'refining' || (!input.trim() && !isRecording)}
+                      title={isRecording ? "Stop and Transcribe" : "Send"}
+                    >
+                      {isRecording ? (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="4" y="4" width="16" height="16" rx="2" />
+                        </svg>
+                      ) : (
+                        <SendIcon />
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

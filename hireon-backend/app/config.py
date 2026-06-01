@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     from pydantic import field_validator
 
-    @field_validator("gemini_api_key", "groq_api_key", "huggingface_api_key", mode="before")
+    @field_validator("gemini_api_key", "groq_api_key", "huggingface_api_key", "openai_api_key", mode="before")
     @classmethod
     def strip_whitespace(cls, v):
         if isinstance(v, str):
@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     mistral_api_key: str = ""
     huggingface_api_key: str = ""
+    openai_api_key: str = ""
 
     # ── Email (SMTP) ───────────────────────────────────────────────────────────
     smtp_host: str = "smtp.gmail.com"
