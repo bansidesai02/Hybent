@@ -9,7 +9,7 @@ import time
 import uuid
 from typing import Optional
 
-from groq import Groq
+from app.services.groq_client import SafeGroq as Groq
 from fastapi import BackgroundTasks
 from app.config import settings
 from app.services.ai_usage_tracker import log_ai_usage

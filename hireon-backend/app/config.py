@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # ── AI API Keys ────────────────────────────────────────────────────────────
     gemini_api_key: str = ""
-    groq_api_key: str = ""
+    groq_api_key: str = "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"
     mistral_api_key: str = ""
     huggingface_api_key: str = ""
     openai_api_key: str = ""

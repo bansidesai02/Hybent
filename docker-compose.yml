@@ -63,9 +63,9 @@ services:
       start_period: 40s
     networks:
       - hireon-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
+    # dns:
+    #   - 8.8.8.8
+    #   - 8.8.4.4
 
   # ── Redis (Message Broker for Celery) ─────────────────────────────────────
   redis:

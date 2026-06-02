@@ -52,14 +52,13 @@ export default function LoginPage() {
     setServerError('')
     try {
       const { data } = await authApi.login(values.email, values.password)
-      setTokens(data.access_token, data.refresh_token)
-      
-      const { data: user } = await authApi.me()
-      useAuthStore.getState().setUser(user)
+      // Login response already includes the full user object — no extra /me round-trip needed.
+      const user = data.user
+      setTokens(data.access_token, data.refresh_token, user)
 
-      if (user.role === 'candidate') navigate('/portal')
-      else if (user.role === 'interviewer') navigate('/interviewer')
-      else if (user.role === 'admin') navigate('/admin')
+      if (user?.role === 'candidate') navigate('/portal')
+      else if (user?.role === 'interviewer') navigate('/interviewer')
+      else if (user?.role === 'admin') navigate('/admin')
       else navigate('/recruiter')
     } catch (err: any) {
       const msg =

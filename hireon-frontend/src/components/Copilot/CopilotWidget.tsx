@@ -483,7 +483,16 @@ export function CopilotWidget() {
       return null
     }
   })
+  const [fabPosition, setFabPosition] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('hireon_copilot_fab_pos')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
   const [isDragging, setIsDragging] = useState(false)
+  const [isFabDragging, setIsFabDragging] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -634,6 +643,24 @@ export function CopilotWidget() {
     }
   }, [])
 
+  const keepFabInBounds = useCallback((pos: { x: number; y: number } | null) => {
+    if (!pos) return
+    const w = window.innerWidth
+    const h = window.innerHeight
+
+    const maxX = Math.max(10, w - 56 - 10)
+    const maxY = Math.max(10, h - 56 - 10)
+
+    let newX = Math.max(10, Math.min(pos.x, maxX))
+    let newY = Math.max(10, Math.min(pos.y, maxY))
+
+    if (newX !== pos.x || newY !== pos.y) {
+      const nextPos = { x: newX, y: newY }
+      setFabPosition(nextPos)
+      sessionStorage.setItem('hireon_copilot_fab_pos', JSON.stringify(nextPos))
+    }
+  }, [])
+
   useEffect(() => {
     if (!position || !isOpen) return
     const timer = setTimeout(() => {
@@ -643,12 +670,21 @@ export function CopilotWidget() {
   }, [isOpen, isMinimized, position, keepInBounds])
 
   useEffect(() => {
+    if (!fabPosition) return
+    const timer = setTimeout(() => {
+      keepFabInBounds(fabPosition)
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [fabPosition, keepFabInBounds])
+
+  useEffect(() => {
     const handleResize = () => {
       keepInBounds(position, isMinimized)
+      keepFabInBounds(fabPosition)
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [position, isMinimized, keepInBounds])
+  }, [position, isMinimized, keepInBounds, fabPosition, keepFabInBounds])
 
   // Load history panel conversations
   const loadHistory = useCallback(async () => {
@@ -1275,6 +1311,120 @@ export function CopilotWidget() {
     window.addEventListener('touchend', handleTouchEnd)
   }
 
+  const fabDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number; moved: boolean } | null>(null)
+
+  const handleFabMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return // Left click only
+    e.preventDefault()
+
+    const fabEl = e.currentTarget as HTMLElement
+    const rect = fabEl.getBoundingClientRect()
+    
+    fabDragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startX: rect.left,
+      startY: rect.top,
+      moved: false,
+    }
+
+    setIsFabDragging(true)
+    document.body.style.userSelect = 'none'
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!fabDragStartRef.current) return
+      const deltaX = moveEvent.clientX - fabDragStartRef.current.mouseX
+      const deltaY = moveEvent.clientY - fabDragStartRef.current.mouseY
+
+      if (Math.hypot(deltaX, deltaY) > 5) {
+        fabDragStartRef.current.moved = true
+      }
+
+      let newX = fabDragStartRef.current.startX + deltaX
+      let newY = fabDragStartRef.current.startY + deltaY
+
+      const w = window.innerWidth
+      const h = window.innerHeight
+      
+      newX = Math.max(10, Math.min(newX, w - rect.width - 10))
+      newY = Math.max(10, Math.min(newY, h - rect.height - 10))
+
+      const nextPos = { x: newX, y: newY }
+      setFabPosition(nextPos)
+      sessionStorage.setItem('hireon_copilot_fab_pos', JSON.stringify(nextPos))
+    }
+
+    const handleMouseUp = () => {
+      setIsFabDragging(false)
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+
+      if (fabDragStartRef.current && !fabDragStartRef.current.moved) {
+        toggle()
+      }
+      fabDragStartRef.current = null
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
+
+  const handleFabTouchStart = (e: React.TouchEvent) => {
+    const fabEl = e.currentTarget as HTMLElement
+    const rect = fabEl.getBoundingClientRect()
+    const touch = e.touches[0]
+    
+    fabDragStartRef.current = {
+      mouseX: touch.clientX,
+      mouseY: touch.clientY,
+      startX: rect.left,
+      startY: rect.top,
+      moved: false,
+    }
+
+    setIsFabDragging(true)
+    document.body.style.userSelect = 'none'
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      if (!fabDragStartRef.current) return
+      const t = moveEvent.touches[0]
+      const deltaX = t.clientX - fabDragStartRef.current.mouseX
+      const deltaY = t.clientY - fabDragStartRef.current.mouseY
+
+      if (Math.hypot(deltaX, deltaY) > 5) {
+        fabDragStartRef.current.moved = true
+      }
+
+      let newX = fabDragStartRef.current.startX + deltaX
+      let newY = fabDragStartRef.current.startY + deltaY
+
+      const w = window.innerWidth
+      const h = window.innerHeight
+      newX = Math.max(10, Math.min(newX, w - rect.width - 10))
+      newY = Math.max(10, Math.min(newY, h - rect.height - 10))
+
+      const nextPos = { x: newX, y: newY }
+      setFabPosition(nextPos)
+      sessionStorage.setItem('hireon_copilot_fab_pos', JSON.stringify(nextPos))
+    }
+
+    const handleTouchEnd = () => {
+      setIsFabDragging(false)
+      document.body.style.userSelect = ''
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+
+      if (fabDragStartRef.current && !fabDragStartRef.current.moved) {
+        toggle()
+      }
+      fabDragStartRef.current = null
+    }
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+    window.addEventListener('touchend', handleTouchEnd)
+  }
+
   const parseCandidateCard = (text: string): CandidateCardData | null => {
     if (!text.includes('👤')) return null
     const lines = text.split('\n')
@@ -1358,6 +1508,23 @@ export function CopilotWidget() {
 
   const dragStyle: React.CSSProperties = position
     ? { left: `${position.x}px`, top: `${position.y}px`, bottom: 'auto', right: 'auto' }
+    : fabPosition
+      ? (() => {
+          const w = window.innerWidth
+          const h = window.innerHeight
+          let panelX = fabPosition.x + 28 - 200
+          let panelY = fabPosition.y - 600 - 15
+          if (panelY < 10) {
+            panelY = fabPosition.y + 56 + 15
+          }
+          panelX = Math.max(10, Math.min(panelX, w - 400 - 10))
+          panelY = Math.max(10, Math.min(panelY, h - 600 - 10))
+          return { left: `${panelX}px`, top: `${panelY}px`, bottom: 'auto', right: 'auto' }
+        })()
+      : {}
+
+  const fabDragStyle: React.CSSProperties = fabPosition
+    ? { left: `${fabPosition.x}px`, top: `${fabPosition.y}px`, bottom: 'auto', right: 'auto' }
     : {}
 
   const minimizeStyle: React.CSSProperties = isMinimized
@@ -1402,7 +1569,20 @@ export function CopilotWidget() {
       `}</style>
 
       {/* FAB */}
-      <button className="c-fab" style={s.fab} onClick={toggle} aria-label="Open AI Copilot">
+      <button 
+        className="c-fab" 
+        style={{
+          ...s.fab,
+          ...fabDragStyle,
+          transition: isFabDragging ? 'none' : s.fab.transition,
+          cursor: isFabDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          WebkitUserSelect: 'none'
+        }} 
+        onMouseDown={handleFabMouseDown}
+        onTouchStart={handleFabTouchStart}
+        aria-label="Open AI Copilot"
+      >
         {isOpen ? <CloseIcon /> : '✦'}
       </button>
 

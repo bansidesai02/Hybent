@@ -5,7 +5,7 @@ import logging
 import json
 import io
 import google.generativeai as genai
-from groq import Groq
+from app.services.groq_client import SafeGroq as Groq
 from huggingface_hub import InferenceClient
 import time
 import uuid

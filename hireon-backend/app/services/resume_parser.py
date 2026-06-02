@@ -14,7 +14,7 @@ import docx
 import subprocess
 import time
 import uuid
-from groq import Groq
+from app.services.groq_client import SafeGroq as Groq
 from pydantic import BaseModel, Field
 from fastapi import BackgroundTasks
 

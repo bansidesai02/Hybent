@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional, Any
 
-from groq import Groq
+from app.services.groq_client import SafeGroq as Groq
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import BackgroundTasks

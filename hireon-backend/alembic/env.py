@@ -25,7 +25,7 @@ target_metadata = Base.metadata
 # always uses the correct DATABASE_URL instead of the hard-coded localhost URL
 # in alembic.ini.
 from app.config import settings  # noqa: E402
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:
