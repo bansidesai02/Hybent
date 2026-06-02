@@ -119,8 +119,17 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
-    logger.error(f"422 Validation error on {request.method} {request.url}: {errors}")
-    return APIResponse.error(message="There was an issue with the submitted data.", status_code=422, details={"errors": errors})
+    cleaned_errors = []
+    for err in errors:
+        cleaned_err = dict(err)
+        if "ctx" in cleaned_err and isinstance(cleaned_err["ctx"], dict):
+            cleaned_err["ctx"] = {
+                k: str(v) if isinstance(v, Exception) else v
+                for k, v in cleaned_err["ctx"].items()
+            }
+        cleaned_errors.append(cleaned_err)
+    logger.error(f"422 Validation error on {request.method} {request.url}: {cleaned_errors}")
+    return APIResponse.error(message="There was an issue with the submitted data.", status_code=422, details={"errors": cleaned_errors})
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
