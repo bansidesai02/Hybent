@@ -1,4 +1,5 @@
 #!/bin/bash
+#!/bin/bash
 set -e
 
 echo "==> [entrypoint] Waiting for PostgreSQL to be ready..."
@@ -9,15 +10,24 @@ until python -c "
 import asyncio, asyncpg, os, sys
 
 async def check():
-    url = os.environ['DATABASE_URL'].replace('postgresql+asyncpg://', 'postgresql://')
+    db_url = os.environ.get('DATABASE_URL')
+    if not db_url:
+        print('Postgres connection check failed: DATABASE_URL environment variable is not set!', file=sys.stderr)
+        sys.exit(1)
+    
+    url = db_url.replace('postgresql+asyncpg://', 'postgresql://')
+    if url.startswith('postgres://'):
+        url = url.replace('postgres://', 'postgresql://', 1)
+        
     try:
         conn = await asyncpg.connect(url)
         await conn.close()
     except Exception as e:
+        print(f'Postgres connection check failed: {e}', file=sys.stderr)
         sys.exit(1)
 
 asyncio.run(check())
-" 2>/dev/null; do
+"; do
   COUNT=$((COUNT + 1))
   if [ "$COUNT" -ge "$MAX_RETRIES" ]; then
     echo "==> [entrypoint] ERROR: PostgreSQL not available after $MAX_RETRIES attempts. Exiting."
