@@ -22,17 +22,17 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # ── Index names ────────────────────────────────────────────────────────────────
-IDX_CANDIDATES  = "hireon_candidates"
-IDX_JOBS        = "hireon_jobs"
-IDX_INTERVIEWS  = "hireon_interviews"
-IDX_USERS       = "hireon_users"
+IDX_UNIFIED = "hireon_unified"
 
 # ── Index mapping definitions ─────────────────────────────────────────────────
 _MAPPINGS: dict[str, dict] = {
-    IDX_CANDIDATES: {
+    IDX_UNIFIED: {
         "mappings": {
             "properties": {
+                "doc_type":         {"type": "keyword"},  # "candidate", "job", "interview", "user"
                 "organization_id":  {"type": "keyword"},
+                
+                # Common & Candidate fields
                 "full_name":        {"type": "text",    "fields": {"keyword": {"type": "keyword"}}},
                 "email":            {"type": "keyword"},
                 "current_title":    {"type": "text"},
@@ -41,13 +41,8 @@ _MAPPINGS: dict[str, dict] = {
                 "summary":          {"type": "text"},
                 "pipeline_stage":   {"type": "keyword"},
                 "avatar_url":       {"type": "keyword", "index": False},
-            }
-        }
-    },
-    IDX_JOBS: {
-        "mappings": {
-            "properties": {
-                "organization_id":  {"type": "keyword"},
+                
+                # Job fields
                 "title":            {"type": "text",    "fields": {"keyword": {"type": "keyword"}}},
                 "description":      {"type": "text"},
                 "location":         {"type": "text",    "fields": {"keyword": {"type": "keyword"}}},
@@ -55,33 +50,18 @@ _MAPPINGS: dict[str, dict] = {
                 "status":           {"type": "keyword"},
                 "job_type":         {"type": "keyword"},
                 "is_remote":        {"type": "boolean"},
-            }
-        }
-    },
-    IDX_INTERVIEWS: {
-        "mappings": {
-            "properties": {
-                "organization_id":   {"type": "keyword"},
-                "title":             {"type": "text"},
+                
+                # Interview fields
                 "notes":             {"type": "text"},
-                "status":            {"type": "keyword"},
                 "scheduled_at":      {"type": "date"},
                 "candidate_name":    {"type": "text"},
                 "candidate_id":      {"type": "keyword"},
+                
+                # User fields
+                "role":              {"type": "keyword"},
             }
         }
-    },
-    IDX_USERS: {
-        "mappings": {
-            "properties": {
-                "organization_id": {"type": "keyword"},
-                "full_name":       {"type": "text",  "fields": {"keyword": {"type": "keyword"}}},
-                "email":           {"type": "keyword"},
-                "role":            {"type": "keyword"},
-                "avatar_url":      {"type": "keyword", "index": False},
-            }
-        }
-    },
+    }
 }
 
 
@@ -156,9 +136,9 @@ async def _upsert(index: str, doc_id: str, doc: dict) -> None:
     if es is None:
         return
     try:
-        await es.index(index=index, id=doc_id, document=doc)
+        await es.index(index=IDX_UNIFIED, id=doc_id, document=doc)
     except Exception as exc:
-        logger.warning(f"[ES] Upsert failed for {index}/{doc_id}: {exc}")
+        logger.warning(f"[ES] Upsert failed for {IDX_UNIFIED}/{doc_id}: {exc}")
 
 
 async def delete_from_index(index: str, doc_id: str) -> None:
@@ -166,10 +146,23 @@ async def delete_from_index(index: str, doc_id: str) -> None:
     es = get_es_client()
     if es is None:
         return
+        
+    # Map old index parameter values to their unified document prefix
+    prefix = ""
+    if "candidate" in index:
+        prefix = "candidate_"
+    elif "job" in index:
+        prefix = "job_"
+    elif "interview" in index:
+        prefix = "interview_"
+    elif "user" in index:
+        prefix = "user_"
+
+    unified_doc_id = f"{prefix}{doc_id}" if prefix else doc_id
     try:
-        await es.delete(index=index, id=doc_id, ignore=[404])
+        await es.delete(index=IDX_UNIFIED, id=unified_doc_id, ignore=[404])
     except Exception as exc:
-        logger.warning(f"[ES] Delete failed for {index}/{doc_id}: {exc}")
+        logger.warning(f"[ES] Delete failed for {index}/{doc_id} (unified ID {unified_doc_id}): {exc}")
 
 
 # ── Per-entity indexers ────────────────────────────────────────────────────────
@@ -180,7 +173,8 @@ async def index_candidate(candidate: Any) -> None:
         skills = list(skills)
 
     doc = {
-        "organization_id": str(candidate.organization_id),
+        "doc_type":         "candidate",
+        "organization_id":  str(candidate.organization_id),
         "full_name":        candidate.full_name,
         "email":            candidate.email,
         "current_title":    candidate.current_title or "",
@@ -188,9 +182,9 @@ async def index_candidate(candidate: Any) -> None:
         "skills":           " ".join(skills),
         "summary":          candidate.summary or "",
         "pipeline_stage":   candidate.pipeline_stage or "",
-        "avatar_url":       None,  # Candidates don't have avatar_url in this model
+        "avatar_url":       None,
     }
-    await _upsert(IDX_CANDIDATES, str(candidate.id), doc)
+    await _upsert(IDX_UNIFIED, f"candidate_{candidate.id}", doc)
     logger.debug(f"[ES] Indexed candidate {candidate.id}")
 
 
@@ -200,46 +194,49 @@ async def index_job(job: Any) -> None:
         skills = list(skills)
 
     doc = {
-        "organization_id": str(job.organization_id),
-        "title":           job.title,
-        "description":     job.description or "",
-        "location":        job.location or "",
-        "skills_required": " ".join(skills),
-        "status":          job.status,
-        "job_type":        job.job_type or "",
-        "is_remote":       bool(job.is_remote),
+        "doc_type":         "job",
+        "organization_id":  str(job.organization_id),
+        "title":            job.title,
+        "description":      job.description or "",
+        "location":         job.location or "",
+        "skills_required":  " ".join(skills),
+        "status":           job.status,
+        "job_type":         job.job_type or "",
+        "is_remote":        bool(job.is_remote),
     }
-    await _upsert(IDX_JOBS, str(job.id), doc)
+    await _upsert(IDX_UNIFIED, f"job_{job.id}", doc)
     logger.debug(f"[ES] Indexed job {job.id}")
 
 
 async def index_interview(interview: Any, candidate_name: str = "") -> None:
     doc = {
-        "organization_id": str(interview.organization_id),
-        "title":           interview.title,
-        "notes":           interview.notes or "",
-        "status":          interview.status,
-        "candidate_id":    str(interview.candidate_id),
-        "candidate_name":  candidate_name,
-        "scheduled_at":    interview.scheduled_at.isoformat() if interview.scheduled_at else None,
+        "doc_type":         "interview",
+        "organization_id":  str(interview.organization_id),
+        "title":            interview.title,
+        "notes":            interview.notes or "",
+        "status":           interview.status,
+        "candidate_id":     str(interview.candidate_id),
+        "candidate_name":   candidate_name,
+        "scheduled_at":     interview.scheduled_at.isoformat() if interview.scheduled_at else None,
     }
-    await _upsert(IDX_INTERVIEWS, str(interview.id), doc)
+    await _upsert(IDX_UNIFIED, f"interview_{interview.id}", doc)
     logger.debug(f"[ES] Indexed interview {interview.id}")
 
 
 async def index_user(user: Any) -> None:
     doc = {
-        "organization_id": str(user.organization_id),
-        "full_name":       user.full_name,
-        "email":           user.email,
-        "role":            str(user.role),
-        "avatar_url":      user.avatar_url or None,
+        "doc_type":         "user",
+        "organization_id":  str(user.organization_id),
+        "full_name":        user.full_name,
+        "email":            user.email,
+        "role":             str(user.role),
+        "avatar_url":       user.avatar_url or None,
     }
-    await _upsert(IDX_USERS, str(user.id), doc)
+    await _upsert(IDX_UNIFIED, f"user_{user.id}", doc)
     logger.debug(f"[ES] Indexed user {user.id}")
 
 
-# ── Multi-index search ─────────────────────────────────────────────────────────
+# ── Unified single-index search ───────────────────────────────────────────────
 
 async def search_all(
     organization_id: str,
@@ -247,19 +244,14 @@ async def search_all(
     limit: int = 5,
 ) -> dict | None:
     """
-    Search across all four indices, scoped to the given organization_id.
-
-    Returns a dict matching {candidates, jobs, interviews, users, total}
-    or None if Elasticsearch is unavailable (caller should fall back to PG).
+    Search across a single unified index, scoped to the given organization_id,
+    and return grouped results.
     """
     es = get_es_client()
     if es is None:
         return None
 
-    org_filter = {"term": {"organization_id": organization_id}}
-
-    # Build multi_match query for each entity type with their relevant fields
-    candidate_query = {
+    search_query = {
         "bool": {
             "must": [
                 {
@@ -267,68 +259,18 @@ async def search_all(
                         "query": query,
                         "fields": [
                             "full_name^3",
+                            "title^3",
+                            "candidate_name^2",
                             "email^2",
                             "current_title^2",
+                            "location^2",
+                            "skills_required^2",
                             "current_company",
                             "skills",
                             "summary",
-                        ],
-                        "type": "best_fields",
-                        "fuzziness": "AUTO",
-                        "minimum_should_match": "75%",
-                    }
-                }
-            ],
-            "filter": [org_filter],
-        }
-    }
-
-    job_query = {
-        "bool": {
-            "must": [
-                {
-                    "multi_match": {
-                        "query": query,
-                        "fields": [
-                            "title^3",
-                            "location^2",
                             "description",
-                            "skills_required^2",
+                            "notes"
                         ],
-                        "type": "best_fields",
-                        "fuzziness": "AUTO",
-                        "minimum_should_match": "75%",
-                    }
-                }
-            ],
-            "filter": [org_filter],
-        }
-    }
-
-    interview_query = {
-        "bool": {
-            "must": [
-                {
-                    "multi_match": {
-                        "query": query,
-                        "fields": ["title^3", "candidate_name^2", "notes"],
-                        "type": "best_fields",
-                        "fuzziness": "AUTO",
-                        "minimum_should_match": "75%",
-                    }
-                }
-            ],
-            "filter": [org_filter],
-        }
-    }
-
-    user_query = {
-        "bool": {
-            "must": [
-                {
-                    "multi_match": {
-                        "query": query,
-                        "fields": ["full_name^3", "email^2"],
                         "type": "best_fields",
                         "fuzziness": "AUTO",
                         "minimum_should_match": "75%",
@@ -336,90 +278,78 @@ async def search_all(
                 }
             ],
             "filter": [
-                org_filter,
-                {"bool": {"must_not": {"term": {"role": "candidate"}}}}
-            ],
+                {"term": {"organization_id": organization_id}}
+            ]
         }
     }
 
-    # Run four searches concurrently via msearch (single round-trip)
-    msearch_body = [
-        {"index": IDX_CANDIDATES},
-        {"query": candidate_query, "size": limit},
-        {"index": IDX_JOBS},
-        {"query": job_query, "size": limit},
-        {"index": IDX_INTERVIEWS},
-        {"query": interview_query, "size": limit},
-        {"index": IDX_USERS},
-        {"query": user_query, "size": limit},
-    ]
-
     try:
-        resp = await es.msearch(body=msearch_body)
+        resp = await es.search(
+            index=IDX_UNIFIED,
+            body={"query": search_query, "size": limit * 4}
+        )
     except Exception as exc:
-        logger.warning(f"[ES] msearch failed: {exc}")
+        logger.warning(f"[ES] Unified search failed: {exc}")
         return None
 
-    responses = resp.get("responses", [])
-    if len(responses) < 4:
-        return None
-
-    cand_resp, job_resp, ivw_resp, user_resp = responses
-
-    # Safely extract hits
-    def hits(r: dict) -> list[dict]:
-        return r.get("hits", {}).get("hits", [])
-
+    hits = resp.get("hits", {}).get("hits", [])
+    
     candidates = []
-    for h in hits(cand_resp):
-        src = h["_source"]
-        candidates.append({
-            "id":             h["_id"],
-            "type":           "candidate",
-            "title":          src.get("full_name", ""),
-            "subtitle":       src.get("current_title") or src.get("email", ""),
-            "meta":           src.get("current_company"),
-            "avatar_url":     src.get("avatar_url"),
-            "pipeline_stage": src.get("pipeline_stage"),
-            "email":          src.get("email"),
-        })
-
     jobs = []
-    for h in hits(job_resp):
-        src = h["_source"]
-        jobs.append({
-            "id":        h["_id"],
-            "type":      "job",
-            "title":     src.get("title", ""),
-            "subtitle":  src.get("location") or src.get("job_type", ""),
-            "meta":      src.get("status"),
-            "is_remote": src.get("is_remote", False),
-        })
-
     interviews = []
-    for h in hits(ivw_resp):
-        src = h["_source"]
-        interviews.append({
-            "id":           h["_id"],
-            "type":         "interview",
-            "title":        src.get("title", ""),
-            "subtitle":     src.get("candidate_name") or "Unknown Candidate",
-            "meta":         src.get("status"),
-            "scheduled_at": src.get("scheduled_at"),
-        })
-
     users = []
-    for h in hits(user_resp):
+
+    for h in hits:
         src = h["_source"]
-        role = src.get("role", "")
-        users.append({
-            "id":         h["_id"],
-            "type":       "user",
-            "title":      src.get("full_name", ""),
-            "subtitle":   role.title() if role else "",
-            "meta":       src.get("email"),
-            "avatar_url": src.get("avatar_url"),
-        })
+        doc_type = src.get("doc_type")
+        
+        # Clean ID by removing doc_type prefix
+        raw_id = h["_id"]
+        clean_id = raw_id
+        if doc_type and raw_id.startswith(f"{doc_type}_"):
+            clean_id = raw_id[len(doc_type) + 1:]
+
+        if doc_type == "candidate" and len(candidates) < limit:
+            candidates.append({
+                "id":             clean_id,
+                "type":           "candidate",
+                "title":          src.get("full_name", ""),
+                "subtitle":       src.get("current_title") or src.get("email", ""),
+                "meta":           src.get("current_company"),
+                "avatar_url":     src.get("avatar_url"),
+                "pipeline_stage": src.get("pipeline_stage"),
+                "email":          src.get("email"),
+            })
+        elif doc_type == "job" and len(jobs) < limit:
+            jobs.append({
+                "id":        clean_id,
+                "type":      "job",
+                "title":     src.get("title", ""),
+                "subtitle":  src.get("location") or src.get("job_type", ""),
+                "meta":      src.get("status"),
+                "is_remote": src.get("is_remote", False),
+            })
+        elif doc_type == "interview" and len(interviews) < limit:
+            interviews.append({
+                "id":           clean_id,
+                "type":         "interview",
+                "title":        src.get("title", ""),
+                "subtitle":     src.get("candidate_name") or "Unknown Candidate",
+                "meta":         src.get("status"),
+                "scheduled_at": src.get("scheduled_at"),
+            })
+        elif doc_type == "user" and len(users) < limit:
+            role = src.get("role", "")
+            if role == "candidate":
+                continue
+            users.append({
+                "id":         clean_id,
+                "type":       "user",
+                "title":      src.get("full_name", ""),
+                "subtitle":   role.title() if role else "",
+                "meta":       src.get("email"),
+                "avatar_url": src.get("avatar_url"),
+            })
 
     return {
         "candidates": candidates,
