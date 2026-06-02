@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { motion, useScroll, AnimatePresence } from 'framer-motion'
-// import MouseTrail from '@/components/common/MouseTrail'
+import MouseTrail from '@/components/common/MouseTrail'
 import { TeamIcon } from '@/components/common/CustomIcons'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { ArrowRight, Calendar, Menu, X, Check } from 'lucide-react'
@@ -404,7 +404,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen relative" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      {/* <MouseTrail /> */}
+      <MouseTrail />
       {/* Background blobs */}
       <div className="blob-bg">
         <div className="blob blob-1" />
