@@ -30,7 +30,7 @@ jobs:
       - name: Build Optimized Bundle
         working-directory: ./hireon-frontend
         env:
-          VITE_API_BASE_URL: https://hireon-all-in-one.onrender.com
+          VITE_API_BASE_URL: https://hireon-ai.onrender.com
         run: npm run build
 
       - name: Upload Build Artifact
