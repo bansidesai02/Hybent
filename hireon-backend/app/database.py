@@ -45,12 +45,18 @@ def get_engine():
         _pid != current_pid or 
         (current_loop is not None and _loop is not current_loop)):
         
+        connect_args = {}
+        if ":6543" in settings.database_url:
+            import uuid
+            connect_args["prepared_statement_name_func"] = lambda: f"__asyncpg_{uuid.uuid4()}__"
+
         _engine = create_async_engine(
             settings.database_url,
             echo=False,
             pool_size=10,
             max_overflow=20,
             pool_pre_ping=True,
+            connect_args=connect_args,
         )
         _pid = current_pid
         _loop = current_loop
