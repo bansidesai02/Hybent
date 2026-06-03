@@ -2,9 +2,10 @@
 FastAPI dependencies: DB session, current user, role guards.
 """
 import uuid
+import logging
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy import select
@@ -15,10 +16,12 @@ from app.models.user import User
 from app.utils.permissions import UserRole, RECRUITER_ROLES, INTERVIEWER_ROLES, ADMIN_ONLY
 from app.utils.security import decode_access_token
 
+logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
@@ -29,31 +32,38 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    if not credentials:
-        print("DEBUG AUTH: No credentials found in Authorization header")
-        raise credentials_exception
+    # Check if TenantMiddleware already decoded the JWT token
+    user_id = getattr(request.state, "user_id", None)
 
-    try:
-        payload = decode_access_token(credentials.credentials)
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            print("DEBUG AUTH: sub is missing in payload")
+    if user_id is None:
+        if not credentials:
+            logger.debug("No credentials found in Authorization header")
             raise credentials_exception
-    except JWTError as e:
-        print(f"DEBUG AUTH: JWT decode failed: {str(e)} for token: {credentials.credentials[:30]}...")
-        raise credentials_exception
+
+        try:
+            payload = decode_access_token(credentials.credentials)
+            user_id = payload.get("sub")
+            if user_id is None:
+                logger.debug("sub is missing in payload")
+                raise credentials_exception
+            # Cache values on request.state for downstream routers or middleware
+            request.state.user_id = user_id
+            request.state.org_id = payload.get("org")
+        except JWTError as e:
+            logger.debug(f"JWT decode failed: {str(e)}")
+            raise credentials_exception
 
     try:
         result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
         user = result.scalar_one_or_none()
         if user is None:
-            print(f"DEBUG AUTH: User with ID {user_id} not found in DB")
+            logger.debug(f"User with ID {user_id} not found in DB")
             raise credentials_exception
         if not user.is_active:
-            print(f"DEBUG AUTH: User {user_id} is inactive")
+            logger.debug(f"User {user_id} is inactive")
             raise credentials_exception
     except Exception as db_err:
-        print(f"DEBUG AUTH: DB lookup failed: {str(db_err)}")
+        logger.debug(f"DB lookup failed: {str(db_err)}")
         raise credentials_exception
 
     return user

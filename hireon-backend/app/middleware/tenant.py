@@ -1,15 +1,6 @@
-"""
-Tenant isolation middleware.
-Extracts org_id from JWT and stores it on request.state for downstream use.
-"""
 import logging
-from typing import Callable
-
-from fastapi import Request, Response
 from jose import JWTError
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
-
+from starlette.types import ASGIApp, Scope, Receive, Send
 from app.utils.security import decode_access_token
 
 logger = logging.getLogger(__name__)
@@ -20,30 +11,46 @@ PUBLIC_PATHS = {
 }
 
 
-class TenantMiddleware(BaseHTTPMiddleware):
+class TenantMiddleware:
     """
     Extracts org_id + user_id from the Bearer token and attaches them to
-    request.state so routers can use them without re-decoding.
+    scope["state"] so routers can use them without re-decoding.
+    Uses raw ASGI interface to avoid BaseHTTPMiddleware overhead.
     """
 
     def __init__(self, app: ASGIApp):
-        super().__init__(app)
+        self.app = app
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        request.state.user_id = None
-        request.state.org_id = None
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/static"):
-            return await call_next(request)
+        if "state" not in scope:
+            scope["state"] = {}
 
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
+        scope["state"]["user_id"] = None
+        scope["state"]["org_id"] = None
+
+        path = scope.get("path", "")
+        if path in PUBLIC_PATHS or path.startswith("/static"):
+            await self.app(scope, receive, send)
+            return
+
+        # Find authorization header
+        auth_header = b""
+        for name, value in scope.get("headers", []):
+            if name == b"authorization":
+                auth_header = value
+                break
+
+        if auth_header.startswith(b"Bearer "):
             try:
+                token = auth_header[7:].decode("utf-8")
                 payload = decode_access_token(token)
-                request.state.user_id = payload.get("sub")
-                request.state.org_id = payload.get("org")
-            except JWTError:
+                scope["state"]["user_id"] = payload.get("sub")
+                scope["state"]["org_id"] = payload.get("org")
+            except (JWTError, UnicodeDecodeError):
                 pass  # invalid token handled by auth dependency
 
-        return await call_next(request)
+        await self.app(scope, receive, send)

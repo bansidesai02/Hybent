@@ -30,8 +30,6 @@ from app.routers import (
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
     activities, reports, messages, linkedin, search, public, copilot, bulk_import
 )
-from fastapi.middleware.cors import CORSMiddleware
-
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),

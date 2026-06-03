@@ -66,49 +66,74 @@ async def _interview_out(db: DB, interview: Interview, panelists: list) -> dict:
 
 @router.get("")
 async def list_interviews(current_user: CurrentUser, db: DB):
+    from sqlalchemy.orm import selectinload
+
     if current_user.role == "interviewer":
-        result = await db.execute(
+        stmt = (
             select(Interview)
             .join(InterviewPanelist, InterviewPanelist.interview_id == Interview.id)
             .where(InterviewPanelist.user_id == current_user.id)
         )
     elif current_user.role == "recruiter":
         # Recruiter sees what they scheduled OR interviews for their own candidates
-        result = await db.execute(
-            select(Interview).outerjoin(Candidate, Interview.candidate_id == Candidate.id).where(
+        stmt = (
+            select(Interview)
+            .outerjoin(Candidate, Interview.candidate_id == Candidate.id)
+            .where(
                 Interview.organization_id == current_user.organization_id,
                 (Interview.scheduled_by_id == current_user.id) | (Candidate.created_by_id == current_user.id)
             )
         )
     else:
         # Admin sees everything in the org
-        result = await db.execute(
-            select(Interview).where(Interview.organization_id == current_user.organization_id)
+        stmt = (
+            select(Interview)
+            .where(Interview.organization_id == current_user.organization_id)
         )
+
+    # Eager load candidate, application, job, and panelists + panelist users
+    stmt = stmt.options(
+        selectinload(Interview.candidate),
+        selectinload(Interview.application).selectinload(Application.job),
+        selectinload(Interview.panelists).selectinload(InterviewPanelist.user)
+    )
+
+    result = await db.execute(stmt)
     interviews = result.scalars().all()
     out = []
     for iv in interviews:
         # Enrich with candidate name and skills
         d = InterviewOut.model_validate(iv).model_dump()
-        cand = (await db.execute(select(Candidate).where(Candidate.id == iv.candidate_id))).scalar_one_or_none()
+        cand = iv.candidate
         if cand:
             d["candidate_name"] = cand.full_name
             d["candidate_email"] = cand.email
             d["candidate_skills"] = cand.skills or []
-        panelists_result = await db.execute(
-            select(InterviewPanelist).where(InterviewPanelist.interview_id == iv.id)
-        )
+        else:
+            d["candidate_name"] = ""
+            d["candidate_email"] = ""
+            d["candidate_skills"] = []
+
         panelist_out = []
-        for p in panelists_result.scalars().all():
-            u = (await db.execute(select(User).where(User.id == p.user_id))).scalar_one_or_none()
+        for p in iv.panelists:
+            u = p.user
             panelist_out.append({
-                "id": str(p.id), "user_id": str(p.user_id), "role": p.role,
+                "id": str(p.id),
+                "user_id": str(p.user_id),
+                "role": p.role,
                 "user_name": u.full_name if u else None,
                 "user_email": u.email if u else None,
             })
         d["panelists"] = panelist_out
-        # Populate job_title for UI consistency
-        d["job_title"] = await _get_job_role(db, iv.application_id, iv.candidate_id)
+        
+        # Populate job_title for UI consistency in-memory
+        if iv.application and iv.application.job:
+            d["job_title"] = iv.application.job.title
+        elif cand and cand.applied_job_title:
+            d["job_title"] = cand.applied_job_title
+        else:
+            d["job_title"] = "Position"
+            
         out.append(d)
     return APIResponse.success(message="Interviews retrieved successfully.", data=out)
 

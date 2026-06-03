@@ -3,10 +3,10 @@ import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import type { UserRole } from '@/types'
 
-// Layouts
-import { RecruiterLayout } from '@/components/layout/RecruiterLayout'
-import { InterviewerLayout } from '@/components/layout/InterviewerLayout'
-import { PortalLayout } from '@/components/layout/PortalLayout'
+// Layouts (Lazy)
+const RecruiterLayout = lazy(() => import('@/components/layout/RecruiterLayout').then(m => ({ default: m.RecruiterLayout })))
+const InterviewerLayout = lazy(() => import('@/components/layout/InterviewerLayout').then(m => ({ default: m.InterviewerLayout })))
+const PortalLayout = lazy(() => import('@/components/layout/PortalLayout').then(m => ({ default: m.PortalLayout })))
 
 // Auth (Lazy)
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
