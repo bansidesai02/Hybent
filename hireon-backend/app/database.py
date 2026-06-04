@@ -47,8 +47,7 @@ def get_engine():
         
         connect_args = {}
         if ":6543" in settings.database_url:
-            import uuid
-            connect_args["prepared_statement_name_func"] = lambda: f"__asyncpg_{uuid.uuid4()}__"
+            connect_args["statement_cache_size"] = 0
 
         _engine = create_async_engine(
             settings.database_url,
