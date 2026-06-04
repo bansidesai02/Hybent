@@ -43,15 +43,20 @@ async def lifespan(app: FastAPI):
     """Startup/shutdown events."""
     logger.info(f"🚀 HireOn API starting in {settings.app_env} mode")
 
-    # In production, Alembic owns schema changes. create_all on every boot adds
-    # avoidable startup DB work and can race when multiple workers start.
-    if not settings.is_production:
-        try:
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database tables ensured.")
-        except Exception as e:
-            logger.warning(f"Skipped table creation (likely concurrent creation by another worker): {e}")
+    # Always run Alembic migrations on startup to ensure Render DB is up to date
+    # This fixes issues where Render Native environments don't run entrypoint.sh
+    try:
+        import asyncio
+        from alembic import command
+        from alembic.config import Config
+        def run_migrations():
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+            
+        await asyncio.to_thread(run_migrations)
+        logger.info("Successfully applied Alembic migrations.")
+    except Exception as e:
+        logger.warning(f"Alembic migration skipped or failed (likely concurrent): {e}")
 
     # Ensure upload directories exist
     Path(settings.upload_dir).mkdir(exist_ok=True)
