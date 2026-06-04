@@ -188,11 +188,22 @@ async def list_talent_pool(
     return APIResponse.success(message="Talent pool retrieved.", data=paginate([transform_candidate(c) for c in items], total, page, limit))
 
 
+import time
+_stats_cache = {}
+_stats_cache_ttl = 300 # 5 minutes
+
 @router.get("/stats")
 async def get_talent_stats(current_user: CurrentUser, db: DB):
     """
     Get KPIs for the talent database.
     """
+    now = time.monotonic()
+    org_id_str = str(current_user.organization_id)
+    if org_id_str in _stats_cache:
+        data, timestamp = _stats_cache[org_id_str]
+        if now - timestamp < _stats_cache_ttl:
+            return APIResponse.success(message="Talent stats retrieved.", data=data)
+
     from app.models.application import Application
     from sqlalchemy import select, func
 
@@ -211,11 +222,13 @@ async def get_talent_stats(current_user: CurrentUser, db: DB):
     # real logic would compute delta between candidate created_at and application created_at for hired ones
     avg_hire_time = "2.1d" 
 
-    return APIResponse.success(message="Talent stats retrieved.", data={
+    data = {
         "total_candidates": total_candidates,
         "re_matched_count": re_matched_count,
         "avg_hire_time": avg_hire_time
-    })
+    }
+    _stats_cache[org_id_str] = (data, now)
+    return APIResponse.success(message="Talent stats retrieved.", data=data)
 
 
 @router.get("/suggested-matches")

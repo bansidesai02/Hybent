@@ -20,6 +20,16 @@ from app.services import elasticsearch_service as es_service
 router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 
 
+import time
+_jobs_cache = {}
+_jobs_cache_ttl = 300 # 5 minutes
+
+def invalidate_jobs_cache(org_id):
+    org_id_str = str(org_id)
+    keys_to_delete = [k for k in _jobs_cache if k.startswith(org_id_str + ":")]
+    for k in keys_to_delete:
+        del _jobs_cache[k]
+
 @router.get("")
 async def list_jobs(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -30,6 +40,12 @@ async def list_jobs(
     search: str | None = None,
     include_pool: bool = False,
 ):
+    now = time.monotonic()
+    cache_key = f"{current_user.organization_id}:{page}:{limit}:{status}:{search}:{include_pool}"
+    if cache_key in _jobs_cache:
+        cached_data, timestamp = _jobs_cache[cache_key]
+        if now - timestamp < _jobs_cache_ttl:
+            return APIResponse.success(message="Jobs retrieved successfully.", data=paginate(cached_data["items"], cached_data["total"], page, limit))
     query = select(Job).where(Job.organization_id == current_user.organization_id)
 
     from app.utils.permissions import JobStatus
@@ -81,6 +97,7 @@ async def list_jobs(
         job_dict["re_engage_count"] = re_engage_counts.get(j.title, 0)
         items.append(job_dict)
 
+    _jobs_cache[cache_key] = ({"items": items, "total": total}, now)
     return APIResponse.success(message="Jobs retrieved successfully.", data=paginate(items, total, page, limit))
 
 
@@ -134,6 +151,7 @@ async def create_job(data: JobCreate, current_user: Annotated[User, Depends(requ
             db.add(pool_job)
             await db.commit()
 
+    invalidate_jobs_cache(current_user.organization_id)
     return APIResponse.success(message="Job successfully created.", data=JobOut.model_validate(job), status_code=201)
 
 
@@ -205,6 +223,7 @@ async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: Annotated
     await db.commit()
     await db.refresh(job)
     background_tasks.add_task(es_service.index_job, job)
+    invalidate_jobs_cache(current_user.organization_id)
     return APIResponse.success(message="Job updated successfully.", data=JobOut.model_validate(job))
 
 
@@ -229,4 +248,5 @@ async def delete_job(job_id: uuid.UUID, current_user: Annotated[User, Depends(re
     await db.delete(job)
     await db.commit()
     background_tasks.add_task(es_service.delete_from_index, "hireon_jobs", str(job_id))
+    invalidate_jobs_cache(current_user.organization_id)
     return APIResponse.success(message="Job deleted successfully.")

@@ -30,8 +30,24 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
 
 
+import time
+_users_cache = {}
+_users_cache_ttl = 300 # 5 minutes
+
+def invalidate_users_cache(org_id):
+    org_id_str = str(org_id)
+    if org_id_str in _users_cache:
+        del _users_cache[org_id_str]
+
 @router.get("", response_model=list[UserOut])
 async def list_users(current_user: RecruiterUser, db: DB):
+    now = time.monotonic()
+    org_id_str = str(current_user.organization_id)
+    if org_id_str in _users_cache:
+        data, timestamp = _users_cache[org_id_str]
+        if now - timestamp < _users_cache_ttl:
+            return APIResponse.success(message="Users retrieved successfully.", data=data)
+
     result = await db.execute(
         select(User)
         .options(joinedload(User.organization))
@@ -41,7 +57,10 @@ async def list_users(current_user: RecruiterUser, db: DB):
     # Debug log to investigate why team members might not show up
     import logging
     print(f"DEBUG: Listing users for org {current_user.organization_id}: found {len(users)}")
-    return APIResponse.success(message="Users retrieved successfully.", data=[UserOut.model_validate(u) for u in users])
+    
+    out_data = [UserOut.model_validate(u) for u in users]
+    _users_cache[org_id_str] = (out_data, now)
+    return APIResponse.success(message="Users retrieved successfully.", data=out_data)
 
 
 from app.services.email_service import send_email
@@ -102,6 +121,7 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
         logger.warning(f"Invite email failed for {user.email} (user still created): {e}")
     
     background_tasks.add_task(es_service.index_user, user)
+    invalidate_users_cache(current_user.organization_id)
     return APIResponse.success(message="User invited successfully.", data=UserOut.model_validate(user))
 
 
@@ -207,6 +227,7 @@ async def update_my_profile(data: ProfileUpdateRequest, current_user: CurrentUse
     )
     updated_user = result.scalar_one()
     background_tasks.add_task(es_service.index_user, updated_user)
+    invalidate_users_cache(current_user.organization_id)
     return APIResponse.success(
         message="Profile updated successfully.",
         data=await _user_out_with_org(updated_user, db)
@@ -256,6 +277,7 @@ async def update_user(user_id: uuid.UUID, data: UserUpdate, current_user: AdminU
     await db.commit()
     await db.refresh(user)
     background_tasks.add_task(es_service.index_user, user)
+    invalidate_users_cache(current_user.organization_id)
     return APIResponse.success(message="User updated successfully.", data=UserOut.model_validate(user))
 
 
@@ -276,4 +298,5 @@ async def delete_user(user_id: uuid.UUID, current_user: AdminUser, db: DB, backg
     
     await db.delete(user)
     await db.commit()
+    invalidate_users_cache(current_user.organization_id)
     return APIResponse.success(message="User deleted successfully.", data=UserOut.model_validate(user))
