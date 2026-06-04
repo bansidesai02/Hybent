@@ -87,10 +87,13 @@ async def list_candidates(
         "inactive": ["inactive"]
     }
 
+    from sqlalchemy.orm import defer
     query = (
         select(Candidate)
         .where(Candidate.organization_id == current_user.organization_id)
         .options(
+            defer(Candidate.parsed_data),
+            defer(Candidate.summary),
             selectinload(Candidate.invitations),
             selectinload(Candidate.created_by),
         )

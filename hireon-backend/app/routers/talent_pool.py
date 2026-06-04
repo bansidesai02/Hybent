@@ -35,10 +35,13 @@ async def list_talent_pool(
 ):
     from app.models.application import Application
 
+    from sqlalchemy.orm import defer
     query = (
         select(Candidate)
         .where(Candidate.organization_id == current_user.organization_id)
         .options(
+            defer(Candidate.parsed_data),
+            defer(Candidate.summary),
             selectinload(Candidate.created_by),
             selectinload(Candidate.invitations),
         )
@@ -239,6 +242,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
     results = []
     for job in active_jobs:
         # Use simple statically saved scores and strict title mapping
+        from sqlalchemy.orm import defer
         cands_res = await db.execute(
             select(Candidate)
             .where(
@@ -246,7 +250,11 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
                 Candidate.applied_job_title == job.title,
                 Candidate.match_score.isnot(None)
             )
-            .options(selectinload(Candidate.created_by))
+            .options(
+                defer(Candidate.parsed_data),
+                defer(Candidate.summary),
+                selectinload(Candidate.created_by)
+            )
             .order_by(Candidate.match_score.desc().nulls_last())
             .limit(5)
         )
