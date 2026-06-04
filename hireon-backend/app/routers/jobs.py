@@ -60,15 +60,19 @@ async def list_jobs(
     counts = {str(row[0]): row[1] for row in count_result.all()}
 
     # Attach re-engage counts from talent pool
-    re_engage_result = await db.execute(
-        select(Candidate.applied_job_title, func.count(Candidate.id))
-        .where(
-            Candidate.organization_id == current_user.organization_id,
-            Candidate.match_score.isnot(None)
+    job_titles = [j.title for j in jobs]
+    re_engage_counts = {}
+    if job_titles:
+        re_engage_result = await db.execute(
+            select(Candidate.applied_job_title, func.count(Candidate.id))
+            .where(
+                Candidate.organization_id == current_user.organization_id,
+                Candidate.match_score.isnot(None),
+                Candidate.applied_job_title.in_(job_titles)
+            )
+            .group_by(Candidate.applied_job_title)
         )
-        .group_by(Candidate.applied_job_title)
-    )
-    re_engage_counts = {str(row[0]): row[1] for row in re_engage_result.all()}
+        re_engage_counts = {str(row[0]): row[1] for row in re_engage_result.all()}
 
     items = []
     for j in jobs:

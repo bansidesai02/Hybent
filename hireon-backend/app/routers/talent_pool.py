@@ -132,7 +132,10 @@ async def list_talent_pool(
             | Candidate.current_title.ilike(f"%{job_title}%")
         )
 
-    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()
+    count_query = select(func.count(Candidate.id))
+    if query.whereclause is not None:
+        count_query = count_query.where(query.whereclause)
+    total = (await db.execute(count_query)).scalar()
     items = (await db.execute(
         query.order_by(Candidate.match_score.desc().nulls_last()).offset((page - 1) * limit).limit(limit)
     )).scalars().all()

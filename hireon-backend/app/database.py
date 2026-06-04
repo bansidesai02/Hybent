@@ -45,9 +45,7 @@ def get_engine():
         _pid != current_pid or 
         (current_loop is not None and _loop is not current_loop)):
         
-        connect_args = {}
-        if ":6543" in settings.database_url:
-            connect_args["statement_cache_size"] = 0
+        connect_args = {"statement_cache_size": 0}
 
         _engine = create_async_engine(
             settings.database_url,
