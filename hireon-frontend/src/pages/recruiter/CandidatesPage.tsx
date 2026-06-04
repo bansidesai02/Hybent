@@ -426,7 +426,7 @@ function CandidateActionsDropdown({
       {/* Management Actions (Only Admin can Delete) */}
       {user?.role === 'admin' && (
         <button
-          onClick={(e) => { e.stopPropagation(); if (confirm('Are you sure you want to delete this candidate?')) onDelete(candidateId) }}
+          onClick={(e) => { e.stopPropagation(); onDelete(candidateId); onClose() }}
           style={{
             width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
             background: 'none', border: 'none', cursor: 'pointer',
@@ -472,6 +472,7 @@ export default function CandidatesPage() {
   const [inactivePipelineBlock, setInactivePipelineBlock] = useState<{ id: string; name: string } | null>(null)
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null)
   const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
+  const [candidateToDelete, setCandidateToDelete] = useState<{ id: string; name: string } | null>(null)
   const [showAddJobModal, setShowAddJobModal] = useState(false)
   const [newJobTitle, setNewJobTitle] = useState('')
   const [isCreatingJob, setIsCreatingJob] = useState(false)
@@ -1023,7 +1024,7 @@ export default function CandidatesPage() {
                         currentStage={stage || 'applied'}
                         onSelect={(s) => stageMutation.mutate({ id: candidate.id, stage: s })}
                         onInactivate={(id) => stageMutation.mutate({ id, stage: stage === 'inactive' ? 'applied' : 'inactive' })}
-                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onDelete={(id) => setCandidateToDelete({ id, name: candidate.full_name })}
                         onClose={() => setOpenDropdownId(null)}
                         onGenerateOffer={() => setOfferCandidate(candidate)}
                         onAddToPipeline={() => {
@@ -1194,6 +1195,38 @@ export default function CandidatesPage() {
               <button
                 onClick={() => { setShowAddJobModal(false); setNewJobTitle('') }}
                 style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--table-border)', background: 'var(--kpi-bg)', color: 'var(--text-mid)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {candidateToDelete && (
+        <Modal
+          open={!!candidateToDelete}
+          onClose={() => setCandidateToDelete(null)}
+          title="Delete Candidate"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              Are you sure you want to delete <strong>{candidateToDelete.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  deleteMutation.mutate(candidateToDelete.id)
+                  setCandidateToDelete(null)
+                }}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Delete Candidate
+              </button>
+              <button
+                onClick={() => setCandidateToDelete(null)}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>

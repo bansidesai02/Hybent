@@ -263,7 +263,7 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
       ))}
       <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
       {user?.role === 'admin' && (
-        <button onClick={e => { e.stopPropagation(); if (confirm('Delete this candidate?')) onDelete(candidateId) }}
+        <button onClick={e => { e.stopPropagation(); onDelete(candidateId); onClose() }}
           style={{ width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
             background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 500, color: '#ef4444',
             display: 'flex', alignItems: 'center', gap: 8 }}
@@ -308,6 +308,8 @@ export default function AllTalentListPage() {
   const [renameModal, setRenameModal] = useState<{ job: any; title: string } | null>(null)
   const [isRenamingJob, setIsRenamingJob] = useState(false)
   const [isDeletingJob, setIsDeletingJob] = useState(false)
+  const [candidateToDelete, setCandidateToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [jobToDelete, setJobToDelete] = useState<any | null>(null)
 
   // Saved Views & Alerts State
   const [savedViews, setSavedViews] = useState<any[]>(() => {
@@ -629,12 +631,16 @@ export default function AllTalentListPage() {
   }
 
   const handleDeleteJob = async (job: any) => {
-    if (!window.confirm(`Delete "${job.title}"? This cannot be undone.`)) return
+    setJobToDelete(job)
+  }
+
+  const confirmDeleteJob = async () => {
+    if (!jobToDelete) return
     setIsDeletingJob(true)
     try {
-      await jobsApi.delete(job.id)
-      toast.success(`"${job.title}" deleted`)
-      if (selectedJobId === job.id) setSelectedJobId('all')
+      await jobsApi.delete(jobToDelete.id)
+      toast.success(`"${jobToDelete.title}" deleted`)
+      if (selectedJobId === jobToDelete.id) setSelectedJobId('all')
       queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
       queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
     } catch (err: any) {
@@ -642,6 +648,7 @@ export default function AllTalentListPage() {
     } finally {
       setIsDeletingJob(false)
       setContextMenu(null)
+      setJobToDelete(null)
     }
   }
 
@@ -1128,7 +1135,7 @@ export default function AllTalentListPage() {
                           candidateId={candidate.id}
                           currentStage={stage || 'applied'}
                           onSelect={s => stageMutation.mutate({ id: candidate.id, stage: s })}
-                          onDelete={id => deleteMutation.mutate(id)}
+                          onDelete={id => setCandidateToDelete({ id, name: candidate.full_name })}
                           onClose={() => setOpenDropdownId(null)}
                           user={user}
                           onViewProfile={() => {
@@ -1235,6 +1242,68 @@ export default function AllTalentListPage() {
           queryClient.invalidateQueries({ queryKey: ['candidates'] })
         }}
       />
+
+      {candidateToDelete && (
+        <Modal
+          open={!!candidateToDelete}
+          onClose={() => setCandidateToDelete(null)}
+          title="Delete Candidate"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              Are you sure you want to delete <strong>{candidateToDelete.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  deleteMutation.mutate(candidateToDelete.id)
+                  setCandidateToDelete(null)
+                }}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Delete Candidate
+              </button>
+              <button
+                onClick={() => setCandidateToDelete(null)}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {jobToDelete && (
+        <Modal
+          open={!!jobToDelete}
+          onClose={() => setJobToDelete(null)}
+          title="Delete Designation"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              Are you sure you want to delete <strong>{jobToDelete.title}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={isDeletingJob}
+                onClick={confirmDeleteJob}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {isDeletingJob ? 'Deleting...' : 'Delete Designation'}
+              </button>
+              <button
+                onClick={() => setJobToDelete(null)}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
