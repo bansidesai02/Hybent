@@ -303,8 +303,15 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
 
 @router.get("/{interview_id}")
 async def get_interview(interview_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    from sqlalchemy.orm import joinedload, selectinload
     result = await db.execute(
-        select(Interview).where(
+        select(Interview)
+        .options(
+            joinedload(Interview.candidate),
+            selectinload(Interview.application).joinedload(Application.job),
+            selectinload(Interview.panelists).selectinload(InterviewPanelist.user)
+        )
+        .where(
             Interview.id == interview_id,
             Interview.organization_id == current_user.organization_id,
         )
@@ -313,21 +320,30 @@ async def get_interview(interview_id: uuid.UUID, current_user: CurrentUser, db: 
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
 
-    cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
+    cand = interview.candidate
 
-    panelists_result = await db.execute(
-        select(InterviewPanelist).where(InterviewPanelist.interview_id == interview_id)
-    )
     panelist_out = []
-    for p in panelists_result.scalars().all():
-        u = (await db.execute(select(User).where(User.id == p.user_id))).scalar_one_or_none()
+    for p in interview.panelists:
+        u = p.user
         panelist_out.append({
-            "id": str(p.id), "user_id": str(p.user_id), "role": p.role,
+            "id": str(p.id),
+            "user_id": str(p.user_id),
+            "role": p.role,
             "user_name": u.full_name if u else None,
             "user_email": u.email if u else None,
         })
 
-    d = await _interview_out(db, interview, panelist_out)
+    d = InterviewOut.model_validate(interview).model_dump()
+    d["panelists"] = panelist_out
+    
+    # Populate job_title for UI consistency in-memory
+    if interview.application and interview.application.job:
+        d["job_title"] = interview.application.job.title
+    elif cand and cand.applied_job_title:
+        d["job_title"] = cand.applied_job_title
+    else:
+        d["job_title"] = "Position"
+
     if cand:
         d["candidate_name"] = cand.full_name
         d["candidate_email"] = cand.email

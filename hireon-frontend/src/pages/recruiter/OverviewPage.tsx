@@ -1,7 +1,6 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '@/api/analytics'
-import { notificationsApi } from '@/api/notifications'
 import { interviewsApi } from '@/api/interviews'
 import { useAuthStore } from '@/store/authStore'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -207,11 +206,6 @@ export default function OverviewPage() {
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: () => analyticsApi.overview().then((r: any) => r.data),
-  })
-
-  const { data: activitiesData, isLoading: activitiesLoading } = useQuery({
-    queryKey: ['recent-activities-legacy'],
-    queryFn: () => notificationsApi.list().then((r: any) => r.data),
   })
 
   const { data: interviews, isLoading: interviewsLoading } = useQuery({

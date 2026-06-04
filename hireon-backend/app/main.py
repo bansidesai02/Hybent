@@ -105,6 +105,21 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+import time
+perf_logger = logging.getLogger("api_performance")
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    process_time = time.perf_counter() - start_time
+    perf_logger.info(
+        f"{request.method} {request.url.path} "
+        f"Status={response.status_code} "
+        f"Time={process_time:.3f}s"
+    )
+    return response
+
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):

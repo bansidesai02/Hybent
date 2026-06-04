@@ -12,6 +12,8 @@ from app.tasks.notifications import notify_candidate_stage_change
 
 router = APIRouter(prefix="/v1/applications", tags=["applications"])
 
+from sqlalchemy.orm import joinedload
+
 async def _get_application(application_id: uuid.UUID, org_id: uuid.UUID, db) -> Application:
     result = await db.execute(
         select(Application).where(
@@ -28,8 +30,19 @@ async def _get_application(application_id: uuid.UUID, org_id: uuid.UUID, db) -> 
 async def _enrich_application(app: Application, db) -> dict:
     """Add candidate and job data to application dict."""
     d = ApplicationOut.model_validate(app).model_dump()
-    cand = (await db.execute(select(Candidate).where(Candidate.id == app.candidate_id))).scalar_one_or_none()
-    job = (await db.execute(select(Job).where(Job.id == app.job_id))).scalar_one_or_none()
+    from sqlalchemy.orm.attributes import instance_state
+    state = instance_state(app)
+
+    if "candidate" in state.unloaded:
+        cand = (await db.execute(select(Candidate).where(Candidate.id == app.candidate_id))).scalar_one_or_none()
+    else:
+        cand = app.candidate
+
+    if "job" in state.unloaded:
+        job = (await db.execute(select(Job).where(Job.id == app.job_id))).scalar_one_or_none()
+    else:
+        job = app.job
+
     if cand:
         from app.schemas.candidate import CandidateOut
         d["candidate"] = CandidateOut.model_validate(cand).model_dump()
@@ -61,10 +74,16 @@ async def list_applications(
     if stage:
         query = query.where(Application.stage == stage)
 
+    query = query.options(
+        joinedload(Application.candidate),
+        joinedload(Application.job)
+    )
+
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()
     apps = (await db.execute(query.offset((page - 1) * limit).limit(limit))).scalars().all()
     items = [await _enrich_application(a, db) for a in apps]
     return APIResponse.success(message="Applications retrieved successfully.", data=paginate(items, total, page, limit))
+
 
 
 @router.post("", response_model=dict, status_code=201)

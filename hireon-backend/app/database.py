@@ -123,6 +123,22 @@ AsyncSessionLocal = AsyncSessionProxy()
 def get_db_factory():
     return get_session_factory()
 
+# ── Write Tracking Event Listeners ───────────────────────────────────────────
+from sqlalchemy import event
+from sqlalchemy.orm import Session
+
+@event.listens_for(Session, "after_flush")
+def receive_after_flush(session, flush_context):
+    session.info["has_writes"] = True
+
+@event.listens_for(Session, "after_bulk_update")
+def receive_after_bulk_update(update_context):
+    update_context.session.info["has_writes"] = True
+
+@event.listens_for(Session, "after_bulk_delete")
+def receive_after_bulk_delete(delete_context):
+    delete_context.session.info["has_writes"] = True
+
 # ── Dependency ─────────────────────────────────────────────────────────────────
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency: yields an async DB session, rolls back on error."""
@@ -130,7 +146,15 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with get_session_factory()() as session:
         try:
             yield session
-            await session.commit()
+            # Only commit if session has undergone writes or holds pending changes
+            if (
+                session.info.get("has_writes", False)
+                or session.new
+                or session.deleted
+                or session.dirty
+            ):
+                await session.commit()
         except Exception:
             await session.rollback()
             raise
+

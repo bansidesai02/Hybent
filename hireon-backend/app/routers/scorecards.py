@@ -104,7 +104,6 @@ async def get_my_scorecard_for_interview(interview_id: uuid.UUID, current_user: 
 
 @router.get("/application/{application_id}")
 async def list_scorecards_for_application(application_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    from app.models.user import User
     if current_user.role == "recruiter":
         from app.models.application import Application
         from app.models.job import Job
@@ -121,8 +120,14 @@ async def list_scorecards_for_application(application_id: uuid.UUID, current_use
         if not app_check.scalar_one_or_none():
             raise HTTPException(status_code=403, detail="Not authorized to view scorecards for this application")
 
+    from sqlalchemy.orm import joinedload
     result = await db.execute(
-        select(Scorecard).where(
+        select(Scorecard)
+        .options(
+            joinedload(Scorecard.submitted_by),
+            joinedload(Scorecard.interview)
+        )
+        .where(
             Scorecard.application_id == application_id,
             Scorecard.organization_id == current_user.organization_id,
         )
@@ -131,24 +136,25 @@ async def list_scorecards_for_application(application_id: uuid.UUID, current_use
     out = []
     for sc in scorecards:
         d = ScorecardOut.model_validate(sc).model_dump()
-        user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
-        d["submitted_by_name"] = user.full_name if user else None
-        # Fetch interview title
-        res = await db.execute(select(Interview.title).where(Interview.id == sc.interview_id))
-        d["interview_title"] = res.scalar_one_or_none()
+        d["submitted_by_name"] = sc.submitted_by.full_name if sc.submitted_by else None
+        d["interview_title"] = sc.interview.title if sc.interview else None
         out.append(d)
     return APIResponse.success(message="Scorecards retrieved.", data=out)
     
     
 @router.get("/candidate/{candidate_id}")
 async def list_scorecards_for_candidate(candidate_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    from app.models.user import User
     from app.models.interview import Interview
+    from sqlalchemy.orm import joinedload
     
     # Check org access
     result = await db.execute(
         select(Scorecard)
         .join(Interview, Scorecard.interview_id == Interview.id)
+        .options(
+            joinedload(Scorecard.submitted_by),
+            joinedload(Scorecard.interview)
+        )
         .where(
             Interview.candidate_id == candidate_id,
             Scorecard.organization_id == current_user.organization_id,
@@ -159,11 +165,8 @@ async def list_scorecards_for_candidate(candidate_id: uuid.UUID, current_user: C
     out = []
     for sc in scorecards:
         d = ScorecardOut.model_validate(sc).model_dump()
-        user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
-        d["submitted_by_name"] = user.full_name if user else None
-        # Fetch interview title
-        res = await db.execute(select(Interview.title).where(Interview.id == sc.interview_id))
-        d["interview_title"] = res.scalar_one_or_none()
+        d["submitted_by_name"] = sc.submitted_by.full_name if sc.submitted_by else None
+        d["interview_title"] = sc.interview.title if sc.interview else None
         out.append(d)
         
     return APIResponse.success(message="Scorecards retrieved.", data=out)
@@ -171,8 +174,14 @@ async def list_scorecards_for_candidate(candidate_id: uuid.UUID, current_user: C
 
 @router.get("/{scorecard_id}", response_model=ScorecardOut)
 async def get_scorecard(scorecard_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    from sqlalchemy.orm import joinedload
     result = await db.execute(
-        select(Scorecard).where(
+        select(Scorecard)
+        .options(
+            joinedload(Scorecard.submitted_by),
+            joinedload(Scorecard.interview)
+        )
+        .where(
             Scorecard.id == scorecard_id,
             Scorecard.organization_id == current_user.organization_id,
         )
@@ -180,13 +189,9 @@ async def get_scorecard(scorecard_id: uuid.UUID, current_user: CurrentUser, db: 
     sc = result.scalar_one_or_none()
     if not sc:
         raise HTTPException(status_code=404, detail="Scorecard not found")
-    from app.models.user import User
-    user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
     d = ScorecardOut.model_validate(sc).model_dump()
-    d["submitted_by_name"] = user.full_name if user else None
-    # Fetch interview title
-    res = await db.execute(select(Interview.title).where(Interview.id == sc.interview_id))
-    d["interview_title"] = res.scalar_one_or_none()
+    d["submitted_by_name"] = sc.submitted_by.full_name if sc.submitted_by else None
+    d["interview_title"] = sc.interview.title if sc.interview else None
     return APIResponse.success(message="Scorecard retrieved.", data=d)
 
 
@@ -205,7 +210,6 @@ async def get_or_generate_ai_summary(
     If it hasn't been generated yet (or `?regenerate=true`), call the AI
     to synthesize all interviewers' scorecards and persist the result.
     """
-    from app.models.user import User
     from app.services.ai_evaluator import generate_combined_feedback_summary
 
     # Fetch the interview
@@ -227,8 +231,11 @@ async def get_or_generate_ai_summary(
         )
 
     # Fetch all scorecards for this interview
+    from sqlalchemy.orm import joinedload
     sc_result = await db.execute(
-        select(Scorecard).where(Scorecard.interview_id == interview_id)
+        select(Scorecard)
+        .options(joinedload(Scorecard.submitted_by))
+        .where(Scorecard.interview_id == interview_id)
     )
     scorecards = sc_result.scalars().all()
 
@@ -242,8 +249,7 @@ async def get_or_generate_ai_summary(
     cards_data = []
     for sc in scorecards:
         d = ScorecardOut.model_validate(sc).model_dump()
-        user = (await db.execute(select(User).where(User.id == sc.submitted_by_id))).scalar_one_or_none()
-        d["submitted_by_name"] = user.full_name if user else "Unknown"
+        d["submitted_by_name"] = sc.submitted_by.full_name if sc.submitted_by else "Unknown"
         cards_data.append(d)
 
     # Call AI
