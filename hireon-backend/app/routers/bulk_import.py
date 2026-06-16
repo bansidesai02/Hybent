@@ -9,9 +9,9 @@ import aiofiles
 import csv
 import io
 from datetime import datetime, timezone
-from fastapi import APIRouter, File, UploadFile, Query, HTTPException
+from fastapi import APIRouter, File, UploadFile, Query, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import DB, RecruiterUser
@@ -496,6 +496,7 @@ async def rollback_import_batch(
     batch_id: uuid.UUID,
     current_user: RecruiterUser,
     db: DB,
+    background_tasks: BackgroundTasks,
 ):
     batch = (
         await db.execute(
@@ -519,13 +520,33 @@ async def rollback_import_batch(
         )
     ).scalars().all()
     deleted_count = len(candidates)
-    for candidate in candidates:
-        await db.delete(candidate)
+    candidate_ids = [c.id for c in candidates]
+
+    if candidate_ids:
+        # Delete associated applications first to prevent ForeignKey integrity errors
+        from app.models.application import Application
+        await db.execute(
+            delete(Application).where(Application.candidate_id.in_(candidate_ids))
+        )
+
+        # Delete candidates
+        for candidate in candidates:
+            await db.delete(candidate)
 
     batch.status = "rolled_back"
     batch.deleted_at = datetime.now(timezone.utc)
     batch.deleted_by_id = current_user.id
     await db.commit()
+
+    # Async delete from Elasticsearch index
+    if candidate_ids:
+        from app.services import elasticsearch_service as es_service
+        for cid in candidate_ids:
+            background_tasks.add_task(
+                es_service.delete_from_index,
+                "hireon_candidates",
+                str(cid)
+            )
 
     return APIResponse.success(
         message=f"Rolled back import batch successfully. Deleted {deleted_count} imported candidates.",
