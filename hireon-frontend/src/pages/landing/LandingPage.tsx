@@ -1499,7 +1499,6 @@ export default function LandingPage() {
             style={{ borderTop: '1px solid rgba(108,71,255,0.08)', color: 'var(--text-light)' }}
           >
             <span>&copy; {new Date().getFullYear()} Hireon. All rights reserved.</span>
-            <span>Powered by AI &mdash; Built with ❤️</span>
           </div>
         </div>
       </footer>
