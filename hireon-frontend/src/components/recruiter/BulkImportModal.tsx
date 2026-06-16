@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { Upload, Check, AlertTriangle, CheckCircle, AlertCircle, Loader, ChevronDown, Search } from 'lucide-react'
+import { Upload, Check, AlertTriangle, CheckCircle, AlertCircle, ChevronDown, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 import { bulkImportApi, type ImportResultData, type SheetInfo, type SheetPreviewData } from '@/api/bulkImport'
@@ -469,9 +469,47 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
           {/* IMPORTING STAGE */}
           {stage === 'importing' && (
             <motion.div key="importing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <Loader className="w-10 h-10 text-blue-500 animate-spin" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">Importing candidates...</h3>
+              <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                <div className="relative mb-2">
+                  {/* Rotating dashed outer orbit ring */}
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-[-10px] rounded-full border border-[#6c47ff]/40"
+                    style={{ borderStyle: 'dashed', borderWidth: '1.2px', borderDasharray: '2 5' } as any}
+                  >
+                    {/* Orbiting glowing dot */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+                  </motion.div>
+
+                  {/* Pulsing Hireon Logo Box */}
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.05, 1],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative z-10 w-[48px] h-[48px] flex items-center justify-center"
+                  >
+                    {/* Background Squircle with Gradient */}
+                    <div 
+                      className="absolute inset-0 rounded-[12px] shadow-md"
+                      style={{ 
+                        background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
+                        boxShadow: '0 6px 16px rgba(108,71,255,0.25)'
+                      }}
+                    >
+                      <div className="absolute inset-0 rounded-[12px]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25), transparent 60%)' }} />
+                    </div>
+
+                    {/* Hireon 'H' SVG mark */}
+                    <svg className="relative z-10" width="24" height="24" viewBox="0 0 22 22" fill="none">
+                      <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
+                      <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
+                      <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95" />
+                    </svg>
+                  </motion.div>
+                </div>
+                <h3 className="font-semibold text-gray-900 dark:text-white text-md">Importing candidates...</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Please wait while we process your data</p>
               </div>
             </motion.div>
