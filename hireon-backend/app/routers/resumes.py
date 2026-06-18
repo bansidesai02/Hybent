@@ -108,6 +108,7 @@ async def upload_and_create(
         user_id=current_user.id,
         organization_id=current_user.organization_id
     )
+    logger.info(f"Upload-and-create parsed resume: {parsed}")
 
     # Priority 4: fail fast if no email — don't create ghost candidates
     email = parsed.get("email")
@@ -158,8 +159,8 @@ async def upload_and_create(
         except ValueError:
             pass
             
-    from app.utils.category import extract_core_category, detect_category_from_skills, get_missing_skills_hint
-    target_category = extract_core_category(target_title)
+    from app.utils.category import extract_core_category, extract_all_categories, detect_category_from_skills, get_missing_skills_hint, get_tech_keywords
+    target_categories = extract_all_categories(target_title)
     
     # Skill-based detection is more accurate than title (e.g. "Software Engineer" with MEAN skills → MEAN Stack)
     candidate_skills_list = parsed.get("skills", [])
@@ -170,39 +171,47 @@ async def upload_and_create(
         if not cat1 or not cat2: return False
         c1, c2 = cat1.lower(), cat2.lower()
         if c1 in c2 or c2 in c1: return False
+        
         generics = ["software", "engineer", "developer", "backend", "frontend", "full stack", "programmer", "coder", "tech lead", "it", "web"]
         is_c1_generic = any(g in c1 for g in generics)
         is_c2_generic = any(g in c2 for g in generics)
-        if is_c1_generic and is_c2_generic: return False
         
-        techs = ["python", "react", "node", "java", "php", "angular", "mern", "mean", "ios", "android", "flutter", "golang", "ruby", "c++", "c#", ".net"]
-        c2_techs = [t for t in techs if t in c2]
-        is_c1_tech = any(t in c1 for t in techs)
-        is_c2_tech = bool(c2_techs)
-        
-        # If candidate is generic/non-tech and job is specific tech
-        if is_c1_generic and is_c2_tech:
-            if not any(t in candidate_skills_str for t in c2_techs):
-                return True
+        # If target category is generic, it's not a mismatch
+        if is_c2_generic:
             return False
             
-        # If job is generic and candidate is specific tech, allow it
-        if is_c2_generic and is_c1_tech:
+        # Target is specific tech category (e.g. "Angular", ".Net")
+        # Check if the candidate has the required technology keywords in their skills
+        target_kws = get_tech_keywords(cat2)
+        if any(kw in candidate_skills_str for kw in target_kws):
             return False
             
         return True
 
-    if is_mismatch(parsed_category, target_category):
-        missing = get_missing_skills_hint(candidate_skills_list, target_category)
+    mismatch_detected = True
+    for target_cat in target_categories:
+        if not is_mismatch(parsed_category, target_cat):
+            mismatch_detected = False
+            break
+
+    if mismatch_detected:
+        target_category_str = " + ".join(target_categories) if target_categories else target_title
+        missing = []
+        for target_cat in target_categories:
+            missing.extend(get_missing_skills_hint(candidate_skills_list, target_cat))
+        # Deduplicate missing skills
+        seen = set()
+        missing = [x for x in missing if not (x in seen or seen.add(x))]
+
         raise HTTPException(
             status_code=400,
             detail={
                 "type": "role_mismatch",
-                "candidate_category": parsed_category,
-                "target_category": target_category,
+                "candidate_category": parsed_category or "Unknown",
+                "target_category": target_category_str,
                 "missing_skills": missing,
                 "suggested_roles": [parsed_category] if parsed_category else [],
-                "message": f"Upload Rejected: Resume is a '{parsed_category}' profile, not a '{target_category}' profile."
+                "message": f"Upload Rejected: Resume is a '{parsed_category or 'Unknown'}' profile, not a '{target_category_str}' profile."
             }
         )
 

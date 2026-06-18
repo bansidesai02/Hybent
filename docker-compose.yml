@@ -45,6 +45,7 @@ services:
       APP_ENV: production
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
       RUN_SEED: ${RUN_SEED:-false}
+      PYTHONUNBUFFERED: "1"
     volumes:
       # Persists uploaded resumes, JDs, avatars across container rebuilds
       - uploads_data:/app/uploads
@@ -92,6 +93,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       APP_ENV: production
       SKIP_PRESTART: "true"
+      PYTHONUNBUFFERED: "1"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -117,6 +119,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       APP_ENV: production
       SKIP_PRESTART: "true"
+      PYTHONUNBUFFERED: "1"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
