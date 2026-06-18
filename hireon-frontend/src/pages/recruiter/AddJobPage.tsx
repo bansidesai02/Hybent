@@ -52,6 +52,102 @@ const ICON_COLORS = [
   'linear-gradient(135deg,#fef3c7,#fde68a)',
 ]
 
+const getExperienceDisplay = (job: Job) => {
+  const levelLabels: Record<string, string> = {
+    entry: 'Entry Level',
+    mid: 'Mid Level',
+    senior: 'Senior',
+    lead: 'Lead / Principal',
+    director: 'Director+',
+  }
+
+  const parts: string[] = []
+  if (job.min_experience_years != null && job.min_experience_years > 0) {
+    parts.push(`${job.min_experience_years}+ years`)
+  }
+
+  if (job.experience_level) {
+    const normalized = job.experience_level.toLowerCase().trim()
+    const friendlyLevel = levelLabels[normalized] || job.experience_level
+    parts.push(friendlyLevel)
+  }
+
+  return parts.join(' - ') || 'Not specified'
+}
+
+const updateDescriptionWithExperience = (
+  description: string,
+  minYears: number,
+  level: string
+) => {
+  if (!description) return description
+
+  const levelLabels: Record<string, string> = {
+    entry: 'Entry Level',
+    mid: 'Mid Level',
+    senior: 'Senior',
+    lead: 'Lead / Principal',
+    director: 'Director+',
+  }
+  const friendlyLevel = levelLabels[level.toLowerCase()] || level
+
+  let newDesc = description
+
+  // 1. Replace years of experience: e.g. "3+ years", "5 years", "1-3 years", "5+ years of experience"
+  const yearsRegex = /\b(?:\d+\+?|\d+\s*-\s*\d+)\s*years?(?:\s*of\s*experience)?\b/gi
+
+  if (minYears > 0) {
+    const newYearsStr = `${minYears}+ years of experience`
+    if (yearsRegex.test(newDesc)) {
+      newDesc = newDesc.replace(yearsRegex, newYearsStr)
+    } else {
+      // Append if not found in description
+      newDesc = `${newDesc}\n\nRequired Experience: ${newYearsStr}`
+    }
+  }
+
+  // 2. Replace experience level: e.g. "Senior", "Mid Level", etc.
+  const levelsToMatch = ['Entry Level', 'Mid Level', 'Senior Level', 'Senior', 'Lead / Principal', 'Lead', 'Director+'].map(l => l.replace(/[+]/g, '\\+'))
+  const levelRegex = new RegExp(`\\b(${levelsToMatch.join('|')})\\b`, 'gi')
+
+  if (level) {
+    if (levelRegex.test(newDesc)) {
+      newDesc = newDesc.replace(levelRegex, friendlyLevel)
+    }
+  }
+
+  return newDesc
+}
+
+const parseExperience = (expStr: string) => {
+  if (!expStr) return { min_experience_years: 0, experience_level: 'entry' }
+
+  const normalized = expStr.toLowerCase().trim()
+  
+  // Try to find the number of years
+  const numMatch = normalized.match(/\d+/)
+  const minYears = numMatch ? parseInt(numMatch[0], 10) : 0
+
+  let level = 'mid' // default fallback
+
+  if (normalized.includes('entry') || normalized.includes('junior') || normalized.includes('fresher') || minYears <= 1) {
+    level = 'entry'
+  } else if (normalized.includes('senior') || (minYears >= 5 && minYears < 8)) {
+    level = 'senior'
+  } else if (normalized.includes('lead') || normalized.includes('principal') || (minYears >= 8 && minYears < 12)) {
+    level = 'lead'
+  } else if (normalized.includes('director') || normalized.includes('vp') || minYears >= 12) {
+    level = 'director'
+  } else if (normalized.includes('mid') || (minYears > 1 && minYears < 5)) {
+    level = 'mid'
+  }
+
+  return {
+    min_experience_years: minYears,
+    experience_level: level
+  }
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AddJobPage() {
@@ -78,6 +174,7 @@ export default function AddJobPage() {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     reset,
     control,
     formState: { errors },
@@ -121,6 +218,49 @@ export default function AddJobPage() {
     }
   }, [jobData, reset])
 
+  const prevMinExpRef = useRef<number | undefined>(undefined)
+  const prevExpLevelRef = useRef<string | undefined>(undefined)
+
+  const watchedMinExp = watch('min_experience_years')
+  const watchedExpLevel = watch('experience_level')
+
+  useEffect(() => {
+    if (jobData) {
+      prevMinExpRef.current = jobData.min_experience_years ?? 0
+      prevExpLevelRef.current = jobData.experience_level || ''
+    }
+  }, [jobData])
+
+  useEffect(() => {
+    if (watchedMinExp === undefined && watchedExpLevel === undefined) return
+
+    const prevMinExp = prevMinExpRef.current
+    const prevExpLevel = prevExpLevelRef.current
+
+    let shouldUpdate = false
+    if (prevMinExp !== undefined && watchedMinExp !== undefined && Number(watchedMinExp) !== Number(prevMinExp)) {
+      shouldUpdate = true
+    }
+    if (prevExpLevel !== undefined && watchedExpLevel !== undefined && watchedExpLevel !== prevExpLevel) {
+      shouldUpdate = true
+    }
+
+    if (shouldUpdate) {
+      const currentDescription = getValues('description') || ''
+      const newDesc = updateDescriptionWithExperience(
+        currentDescription,
+        Number(watchedMinExp || 0),
+        watchedExpLevel || ''
+      )
+      if (newDesc !== currentDescription) {
+        setValue('description', newDesc, { shouldDirty: true, shouldValidate: true })
+      }
+
+      prevMinExpRef.current = Number(watchedMinExp || 0)
+      prevExpLevelRef.current = watchedExpLevel || ''
+    }
+  }, [watchedMinExp, watchedExpLevel, setValue, getValues])
+
   const handleApplyAIJD = (approved: any) => {
     if (approved) {
       if (approved.title) setValue('title', approved.title)
@@ -133,6 +273,12 @@ export default function AddJobPage() {
       
       if (approved.key_responsibilities && approved.key_responsibilities.length > 0) {
         setValue('responsibilities', Array.isArray(approved.key_responsibilities) ? approved.key_responsibilities.join('\n• ') : approved.key_responsibilities)
+      }
+
+      if (approved.experience) {
+        const { min_experience_years, experience_level } = parseExperience(approved.experience)
+        setValue('min_experience_years', min_experience_years)
+        setValue('experience_level', experience_level)
       }
     }
     setShowAIReview(false)
@@ -225,7 +371,11 @@ export default function AddJobPage() {
       if (parsed.key_responsibilities && parsed.key_responsibilities.length > 0) {
         setValue('responsibilities', typeof parsed.key_responsibilities === 'string' ? parsed.key_responsibilities : parsed.key_responsibilities.join('\n• '))
       }
-      if (parsed.min_experience_years != null) setValue('min_experience_years', parsed.min_experience_years)
+      if (parsed.min_experience_years != null) {
+        setValue('min_experience_years', parsed.min_experience_years)
+        const { experience_level } = parseExperience(`${parsed.min_experience_years} years`)
+        setValue('experience_level', experience_level)
+      }
       if (parsed.description) setValue('description', parsed.description)
       if (parsed.required_skills) setValue('skills_required', parsed.required_skills)
       if (parsed.jd_url) setValue('jd_url', parsed.jd_url)
@@ -598,7 +748,7 @@ export default function AddJobPage() {
                             {job.title}
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--text-light)' }}>
-                            {[job.location, job.experience_level].filter(Boolean).join(' · ')}
+                            {[job.location, getExperienceDisplay(job)].filter(Boolean).join(' · ')}
                           </div>
                         </div>
                         <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: badge.bg, color: badge.color, flexShrink: 0 }}>

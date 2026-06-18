@@ -67,6 +67,29 @@ const STATUS_FILTERS = [
   { value: 'closed', label: 'Closed' },
 ]
 
+const getExperienceDisplay = (job: Job) => {
+  const levelLabels: Record<string, string> = {
+    entry: 'Entry Level',
+    mid: 'Mid Level',
+    senior: 'Senior',
+    lead: 'Lead / Principal',
+    director: 'Director+',
+  }
+
+  const parts: string[] = []
+  if (job.min_experience_years != null && job.min_experience_years > 0) {
+    parts.push(`${job.min_experience_years}+ years`)
+  }
+
+  if (job.experience_level) {
+    const normalized = job.experience_level.toLowerCase().trim()
+    const friendlyLevel = levelLabels[normalized] || job.experience_level
+    parts.push(friendlyLevel)
+  }
+
+  return parts.join(' - ') || 'Not specified'
+}
+
 // ─── Job Detail Modal ──────────────────────────────────────────────────────────
 
 function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => void; onEdit: () => void }) {
@@ -83,7 +106,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
       const jdData = {
         title: job.title,
         location: job.location || 'Remote',
-        experience: job.experience_level,
+        experience: getExperienceDisplay(job),
         key_responsibilities: job.requirements ? job.requirements.split('\n') : [],
         required_qualifications_skills: job.skills_required,
         good_to_have: [],
@@ -163,7 +186,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
           </div>
           <div style={{ padding: 14, borderRadius: 12, border: '1px solid #e5e7eb', background: 'var(--card-bg)' }}>
              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 4 }}>Experience</p>
-             <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{job.experience_level}</p>
+             <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{getExperienceDisplay(job)}</p>
           </div>
           <div style={{ padding: 14, borderRadius: 12, border: '1px solid #e5e7eb', background: 'var(--card-bg)' }}>
              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 4 }}>Posted</p>
