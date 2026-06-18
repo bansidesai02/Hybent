@@ -147,17 +147,17 @@ async def upload_and_create(
             }
         )
 
-    # Pre-check: Reject fundamentally mismatched roles early to save AI Analysis tokens
-    target_title = role_title
+    # Resolve target job/designation
+    from app.models.job import Job
+    job = None
     if job_id and job_id.lower() not in ("null", "undefined", ""):
-        from app.models.job import Job
         try:
             job_res = await db.execute(select(Job).where(Job.id == uuid.UUID(job_id)))
-            existing_job = job_res.scalar_one_or_none()
-            if existing_job:
-                target_title = existing_job.title
+            job = job_res.scalar_one_or_none()
         except ValueError:
             pass
+
+    target_title = job.title if job else role_title
             
     from app.utils.category import extract_core_category, extract_all_categories, detect_category_from_skills, get_missing_skills_hint, get_tech_keywords
     target_categories = extract_all_categories(target_title)
@@ -195,39 +195,42 @@ async def upload_and_create(
             break
 
     if mismatch_detected:
-        target_category_str = " + ".join(target_categories) if target_categories else target_title
-        missing = []
-        for target_cat in target_categories:
-            missing.extend(get_missing_skills_hint(candidate_skills_list, target_cat))
-        # Deduplicate missing skills
-        seen = set()
-        missing = [x for x in missing if not (x in seen or seen.add(x))]
-
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "type": "role_mismatch",
-                "candidate_category": parsed_category or "Unknown",
-                "target_category": target_category_str,
-                "missing_skills": missing,
-                "suggested_roles": [parsed_category] if parsed_category else [],
-                "message": f"Upload Rejected: Resume is a '{parsed_category or 'Unknown'}' profile, not a '{target_category_str}' profile."
-            }
+        # Determine designation title from candidate's resume
+        new_title = parsed.get("current_title") or parsed_category or "Software Engineer"
+        new_title = new_title.strip()
+        
+        # Check if designation already exists in the organization
+        stmt = select(Job).where(
+            Job.title.ilike(new_title),
+            Job.organization_id == current_user.organization_id
         )
+        existing_job_res = await db.execute(stmt)
+        matched_job = existing_job_res.scalar_one_or_none()
+        
+        if not matched_job:
+            # Create a new designation pool
+            matched_job = Job(
+                organization_id=current_user.organization_id,
+                title=new_title,
+                status="pool",
+                description=f"Designation pool for {new_title}",
+                openings=0,
+                job_type="full_time"
+            )
+            db.add(matched_job)
+            await db.flush()
+            logger.info(f"Automatically created new designation pool: '{new_title}' (ID: {matched_job.id}) for candidate {full_name}")
+            
+        # Override target parameters to match the new/found designation
+        job = matched_job
+        target_title = job.title
+        mismatch_detected = False
 
     # Priority 1: compute score using the real ML scorer
     req_skills_list = [s.strip() for s in required_skills.split(",") if s.strip()]
     score: float | None = None
     breakdown: dict | None = None
-    
-    from app.models.job import Job
-    job = None
-    if job_id and job_id.lower() not in ("null", "undefined", ""):
-        try:
-            job_res = await db.execute(select(Job).where(Job.id == uuid.UUID(job_id)))
-            job = job_res.scalar_one_or_none()
-        except ValueError:
-            pass
+
     
     if job or req_skills_list or min_experience > 0:
         if not job:
@@ -287,9 +290,13 @@ async def upload_and_create(
     candidate.phone = candidate.phone or parsed.get("phone")
     candidate.location = candidate.location or parsed.get("location")
     candidate.match_score = score
-    from app.utils.category import extract_core_category
-    actual_title = parsed.get("current_title") or role_title or ""
-    candidate.applied_job_title = extract_core_category(actual_title) if actual_title else candidate.applied_job_title
+    if job:
+        candidate.applied_job_title = job.title
+    else:
+        from app.utils.category import extract_core_category
+        actual_title = parsed.get("current_title") or role_title or ""
+        candidate.applied_job_title = extract_core_category(actual_title) if actual_title else candidate.applied_job_title
+
     # Priority 6: score breakdown is a separate field, not buried in parsed_data
     candidate.score_breakdown = breakdown
     candidate.parsed_data = parsed
