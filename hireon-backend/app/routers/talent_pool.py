@@ -50,20 +50,20 @@ async def list_talent_pool(
     if job_id and job_id != "all":
         from app.models.job import Job
         from sqlalchemy import or_
-        from app.utils.category import extract_core_category
+        from app.utils.category import extract_all_categories
         job = await db.get(Job, job_id)
         if job:
             resolved_job_title = job.title
-            core_cat = extract_core_category(resolved_job_title)
-            query = query.where(
-                or_(
-                    Candidate.applied_job_title.ilike(f"%{resolved_job_title}%"),
-                    Candidate.applied_job_title.ilike(f"%{core_cat}%"),
-                    Candidate.current_title.ilike(f"%{resolved_job_title}%"),
-                    Candidate.current_title.ilike(f"%{core_cat}%"),
-                    Candidate.applications.any(Application.job_id == job_id)
-                )
-            )
+            job_categories = extract_all_categories(resolved_job_title)
+            or_conds = [
+                Candidate.applied_job_title.ilike(f"%{resolved_job_title}%"),
+                Candidate.current_title.ilike(f"%{resolved_job_title}%"),
+                Candidate.applications.any(Application.job_id == job_id)
+            ]
+            for cat in job_categories:
+                or_conds.append(Candidate.applied_job_title.ilike(f"%{cat}%"))
+                or_conds.append(Candidate.current_title.ilike(f"%{cat}%"))
+            query = query.where(or_(*or_conds))
 
     if created_by_id and created_by_id != "all":
         query = query.where(Candidate.created_by_id == created_by_id)
