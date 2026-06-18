@@ -342,18 +342,54 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
       } else if (imageType === 'ai' && aiImageUrl) {
         finalImage = aiImageUrl
       }
-      // If imageType === 'none', finalImage remains undefined
 
-      const r: any = await linkedinApi.post({ post_text: fullText, image_base64: finalImage })
-      const url = r.data?.post_url
-      setPostUrl(url || 'https://www.linkedin.com/feed/')
-      toast.success('Posted to LinkedIn! 🎉')
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || 'Failed to post to LinkedIn.'
-      if (detail.includes('token expired') || detail.includes('reconnect')) {
-        setIsConnected(false)
+      // Copy text to clipboard
+      await navigator.clipboard.writeText(fullText)
+      
+      let imageCopied = false
+      // If image is present, trigger download and optionally copy to clipboard
+      if (finalImage && job) {
+        const filename = `${job.title.replace(/\s+/g, '_')}_job_opening.png`
+        
+        // 1. Trigger download
+        const link = document.createElement('a')
+        link.href = finalImage
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        // 2. Try copying to clipboard
+        try {
+          const res = await fetch(finalImage)
+          const blob = await res.blob()
+          await navigator.clipboard.write([
+            new ClipboardItem({ [blob.type]: blob })
+          ])
+          imageCopied = true
+        } catch (err) {
+          console.warn("Auto-copying image to clipboard failed, falling back to download:", err)
+        }
       }
-      toast.error(detail)
+
+      // Open LinkedIn sharing box in a new window
+      const shareUrl = 'https://www.linkedin.com/feed/?shareActive=true'
+      window.open(shareUrl, '_blank')
+      
+      setPostUrl(shareUrl)
+      
+      if (finalImage) {
+        if (imageCopied) {
+          toast.success('Text & image copied! Image also downloaded.')
+        } else {
+          toast.success('Text copied & image downloaded!')
+        }
+      } else {
+        toast.success('Post text copied to clipboard!')
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to prepare post details.')
     } finally {
       setIsPosting(false)
     }
@@ -442,33 +478,45 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               style={{
-                padding: 28, borderRadius: 16, textAlign: 'center',
-                background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(5,150,105,0.06))',
-                border: '1px solid rgba(16,185,129,0.25)',
+                padding: 32, borderRadius: 16, textAlign: 'center',
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(79,70,229,0.06))',
+                border: '1px solid rgba(99,102,241,0.25)',
               }}
             >
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#059669', marginBottom: 8 }}>
-                Posted to LinkedIn!
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--violet)', marginBottom: 8 }}>
+                Ready to Post on LinkedIn!
               </h3>
-              <p style={{ fontSize: 14, color: 'var(--text-mid)', marginBottom: 20 }}>
-                Your job opening is now live on LinkedIn.
+              <p style={{ fontSize: 14, color: 'var(--text-mid)', marginBottom: 20, maxWidth: 500, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
+                LinkedIn sharing has been opened in a new tab.
+                <br />
+                1. <strong>Post text</strong> has been copied to your clipboard.
+                {imageType !== 'none' && <><br />2. <strong>Job image</strong> has been downloaded to your computer.</>}
               </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', marginBottom: 24 }}>
+                <div style={{ background: 'var(--kpi-bg)', padding: '12px 20px', borderRadius: 12, border: '1px solid var(--table-border)', fontSize: 13, color: 'var(--text-mid)', fontWeight: 600 }}>
+                  Press <strong>Ctrl + V</strong> (or Cmd + V) on LinkedIn to paste your post text!
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
-                <a
-                  href={postUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => window.open(postUrl, '_blank')}
                   style={{
                     padding: '10px 22px', background: '#0077b5', color: '#fff',
-                    borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 700,
+                    border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700,
                     display: 'inline-flex', alignItems: 'center', gap: 6,
+                    boxShadow: '0 4px 14px rgba(0,119,181,0.3)',
                   }}
                 >
-                   View Post <ArrowRight size={13} className="ml-1 inline" />
-                </a>
+                   Go to LinkedIn <ArrowRight size={13} />
+                </button>
                 <button
-                  onClick={onClose}
+                  onClick={() => {
+                    setPostUrl('')
+                    onClose()
+                  }}
                   style={{
                     padding: '10px 22px', background: 'var(--card-bg)',
                     border: '1px solid var(--card-border)', color: 'var(--text)',
@@ -823,13 +871,13 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
               {/* Post button */}
               <button
                 onClick={handlePost}
-                disabled={isPosting || !isConnected || !postText.trim()}
+                disabled={isPosting || !postText.trim()}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                   padding: '14px 24px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                  background: (!isConnected || !postText.trim()) ? 'rgba(0,119,181,0.4)' : '#0077b5',
+                  background: !postText.trim() ? 'rgba(0,119,181,0.4)' : '#0077b5',
                   color: '#fff', fontSize: 15, fontWeight: 800, letterSpacing: '0.3px',
-                  boxShadow: isConnected ? '0 6px 20px rgba(0,119,181,0.40)' : 'none',
+                  boxShadow: postText.trim() ? '0 6px 20px rgba(0,119,181,0.40)' : 'none',
                   transition: 'all 0.2s', opacity: isPosting ? 0.75 : 1,
                   marginTop: 4,
                 }}
@@ -837,7 +885,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                 {isPosting ? (
                   <>
                     <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block', fontSize: 14 }}>⟳</span>
-                    Posting...
+                    Preparing Post...
                   </>
                 ) : (
                   <>
@@ -849,11 +897,9 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                 )}
               </button>
 
-              {!isConnected && !isCheckingStatus && (
-                <p style={{ fontSize: 12, color: '#d97706', textAlign: 'center', fontWeight: 600 }}>
-                  ⚠ Connect your LinkedIn account first
-                </p>
-              )}
+              <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center', marginTop: 4 }}>
+                This will copy the post content and open LinkedIn so you can review and publish.
+              </p>
             </div>
           </div>
         )}

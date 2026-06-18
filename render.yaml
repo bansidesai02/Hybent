@@ -29,6 +29,12 @@ services:
         sync: false
       - key: MISTRAL_API_KEY
         sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_REDIRECT_URI
+        sync: false
 
   # ── React Frontend (Nginx) ────────────────────────────────────────────────
   - type: web

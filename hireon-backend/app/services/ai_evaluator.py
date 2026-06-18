@@ -6,6 +6,7 @@ import json
 import io
 import google.generativeai as genai
 from app.services.groq_client import SafeGroq as Groq
+# pyrefly: ignore [missing-import]
 from huggingface_hub import InferenceClient
 import time
 import uuid
