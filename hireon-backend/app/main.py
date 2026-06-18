@@ -123,6 +123,14 @@ async def log_requests(request: Request, call_next):
         f"Status={response.status_code} "
         f"Time={process_time:.3f}s"
     )
+    
+    # Prevent browser caching of API responses (especially GET requests)
+    path = request.url.path
+    if path.startswith("/v1/") or path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
     return response
 
 

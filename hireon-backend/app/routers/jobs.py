@@ -20,15 +20,8 @@ from app.services import elasticsearch_service as es_service
 router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 
 
-import time
-_jobs_cache = {}
-_jobs_cache_ttl = 300 # 5 minutes
-
 def invalidate_jobs_cache(org_id):
-    org_id_str = str(org_id)
-    keys_to_delete = [k for k in _jobs_cache if k.startswith(org_id_str + ":")]
-    for k in keys_to_delete:
-        del _jobs_cache[k]
+    pass
 
 @router.get("")
 async def list_jobs(
@@ -40,12 +33,6 @@ async def list_jobs(
     search: str | None = None,
     include_pool: bool = False,
 ):
-    now = time.monotonic()
-    cache_key = f"{current_user.organization_id}:{page}:{limit}:{status}:{search}:{include_pool}"
-    if cache_key in _jobs_cache:
-        cached_data, timestamp = _jobs_cache[cache_key]
-        if now - timestamp < _jobs_cache_ttl:
-            return APIResponse.success(message="Jobs retrieved successfully.", data=paginate(cached_data["items"], cached_data["total"], page, limit))
     query = select(Job).where(Job.organization_id == current_user.organization_id)
 
     from app.utils.permissions import JobStatus
@@ -97,7 +84,6 @@ async def list_jobs(
         job_dict["re_engage_count"] = re_engage_counts.get(j.title, 0)
         items.append(job_dict)
 
-    _jobs_cache[cache_key] = ({"items": items, "total": total}, now)
     return APIResponse.success(message="Jobs retrieved successfully.", data=paginate(items, total, page, limit))
 
 

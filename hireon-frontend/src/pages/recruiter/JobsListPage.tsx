@@ -20,7 +20,8 @@ import {
   Edit2,
   XCircle,
   Eye,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react'
 import type { Job, JobStatus } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -245,6 +246,7 @@ export default function JobsListPage() {
   const [closeTarget, setCloseTarget] = useState<Job | null>(null)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [linkedInJob, setLinkedInJob] = useState<Job | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Job | null>(null)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['jobs', page, statusFilter, search],
@@ -261,6 +263,24 @@ export default function JobsListPage() {
       toast.success('Status updated')
     },
     onError: () => toast.error('Failed to update status'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => jobsApi.delete(id),
+    onSuccess: (_, deletedId) => {
+      queryClient.setQueriesData({ queryKey: ['jobs'] }, (oldData: any) => {
+        if (!oldData || !oldData.items) return oldData
+        return {
+          ...oldData,
+          items: oldData.items.filter((job: any) => job.id !== deletedId),
+          total: Math.max(0, oldData.total - 1),
+        }
+      })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
+      toast.success('Position deleted successfully')
+    },
+    onError: () => toast.error('Failed to delete position'),
   })
 
   return (
@@ -505,6 +525,22 @@ export default function JobsListPage() {
                       >
                         <Edit2 size={14} />
                       </button>
+                      {job.status === 'closed' && (
+                        <button
+                          onClick={() => setDeleteTarget(job)}
+                          title="Delete Position"
+                          style={{
+                            width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)',
+                            background: 'rgba(239,68,68,0.07)', color: '#ef4444',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.16)' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                       {job.status !== 'closed' && (
                         <button
                           onClick={() => setCloseTarget(job)}
@@ -629,6 +665,23 @@ export default function JobsListPage() {
         confirmText="Close Position"
         danger
         loading={statusMutation.isPending}
+      />
+
+      {/* Delete confirm */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) {
+            deleteMutation.mutate(deleteTarget.id)
+            setDeleteTarget(null)
+          }
+        }}
+        title="Delete Position"
+        message={`Are you sure you want to permanently delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        confirmText="Delete Position"
+        danger
+        loading={deleteMutation.isPending}
       />
     </div>
   )
