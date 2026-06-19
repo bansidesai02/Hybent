@@ -94,7 +94,7 @@ const updateDescriptionWithExperience = (
   let newDesc = description
 
   // 1. Replace years of experience: e.g. "3+ years", "5 years", "1-3 years", "5+ years of experience"
-  const yearsRegex = /\b(?:\d+\+?|\d+\s*-\s*\d+)\s*years?(?:\s*of\s*experience)?\b/gi
+  const yearsRegex = /\b\d+[\d.+\-\s]*\s*years?(?:\s*of\s*experience)?\b/gi
 
   if (minYears > 0) {
     const newYearsStr = `${minYears}+ years of experience`
