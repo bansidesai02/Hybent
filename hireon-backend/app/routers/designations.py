@@ -33,15 +33,40 @@ class DesignationReorderUpdate(BaseModel):
 
 
 async def _designation_counts(db: DB, organization_id: uuid.UUID) -> dict[str, int]:
-    rows = (await db.execute(
-        select(Candidate.applied_job_title, func.count(Candidate.id))
-        .where(
-            Candidate.organization_id == organization_id,
-            Candidate.applied_job_title.isnot(None),
+    from app.models.application import Application
+    from app.utils.category import extract_all_categories
+    from sqlalchemy import or_
+
+    jobs = (await db.execute(
+        select(Job.id, Job.title).where(
+            Job.organization_id == organization_id,
+            Job.status == JobStatus.POOL,
         )
-        .group_by(Candidate.applied_job_title)
     )).all()
-    return {str(title): int(count or 0) for title, count in rows if title}
+
+    designation_counts = {}
+    for job_id, job_title in jobs:
+        if not job_title:
+            continue
+        job_categories = extract_all_categories(job_title)
+        or_conds = [
+            Candidate.applied_job_title.ilike(f"%{job_title}%"),
+            Candidate.current_title.ilike(f"%{job_title}%"),
+            Candidate.applications.any(Application.job_id == job_id)
+        ]
+        for cat in job_categories:
+            or_conds.append(Candidate.applied_job_title.ilike(f"%{cat}%"))
+            or_conds.append(Candidate.current_title.ilike(f"%{cat}%"))
+
+        count = (await db.execute(
+            select(func.count(Candidate.id)).where(
+                Candidate.organization_id == organization_id,
+                or_(*or_conds),
+            )
+        )).scalar() or 0
+        designation_counts[job_title] = count
+
+    return designation_counts
 
 
 async def _designation_rows(db: DB, organization_id: uuid.UUID) -> list[dict]:
