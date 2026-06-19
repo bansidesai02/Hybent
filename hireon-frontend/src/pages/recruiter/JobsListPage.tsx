@@ -108,7 +108,9 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
         title: job.title,
         location: job.location || 'Remote',
         experience: getExperienceDisplay(job),
-        key_responsibilities: job.requirements ? job.requirements.split('\n') : [],
+        key_responsibilities: (job as any).responsibilities
+          ? (job as any).responsibilities.split('\n').map((s: string) => s.replace(/^[•\s*-]+/, '').trim()).filter(Boolean)
+          : [],
         required_qualifications_skills: job.skills_required,
         good_to_have: [],
         description: job.description
@@ -206,6 +208,16 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
             {job.description}
           </div>
         </div>
+
+        {/* Key Responsibilities */}
+        {(job as any).responsibilities && (
+          <div>
+            <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Key Responsibilities</h4>
+            <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+              {(job as any).responsibilities}
+            </div>
+          </div>
+        )}
 
         {/* Requirements */}
         {job.requirements && (
