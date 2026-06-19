@@ -148,11 +148,14 @@ async def parse_jd_endpoint(
     file: UploadFile = File(...),
 ):
     """Parses a JD document and returns structured details via AI."""
+    # Read file bytes directly before saving
+    file_bytes = await file.read()
+    await file.seek(0)
+
     # 1. Save the JD file so we have a URL for viewing
     jd_url, jd_filename = await save_jd(file, str(current_user.organization_id))
     
     # 2. Extract contents for AI parsing
-    file_bytes = await read_file_bytes(jd_url)
     content_type = file.content_type or ""
     try:
         # Keep original parsing logic intact
