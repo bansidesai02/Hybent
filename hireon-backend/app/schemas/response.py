@@ -12,13 +12,13 @@ class APIErrorResponse(BaseModel):
 
 class APISuccessResponse(BaseModel):
     success: bool = True
-    message: str
+    message: str = "Success"
     data: Any = None
 
 class APIResponse:
     @staticmethod
     def success(
-        message: str, data: Any = None, status_code: int = status.HTTP_200_OK
+        message: str = "Success", data: Any = None, status_code: int = status.HTTP_200_OK
     ) -> ORJSONResponse:
         if isinstance(data, BaseModel):
             data = jsonable_encoder(data)

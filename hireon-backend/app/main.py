@@ -28,7 +28,7 @@ from app.routers import (
     resumes, ai, applications, pipeline,
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
-    activities, reports, messages, linkedin, search, public, copilot, bulk_import
+    activities, reports, messages, search, public, copilot, bulk_import, linkedin, designations
 )
 # Configure logging
 logging.basicConfig(
@@ -198,6 +198,7 @@ app.include_router(auth.router)
 app.include_router(organizations.router)
 app.include_router(users.router)
 app.include_router(jobs.router)
+app.include_router(designations.router)
 app.include_router(candidates.router)
 app.include_router(resumes.router)
 app.include_router(ai.router)
@@ -217,10 +218,10 @@ app.include_router(invitations.router)
 app.include_router(activities.router)
 app.include_router(reports.router)
 app.include_router(messages.router)
-app.include_router(linkedin.router)
 app.include_router(search.router)
 app.include_router(copilot.router)
 app.include_router(bulk_import.router)
+app.include_router(linkedin.router)
 app.include_router(public.router, prefix="/api")
 
 

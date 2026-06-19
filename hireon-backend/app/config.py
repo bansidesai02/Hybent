@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     # ── LinkedIn OAuth ─────────────────────────────────────────────────────────
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
-    linkedin_redirect_uri: str = "http://localhost:8000/v1/linkedin/callback"
+    linkedin_redirect_uri: str = "http://localhost:3000/v1/linkedin/callback"
     # ── Cloudinary ─────────────────────────────────────────────────────────────
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
