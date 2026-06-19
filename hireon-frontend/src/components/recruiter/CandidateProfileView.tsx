@@ -690,7 +690,8 @@ function DetailsTab({ candidate }: { candidate: Candidate }) {
     {
       title: 'Experience Details',
       fields: [
-        { label: 'Position', icon: <User size={11} />, value: candidate.applied_job_title || candidate.current_title },
+        { label: 'Position', icon: <User size={11} />, value: candidate.current_title },
+        { label: 'Role / Designation', icon: <User size={11} />, value: candidate.applied_job_title },
         { label: 'Current Employer', icon: <Target size={11} />, value: candidate.current_company },
         { 
           label: 'Experience', 
@@ -1166,13 +1167,19 @@ function TimelineTab({ candidate }: { candidate: Candidate }) {
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function CandidateProfileView({ 
-  candidate, 
+  candidate: initialCandidate, 
   onInvite, 
   onSchedule, 
   hasInvitation,
   hideInvite,
   hideSchedule
 }: CandidateProfileViewProps) {
+  const { data: candidate = initialCandidate } = useQuery({
+    queryKey: ['candidates', initialCandidate.id],
+    queryFn: () => candidatesApi.get(initialCandidate.id).then((r: any) => r.data),
+    initialData: initialCandidate,
+  })
+
   const setPageContext = useCopilotStore(s => s.setPageContext)
   const [activeTab, setActiveTab] = useState<'details' | 'feedback' | 'timeline'>('details')
   const stage = candidate.pipeline_stage || 'applied'

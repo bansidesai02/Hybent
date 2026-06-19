@@ -80,6 +80,12 @@ async def upload_resume(
         candidate.phone = parsed["phone"]
     if parsed.get("location") and not candidate.location:
         candidate.location = parsed["location"]
+    if parsed.get("linkedin_url") and not candidate.linkedin_url:
+        candidate.linkedin_url = parsed["linkedin_url"]
+    if parsed.get("github_url") and not candidate.github_url:
+        candidate.github_url = parsed["github_url"]
+    if parsed.get("portfolio_url") and not candidate.portfolio_url:
+        candidate.portfolio_url = parsed["portfolio_url"]
 
     return APIResponse.success(message="Resume uploaded successfully.", data=CandidateOut.model_validate(candidate))
 
@@ -289,6 +295,9 @@ async def upload_and_create(
     candidate.summary = parsed.get("summary")
     candidate.phone = candidate.phone or parsed.get("phone")
     candidate.location = candidate.location or parsed.get("location")
+    candidate.linkedin_url = candidate.linkedin_url or parsed.get("linkedin_url")
+    candidate.github_url = candidate.github_url or parsed.get("github_url")
+    candidate.portfolio_url = candidate.portfolio_url or parsed.get("portfolio_url")
     candidate.match_score = score
     if job:
         candidate.applied_job_title = job.title

@@ -543,6 +543,18 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
     elif "expected_salary" in update_data:
         update_data["expected_ctc"] = update_data["expected_salary"]
 
+    # Synchronize experience years string to years_experience float
+    if "experience_years" in update_data:
+        val = update_data["experience_years"]
+        if val:
+            import re
+            match = re.search(r"(\d+(?:\.\d+)?)", val)
+            if match:
+                try:
+                    update_data["years_experience"] = float(match.group(1))
+                except ValueError:
+                    pass
+
     # Track comment/note changes before applying
     old_hr_notes = candidate.hr_notes
     old_talent_pool_comment = candidate.talent_pool_comment

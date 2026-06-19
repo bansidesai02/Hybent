@@ -45,6 +45,9 @@ class ParsedResume(BaseModel):
     years_experience: Optional[float] = None
     experience_years: Optional[str] = None
     summary: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
     skills: list[str] = Field(default_factory=list)
     education: list[dict] = Field(default_factory=list)
     experience: list[ExperienceEntry] = Field(default_factory=list)
@@ -73,6 +76,9 @@ Return ONLY a valid JSON object with this exact structure:
   "years_experience": 0.0,
   "experience_years": "string (e.g. '3.5 Years') or null",
   "summary": "AI-generated analysis of the full resume",
+  "linkedin_url": "string or null",
+  "github_url": "string or null",
+  "portfolio_url": "string or null",
   "skills": ["skill1", "skill2", ...],
   "education": [
     {"degree": "string", "institution": "string", "year": number or null}
