@@ -237,15 +237,15 @@ export default function OverviewPage() {
   const kpis = [
     {
       label: 'Resumes Processed',
-      value: analytics?.total_applications ?? 0,
+      value: analytics?.resumes_processed ?? 0,
       icon: <GlassIcon icon="FileText" variant="violet" size={42} iconSize={20} ghost />,
-      delta: getKpiDelta(analytics?.total_applications_delta),
+      delta: getKpiDelta(analytics?.resumes_processed_delta),
     },
     {
       label: 'Auto-Shortlisted',
-      value: analytics?.total_candidates ?? 0,
+      value: analytics?.auto_shortlisted ?? 0,
       icon: <GlassIcon icon="CheckCircle" variant="emerald" size={42} iconSize={20} ghost />,
-      delta: getKpiDelta(analytics?.total_candidates_delta),
+      delta: getKpiDelta(analytics?.auto_shortlisted_delta),
     },
     {
       label: 'Interviews Booked',
@@ -261,7 +261,7 @@ export default function OverviewPage() {
     },
   ]
 
-  const funnelTotal = analytics?.total_applications ?? 1
+  const funnelTotal = Math.max(analytics?.total_candidates ?? 0, analytics?.total_applications ?? 0, 1)
 
   return (
     <div className="space-y-8 pb-10 pt-6">
@@ -335,7 +335,7 @@ export default function OverviewPage() {
 
           <div className="space-y-6">
             <FunnelRow label="Applied" count={analytics?.total_applications ?? 0} total={funnelTotal} color="var(--violet)" />
-            <FunnelRow label="Shortlisted" count={analytics?.total_candidates ?? 0} total={funnelTotal} color="#3b82f6" />
+            <FunnelRow label="Shortlisted" count={analytics?.auto_shortlisted ?? 0} total={funnelTotal} color="#3b82f6" />
             <FunnelRow label="Interviewed" count={analytics?.interviews_scheduled ?? 0} total={funnelTotal} color="#ff6bc6" />
             <FunnelRow label="Hired" count={analytics?.offers_accepted ?? 0} total={funnelTotal} color="var(--teal, #10b981)" />
           </div>
