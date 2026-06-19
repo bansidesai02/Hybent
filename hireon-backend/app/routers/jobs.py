@@ -89,10 +89,25 @@ async def list_jobs(
 
 @router.post("", response_model=JobOut, status_code=201)
 async def create_job(data: JobCreate, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
+    from app.utils.permissions import JobStatus
+    create_data = data.model_dump()
+    provided_display_order = create_data.pop("display_order", None)
+    if data.status == JobStatus.POOL:
+        max_order = (await db.execute(
+            select(func.coalesce(func.max(Job.display_order), -1)).where(
+                Job.organization_id == current_user.organization_id,
+                Job.status == JobStatus.POOL,
+            )
+        )).scalar() or -1
+        next_display_order = provided_display_order if provided_display_order is not None else int(max_order) + 1
+    else:
+        next_display_order = provided_display_order if provided_display_order is not None else 0
+
     job = Job(
         organization_id=current_user.organization_id,
         created_by_id=current_user.id,
-        **data.model_dump(),
+        display_order=next_display_order,
+        **create_data,
     )
     db.add(job)
     await db.flush()
@@ -194,11 +209,21 @@ async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: Annotated
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    old_status = job.status
     changed_fields = list(data.model_dump(exclude_unset=True, exclude_none=True).keys())
     for field, value in data.model_dump(exclude_unset=True, exclude_none=True).items():
         if hasattr(value, "value"):
             value = value.value
         setattr(job, field, value)
+    from app.utils.permissions import JobStatus
+    if job.status == JobStatus.POOL and old_status != JobStatus.POOL and (job.display_order is None or job.display_order == 0):
+        max_order = (await db.execute(
+            select(func.coalesce(func.max(Job.display_order), -1)).where(
+                Job.organization_id == current_user.organization_id,
+                Job.status == JobStatus.POOL,
+            )
+        )).scalar() or -1
+        job.display_order = int(max_order) + 1
     await db.flush()
     await log_activity(
         db,

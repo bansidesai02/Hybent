@@ -38,6 +38,7 @@ class Job(Base):
 
     application_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     openings: Mapped[int] = mapped_column(Integer, default=1)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

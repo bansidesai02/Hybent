@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
@@ -14,6 +15,7 @@ import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle, Bo
 import { talentPoolApi } from '@/api/talentPool'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
+import { designationsApi, type DesignationItem } from '@/api/designations'
 import { adminApi } from '@/api/admin'
 import { useNotificationStore } from '@/store/notificationStore'
 import { Select } from '@/components/ui/Select'
@@ -285,6 +287,9 @@ export default function AllTalentListPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
+  const [designationTarget, setDesignationTarget] = useState<Candidate | null>(null)
+  const [designationSearch, setDesignationSearch] = useState('')
+  const [pendingDesignation, setPendingDesignation] = useState<DesignationItem | null>(null)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
@@ -310,6 +315,7 @@ export default function AllTalentListPage() {
   const [isDeletingJob, setIsDeletingJob] = useState(false)
   const [candidateToDelete, setCandidateToDelete] = useState<{ id: string; name: string } | null>(null)
   const [jobToDelete, setJobToDelete] = useState<any | null>(null)
+  const [designationReorderError, setDesignationReorderError] = useState<string | null>(null)
 
   // Saved Views & Alerts State
   const [savedViews, setSavedViews] = useState<any[]>(() => {
@@ -417,6 +423,19 @@ export default function AllTalentListPage() {
       }).then(r => r.data)
     },
   })
+
+  const { data: talentStats } = useQuery({
+    queryKey: ['talent-pool-stats'],
+    queryFn: () => talentPoolApi.getStats().then(r => r.data),
+  })
+
+  const { data: designationData } = useQuery({
+    queryKey: ['designations'],
+    queryFn: () => designationsApi.list().then((r: any) => r.data),
+  })
+
+  const designations = (designationData?.items || []) as DesignationItem[]
+  const designationCounts = (designationData?.designation_counts || {}) as Record<string, number>
 
   // Real-time Candidate Alert Monitor
   useEffect(() => {
@@ -531,6 +550,8 @@ export default function AllTalentListPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
       toast.success('Stage updated')
       setOpenDropdownId(null)
     },
@@ -539,14 +560,46 @@ export default function AllTalentListPage() {
 
   const inviteMutation = useMutation({
     mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
-    onSuccess: (_, v) => { toast.success(`Invitation sent to ${v.full_name}`); queryClient.invalidateQueries({ queryKey: ['all-talent-full'] }) },
+    onSuccess: (_, v) => {
+      toast.success(`Invitation sent to ${v.full_name}`)
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+    },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => candidatesApi.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['all-talent-full'] }); toast.success('Candidate deleted') },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+      toast.success('Candidate deleted')
+    },
     onError: () => toast.error('Failed to delete candidate'),
+  })
+
+  const transferMutation = useMutation({
+    mutationFn: ({ candidateId, designationId }: { candidateId: string; designationId: string }) =>
+      candidatesApi.updateDesignation(candidateId, designationId),
+    onSuccess: (res: any) => {
+      if (res?.data) {
+        queryClient.setQueryData(['designations'], {
+          items: res.data.designations || [],
+          designation_counts: res.data.designation_counts || {},
+          total_candidates: res.data.total_candidates ?? totalCandidates,
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+      setDesignationTarget(null)
+      setPendingDesignation(null)
+      setDesignationSearch('')
+      toast.success('Candidate designation updated successfully.')
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to move candidate'),
   })
 
   const resolveJobForCandidate = (candidate: any): string | null => {
@@ -602,6 +655,8 @@ export default function AllTalentListPage() {
       setNewJobTitle('')
       setShowAddJobModal(false)
       queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
       // Auto-select the new job tab
       const newJob = (res as any).data
       if (newJob?.id) setSelectedJobId(newJob.id)
@@ -621,6 +676,7 @@ export default function AllTalentListPage() {
       await jobsApi.update(renameModal.job.id, { title })
       toast.success(`Renamed to "${title}"`)
       queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
       queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
       setRenameModal(null)
     } catch (err: any) {
@@ -642,6 +698,8 @@ export default function AllTalentListPage() {
       toast.success(`"${jobToDelete.title}" deleted`)
       if (selectedJobId === jobToDelete.id) setSelectedJobId('all')
       queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
       queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to delete')
@@ -659,18 +717,63 @@ export default function AllTalentListPage() {
       .replace(/\s+/g, ' ')
       .trim()
 
-  const selectedJobTitle =
-    selectedJobId === 'all'
-      ? ''
-      : ((allJobs || []).find((j: any) => j.id === selectedJobId)?.title || '')
-
   const filteredItems = data?.items || []
+  const totalCandidates = talentStats?.total_candidates ?? data?.total_candidates ?? 0
   const handleBulkImportSuccess = (result: ImportResultData) => {
     queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+    queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+    queryClient.invalidateQueries({ queryKey: ['designations'] })
     queryClient.invalidateQueries({ queryKey: ['candidates'] })
     queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
     setShowBulkImportModal(false)
     toast.success(`Imported ${result.created_count} candidates into Talent DB`)
+  }
+
+  const filteredDesignations = designations.filter((designation: DesignationItem) =>
+    designation.title.toLowerCase().includes(designationSearch.trim().toLowerCase()),
+  )
+
+  const currentDesignationTitle = designationTarget?.applied_job_title || designationTarget?.current_title || ''
+  const currentDesignationItem = currentDesignationTitle
+    ? designations.find((designation: DesignationItem) => designation.title === currentDesignationTitle)
+    : null
+
+  const handleDesignationDragEnd = async (result: DropResult) => {
+    if (!result.destination) return
+    if (result.source.index === result.destination.index) return
+    const reordered = Array.from(designations) as DesignationItem[]
+    const [moved] = reordered.splice(result.source.index, 1)
+    if (!moved) return
+    reordered.splice(result.destination.index, 0, moved)
+
+    const previous = queryClient.getQueryData<{ items: DesignationItem[]; designation_counts?: Record<string, number>; total_candidates?: number }>(['designations'])
+    queryClient.setQueryData(['designations'], {
+      ...(previous ?? {}),
+      items: reordered.map((designation, index) => ({ ...designation, display_order: index })),
+    })
+
+    try {
+      const res = await designationsApi.reorder(reordered.map((designation) => designation.id))
+      queryClient.setQueryData(['designations'], res.data)
+      toast.success('Designation order saved')
+    } catch (err: any) {
+      queryClient.setQueryData(['designations'], previous)
+      toast.error(err.response?.data?.detail || 'Failed to reorder designations')
+    }
+  }
+
+  const openDesignationTransfer = (candidate: Candidate) => {
+    setDesignationTarget(candidate)
+    setDesignationSearch('')
+    setPendingDesignation(null)
+  }
+
+  const handleConfirmDesignationMove = () => {
+    if (!designationTarget || !pendingDesignation) return
+    transferMutation.mutate({
+      candidateId: designationTarget.id,
+      designationId: pendingDesignation.id,
+    })
   }
 
   return (
@@ -683,7 +786,7 @@ export default function AllTalentListPage() {
             <ArrowLeft size={15} /> Back to Dashboard
           </button>
           <h1 className="page-title" style={{ margin: 0 }}>
-            All Talent <span style={{ color: 'var(--violet)', fontSize: 18 }}>({data?.total ?? 0})</span>
+            All Talent <span style={{ color: 'var(--violet)', fontSize: 18 }}>({totalCandidates})</span>
           </h1>
           <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
             Complete database of all assessed candidates.
@@ -968,9 +1071,9 @@ export default function AllTalentListPage() {
       )}
 
       {/* Jobs Tabs Row */}
-      <div className="flex items-center gap-3 px-1 mb-2 overflow-x-auto w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <div className="flex items-center gap-2 px-1 mb-2 w-full">
         <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
-        <div className="flex items-center gap-2 flex-nowrap">
+        <div className="flex items-center gap-2 flex-nowrap flex-shrink-0">
           <button
             onClick={() => { setSelectedJobId('all'); setPage(1); }}
             style={{
@@ -986,31 +1089,6 @@ export default function AllTalentListPage() {
           >
             All
           </button>
-          {(allJobs || []).map((job: any) => {
-            const isActive = selectedJobId === job.id;
-            return (
-              <button
-                key={job.id}
-                onClick={() => { setSelectedJobId(job.id); setPage(1); }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setContextMenu({ x: e.clientX, y: e.clientY, job });
-                }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 14px', borderRadius: 10,
-                  border: isActive ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
-                  color: isActive ? 'var(--violet)' : 'var(--text-mid)',
-                  transition: 'all 0.18s',
-                  whiteSpace: 'nowrap', flexShrink: 0,
-                }}
-              >
-                {job.title}
-              </button>
-            )
-          })}
           {/* + Add Designation button */}
           <button
             onClick={() => { setShowAddJobModal(true); setTimeout(() => newJobInputRef.current?.focus(), 80) }}
@@ -1030,6 +1108,59 @@ export default function AllTalentListPage() {
             +
           </button>
         </div>
+        <DragDropContext onDragEnd={handleDesignationDragEnd}>
+          <Droppable droppableId="designations-row" direction="horizontal">
+            {(provided) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="flex items-center gap-2 flex-nowrap overflow-x-auto min-w-0 flex-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {designations.map((job: any, index: number) => {
+                  const isActive = selectedJobId === job.id
+                  const designationCount = job.candidate_count ?? designationCounts[job.title] ?? 0
+                  return (
+                    <Draggable key={job.id} draggableId={job.id} index={index}>
+                      {(dragProvided, snapshot) => (
+                        <button
+                          ref={dragProvided.innerRef}
+                          {...dragProvided.draggableProps}
+                          {...dragProvided.dragHandleProps}
+                          onClick={() => { setSelectedJobId(job.id); setPage(1); }}
+                          onContextMenu={(e) => {
+                            e.preventDefault()
+                            setContextMenu({ x: e.clientX, y: e.clientY, job })
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '7px 14px', borderRadius: 10,
+                            border: isActive ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
+                            color: isActive ? 'var(--violet)' : 'var(--text-mid)',
+                            transition: 'all 0.18s',
+                            whiteSpace: 'nowrap', flexShrink: 0,
+                            boxShadow: snapshot.isDragging ? '0 14px 30px rgba(76, 29, 149, 0.18)' : undefined,
+                            ...dragProvided.draggableProps.style,
+                          }}
+                        >
+                          <span>{job.title}</span>
+                          {typeof designationCount === 'number' && (
+                            <span style={{ color: isActive ? 'var(--violet)' : 'var(--text-light)', fontWeight: 800 }}>
+                              ({designationCount})
+                            </span>
+                          )}
+                        </button>
+                      )}
+                    </Draggable>
+                  )
+                })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       </div>
 
       {/* Column headers */}
@@ -1117,9 +1248,9 @@ export default function AllTalentListPage() {
 
                 {/* Actions */}
                 <div className="flex items-center lg:justify-end gap-2" style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                  <button onClick={e => { e.stopPropagation(); setViewTarget(candidate) }}
+                  <button onClick={e => { e.stopPropagation(); openDesignationTransfer(candidate) }}
                     className="text-[11px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-all">
-                    View Full Profile
+                    Change Designation
                   </button>
 
                   <div style={{ position: 'relative' }}>
@@ -1163,6 +1294,132 @@ export default function AllTalentListPage() {
             )
           })}
         </div>
+      )}
+
+      {designationTarget && (
+        <Modal
+          open
+          onClose={() => { setDesignationTarget(null); setPendingDesignation(null); setDesignationSearch('') }}
+          title="Change Designation"
+          size="lg"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.12)' }}>
+              <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-light)', marginBottom: 6 }}>Candidate</p>
+              <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{designationTarget.full_name}</p>
+              <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 2 }}>
+                Current designation: <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{currentDesignationTitle || 'Unassigned'}</span>
+              </p>
+            </div>
+
+            <Input
+              placeholder="Search designations..."
+              value={designationSearch}
+              onChange={(e) => setDesignationSearch(e.target.value)}
+              leftIcon={<Search size={15} />}
+            />
+
+            <div style={{ maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {currentDesignationItem && (
+                <div style={{ position: 'sticky', top: 0, zIndex: 1, padding: '10px 12px', borderRadius: 12, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#059669', marginBottom: 2 }}>Current designation</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{currentDesignationItem.title}</p>
+                </div>
+              )}
+
+              {filteredDesignations.length === 0 ? (
+                <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-light)', fontSize: 13 }}>
+                  No designations match your search.
+                </div>
+              ) : filteredDesignations.map((designation: DesignationItem) => {
+                const isCurrent = designation.title === currentDesignationTitle
+                return (
+                  <button
+                    key={designation.id}
+                    onClick={() => {
+                      if (isCurrent) return
+                      setPendingDesignation(designation)
+                    }}
+                    disabled={isCurrent}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      border: isCurrent ? '1px solid rgba(16,185,129,0.28)' : '1px solid var(--table-border)',
+                      background: isCurrent ? 'rgba(16,185,129,0.08)' : 'var(--kpi-bg)',
+                      cursor: isCurrent ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                    }}
+                  >
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>{designation.title}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
+                        {designation.candidate_count ?? designationCounts[designation.title] ?? 0} candidates
+                      </span>
+                    </span>
+                    {isCurrent && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#059669' }}>Current</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {designationTarget && pendingDesignation && (
+        <Modal
+          open
+          onClose={() => setPendingDesignation(null)}
+          title="Move Candidate?"
+          size="md"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.12)' }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{designationTarget.full_name}</p>
+              <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 6 }}>
+                From <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{currentDesignationTitle || 'Unassigned'}</span>
+                {' '}to <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{pendingDesignation.title}</span>
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setPendingDesignation(null)}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: '1px solid var(--table-border)',
+                  background: 'transparent',
+                  color: 'var(--text-mid)',
+                  fontWeight: 700,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDesignationMove}
+                disabled={transferMutation.isPending}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+                  color: '#fff',
+                  fontWeight: 800,
+                  cursor: transferMutation.isPending ? 'not-allowed' : 'pointer',
+                  opacity: transferMutation.isPending ? 0.75 : 1,
+                }}
+              >
+                {transferMutation.isPending ? 'Moving...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Pagination */}

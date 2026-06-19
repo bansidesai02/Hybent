@@ -34,6 +34,9 @@ export const candidatesApi = {
   updateStage: (id: string, pipeline_stage: string, send_rejection_email = false, job_id?: string) =>
     api.patch<Candidate>(`/v1/candidates/${id}/stage`, { pipeline_stage, send_rejection_email, job_id }),
 
+  updateDesignation: (id: string, designation_id: string) =>
+    api.patch<Candidate>(`/v1/candidates/${id}/designation`, { designation_id }),
+
   reject: (id: string) => api.post<Candidate>(`/v1/candidates/${id}/reject`),
 
   recordView: (id: string) => api.post(`/v1/candidates/${id}/view`),

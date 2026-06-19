@@ -108,6 +108,7 @@ export interface Job {
   is_remote: boolean
   application_deadline: string | null
   openings: number
+  display_order?: number
   jd_url?: string | null
   jd_filename?: string | null
   created_at: string
@@ -384,6 +385,9 @@ export interface FairnessMetrics {
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
+  total_candidates?: number
+  filtered_count?: number
+  designation_counts?: Record<string, number>
   page: number
   limit: number
   pages: number

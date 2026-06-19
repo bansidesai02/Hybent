@@ -3,9 +3,10 @@ Talent pool: browse all candidates, filter by skills/tags, re-engage.
 """
 import uuid
 from fastapi import APIRouter, Query
-from sqlalchemy import select, func, cast, String
+from sqlalchemy import select, func, cast, String, or_
 from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.candidate import Candidate
+from app.models.job import Job
 from app.schemas.candidate import CandidateOut
 from app.utils.pagination import paginate
 from app.services.activity_service import log_activity
@@ -138,7 +139,37 @@ async def list_talent_pool(
     count_query = select(func.count(Candidate.id))
     if query.whereclause is not None:
         count_query = count_query.where(query.whereclause)
-    total = (await db.execute(count_query)).scalar()
+    filtered_count = (await db.execute(count_query)).scalar() or 0
+
+    total_candidates = (await db.execute(
+        select(func.count(Candidate.id)).where(Candidate.organization_id == current_user.organization_id)
+    )).scalar() or 0
+
+    designation_counts = {}
+    try:
+        designation_rows = (await db.execute(
+            select(Job.id, Job.title).where(Job.organization_id == current_user.organization_id)
+        )).all()
+        designation_jobs = {}
+        for designation_id, designation_title in designation_rows:
+            if designation_title:
+                designation_jobs.setdefault(designation_title, []).append(designation_id)
+
+        for designation_title, designation_ids in designation_jobs.items():
+            count = (await db.execute(
+                select(func.count(Candidate.id)).where(
+                    Candidate.organization_id == current_user.organization_id,
+                    or_(
+                        Candidate.applied_job_title.ilike(f"%{designation_title}%"),
+                        Candidate.current_title.ilike(f"%{designation_title}%"),
+                        Candidate.applications.any(Application.job_id.in_(designation_ids)),
+                    ),
+                )
+            )).scalar() or 0
+            designation_counts[designation_title] = count
+    except Exception:
+        designation_counts = {}
+
     items = (await db.execute(
         query.order_by(Candidate.match_score.desc().nulls_last()).offset((page - 1) * limit).limit(limit)
     )).scalars().all()
@@ -185,12 +216,16 @@ async def list_talent_pool(
             d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
 
-    return APIResponse.success(message="Talent pool retrieved.", data=paginate([transform_candidate(c) for c in items], total, page, limit))
+    data = paginate([transform_candidate(c) for c in items], filtered_count, page, limit)
+    data["total_candidates"] = total_candidates
+    data["filtered_count"] = filtered_count
+    data["designation_counts"] = designation_counts
+    return APIResponse.success(message="Talent pool retrieved.", data=data)
 
 
 import time
 _stats_cache = {}
-_stats_cache_ttl = 300 # 5 minutes
+_stats_cache_ttl = 0
 
 @router.get("/stats")
 async def get_talent_stats(current_user: CurrentUser, db: DB):

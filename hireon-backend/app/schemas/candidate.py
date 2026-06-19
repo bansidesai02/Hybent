@@ -119,6 +119,10 @@ class CandidateStageUpdate(BaseModel):
     job_id: str | None = None
 
 
+class CandidateDesignationUpdate(BaseModel):
+    designation_id: str
+
+
 class CandidateCreate(BaseModel):
     email: EmailStr
     full_name: str

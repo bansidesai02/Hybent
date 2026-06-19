@@ -1,5 +1,6 @@
 import uuid
 import logging
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from sqlalchemy import select, func, or_
 from sqlalchemy.exc import SQLAlchemyError
@@ -7,10 +8,10 @@ from app.dependencies import DB, get_current_user, require_recruiter, require_ad
 from app.models.user import User
 from typing import Annotated
 from app.models.candidate import Candidate
-from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate
+from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate, CandidateDesignationUpdate
 from app.services.email_service import send_candidate_invite
 from app.utils.pagination import paginate
-from app.utils.permissions import UserRole, NotificationType
+from app.utils.permissions import UserRole, NotificationType, JobStatus
 from app.tasks.notifications import notify_organization_roles, send_system_notification, notify_candidate_stage_change
 from app.services.activity_service import log_activity
 from app.models.application import Application
@@ -863,6 +864,121 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
 
     background_tasks.add_task(es_service.index_candidate, candidate)
     return APIResponse.success(message="Candidate stage updated successfully.", data=CandidateOut.model_validate(candidate))
+
+
+@router.patch("/{candidate_id}/designation")
+async def update_candidate_designation(
+    candidate_id: uuid.UUID,
+    data: CandidateDesignationUpdate,
+    current_user: Annotated[User, Depends(require_recruiter)],
+    db: DB,
+    background_tasks: BackgroundTasks,
+):
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.organization_id == current_user.organization_id
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    try:
+        designation_id = uuid.UUID(data.designation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid designation id")
+
+    designation_res = await db.execute(
+        select(Job).where(
+            Job.id == designation_id,
+            Job.organization_id == current_user.organization_id,
+            Job.status == JobStatus.POOL
+        )
+    )
+    designation = designation_res.scalar_one_or_none()
+    if not designation:
+        raise HTTPException(status_code=404, detail="Designation not found")
+
+    old_title = candidate.applied_job_title
+    if old_title == designation.title:
+        from app.routers.designations import _designation_counts, _designation_rows
+        return APIResponse.success(
+            message="Candidate designation updated successfully.",
+            data={
+                "candidate": CandidateOut.model_validate(candidate).model_dump(),
+                "designations": await _designation_rows(db, current_user.organization_id),
+                "designation_counts": await _designation_counts(db, current_user.organization_id),
+            },
+        )
+
+    from app.models.application import Application as ApplicationModel
+
+    pool_apps = (await db.execute(
+        select(ApplicationModel).join(Job, ApplicationModel.job_id == Job.id).where(
+            ApplicationModel.candidate_id == candidate_id,
+            ApplicationModel.organization_id == current_user.organization_id,
+            Job.status == JobStatus.POOL,
+        )
+    )).scalars().all()
+
+    target_app = next((app for app in pool_apps if app.job_id == designation.id), None)
+    if target_app is None:
+        if pool_apps:
+            target_app = pool_apps[0]
+            target_app.job_id = designation.id
+            target_app.stage = "applied"
+            target_app.match_score = candidate.match_score
+        else:
+            target_app = ApplicationModel(
+                organization_id=current_user.organization_id,
+                candidate_id=candidate_id,
+                job_id=designation.id,
+                stage="applied",
+                match_score=candidate.match_score,
+                source="manual",
+            )
+            db.add(target_app)
+
+    for app in pool_apps:
+        if app.id != target_app.id:
+            await db.delete(app)
+
+    candidate.applied_job_title = designation.title
+    candidate.updated_at = datetime.now(timezone.utc)
+
+    await db.flush()
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="CHANGE_DESIGNATION",
+        resource_type="candidate",
+        resource_id=str(candidate_id),
+        details={
+            "candidate": candidate.full_name,
+            "from": old_title,
+            "to": designation.title,
+            "designation_id": str(designation.id),
+        },
+    )
+    await db.commit()
+    await db.refresh(candidate)
+
+    background_tasks.add_task(es_service.index_candidate, candidate)
+
+    from app.routers.designations import _designation_counts, _designation_rows
+    return APIResponse.success(
+        message="Candidate designation updated successfully.",
+        data={
+            "candidate": CandidateOut.model_validate(candidate).model_dump(),
+            "designations": await _designation_rows(db, current_user.organization_id),
+            "designation_counts": await _designation_counts(db, current_user.organization_id),
+            "total_candidates": (await db.execute(
+                select(func.count(Candidate.id)).where(Candidate.organization_id == current_user.organization_id)
+            )).scalar() or 0,
+        },
+    )
 
 
 @router.post("/{candidate_id}/reject", response_model=CandidateOut)

@@ -17,6 +17,7 @@ class JobCreate(BaseModel):
     is_remote: bool = False
     application_deadline: datetime | None = None
     openings: int = 1
+    display_order: int | None = None
     status: JobStatus = JobStatus.ACTIVE
     jd_url: str | None = None
     jd_filename: str | None = None
@@ -36,6 +37,7 @@ class JobUpdate(BaseModel):
     is_remote: bool | None = None
     application_deadline: datetime | None = None
     openings: int | None = None
+    display_order: int | None = None
     status: JobStatus | None = None
     jd_url: str | None = None
     jd_filename: str | None = None
@@ -58,6 +60,7 @@ class JobOut(OrmSchema):
     is_remote: bool
     application_deadline: datetime | None = None
     openings: int
+    display_order: int = 0
     created_at: datetime
     updated_at: datetime
     jd_url: str | None = None
