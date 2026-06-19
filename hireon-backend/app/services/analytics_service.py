@@ -4,7 +4,7 @@ Analytics aggregation service.
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.application import Application
@@ -54,12 +54,27 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
             select(Application.candidate_id).join(Job, Application.job_id == Job.id).where(Job.created_by_id == user_id)
         ))
 
+    resumes_processed_cond = [
+        *cand_cond,
+        or_(
+            Candidate.resume_url.isnot(None),
+            Candidate.parsed_data.isnot(None),
+            Candidate.match_score.isnot(None),
+        ),
+    ]
+    auto_shortlisted_cond = [
+        *cand_cond,
+        Candidate.pipeline_stage == ApplicationStage.PRE_SCREENING_SELECTED.value,
+    ]
+
     stmt = select(
         # ── All-time KPIs ──────────────────────────────────────────────────────
         select(func.count(Job.id)).where(*job_cond).scalar_subquery().label("total_jobs"),
         select(func.count(Job.id)).where(*job_cond, Job.status == "active").scalar_subquery().label("active_jobs"),
         select(func.count(Application.id)).where(*app_cond).scalar_subquery().label("total_apps"),
         select(func.count(Candidate.id)).where(*cand_cond).scalar_subquery().label("total_candidates"),
+        select(func.count(Candidate.id)).where(*resumes_processed_cond).scalar_subquery().label("resumes_processed"),
+        select(func.count(Candidate.id)).where(*auto_shortlisted_cond).scalar_subquery().label("auto_shortlisted"),
         select(func.count(Interview.id)).where(*int_cond).scalar_subquery().label("interviews_scheduled"),
         select(func.count(Offer.id)).where(
             *off_cond, Offer.status.in_(["sent", "accepted", "declined"])
@@ -77,6 +92,12 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
         select(func.count(Candidate.id)).where(
             *cand_cond, Candidate.created_at >= period_start
         ).scalar_subquery().label("curr_cands"),
+        select(func.count(Candidate.id)).where(
+            *resumes_processed_cond, Candidate.created_at >= period_start
+        ).scalar_subquery().label("curr_resumes_processed"),
+        select(func.count(Candidate.id)).where(
+            *auto_shortlisted_cond, Candidate.created_at >= period_start
+        ).scalar_subquery().label("curr_auto_shortlisted"),
         select(func.count(Interview.id)).where(
             *int_cond, Interview.scheduled_at >= period_start
         ).scalar_subquery().label("curr_interviews"),
@@ -90,6 +111,12 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
         select(func.count(Candidate.id)).where(
             *cand_cond, Candidate.created_at >= prev_start, Candidate.created_at < period_start
         ).scalar_subquery().label("prev_cands"),
+        select(func.count(Candidate.id)).where(
+            *resumes_processed_cond, Candidate.created_at >= prev_start, Candidate.created_at < period_start
+        ).scalar_subquery().label("prev_resumes_processed"),
+        select(func.count(Candidate.id)).where(
+            *auto_shortlisted_cond, Candidate.created_at >= prev_start, Candidate.created_at < period_start
+        ).scalar_subquery().label("prev_auto_shortlisted"),
         select(func.count(Interview.id)).where(
             *int_cond, Interview.scheduled_at >= prev_start, Interview.scheduled_at < period_start
         ).scalar_subquery().label("prev_interviews"),
@@ -115,6 +142,8 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
         active_jobs=row.active_jobs or 0,
         total_applications=row.total_apps or 0,
         total_candidates=row.total_candidates or 0,
+        resumes_processed=row.resumes_processed or 0,
+        auto_shortlisted=row.auto_shortlisted or 0,
         interviews_scheduled=row.interviews_scheduled or 0,
         offers_sent=row.offers_sent or 0,
         offers_accepted=row.offers_accepted or 0,
@@ -122,6 +151,8 @@ async def get_overview(org_id: uuid.UUID, db: AsyncSession, user_id: uuid.UUID |
         time_to_hire_days=None,
         total_applications_delta=calc_delta(row.curr_apps or 0, row.prev_apps or 0),
         total_candidates_delta=calc_delta(row.curr_cands or 0, row.prev_cands or 0),
+        resumes_processed_delta=calc_delta(row.curr_resumes_processed or 0, row.prev_resumes_processed or 0),
+        auto_shortlisted_delta=calc_delta(row.curr_auto_shortlisted or 0, row.prev_auto_shortlisted or 0),
         interviews_scheduled_delta=calc_delta(row.curr_interviews or 0, row.prev_interviews or 0),
         offers_accepted_delta=calc_delta(row.curr_offers or 0, row.prev_offers or 0),
     )

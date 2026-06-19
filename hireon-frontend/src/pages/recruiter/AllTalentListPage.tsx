@@ -109,12 +109,12 @@ const STAGE_GROUPS = [
 ]
 
 // ── Mini stage dropdown ────────────────────────────────────────────────────────
-function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete, user, onAddToPipeline, onViewProfile, hasActiveJobs, isInPipeline, triggerEl }: {
+function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete, user, onAddToPipeline, onChangeDesignation, hasActiveJobs, isInPipeline, triggerEl }: {
   candidateId: string; currentStage: string
   onSelect: (s: string) => void; onClose: () => void
   onDelete: (id: string) => void; user: any
   onAddToPipeline: () => void
-  onViewProfile: () => void
+  onChangeDesignation: () => void
   hasActiveJobs: boolean
   isInPipeline: boolean
   triggerEl: HTMLButtonElement | null
@@ -191,7 +191,7 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
       onClick={e => e.stopPropagation()}
     >
       <button
-        onClick={(e) => { e.stopPropagation(); onViewProfile(); onClose() }}
+        onClick={(e) => { e.stopPropagation(); onChangeDesignation(); onClose() }}
         style={{
           width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -201,8 +201,8 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(108,71,255,0.08)' }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
       >
-        <Search size={13} />
-        <span style={{ flex: 1 }}>View Full Profile</span>
+        <Plus size={13} />
+        <span style={{ flex: 1 }}>Change Designation</span>
       </button>
       <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
 
@@ -298,6 +298,13 @@ export default function AllTalentListPage() {
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
   const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
+
+  const [shouldWobble, setShouldWobble] = useState(false)
+  useEffect(() => {
+    setShouldWobble(true)
+    const t = setTimeout(() => setShouldWobble(false), 800)
+    return () => clearTimeout(t)
+  }, [])
   const [showAddJobModal, setShowAddJobModal] = useState(false)
   const [showBulkImportModal, setShowBulkImportModal] = useState(false)
   const [showBulkImportHistoryModal, setShowBulkImportHistoryModal] = useState(false)
@@ -434,7 +441,43 @@ export default function AllTalentListPage() {
     queryFn: () => designationsApi.list().then((r: any) => r.data),
   })
 
-  const designations = (designationData?.items || []) as DesignationItem[]
+  // Load saved designation order preference from backend / localStorage
+  const { data: userPrefData } = useQuery({
+    queryKey: ['user-preference-order', user?.id],
+    queryFn: () => {
+      if (!user?.id) return { order: [] }
+      return adminApi.getDesignationOrder(user.id).then((r: any) => r.data)
+    },
+    enabled: !!user?.id,
+  })
+
+  const savedOrder = React.useMemo(() => {
+    if (!user?.id) return []
+    const backendOrder = userPrefData?.order || []
+    if (backendOrder.length > 0) return backendOrder
+    try {
+      return JSON.parse(localStorage.getItem(`designation_order_${user.id}`) || '[]')
+    } catch {
+      return []
+    }
+  }, [userPrefData?.order, user?.id])
+
+  const sortedDesignations = React.useMemo(() => {
+    const items = (designationData?.items || []) as DesignationItem[]
+    if (savedOrder.length === 0) {
+      return [...items].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    }
+    const orderMap = new Map<string, number>()
+    savedOrder.forEach((id: string, index: number) => orderMap.set(id, index))
+    return [...items].sort((a, b) => {
+      const indexA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999999
+      const indexB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999999
+      if (indexA !== indexB) return indexA - indexB
+      return (a.display_order ?? 0) - (b.display_order ?? 0)
+    })
+  }, [designationData?.items, savedOrder])
+
+  const designations = sortedDesignations
   const designationCounts = (designationData?.designation_counts || {}) as Record<string, number>
 
   // Real-time Candidate Alert Monitor
@@ -583,6 +626,35 @@ export default function AllTalentListPage() {
   const transferMutation = useMutation({
     mutationFn: ({ candidateId, designationId }: { candidateId: string; designationId: string }) =>
       candidatesApi.updateDesignation(candidateId, designationId),
+    onMutate: async ({ candidateId, designationId }) => {
+      await queryClient.cancelQueries({ queryKey: ['all-talent-full'] })
+      await queryClient.cancelQueries({ queryKey: ['designations'] })
+
+      const previousCandidates = queryClient.getQueryData(['all-talent-full'])
+      const previousDesignations = queryClient.getQueryData(['designations'])
+
+      const newDesignation = designations.find(d => d.id === designationId)
+      if (newDesignation) {
+        queryClient.setQueryData(['all-talent-full'], (old: any) => {
+          if (!old || !old.items) return old
+          return {
+            ...old,
+            items: old.items.map((cand: any) => {
+              if (cand.id === candidateId) {
+                return {
+                  ...cand,
+                  designation_id: designationId,
+                  applied_job_title: newDesignation.title
+                }
+              }
+              return cand
+            })
+          }
+        })
+      }
+
+      return { previousCandidates, previousDesignations }
+    },
     onSuccess: (res: any) => {
       if (res?.data) {
         queryClient.setQueryData(['designations'], {
@@ -599,7 +671,13 @@ export default function AllTalentListPage() {
       setDesignationSearch('')
       toast.success('Candidate designation updated successfully.')
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to move candidate'),
+    onError: (err: any, variables, context: any) => {
+      if (context) {
+        queryClient.setQueryData(['all-talent-full'], context.previousCandidates)
+        queryClient.setQueryData(['designations'], context.previousDesignations)
+      }
+      toast.error(err.response?.data?.detail || 'Failed to move candidate')
+    },
   })
 
   const resolveJobForCandidate = (candidate: any): string | null => {
@@ -746,6 +824,16 @@ export default function AllTalentListPage() {
     if (!moved) return
     reordered.splice(result.destination.index, 0, moved)
 
+    const newOrder = reordered.map((designation) => designation.id)
+
+    // Save to localStorage immediately
+    if (user?.id) {
+      localStorage.setItem(`designation_order_${user.id}`, JSON.stringify(newOrder))
+    }
+
+    // Optimistically update user-preference-order query data
+    queryClient.setQueryData(['user-preference-order', user?.id], { order: newOrder })
+
     const previous = queryClient.getQueryData<{ items: DesignationItem[]; designation_counts?: Record<string, number>; total_candidates?: number }>(['designations'])
     queryClient.setQueryData(['designations'], {
       ...(previous ?? {}),
@@ -753,7 +841,10 @@ export default function AllTalentListPage() {
     })
 
     try {
-      const res = await designationsApi.reorder(reordered.map((designation) => designation.id))
+      if (user?.id) {
+        await adminApi.updateDesignationOrder(user.id, newOrder)
+      }
+      const res = await designationsApi.reorder(newOrder)
       queryClient.setQueryData(['designations'], res.data)
       toast.success('Designation order saved')
     } catch (err: any) {
@@ -1074,21 +1165,6 @@ export default function AllTalentListPage() {
       <div className="flex items-center gap-2 px-1 mb-2 w-full">
         <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
         <div className="flex items-center gap-2 flex-nowrap flex-shrink-0">
-          <button
-            onClick={() => { setSelectedJobId('all'); setPage(1); }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 10,
-              border: selectedJobId === 'all' ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              background: selectedJobId === 'all' ? 'var(--sb-active)' : 'var(--kpi-bg)',
-              color: selectedJobId === 'all' ? 'var(--violet)' : 'var(--text-mid)',
-              transition: 'all 0.18s',
-              whiteSpace: 'nowrap', flexShrink: 0
-            }}
-          >
-            All
-          </button>
           {/* + Add Designation button */}
           <button
             onClick={() => { setShowAddJobModal(true); setTimeout(() => newJobInputRef.current?.focus(), 80) }}
@@ -1107,6 +1183,21 @@ export default function AllTalentListPage() {
           >
             +
           </button>
+          <button
+            onClick={() => { setSelectedJobId('all'); setPage(1); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 10,
+              border: selectedJobId === 'all' ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              background: selectedJobId === 'all' ? 'var(--sb-active)' : 'var(--kpi-bg)',
+              color: selectedJobId === 'all' ? 'var(--violet)' : 'var(--text-mid)',
+              transition: 'all 0.18s',
+              whiteSpace: 'nowrap', flexShrink: 0
+            }}
+          >
+            All
+          </button>
         </div>
         <DragDropContext onDragEnd={handleDesignationDragEnd}>
           <Droppable droppableId="designations-row" direction="horizontal">
@@ -1114,7 +1205,7 @@ export default function AllTalentListPage() {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="flex items-center gap-2 flex-nowrap overflow-x-auto min-w-0 flex-1"
+                className={`flex items-center gap-2 flex-nowrap overflow-x-auto min-w-0 flex-1 ${shouldWobble ? 'animate-wobble-once' : ''}`}
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {designations.map((job: any, index: number) => {
@@ -1123,11 +1214,14 @@ export default function AllTalentListPage() {
                   return (
                     <Draggable key={job.id} draggableId={job.id} index={index}>
                       {(dragProvided, snapshot) => (
-                        <button
+                        <div
                           ref={dragProvided.innerRef}
                           {...dragProvided.draggableProps}
                           {...dragProvided.dragHandleProps}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => { setSelectedJobId(job.id); setPage(1); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedJobId(job.id); setPage(1); } }}
                           onContextMenu={(e) => {
                             e.preventDefault()
                             setContextMenu({ x: e.clientX, y: e.clientY, job })
@@ -1139,10 +1233,11 @@ export default function AllTalentListPage() {
                             fontSize: 12, fontWeight: 700, cursor: 'pointer',
                             background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
                             color: isActive ? 'var(--violet)' : 'var(--text-mid)',
-                            transition: 'all 0.18s',
+                            transition: 'all 0.18s, transform 0.15s ease',
                             whiteSpace: 'nowrap', flexShrink: 0,
-                            boxShadow: snapshot.isDragging ? '0 14px 30px rgba(76, 29, 149, 0.18)' : undefined,
+                            boxShadow: snapshot.isDragging ? '0 10px 25px rgba(108, 71, 255, 0.25)' : undefined,
                             ...dragProvided.draggableProps.style,
+                            transform: `${dragProvided.draggableProps.style?.transform || ''} ${snapshot.isDragging ? 'scale(1.06)' : ''}`.trim() || undefined,
                           }}
                         >
                           <span>{job.title}</span>
@@ -1151,7 +1246,7 @@ export default function AllTalentListPage() {
                               ({designationCount})
                             </span>
                           )}
-                        </button>
+                        </div>
                       )}
                     </Draggable>
                   )
@@ -1269,10 +1364,7 @@ export default function AllTalentListPage() {
                           onDelete={id => setCandidateToDelete({ id, name: candidate.full_name })}
                           onClose={() => setOpenDropdownId(null)}
                           user={user}
-                          onViewProfile={() => {
-                            setViewTarget(candidate)
-                            candidatesApi.recordView(candidate.id)
-                          }}
+                          onChangeDesignation={() => openDesignationTransfer(candidate)}
                           hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
                           isInPipeline={Boolean(stageCfg)}
                           triggerEl={actionTriggerRefs.current[candidate.id] || null}
@@ -1346,7 +1438,7 @@ export default function AllTalentListPage() {
                       textAlign: 'left',
                       padding: '12px 14px',
                       borderRadius: 12,
-                      border: isCurrent ? '1px solid rgba(16,185,129,0.28)' : '1px solid var(--table-border)',
+                      border: isCurrent ? '1.5px solid #10b981' : '1px solid var(--table-border)',
                       background: isCurrent ? 'rgba(16,185,129,0.08)' : 'var(--kpi-bg)',
                       cursor: isCurrent ? 'default' : 'pointer',
                       display: 'flex',
@@ -1356,14 +1448,18 @@ export default function AllTalentListPage() {
                     }}
                   >
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>{designation.title}</span>
-                      <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: isCurrent ? '#059669' : 'var(--text)' }}>
+                        {designation.title}
+                      </span>
+                      <span style={{ fontSize: 11, color: isCurrent ? 'rgba(5, 150, 105, 0.7)' : 'var(--text-light)' }}>
                         {designation.candidate_count ?? designationCounts[designation.title] ?? 0} candidates
                       </span>
                     </span>
-                    {isCurrent && (
-                      <span style={{ fontSize: 11, fontWeight: 800, color: '#059669' }}>Current</span>
-                    )}
+                    {isCurrent ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 800, color: '#059669', background: 'rgba(16, 185, 129, 0.15)', padding: '4px 10px', borderRadius: 20 }}>
+                        <CheckCircle size={11} /> Current
+                      </span>
+                    ) : null}
                   </button>
                 )
               })}

@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
 import { adminApi } from '@/api/admin'
+import { designationsApi, type DesignationItem } from '@/api/designations'
 import type { Candidate } from '@/types'
 import { Avatar } from '@/components/ui/Avatar'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -245,7 +246,7 @@ function CandidateActionsDropdown({
   user,
   onGenerateOffer,
   onAddToPipeline,
-  onViewProfile,
+  onChangeDesignation,
   hasActiveJobs,
   isInPipeline,
 }: {
@@ -258,7 +259,7 @@ function CandidateActionsDropdown({
   user: any
   onGenerateOffer: () => void
   onAddToPipeline: () => void
-  onViewProfile: () => void
+  onChangeDesignation: () => void
   hasActiveJobs: boolean
   isInPipeline: boolean
 }) {
@@ -289,7 +290,7 @@ function CandidateActionsDropdown({
       onClick={(e) => e.stopPropagation()}
     >
       <button
-        onClick={(e) => { e.stopPropagation(); onViewProfile(); onClose() }}
+        onClick={(e) => { e.stopPropagation(); onChangeDesignation(); onClose() }}
         style={{
           width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -299,8 +300,8 @@ function CandidateActionsDropdown({
         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(108,71,255,0.08)' }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
       >
-        <Search size={13} />
-        <span style={{ flex: 1 }}>View Full Profile</span>
+        <Plus size={13} />
+        <span style={{ flex: 1 }}>Change Designation</span>
       </button>
 
       <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
@@ -478,6 +479,62 @@ export default function CandidatesPage() {
   const [isCreatingJob, setIsCreatingJob] = useState(false)
   const newJobInputRef = useRef<HTMLInputElement>(null)
 
+  const [designationTarget, setDesignationTarget] = useState<Candidate | null>(null)
+  const [designationSearch, setDesignationSearch] = useState('')
+  const [pendingDesignation, setPendingDesignation] = useState<DesignationItem | null>(null)
+
+  const { data: designationData } = useQuery({
+    queryKey: ['designations'],
+    queryFn: () => designationsApi.list().then((r: any) => r.data),
+  })
+
+  // Load saved designation order preference from backend / localStorage
+  const { data: userPrefData } = useQuery({
+    queryKey: ['user-preference-order', user?.id],
+    queryFn: () => {
+      if (!user?.id) return { order: [] }
+      return adminApi.getDesignationOrder(user.id).then((r: any) => r.data)
+    },
+    enabled: !!user?.id,
+  })
+
+  const savedOrder = React.useMemo(() => {
+    if (!user?.id) return []
+    const backendOrder = userPrefData?.order || []
+    if (backendOrder.length > 0) return backendOrder
+    try {
+      return JSON.parse(localStorage.getItem(`designation_order_${user.id}`) || '[]')
+    } catch {
+      return []
+    }
+  }, [userPrefData?.order, user?.id])
+
+  const sortedDesignations = React.useMemo(() => {
+    const items = (designationData?.items || []) as DesignationItem[]
+    if (savedOrder.length === 0) {
+      return [...items].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    }
+    const orderMap = new Map<string, number>()
+    savedOrder.forEach((id: string, index: number) => orderMap.set(id, index))
+    return [...items].sort((a, b) => {
+      const indexA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999999
+      const indexB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999999
+      if (indexA !== indexB) return indexA - indexB
+      return (a.display_order ?? 0) - (b.display_order ?? 0)
+    })
+  }, [designationData?.items, savedOrder])
+
+  const designations = sortedDesignations
+  const designationCounts = (designationData?.designation_counts || {}) as Record<string, number>
+
+  const openDesignationTransfer = (candidate: Candidate) => {
+    setDesignationTarget(candidate)
+    setDesignationSearch('')
+    setPendingDesignation(null)
+  }
+
+
+
   const inviteMutation = useMutation({
     mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
     onSuccess: (_, variables) => {
@@ -545,6 +602,72 @@ export default function CandidatesPage() {
       params: queryParams,
     })
   }, [isError, error, queryParams])
+
+  const totalCandidates = data?.total ?? 0
+
+  const transferMutation = useMutation({
+    mutationFn: ({ candidateId, designationId }: { candidateId: string; designationId: string }) =>
+      candidatesApi.updateDesignation(candidateId, designationId),
+    onMutate: async ({ candidateId, designationId }) => {
+      await queryClient.cancelQueries({ queryKey: ['candidates'] })
+      await queryClient.cancelQueries({ queryKey: ['designations'] })
+
+      const previousCandidates = queryClient.getQueryData(['candidates', queryParams])
+      const previousDesignations = queryClient.getQueryData(['designations'])
+
+      const newDesignation = designations.find(d => d.id === designationId)
+      if (newDesignation) {
+        queryClient.setQueryData(['candidates', queryParams], (old: any) => {
+          if (!old || !old.items) return old
+          return {
+            ...old,
+            items: old.items.map((cand: any) => {
+              if (cand.id === candidateId) {
+                return {
+                  ...cand,
+                  designation_id: designationId,
+                  applied_job_title: newDesignation.title
+                }
+              }
+              return cand
+            })
+          }
+        })
+      }
+
+      return { previousCandidates, previousDesignations }
+    },
+    onSuccess: (res: any) => {
+      if (res?.data) {
+        queryClient.setQueryData(['designations'], {
+          items: res.data.designations || [],
+          designation_counts: res.data.designation_counts || {},
+          total_candidates: res.data.total_candidates ?? totalCandidates,
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      setDesignationTarget(null)
+      setPendingDesignation(null)
+      setDesignationSearch('')
+      toast.success('Candidate designation updated successfully.')
+    },
+    onError: (err: any, variables, context: any) => {
+      if (context) {
+        queryClient.setQueryData(['candidates', queryParams], context.previousCandidates)
+        queryClient.setQueryData(['designations'], context.previousDesignations)
+      }
+      toast.error(err.response?.data?.detail || 'Failed to move candidate')
+    },
+  })
+
+  const handleConfirmDesignationMove = () => {
+    if (!designationTarget || !pendingDesignation) return
+    transferMutation.mutate({
+      candidateId: designationTarget.id,
+      designationId: pendingDesignation.id,
+    })
+  }
 
   const { data: activeJobs } = useQuery({
     queryKey: ['jobs', 'active'],
@@ -1035,10 +1158,7 @@ export default function CandidatesPage() {
                           }
                           handleAddToPipeline(candidate.id, resolvedJobId, stage, candidate.full_name)
                         }}
-                        onViewProfile={() => {
-                          setViewTarget(candidate)
-                          candidatesApi.recordView(candidate.id)
-                        }}
+                        onChangeDesignation={() => openDesignationTransfer(candidate)}
                         hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
                         isInPipeline={isAlreadyInPipeline}
                         user={user}
@@ -1234,6 +1354,150 @@ export default function CandidatesPage() {
           </div>
         </Modal>
       )}
+
+      {(() => {
+        const currentDesignationTitle = designationTarget?.applied_job_title || designationTarget?.current_title || ''
+        const currentDesignationItem = currentDesignationTitle
+          ? designations.find((designation: DesignationItem) => designation.title === currentDesignationTitle)
+          : null
+        const filteredDesignations = designations.filter((designation: DesignationItem) =>
+          designation.title.toLowerCase().includes(designationSearch.trim().toLowerCase()),
+        )
+
+        return (
+          <>
+            {designationTarget && (
+              <Modal
+                open
+                onClose={() => { setDesignationTarget(null); setPendingDesignation(null); setDesignationSearch('') }}
+                title="Change Designation"
+                size="lg"
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.12)' }}>
+                    <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-light)', marginBottom: 6 }}>Candidate</p>
+                    <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{designationTarget.full_name}</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 2 }}>
+                      Current designation: <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{currentDesignationTitle || 'Unassigned'}</span>
+                    </p>
+                  </div>
+
+                  <Input
+                    placeholder="Search designations..."
+                    value={designationSearch}
+                    onChange={(e) => setDesignationSearch(e.target.value)}
+                    leftIcon={<Search size={15} />}
+                  />
+
+                  <div style={{ maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {currentDesignationItem && (
+                      <div style={{ position: 'sticky', top: 0, zIndex: 1, padding: '10px 12px', borderRadius: 12, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}>
+                        <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#059669', marginBottom: 2 }}>Current designation</p>
+                        <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{currentDesignationItem.title}</p>
+                      </div>
+                    )}
+
+                    {filteredDesignations.length === 0 ? (
+                      <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-light)', fontSize: 13 }}>
+                        No designations match your search.
+                      </div>
+                    ) : filteredDesignations.map((designation: DesignationItem) => {
+                      const isCurrent = designation.title === currentDesignationTitle
+                      return (
+                        <button
+                          key={designation.id}
+                          onClick={() => {
+                            if (isCurrent) return
+                            setPendingDesignation(designation)
+                          }}
+                          disabled={isCurrent}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '12px 14px',
+                            borderRadius: 12,
+                            border: isCurrent ? '1.5px solid #10b981' : '1px solid var(--table-border)',
+                            background: isCurrent ? 'rgba(16,185,129,0.08)' : 'var(--kpi-bg)',
+                            cursor: isCurrent ? 'default' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                          }}
+                        >
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: isCurrent ? '#059669' : 'var(--text)' }}>
+                              {designation.title}
+                            </span>
+                            <span style={{ fontSize: 11, color: isCurrent ? 'rgba(5, 150, 105, 0.7)' : 'var(--text-light)' }}>
+                              {designation.candidate_count ?? designationCounts[designation.title] ?? 0} candidates
+                            </span>
+                          </span>
+                          {isCurrent ? (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 800, color: '#059669', background: 'rgba(16, 185, 129, 0.15)', padding: '4px 10px', borderRadius: 20 }}>
+                              <CheckCircle size={11} /> Current
+                            </span>
+                          ) : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </Modal>
+            )}
+
+            {designationTarget && pendingDesignation && (
+              <Modal
+                open
+                onClose={() => setPendingDesignation(null)}
+                title="Move Candidate?"
+                size="md"
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.12)' }}>
+                    <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{designationTarget.full_name}</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 6 }}>
+                      From <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{currentDesignationTitle || 'Unassigned'}</span>
+                      {' '}to <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{pendingDesignation.title}</span>
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setPendingDesignation(null)}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        border: '1px solid var(--table-border)',
+                        background: 'transparent',
+                        color: 'var(--text-mid)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmDesignationMove}
+                      disabled={transferMutation.isPending}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+                        color: '#fff',
+                        fontWeight: 800,
+                        cursor: transferMutation.isPending ? 'not-allowed' : 'pointer',
+                        opacity: transferMutation.isPending ? 0.75 : 1,
+                      }}
+                    >
+                      {transferMutation.isPending ? 'Moving...' : 'Confirm'}
+                    </button>
+                  </div>
+                </div>
+              </Modal>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }

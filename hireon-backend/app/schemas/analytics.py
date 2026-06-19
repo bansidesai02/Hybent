@@ -12,6 +12,8 @@ class AnalyticsOverview(BaseModel):
     active_jobs: int
     total_applications: int
     total_candidates: int
+    resumes_processed: int = 0
+    auto_shortlisted: int = 0
     interviews_scheduled: int
     offers_sent: int
     offers_accepted: int
@@ -20,6 +22,8 @@ class AnalyticsOverview(BaseModel):
     # % change vs previous 30-day window — None when no prior data exists
     total_applications_delta: float | None = None
     total_candidates_delta: float | None = None
+    resumes_processed_delta: float | None = None
+    auto_shortlisted_delta: float | None = None
     interviews_scheduled_delta: float | None = None
     offers_accepted_delta: float | None = None
 

@@ -884,14 +884,18 @@ async def update_candidate_designation(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
+    designation_id_str = data.designation_id or data.designationId
+    if not designation_id_str:
+        raise HTTPException(status_code=400, detail="designation_id or designationId is required")
+
     try:
-        designation_id = uuid.UUID(data.designation_id)
+        designation_uuid = uuid.UUID(designation_id_str)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid designation id")
 
     designation_res = await db.execute(
         select(Job).where(
-            Job.id == designation_id,
+            Job.id == designation_uuid,
             Job.organization_id == current_user.organization_id,
             Job.status == JobStatus.POOL
         )
@@ -900,17 +904,9 @@ async def update_candidate_designation(
     if not designation:
         raise HTTPException(status_code=404, detail="Designation not found")
 
+    from_designation_id = candidate.designation_id
+    to_designation_id = designation.id
     old_title = candidate.applied_job_title
-    if old_title == designation.title:
-        from app.routers.designations import _designation_counts, _designation_rows
-        return APIResponse.success(
-            message="Candidate designation updated successfully.",
-            data={
-                "candidate": CandidateOut.model_validate(candidate).model_dump(),
-                "designations": await _designation_rows(db, current_user.organization_id),
-                "designation_counts": await _designation_counts(db, current_user.organization_id),
-            },
-        )
 
     from app.models.application import Application as ApplicationModel
 
@@ -945,7 +941,19 @@ async def update_candidate_designation(
             await db.delete(app)
 
     candidate.applied_job_title = designation.title
+    candidate.designation_id = designation_uuid
     candidate.updated_at = datetime.now(timezone.utc)
+
+    # Insert audit log in designation_change_logs table
+    from app.models.designation_change_log import DesignationChangeLog
+    change_log = DesignationChangeLog(
+        id=uuid.uuid4(),
+        candidate_id=candidate.id,
+        from_designation_id=from_designation_id,
+        to_designation_id=to_designation_id,
+        changed_at=datetime.now(timezone.utc)
+    )
+    db.add(change_log)
 
     await db.flush()
     await log_activity(

@@ -18,11 +18,14 @@ from app.models.message import Message
 from app.models.ai_usage import AIUsage
 from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 from app.models.import_batch import ImportBatch
+from app.models.user_preference import UserPreference
+from app.models.designation_change_log import DesignationChangeLog
 
 __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
     "Application", "Interview", "InterviewPanelist", "Scorecard",
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
     "OtherOffer", "JobReferral", "CandidateDocument", "Message",
-    "AIUsage", "CopilotConversation", "CopilotMessage", "ImportBatch"
+    "AIUsage", "CopilotConversation", "CopilotMessage", "ImportBatch",
+    "UserPreference", "DesignationChangeLog"
 ]

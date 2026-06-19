@@ -28,7 +28,7 @@ from app.routers import (
     resumes, ai, applications, pipeline,
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
-    activities, reports, messages, search, public, copilot, bulk_import, linkedin, designations
+    activities, reports, messages, search, public, copilot, bulk_import, linkedin, designations, api_compat
 )
 # Configure logging
 logging.basicConfig(
@@ -223,6 +223,7 @@ app.include_router(copilot.router)
 app.include_router(bulk_import.router)
 app.include_router(linkedin.router)
 app.include_router(public.router, prefix="/api")
+app.include_router(api_compat.router)
 
 
 @app.get("/", tags=["health"])

@@ -11,6 +11,12 @@ export const adminApi = {
 
   deleteUser: (id: string) => api.delete<User>(`/v1/users/${id}`),
 
+  getDesignationOrder: (userId: string) =>
+    api.get<{ order: string[] }>(`/v1/users/${userId}/designation-order`),
+
+  updateDesignationOrder: (userId: string, order: string[]) =>
+    api.put<{ order: string[] }>(`/v1/users/${userId}/designation-order`, { order }),
+
   auditLogs: (params?: {
     page?: number
     limit?: number

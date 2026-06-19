@@ -1139,3 +1139,18 @@
 .portal-root strong, .portal-root b {
   font-weight: 700 !important;
 }
+
+/* Wobble animation for first-load horizontal scrolling tabs */
+@keyframes wobble {
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-6px) rotate(-1deg); }
+  30% { transform: translateX(5px) rotate(1deg); }
+  45% { transform: translateX(-4px) rotate(-1deg); }
+  60% { transform: translateX(2px) rotate(0.5deg); }
+  75% { transform: translateX(-1px) rotate(0deg); }
+  100% { transform: translateX(0); }
+}
+
+.animate-wobble-once {
+  animation: wobble 0.75s ease-in-out;
+}

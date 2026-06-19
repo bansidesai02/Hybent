@@ -120,7 +120,8 @@ class CandidateStageUpdate(BaseModel):
 
 
 class CandidateDesignationUpdate(BaseModel):
-    designation_id: str
+    designation_id: str | None = None
+    designationId: str | None = None
 
 
 class CandidateCreate(BaseModel):

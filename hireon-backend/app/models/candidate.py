@@ -77,6 +77,10 @@ class Candidate(Base):
     # Job title they are currently being considered for (syncs with latest application)
     applied_job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    designation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     source: Mapped[str | None] = mapped_column(String(100))  # linkedin, referral, job_board, etc.
     
     # Bulk import specific fields

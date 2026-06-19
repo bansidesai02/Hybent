@@ -300,3 +300,61 @@ async def delete_user(user_id: uuid.UUID, current_user: AdminUser, db: DB, backg
     await db.commit()
     invalidate_users_cache(current_user.organization_id)
     return APIResponse.success(message="User deleted successfully.", data=UserOut.model_validate(user))
+
+
+from datetime import datetime, timezone
+
+class DesignationOrderUpdate(BaseModel):
+    order: list[str]
+
+
+@router.put("/{user_id}/designation-order")
+async def update_designation_order(
+    user_id: uuid.UUID,
+    data: DesignationOrderUpdate,
+    current_user: CurrentUser,
+    db: DB,
+):
+    if user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update preferences for this user")
+    
+    from app.models.user_preference import UserPreference
+    res = await db.execute(
+        select(UserPreference).where(UserPreference.user_id == user_id)
+    )
+    preference = res.scalar_one_or_none()
+    
+    if not preference:
+        preference = UserPreference(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            designation_order=data.order,
+            updated_at=datetime.now(timezone.utc)
+        )
+        db.add(preference)
+    else:
+        preference.designation_order = data.order
+        preference.updated_at = datetime.now(timezone.utc)
+        
+    await db.commit()
+    return APIResponse.success(message="Designation order saved.", data={"order": preference.designation_order})
+
+
+@router.get("/{user_id}/designation-order")
+async def get_designation_order(
+    user_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+):
+    if user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access preferences for this user")
+        
+    from app.models.user_preference import UserPreference
+    res = await db.execute(
+        select(UserPreference).where(UserPreference.user_id == user_id)
+    )
+    preference = res.scalar_one_or_none()
+    
+    order = preference.designation_order if preference else []
+    return APIResponse.success(message="Designation order retrieved.", data={"order": order})
+

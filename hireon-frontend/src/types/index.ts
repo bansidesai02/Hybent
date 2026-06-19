@@ -321,6 +321,8 @@ export interface AnalyticsOverview {
   active_jobs: number
   total_applications: number
   total_candidates: number
+  resumes_processed?: number
+  auto_shortlisted?: number
   interviews_scheduled: number
   offers_sent: number
   offers_accepted: number
@@ -329,6 +331,8 @@ export interface AnalyticsOverview {
   // % change vs previous 30-day window — null when no prior data exists
   total_applications_delta?: number | null
   total_candidates_delta?: number | null
+  resumes_processed_delta?: number | null
+  auto_shortlisted_delta?: number | null
   interviews_scheduled_delta?: number | null
   offers_accepted_delta?: number | null
 }
