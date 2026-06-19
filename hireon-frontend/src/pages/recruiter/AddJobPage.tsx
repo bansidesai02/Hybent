@@ -658,7 +658,21 @@ export default function AddJobPage() {
                 {watch('jd_url') && (
                   <button
                     type="button"
-                    onClick={() => window.open(watch('jd_url')!, '_blank')}
+                    onClick={async () => {
+                      const url = watch('jd_url')
+                      if (!url) return
+                      try {
+                        const res = await fetch(url)
+                        if (!res.ok) throw new Error('Failed to fetch JD')
+                        const blob = await res.blob()
+                        const obj = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+                        window.open(obj, '_blank')
+                        setTimeout(() => window.URL.revokeObjectURL(obj), 60_000)
+                      } catch (err) {
+                        console.error(err)
+                        try { window.open(url, '_blank') } catch (e) { /* ignore */ }
+                      }
+                    }}
                     style={{ background: 'none', border: 'none', color: '#6c47ff', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                   >
                     View Uploaded JD

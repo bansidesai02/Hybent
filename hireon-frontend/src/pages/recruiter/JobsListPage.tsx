@@ -96,12 +96,73 @@ const getExperienceDisplay = (job: Job) => {
 function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => void; onEdit: () => void }) {
   const [isExporting, setIsExporting] = useState(false)
 
+  // Open existing JD inline in a new tab (tries to fetch and open blob URL).
+  const handleViewJD = async () => {
+    setIsExporting(true)
+    try {
+      if (job.jd_url) {
+        const res = await fetch(job.jd_url)
+        if (!res.ok) throw new Error('Failed to fetch JD')
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+        window.open(url, '_blank')
+        setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+        return
+      }
+
+      // Fallback: generate JD PDF via AI endpoint and open inline
+      const jdData = {
+        title: job.title,
+        location: job.location || 'Remote',
+        experience: getExperienceDisplay(job),
+        key_responsibilities: (job as any).responsibilities
+          ? (job as any).responsibilities.split('\n').map((s: string) => s.replace(/^[•\s*-]+/, '').trim()).filter(Boolean)
+          : [],
+        required_qualifications_skills: job.skills_required,
+        good_to_have: [],
+        description: job.description
+      }
+      const res = await aiApi.exportJDPDF(jdData)
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to open JD inline.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Download JD: if a remote JD exists, fetch it and force a download; otherwise generate via AI and download.
   const handleDownloadPDF = async () => {
     if (job.jd_url) {
-      window.open(job.jd_url, '_blank')
-      return
+      try {
+        setIsExporting(true)
+        const res = await fetch(job.jd_url)
+        if (!res.ok) throw new Error('Failed to fetch JD')
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+        const link = document.createElement('a')
+        link.href = url
+        const filename = job.jd_filename || `JD_${job.title.replace(/\s+/g, '_')}.pdf`
+        link.setAttribute('download', filename)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        setTimeout(() => window.URL.revokeObjectURL(url), 10000)
+        toast.success('JD downloaded')
+        return
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to download JD from remote URL')
+      } finally {
+        setIsExporting(false)
+      }
     }
 
+    // Fallback: generate JD via AI and download
     try {
       setIsExporting(true)
       const jdData = {
@@ -142,7 +203,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
       headerActions={
         <button
           type="button"
-          onClick={handleDownloadPDF}
+          onClick={handleViewJD}
           disabled={isExporting}
           className="btn-primary-gradient"
           style={{
@@ -157,7 +218,7 @@ function JobDetailModal({ job, onClose, onEdit }: { job: Job; onClose: () => voi
           }}
         >
           <Eye size={14} />
-          {isExporting ? 'Generating...' : 'View JD'}
+          {isExporting ? 'Processing...' : 'View JD'}
         </button>
       }
     >
