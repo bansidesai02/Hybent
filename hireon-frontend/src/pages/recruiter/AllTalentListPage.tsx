@@ -1343,9 +1343,9 @@ export default function AllTalentListPage() {
 
                 {/* Actions */}
                 <div className="flex items-center lg:justify-end gap-2" style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                  <button onClick={e => { e.stopPropagation(); openDesignationTransfer(candidate) }}
+                  <button onClick={e => { e.stopPropagation(); setViewTarget(candidate) }}
                     className="text-[11px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-all">
-                    Change Designation
+                    View Full Profile
                   </button>
 
                   <div style={{ position: 'relative' }}>
