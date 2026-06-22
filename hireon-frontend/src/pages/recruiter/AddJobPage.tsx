@@ -11,7 +11,8 @@ import type { Job } from '@/types'
 import { AIJDReviewModal } from '@/components/recruiter/AIJDReviewModal'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { Select } from '@/components/ui/Select'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowRight, Loader2, Lock } from 'lucide-react'
+import { superAdminApi } from '@/api/superAdmin'
 import { Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
@@ -156,6 +157,7 @@ export default function AddJobPage() {
   const location = useLocation()
   const { id } = useParams()
   const queryClient = useQueryClient()
+  const { data: globalFlags } = useQuery({ queryKey: ['super-admin', 'global-flags'], queryFn: () => superAdminApi.getGlobalFlags() })
   const isEdit = Boolean(id)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -615,19 +617,37 @@ export default function AddJobPage() {
                   placeholder="e.g. Senior Python dev with FastAPI..." 
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleMagicGenerate())}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (!globalFlags?.ai) {
+                        toast.error('Feature Locked: AI Scoring Engine is disabled for your organization. Please contact your administrator.')
+                        return
+                      }
+                      if (aiPrompt.trim()) handleMagicGenerate()
+                    }
+                  }}
                 />
                 <button
                   type="button"
-                  onClick={handleMagicGenerate}
-                  disabled={isGenerating || !aiPrompt.trim()}
+                  onClick={() => {
+                    if (!globalFlags?.ai) {
+                      toast.error('Feature Locked: AI Scoring Engine is disabled for your organization. Please contact your administrator.')
+                      return
+                    }
+                    if (!aiPrompt.trim()) return;
+                    handleMagicGenerate()
+                  }}
+                  disabled={isGenerating}
                   style={{ 
                     padding: '0 16px', borderRadius: 10, background: 'linear-gradient(135deg,#6c47ff,#8b6bff)', 
-                    color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: 13,
-                    opacity: (isGenerating || !aiPrompt.trim()) ? 0.6 : 1
+                    color: '#fff', border: 'none', fontWeight: 600, cursor: (!globalFlags?.ai) ? 'not-allowed' : 'pointer', fontSize: 13,
+                    opacity: (!globalFlags?.ai) ? 0.6 : (isGenerating || !aiPrompt.trim()) ? 0.6 : 1,
+                    filter: (!globalFlags?.ai) ? 'grayscale(100%)' : 'none'
                   }}
+                  title={!globalFlags?.ai ? "Feature Locked" : "Generate JD"}
                 >
-                  {isGenerating ? <Loader2 className="animate-spin" size={14} /> : 'Generate'}
+                  {!globalFlags?.ai ? <Lock size={14} /> : isGenerating ? <Loader2 className="animate-spin" size={14} /> : 'Generate'}
                 </button>
               </div>
 

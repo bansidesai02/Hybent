@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsApi } from '@/api/reports'
 import { adminApi } from '@/api/admin'
+import { superAdminApi } from '@/api/superAdmin'
 import { useAuth } from '@/hooks/useAuth'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
@@ -14,7 +15,8 @@ import {
   AlertTriangle, 
   XCircle, 
   Download, 
-  Lightbulb 
+  Lightbulb,
+  Lock
 } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import type { ReportSummary, User } from '@/types'
@@ -74,6 +76,8 @@ export default function ReportsPage() {
     queryFn: () => reportsApi.getSummary(filterParams).then((r) => r.data),
   })
 
+  const { data: globalFlags } = useQuery({ queryKey: ['super-admin', 'global-flags'], queryFn: () => superAdminApi.getGlobalFlags() })
+
   useEffect(() => {
     if (isAdmin) {
       adminApi.listUsers().then(res => {
@@ -87,6 +91,10 @@ export default function ReportsPage() {
   }, [isAdmin])
 
   const handleDownload = async () => {
+    if (!globalFlags?.analytics) {
+      toast.error('Feature Locked: Advanced Export Metrics is disabled for your organization. Please contact your administrator.');
+      return;
+    }
     try {
       // Reuse the same filterParams object — export and on-screen data are always in sync
       const res = await reportsApi.export(filterParams);
@@ -148,10 +156,11 @@ export default function ReportsPage() {
         </header>
         <button
           onClick={handleDownload}
-          className="text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-xl shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+          className={`text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${!globalFlags?.analytics ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:scale-105 transition-transform'}`}
           style={{ background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)' }}
+          title={!globalFlags?.analytics ? "Feature Locked" : "Download Excel Report"}
         >
-          <Download size={18} /> Download Excel Report
+          {!globalFlags?.analytics ? <Lock size={18} /> : <Download size={18} />} Download Excel Report
         </button>
       </div>
 

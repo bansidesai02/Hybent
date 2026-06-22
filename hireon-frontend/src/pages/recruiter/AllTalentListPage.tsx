@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { CandidateProfileView } from '@/components/recruiter/CandidateProfileView'
-import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle, Bookmark, X, Upload, ChevronDown, Clock3 } from 'lucide-react'
+import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle, Bookmark, X, Upload, ChevronDown, Clock3, Lock } from 'lucide-react'
 import { talentPoolApi } from '@/api/talentPool'
 import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
@@ -886,38 +886,63 @@ export default function AllTalentListPage() {
           </p>
         </header>
         <div className="relative flex items-center" ref={importActionsRef}>
-          {globalFlags?.bulk && (
-  <button
-    onClick={() => setShowBulkImportModal(true)}
-    onKeyDown={(e) => {
-      if (e.key === 'Enter' || e.key === ' ') setShowBulkImportModal(true)
-    }}
-    className="inline-flex items-center gap-2 px-4 py-2 rounded-l-xl text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95"
-    style={{
-      background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
-      minHeight: 40,
-    }}
-  >
-    <Upload size={16} />
-    Import Candidates
-  </button>
-)}
           <button
-            onClick={() => setShowImportActions((prev) => !prev)}
+            onClick={() => {
+              if (!globalFlags?.bulk) {
+                toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                return;
+              }
+              setShowBulkImportModal(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                if (!globalFlags?.bulk) {
+                  toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                  return;
+                }
+                setShowBulkImportModal(true);
+              }
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-l-xl text-sm font-semibold text-white shadow-sm transition-all ${!globalFlags?.bulk ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:opacity-95'}`}
+            style={{
+              background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+              minHeight: 40,
+            }}
+            title={!globalFlags?.bulk ? "Feature Locked" : "Import Candidates"}
+          >
+            {!globalFlags?.bulk ? <Lock size={16} /> : <Upload size={16} />}
+            Import Candidates
+          </button>
+          <button
+            onClick={() => {
+              if (!globalFlags?.bulk) {
+                toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                return;
+              }
+              setShowImportActions((prev) => !prev);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') setShowImportActions(false)
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
+                if (!globalFlags?.bulk) {
+                  toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                  return;
+                }
                 setShowImportActions((prev) => !prev)
               }
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
+                if (!globalFlags?.bulk) {
+                  toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                  return;
+                }
                 setShowImportActions(true)
               }
             }}
             aria-haspopup="menu"
             aria-expanded={showImportActions}
-            className="inline-flex items-center justify-center px-3 py-2 rounded-r-xl text-white shadow-sm transition-all hover:opacity-95 border-l border-white/20"
+            className={`inline-flex items-center justify-center px-3 py-2 rounded-r-xl text-white shadow-sm transition-all border-l border-white/20 ${!globalFlags?.bulk ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:opacity-95'}`}
             style={{
               background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
               minHeight: 40,
