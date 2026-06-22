@@ -289,7 +289,7 @@ export default function ClientDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map(u => (
+                    {users.map((u: any) => (
                       <tr 
                         key={u.id}
                         className="border-b last:border-0"
@@ -484,12 +484,12 @@ export default function ClientDetailPage() {
                   <select
                     value={selectedUserToImpersonate.id}
                     onChange={(e) => {
-                      const u = users.find(x => x.id === e.target.value)
+                      const u = users.find((x: any) => x.id === e.target.value)
                       if (u) setSelectedUserToImpersonate(u)
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--input-border)] bg-[var(--search-bg)] text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--violet)]"
                   >
-                    {users.map(u => (
+                    {users.map((u: any) => (
                       <option key={u.id} value={u.id}>
                         {u.full_name} ({u.role} &middot; {u.email})
                       </option>

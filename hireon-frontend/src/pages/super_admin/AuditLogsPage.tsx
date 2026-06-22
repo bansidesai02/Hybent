@@ -13,11 +13,18 @@ export default function AuditLogsPage() {
   const [filterClient, setFilterClient] = React.useState('all')
   const [filterType, setFilterType] = React.useState('all')
   const [searchQuery, setSearchQuery] = React.useState('')
+  const [page, setPage] = React.useState(0)
+  const PAGE_SIZE = 50
 
   // Queries
-  const { data: logs, isLoading } = useQuery({
-    queryKey: ['super-admin', 'audit-logs', filterClient, filterType],
-    queryFn: () => superAdminApi.getAuditLogs({ client: filterClient, category: filterType })
+  const { data: logsResponse, isLoading } = useQuery({
+    queryKey: ['super-admin', 'audit-logs', filterClient, filterType, page],
+    queryFn: () => superAdminApi.getAuditLogs({
+      client: filterClient !== 'all' ? filterClient : undefined,
+      category: filterType !== 'all' ? filterType : undefined,
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE
+    })
   })
 
   const { data: clients } = useQuery({
@@ -25,30 +32,23 @@ export default function AuditLogsPage() {
     queryFn: () => superAdminApi.getClients()
   })
 
+  // Reset page when filters change
+  React.useEffect(() => { setPage(0) }, [filterClient, filterType])
+
   // Filter logs on the client side for search
   const filteredLogs = React.useMemo(() => {
-    if (!logs) return []
-    let list = [...logs]
+    const list = logsResponse?.logs || []
+    if (!searchQuery.trim()) return list
+    const q = searchQuery.toLowerCase()
+    return list.filter((l: any) => 
+      l.action?.toLowerCase().includes(q) || 
+      l.actor?.toLowerCase().includes(q) ||
+      l.client?.toLowerCase().includes(q)
+    )
+  }, [logsResponse, searchQuery])
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      list = list.filter(l => 
-        l.action.toLowerCase().includes(q) || 
-        l.actor.toLowerCase().includes(q) ||
-        l.client.toLowerCase().includes(q)
-      )
-    }
-
-    if (filterClient !== 'all') {
-      list = list.filter(l => l.client === filterClient)
-    }
-
-    if (filterType !== 'all') {
-      list = list.filter(l => l.type === filterType)
-    }
-
-    return list
-  }, [logs, searchQuery, filterClient, filterType])
+  const totalCount = logsResponse?.total || 0
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   return (
     <div className="space-y-8 pb-10 pt-6">
@@ -128,7 +128,7 @@ export default function AuditLogsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLogs.map((log, index) => (
+                {filteredLogs.map((log: any, index: number) => (
                   <tr
                     key={index}
                     className="border-b last:border-b-0 hover:bg-[var(--sb-hover)]/30 transition-colors"
@@ -163,6 +163,35 @@ export default function AuditLogsPage() {
             </div>
           )}
         </div>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
+            <span className="text-[12px] font-semibold text-[var(--text-light)]">
+              Showing {page * PAGE_SIZE + 1} to {Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount} logs
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-3 py-1.5 rounded-xl border text-[12px] font-bold disabled:opacity-50 hover:bg-[var(--sb-hover)] transition-colors"
+                style={{ borderColor: 'var(--input-border)', color: 'var(--text-mid)' }}
+              >
+                Previous
+              </button>
+              <span className="text-[12px] font-bold text-[var(--text)] mx-2">
+                Page {page + 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="px-3 py-1.5 rounded-xl border text-[12px] font-bold disabled:opacity-50 hover:bg-[var(--sb-hover)] transition-colors"
+                style={{ borderColor: 'var(--input-border)', color: 'var(--text-mid)' }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

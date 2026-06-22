@@ -119,8 +119,10 @@ export default function HealthPage() {
                   <p className="text-[10.5px] text-[var(--text-light)] mt-0.5">Continuous health checking active</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[12px] font-bold text-emerald-500 capitalize">{srv.status.toLowerCase()}</span>
+                  <span className={`w-2.5 h-2.5 rounded-full ${srv.status === 'Operational' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500 animate-pulse'}`} />
+                  <span className={`text-[12px] font-bold capitalize ${srv.status === 'Operational' ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {srv.status.toLowerCase()}
+                  </span>
                 </div>
               </div>
             ))

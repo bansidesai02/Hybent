@@ -58,14 +58,17 @@ export default function DashboardPage() {
   }, [clients])
 
   const roleDistribution = React.useMemo(() => {
-    // Mock role distribution mapping
+    if (!dashboard?.role_distribution) return []
+    const dist = dashboard.role_distribution
+    const total = Object.values(dist).reduce((acc: number, val) => acc + (val as number), 0) || 1
+    
     return [
-      { name: 'Admin', count: 18, percentage: 10, color: 'var(--violet)' },
-      { name: 'HR / Recruiter', count: 85, percentage: 48, color: '#3b82f6' },
-      { name: 'Interviewer', count: 42, percentage: 24, color: '#ff6bc6' },
-      { name: 'Candidate', count: 32, percentage: 18, color: '#10b981' },
+      { name: 'Admin', count: dist.admin || 0, percentage: Math.round(((dist.admin || 0) / total) * 100), color: 'var(--violet)' },
+      { name: 'Recruiter', count: dist.recruiter || 0, percentage: Math.round(((dist.recruiter || 0) / total) * 100), color: '#3b82f6' },
+      { name: 'Interviewer', count: dist.interviewer || 0, percentage: Math.round(((dist.interviewer || 0) / total) * 100), color: '#ff6bc6' },
+      { name: 'Candidate', count: dist.candidate || 0, percentage: Math.round(((dist.candidate || 0) / total) * 100), color: '#10b981' },
     ]
-  }, [])
+  }, [dashboard])
 
   return (
     <div className="space-y-8 pb-10 pt-6">
@@ -120,7 +123,7 @@ export default function DashboardPage() {
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {dashboardLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
+          Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-[130px] rounded-[20px]" />
           ))
         ) : (
@@ -167,6 +170,38 @@ export default function DashboardPage() {
               </div>
               <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{formatCurrency(dashboard?.total_mrr ?? 0)}</p>
               <p className="text-[11.5px] font-bold text-[var(--text-light)]">Monthly Recurring Revenue (MRR)</p>
+            </div>
+
+            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <GlassIcon icon="UserCheck" variant="pink" size={42} iconSize={18} ghost />
+              </div>
+              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_candidates ?? 0}</p>
+              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total candidates</p>
+            </div>
+
+            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <GlassIcon icon="Calendar" variant="violet" size={42} iconSize={18} ghost />
+              </div>
+              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_interviews ?? 0}</p>
+              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total interviews</p>
+            </div>
+
+            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <GlassIcon icon="Award" variant="emerald" size={42} iconSize={18} ghost />
+              </div>
+              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_offers ?? 0}</p>
+              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total offers</p>
+            </div>
+
+            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <GlassIcon icon="Activity" variant="blue" size={42} iconSize={18} ghost />
+              </div>
+              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.api_usage ?? 0}</p>
+              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total API / AI Usage</p>
             </div>
           </>
         )}
@@ -334,8 +369,8 @@ export default function DashboardPage() {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : logs && logs.length > 0 ? (
-            logs.slice(0, 5).map((log, index) => (
+          ) : logs?.logs && logs.logs.length > 0 ? (
+            logs.logs.slice(0, 5).map((log: any, index: number) => (
               <div 
                 key={index}
                 className="flex items-start gap-4 py-3 border-b last:border-b-0"

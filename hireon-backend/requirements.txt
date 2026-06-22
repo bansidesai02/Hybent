@@ -8,6 +8,7 @@ sqlalchemy==2.0.38
 asyncpg>=0.29.0
 alembic==1.13.1
 psycopg2-binary==2.9.10
+
 # Auth & Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
@@ -58,13 +59,14 @@ firebase-admin==6.5.0
 
 # Hugging Face Inference
 huggingface_hub>=0.25.0
+
 # Cloud Image Storage
 cloudinary>=1.40.0
 
 # Search
 elasticsearch[async]>=8.0.0
 
-
 # Performance optimizations
 orjson>=3.10.3
 async-lru>=2.0.4
+psutil==5.9.8

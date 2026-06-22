@@ -65,8 +65,8 @@ export const superAdminApi = {
   updateGlobalFlags: (flags: Record<string, boolean>) => 
     api.put<any>('/v1/super-admin/flags', flags).then(res => res.data),
   
-  getUsers: (params?: { role?: string; client?: string }) => 
-    api.get<any[]>('/v1/super-admin/users', { params }).then(res => res.data),
+  getUsers: (params?: { role?: string; client?: string; limit?: number; offset?: number }) => 
+    api.get<any>('/v1/super-admin/users', { params }).then(res => res.data),
   
   updateUserStatus: (userId: string, isActive: boolean) => 
     api.put<any>(`/v1/super-admin/users/${userId}/status`, null, { params: { is_active: isActive } }).then(res => res.data),
@@ -74,8 +74,8 @@ export const superAdminApi = {
   resetUserPassword: (userId: string) => 
     api.post<any>(`/v1/super-admin/users/${userId}/reset-password`).then(res => res.data),
   
-  getAuditLogs: (params?: { client?: string; category?: string }) => 
-    api.get<any[]>('/v1/super-admin/audit-logs', { params }).then(res => res.data),
+  getAuditLogs: (params?: { client?: string; category?: string; limit?: number; offset?: number }) => 
+    api.get<any>('/v1/super-admin/audit-logs', { params }).then(res => res.data),
   
   getHealth: () => api.get<any>('/v1/super-admin/health').then(res => res.data),
   

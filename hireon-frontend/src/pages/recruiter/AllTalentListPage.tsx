@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { superAdminApi } from '@/api/superAdmin'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
@@ -296,6 +297,7 @@ export default function AllTalentListPage() {
   const [recruiterId, setRecruiterId] = useState<string>('all')
   const [selectedJobId, setSelectedJobId] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
+  const { data: globalFlags, isLoading: flagsLoading } = useQuery({ queryKey: ['super-admin', 'global-flags'], queryFn: () => superAdminApi.getGlobalFlags() })
   const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
   const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
 
@@ -884,20 +886,22 @@ export default function AllTalentListPage() {
           </p>
         </header>
         <div className="relative flex items-center" ref={importActionsRef}>
-          <button
-            onClick={() => setShowBulkImportModal(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') setShowBulkImportModal(true)
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-l-xl text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95"
-            style={{
-              background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
-              minHeight: 40,
-            }}
-          >
-            <Upload size={16} />
-            Import Candidates
-          </button>
+          {globalFlags?.bulk && (
+  <button
+    onClick={() => setShowBulkImportModal(true)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') setShowBulkImportModal(true)
+    }}
+    className="inline-flex items-center gap-2 px-4 py-2 rounded-l-xl text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95"
+    style={{
+      background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+      minHeight: 40,
+    }}
+  >
+    <Upload size={16} />
+    Import Candidates
+  </button>
+)}
           <button
             onClick={() => setShowImportActions((prev) => !prev)}
             onKeyDown={(e) => {

@@ -255,6 +255,7 @@ export default function App() {
             <Route path="audit" element={<SuperAdminAudit />} />
             <Route path="health" element={<SuperAdminHealth />} />
             <Route path="settings" element={<SuperAdminSettings />} />
+            <Route path="profile" element={<AdminProfilePage />} />
           </Route>
 
           {/* Fallback */}

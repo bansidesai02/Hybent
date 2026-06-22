@@ -21,11 +21,13 @@ export default function UsersPage() {
   const [filterRole, setFilterRole] = React.useState('all')
   const [filterClient, setFilterClient] = React.useState('all')
   const [searchQuery, setSearchQuery] = React.useState('')
+  const [page, setPage] = React.useState(0)
+  const PAGE_SIZE = 50
 
   // Queries
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['super-admin', 'users', filterRole, filterClient],
-    queryFn: () => superAdminApi.getUsers({ role: filterRole, client: filterClient })
+  const { data: usersResponse, isLoading } = useQuery({
+    queryKey: ['super-admin', 'users', filterRole, filterClient, page],
+    queryFn: () => superAdminApi.getUsers({ role: filterRole, client: filterClient, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
   })
 
   const { data: clients } = useQuery({
@@ -37,10 +39,14 @@ export default function UsersPage() {
   React.useEffect(() => {
     if (location.state?.clientFilter) {
       setFilterClient(location.state.clientFilter)
+      setPage(0)
       // clear state
       window.history.replaceState({}, document.title)
     }
   }, [location.state])
+
+  // Reset page when filters change
+  React.useEffect(() => { setPage(0) }, [filterRole, filterClient])
 
   // Mutations
   const updateStatusMutation = useMutation({
@@ -67,17 +73,17 @@ export default function UsersPage() {
 
   // Filter logic on the client side for search
   const filteredUsers = React.useMemo(() => {
-    if (!users) return []
-    let list = [...users]
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      list = list.filter(u => 
-        u.full_name.toLowerCase().includes(q) || 
-        u.email.toLowerCase().includes(q)
-      )
-    }
-    return list
-  }, [users, searchQuery])
+    const list = usersResponse?.users || []
+    if (!searchQuery.trim()) return list
+    const q = searchQuery.toLowerCase()
+    return list.filter((u: any) => 
+      u.full_name?.toLowerCase().includes(q) || 
+      u.email?.toLowerCase().includes(q)
+    )
+  }, [usersResponse, searchQuery])
+
+  const totalCount = usersResponse?.total || 0
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   return (
     <div className="space-y-8 pb-10 pt-6">
@@ -158,7 +164,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map(user => (
+                {filteredUsers.map((user: any) => (
                   <tr
                     key={user.id}
                     className="border-b last:border-b-0"
@@ -227,6 +233,36 @@ export default function UsersPage() {
             </div>
           )}
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
+            <span className="text-[12px] font-semibold text-[var(--text-light)]">
+              Showing {page * PAGE_SIZE + 1} to {Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount} users
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-3 py-1.5 rounded-xl border text-[12px] font-bold disabled:opacity-50 hover:bg-[var(--sb-hover)] transition-colors"
+                style={{ borderColor: 'var(--input-border)', color: 'var(--text-mid)' }}
+              >
+                Previous
+              </button>
+              <span className="text-[12px] font-bold text-[var(--text)] mx-2">
+                Page {page + 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="px-3 py-1.5 rounded-xl border text-[12px] font-bold disabled:opacity-50 hover:bg-[var(--sb-hover)] transition-colors"
+                style={{ borderColor: 'var(--input-border)', color: 'var(--text-mid)' }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy import select, func, text, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import DB, SuperAdminUser, require_super_admin
+from app.dependencies import DB, SuperAdminUser, require_super_admin, CurrentUser
 from app.models.organization import Organization
 from app.models.user import User
 from app.models.job import Job
@@ -58,6 +58,8 @@ async def log_super_admin_action(
 # ── 1. DASHBOARD OVERVIEW ─────────────────────────────────────────────────────
 @router.get("/dashboard")
 async def get_dashboard_overview(db: DB, current_user: SuperAdminUser):
+    from app.models.offer import Offer
+
     # Total Companies
     total_companies = (await db.execute(select(func.count(Organization.id)))).scalar() or 0
     # Total Users
@@ -68,6 +70,8 @@ async def get_dashboard_overview(db: DB, current_user: SuperAdminUser):
     total_candidates = (await db.execute(select(func.count(Candidate.id)))).scalar() or 0
     # Total Interviews
     total_interviews = (await db.execute(select(func.count(Interview.id)))).scalar() or 0
+    # Total Offers
+    total_offers = (await db.execute(select(func.count(Offer.id)))).scalar() or 0
 
     # Total MRR
     mrr_query = select(func.sum(SubscriptionPlan.price_monthly)).join(
@@ -82,9 +86,23 @@ async def get_dashboard_overview(db: DB, current_user: SuperAdminUser):
     )).scalar() or 0
 
     # API / AI Usage
-    ai_usage = (await db.execute(
-        select(func.count(AuditLog.id)).where(AuditLog.action.ilike("%AI%"))
-    )).scalar() or 0
+    from app.models.ai_usage import AIUsage
+    ai_usage = (await db.execute(select(func.count(AIUsage.id)))).scalar() or 0
+
+    # Role Distribution
+    role_dist_res = await db.execute(
+        select(User.role, func.count(User.id)).group_by(User.role)
+    )
+    role_counts = {role: count for role, count in role_dist_res.all()}
+
+    # Growth Metrics (comparing current month to last month)
+    now = datetime.now(timezone.utc)
+    first_day_current_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    first_day_last_month = (first_day_current_month - timedelta(days=1)).replace(day=1)
+
+    clients_this_month = (await db.execute(select(func.count(Organization.id)).where(Organization.created_at >= first_day_current_month))).scalar() or 0
+    users_this_week = (await db.execute(select(func.count(User.id)).where(User.created_at >= seven_days_ago))).scalar() or 0
+    jobs_this_week = (await db.execute(select(func.count(Job.id)).where(Job.created_at >= seven_days_ago))).scalar() or 0
 
     return APIResponse.success(data={
         "total_clients": total_companies,
@@ -92,14 +110,16 @@ async def get_dashboard_overview(db: DB, current_user: SuperAdminUser):
         "total_jobs": total_jobs,
         "total_candidates": total_candidates,
         "total_interviews": total_interviews,
+        "total_offers": total_offers,
         "total_mrr": total_mrr,
         "active_users": active_users,
         "api_usage": ai_usage,
+        "role_distribution": role_counts,
         "growth_metrics": {
-            "clients_delta": "+1 this month",
-            "users_delta": "+24 this week",
-            "jobs_delta": "+12 this week",
-            "mrr_delta": "+5% vs last mo"
+            "clients_delta": f"+{clients_this_month} this month",
+            "users_delta": f"+{users_this_week} this week",
+            "jobs_delta": f"+{jobs_this_week} this week",
+            "mrr_delta": "Stable"
         }
     })
 
@@ -108,47 +128,61 @@ async def get_dashboard_overview(db: DB, current_user: SuperAdminUser):
 @router.get("/clients")
 async def list_clients(db: DB, current_user: SuperAdminUser):
     # Query all organizations
-    orgs_res = await db.execute(select(Organization).order_name(Organization.name.asc()) if hasattr(Organization, "order_name") else select(Organization).order_by(Organization.name))
+    orgs_res = await db.execute(select(Organization).order_by(Organization.name))
     orgs = orgs_res.scalars().all()
+    org_ids = [org.id for org in orgs]
+
+    if not org_ids:
+        return APIResponse.success(data=[])
+
+    # Fetch aggregate counts in single queries
+    users_counts = dict((await db.execute(
+        select(User.organization_id, func.count(User.id)).where(User.organization_id.in_(org_ids)).group_by(User.organization_id)
+    )).all())
+
+    jobs_counts = dict((await db.execute(
+        select(Job.organization_id, func.count(Job.id)).where(Job.organization_id.in_(org_ids)).group_by(Job.organization_id)
+    )).all())
+
+    # Fetch subscriptions and plans
+    sub_res = await db.execute(
+        select(CompanySubscription, SubscriptionPlan)
+        .join(SubscriptionPlan, CompanySubscription.plan_id == SubscriptionPlan.id)
+        .where(CompanySubscription.organization_id.in_(org_ids))
+    )
+    subs_map = {sub.organization_id: (sub, plan) for sub, plan in sub_res.all()}
+
+    # Fetch all feature flags
+    flags_res = await db.execute(
+        select(CompanyFeatureFlag).where(CompanyFeatureFlag.organization_id.in_(org_ids))
+    )
+    flags_map = {}
+    for flag in flags_res.scalars().all():
+        if flag.organization_id not in flags_map:
+            flags_map[flag.organization_id] = {}
+        flags_map[flag.organization_id][flag.flag_key] = flag.is_enabled
 
     clients_list = []
     for org in orgs:
-        # Get subscription
-        sub_res = await db.execute(
-            select(CompanySubscription).where(CompanySubscription.organization_id == org.id)
-        )
-        sub = sub_res.scalar_one_or_none()
-
+        # Default limits
         plan_name = "Starter"
         sub_status = "pending"
         mrr = 0.0
         users_limit = 20
         jobs_limit = 10
-        if sub:
-            plan_name = sub.plan.name
+
+        if org.id in subs_map:
+            sub, plan = subs_map[org.id]
+            plan_name = plan.name
             sub_status = sub.status
-            mrr = sub.plan.price_monthly if sub.billing_cycle == "monthly" else (sub.plan.price_yearly / 12)
-            users_limit = sub.plan.max_users
-            jobs_limit = sub.plan.max_jobs
+            mrr = plan.price_monthly if sub.billing_cycle == "monthly" else (plan.price_yearly / 12)
+            users_limit = plan.max_users
+            jobs_limit = plan.max_jobs
 
-        # Counts
-        users_cnt = (await db.execute(
-            select(func.count(User.id)).where(User.organization_id == org.id)
-        )).scalar() or 0
-        jobs_cnt = (await db.execute(
-            select(func.count(Job.id)).where(Job.organization_id == org.id)
-        )).scalar() or 0
-        interviews_cnt = (await db.execute(
-            select(func.count(Interview.id)).where(Interview.organization_id == org.id)
-        )).scalar() or 0
-
-        # Feature flags
-        flags_res = await db.execute(
-            select(CompanyFeatureFlag).where(CompanyFeatureFlag.organization_id == org.id)
-        )
-        flags = {f.flag_key: f.is_enabled for f in flags_res.scalars().all()}
+        users_cnt = users_counts.get(org.id, 0)
+        jobs_cnt = jobs_counts.get(org.id, 0)
         
-        # Ensure default flags if empty
+        flags = flags_map.get(org.id, {})
         for k in ["ai", "video", "bulk", "domain", "analytics"]:
             if k not in flags:
                 flags[k] = (k in ["ai", "bulk"])
@@ -164,14 +198,12 @@ async def list_clients(db: DB, current_user: SuperAdminUser):
             "is_active": org.is_active,
             "created_at": org.created_at,
             "plan": plan_name,
-            "status": sub_status,
+            "status": sub_status if org.is_active else "suspended",
+            "mrr": mrr,
             "users_count": users_cnt,
             "users_limit": users_limit,
             "jobs_count": jobs_cnt,
             "jobs_limit": jobs_limit,
-            "interviews_count": interviews_cnt,
-            "mrr": mrr,
-            "location": org.timezone,  # or city / region
             "flags": flags
         })
 
@@ -444,7 +476,7 @@ async def update_client_feature_flags(client_id: uuid.UUID, flags_update: dict[s
 
 # ── 4. GLOBAL FEATURE FLAGS ───────────────────────────────────────────────────
 @router.get("/flags")
-async def get_global_flags(db: DB, current_user: SuperAdminUser):
+async def get_global_flags(db: DB, current_user: CurrentUser):
     settings_res = await db.execute(
         select(PlatformSetting).where(PlatformSetting.setting_key == "global_feature_flags")
     )
@@ -487,17 +519,36 @@ async def update_global_flags(flags_update: dict[str, bool], db: DB, current_use
 
 # ── 5. GLOBAL USER MANAGEMENT ─────────────────────────────────────────────────
 @router.get("/users")
-async def list_global_users(db: DB, current_user: SuperAdminUser, role: str | None = None, client: str | None = None):
-    query = select(User, Organization.name.label("org_name")).join(
+async def list_global_users(
+    db: DB,
+    current_user: SuperAdminUser,
+    role: str | None = None,
+    client: str | None = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    base_query = select(User, Organization.name.label("org_name")).join(
         Organization, Organization.id == User.organization_id, isouter=True
     )
     if role and role != "all":
-        query = query.where(User.role == role.lower())
+        base_query = base_query.where(User.role == role.lower())
     if client and client != "all":
-        query = query.where(Organization.name == client)
+        base_query = base_query.where(Organization.name == client)
 
-    res = await db.execute(query)
+    # Count total before pagination
+    count_query = select(func.count(User.id)).join(
+        Organization, Organization.id == User.organization_id, isouter=True
+    )
+    if role and role != "all":
+        count_query = count_query.where(User.role == role.lower())
+    if client and client != "all":
+        count_query = count_query.where(Organization.name == client)
+    total = (await db.execute(count_query)).scalar() or 0
+
+    paginated_query = base_query.order_by(User.created_at.desc()).limit(limit).offset(offset)
+    res = await db.execute(paginated_query)
     users_list = []
+    now = datetime.now(timezone.utc)
     for user, org_name in res.all():
         users_list.append({
             "id": str(user.id),
@@ -506,9 +557,10 @@ async def list_global_users(db: DB, current_user: SuperAdminUser, role: str | No
             "role": user.role,
             "client": org_name or "System",
             "is_active": user.is_active,
-            "online": True if (user.last_login and datetime.now(timezone.utc) - user.last_login < timedelta(minutes=15)) else False
+            "last_login": user.last_login.isoformat() if user.last_login else None,
+            "online": True if (user.last_login and now - user.last_login < timedelta(minutes=15)) else False
         })
-    return APIResponse.success(data=users_list)
+    return APIResponse.success(data={"users": users_list, "total": total, "limit": limit, "offset": offset})
 
 
 @router.put("/users/{user_id}/status")
@@ -558,15 +610,36 @@ async def reset_user_password(user_id: uuid.UUID, db: DB, current_user: SuperAdm
 
 # ── 6. AUDIT LOGS ─────────────────────────────────────────────────────────────
 @router.get("/audit-logs")
-async def list_audit_logs(db: DB, current_user: SuperAdminUser, client: str | None = None, category: str | None = None):
-    # Fetch from super_admin_audit_logs
-    query = select(SuperAdminAuditLog).order_by(SuperAdminAuditLog.created_at.desc())
+async def list_audit_logs(
+    db: DB, 
+    current_user: SuperAdminUser, 
+    client: str | None = None, 
+    category: str | None = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    query = select(SuperAdminAuditLog)
+    
+    if client:
+        query = query.where(SuperAdminAuditLog.module.ilike(f"%{client}%"))
+    if category:
+        query = query.where(SuperAdminAuditLog.action.ilike(f"%{category}%"))
+
+    query = query.order_by(SuperAdminAuditLog.created_at.desc()).limit(limit).offset(offset)
+    
+    # Get total count for pagination metadata
+    count_query = select(func.count(SuperAdminAuditLog.id))
+    if client:
+        count_query = count_query.where(SuperAdminAuditLog.module.ilike(f"%{client}%"))
+    if category:
+        count_query = count_query.where(SuperAdminAuditLog.action.ilike(f"%{category}%"))
+    
+    total_logs = (await db.execute(count_query)).scalar() or 0
     res = await db.execute(query)
     logs = res.scalars().all()
 
     formatted_logs = []
     for log in logs:
-        # Simple parsing for mock outputs
         formatted_logs.append({
             "action": log.action,
             "client": log.module,
@@ -575,49 +648,58 @@ async def list_audit_logs(db: DB, current_user: SuperAdminUser, client: str | No
             "type": "impersonation" if "impersonate" in log.action.lower() else "user"
         })
 
-    # Add fallback logs from original mock data to make it look full initially
-    if len(formatted_logs) < 2:
-        formatted_logs.extend([
-            {"action": "Super Admin started impersonation of Priya Shah", "client": "BrainerHub", "actor": "Super Admin", "time": "Today 3:41 PM", "type": "impersonation"},
-            {"action": "Viewed job listing 'Senior React Dev'", "client": "BrainerHub", "actor": "Super Admin (as Priya Shah)", "time": "Today 3:42 PM", "type": "impersonation"},
-            {"action": "New HR user Priya Shah added", "client": "BrainerHub", "actor": "Rahul Mehta", "time": "Today 1:05 PM", "type": "user"},
-            {"action": "Job 'Backend Engineer' published", "client": "BrainerHub", "actor": "Priya Shah", "time": "Today 11:20 AM", "type": "job"},
-            {"action": "NexHire upgraded Pro → Enterprise", "client": "NexHire", "actor": "Super Admin", "time": "Yesterday", "type": "billing"},
-            {"action": "StaffReady suspended — payment failed", "client": "StaffReady", "actor": "System", "time": "Yesterday", "type": "billing"}
-        ])
-
-    return APIResponse.success(data=formatted_logs)
+    return APIResponse.success(data={
+        "logs": formatted_logs,
+        "total": total_logs,
+        "limit": limit,
+        "offset": offset
+    })
 
 
 # ── 7. SYSTEM HEALTH MONITORING ───────────────────────────────────────────────
 @router.get("/health")
 async def get_system_health(db: DB, current_user: SuperAdminUser):
+    import time
+    
     # Try getting real system metrics
     cpu = 0.0
     memory = 0.0
     disk = 0.0
     try:
         import psutil
-        cpu = psutil.cpu_percent()
+        cpu = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory().percent
         disk = psutil.disk_usage("/").percent
     except ImportError:
         pass
 
-    # Check services status
+    # Real DB Latency and Activity
+    start_time = time.time()
+    await db.execute(text("SELECT 1"))
+    latency_ms = round((time.time() - start_time) * 1000)
+    
+    # Get recent errors from SuperAdmin audit log (admin-level error actions in last 24h)
+    twenty_four_hours_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+    errors_count = (await db.execute(
+        select(func.count(SuperAdminAuditLog.id)).where(
+            SuperAdminAuditLog.action.ilike("%error%"),
+            SuperAdminAuditLog.created_at >= twenty_four_hours_ago
+        )
+    )).scalar() or 0
+
+    # Mock Services Status for now (or could check Redis etc.)
     services = [
         {"name": "API gateway", "status": "Operational"},
         {"name": "Auth service", "status": "Operational"},
-        {"name": "Email delivery", "status": "Operational"},
-        {"name": "Video interview service", "status": "Operational"},
+        {"name": "Database", "status": "Operational" if latency_ms < 1000 else "Degraded"},
         {"name": "Background jobs", "status": "Operational"}
     ]
 
     return APIResponse.success(data={
         "api_uptime": "99.99%",
-        "avg_latency": "220ms",
-        "errors_24h": 4,
-        "db_queries_sec": 84,
+        "avg_latency": f"{latency_ms}ms",
+        "errors_24h": errors_count,
+        "db_queries_sec": "N/A",  # Hard to get without extensions like pg_stat_statements
         "cpu_percent": cpu,
         "memory_percent": memory,
         "disk_percent": disk,
@@ -686,32 +768,60 @@ async def update_platform_settings(data: PlatformSettingsUpdate, db: DB, current
 # ── 9. SYSTEM-WIDE ANALYTICS ──────────────────────────────────────────────────
 @router.get("/analytics")
 async def get_growth_analytics(db: DB, current_user: SuperAdminUser):
-    # Mock data to support visualization charts in portal
+    # Fetch real user growth grouped by month
+    user_query = select(
+        func.date_trunc('month', User.created_at).label('month'),
+        func.count(User.id).label('count')
+    ).group_by('month').order_by('month')
+    
+    candidate_query = select(
+        func.date_trunc('month', Candidate.created_at).label('month'),
+        func.count(Candidate.id).label('count')
+    ).group_by('month').order_by('month')
+
+    user_res = await db.execute(user_query)
+    candidate_res = await db.execute(candidate_query)
+
+    user_growth = []
+    cumulative_users = 0
+    for row in user_res.all():
+        cumulative_users += row.count
+        user_growth.append({
+            "date": row.month.strftime("%b") if row.month else "Unknown",
+            "count": cumulative_users
+        })
+
+    candidate_growth = []
+    cumulative_candidates = 0
+    for row in candidate_res.all():
+        cumulative_candidates += row.count
+        candidate_growth.append({
+            "date": row.month.strftime("%b") if row.month else "Unknown",
+            "count": cumulative_candidates
+        })
+
+    # For revenue, we simulate cumulative growth since MRR doesn't have a history table here
+    # A real billing implementation would have an Invoice or Payment table.
+    revenue_growth = []
+    
+    # Just to show *something* that isn't hardcoded entirely, we map the latest MRR
+    mrr_query = select(func.sum(SubscriptionPlan.price_monthly)).join(
+        CompanySubscription, CompanySubscription.plan_id == SubscriptionPlan.id
+    ).where(CompanySubscription.status == "active")
+    total_mrr = (await db.execute(mrr_query)).scalar() or 0.0
+
+    # Ensure arrays have at least some fallback if data is empty (for UI charts)
+    if not user_growth:
+        user_growth = [{"date": datetime.now(timezone.utc).strftime("%b"), "count": 0}]
+    if not candidate_growth:
+        candidate_growth = [{"date": datetime.now(timezone.utc).strftime("%b"), "count": 0}]
+        
+    revenue_growth = [{"date": datetime.now(timezone.utc).strftime("%b"), "amount": total_mrr}]
+
     return APIResponse.success(data={
-        "user_growth": [
-            {"date": "Jan", "count": 120},
-            {"date": "Feb", "count": 180},
-            {"date": "Mar", "count": 220},
-            {"date": "Apr", "count": 290},
-            {"date": "May", "count": 340},
-            {"date": "Jun", "count": 405}
-        ],
-        "candidate_growth": [
-            {"date": "Jan", "count": 1200},
-            {"date": "Feb", "count": 1900},
-            {"date": "Mar", "count": 2400},
-            {"date": "Apr", "count": 3500},
-            {"date": "May", "count": 4100},
-            {"date": "Jun", "count": 5200}
-        ],
-        "revenue_growth": [
-            {"date": "Jan", "amount": 420000},
-            {"date": "Feb", "amount": 490000},
-            {"date": "Mar", "amount": 620000},
-            {"date": "Apr", "amount": 750000},
-            {"date": "May", "amount": 830000},
-            {"date": "Jun", "amount": 920000}
-        ]
+        "user_growth": user_growth,
+        "candidate_growth": candidate_growth,
+        "revenue_growth": revenue_growth
     })
 
 
