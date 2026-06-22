@@ -6,6 +6,8 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { lazy, Suspense, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { ImpersonationBanner } from '../common/ImpersonationBanner'
+
 const GlobalChatOverlay = lazy(() => import('@/components/messaging/GlobalChatOverlay').then((m) => ({ default: m.GlobalChatOverlay })))
 const CopilotWidget = lazy(() => import('@/components/Copilot/CopilotWidget').then((m) => ({ default: m.CopilotWidget })))
 
@@ -51,6 +53,7 @@ export function RecruiterLayout() {
       />
 
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden w-full">
+        <ImpersonationBanner />
         <Topbar onToggleMenu={() => setMobileMenuOpen(!mobileMenuOpen)} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-[28px_30px]">
           <div className="main-content-container">

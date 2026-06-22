@@ -60,6 +60,19 @@ const TeamManagementPage = lazy(() => import('@/pages/admin/TeamManagementPage')
 const AuditLogsPage = lazy(() => import('@/pages/admin/AuditLogsPage'))
 const AdminProfilePage = lazy(() => import('@/pages/admin/AdminProfilePage'))
 
+// Super Admin pages (Lazy)
+const SuperAdminLayout = lazy(() => import('@/components/layout/SuperAdminLayout').then(m => ({ default: m.SuperAdminLayout })))
+const SuperAdminDashboard = lazy(() => import('@/pages/super_admin/DashboardPage'))
+const SuperAdminAnalytics = lazy(() => import('@/pages/super_admin/AnalyticsPage'))
+const SuperAdminClients = lazy(() => import('@/pages/super_admin/ClientsPage'))
+const SuperAdminClientDetail = lazy(() => import('@/pages/super_admin/ClientDetailPage'))
+const SuperAdminBilling = lazy(() => import('@/pages/super_admin/BillingPage'))
+const SuperAdminUsers = lazy(() => import('@/pages/super_admin/UsersPage'))
+const SuperAdminFlags = lazy(() => import('@/pages/super_admin/FeatureFlagsPage'))
+const SuperAdminAudit = lazy(() => import('@/pages/super_admin/AuditLogsPage'))
+const SuperAdminHealth = lazy(() => import('@/pages/super_admin/HealthPage'))
+const SuperAdminSettings = lazy(() => import('@/pages/super_admin/SettingsPage'))
+
 // ── Protected route wrapper ────────────────────────────────────────────────────
 function RequireAuth({
   children,
@@ -72,6 +85,7 @@ function RequireAuth({
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (roles && user && !roles.includes(user.role)) {
     // Redirect to appropriate home based on role
+    if (user.role === 'super_admin') return <Navigate to="/super-admin" replace />
     if (user.role === 'candidate') return <Navigate to="/portal" replace />
     if (user.role === 'interviewer') return <Navigate to="/interviewer" replace />
     if (user.role === 'admin') return <Navigate to="/admin" replace />
@@ -220,6 +234,27 @@ export default function App() {
             <Route path="openings" element={<PortalOpenings />} />
             <Route path="notifications" element={<PortalNotifications />} />
             <Route path="settings" element={<PortalSettingsPage />} />
+          </Route>
+
+          {/* Super Admin routes */}
+          <Route
+            path="/super-admin"
+            element={
+              <RequireAuth roles={['super_admin']}>
+                <SuperAdminLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<SuperAdminDashboard />} />
+            <Route path="analytics" element={<SuperAdminAnalytics />} />
+            <Route path="clients" element={<SuperAdminClients />} />
+            <Route path="clients/:id" element={<SuperAdminClientDetail />} />
+            <Route path="billing" element={<SuperAdminBilling />} />
+            <Route path="users" element={<SuperAdminUsers />} />
+            <Route path="flags" element={<SuperAdminFlags />} />
+            <Route path="audit" element={<SuperAdminAudit />} />
+            <Route path="health" element={<SuperAdminHealth />} />
+            <Route path="settings" element={<SuperAdminSettings />} />
           </Route>
 
           {/* Fallback */}

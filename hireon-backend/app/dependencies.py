@@ -34,6 +34,7 @@ async def get_current_user(
 
     # Check if TenantMiddleware already decoded the JWT token
     user_id = getattr(request.state, "user_id", None)
+    impersonator_id = getattr(request.state, "impersonator_id", None)
 
     if user_id is None:
         if not credentials:
@@ -46,9 +47,11 @@ async def get_current_user(
             if user_id is None:
                 logger.debug("sub is missing in payload")
                 raise credentials_exception
+            impersonator_id = payload.get("impersonator_id")
             # Cache values on request.state for downstream routers or middleware
             request.state.user_id = user_id
             request.state.org_id = payload.get("org")
+            request.state.impersonator_id = impersonator_id
         except JWTError as e:
             logger.debug(f"JWT decode failed: {str(e)}")
             raise credentials_exception
@@ -62,6 +65,8 @@ async def get_current_user(
         if not user.is_active:
             logger.debug(f"User {user_id} is inactive")
             raise credentials_exception
+        user.is_impersonating = bool(impersonator_id)
+        user.impersonator_id = impersonator_id
     except Exception as db_err:
         logger.debug(f"DB lookup failed: {str(db_err)}")
         raise credentials_exception
@@ -107,9 +112,18 @@ async def require_admin(
     return current_user
 
 
+async def require_super_admin(
+    current_user: Annotated[User, Depends(get_current_user)]
+) -> User:
+    if current_user.role != UserRole.SUPER_ADMIN.value:
+        raise HTTPException(status_code=403, detail="Super Admin access required")
+    return current_user
+
+
 # Type aliases
 CurrentUser = Annotated[User, Depends(get_current_user)]
 RecruiterUser = Annotated[User, Depends(require_recruiter)]
 InterviewerUser = Annotated[User, Depends(require_interviewer_or_above)]
 AdminUser = Annotated[User, Depends(require_admin)]
+SuperAdminUser = Annotated[User, Depends(require_super_admin)]
 DB = Annotated[AsyncSession, Depends(get_db)]

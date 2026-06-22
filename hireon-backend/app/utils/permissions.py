@@ -9,6 +9,7 @@ class UserRole(str, Enum):
     RECRUITER = "recruiter"
     INTERVIEWER = "interviewer"
     CANDIDATE = "candidate"
+    SUPER_ADMIN = "super_admin"
 
 
 class ApplicationStage(str, Enum):

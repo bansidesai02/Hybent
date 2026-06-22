@@ -14,17 +14,25 @@ export function useAuth() {
     setTokens(data.access_token, data.refresh_token, user)
 
     // Role-based redirect
-    if (user.role === 'candidate') navigate('/portal')
+    if (user.role === 'super_admin') navigate('/super-admin')
+    else if (user.role === 'candidate') navigate('/portal')
     else if (user.role === 'interviewer') navigate('/interviewer')
     else if (user.role === 'admin') navigate('/admin')
     else navigate('/recruiter')
   }
 
-  const basePath = user?.role === 'admin' ? '/admin' : 
+  const basePath = user?.role === 'super_admin' ? '/super-admin' :
+                   user?.role === 'admin' ? '/admin' : 
                    user?.role === 'interviewer' ? '/interviewer' : 
                    user?.role === 'candidate' ? '/portal' : '/recruiter'
 
   const logout = async () => {
+    // If we are currently impersonating, logout should exit impersonation instead of logging out the admin entirely
+    if (user?.is_impersonating) {
+      exitImpersonation()
+      return
+    }
+
     try {
       const refreshToken = localStorage.getItem('hireon_refresh_token') ?? undefined
       await authApi.logout(refreshToken)
@@ -37,7 +45,32 @@ export function useAuth() {
     navigate('/login')
   }
 
-  const isAdmin = user?.role === 'admin'
+  const exitImpersonation = () => {
+    const adminToken = localStorage.getItem('hireon_super_admin_access_token')
+    const adminRefreshToken = localStorage.getItem('hireon_super_admin_refresh_token')
+    const adminUserStr = localStorage.getItem('hireon_super_admin_user')
 
-  return { user, isAuthenticated, login, logout, basePath, isAdmin }
+    if (adminToken && adminUserStr) {
+      const adminUser = JSON.parse(adminUserStr)
+      setTokens(adminToken, adminRefreshToken || undefined, adminUser)
+      
+      localStorage.removeItem('hireon_super_admin_access_token')
+      localStorage.removeItem('hireon_super_admin_refresh_token')
+      localStorage.removeItem('hireon_super_admin_user')
+      
+      queryClient.clear()
+      navigate('/super-admin')
+    } else {
+      // fallback if backup doesn't exist
+      queryClient.clear()
+      storeLogout()
+      navigate('/login')
+    }
+  }
+
+  const isAdmin = user?.role === 'admin'
+  const isSuperAdmin = user?.role === 'super_admin'
+  const isImpersonating = !!user?.is_impersonating
+
+  return { user, isAuthenticated, login, logout, basePath, isAdmin, isSuperAdmin, isImpersonating, exitImpersonation }
 }

@@ -31,6 +31,7 @@ class TenantMiddleware:
 
         scope["state"]["user_id"] = None
         scope["state"]["org_id"] = None
+        scope["state"]["impersonator_id"] = None
 
         path = scope.get("path", "")
         if path in PUBLIC_PATHS or path.startswith("/static"):
@@ -50,6 +51,7 @@ class TenantMiddleware:
                 payload = decode_access_token(token)
                 scope["state"]["user_id"] = payload.get("sub")
                 scope["state"]["org_id"] = payload.get("org")
+                scope["state"]["impersonator_id"] = payload.get("impersonator_id")
             except (JWTError, UnicodeDecodeError):
                 pass  # invalid token handled by auth dependency
 

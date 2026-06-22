@@ -9,6 +9,8 @@ import { Moon, Sun, User, LogOut, Menu } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { prefetchRoute } from '@/utils/routePrefetch'
 
+import { ImpersonationBanner } from '../common/ImpersonationBanner'
+
 const NotificationBell = lazy(() => import('./NotificationBell').then((m) => ({ default: m.NotificationBell })))
 
 function DeferredPortalNotifications() {
@@ -216,6 +218,7 @@ function PortalLayoutComponent() {
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full max-w-full">
+          <ImpersonationBanner />
           {/* TOPBAR (Now inside the right column) */}
           <div className="topbar">
             {/* Mobile Toggle */}

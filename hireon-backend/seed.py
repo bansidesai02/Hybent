@@ -30,6 +30,10 @@ from app.models.scorecard import Scorecard
 from app.models.offer import Offer
 from app.models.notification import Notification
 from app.models.audit_log import AuditLog
+from app.models.super_admin import (
+    SubscriptionPlan, CompanySubscription, CompanyFeatureFlag,
+    CompanyUsage, PlatformSetting
+)
 from app.utils.permissions import (
     UserRole, JobStatus, ApplicationStage,
     InterviewType, InterviewStatus, OfferStatus,
@@ -159,7 +163,18 @@ async def seed():
             is_verified=True,
             last_login=ago(days=1),
         )
-        for u in [admin, recruiter, recruiter2, interviewer, interviewer2, candidate_user]:
+        super_admin = User(
+            organization_id=org.id,
+            email="admin@hirreon.com",
+            full_name="Super Admin",
+            hashed_password=hash_password("admin"),
+            role=UserRole.SUPER_ADMIN.value,
+            is_active=True,
+            is_verified=True,
+            last_login=ago(hours=1),
+        )
+
+        for u in [admin, recruiter, recruiter2, interviewer, interviewer2, candidate_user, super_admin]:
             db.add(u)
         await db.flush()
 
@@ -178,14 +193,78 @@ async def seed():
         )
         db.add(candidate_profile)
 
+        # ── Seed Subscription Plans ───────────────────────────────────────────
+        starter_plan = SubscriptionPlan(
+            name="Starter",
+            price_monthly=8000.0,
+            price_yearly=80000.0,
+            max_users=20,
+            max_jobs=10,
+            features={"ai": False, "video": False, "bulk": True, "domain": False, "analytics": False}
+        )
+        pro_plan = SubscriptionPlan(
+            name="Pro",
+            price_monthly=24000.0,
+            price_yearly=240000.0,
+            max_users=50,
+            max_jobs=20,
+            features={"ai": True, "video": True, "bulk": True, "domain": False, "analytics": False}
+        )
+        ent_plan = SubscriptionPlan(
+            name="Enterprise",
+            price_monthly=60000.0,
+            price_yearly=600000.0,
+            max_users=999,
+            max_jobs=999,
+            features={"ai": True, "video": True, "bulk": True, "domain": True, "analytics": True}
+        )
+        db.add_all([starter_plan, pro_plan, ent_plan])
+        await db.flush()
+
+        # ── Company Subscription for Brainerhub ──────────────────────────────
+        sub = CompanySubscription(
+            organization_id=org.id,
+            plan_id=pro_plan.id,
+            status="active",
+            billing_cycle="monthly",
+            current_period_start=ago(days=15),
+            current_period_end=future(days=15)
+        )
+        db.add(sub)
+
+        # ── Company Feature Flags for Brainerhub ─────────────────────────────
+        for key, val in pro_plan.features.items():
+            db.add(CompanyFeatureFlag(
+                organization_id=org.id,
+                flag_key=key,
+                is_enabled=val
+            ))
+
+        # ── Company Usage for Brainerhub ─────────────────────────────────────
+        db.add_all([
+            CompanyUsage(organization_id=org.id, metric_key="users_count", metric_value=42),
+            CompanyUsage(organization_id=org.id, metric_key="jobs_count", metric_value=18),
+            CompanyUsage(organization_id=org.id, metric_key="candidates_count", metric_value=130),
+            CompanyUsage(organization_id=org.id, metric_key="interviews_count", metric_value=134)
+        ])
+
+        # ── Global Default Feature Flags ─────────────────────────────────────
+        global_flags = PlatformSetting(
+            setting_key="global_feature_flags",
+            setting_value={"ai": True, "video": True, "bulk": True, "domain": False, "analytics": False}
+        )
+        db.add(global_flags)
+
         await db.commit()
-        print(f"  ✓ Users: 6 created (admin, 2 recruiters, 2 interviewers, 1 candidate)")
+        print(f"  ✓ Users: 7 created (admin, 2 recruiters, 2 interviewers, 1 candidate, 1 super admin)")
         print(f"  ✓ Candidate profile created for: {candidate_user.email}")
+        print(f"  ✓ Subscription plans & Brainerhub Pro subscription seeded")
 
         print("\n" + "=" * 55)
         print("✅  Seed complete! Users loaded.")
         print("=" * 55)
         print("\n🔐 Login Credentials:")
+        print("  Super Admin:  admin@hirreon.com       / admin")
         print("  Admin:        admin@brainerhub.com    / password123")
         print("  HR Recruiter: recruiter@brainerhub.com   / password123")
         print("  HR Recruiter: recruiter2@brainerhub.com     / password123")

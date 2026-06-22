@@ -1,6 +1,6 @@
 // ── Enums ──────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'recruiter' | 'interviewer' | 'candidate'
+export type UserRole = 'super_admin' | 'admin' | 'recruiter' | 'interviewer' | 'candidate'
 
 export type JobStatus = 'draft' | 'active' | 'paused' | 'closed' | 'pool'
 
@@ -75,6 +75,8 @@ export interface User {
   is_active: boolean
   is_calendar_connected: boolean
   candidate_id?: string | null
+  is_impersonating?: boolean
+  impersonator_id?: string | null
 }
 
 export interface Organization {

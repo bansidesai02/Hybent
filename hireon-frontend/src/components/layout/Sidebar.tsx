@@ -90,6 +90,40 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
   const basePath = role === 'admin' ? '/admin' : '/recruiter'
   const candidatesGroup = getCandidatesGroup(basePath, role, candidateBadge)
 
+  if (role === 'super_admin') {
+    return [
+      {
+        label: 'OVERVIEW',
+        items: [
+          { to: '/super-admin', label: 'Dashboard', icon: <GlassIcon icon="LayoutGrid" variant="violet" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/super-admin/analytics', label: 'Analytics', icon: <GlassIcon icon="TrendingUp" variant="indigo" ghost size={24} iconSize={14} glow={false} /> },
+        ],
+      },
+      {
+        label: 'CLIENTS',
+        items: [
+          { to: '/super-admin/clients', label: 'All clients', icon: <GlassIcon icon="Building2" variant="teal" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/super-admin/billing', label: 'Billing & plans', icon: <GlassIcon icon="CreditCard" variant="emerald" ghost size={24} iconSize={14} glow={false} /> },
+        ],
+      },
+      {
+        label: 'PLATFORM',
+        items: [
+          { to: '/super-admin/users', label: 'All users', icon: <GlassIcon icon="Users" variant="blue" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/super-admin/flags', label: 'Feature flags', icon: <GlassIcon icon="ToggleLeft" variant="pink" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/super-admin/audit', label: 'Audit logs', icon: <GlassIcon icon="ClipboardList" variant="amber" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/super-admin/health', label: 'Health monitor', icon: <GlassIcon icon="Activity" variant="rose" ghost size={24} iconSize={14} glow={false} /> },
+        ],
+      },
+      {
+        label: 'SETTINGS',
+        items: [
+          { to: '/super-admin/settings', label: 'Global settings', icon: <GlassIcon icon="Settings" variant="gray" ghost size={24} iconSize={14} glow={false} /> },
+        ],
+      },
+    ]
+  }
+
   if (role === 'admin') {
     return [
       {
@@ -401,7 +435,7 @@ function SidebarComponent({ role, collapsed = false, mobileOpen = false, setMobi
                   to={item.to}
                   onMouseEnter={() => prefetchRoute(item.to)}
                   onFocus={() => prefetchRoute(item.to)}
-                  end={item.to === '/recruiter' || item.to === '/admin' || item.to === '/interviewer' || !!item.customActivePath}
+                  end={item.to === '/recruiter' || item.to === '/admin' || item.to === '/interviewer' || item.to === '/super-admin' || !!item.customActivePath}
                   className={({ isActive }) => {
                     const active = item.customActivePath
                       ? location.pathname.startsWith(item.customActivePath)
