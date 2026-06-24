@@ -211,13 +211,36 @@ async def upload_and_create(
             
         return True
 
-    mismatch_detected = True
-    for target_cat in target_categories:
-        if not is_mismatch(parsed_category, target_cat):
-            mismatch_detected = False
-            break
+    mismatch_detected = False
+    if target_title:
+        mismatch_detected = True
+        for target_cat in target_categories:
+            if not is_mismatch(parsed_category, target_cat):
+                mismatch_detected = False
+                break
 
-    if mismatch_detected:
+        if mismatch_detected:
+            primary_target_cat = target_categories[0] if target_categories else target_title
+            missing_skills = get_missing_skills_hint(candidate_skills_list, primary_target_cat)
+            
+            suggested_roles = []
+            if parsed.get("current_title"):
+                suggested_roles.append(parsed["current_title"])
+            if parsed_category and parsed_category not in suggested_roles:
+                suggested_roles.append(parsed_category)
+                
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "type": "role_mismatch",
+                    "candidate_category": parsed_category or "Unknown",
+                    "target_category": primary_target_cat,
+                    "missing_skills": missing_skills,
+                    "suggested_roles": suggested_roles,
+                    "message": f"Upload Rejected: Mismatch detected. Uploaded resume is for a '{parsed_category or 'Unknown'}' role (current title: '{parsed.get('current_title', 'N/A')}'), but the target job requires '{target_title}'."
+                }
+            )
+    else:
         # Determine designation title from candidate's resume
         new_title = parsed.get("current_title") or parsed_category or "Software Engineer"
         new_title = new_title.strip()
@@ -247,7 +270,6 @@ async def upload_and_create(
         # Override target parameters to match the new/found designation
         job = matched_job
         target_title = job.title
-        mismatch_detected = False
 
     # Priority 1: compute score using the real ML scorer
     req_skills_list = [s.strip() for s in required_skills.split(",") if s.strip()]
