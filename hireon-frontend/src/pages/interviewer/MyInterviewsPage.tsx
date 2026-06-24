@@ -6,7 +6,7 @@ import { AddToCalendarDropdown } from '@/components/calendar/AddToCalendarDropdo
 import { motion, AnimatePresence } from 'framer-motion'
 import { interviewsApi } from '@/api/interviews'
 import { candidatesApi } from '@/api/candidates'
-import type { Interview } from '@/types'
+import type { Interview, Candidate } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { FileText, CheckCircle, BarChart2, Inbox, Sparkles, X, Plus, Check, Clock, Link as LinkIcon, AlertTriangle, XCircle, Layout, Video, Lock, Brain, User, ExternalLink } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
@@ -54,10 +54,11 @@ function ResumeModal({
   interview, candidate, loading, onClose,
 }: {
   interview: Interview | null
-  candidate: { full_name: string; current_title?: string | null; years_experience?: number | null; relevant_experience?: string | null; resume_url: string | null } | null
+  candidate: Candidate | null
   loading: boolean
   onClose: () => void
 }) {
+
   useEffect(() => {
     if (!interview) return
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -123,7 +124,7 @@ function ResumeModal({
                   <Skeleton className="h-5 w-48" />
                   <Skeleton className="h-[60vh] w-full rounded-xl" />
                 </div>
-              ) : candidate?.resume_url ? (
+              ) : candidate?.resume_storage_path || candidate?.resume_url ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
@@ -134,12 +135,21 @@ function ResumeModal({
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
-                        const url = candidate.resume_url!.startsWith('http')
-                          ? candidate.resume_url!
-                          : `${baseUrl}${candidate.resume_url}`
-                        window.open(url, '_blank', 'noopener,noreferrer')
+                      onClick={async () => {
+                        if (candidate.resume_storage_path) {
+                          try {
+                            const { candidatesApi } = await import('@/api/candidates')
+                            const res = await candidatesApi.getResumeUrl(candidate.id ?? '')
+                            const data = (res.data as any)?.data ?? res.data
+                            if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+                          } catch { alert('Could not load resume. Please try again.') }
+                        } else {
+                          const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
+                          const url = candidate.resume_url!.startsWith('http')
+                            ? candidate.resume_url!
+                            : `${baseUrl}${candidate.resume_url}`
+                          window.open(url, '_blank', 'noopener,noreferrer')
+                        }
                       }}
                       style={{
                         padding: '7px 14px', borderRadius: 8, background: '#6c47ff',
@@ -153,11 +163,20 @@ function ResumeModal({
                       Open in new tab <ExternalLink size={12} />
                     </button>
                   </div>
-                  <iframe
-                    src={`${candidate.resume_url.startsWith('http') ? candidate.resume_url : `${import.meta.env.VITE_API_BASE_URL || window.location.origin}${candidate.resume_url}`}#toolbar=1&navpanes=0`}
-                    title="Resume"
-                    style={{ width: '100%', height: '68vh', borderRadius: 12, border: '1px solid #eee' }}
-                  />
+
+                  {/* Resume preview — only works with direct URL; Supabase signed URL also works here */}
+                  {candidate.resume_url && !candidate.resume_storage_path && (
+                    <iframe
+                      src={`${candidate.resume_url.startsWith('http') ? candidate.resume_url : `${import.meta.env.VITE_API_BASE_URL || window.location.origin}${candidate.resume_url}`}#toolbar=1&navpanes=0`}
+                      title="Resume"
+                      style={{ width: '100%', height: '68vh', borderRadius: 12, border: '1px solid #eee' }}
+                    />
+                  )}
+                  {candidate.resume_storage_path && (
+                    <div style={{ textAlign: 'center', padding: '32px 0', color: '#888', fontSize: 13 }}>
+                      Click "Open in new tab" to view the resume securely.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '52px 0', color: '#aaa', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>

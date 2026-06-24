@@ -63,6 +63,9 @@ huggingface_hub>=0.25.0
 # Cloud Image Storage
 cloudinary>=1.40.0
 
+# Supabase Storage (resume / file storage)
+supabase>=2.0.0
+
 # Search
 elasticsearch[async]>=8.0.0
 

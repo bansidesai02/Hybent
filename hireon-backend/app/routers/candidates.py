@@ -203,6 +203,8 @@ async def list_candidates(
                 "created_at": c.created_at.isoformat() if c.created_at else None,
                 "updated_at": c.updated_at.isoformat() if c.updated_at else None,
                 "resume_url": c.resume_url,
+                "resume_storage_path": c.resume_storage_path,
+                "resume_filename": c.resume_filename,
                 "source": c.source,
                 "invitations": [],
                 "other_offers": [],
@@ -334,6 +336,8 @@ async def get_candidates_pipeline(current_user: Annotated[User, Depends(get_curr
                 "created_at": c.created_at.isoformat() if c.created_at else None,
                 "updated_at": c.updated_at.isoformat() if c.updated_at else None,
                 "resume_url": c.resume_url,
+                "resume_storage_path": c.resume_storage_path,
+                "resume_filename": c.resume_filename,
                 "source": c.source,
                 "invitations": [],
                 "other_offers": [],
@@ -1021,6 +1025,15 @@ async def delete_candidate(candidate_id: uuid.UUID, current_user: Annotated[User
         details={"name": candidate.full_name, "email": candidate.email}
     )
 
+    # Cleanup Supabase Storage files before deleting DB record
+    # (best-effort: failures are logged but do not block deletion)
+    if candidate.resume_storage_path:
+        from app.services import supabase_storage_service
+        await supabase_storage_service.delete_candidate_files(
+            organization_id=str(candidate.organization_id),
+            candidate_id=str(candidate_id),
+        )
+
     await db.delete(candidate)
     await db.commit()
 
@@ -1085,4 +1098,3 @@ async def record_profile_view(candidate_id: uuid.UUID, current_user: Annotated[U
     # profile" notification to avoid noise.
 
     return APIResponse.success(message="Profile view recorded.")
-

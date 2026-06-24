@@ -43,4 +43,12 @@ export const candidatesApi = {
 
   suggest: (q: string) =>
     api.get<any[]>('/v1/candidates/suggest', { params: { q } }),
+
+  /**
+   * Get a fresh signed URL for a candidate's resume (Supabase Storage).
+   * Must be called every time the user wants to view or download the resume.
+   * Returns: { url: string, expires_in: number, filename: string | null }
+   */
+  getResumeUrl: (id: string) =>
+    api.get<{ url: string; expires_in: number | null; filename: string | null }>(`/v1/candidates/${id}/resume`),
 }

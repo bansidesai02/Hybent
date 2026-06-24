@@ -18,7 +18,7 @@ function completionPercent(data: any): number {
     !!data.github_url,
     !!data.summary,
     data.skills?.length > 0,
-    !!data.resume_url,
+    !!data.resume_url || !!data.resume_storage_path,
     !!data.experience_years,
     !!data.current_ctc,
     !!data.availability_status
@@ -418,12 +418,26 @@ export default function PortalProfilePage() {
           <div className="card">
             <div className="ctitle">Resume <span className="ctag violet">Required</span></div>
 
-            {profile?.resume_url && (
+            {(profile?.resume_storage_path || profile?.resume_url) && (
               <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <GlassIcon icon="FileText" variant="emerald" size={24} iconSize={12} ghost glow={false} />
-                <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', textDecoration: 'none' }}>
-                  {profile.resume_filename || 'View Current Resume'}
-                </a>
+                <button
+                  onClick={async () => {
+                    if (profile?.resume_storage_path) {
+                      try {
+                        const { portalApi } = await import('@/api/portal')
+                        const res = await portalApi.getResumeUrl()
+                        const data = (res.data as any)?.data ?? res.data
+                        if (data?.url) window.open(data.url, '_blank', 'noreferrer')
+                      } catch { alert('Could not load resume. Please try again.') }
+                    } else {
+                      window.open(profile!.resume_url!, '_blank', 'noreferrer')
+                    }
+                  }}
+                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  {profile?.resume_filename || 'View Current Resume'}
+                </button>
               </div>
             )}
 
@@ -499,6 +513,8 @@ export default function PortalProfilePage() {
               />
             </div>
           </div>
+
+
         </div>
       </form>
 

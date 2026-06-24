@@ -39,6 +39,10 @@ class Candidate(Base):
     # Resume
     resume_url: Mapped[str | None] = mapped_column(String(500))
     resume_filename: Mapped[str | None] = mapped_column(String(255))
+    # Supabase Storage path for the resume file.
+    # Format: resumes/{org_id}/{candidate_id}/{uuid}_{filename}
+    # Signed URLs are generated on-demand from this path — never stored.
+    resume_storage_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     # AI-parsed data stored as JSON
     parsed_data: Mapped[dict | None] = mapped_column(JSONB)  # skills, experience, education, etc.

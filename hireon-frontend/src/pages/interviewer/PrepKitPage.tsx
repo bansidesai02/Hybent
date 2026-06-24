@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
@@ -11,10 +11,11 @@ import {
   Sparkles, 
   Mic, 
   ClipboardCheck, 
-  ArrowLeft 
+  ArrowLeft
 } from 'lucide-react'
 import { interviewsApi } from '@/api/interviews'
 import { applicationsApi } from '@/api/applications'
+import { candidatesApi } from '@/api/candidates'
 import { Card } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Avatar } from '@/components/ui/Avatar'
@@ -158,6 +159,8 @@ export default function PrepKitPage() {
   const candidate = application?.candidate
   const isLoading = intLoading || appLoading
 
+
+
   const questions = interview ? generateQuestions([], interview.interview_type) : []
 
   if (isLoading) {
@@ -283,14 +286,24 @@ export default function PrepKitPage() {
                   </div>
                 )}
 
-                {candidate.resume_url && (
+
+                {(candidate.resume_storage_path || candidate.resume_url) && (
                   <button
-                    onClick={() => {
-                      const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
-                      const url = candidate.resume_url!.startsWith('http')
-                        ? candidate.resume_url!
-                        : `${baseUrl}${candidate.resume_url}`
-                      window.open(url, '_blank', 'noopener,noreferrer')
+                    onClick={async () => {
+                      if (candidate.resume_storage_path) {
+                        try {
+                          const { candidatesApi } = await import('@/api/candidates')
+                          const res = await candidatesApi.getResumeUrl(candidate.id ?? '')
+                          const data = (res.data as any)?.data ?? res.data
+                          if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+                        } catch { alert('Could not load resume. Please try again.') }
+                      } else {
+                        const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
+                        const url = candidate.resume_url!.startsWith('http')
+                          ? candidate.resume_url!
+                          : `${baseUrl}${candidate.resume_url}`
+                        window.open(url, '_blank', 'noopener,noreferrer')
+                      }
                     }}
                     style={{
                       width: '100%', padding: '8px', borderRadius: 8, border: '1.5px solid rgba(108,71,255,0.25)',

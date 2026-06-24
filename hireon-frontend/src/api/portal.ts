@@ -43,7 +43,7 @@ export const portalApi = {
     })
   },
 
-  /** Upload a new avatar image for the candidate (same endpoint as other portals) */
+  /** Upload a new avatar image for the candidate */
   uploadAvatar: (file: File) => {
     const form = new FormData()
     form.append('file', file)
@@ -54,4 +54,12 @@ export const portalApi = {
 
   /** Delete the candidate's avatar image */
   deleteAvatar: () => api.delete<Candidate>('/v1/users/me/avatar'),
+
+  /**
+   * Get a fresh signed URL for the candidate's own resume (Supabase Storage).
+   * Must be called every time the candidate wants to view or download their resume.
+   * Returns: { url: string, expires_in: number | null, filename: string | null, is_legacy: boolean }
+   */
+  getResumeUrl: () =>
+    api.get<{ url: string; expires_in: number | null; filename: string | null; is_legacy: boolean }>('/v1/portal/profile/resume'),
 }

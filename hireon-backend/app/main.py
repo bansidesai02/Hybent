@@ -29,7 +29,7 @@ from app.routers import (
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
     activities, reports, messages, search, public, copilot, bulk_import, linkedin, designations, api_compat,
-    super_admin
+    super_admin, candidate_files
 )
 # Configure logging
 logging.basicConfig(
@@ -226,6 +226,7 @@ app.include_router(linkedin.router)
 app.include_router(public.router, prefix="/api")
 app.include_router(api_compat.router)
 app.include_router(super_admin.router)
+app.include_router(candidate_files.router)
 
 
 @app.get("/", tags=["health"])

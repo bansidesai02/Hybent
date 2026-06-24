@@ -131,6 +131,8 @@ export interface Candidate {
   github_url: string | null
   resume_url: string | null
   resume_filename: string | null
+  // Supabase Storage path — when present, call GET /v1/candidates/{id}/resume for a signed URL
+  resume_storage_path: string | null
   avatar_url: string | null
   parsed_data: Record<string, unknown> | null
   score_breakdown: {

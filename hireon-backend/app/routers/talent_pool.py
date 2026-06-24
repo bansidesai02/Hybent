@@ -195,6 +195,8 @@ async def list_talent_pool(
                 "created_at": c.created_at.isoformat() if c.created_at else None,
                 "updated_at": c.updated_at.isoformat() if c.updated_at else None,
                 "resume_url": c.resume_url,
+                "resume_storage_path": c.resume_storage_path,
+                "resume_filename": c.resume_filename,
                 "source": c.source,
                 "invitations": [],
                 "other_offers": [],

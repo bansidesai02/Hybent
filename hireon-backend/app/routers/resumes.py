@@ -7,9 +7,11 @@ from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut
 from app.services.storage_service import save_resume, read_file_bytes
+from app.services import supabase_storage_service
 from app.services.resume_parser import parse_resume
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
+from app.config import settings
 
 
 
@@ -48,18 +50,33 @@ async def upload_resume(
 
     file_content = await file.read()
     await file.seek(0)
-    url, original_name = await save_resume(file, str(current_user.organization_id))
+
+    # ── Upload to Supabase Storage (if configured) or fall back to Cloudinary/local ──
+    if settings.supabase_url and settings.supabase_service_role_key:
+        storage_path = await supabase_storage_service.upload_resume(
+            file_content=file_content,
+            organization_id=str(current_user.organization_id),
+            candidate_id=str(candidate_id),
+            original_filename=file.filename or "resume",
+            content_type=file.content_type or "application/octet-stream",
+        )
+        candidate.resume_storage_path = storage_path
+        candidate.resume_url = None  # Signed URLs are generated on-demand
+        candidate.resume_filename = file.filename
+    else:
+        # Legacy fallback: Cloudinary or local disk
+        url, original_name = await save_resume(file, str(current_user.organization_id))
+        candidate.resume_url = url
+        candidate.resume_filename = original_name
+
     parsed = await parse_resume(
-        file_content, 
-        file.content_type or "", 
+        file_content,
+        file.content_type or "",
         file.filename or "",
         background_tasks=background_tasks,
         user_id=current_user.id,
         organization_id=current_user.organization_id
     )
-
-    candidate.resume_url = url
-    candidate.resume_filename = original_name
     candidate.parsed_data = parsed
 
     if parsed.get("skills"):
@@ -283,9 +300,23 @@ async def upload_and_create(
     elif candidate.pipeline_stage is None or candidate.pipeline_stage == "needs_review":
         candidate.pipeline_stage = initial_stage
 
-    url, original_name = await save_resume(file, str(current_user.organization_id))
-    candidate.resume_url = url
-    candidate.resume_filename = original_name
+    # ── Upload to Supabase Storage (if configured) or fall back to Cloudinary/local ──
+    if settings.supabase_url and settings.supabase_service_role_key:
+        storage_path = await supabase_storage_service.upload_resume(
+            file_content=file_content,
+            organization_id=str(current_user.organization_id),
+            candidate_id=str(candidate.id),
+            original_filename=file.filename or "resume",
+            content_type=file.content_type or "application/octet-stream",
+        )
+        candidate.resume_storage_path = storage_path
+        candidate.resume_url = None  # Signed URLs are generated on-demand
+        candidate.resume_filename = file.filename or original_name
+    else:
+        # Legacy fallback: Cloudinary or local disk
+        url, original_name = await save_resume(file, str(current_user.organization_id))
+        candidate.resume_url = url
+        candidate.resume_filename = original_name
     candidate.full_name = full_name or candidate.full_name
     candidate.skills = parsed.get("skills", [])[:30]
     candidate.years_experience = parsed.get("years_experience")

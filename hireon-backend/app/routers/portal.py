@@ -28,9 +28,11 @@ from app.utils.permissions import UserRole, OfferStatus, NotificationType
 from app.services.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
 from app.services.storage_service import save_resume
+from app.services import supabase_storage_service
 from app.services.resume_parser import parse_resume
 from app.schemas.response import APIResponse
 from app.tasks.notifications import notify_organization_roles, send_system_notification
+from app.config import settings
 
 router = APIRouter(prefix="/v1/portal", tags=["portal"])
 
@@ -48,7 +50,6 @@ async def portal_register(data: PortalRegisterRequest, db: DB):
     from app.models.organization import Organization
     from app.models.user import User
     from app.utils.security import hash_password, create_access_token, create_refresh_token
-    from app.config import settings
     from datetime import timedelta
     from app.models.user import RefreshToken
 
@@ -309,11 +310,27 @@ async def upload_portal_resume(
 
     file_content = await file.read()
     await file.seek(0)
-    url, original_name = await save_resume(file, str(current_user.organization_id))
+
+    # ── Upload to Supabase Storage (if configured) or fall back to Cloudinary/local ──
+    if settings.supabase_url and settings.supabase_service_role_key:
+        storage_path = await supabase_storage_service.upload_resume(
+            file_content=file_content,
+            organization_id=str(current_user.organization_id),
+            candidate_id=str(candidate.id),
+            original_filename=file.filename or "resume",
+            content_type=file.content_type or "application/octet-stream",
+        )
+        candidate.resume_storage_path = storage_path
+        candidate.resume_url = None  # Signed URLs are generated on-demand
+        candidate.resume_filename = file.filename
+    else:
+        # Legacy fallback: Cloudinary or local disk
+        url, original_name = await save_resume(file, str(current_user.organization_id))
+        candidate.resume_url = url
+        candidate.resume_filename = original_name
+
     parsed = await parse_resume(file_content, file.content_type or "", file.filename or "")
 
-    candidate.resume_url = url
-    candidate.resume_filename = original_name
     if parsed.get("skills"):
         candidate.skills = parsed["skills"][:30]
     if parsed.get("years_experience"):
@@ -336,6 +353,51 @@ async def upload_portal_resume(
     await db.commit()
     await db.refresh(candidate)
     return APIResponse.success(message="Resume uploaded successfully.", data=CandidateOut.model_validate(candidate))
+
+
+@router.get("/profile/resume")
+async def get_portal_resume_url(current_user: CurrentUser, db: DB):
+    """
+    Candidate fetches a fresh signed URL for their own resume.
+    Returns a time-limited URL for viewing/downloading the resume securely.
+    """
+    if current_user.role != UserRole.CANDIDATE:
+        raise HTTPException(status_code=403, detail="Candidates only")
+
+    candidate = (await db.execute(
+        select(Candidate).where(Candidate.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if not candidate.resume_storage_path:
+        if candidate.resume_url:
+            # Legacy Cloudinary/local URL — return directly
+            return APIResponse.success(
+                message="Resume URL retrieved.",
+                data={
+                    "url": candidate.resume_url,
+                    "expires_in": None,
+                    "filename": candidate.resume_filename,
+                    "is_legacy": True,
+                },
+            )
+        raise HTTPException(status_code=404, detail="No resume uploaded yet.")
+
+    signed_url = await supabase_storage_service.get_signed_resume_url(
+        storage_path=candidate.resume_storage_path,
+        expiry_seconds=settings.resume_signed_url_expiry,
+    )
+
+    return APIResponse.success(
+        message="Resume URL generated successfully.",
+        data={
+            "url": signed_url,
+            "expires_in": settings.resume_signed_url_expiry,
+            "filename": candidate.resume_filename,
+            "is_legacy": False,
+        },
+    )
 
 
 @router.post("/profile/other-offers")
@@ -402,7 +464,8 @@ async def portal_apply_to_job(job_id: uuid.UUID, current_user: CurrentUser, db: 
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
 
-    if not candidate.resume_url:
+    # Check for resume — supports both Supabase path and legacy URL
+    if not candidate.resume_storage_path and not candidate.resume_url:
         raise HTTPException(status_code=400, detail="Please upload a resume before applying")
 
     # Verify the job exists and belongs to the same org

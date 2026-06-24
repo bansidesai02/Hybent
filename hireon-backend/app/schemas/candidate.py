@@ -19,6 +19,9 @@ class CandidateOut(OrmSchema):
     github_url: str | None = None
     resume_url: str | None = None
     resume_filename: str | None = None
+    # Supabase Storage path — present when resume was uploaded to Supabase.
+    # Frontend must call GET /v1/candidates/{id}/resume to get a signed URL.
+    resume_storage_path: str | None = None
     parsed_data: dict | None = None
     skills: list[str]
     years_experience: float | None = None

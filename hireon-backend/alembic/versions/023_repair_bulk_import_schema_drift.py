@@ -39,6 +39,28 @@ def upgrade() -> None:
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS other_offers (
+            id UUID PRIMARY KEY,
+            candidate_id UUID NOT NULL REFERENCES candidates (id) ON DELETE CASCADE,
+            company_name VARCHAR(255) NOT NULL,
+            role VARCHAR(255) NULL,
+            ctc VARCHAR(100) NULL,
+            validity_date VARCHAR(100) NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS candidate_documents (
+            id UUID PRIMARY KEY,
+            candidate_id UUID NOT NULL REFERENCES candidates (id) ON DELETE CASCADE,
+            doc_type VARCHAR(100) NOT NULL,
+            file_url VARCHAR(500) NULL,
+            status VARCHAR(50) NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        )
+        """,
         "ALTER TABLE import_batches ADD COLUMN IF NOT EXISTS file_content BYTEA",
         "ALTER TABLE import_batches ADD COLUMN IF NOT EXISTS selected_panels VARCHAR[] DEFAULT '{}'",
         "ALTER TABLE import_batches ADD COLUMN IF NOT EXISTS total_rows INTEGER DEFAULT 0",

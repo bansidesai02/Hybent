@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
+    # ── Supabase Storage ───────────────────────────────────────────────────────
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
+    # Signed URL expiry in seconds (configurable per file type)
+    resume_signed_url_expiry: int = 3600   # 1 hour
+
     from pydantic import model_validator
 
     @model_validator(mode='after')
