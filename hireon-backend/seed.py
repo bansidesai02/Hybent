@@ -62,6 +62,9 @@ async def clear_all(db: AsyncSession):
         "interview_panelists", "interviews",
         "applications", "candidates",
         "refresh_tokens", "jobs", "users", "organizations",
+        "billing_transactions", "impersonation_logs", "super_admin_audit_logs",
+        "company_subscriptions", "subscription_plans", "company_feature_flags",
+        "company_usage", "platform_settings"
     ]
     for t in tables:
         await db.execute(text(

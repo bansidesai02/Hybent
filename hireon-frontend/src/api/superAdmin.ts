@@ -54,12 +54,12 @@ export const superAdminApi = {
   activateClient: (clientId: string) => 
     api.post<any>(`/v1/super-admin/clients/${clientId}/activate`).then(res => res.data),
   
-  getClientFlags: (clientId: string) => api.get<Record<string, boolean>>(`/v1/super-admin/clients/${clientId}/flags`).then(res => res.data.data),
+  getClientFlags: (clientId: string) => api.get<Record<string, boolean>>(`/v1/super-admin/clients/${clientId}/flags`).then(res => res.data),
   
   updateClientFlags: (clientId: string, flags: Record<string, boolean>) => 
     api.put<any>(`/v1/super-admin/clients/${clientId}/flags`, flags).then(res => res.data),
   
-  getGlobalFlags: () => api.get<Record<string, boolean>>('/v1/super-admin/flags').then(res => res.data.data),
+  getGlobalFlags: () => api.get<Record<string, boolean>>('/v1/super-admin/flags').then(res => res.data),
   
   updateGlobalFlags: (flags: Record<string, boolean>) => 
     api.put<any>('/v1/super-admin/flags', flags).then(res => res.data),

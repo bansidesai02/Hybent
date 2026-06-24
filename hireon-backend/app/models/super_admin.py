@@ -1,3 +1,4 @@
+from app.models.organization import Organization
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Float, Integer, UniqueConstraint
