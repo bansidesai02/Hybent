@@ -340,9 +340,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="foot-note" style={{ pointerEvents: isSubmitting ? 'none' : 'auto', opacity: isSubmitting ? 0.6 : 1 }}>
-              No account? <Link to="/register">create one <ArrowRight size={14} className="ml-1 inline" /></Link>
-            </div>
+            
           </>
         )}
       </div>
