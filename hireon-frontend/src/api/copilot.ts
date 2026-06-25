@@ -1,5 +1,6 @@
 import axios from './axios'
 import type { ChatMessage, PageContext } from '@/store/useCopilotStore'
+import { tokenStorage } from '@/utils/tokenStorage'
 
 // ── Response Types ────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ export const copilotApi = {
     }
   ) => {
     const apiHistory: ApiMessage[] = history.map(({ role, content }) => ({ role, content }))
-    const token = localStorage.getItem('hireon_access_token')
+    const token = tokenStorage.getAccessToken()
     const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
     
     try {

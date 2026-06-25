@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   ArrowRight, 
@@ -33,14 +33,25 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { setTokens } = useAuthStore()
+  const { setTokens, isAuthenticated, user } = useAuthStore()
   const [serverError, setServerError] = useState('')
   const [activeTab, setActiveTab] = useState<'pass' | 'magic'>('pass')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [view, setView] = useState<'login' | 'forgot' | 'forgot_sent' | 'magic_sent'>('login')
   const [fpEmail, setFpEmail] = useState('')
   const [fpLoading, setFpLoading] = useState(false)
   const [fpError, setFpError] = useState('')
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'super_admin') navigate('/super-admin')
+      else if (user.role === 'candidate') navigate('/portal')
+      else if (user.role === 'interviewer') navigate('/interviewer')
+      else if (user.role === 'admin') navigate('/admin')
+      else navigate('/recruiter')
+    }
+  }, [isAuthenticated, user, navigate])
 
   const {
     register,
@@ -54,7 +65,7 @@ export default function LoginPage() {
       const { data } = await authApi.login(values.email, values.password)
       // Login response already includes the full user object — no extra /me round-trip needed.
       const user = data.user
-      setTokens(data.access_token, data.refresh_token, user)
+      setTokens(data.access_token, data.refresh_token, user, rememberMe)
 
       if (user?.role === 'candidate') navigate('/portal')
       else if (user?.role === 'interviewer') navigate('/interviewer')
@@ -228,12 +239,6 @@ export default function LoginPage() {
             <button className="btn-submit" type="button" onClick={() => { setView('login'); setFpEmail(''); }}>
               Back to Sign In
             </button>
-            {/* 
-            <p style={{ marginTop: 16, fontSize: 12, color: '#9689bb' }}>
-              Didn't get it?{' '}
-              <button className="forgot-link" onClick={() => { setView(view === 'magic_sent' ? 'login' : 'forgot'); if (view === 'magic_sent') setActiveTab('magic'); setFpError(''); setMagicError(''); }}>Try again</button>
-            </p>
-            */}
           </div>
         ) : view === 'forgot' ? (
           <div>
@@ -321,7 +326,13 @@ export default function LoginPage() {
               </div>
               <div className="row-utils">
                 <label className="remember-chk" style={{ opacity: isSubmitting ? 0.6 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
-                  <input type="checkbox" style={{ accentColor: '#6c47ff' }} disabled={isSubmitting} /> Remember me
+                  <input
+                    type="checkbox"
+                    style={{ accentColor: '#6c47ff' }}
+                    disabled={isSubmitting}
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
+                  /> Remember me
                 </label>
                 <button type="button" className="forgot-link" disabled={isSubmitting} style={{ opacity: isSubmitting ? 0.6 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }} onClick={() => { setView('forgot'); setServerError(''); setFpError('') }}>
                   Forgot password?

@@ -5,6 +5,7 @@
  * - 401 auto-refresh interceptor with request retry
  */
 import axios, { type AxiosRequestConfig } from 'axios'
+import { tokenStorage } from '@/utils/tokenStorage'
 
 // Extend AxiosRequestConfig to include skipLoader
 declare module 'axios' {
@@ -24,7 +25,7 @@ const api = axios.create({
 // ── Request interceptor: inject access token & start loading ─────────────────
 api.interceptors.request.use((config) => {
   // Import lazily to avoid circular deps
-  const token = localStorage.getItem('hireon_access_token')
+  const token = tokenStorage.getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -84,7 +85,7 @@ api.interceptors.response.use(
 
       try {
         // Try cookie-based refresh first, then localStorage fallback
-        const refreshToken = localStorage.getItem('hireon_refresh_token')
+        const refreshToken = tokenStorage.getRefreshToken()
         const payload = refreshToken ? { refresh_token: refreshToken } : undefined
 
         const { data } = await axios.post(
@@ -100,13 +101,11 @@ api.interceptors.response.use(
         const responseData = data.success !== undefined && data.data !== undefined ? data.data : data;
 
         const newToken = responseData.access_token
-        localStorage.setItem('hireon_access_token', newToken)
-        if (responseData.refresh_token) {
-          localStorage.setItem('hireon_refresh_token', responseData.refresh_token)
-        }
 
         // Update auth store
         const { useAuthStore } = await import('@/store/authStore')
+        const rememberMe = useAuthStore.getState().rememberMe
+        tokenStorage.setTokens(newToken, responseData.refresh_token, rememberMe)
         useAuthStore.getState().setTokens(newToken, responseData.refresh_token)
 
         processQueue(null, newToken)
@@ -117,8 +116,7 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        localStorage.removeItem('hireon_access_token')
-        localStorage.removeItem('hireon_refresh_token')
+        tokenStorage.clear()
         window.location.href = '/login'
         return Promise.reject(refreshError)
       } finally {

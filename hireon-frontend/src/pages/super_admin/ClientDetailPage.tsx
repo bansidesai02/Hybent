@@ -120,6 +120,16 @@ export default function ClientDetailPage() {
           localStorage.setItem('hireon_super_admin_refresh_token', currentRefreshToken)
         }
         localStorage.setItem('hireon_super_admin_user', JSON.stringify(currentLoggedUser))
+      } else {
+        const sessionToken = sessionStorage.getItem('hireon_access_token')
+        const sessionRefreshToken = sessionStorage.getItem('hireon_refresh_token')
+        if (sessionToken && currentLoggedUser) {
+          sessionStorage.setItem('hireon_super_admin_access_token', sessionToken)
+          if (sessionRefreshToken) {
+            sessionStorage.setItem('hireon_super_admin_refresh_token', sessionRefreshToken)
+          }
+          sessionStorage.setItem('hireon_super_admin_user', JSON.stringify(currentLoggedUser))
+        }
       }
 
       // Set target token

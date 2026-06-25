@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { User } from '@/types'
+import { tokenStorage } from '@/utils/tokenStorage'
 
 const VERSION_TAG_RE = /\s*\[v\d+(?:\.\d+)*\]\s*/gi
 
@@ -16,27 +17,59 @@ interface AuthState {
   accessToken: string | null
   refreshToken: string | null
   isAuthenticated: boolean
+  rememberMe: boolean
 
-  setTokens: (accessToken: string, refreshToken: string | undefined, user?: User) => void
+  setTokens: (accessToken: string, refreshToken: string | undefined, user?: User, rememberMe?: boolean) => void
   setUser: (user: User) => void
   logout: () => void
 }
 
+const customPersistStorage = {
+  getItem: (name: string) => {
+    const sessionVal = sessionStorage.getItem(name)
+    if (sessionVal) return sessionVal
+    return localStorage.getItem(name)
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      const parsed = JSON.parse(value)
+      const rememberMe = parsed.state?.rememberMe
+      if (rememberMe) {
+        localStorage.setItem(name, value)
+        sessionStorage.removeItem(name)
+      } else {
+        sessionStorage.setItem(name, value)
+        localStorage.removeItem(name)
+      }
+    } catch {
+      localStorage.setItem(name, value)
+    }
+  },
+  removeItem: (name: string) => {
+    localStorage.removeItem(name)
+    sessionStorage.removeItem(name)
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      rememberMe: false,
 
-      setTokens: (accessToken, refreshToken, user) => {
-        localStorage.setItem('hireon_access_token', accessToken)
-        if (refreshToken) localStorage.setItem('hireon_refresh_token', refreshToken)
-        set((state) => ({ 
+      setTokens: (accessToken, refreshToken, user, rememberMe) => {
+        const currentRememberMe = rememberMe !== undefined ? rememberMe : get().rememberMe
+        
+        tokenStorage.setTokens(accessToken, refreshToken, currentRememberMe)
+        
+        set(() => ({ 
           accessToken, 
           refreshToken: refreshToken ?? null, 
           ...(user !== undefined && { user: sanitizeUser(user) }),
+          rememberMe: currentRememberMe,
           isAuthenticated: true 
         }))
       },
@@ -44,13 +77,13 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user: sanitizeUser(user) }),
 
       logout: () => {
-        localStorage.removeItem('hireon_access_token')
-        localStorage.removeItem('hireon_refresh_token')
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
+        tokenStorage.clear()
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, rememberMe: false })
       },
     }),
     {
       name: 'hireon_auth',
+      storage: createJSONStorage(() => customPersistStorage),
       onRehydrateStorage: () => (state) => {
         if (!state?.user) return
         state.setUser(state.user)
@@ -60,6 +93,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
+        rememberMe: state.rememberMe,
       }),
     }
   )

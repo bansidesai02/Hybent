@@ -2,6 +2,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { useQueryClient } from '@tanstack/react-query'
+import { tokenStorage } from '@/utils/tokenStorage'
 
 export function useAuth() {
   const { user, isAuthenticated, setTokens, logout: storeLogout } = useAuthStore()
@@ -34,7 +35,7 @@ export function useAuth() {
     }
 
     try {
-      const refreshToken = localStorage.getItem('hireon_refresh_token') ?? undefined
+      const refreshToken = tokenStorage.getRefreshToken() ?? undefined
       await authApi.logout(refreshToken)
     } catch (_) {
       // ignore errors
@@ -46,9 +47,9 @@ export function useAuth() {
   }
 
   const exitImpersonation = () => {
-    const adminToken = localStorage.getItem('hireon_super_admin_access_token')
-    const adminRefreshToken = localStorage.getItem('hireon_super_admin_refresh_token')
-    const adminUserStr = localStorage.getItem('hireon_super_admin_user')
+    const adminToken = localStorage.getItem('hireon_super_admin_access_token') || sessionStorage.getItem('hireon_super_admin_access_token')
+    const adminRefreshToken = localStorage.getItem('hireon_super_admin_refresh_token') || sessionStorage.getItem('hireon_super_admin_refresh_token')
+    const adminUserStr = localStorage.getItem('hireon_super_admin_user') || sessionStorage.getItem('hireon_super_admin_user')
 
     if (adminToken && adminUserStr) {
       const adminUser = JSON.parse(adminUserStr)
@@ -57,6 +58,9 @@ export function useAuth() {
       localStorage.removeItem('hireon_super_admin_access_token')
       localStorage.removeItem('hireon_super_admin_refresh_token')
       localStorage.removeItem('hireon_super_admin_user')
+      sessionStorage.removeItem('hireon_super_admin_access_token')
+      sessionStorage.removeItem('hireon_super_admin_refresh_token')
+      sessionStorage.removeItem('hireon_super_admin_user')
       
       queryClient.clear()
       navigate('/super-admin')
