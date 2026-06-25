@@ -236,7 +236,8 @@ async def transcribe_audio(
     content_type: str = "audio/webm",
     background_tasks: Optional[BackgroundTasks] = None,
     user_id: Optional[uuid.UUID] = None,
-    organization_id: Optional[uuid.UUID] = None
+    organization_id: Optional[uuid.UUID] = None,
+    language: Optional[str] = None,
 ):
     """
     Transcribe audio data to text.
@@ -273,6 +274,8 @@ async def transcribe_audio(
                             "response_format": "json",
                             "prompt": "English, Hindi, and Hinglish (mix of English and Hindi words written in Roman/Latin script). Example: Show React developers with 3 years experience. Candidate ka profile show karo. Interview schedule karo kal 2 baje. What is the current pipeline summary?"
                         }
+                        if language:
+                            data["language"] = language
                         response = await client.post(
                             "https://api.openai.com/v1/audio/transcriptions",
                             headers=headers,
@@ -324,12 +327,15 @@ async def transcribe_audio(
                 
                 def _groq_transcribe():
                     with open(tmp.name, "rb") as f:
-                        return groq_client.audio.transcriptions.create(
+                        kwargs: dict = dict(
                             file=(filename or "audio.webm", f),
                             model="whisper-large-v3",
                             response_format="json",
                             prompt="English, Hindi, and Hinglish (mix of English and Hindi words written in Roman/Latin script). Example: Show React developers with 3 years experience. Candidate ka profile show karo. Interview schedule karo kal 2 baje. What is the current pipeline summary?"
                         )
+                        if language:
+                            kwargs["language"] = language
+                        return groq_client.audio.transcriptions.create(**kwargs)
                 
                 result = await asyncio.to_thread(_groq_transcribe)
                 transcription = result.text.strip() if hasattr(result, 'text') else str(result).strip()

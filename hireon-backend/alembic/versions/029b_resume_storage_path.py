@@ -1,18 +1,18 @@
-"""029_add_resume_storage_path
+"""Add resume_storage_path to candidates (Supabase Storage)
 
 Adds resume_storage_path column to candidates table for Supabase Storage integration.
+resume_storage_path stores the private bucket path only; signed URLs are generated on-demand.
 
-- resume_storage_path: stores the private Supabase bucket path only.
-  Signed URLs are generated on-demand and never stored.
+NOTE: This migration runs on the super-admin branch (parent: 2915b1d1b4ca).
+      It is merged into the main sequence by 031_merge_heads.
 
 Revision ID: 029
-Revises: d9cff50e2092
+Revises: 2915b1d1b4ca
 Create Date: 2026-06-24
 """
 from alembic import op
 import sqlalchemy as sa
 
-# revision identifiers, used by Alembic
 revision = "029"
 down_revision = "2915b1d1b4ca"
 branch_labels = None
@@ -24,7 +24,6 @@ def upgrade() -> None:
         "candidates",
         sa.Column("resume_storage_path", sa.String(1000), nullable=True),
     )
-    # Index to quickly find candidates who have uploaded resumes to Supabase
     op.create_index(
         "ix_candidates_resume_storage_path",
         "candidates",

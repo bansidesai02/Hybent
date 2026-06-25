@@ -51,11 +51,20 @@ def upgrade() -> None:
         "CREATE INDEX IF NOT EXISTS ix_interviews_candidate_scheduled_at_desc ON interviews (candidate_id, scheduled_at DESC)",
         "CREATE INDEX IF NOT EXISTS ix_offers_application_id ON offers (application_id)",
         "CREATE INDEX IF NOT EXISTS ix_jobs_org_status_created_at_desc ON jobs (organization_id, status, created_at DESC)",
-        "CREATE INDEX IF NOT EXISTS ix_other_offers_candidate_id ON other_offers (candidate_id)",
     ]
 
     for statement in statements:
         op.execute(statement)
+
+    # other_offers table may not exist in all deployments — create index only if table exists
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'other_offers') THEN
+                CREATE INDEX IF NOT EXISTS ix_other_offers_candidate_id ON other_offers (candidate_id);
+            END IF;
+        END$$;
+    """)
 
 
 def downgrade() -> None:

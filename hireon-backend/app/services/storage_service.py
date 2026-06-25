@@ -235,6 +235,43 @@ async def save_logo(file: UploadFile, organization_id: str) -> str:
     return f"/static/uploads/logos/{filename}"
 
 
+async def save_audio(audio_data: bytes, session_id: str, question_index: int, ext: str = "webm") -> str:
+    """Upload audio to Cloudinary (resource_type=video) or save to local disk.
+
+    Returns a full https:// Cloudinary URL when Cloudinary is configured,
+    or a relative path (pre-screening/{session_id}/q{N}.{ext}) for local storage.
+    """
+    if settings.cloudinary_cloud_name:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            # Do NOT pass format= — that triggers Cloudinary transcoding which
+            # does not support WebM and returns "Unsupported video format or file".
+            # Do NOT embed the extension in public_id either — Cloudinary auto-appends
+            # the detected format, which would produce double extensions (e.g. .wav.wav).
+            public_id = f"q{question_index}_{uuid.uuid4().hex[:8]}"
+            response = await loop.run_in_executor(
+                None,
+                lambda: cloudinary.uploader.upload(
+                    audio_data,
+                    folder=f"hireon_prescreening/{session_id}",
+                    public_id=public_id,
+                    resource_type="video",  # Cloudinary stores audio under "video" resource type
+                )
+            )
+            return response["secure_url"]
+        except Exception as e:
+            print(f"ERROR: Cloudinary audio upload failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Audio upload to Cloudinary failed: {str(e)}")
+
+    # Local fallback
+    path = Path(settings.upload_dir) / "pre-screening" / session_id
+    path.mkdir(parents=True, exist_ok=True)
+    file_path = path / f"q{question_index}.{ext}"
+    file_path.write_bytes(audio_data)
+    return f"pre-screening/{session_id}/q{question_index}.{ext}"
+
+
 def get_file_path(url: str) -> Path:
     """Convert a /static/uploads/... URL to a local filesystem path."""
     relative = url.replace("/static/uploads/", "", 1)

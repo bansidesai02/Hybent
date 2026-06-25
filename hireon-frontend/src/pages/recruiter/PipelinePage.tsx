@@ -2,8 +2,10 @@ import { useState, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
 import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
+import { preScreeningApi } from '@/api/preScreening'
 import type { KanbanCard, Scorecard } from '@/types'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -12,7 +14,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ScoreRing } from '@/components/ui/ScoreRing'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
-import { Star, Mail, Search, Bookmark, X } from 'lucide-react'
+import { Star, Mail, Search, Bookmark, X, Mic, Loader2 } from 'lucide-react'
 import { GlassIcon } from '@/components/common/GlassIcon'
 import { formatDate, timeAgo } from '@/utils/formatters'
 
@@ -79,10 +81,27 @@ function ScorecardItem({ scorecard }: { scorecard: Scorecard }) {
 }
 
 function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => void }) {
+  const navigate = useNavigate()
+  const [preScreenLoading, setPreScreenLoading] = useState(false)
+
   const { data: scorecards, isLoading: scLoading } = useQuery({
     queryKey: ['scorecards', 'candidate', card.id],
     queryFn: () => scorecardsApi.getForApplication(card.id).then((r) => r.data).catch(() => []),
   })
+
+  const handleRequestPreScreening = async () => {
+    setPreScreenLoading(true)
+    try {
+      const res = await preScreeningApi.createSession({ candidate_id: card.id })
+      toast.success(`Pre-screening invite sent to ${card.candidate_email}`)
+      onClose()
+      navigate(`/recruiter/pre-screening/${res.data.id}`)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to create pre-screening session')
+    } finally {
+      setPreScreenLoading(false)
+    }
+  }
 
   return (
     <Modal open onClose={onClose} title="Candidate Details" size="lg">
@@ -103,9 +122,20 @@ function CardDetailModal({ card, onClose }: { card: KanbanCard; onClose: () => v
               </div>
             </div>
           </div>
-          <div className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 bg-violet-50 dark:bg-[var(--violet)]/10 rounded-2xl border border-violet-100/50 dark:border-[var(--violet)]/20 w-32 sm:w-auto self-center sm:self-auto">
-            <ScoreRing score={card.match_score} size={60} strokeWidth={5} />
-            <span className="text-[9px] font-black text-violet-600 dark:text-[var(--violet)] uppercase tracking-widest">AI Match</span>
+          <div className="flex flex-col items-center gap-3 self-center">
+            <div className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 bg-violet-50 dark:bg-[var(--violet)]/10 rounded-2xl border border-violet-100/50 dark:border-[var(--violet)]/20 w-32 sm:w-auto">
+              <ScoreRing score={card.match_score} size={60} strokeWidth={5} />
+              <span className="text-[9px] font-black text-violet-600 dark:text-[var(--violet)] uppercase tracking-widest">AI Match</span>
+            </div>
+            <button
+              onClick={handleRequestPreScreening}
+              disabled={preScreenLoading}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-bold transition-all"
+              style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.15)' }}
+            >
+              {preScreenLoading ? <Loader2 size={13} className="animate-spin" /> : <Mic size={13} />}
+              Pre-Screen
+            </button>
           </div>
         </div>
 

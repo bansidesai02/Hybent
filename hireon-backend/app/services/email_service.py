@@ -627,6 +627,37 @@ def send_interview_reschedule(
     send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name))
 
 
+def send_pre_screening_invite(
+    candidate_email: str,
+    candidate_name: str,
+    company_name: str,
+    job_title: str,
+    screening_url: str,
+    expires_days: int = 7,
+    org_logo_url: str | None = None,
+) -> bool:
+    subject = f"Pre-Screening Interview – {job_title} at {company_name}"
+    fname = candidate_name.split()[0].title() if candidate_name else "Candidate"
+    content = f"""
+        <h2 class="title" style="margin-top: 20px;">Your Pre-Screening Interview is Ready</h2>
+        <p class="description">
+            Hi {fname}, <strong>{company_name}</strong> has invited you to complete a short
+            AI-guided pre-screening for the <strong>{job_title}</strong> position.
+        </p>
+        <p class="description">
+            You will be asked <strong>10 questions</strong> and asked to record your verbal
+            responses. The session typically takes <strong>15–20 minutes</strong>.
+        </p>
+        <p class="description" style="font-size:13px;color:#70757a;">
+            This link is valid for {expires_days} days. Please complete it at your earliest convenience.
+        </p>
+        <div class="button-wrap">
+            <a href="{screening_url}" class="button">Start Pre-Screening</a>
+        </div>
+    """
+    return send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
+
+
 def send_password_reset_email(
     to_email: str,
     to_name: str,

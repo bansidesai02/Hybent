@@ -10,7 +10,9 @@ import { formatDate } from '@/utils/formatters'
 import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
 import { activitiesApi } from '@/api/activities'
-import { Link as RouterLink } from 'react-router-dom'
+import { preScreeningApi, type PreScreeningListItem, type PreScreeningSession } from '@/api/preScreening'
+import { PreScreeningSessionView, STATUS_CFG as PS_STATUS_CFG } from '@/components/PreScreening/PreScreeningSessionView'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { GlassIcon } from '@/components/common/GlassIcon'
@@ -41,7 +43,11 @@ import {
   User,
   AlertTriangle,
   FileText,
-  Activity
+  Activity,
+  Loader2,
+  Briefcase,
+  CheckCircle,
+  Plus,
 } from 'lucide-react'
 
 
@@ -52,6 +58,7 @@ interface CandidateProfileViewProps {
   hasInvitation?: boolean
   hideInvite?: boolean
   hideSchedule?: boolean
+  initialTab?: 'details' | 'feedback' | 'timeline' | 'prescreen'
 }
 
 const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
@@ -1166,13 +1173,462 @@ function TimelineTab({ candidate }: { candidate: Candidate }) {
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
+// ── PreScreenTab ──────────────────────────────────────────────────────────────
+
+function PreScreenTab({
+  candidate,
+  onNewSession,
+}: {
+  candidate: Candidate
+  onNewSession: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+
+  const { data: sessions = [], isLoading: sessionsLoading } = useQuery<PreScreeningListItem[]>({
+    queryKey: ['pre-screening-list', candidate.id],
+    queryFn: async () => {
+      const res = await preScreeningApi.listSessions({ candidate_id: candidate.id })
+      return res.data
+    },
+  })
+
+  // Auto-select most recent session
+  React.useEffect(() => {
+    if (sessions.length > 0 && !selectedSessionId) {
+      setSelectedSessionId(sessions[0].id)
+    }
+  }, [sessions, selectedSessionId])
+
+  const { data: selectedSession, isLoading: detailLoading } = useQuery<PreScreeningSession>({
+    queryKey: ['pre-screening', selectedSessionId],
+    queryFn: async () => {
+      const res = await preScreeningApi.getSession(selectedSessionId!)
+      return res.data
+    },
+    enabled: !!selectedSessionId,
+  })
+
+  const summariseMutation = useMutation({
+    mutationFn: () => preScreeningApi.summariseSession(selectedSessionId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre-screening', selectedSessionId] })
+      toast.success('AI summary generated')
+    },
+    onError: () => {
+      toast.error('Failed to generate summary')
+    },
+  })
+
+  if (sessionsLoading) {
+    return (
+      <div style={psTabStyles.root}>
+        <div style={psTabStyles.skeleton} />
+        <div style={{ ...psTabStyles.skeleton, width: '70%' }} />
+        <div style={{ ...psTabStyles.skeleton, height: '120px' }} />
+      </div>
+    )
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div style={psTabStyles.emptyWrap}>
+        <div style={psTabStyles.emptyIcon}>
+          <Mic size={28} color="#6c47ff" />
+        </div>
+        <h3 style={psTabStyles.emptyTitle}>No Pre-Screening Yet</h3>
+        <p style={psTabStyles.emptyText}>
+          Send a pre-screening invite to have the candidate answer AI-generated questions before the interview.
+        </p>
+        <button style={psTabStyles.newBtn} onClick={onNewSession}>
+          <Plus size={15} />
+          Send Pre-Screen Invite
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={psTabStyles.root}>
+      {/* Session list */}
+      <div style={psTabStyles.sessionList}>
+        {sessions.map(s => {
+          const cfg = PS_STATUS_CFG[s.status] || PS_STATUS_CFG.pending
+          const isActive = s.id === selectedSessionId
+          return (
+            <button
+              key={s.id}
+              style={{
+                ...psTabStyles.sessionCard,
+                ...(isActive ? psTabStyles.sessionCardActive : {}),
+              }}
+              onClick={() => setSelectedSessionId(s.id)}
+            >
+              <div style={psTabStyles.sessionCardTop}>
+                <span style={{ ...psTabStyles.statusPill, color: cfg.color, background: cfg.bg }}>
+                  {cfg.label}
+                </span>
+                <span style={psTabStyles.sessionDate}>{formatDate(s.created_at)}</span>
+              </div>
+              {s.job_title && (
+                <div style={psTabStyles.sessionJob}>
+                  <Briefcase size={12} />
+                  {s.job_title}
+                </div>
+              )}
+              <div style={psTabStyles.sessionMeta}>
+                <Mic size={11} />
+                {s.response_count} response{s.response_count !== 1 ? 's' : ''}
+                {s.status === 'completed' && s.response_count > 0 && (
+                  <><CheckCircle size={11} style={{ marginLeft: '6px' }} /> Completed</>
+                )}
+              </div>
+            </button>
+          )
+        })}
+        <button style={psTabStyles.addSessionBtn} onClick={onNewSession} title="Start new pre-screen">
+          <Plus size={14} />
+          New
+        </button>
+      </div>
+
+      {/* Detail view */}
+      {selectedSessionId && (
+        <div style={psTabStyles.detailWrap}>
+          {detailLoading || !selectedSession ? (
+            <div style={psTabStyles.root}>
+              <div style={psTabStyles.skeleton} />
+              <div style={{ ...psTabStyles.skeleton, width: '70%' }} />
+              <div style={{ ...psTabStyles.skeleton, height: '200px' }} />
+            </div>
+          ) : (
+            <>
+              <div style={psTabStyles.detailHeader}>
+                <div style={psTabStyles.detailMeta}>
+                  {selectedSession.job_title && (
+                    <span style={psTabStyles.detailJob}>
+                      <Briefcase size={13} />
+                      {selectedSession.job_title}
+                    </span>
+                  )}
+                  {selectedSession.completed_at && (
+                    <span style={psTabStyles.detailCompleted}>
+                      <CheckCircle size={12} />
+                      Completed {formatDate(selectedSession.completed_at)}
+                    </span>
+                  )}
+                </div>
+                <a
+                  href={`/recruiter/pre-screening/${selectedSession.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={psTabStyles.fullPageLink}
+                >
+                  <ExternalLink size={13} />
+                  Open Full Review
+                </a>
+              </div>
+              <PreScreeningSessionView
+                session={selectedSession}
+                onSummarise={() => summariseMutation.mutate()}
+                summarising={summariseMutation.isPending}
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const psTabStyles: Record<string, React.CSSProperties> = {
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  skeleton: {
+    width: '100%',
+    height: '24px',
+    borderRadius: '8px',
+    background: '#f0edff',
+    animation: 'pulse 1.5s ease-in-out infinite',
+  },
+  emptyWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '48px 24px',
+    textAlign: 'center',
+  },
+  emptyIcon: {
+    width: '60px',
+    height: '60px',
+    borderRadius: '50%',
+    background: 'rgba(108,71,255,0.08)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontSize: '16px',
+    fontWeight: 700,
+    color: '#1a1040',
+    margin: 0,
+  },
+  emptyText: {
+    fontSize: '13px',
+    color: '#6b7280',
+    maxWidth: '360px',
+    lineHeight: 1.6,
+    margin: 0,
+  },
+  newBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 20px',
+    borderRadius: '10px',
+    border: 'none',
+    background: 'linear-gradient(135deg, #6c47ff, #9b80ff)',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: '13px',
+    cursor: 'pointer',
+    marginTop: '4px',
+  },
+  sessionList: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap' as const,
+    alignItems: 'center',
+  },
+  sessionCard: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '6px',
+    padding: '12px 14px',
+    borderRadius: '12px',
+    border: '1.5px solid #e8e6ff',
+    background: '#fff',
+    cursor: 'pointer',
+    textAlign: 'left' as const,
+    minWidth: '160px',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+  },
+  sessionCardActive: {
+    border: '1.5px solid #6c47ff',
+    background: 'rgba(108,71,255,0.04)',
+    boxShadow: '0 0 0 3px rgba(108,71,255,0.08)',
+  },
+  sessionCardTop: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  statusPill: {
+    padding: '2px 8px',
+    borderRadius: '20px',
+    fontSize: '10px',
+    fontWeight: 700,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.4px',
+  },
+  sessionDate: {
+    fontSize: '11px',
+    color: '#9ca3af',
+    whiteSpace: 'nowrap' as const,
+  },
+  sessionJob: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#374151',
+  },
+  sessionMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '11px',
+    color: '#9ca3af',
+  },
+  addSessionBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '8px 14px',
+    borderRadius: '10px',
+    border: '1.5px dashed #c4bfec',
+    background: 'transparent',
+    color: '#9ca3af',
+    fontSize: '12px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  detailWrap: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '16px',
+    paddingTop: '4px',
+  },
+  detailHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexWrap: 'wrap' as const,
+  },
+  detailMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap' as const,
+  },
+  detailJob: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#6c47ff',
+    background: 'rgba(108,71,255,0.08)',
+    padding: '3px 10px',
+    borderRadius: '20px',
+  },
+  detailCompleted: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '12px',
+    color: '#22c55e',
+    fontWeight: 600,
+  },
+  fullPageLink: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#6c47ff',
+    textDecoration: 'none',
+    padding: '5px 12px',
+    borderRadius: '8px',
+    border: '1px solid rgba(108,71,255,0.2)',
+    background: 'rgba(108,71,255,0.04)',
+  },
+}
+
+// ── PreScreeningModal ─────────────────────────────────────────────────────────
+
+function PreScreeningModal({
+  candidate,
+  onClose,
+}: {
+  candidate: Candidate
+  onClose: () => void
+}) {
+  const navigate = useNavigate()
+  const [selectedJobId, setSelectedJobId] = useState<string>('')
+  const [loading, setLoading] = useState(false)
+
+  const { data: jobsData } = useQuery({
+    queryKey: ['jobs-list-for-prescreening'],
+    queryFn: async () => {
+      const { jobsApi } = await import('@/api/jobs')
+      const res = await jobsApi.list({ limit: 50, status: 'active' })
+      return res.data
+    },
+  })
+
+  const jobs = (jobsData as any)?.items || (Array.isArray(jobsData) ? jobsData : [])
+
+  const handleCreate = async () => {
+    setLoading(true)
+    try {
+      const res = await preScreeningApi.createSession({
+        candidate_id: candidate.id,
+        job_id: selectedJobId || undefined,
+      })
+      toast.success(`Pre-screening invite sent to ${candidate.email}`)
+      onClose()
+      navigate(`/recruiter/pre-screening/${res.data.id}`)
+    } catch (err: any) {
+      const detail: string = err?.response?.data?.detail || ''
+      if (err?.response?.status === 409 && detail.startsWith('completed_session:')) {
+        const sessionId = detail.split(':')[1]
+        toast.success('A completed pre-screening already exists — opening results.')
+        onClose()
+        navigate(`/recruiter/pre-screening/${sessionId}`)
+      } else {
+        toast.error(detail || 'Failed to create pre-screening session')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: '#fff', borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '460px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1a1040', margin: '0 0 6px 0' }}>
+          Request Pre-Screening
+        </h2>
+        <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 20px 0' }}>
+          AI will generate 10 personalised questions and email an invite to <strong>{candidate.email}</strong>.
+        </p>
+
+        <label style={{ fontSize: '12px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>
+          Select Job (optional)
+        </label>
+        <select
+          value={selectedJobId}
+          onChange={e => setSelectedJobId(e.target.value)}
+          style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: '14px', color: '#1a1040', background: '#fafafa', marginBottom: '20px', outline: 'none' }}
+        >
+          <option value="">— No specific job —</option>
+          {jobs.map((j: any) => (
+            <option key={j.id} value={j.id}>{j.title}</option>
+          ))}
+        </select>
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={onClose}
+            style={{ flex: 1, padding: '11px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer', fontSize: '14px' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={loading}
+            style={{ flex: 2, padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #6c47ff, #9b80ff)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '14px', opacity: loading ? 0.7 : 1 }}
+          >
+            {loading ? 'Sending…' : 'Send Pre-Screening Invite'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function CandidateProfileView({ 
   candidate: initialCandidate, 
   onInvite, 
   onSchedule, 
   hasInvitation,
   hideInvite,
-  hideSchedule
+  hideSchedule,
+  initialTab,
 }: CandidateProfileViewProps) {
   const { data: candidate = initialCandidate } = useQuery({
     queryKey: ['candidates', initialCandidate.id],
@@ -1181,7 +1637,8 @@ export function CandidateProfileView({
   })
 
   const setPageContext = useCopilotStore(s => s.setPageContext)
-  const [activeTab, setActiveTab] = useState<'details' | 'feedback' | 'timeline'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'feedback' | 'timeline' | 'prescreen'>(initialTab ?? 'details')
+  const [showPreScreeningModal, setShowPreScreeningModal] = useState(false)
   const stage = candidate.pipeline_stage || 'applied'
   const stageCfg = candidate.pipeline_stage ? STAGE_CFG[stage] : null
 
@@ -1194,9 +1651,10 @@ export function CandidateProfileView({
   }, [candidate.id, candidate.full_name, setPageContext])
 
   const tabs = [
-    { key: 'details',  label: <span className="flex items-center gap-2"><User size={14} /> Candidate Details</span> },
-    { key: 'feedback', label: <span className="flex items-center gap-2"><Mic size={14} /> Interview Feedback</span> },
-    { key: 'timeline', label: <span className="flex items-center gap-2"><Activity size={14} /> Audit Trail</span> },
+    { key: 'details',   label: <span className="flex items-center gap-2"><User size={14} /> Candidate Details</span> },
+    { key: 'feedback',  label: <span className="flex items-center gap-2"><Mic size={14} /> Interview Feedback</span> },
+    { key: 'prescreen', label: <span className="flex items-center gap-2"><Sparkles size={14} /> Pre-Screen</span> },
+    { key: 'timeline',  label: <span className="flex items-center gap-2"><Activity size={14} /> Audit Trail</span> },
   ] as const
 
   return (
@@ -1277,6 +1735,12 @@ export function CandidateProfileView({
                 <Calendar size={12} /> Schedule
               </button>
             )}
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('prescreen') }}
+              style={{ fontSize: 11, fontWeight: 700, background: 'rgba(108,71,255,0.08)', color: '#6c47ff', border: '1px solid rgba(108,71,255,0.15)', padding: '4px 14px', borderRadius: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <Sparkles size={12} /> Pre-Screen
+            </button>
           </div>
         </div>
       </div>
@@ -1310,7 +1774,21 @@ export function CandidateProfileView({
       {/* ── Tab Content ── */}
       {activeTab === 'details' && <DetailsTab candidate={candidate} />}
       {activeTab === 'feedback' && <FeedbackTab candidate={candidate} />}
+      {activeTab === 'prescreen' && (
+        <PreScreenTab
+          candidate={candidate}
+          onNewSession={() => setShowPreScreeningModal(true)}
+        />
+      )}
       {activeTab === 'timeline' && <TimelineTab candidate={candidate} />}
+
+      {/* Pre-Screening Modal */}
+      {showPreScreeningModal && (
+        <PreScreeningModal
+          candidate={candidate}
+          onClose={() => setShowPreScreeningModal(false)}
+        />
+      )}
     </div>
   )
 }

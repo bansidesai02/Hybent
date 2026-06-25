@@ -1,7 +1,7 @@
 import React from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -450,6 +450,7 @@ function CandidateActionsDropdown({
 export default function CandidatesPage() {
   const { basePath, user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
@@ -473,6 +474,29 @@ export default function CandidatesPage() {
   const [inactivePipelineBlock, setInactivePipelineBlock] = useState<{ id: string; name: string } | null>(null)
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null)
   const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
+  const [viewTargetInitialTab, setViewTargetInitialTab] = useState<'details' | 'feedback' | 'timeline' | 'prescreen' | undefined>(undefined)
+
+  // Deep-link support: ?openId=<candidateId>&tab=<tabKey>
+  // Used by PreScreeningReviewPage back button to land on a specific tab
+  const deepLinkOpenId = searchParams.get('openId')
+  const deepLinkTab = searchParams.get('tab') as 'details' | 'feedback' | 'timeline' | 'prescreen' | null
+  useEffect(() => {
+    if (!deepLinkOpenId) return
+    candidatesApi.get(deepLinkOpenId)
+      .then((res: any) => {
+        setViewTarget(res.data)
+        setViewTargetInitialTab(deepLinkTab ?? undefined)
+        // Remove params from URL once handled so refreshing doesn't re-trigger
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev)
+          next.delete('openId')
+          next.delete('tab')
+          return next
+        }, { replace: true })
+      })
+      .catch(() => {/* candidate not found — ignore */})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkOpenId])
   const [candidateToDelete, setCandidateToDelete] = useState<{ id: string; name: string } | null>(null)
   const [showAddJobModal, setShowAddJobModal] = useState(false)
   const [newJobTitle, setNewJobTitle] = useState('')
@@ -1272,6 +1296,7 @@ export default function CandidatesPage() {
             hasInvitation={Boolean(viewTarget.invitations && viewTarget.invitations.length > 0)}
             hideInvite
             hideSchedule
+            initialTab={viewTargetInitialTab}
           />
         </Modal>
       )}

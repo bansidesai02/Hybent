@@ -32,6 +32,10 @@ const TalentPoolPage = lazy(() => import('@/pages/recruiter/TalentPoolPage'))
 const AllTalentListPage = lazy(() => import('@/pages/recruiter/AllTalentListPage'))
 const RecruiterProfilePage = lazy(() => import('@/pages/recruiter/RecruiterProfilePage'))
 const RecruiterSettingsPage = lazy(() => import('@/pages/recruiter/RecruiterSettingsPage'))
+const PreScreeningReviewPage = lazy(() => import('@/pages/recruiter/PreScreeningReviewPage'))
+
+// Pre-screening (public — no auth)
+const PreScreeningPage = lazy(() => import('@/pages/candidate/PreScreeningPage'))
 
 // Interviewer pages (Lazy)
 const InterviewerDashboard = lazy(() => import('@/pages/interviewer/InterviewerDashboard'))
@@ -131,6 +135,7 @@ export default function App() {
       <Route path="profile" element={<RecruiterProfilePage />} />
       <Route path="settings" element={<RecruiterSettingsPage />} />
       <Route path="teams" element={<TeamManagementPage />} />
+      <Route path="pre-screening/:sessionId" element={<PreScreeningReviewPage />} />
     </>
   )
 
@@ -166,6 +171,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/onboarding/:token" element={<OnboardingPage />} />
+          <Route path="/pre-screening/:token" element={<PreScreeningPage />} />
 
           {/* Recruiter routes */}
           <Route

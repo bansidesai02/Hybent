@@ -29,7 +29,7 @@ from app.routers import (
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
     activities, reports, messages, search, public, copilot, bulk_import, linkedin, designations, api_compat,
-    super_admin, candidate_files
+    super_admin, candidate_files, pre_screening
 )
 # Configure logging
 logging.basicConfig(
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
 
     # Ensure upload directories exist
     Path(settings.upload_dir).mkdir(exist_ok=True)
-    for sub in ["resumes", "jds", "offers", "avatars"]:
+    for sub in ["resumes", "jds", "offers", "avatars", "pre-screening"]:
         Path(settings.upload_dir, sub).mkdir(exist_ok=True)
         
     # Start Redis Pub/Sub listener for WebSockets
@@ -227,6 +227,7 @@ app.include_router(public.router, prefix="/api")
 app.include_router(api_compat.router)
 app.include_router(super_admin.router)
 app.include_router(candidate_files.router)
+app.include_router(pre_screening.router)
 
 
 @app.get("/", tags=["health"])

@@ -20,6 +20,7 @@ from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 from app.models.import_batch import ImportBatch
 from app.models.user_preference import UserPreference
 from app.models.designation_change_log import DesignationChangeLog
+from app.models.pre_screening import PreScreeningSession, PreScreeningResponse
 from app.models.super_admin import (
     SubscriptionPlan, CompanySubscription, CompanyFeatureFlag,
     CompanyUsage, SuperAdminAuditLog, ImpersonationLog,
@@ -33,6 +34,7 @@ __all__ = [
     "OtherOffer", "JobReferral", "CandidateDocument", "Message",
     "AIUsage", "CopilotConversation", "CopilotMessage", "ImportBatch",
     "UserPreference", "DesignationChangeLog",
+    "PreScreeningSession", "PreScreeningResponse",
     "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag",
     "CompanyUsage", "SuperAdminAuditLog", "ImpersonationLog",
     "PlatformSetting", "BillingTransaction"
