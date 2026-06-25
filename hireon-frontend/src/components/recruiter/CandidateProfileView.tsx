@@ -1184,7 +1184,8 @@ function PreScreenTab({
 }) {
   const queryClient = useQueryClient()
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
-
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery<PreScreeningListItem[]>({
     queryKey: ['pre-screening-list', candidate.id],
     queryFn: async () => {
@@ -1318,15 +1319,16 @@ function PreScreenTab({
                     </span>
                   )}
                 </div>
-                <a
-                  href={`/recruiter/pre-screening/${selectedSession.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={psTabStyles.fullPageLink}
-                >
-                  <ExternalLink size={13} />
-                  Open Full Review
-                </a>
+                <button
+                    onClick={() => {
+                      const base = user?.role === 'admin' ? '/admin' : '/recruiter'
+                      navigate(`${base}/pre-screening/${selectedSession.id}`)
+                    }}
+                    style={psTabStyles.fullPageLink}
+                  >
+                    <ExternalLink size={13} />
+                    Open Full Review
+                  </button>
               </div>
               <PreScreeningSessionView
                 session={selectedSession}
@@ -1534,6 +1536,7 @@ function PreScreeningModal({
   const navigate = useNavigate()
   const [selectedJobId, setSelectedJobId] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
 
   const { data: jobsData } = useQuery({
     queryKey: ['jobs-list-for-prescreening'],
@@ -1555,7 +1558,10 @@ function PreScreeningModal({
       })
       toast.success(`Pre-screening invite sent to ${candidate.email}`)
       onClose()
-      navigate(`/recruiter/pre-screening/${res.data.id}`)
+      // then in handleCreate, replace both navigate calls:
+      navigate(`${user?.role === 'admin' ? '/admin' : '/recruiter'}/pre-screening/${res.data.id}`)
+      // and the 409 branch:
+      navigate(`${user?.role === 'admin' ? '/admin' : '/recruiter'}/pre-screening/${res.data.id}`)
     } catch (err: any) {
       const detail: string = err?.response?.data?.detail || ''
       if (err?.response?.status === 409 && detail.startsWith('completed_session:')) {
