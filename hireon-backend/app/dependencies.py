@@ -67,9 +67,11 @@ async def get_current_user(
             raise credentials_exception
         user.is_impersonating = bool(impersonator_id)
         user.impersonator_id = impersonator_id
+    except HTTPException:
+        raise  # re-raise 401/403 as-is, don't swallow them
     except Exception as db_err:
-        logger.debug(f"DB lookup failed: {str(db_err)}")
-        raise credentials_exception
+        logger.error(f"DB lookup failed: {str(db_err)}", exc_info=True)  # use ERROR not DEBUG
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     return user
 
