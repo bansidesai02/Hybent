@@ -961,10 +961,10 @@ export default function LandingPage() {
               </h2>
               <div className="space-y-6 text-[18px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
                 <p>
-                  Hireon was born from a simple mission by Bansi Desai: to fix a recruiting process that hadn't meaningfully changed in decades. From her experience in Human Resources and Talent Acquisition, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
+                  Hireon was born from a simple mission: to fix a recruiting process that hadn't meaningfully changed in decades. From years of experience in Human Resources and Talent Acquisition, we saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
                 </p>
                 <p>
-                  She set out to build the co-pilot she always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
+                  We set out to build the co-pilot we always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
                 </p>
                 <p>
                   Today, Hireon represents that vision. By leveraging cutting-edge AI to automate the "boring parts," we're empowering talent teams to hire exceptional people faster than ever before.
@@ -1008,7 +1008,7 @@ export default function LandingPage() {
                     "I didn't want to build just another HR tool. I wanted to build the thing I wish existed — a recruiter's co-pilot that handles the boring parts so humans can focus on the human parts."
                   </blockquote>
                   <div className="text-right">
-                    <span className="text-[15px] font-bold" style={{ color: 'var(--text)', opacity: 0.9 }}>— Bansi Desai</span>
+                    <span className="text-[15px] font-bold" style={{ color: 'var(--text)', opacity: 0.9 }}>— Founder, Hireon</span>
                   </div>
                 </div>
               </div>
