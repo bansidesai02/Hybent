@@ -2,7 +2,7 @@ import uuid
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, delete as sql_delete
 from sqlalchemy.exc import SQLAlchemyError
 from app.dependencies import DB, get_current_user, require_recruiter, require_admin
 from app.models.user import User
@@ -1033,7 +1033,8 @@ async def delete_candidate(candidate_id: uuid.UUID, current_user: Annotated[User
             organization_id=str(candidate.organization_id),
             candidate_id=str(candidate_id),
         )
-
+    
+    await db.execute(sql_delete(Application).where(Application.candidate_id == candidate_id))
     await db.delete(candidate)
     await db.commit()
 
