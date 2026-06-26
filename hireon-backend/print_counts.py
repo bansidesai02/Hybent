@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 from app.database import get_session_factory
 from app.models.candidate import Candidate
 from app.models.user import User
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 async def check():
     session = get_session_factory()()
@@ -42,7 +42,7 @@ async def check():
 
         # Count created this week (since Monday)
         week_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_start = week_start - asyncio.subprocess.sys.modules['datetime'].timedelta(days=week_start.weekday())
+        week_start = week_start - timedelta(days=week_start.weekday())
         week_count = (await session.execute(
             select(func.count(Candidate.id)).where(Candidate.created_at >= week_start)
         )).scalar()
