@@ -342,7 +342,19 @@ const FormDropdown = ({
 }
 
 export default function LandingPage() {
+  const [demoForm, setDemoForm] = useState({
+    firstName: '',
+    lastName: '',
+    workEmail: '',
+    companyName: '',
+    teamSize: '1-10',
+    monthlyHires: '1-5',
+    hiringChallenge: ''
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [landingConfig, setLandingConfig] = useState<{
     testimonials: any[]
@@ -356,6 +368,38 @@ export default function LandingPage() {
       .then(data => setLandingConfig(data))
       .catch(err => console.error('Failed to load landing config:', err));
   }, []);
+
+  const handleDemoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+      const response = await fetch(`${apiBase}/api/public/demo-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: demoForm.firstName,
+          last_name: demoForm.lastName,
+          work_email: demoForm.workEmail,
+          company_name: demoForm.companyName,
+          team_size: demoForm.teamSize,
+          monthly_hires: demoForm.monthlyHires,
+          hiring_challenge: demoForm.hiringChallenge
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSubmitted(true);
+      } else {
+        setError(data.message || 'Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      setError('Connection error. Please check your internet and try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
 
   return (
@@ -430,8 +474,8 @@ export default function LandingPage() {
 
         {/* Nav links */}
         <ul className="hidden md:flex items-center gap-1 list-none m-0 p-0">
-          {['Features', 'How it works', 'About'].map((item) => {
-            const targetId = item.toLowerCase().replace(/\s+/g, '-');
+          {['Features', 'How it works', 'About', 'Book Demo'].map((item) => {
+            const targetId = item === 'Book Demo' ? 'book-demo' : item.toLowerCase().replace(/\s+/g, '-');
             return (
               <li key={item}>
                 <button
@@ -459,6 +503,18 @@ export default function LandingPage() {
               style={{ borderColor: 'rgba(108,71,255,0.25)', color: '#6c47ff', fontFamily: "'Sora', sans-serif" }}
             >
               Sign In
+            </button>
+          </Link>
+          <Link to="/register?demo=true">
+            <button
+              className="px-6 py-2.5 border-0 rounded-[12px] text-[14px] font-bold text-white cursor-pointer transition-all duration-200 hover:-translate-y-[1px] active:scale-95"
+              style={{
+                background: 'linear-gradient(135deg, #ff6bc6, #ff8dc7)',
+                boxShadow: '0 4px 16px rgba(255,107,198,0.35)',
+                fontFamily: "'Sora', sans-serif",
+              }}
+            >
+              Book Demo
             </button>
           </Link>
           <Link to="/register">
@@ -537,6 +593,11 @@ export default function LandingPage() {
                 })}
               </ul>
               <div className="h-px bg-gray-100 my-2" />
+              <Link to="/register?demo=true" onClick={() => setMobileMenuOpen(false)}>
+                <button className="w-full py-4 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#ff6bc6] to-[#ff8dc7]">
+                  Book Demo
+                </button>
+              </Link>
               <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
                 <button className="w-full py-4 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#6c47ff] to-[#8b6bff]">
                   Get Started Free
@@ -638,6 +699,20 @@ export default function LandingPage() {
               }}
             >
               Start for Free <ArrowRight size={20} />
+            </button>
+          </Link>
+          <Link to="/register?demo=true" className="w-full sm:w-auto">
+            <button
+              className="w-full sm:px-10 py-4 rounded-[10px] text-[17px] font-semibold cursor-pointer transition-all duration-300 hover:bg-white hover:-translate-y-[2px] flex items-center justify-center gap-2"
+              style={{
+                background: 'rgba(255,255,255,0.72)',
+                border: '1px solid rgba(255,255,255,0.6)',
+                backdropFilter: 'blur(12px)',
+                color: 'var(--text)',
+                fontFamily: "'Sora', sans-serif",
+              }}
+            >
+              <Calendar size={20} className="text-[#6c47ff]" /> Book Demo
             </button>
           </Link>
         </motion.div>
@@ -886,10 +961,10 @@ export default function LandingPage() {
               </h2>
               <div className="space-y-6 text-[18px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
                 <p>
-                  Hireon was born from a simple mission: to fix a recruiting process that hadn't meaningfully changed in decades. From years of experience in Human Resources and Talent Acquisition, we saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
+                  Hireon was born from a simple mission by Bansi Desai: to fix a recruiting process that hadn't meaningfully changed in decades. From her experience in Human Resources and Talent Acquisition, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
                 </p>
                 <p>
-                  We set out to build the co-pilot we always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
+                  She set out to build the co-pilot she always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
                 </p>
                 <p>
                   Today, Hireon represents that vision. By leveraging cutting-edge AI to automate the "boring parts," we're empowering talent teams to hire exceptional people faster than ever before.
@@ -933,7 +1008,7 @@ export default function LandingPage() {
                     "I didn't want to build just another HR tool. I wanted to build the thing I wish existed — a recruiter's co-pilot that handles the boring parts so humans can focus on the human parts."
                   </blockquote>
                   <div className="text-right">
-                    <span className="text-[15px] font-bold" style={{ color: 'var(--text)', opacity: 0.9 }}>— Founder, Hireon</span>
+                    <span className="text-[15px] font-bold" style={{ color: 'var(--text)', opacity: 0.9 }}>— Bansi Desai</span>
                   </div>
                 </div>
               </div>
@@ -1149,6 +1224,212 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── BOOK A DEMO ── */}
+      <section id="book-demo" className="relative z-10 py-16 px-6 overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none opacity-40" style={{ background: 'radial-gradient(circle at center, rgba(108,71,255,0.05), transparent 70%)' }} />
+
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            variants={fadeReveal}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-16"
+          >
+            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Book a Demo</p>
+            <h2
+              className="font-black leading-tight mb-4"
+              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
+            >
+              See Hireon in action.<br />
+              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                Live, just for you.
+              </span>
+            </h2>
+            <p className="text-[20px] max-w-2xl mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.6 }}>
+              Get a personalized walkthrough with one of our team members. We'll show you exactly how Hireon fits your hiring workflow.
+            </p>
+          </motion.div>
+
+          <div className="flex flex-col lg:flex-row gap-12 items-start">
+            {/* Form Column */}
+            <motion.div 
+              custom={{ side: 'left' }}
+              variants={sideReveal}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              className="flex-1 w-full"
+            >
+              <div
+                className="rounded-[32px] p-10 relative overflow-hidden"
+                style={{
+                  background: 'rgba(255,255,255,0.85)',
+                  backdropFilter: 'blur(40px) saturate(200%)',
+                  border: '1px solid rgba(255,255,255,1)',
+                  boxShadow: '0 32px 96px -12px rgba(108,71,255,0.15)',
+                }}
+              >
+                {!submitted ? (
+                  <>
+                    <h3 className="text-[24px] font-black mb-1.5" style={{ fontFamily: "'Fraunces', serif", color: 'var(--text)' }}>Request a Demo</h3>
+                    <p className="text-[14px] mb-8" style={{ color: 'var(--text-mid)' }}>Fill in your details and we'll get back to you within 24 hours to schedule your personalized session.</p>
+
+                    <form onSubmit={handleDemoSubmit} className="space-y-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>First Name</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="John"
+                            className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                            style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
+                            value={demoForm.firstName}
+                            onChange={e => setDemoForm({ ...demoForm, firstName: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>Last Name</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="Doe"
+                            className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                            style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
+                            value={demoForm.lastName}
+                            onChange={e => setDemoForm({ ...demoForm, lastName: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>Work Email</label>
+                        <input
+                          required
+                          type="email"
+                          placeholder="john@company.com"
+                          className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                          style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
+                          value={demoForm.workEmail}
+                          onChange={e => setDemoForm({ ...demoForm, workEmail: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>Company Name</label>
+                        <input
+                          required
+                          type="text"
+                          placeholder="Your Company Inc."
+                          className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none focus:border-[#6c47ff]/30"
+                          style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
+                          value={demoForm.companyName}
+                          onChange={e => setDemoForm({ ...demoForm, companyName: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <FormDropdown
+                          label="Team Size"
+                          options={['1-10', '11-50', '51-200', '201-500', '501+']}
+                          value={demoForm.teamSize}
+                          onChange={val => setDemoForm({ ...demoForm, teamSize: val })}
+                          placeholder="Select size"
+                        />
+                        <FormDropdown
+                          label="Monthly Hires"
+                          options={['1-5', '6-15', '16-30', '31-50', '50+']}
+                          value={demoForm.monthlyHires}
+                          onChange={val => setDemoForm({ ...demoForm, monthlyHires: val })}
+                          placeholder="Select count"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>What's your biggest hiring challenge?</label>
+                        <textarea
+                          placeholder="e.g. Resume screening takes too long..."
+                          rows={3}
+                          className="w-full px-6 py-4 rounded-[14px] border-2 border-transparent text-[15px] transition-all outline-none resize-none focus:border-[#6c47ff]/30"
+                          style={{ background: 'white', boxShadow: '0 2px 12px rgba(108,71,255,0.04)', color: 'var(--text)' }}
+                          value={demoForm.hiringChallenge}
+                          onChange={e => setDemoForm({ ...demoForm, hiringChallenge: e.target.value })}
+                        />
+                      </div>
+
+                      {error && <p className="text-[13px] font-bold text-red-500 ml-1">{error}</p>}
+
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full py-4 rounded-[14px] text-white font-bold text-[16px] transition-all hover:shadow-[0_12px_40px_rgba(108,71,255,0.35)] hover:-translate-y-1 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+                        style={{
+                          background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
+                          boxShadow: '0 8px 24px rgba(108,71,255,0.25)',
+                          fontFamily: "'Sora', sans-serif"
+                        }}
+                      >
+                        {submitting ? 'Submitting...' : <>Book My Demo <ArrowRight size={20} /></>}
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <div className="text-center py-10 animate-fade-in">
+                    <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <h3 className="text-[28px] font-black mb-4" style={{ fontFamily: "'Fraunces', serif", color: 'var(--text)' }}>Request Received!</h3>
+                    <p className="text-[16px] leading-relaxed mb-8" style={{ color: 'var(--text-mid)' }}>
+                      Thank you for your interest in Hireon. Our team will reach out to <strong>{demoForm.workEmail}</strong> within 24 hours to schedule your personalized demo.
+                    </p>
+                    <button
+                      onClick={() => setSubmitted(false)}
+                      className="text-[14px] font-bold underline cursor-pointer" style={{ color: 'var(--violet)' }}
+                    >
+                      Send another request
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Info Column */}
+            <motion.div 
+              custom={{ side: 'right' }}
+              variants={sideReveal}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              className="w-full lg:w-[420px] pt-10 px-4"
+            >
+              <h4 className="text-[24px] font-bold mb-8" style={{ color: 'var(--text)' }}>What to expect in your demo</h4>
+
+              <div className="space-y-10">
+                {[
+                  { icon: 'Brain' as const, variant: 'violet' as const, title: 'Live AI Resume Parsing', desc: 'Watch Hireon parse a real resume in under 10 seconds, extract skills, and generate match scores.' },
+                  { icon: 'Target' as const, variant: 'pink' as const, title: 'Auto-Shortlisting in Action', desc: 'See how Hireon automatically shortlists candidates and keeps everyone informed — without human input.' },
+                  { icon: 'Calendar' as const, variant: 'amber' as const, title: 'One-Click Scheduling', desc: 'Experience conflict-free interview scheduling that takes 30 seconds instead of 3 days of emails.' },
+                  { icon: <TeamIcon size={20} />, variant: 'teal' as const, title: 'Your Custom Hiring Setup', desc: "We'll configure a demo environment matched to your actual roles, team size, and hiring workflow." },
+                ].map((item) => (
+                  <div key={item.title} className="flex gap-5 group items-start">
+                    <div className="flex-shrink-0 transition-transform group-hover:scale-110">
+                      <GlassIcon icon={item.icon} variant={item.variant} size={48} iconSize={20} glow={false} rounded="14px" />
+                    </div>
+                    <div>
+                      <h5 className="text-[18px] font-bold mb-1.5" style={{ color: 'var(--text)' }}>{item.title}</h5>
+                      <p className="text-[16px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
 
 
       {/* ── FOOTER ── */}
