@@ -13,6 +13,14 @@ from fastapi import BackgroundTasks
 import zoneinfo
 
 from app.config import settings
+from app.services.copilot_intelligence import (
+    preprocess_query,
+    build_search_context_from_history,
+    SearchIntent,
+    ABBREVIATION_MAP,
+    is_jd_creation_intent,
+    extract_role_from_jd_query,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,73 +32,89 @@ COPILOT_SYSTEM_PROMPT = """### 1. YOUR MISSION
 You are Hireon Copilot — a production-grade AI Hiring Assistant. Help recruiters search for candidates, analyze their pipeline, manage team members, schedule interviews, and navigate the Hireon platform.
 DO NOT write SQL. Use the tools provided. Never hallucinate candidate names or data.
 
-### 2. INTENT → TOOL MAPPING (follow these patterns)
+### 2. ABBREVIATION & SHORT FORM UNDERSTANDING
+Recruiters often use abbreviations. ALWAYS expand them before calling tools:
+- BDE → Business Development Executive → use `search_candidates` with query="Business Development Executive"
+- BDM → Business Development Manager → use `search_candidates` with query="Business Development Manager"
+- SDE / SDE1 / SDE2 → Software Development Engineer
+- QA / SQA → Quality Assurance
+- HR → Human Resources (use `search_candidates` with query="HR" for candidate searches)
+- TA → Talent Acquisition
+- PM → Product Manager
+- PO → Product Owner
+- BA / BSA → Business Analyst
+- TL → Team Lead
+- EM → Engineering Manager
+- CTO / CEO / CFO / COO → C-Suite roles
+- UI / UX / UI/UX → UI UX Designer
+- MERN / MEAN → use respective stack keywords
+- JS → JavaScript, TS → TypeScript, PY → Python
+- ML / AI / DL / NLP / CV → AI/ML roles
+- DS / DA → Data Science / Data Analyst
+- BI → Business Intelligence
+- DBA → Database Administrator
+- RoR → Ruby on Rails
+- RN → React Native
+- DevOps → DevOps Engineer
+- SRE → Site Reliability Engineer
+
+### 3. INTENT → TOOL MAPPING (follow these patterns)
 | Recruiter says | Tool to use | Parameter settings |
 |---------------|-------------|--------------------|
-| "Show React developers" / "Find Python candidates" | `search_candidates` | `query="react"` (or the requested skill) |
+| "Show React developers" / "Find Python candidates" / "Need BDE" | `search_candidates` | `query="Business Development Executive"` (expand abbreviations) |
 | "Who was added this week?" / "New candidates this week" | `search_candidates` | `date_range="this_week"` |
-| "Find candidates from Ahmedabad" | `search_candidates` | `location="Ahmedabad"` |
-| "Who is immediately available?" / "0 notice period" | `search_candidates` | `notice_period_max=0` |
-| "Candidates with 5+ years experience" | `search_candidates` | `experience_min=5` |
-| "Show rejected candidates" / "Rejected profiles" | `search_candidates` | `status="rejected"` |
+| "Find candidates from Ahmedabad" / "Only Ahmedabad" | `search_candidates` | `location="Ahmedabad"` |
+| "Who is immediately available?" / "Immediate joiner" / "0 notice" | `search_candidates` | `notice_period_max=0` |
+| "Candidates with 5+ years" / "Need senior developer" | `search_candidates` | `experience_min=5` |
+| "Fresher" / "Entry level" | `search_candidates` | `experience_min=0`, `experience_max=1` |
+| "Budget 10 LPA" / "Under 12 LPA" | `search_candidates` | `salary_max_lpa=10` |
+| "Show rejected candidates" | `search_candidates` | `status="rejected"` |
 | "Who is in technical round?" | `search_candidates` | `status="technical_round"` |
-| "Show shortlisted candidates" | `search_candidates` | `status="shortlisted"` |
-| "Show candidates in HR round" | `search_candidates` | `status="hr_round"` |
 | "Find Senior Engineers" / "Show Product Managers" | `search_candidates` | `designation="Senior Engineer"` |
-| "How many candidates do we have?" / "Pipeline stats" | `get_analytics` | `metric="overview"` |
-| "What happened today?" / "Today's activity" | `get_analytics` | `metric="today"` |
-| "Show pipeline breakdown" / "Stage-wise count" | `get_pipeline_summary` | (no arguments) |
-| "What interviews are tomorrow?" / "Upcoming interviews" | `search_interviews` | `date_range="tomorrow"` |
-| "Today's scheduled interviews" | `search_interviews` | `date_range="today"`, `status="scheduled"` |
-| "Who applied for the React job?" / "list of data engineer candidates" / "candidates for OdooPython" | `get_candidates_for_job` | `job_title="React"` (or requested job title) |
-| "Schedule interview for Rohan tomorrow at 2pm" | `schedule_meeting` | `candidate_name="Rohan"`, `meeting_title="Interview"`, `scheduled_at="tomorrow at 2pm"` |
+| "How many candidates do we have?" | `get_analytics` | `metric="overview"` |
+| "Show pipeline breakdown" | `get_pipeline_summary` | (no arguments) |
+| "What interviews are tomorrow?" | `search_interviews` | `date_range="tomorrow"` |
+| "Who applied for the React job?" / "candidates for OdooPython" | `get_candidates_for_job` | `job_title="React"` |
+| "Schedule interview for Rohan tomorrow at 2pm" | `schedule_meeting` | all required args |
 | "Move Priya to Technical Round Selected" | `update_candidate_stage` | `candidate_name="Priya"`, `new_stage="technical_round_selected"` |
 
-### 3. RULES
-- **CONTEXT**: If you see `[Viewing Candidate: Name (ID)]`, use that name automatically for tools. Do not ask for it again.
-- **CLARIFY**: If multiple candidates or interviewers match a name, list the options and ask the user to pick one.
-- **JOB OPENING VS GENERAL SKILL SEARCH**:
-  - If the user is looking for candidates of a specific job opening or role (e.g., "OdooPython job", "Data Engineer candidates", "who applied for the Frontend position"), ALWAYS use `get_candidates_for_job` with the job title as the argument.
-  - Only use `search_candidates` for general searches based on skills, technologies, locations, or experience levels (e.g., "React developers", "Python candidates from Bangalore").
-- **FORMATTING CANDIDATE LISTS & DETAILS**:
-  By default, only show candidate names (e.g. `👤 **[Full Name]**`). Do NOT include details like email, skills, experience, stage, or expected salary unless the user explicitly requests details (e.g. 'in details', 'full details', 'show details', 'detailed information').
-  When the user explicitly requests details, you MUST use this exact format for each candidate card (only include non-null fields):
-  👤 **[Full Name]**
-  📧 [Email]
-  💼 [Current Title at Company]
-  📍 [Location]
-  ⭐ [X Years Experience]
-  🛠️ Skills: [comma-separated skills]
-  ⏳ Notice Period: [N days]
-  📌 Stage: [Pipeline Stage]
-  💰 Expected Salary: [Salary]
-  
-  Every candidate block MUST be separated by a `---` divider on its own line. Before listing candidates, always say "Found X candidates:" so the user knows the count. Do NOT group into bulleted lists.
-- **ANALYTICS RESPONSES**: When returning analytics/stats, use clear numbered lists or a table with emojis. Do NOT return raw numbers — always contextualize them (e.g. "📊 You have **47 active candidates** in your pipeline").
-- **TONE**: Professional and warm. Support Hinglish (mix of Hindi + English in Roman script) but always respond in English or Hinglish only.
-- **RESPONSE LANGUAGE**: ALWAYS respond in English or Hinglish (Roman script). NEVER respond in Indonesian, Malay, Spanish, French, Chinese, or any other language, even if the transcribed speech seems to contain those words due to STT errors.
-- **GENERAL QUESTIONS**: For greetings, general recruiting advice, platform navigation, current time/date — answer directly from your knowledge + CURRENT_TIME. No tool needed.
-- **IDENTITY**: You are Hireon Copilot. If addressed by another name, politely correct the user.
-- **NO INTERNET**: You cannot search the web. Use only internal tools or general knowledge.
-- **AMBIGUITY**: When a tool returns multiple matches, summarize the options and ask for clarification. Never proceed with an ambiguous name.
-- **NO HALLUCINATION**: Never invent candidates, names, or data. Only report what the database returns.
+### 4. FOLLOW-UP & REFINEMENT RULES
+- If recruiter sends a vague query like "Need Developer" without specifying type, ASK:
+  "Do you mean Frontend, Backend, or Fullstack developer? What's the experience requirement and location?"
+- If recruiter sends only a location or filter after a previous search, REFINE the previous search (don't restart).
+- Context accumulates: "Python developer" → "Only Ahmedabad" → "5 years" → "Immediate joiner"
+  Each subsequent message refines the previous search.
+- For incomplete queries, ask ONE clarifying question — don't overwhelm with multiple questions.
 
-### 4. HIREON PLATFORM GUIDE
-- **Recruiter Dashboard**: Overview of pipeline, upcoming interviews, recent activities, and performance KPIs.
-- **Candidates page**: All candidates in your org. Filter by stage, status, search by skill. Each card shows contact info, skills, experience, and stage.
-- **Kanban Pipeline**: Visual board grouped by high-level stages. Drag-and-drop to update stage.
-- **Jobs page**: Create and manage job openings (active, draft, closed). Each job tracks applicants.
-- **Scheduler/Calendar**: Book and view interview rounds. Google Calendar + Google Meet integration.
-- **Team/Users**: Manage team members, assign recruiter or interviewer roles.
-- **Talent Pool**: Candidates tagged for future roles. Add comments, tags, and track separately.
-- **Bulk Import**: Upload Excel/CSV files to import candidates in bulk. History shows all past imports.
+### 5. CANDIDATE SEARCH RULES
+- **ALWAYS use `search_candidates`** for general skill/role/candidate searches — even abbreviations like BDE, SDE, QA.
+- **Only use `get_candidates_for_job`** when recruiter explicitly says "who applied for [job]", "candidates for [job opening]", "applicants for [specific position]".
+- **query parameter**: Pass the EXPANDED full form (e.g., query="Business Development Executive" not query="BDE").
+- **Multiple skills**: Use space-separated in query (e.g., query="Python FastAPI PostgreSQL").
 
-### 5. WORKFLOW INSTRUCTIONS
-- **Add Candidate**: Go to Candidates → "Add Candidate" (manual) or "Invite Candidate" (email token).
-- **Schedule Interview**: Select candidate → "Schedule Round" → choose interviewers → set date/time → Save. Auto-generates Meet link + sends invitations.
-- **Evaluate**: After interview, interviewer submits Scorecard. Recruiter reviews feedback before stage progression.
-- **Offer Flow**: Candidate must be in 'HR Round Selected' or 'Interviewed' before moving to Offer. Hired candidates cannot be rejected.
-- **Candidate Portal**: Candidates can view their journey, complete assignments, access Prep Hub (AI mock interviews), and review offers.
+### 6. FORMATTING RULES
+- Default: show only candidate names as `👤 **[Full Name]**`.
+- When user asks for details: use the full card format with emoji fields.
+- Every candidate block MUST be separated by `---` divider.
+- Always say "Found X candidates:" before listing.
+- For ambiguity: list options and ask for clarification.
+
+### 7. PLATFORM GUIDE
+- **Recruiter Dashboard**: Pipeline overview, upcoming interviews, recent activities, KPIs.
+- **Candidates page**: All candidates in your org with filter/search.
+- **Kanban Pipeline**: Visual board by stages. Drag-and-drop stage updates.
+- **Jobs page**: Create and manage job openings.
+- **Scheduler/Calendar**: Book interviews with Google Calendar + Meet integration.
+- **Talent Pool**: Candidates tagged for future roles.
+- **Bulk Import**: Upload Excel/CSV for bulk candidate addition.
+
+### 8. WORKFLOW
+- **Add Candidate**: Candidates → "Add Candidate" (manual) or "Invite Candidate" (email).
+- **Schedule Interview**: Select candidate → "Schedule Round" → set interviewers, date/time → Save.
+- **Evaluate**: Interviewer submits Scorecard. Recruiter reviews before stage progression.
+- **Offer Flow**: Candidate must be in 'HR Round Selected' before offer. Hired cannot be rejected.
+- **Language**: ALWAYS respond in English or Hinglish (Roman script only).
+- **No hallucination**: ONLY report what the database returns.
 """
 
 # ── Tool Definitions for Groq SDK ───────────────────────────────────────────
@@ -104,14 +128,16 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "General search term for skills, technologies, or job titles (e.g. 'python', 'react', 'machine learning')."},
+                    "query": {"type": "string", "description": "General search term for skills, technologies, or job titles. ALWAYS expand abbreviations: BDE→'Business Development Executive', SDE→'Software Development Engineer', QA→'Quality Assurance', HR→'Human Resources', etc. Pass the full expanded form."},
                     "name": {"type": "string", "description": "Candidate's full name or partial name."},
                     "email": {"type": "string", "description": "Candidate's email address."},
                     "status": {"type": "string", "description": "Pipeline stage: 'applied', 'shortlisted', 'screening', 'technical_round', 'practical_round', 'hr_round', 'offered', 'hired', 'rejected', 'interview' (all active interview stages)."},
-                    "location": {"type": "string", "description": "Filter by location or city (e.g. 'Ahmedabad', 'Bangalore')."},
+                    "location": {"type": "string", "description": "Filter by location or city (e.g. 'Ahmedabad', 'Bangalore'). Use 'remote' for WFH/remote candidates."},
                     "notice_period_max": {"type": "integer", "description": "Maximum notice period in days (0 = immediate joiners, 15, 30, 60, 90)."},
                     "date_range": {"type": "string", "description": "Filter by when candidate was added: 'today', 'this_week', 'this_month'."},
-                    "experience_min": {"type": "integer", "description": "Minimum years of experience."},
+                    "experience_min": {"type": "number", "description": "Minimum years of experience. Use 0 for freshers, 5 for senior roles."},
+                    "experience_max": {"type": "number", "description": "Maximum years of experience. Use 2 for junior/fresher roles."},
+                    "salary_max_lpa": {"type": "number", "description": "Maximum expected salary in LPA (e.g. 10 for 'budget 10 LPA', 'under 12 LPA')."},
                     "designation": {"type": "string", "description": "Job title/designation filter (e.g. 'Senior Engineer', 'Frontend Developer')."},
                     "tag": {"type": "string", "description": "Filter by talent pool tag."},
                     "sort_by": {"type": "string", "description": "Sort results: 'experience' (highest first) or 'created_at' (newest first)."},
@@ -254,60 +280,58 @@ TOOLS = [
 ]
 
 # ── Stopwords (intentionally EXCLUDES tech skills — they are search terms) ───
-
-# These are words that should be stripped from the query when building SQL search.
-# Do NOT add technology names (react, python, django, etc.) here — they are
-# the most important search terms and must pass through to the DB.
+# Delegate to intelligence module's stopwords; keep minimal here.
 _QUERY_STOPWORDS = {
-    # Common filler words
-    "show", "find", "list", "search", "get", "give", "tell", "fetch",
+    "show", "find", "list", "search", "get", "give", "tell", "fetch", "need", "want",
     "candidate", "candidates", "profile", "profiles", "resume", "resumes", "cv",
     "added", "this", "week", "today", "month", "year", "years",
     "with", "from", "in", "at", "who", "for", "all", "any", "me", "please",
     "we", "our", "us", "them", "their", "those",
-    # Hinglish filler
     "mein", "hai", "ke", "ka", "ki", "ko", "se", "aur", "bhi", "toh",
     "hi", "ho", "tha", "thi", "the", "karo", "dikhao", "nikalo", "dhundo", "db",
-    "kuch", "hoga", "hogi", "honge", "wala", "wali",
-    # Experience-related (handled by experience_min parameter)
+    "kuch", "hoga", "hogi", "honge", "wala", "wali", "chahiye",
     "experience", "exp", "saal",
-    # Salary-related (not searchable via query)
     "ctc", "salary", "lpa", "lakh", "lakhs", "expected", "current",
-    # Stage/status words (handled by status parameter)
     "pipeline", "stage", "status",
-    # Generic HR words
     "top", "best", "good", "strong", "latest", "recent", "recently", "newly",
-    # Common English articles/prepositions
     "a", "an", "the", "and", "or", "but", "is", "are", "was", "were",
-    "do", "does", "did", "have", "has", "had", "will", "would", "could", "should"
+    "do", "does", "did", "have", "has", "had", "will", "would", "could", "should",
+    "i", "guy", "guys", "person", "people", "someone", "looking",
 }
 
 # ── Cache ────────────────────────────────────────────────────────────────────
 
 _COPILOT_CACHE: dict = {}
-_CACHE_TTL = 60  # seconds
+# Different TTLs: analytics data can be cached longer than search results
+_CACHE_TTL_SEARCH = 30     # seconds — search results (fresh data needed)
+_CACHE_TTL_ANALYTICS = 120  # seconds — analytics (less time-sensitive)
 
 
 def _cache_get(key: str) -> Optional[str]:
     """Return cached value if fresh, else None."""
     now = time.time()
     if key in _COPILOT_CACHE:
-        ts, val = _COPILOT_CACHE[key]
-        if now - ts < _CACHE_TTL:
+        ts, val, ttl = _COPILOT_CACHE[key]
+        if now - ts < ttl:
             return val
         else:
             del _COPILOT_CACHE[key]
     return None
 
 
-def _cache_set(key: str, val: str):
-    """Store value in cache, evict entries older than TTL."""
+def _cache_set(key: str, val: str, ttl: int = _CACHE_TTL_SEARCH):
+    """Store value in cache with specified TTL. Evicts stale entries."""
     now = time.time()
-    # Evict stale entries (keep cache from growing unbounded)
-    stale = [k for k, (ts, _) in _COPILOT_CACHE.items() if now - ts >= _CACHE_TTL]
+    # Evict stale entries (keep cache bounded)
+    stale = [k for k, (ts, _, t) in _COPILOT_CACHE.items() if now - ts >= t]
     for k in stale:
         del _COPILOT_CACHE[k]
-    _COPILOT_CACHE[key] = (now, val)
+    # Limit cache size to 500 entries to prevent memory growth
+    if len(_COPILOT_CACHE) >= 500:
+        oldest = sorted(_COPILOT_CACHE.items(), key=lambda x: x[1][0])[:50]
+        for k, _ in oldest:
+            del _COPILOT_CACHE[k]
+    _COPILOT_CACHE[key] = (now, val, ttl)
 
 
 def _format_experience(c: dict) -> Optional[str]:
@@ -347,6 +371,37 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
 
         # ── search_candidates ─────────────────────────────────────────────
         if name == "search_candidates":
+            # ── Intelligence pre-processing ──────────────────────────────────
+            # Run the raw query through the NLP pipeline before SQL construction
+            raw_query = args.get("query", "")
+            intent = None
+            extra_synonym_terms: list[str] = []
+            if raw_query:
+                intent = preprocess_query(raw_query)
+                # Override args with structured intent values
+                # (only if LLM didn't already extract them)
+                if intent.had_abbreviation or intent.had_typo_correction:
+                    # Replace query with cleaned expanded form
+                    if intent.query_terms:
+                        args["query"] = " ".join(intent.query_terms)
+                    elif intent.expanded_query:
+                        args["query"] = intent.expanded_query
+                # Merge extracted filters (don't override LLM-provided values)
+                if intent.location and not args.get("location"):
+                    args["location"] = intent.location
+                if intent.experience_min is not None and args.get("experience_min") is None:
+                    args["experience_min"] = intent.experience_min
+                if intent.experience_max is not None and not args.get("experience_max"):
+                    args["experience_max"] = intent.experience_max
+                if intent.notice_period_max is not None and args.get("notice_period_max") is None:
+                    args["notice_period_max"] = intent.notice_period_max
+                if intent.salary_max_lpa is not None and not args.get("salary_max_lpa"):
+                    args["salary_max_lpa"] = intent.salary_max_lpa
+                extra_synonym_terms = intent.synonym_terms
+
+            if not args.get("query") and raw_query:
+                args["query"] = raw_query  # fallback: use raw query
+            # ─────────────────────────────────────────────────────────────────
             detailed = False
             if args.get("detailed"):
                 detailed = True
@@ -416,7 +471,6 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                     )
 
                 elif status_val in ("interview", "interviews", "in_interview", "scheduled"):
-                    # All active interview stages
                     conds.append(
                         "pipeline_stage IN ("
                         " 'pre_screening', 'technical_round', 'practical_round',"
@@ -445,101 +499,173 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                     )
 
                 else:
-                    # Direct stage match (e.g. 'techno_functional_round')
                     conds.append("pipeline_stage ILIKE :s")
                     params["s"] = f"%{status_val}%"
 
             if args.get("location"):
-                conds.append("location ILIKE :loc")
-                params["loc"] = f"%{args['location']}%"
+                loc_val = args["location"].strip()
+                if loc_val.lower() in ("remote", "wfh", "work from home"):
+                    conds.append(
+                        "(LOWER(location) LIKE '%remote%' OR LOWER(work_mode_preference) LIKE '%remote%'"
+                        " OR LOWER(location) LIKE '%work from home%')"
+                    )
+                elif loc_val.lower() == "hybrid":
+                    conds.append(
+                        "(LOWER(location) LIKE '%hybrid%' OR LOWER(work_mode_preference) LIKE '%hybrid%')"
+                    )
+                else:
+                    conds.append("location ILIKE :loc")
+                    params["loc"] = f"%{loc_val}%"
 
-            # Notice period — only explicit "0" or "immediate", NOT NULL
+            # ── Notice period — FIXED: safe numeric extraction, no crash ────
             if args.get("notice_period_max") is not None:
                 npm = int(args["notice_period_max"])
                 if npm == 0:
                     conds.append(
-                        "(notice_period_days = '0'"
-                        " OR LOWER(notice_period_days) LIKE '%immediate%'"
-                        " OR LOWER(notice_period_days) LIKE '%0 day%')"
+                        "(LOWER(COALESCE(notice_period_days,'')) IN ('0', '0 days', '0 day')"
+                        " OR LOWER(COALESCE(notice_period_days,'')) LIKE '%immediate%'"
+                        " OR LOWER(COALESCE(notice_period_days,'')) LIKE '%0 day%')"
                     )
                 else:
+                    # Extract numeric part safely — handles '30 days', '30', '30 Days', etc.
                     conds.append(
-                        "(notice_period_days = '0'"
-                        " OR LOWER(notice_period_days) LIKE '%immediate%'"
+                        "(LOWER(COALESCE(notice_period_days,'')) IN ('0', '0 days')"
+                        " OR LOWER(COALESCE(notice_period_days,'')) LIKE '%immediate%'"
                         " OR ("
-                        "  notice_period_days ~ '^[0-9]+$'"
-                        "  AND CAST(notice_period_days AS INTEGER) <= :npm"
+                        "  REGEXP_REPLACE(COALESCE(notice_period_days,''), '[^0-9]', '', 'g') ~ '^[0-9]+$'"
+                        "  AND REGEXP_REPLACE(COALESCE(notice_period_days,''), '[^0-9]', '', 'g') != ''"
+                        "  AND CAST(REGEXP_REPLACE(COALESCE(notice_period_days,''), '[^0-9]', '', 'g') AS INTEGER) <= :npm"
                         " )"
                         ")"
                     )
                     params["npm"] = npm
 
             if args.get("experience_min") is not None:
-                conds.append("years_experience >= :exp_min")
+                conds.append("COALESCE(years_experience, 0) >= :exp_min")
                 params["exp_min"] = float(args["experience_min"])
 
-            # Date range — calendar-accurate
+            if args.get("experience_max") is not None:
+                conds.append("COALESCE(years_experience, 0) <= :exp_max")
+                params["exp_max"] = float(args["experience_max"])
+
+            # ── Salary filter ─────────────────────────────────────────────
+            if args.get("salary_max_lpa") is not None:
+                # expected_salary / expected_ctc contain strings like '10 LPA', '12.5 LPA'
+                # Extract numeric part and compare
+                conds.append(
+                    "("
+                    " (expected_salary IS NOT NULL AND"
+                    "  REGEXP_REPLACE(expected_salary, '[^0-9.]', '', 'g') ~ '^[0-9]+(\\.[0-9]+)?$' AND"
+                    "  CAST(REGEXP_REPLACE(expected_salary, '[^0-9.]', '', 'g') AS FLOAT) <= :sal_max)"
+                    " OR"
+                    " (expected_ctc IS NOT NULL AND"
+                    "  REGEXP_REPLACE(expected_ctc, '[^0-9.]', '', 'g') ~ '^[0-9]+(\\.[0-9]+)?$' AND"
+                    "  CAST(REGEXP_REPLACE(expected_ctc, '[^0-9.]', '', 'g') AS FLOAT) <= :sal_max)"
+                    ")"
+                )
+                params["sal_max"] = float(args["salary_max_lpa"])
+
+            # Date range
             if args.get("date_range"):
                 dr = args["date_range"].lower()
                 if dr == "today":
-                    # True calendar today (midnight in UTC)
                     conds.append("created_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')")
                 elif dr == "this_week":
-                    # Current calendar week (Mon–Sun)
                     conds.append("created_at >= DATE_TRUNC('week', NOW() AT TIME ZONE 'UTC')")
                 elif dr == "this_month":
                     conds.append("created_at >= DATE_TRUNC('month', NOW() AT TIME ZONE 'UTC')")
 
-            # General query — strip only filler words, NOT tech skills
+            # ── General query — UPGRADED: 10+ field search with synonyms ──
             if args.get("query"):
                 q_val = args["query"].lower().strip()
-                # Normalize common aliases
+                # Normalize common shorthand aliases in the query itself
                 alias_map = {
-                    "reactjs": "react",
-                    "nodejs": "node",
-                    "vuejs": "vue",
-                    "angularjs": "angular",
-                    "springboot": "spring boot",
-                    "postgres": "postgresql",
-                    "k8s": "kubernetes",
+                    "reactjs": "react", "nodejs": "node", "vuejs": "vue",
+                    "angularjs": "angular", "springboot": "spring boot",
+                    "postgres": "postgresql", "k8s": "kubernetes",
+                    "js": "javascript", "ts": "typescript",
+                    "py": "python", "rn": "react native",
                 }
                 for alias, replacement in alias_map.items():
-                    q_val = q_val.replace(alias, replacement)
+                    q_val = re.sub(r'(?<![a-z])' + re.escape(alias) + r'(?![a-z])', replacement, q_val)
 
-                # Remove punctuation except hyphen and dot (for version numbers)
+                # Helper to build AND condition for a list of words
+                def _build_words_clause(words_list: list[str], prefix: str) -> str:
+                    clauses = []
+                    for idx, w in enumerate(words_list):
+                        pn = f"{prefix}_{idx}"
+                        params[pn] = f"%{w}%"
+                        clauses.append(
+                            f"(full_name ILIKE :{pn}"
+                            f" OR current_title ILIKE :{pn}"
+                            f" OR current_company ILIKE :{pn}"
+                            f" OR location ILIKE :{pn}"
+                            f" OR COALESCE(summary, '') ILIKE :{pn}"
+                            f" OR COALESCE(applied_job_title, '') ILIKE :{pn}"
+                            f" OR COALESCE(source, '') ILIKE :{pn}"
+                            f" OR COALESCE(parsed_data::text, '') ILIKE :{pn}"
+                            f" OR EXISTS ("
+                            f"   SELECT 1 FROM unnest(skills) AS s WHERE s ILIKE :{pn}"
+                            f" )"
+                            f" OR EXISTS ("
+                            f"   SELECT 1 FROM unnest(tags) AS t WHERE t ILIKE :{pn}"
+                            f" )"
+                            f" OR EXISTS ("
+                            f"   SELECT 1 FROM applications a"
+                            f"   JOIN jobs j ON j.id = a.job_id"
+                            f"   WHERE a.candidate_id = candidates.id"
+                            f"     AND j.title ILIKE :{pn}"
+                            f" )"
+                            f")"
+                        )
+                    return f"({' AND '.join(clauses)})"
+
+                # 1. Main expanded words (ANDed)
                 q_clean = re.sub(r"[^\w\s\-\.]", " ", q_val)
-                words = [
+                main_words = [
                     w for w in q_clean.split()
                     if w not in _QUERY_STOPWORDS and not w.isdigit() and len(w) >= 2
                 ]
+                
+                group_clauses = []
+                if main_words:
+                    group_clauses.append(_build_words_clause(main_words, "q_main"))
 
-                for i, w in enumerate(words):
-                    pn = f"q_{i}"
-                    # Search: full_name, current_title, current_company, location, skills (array), and applied job titles
-                    conds.append(
-                        f"(full_name ILIKE :{pn}"
-                        f" OR current_title ILIKE :{pn}"
-                        f" OR current_company ILIKE :{pn}"
-                        f" OR location ILIKE :{pn}"
-                        f" OR EXISTS ("
-                        f"   SELECT 1 FROM unnest(skills) AS s"
-                        f"   WHERE s ILIKE :{pn}"
-                        f" )"
-                        f" OR EXISTS ("
-                        f"   SELECT 1 FROM applications a"
-                        f"   JOIN jobs j ON j.id = a.job_id"
-                        f"   WHERE a.candidate_id = candidates.id"
-                        f"     AND j.title ILIKE :{pn}"
-                        f" )"
-                        f")"
-                    )
-                    params[pn] = f"%{w}%"
+                # 2. Original query words (ANDed) — for abbreviation/typo matches
+                original_words = []
+                if intent and intent.raw_query:
+                    raw_clean = re.sub(r"[^\w\s\-\.]", " ", intent.raw_query.lower())
+                    original_words = [
+                        w for w in raw_clean.split()
+                        if w not in _QUERY_STOPWORDS and not w.isdigit() and len(w) >= 2
+                    ]
+                    if original_words and original_words != main_words:
+                        group_clauses.append(_build_words_clause(original_words, "q_orig"))
 
+                # 3. Synonym groups (each synonym phrase is ANDed internally, but ORed globally)
+                unique_syns = list(dict.fromkeys(extra_synonym_terms))[:4]
+                for s_idx, syn in enumerate(unique_syns):
+                    syn_clean = re.sub(r"[^\w\s\-\.]", " ", syn.lower())
+                    syn_words = [
+                        w for w in syn_clean.split()
+                        if w not in _QUERY_STOPWORDS and len(w) >= 2
+                    ]
+                    if syn_words and syn_words != main_words and syn_words != original_words:
+                        group_clauses.append(_build_words_clause(syn_words, f"q_syn_{s_idx}"))
+
+                if group_clauses:
+                    conds.append(f"({' OR '.join(group_clauses)})")
+
+            # ── Ordering & Limits ──────────────────────────────────────────
             order_clause = "ORDER BY created_at DESC"
             if args.get("sort_by") == "experience":
                 order_clause = "ORDER BY COALESCE(years_experience, 0) DESC, created_at DESC"
             elif args.get("sort_by") == "created_at":
                 order_clause = "ORDER BY created_at DESC"
+            # Default ordering: experience DESC for quality ranking
+            # (best candidates first when no explicit sort)
+            elif args.get("query") or args.get("designation"):
+                order_clause = "ORDER BY COALESCE(years_experience, 0) DESC, COALESCE(match_score, 0) DESC, created_at DESC"
 
             # Count matching candidates
             count_sql = (
@@ -552,42 +678,90 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             limit_val = 50 if detailed else 100
 
             sql = f"""
-                SELECT full_name, email, current_title, current_company, location,
+                SELECT id, full_name, email, phone, current_title, current_company, location,
                        relevant_experience, experience_years, years_experience,
-                       skills, notice_period_days, pipeline_stage,
-                       expected_salary, expected_ctc, current_salary, current_ctc
+                       skills, tags, notice_period_days, pipeline_stage,
+                       expected_salary, expected_ctc, current_salary, current_ctc,
+                       match_score, summary, work_mode_preference
                 FROM candidates
                 WHERE {' AND '.join(conds)}
                 {order_clause}
                 LIMIT {limit_val}
             """
-            logger.info("Copilot SQL: %s | params: %s", sql, params)
+            logger.info("Copilot SQL (search_candidates): params=%s", params)
 
             res = await db.execute(text(sql), params)
             res_all = res.fetchall()
             logger.info("Copilot search found %d records (total matching: %d)", len(res_all), match_count)
 
             if not res_all:
-                # Build descriptive no-results message
+                # Build descriptive no-results message with helpful suggestions
+                raw_q = args.get("query", "")
+                original_q = intent.raw_query if intent else raw_q
                 if args.get("date_range") == "today":
                     result_text = "No candidates were added today."
                 elif args.get("date_range") == "this_week":
                     result_text = "No candidates were added this week."
                 elif args.get("location"):
-                    result_text = f"No candidates found in {args['location']}."
+                    result_text = f"No candidates found in **{args['location']}**. Try searching without the location filter."
                 elif args.get("status"):
-                    result_text = f"No candidates found in the '{args['status']}' stage."
-                elif args.get("query"):
-                    result_text = f"No candidates found matching '{args['query']}'. Try a different skill or keyword."
+                    result_text = f"No candidates found in the **'{args['status']}'** stage."
+                elif original_q:
+                    result_text = (
+                        f"No candidates found matching **'{original_q}'**.\n\n"
+                        f"💡 Try:\n"
+                        f"- A broader search term (e.g., just the skill name)\n"
+                        f"- Removing some filters\n"
+                        f"- Checking if candidates exist in the **All Candidates** page"
+                    )
                 else:
-                    result_text = "No candidates matched your search criteria."
+                    result_text = "No candidates matched your search criteria. Try broadening your search."
             else:
                 header = f"Found **{match_count}** candidate{'s' if match_count != 1 else ''}:"
                 if match_count > limit_val:
                     header += f" (showing top {limit_val})"
 
+                # ── AI Ranking: score each candidate post-fetch ────────────
+                query_words = []
+                if args.get("query"):
+                    query_words = [w.lower() for w in re.sub(r'[^\w\s]', ' ', args["query"]).split() if len(w) >= 2]
+
+                def _score_candidate(c: dict) -> float:
+                    score = 0.0
+                    # Skill match (highest weight)
+                    skills = c.get("skills") or []
+                    if isinstance(skills, list) and query_words:
+                        skill_matches = sum(
+                            1 for s in skills
+                            for qw in query_words
+                            if qw in s.lower()
+                        )
+                        score += skill_matches * 3.0
+                    # Title match
+                    title = (c.get("current_title") or "").lower()
+                    for qw in query_words:
+                        if qw in title:
+                            score += 2.0
+                    # Experience
+                    exp = c.get("years_experience") or 0
+                    if exp:
+                        score += min(float(exp) * 0.3, 3.0)  # cap at 3
+                    # Has match_score from DB (AI resume scoring)
+                    ms = c.get("match_score")
+                    if ms:
+                        score += float(ms) * 0.1
+                    # Profile completeness
+                    if c.get("email"): score += 0.5
+                    if c.get("phone"): score += 0.3
+                    if c.get("summary"): score += 0.5
+                    if skills: score += 0.5
+                    return score
+
+                # Sort by AI score (best first)
+                ranked = sorted(res_all, key=lambda r: _score_candidate(dict(r._mapping)), reverse=True)
+
                 formatted_candidates = []
-                for r in res_all:
+                for r in ranked:
                     c = dict(r._mapping)
                     if not detailed:
                         formatted_candidates.append(f"👤 **{c['full_name']}**")
@@ -616,16 +790,20 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                         skills_val = c.get("skills")
                         if skills_val:
                             if isinstance(skills_val, list):
-                                skills_display = ", ".join(skills_val[:8])  # limit to 8 skills
+                                skills_display = ", ".join(skills_val[:10])
                             else:
                                 skills_display = str(skills_val)
                             if skills_display.strip():
                                 parts.append(f"🛠️ Skills: {skills_display}")
 
                         np_val = c.get("notice_period_days")
-                        if np_val:
-                            label = "Immediate" if str(np_val).strip() in ("0", "0 days") else f"{np_val} days"
-                            parts.append(f"⏳ Notice Period: {label}")
+                        if np_val and str(np_val).strip():
+                            raw_np = str(np_val).strip()
+                            if raw_np.lower() in ("0", "0 days", "0 day") or "immediate" in raw_np.lower():
+                                label = "Immediate"
+                            else:
+                                label = raw_np if "day" in raw_np.lower() else f"{raw_np} days"
+                            parts.append(f"⏳ Notice: {label}")
 
                         stage = c.get("pipeline_stage")
                         if stage:
@@ -633,7 +811,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
 
                         sal = c.get("expected_salary") or c.get("expected_ctc")
                         if sal:
-                            parts.append(f"💰 Expected Salary: {sal}")
+                            parts.append(f"💰 Expected: {sal}")
 
                         formatted_candidates.append("\n".join(parts))
 
@@ -1070,7 +1248,9 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             return "Unknown tool."
 
         if result_text:
-            _cache_set(cache_key, result_text)
+            # Use longer TTL for analytics/pipeline (less volatile)
+            is_analytics = name in ("get_analytics", "get_pipeline_summary")
+            _cache_set(cache_key, result_text, ttl=_CACHE_TTL_ANALYTICS if is_analytics else _CACHE_TTL_SEARCH)
         return result_text
 
     except Exception as e:
@@ -1513,6 +1693,32 @@ async def stream_copilot_chat(
         d.update(data)
         return json.dumps(d) + "\n\n"
 
+    # ── Intercept JD Creation Intent ──────────────────────────────────────
+    if is_jd_creation_intent(user_message):
+        role_name = extract_role_from_jd_query(user_message)
+        if role_name:
+            reply_text = (
+                f"Looks like you want to create a Job Description for **{role_name}**. "
+                f"For the best AI-powered JD generation experience, please use the **AI JD Generator** module. "
+                f"Click below to continue.\n\n"
+                f"[CTA_BUTTON:Go to AI JD Generator]"
+            )
+        else:
+            reply_text = (
+                f"Looks like you want to create a Job Description. "
+                f"For the best AI-powered JD generation experience, please use the **AI JD Generator** module. "
+                f"Click below to continue.\n\n"
+                f"[CTA_BUTTON:Go to AI JD Generator]"
+            )
+            
+        saved_conv_id = await _save_conversation_to_db(
+            db, organization_id, user_id, conversation_id, user_message, reply_text
+        )
+        yield sse("meta", {"conversation_id": saved_conv_id})
+        yield sse("chunk", {"content": reply_text})
+        yield sse("done", {})
+        return
+
     # ── 1. Handle Approved Tool Execution ─────────────────────────────────
     if approved_tool_call:
         name = approved_tool_call.get("name")
@@ -1583,8 +1789,13 @@ async def stream_copilot_chat(
         tool_call_args = ""
         tool_call_id = ""
         full_text = ""
+        # NOTE: meta is yielded AFTER we have a real conversation_id
+        # (after save), to avoid sending null conversation_id upfront.
+        # Initial meta with null is still sent to let frontend know stream started.
+        meta_sent = False
 
         yield sse("meta", {"conversation_id": conversation_id})
+        meta_sent = True
 
         for chunk in stream_resp:
             if not chunk.choices:
@@ -1684,10 +1895,12 @@ async def stream_copilot_chat(
                     return
 
         # ── 6. Save & Done ────────────────────────────────────────────────
-        conversation_id = await _save_conversation_to_db(
+        saved_conv_id = await _save_conversation_to_db(
             db, organization_id, user_id, conversation_id, user_message, full_text
         )
-        yield sse("meta", {"conversation_id": conversation_id})
+        # Only send meta again if conversation_id changed (new conversation was created)
+        if saved_conv_id != conversation_id:
+            yield sse("meta", {"conversation_id": saved_conv_id})
         yield sse("done", {})
 
     except Exception as e:

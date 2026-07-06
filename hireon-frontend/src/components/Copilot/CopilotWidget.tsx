@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useMessageStore } from '@/store/messageStore'
+import { useAuthStore } from '@/store/authStore'
 import { copilotApi } from '@/api/copilot'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
@@ -17,8 +18,8 @@ const s: Record<string, React.CSSProperties> = {
   headerActions: { display: 'flex', gap: '8px' },
   iconBtn: { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '10px', color: 'var(--text-mid)', cursor: 'pointer', padding: '6px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   messages: { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  userBubble: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box' },
-  botBubble: { background: 'var(--kpi-bg)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--input-border)', boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box' },
+  userBubble: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word' },
+  botBubble: { background: 'var(--kpi-bg)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--input-border)', boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word', overflow: 'hidden', minWidth: 0 },
   thinkingBubble: { background: 'var(--kpi-bg)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--input-border)', display: 'flex', alignItems: 'center', gap: '6px' },
   footer: { padding: '14px 16px', borderTop: '1px solid var(--card-border)', display: 'flex', gap: '6px', alignItems: 'flex-end', flexShrink: 0, background: 'var(--topbar-bg)' },
   input: { flex: 1, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', color: 'var(--text)', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
@@ -48,6 +49,8 @@ const s: Record<string, React.CSSProperties> = {
   loadingRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', color: 'var(--text-mid)', fontSize: '14px' },
   micBtn: { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '12px', color: 'var(--text-mid)', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0 },
   micBtnActive: { background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', animation: 'micPulse 1.5s infinite ease-in-out' },
+  // Skill chips container — needs maxWidth to prevent overflow
+  skillsContainer: { display: 'flex', flexWrap: 'wrap' as const, gap: '4px', borderTop: '1px solid var(--input-border)', paddingTop: '8px', maxWidth: '100%', overflow: 'hidden' },
 }
 
 const EXAMPLE_PROMPTS = [
@@ -250,7 +253,7 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
       )}
 
       {candidate.skills && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', borderTop: '1px solid var(--input-border)', paddingTop: '8px' }}>
+        <div style={s.skillsContainer}>
           {candidate.skills.replace('Skills:', '').split(',').map((skill, sIdx) => {
             const skillClean = skill.trim()
             if (!skillClean) return null
@@ -261,7 +264,11 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
                 padding: '3px 8px',
                 borderRadius: '8px',
                 fontSize: '10px',
-                border: '1px solid var(--input-border)'
+                border: '1px solid var(--input-border)',
+                whiteSpace: 'nowrap',
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}>
                 {skillClean}
               </span>
@@ -1468,11 +1475,18 @@ export function CopilotWidget() {
     return card.name ? card : null
   }
 
-  const handleViewProfile = useCallback(async (email: string) => {
+  const handleViewProfile = useCallback((email: string) => {
     try {
-      // Look up candidate by email in the current suggestion data
-      // Navigate to the candidates page filtered by this email
-      window.location.href = `/candidates?search=${encodeURIComponent(email)}`
+      // Use hash navigation to avoid full page reload and preserve React state
+      const path = `/candidates?search=${encodeURIComponent(email)}`
+      // Use history API to navigate without reload
+      if (window.history && window.history.pushState) {
+        window.history.pushState({}, '', path)
+        // Dispatch popstate so React Router picks up the change
+        window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
+      } else {
+        window.location.href = path
+      }
     } catch (err) {
       console.error('View profile error:', err)
     }
@@ -1482,12 +1496,81 @@ export function CopilotWidget() {
     // Split on horizontal rule dividers (between candidate cards)
     // Use a precise pattern that won't split markdown tables (which use --- inside cells)
     const parts = content.split(/\n\n---\n\n|\n---\n/)
+
+    // Check for CTA_BUTTON
+    const ctaMatch = content.match(/\[CTA_BUTTON:(.*?)\]/)
+    let ctaButtonText = ''
+    let cleanContent = content
+    if (ctaMatch) {
+      ctaButtonText = ctaMatch[1]
+      cleanContent = content.replace(ctaMatch[0], '').trim()
+    }
+
+    const handleCtaClick = () => {
+      try {
+        const role = useAuthStore.getState().user?.role
+        const basePath = role === 'admin' ? '/admin' : '/recruiter'
+        const path = `${basePath}/jobs/new`
+        if (window.history && window.history.pushState) {
+          window.history.pushState({}, '', path)
+          window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
+        } else {
+          window.location.href = path
+        }
+      } catch (err) {
+        console.error('CTA redirect error:', err)
+      }
+    }
+
+    const renderCta = () => {
+      if (!ctaButtonText) return null
+      return (
+        <button
+          onClick={handleCtaClick}
+          style={{
+            marginTop: '12px',
+            background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)',
+            border: 'none',
+            borderRadius: '10px',
+            color: '#fff',
+            cursor: 'pointer',
+            padding: '10px 20px',
+            fontSize: '13px',
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: 'var(--shadow-card)',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
+        >
+          <span>✨</span> {ctaButtonText} <span>→</span>
+        </button>
+      )
+    }
+
     if (parts.length <= 1) {
-      return <ReactMarkdown>{content}</ReactMarkdown>
+      try {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+            <ReactMarkdown>{cleanContent}</ReactMarkdown>
+            {renderCta()}
+          </div>
+        )
+      } catch {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+            <span style={{ whiteSpace: 'pre-wrap' }}>{cleanContent}</span>
+            {renderCta()}
+          </div>
+        )
+      }
     }
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', minWidth: 0 }}>
         {parts.map((part, idx) => {
           const candidate = parseCandidateCard(part)
           if (candidate) {
@@ -1495,7 +1578,11 @@ export function CopilotWidget() {
           }
           const trimmedPart = part.trim()
           if (!trimmedPart) return null
-          return <ReactMarkdown key={idx}>{trimmedPart}</ReactMarkdown>
+          try {
+            return <ReactMarkdown key={idx}>{trimmedPart}</ReactMarkdown>
+          } catch {
+            return <span key={idx} style={{ whiteSpace: 'pre-wrap' }}>{trimmedPart}</span>
+          }
         })}
       </div>
     )
@@ -1594,7 +1681,8 @@ export function CopilotWidget() {
             ...dragStyle, 
             ...minimizeStyle,
             boxShadow: isDragging ? '0 20px 40px rgba(0,0,0,0.25)' : s.panel.boxShadow,
-            transition: isDragging ? 'none' : 'box-shadow 0.3s ease, height 0.3s ease, max-height 0.3s ease'
+            transition: isDragging ? 'none' : 'box-shadow 0.3s ease, height 0.3s ease, max-height 0.3s ease',
+            overflow: isMinimized ? 'hidden' : 'hidden',
           }} 
           role="dialog" 
           aria-label="AI Copilot"
@@ -1608,7 +1696,8 @@ export function CopilotWidget() {
               ...s.header, 
               cursor: isDragging ? 'grabbing' : 'grab',
               userSelect: 'none',
-              WebkitUserSelect: 'none'
+              WebkitUserSelect: 'none',
+              minHeight: '56px',
             }}
           >
             {historyOpen ? (
@@ -1732,14 +1821,14 @@ export function CopilotWidget() {
                       {/* Custom Delete Confirmation Overlay */}
                       {showClearConfirm && (
                         <div style={{
-                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                          background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(2px)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                          zIndex: 10, padding: '20px', textAlign: 'center'
+                          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          zIndex: 10001, padding: '20px',
                         }}>
                           <div style={{
-                            background: '#fff', border: '1px solid var(--violet-light)', borderRadius: '12px',
-                            padding: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', maxWidth: '280px'
+                            background: 'var(--kpi-bg)', border: '1px solid var(--violet-light)', borderRadius: '12px',
+                            padding: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', maxWidth: '280px', width: '100%', textAlign: 'center'
                           }}>
                             <h4 style={{ margin: '0 0 10px 0', color: 'var(--text)', fontSize: '15px' }}>Delete All History?</h4>
                             <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-mid)' }}>This action cannot be undone and will permanently delete all chat history.</p>
@@ -1785,10 +1874,11 @@ export function CopilotWidget() {
                               display: 'flex', 
                               gap: '10px', 
                               alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
-                              maxWidth: '85%', 
+                              maxWidth: msg.role === 'user' ? '85%' : '100%',
+                              width: msg.role === 'user' ? 'auto' : '100%',
                               flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', 
                               alignItems: 'flex-start',
-                              width: '100%'
+                              minWidth: 0,
                             }}
                           >
                             {/* Avatar */}
