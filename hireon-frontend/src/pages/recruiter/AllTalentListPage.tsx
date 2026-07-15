@@ -61,6 +61,26 @@ const STATUS_CFG: Record<string, { color: string; bg: string; dot: string; label
 
 const REJECTION_STAGES = ['rejected','pre_screening_rejected','technical_round_rejected','technical_round_back_out','practical_round_rejected','hr_round_rejected']
 
+function getCandidateStatus(pipelineStage: string | undefined | null): string {
+  if (!pipelineStage) return 'in_review'
+  const stage = pipelineStage.toLowerCase()
+  if (stage === 'pre_screening_selected') return 'shortlisted'
+  if (['applied', 'screening', 'needs_review'].includes(stage)) return 'in_review'
+  if ([
+    'technical_round', 'technical_round_selected', 'practical_round',
+    'practical_round_selected', 'hr_round', 'hr_round_selected',
+    'management_round', 'management_round_selected',
+    'techno_functional', 'techno_functional_selected'
+  ].includes(stage)) return 'scheduled'
+  if ([
+    'rejected', 'pre_screening_rejected', 'technical_round_rejected',
+    'practical_round_rejected', 'hr_round_rejected', 'technical_round_back_out',
+    'practical_round_back_out', 'management_round_rejected', 'techno_functional_rejected'
+  ].includes(stage)) return 'rejected'
+  if (stage === 'inactive') return 'inactive'
+  return 'in_review'
+}
+
 const STAGE_GROUPS = [
   {
     label: 'Pre-Screening',
@@ -122,6 +142,7 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [openUp, setOpenUp] = useState(false)
+  const [openLeft, setOpenLeft] = useState(false)
   const [maxHeight, setMaxHeight] = useState(420)
   const [menuTop, setMenuTop] = useState(0)
   const [menuLeft, setMenuLeft] = useState(0)
@@ -130,25 +151,34 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
   const computePlacement = () => {
     if (!ref.current || !triggerEl) return
     const viewportPadding = 12
-    const horizontalPadding = 0
-    const gap = 8
+    const gap = 6
     const viewportHeight = window.innerHeight
     const viewportWidth = window.innerWidth
     const triggerRect = triggerEl.getBoundingClientRect()
 
-    const naturalHeight = Math.min(ref.current.scrollHeight, Math.floor(viewportHeight * 0.78))
+    const cardEl = triggerEl.closest('.candidate-card') || triggerEl.parentElement
+    const cardRect = cardEl ? cardEl.getBoundingClientRect() : triggerRect
+
+    const naturalHeight = ref.current.offsetHeight || ref.current.scrollHeight || 380
     const spaceBelow = viewportHeight - triggerRect.bottom - viewportPadding
     const spaceAbove = triggerRect.top - viewportPadding
 
-    const shouldOpenUp = spaceBelow < Math.min(280, naturalHeight) && spaceAbove > spaceBelow
+    const shouldOpenUp = spaceBelow < naturalHeight && spaceAbove > spaceBelow
     const available = shouldOpenUp ? spaceAbove : spaceBelow
     const safeMaxHeight = Math.max(200, Math.floor(available - gap))
 
-    // Right-align to trigger by default, then clamp within viewport.
-    const desiredLeft = triggerRect.right - MENU_WIDTH
-    const clampedLeft = Math.max(
-      horizontalPadding,
-      Math.min(desiredLeft, viewportWidth - MENU_WIDTH - horizontalPadding),
+    // Align to trigger left (opening rightward over the next card) by default.
+    // If it overflows the right edge of viewport (last card), open leftward over the left card.
+    const desiredLeft = triggerRect.left
+    const overflowsRight = desiredLeft + MENU_WIDTH + viewportPadding > viewportWidth
+
+    let clampedLeft = overflowsRight
+      ? cardRect.left - MENU_WIDTH - gap
+      : triggerRect.left
+
+    clampedLeft = Math.max(
+      viewportPadding,
+      Math.min(clampedLeft, viewportWidth - MENU_WIDTH - viewportPadding),
     )
 
     const computedTop = shouldOpenUp
@@ -156,6 +186,7 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
       : triggerRect.bottom + gap
 
     setOpenUp(shouldOpenUp)
+    setOpenLeft(overflowsRight)
     setMaxHeight(safeMaxHeight)
     setMenuLeft(clampedLeft)
     setMenuTop(Math.max(viewportPadding, computedTop))
@@ -169,9 +200,24 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
     const onReflow = () => computePlacement()
     window.addEventListener('resize', onReflow)
     window.addEventListener('scroll', onReflow, true)
+    
+    const timer = setTimeout(computePlacement, 50)
+
+    let observer: ResizeObserver | null = null
+    if (ref.current) {
+      observer = new ResizeObserver(() => {
+        computePlacement()
+      })
+      observer.observe(ref.current)
+    }
+
     return () => {
       window.removeEventListener('resize', onReflow)
       window.removeEventListener('scroll', onReflow, true)
+      clearTimeout(timer)
+      if (observer) {
+        observer.disconnect()
+      }
     }
   }, [triggerEl])
 
@@ -187,8 +233,8 @@ function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete,
       exit={{ opacity: 0, scale: 0.95, y: openUp ? -6 : 6 }} transition={{ duration: 0.14 }}
       style={{ position: 'fixed', top: menuTop, left: menuLeft, zIndex: 9999, width: MENU_WIDTH,
         background: '#ffffff', borderRadius: 14,
-        boxShadow: '0 10px 28px rgba(15,23,42,0.12)', border: '1px solid rgba(148,163,184,0.22)',
-        padding: '8px', transformOrigin: openUp ? 'bottom right' : 'top right', maxHeight, overflowY: 'auto' }}
+        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03)', border: '1px solid rgba(148,163,184,0.18)',
+        padding: '8px', transformOrigin: `${openUp ? 'bottom' : 'top'} ${openLeft ? 'right' : 'left'}`, maxHeight, overflowY: 'auto' }}
       onClick={e => e.stopPropagation()}
     >
       <button
@@ -292,6 +338,8 @@ export default function AllTalentListPage() {
   const [designationSearch, setDesignationSearch] = useState('')
   const [pendingDesignation, setPendingDesignation] = useState<DesignationItem | null>(null)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+  const [menuTriggerEl, setMenuTriggerEl] = useState<HTMLButtonElement | null>(null)
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [recruiterId, setRecruiterId] = useState<string>('all')
@@ -869,6 +917,8 @@ export default function AllTalentListPage() {
     })
   }
 
+  const activeCandidate = openDropdownId ? filteredItems.find((c: any) => c.id === openDropdownId) : null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 80 }}>
       {/* Header */}
@@ -1287,21 +1337,6 @@ export default function AllTalentListPage() {
         </DragDropContext>
       </div>
 
-      {/* Column headers */}
-      <div className="hidden lg:grid" style={{
-        gridTemplateColumns: '2fr 96px 1.5fr 60px 120px 100px 210px',
-        gap: 14, padding: '0 24px',
-        fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px',
-      }}>
-        <span>Candidate</span>
-        <span style={{ textAlign: 'center' }}>Date</span>
-        <span>Role</span>
-        <span style={{ textAlign: 'center' }}>Exp</span>
-        <span style={{ textAlign: 'center' }}>Stage</span>
-        <span style={{ textAlign: 'center' }}>Added By</span>
-        <span style={{ textAlign: 'center' }}>Actions</span>
-      </div>
-
       {/* Rows */}
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1318,104 +1353,173 @@ export default function AllTalentListPage() {
       ) : !filteredItems.length ? (
         <EmptyState title="No talent found" description={search ? 'Try adjusting your search.' : 'No candidates in the talent pool yet.'} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 w-full">
           {filteredItems.map((candidate: any) => {
             const stage = candidate.pipeline_stage
             const stageCfg = stage ? STAGE_CFG[stage] : null
             const hasInvitation = candidate.invitations?.length > 0
+            const statusKey = getCandidateStatus(stage)
+            const statusCfg = STATUS_CFG[statusKey] || STATUS_CFG.in_review
+            const isHovered = hoveredCardId === candidate.id
 
             return (
-              <div key={candidate.id}
-                className="flex flex-col lg:grid gap-4 lg:gap-[14px] p-5 lg:px-6 lg:py-3.5"
+              <div
+                key={candidate.id}
+                className="candidate-card"
+                onMouseEnter={() => setHoveredCardId(candidate.id)}
+                onMouseLeave={() => setHoveredCardId(null)}
                 style={{
-                  gridTemplateColumns: '2fr 96px 1.5fr 60px 120px 100px 210px',
-                  alignItems: 'center', borderRadius: 14,
-                  background: 'var(--kpi-bg)', border: '1px solid var(--table-border)',
-                  boxShadow: 'var(--shadow)', transition: 'border-color 0.15s, box-shadow 0.15s',
+                  background: 'var(--card-bg, #ffffff)',
+                  borderRadius: '16px',
+                  boxShadow: isHovered ? '0 12px 24px rgba(15, 23, 42, 0.08)' : '0 4px 12px rgba(15, 23, 42, 0.04)',
+                  border: isHovered ? '1px solid var(--violet)' : '1px solid var(--card-border, var(--table-border, rgba(148, 163, 184, 0.15)))',
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  height: '100%',
+                  transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  zIndex: openDropdownId === candidate.id ? 50 : (isHovered ? 10 : 1),
                 }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--violet)'; el.style.boxShadow = 'var(--shadow-h)' }}
-                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--table-border)'; el.style.boxShadow = 'var(--shadow)' }}
               >
-                {/* Candidate */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidate.full_name}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidate.email}</p>
+                {/* Top Section */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                    <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={candidate.full_name}>
+                        {candidate.full_name}
+                      </p>
+                      <p style={{ fontSize: 11, color: 'var(--text-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={candidate.email}>
+                        {candidate.email}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Actions (Top Right Three Dot Menu) */}
+                  <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        setMenuTriggerEl(e.currentTarget)
+                        setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id)
+                      }}
+                      className="w-8 h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]"
+                    >
+                      ⋯
+                    </button>
                   </div>
                 </div>
 
-                {/* Date */}
-                <p className="text-[12px] text-[var(--text-mid)] lg:text-center">{formatCandidateDate(candidate, 'dd MMM yyyy')}</p>
-
-                {/* Role */}
-                <p className="text-[13px] text-[var(--text-mid)] truncate">{candidate.applied_job_title || candidate.current_title || '—'}</p>
-
-                {/* Exp */}
-                <p className="lg:text-center text-[12px] font-semibold text-[var(--text-mid)]">
-                  {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : (candidate.relevant_experience || '—'))}
-                </p>
-
-                {/* Stage */}
-                <div className="lg:flex lg:justify-center">
-                  {stageCfg ? (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, whiteSpace: 'nowrap' }}>{stageCfg.label}</span>
-                  ) : (
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.05)', color: 'var(--text-light)', border: '1px dashed var(--table-border)' }}>
-                      {candidate.match_score != null ? 'New' : 'Unprocessed'}
+                {/* Middle Section */}
+                <div style={{ height: 1, background: 'var(--card-border, var(--table-border, rgba(148, 163, 184, 0.1)))', margin: '16px 0' }} />
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--text-mid)', flex: 1 }}>
+                  {/* Role */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Role</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)', textAlign: 'right', maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={candidate.applied_job_title || candidate.current_title || '—'}>
+                      {candidate.applied_job_title || candidate.current_title || '—'}
                     </span>
+                  </div>
+                  {/* Experience */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Experience</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : (candidate.relevant_experience || '—'))}
+                    </span>
+                  </div>
+                  {/* Applied Date */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Applied Date</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {formatCandidateDate(candidate, 'dd MMM yyyy')}
+                    </span>
+                  </div>
+                  {/* Stage */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Stage</span>
+                    <div>
+                      {stageCfg ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, whiteSpace: 'nowrap' }}>{stageCfg.label}</span>
+                      ) : (
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.05)', color: 'var(--text-light)', border: '1px dashed var(--table-border)' }}>
+                          {candidate.match_score != null ? 'New' : 'Unprocessed'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Status */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Status</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusCfg.dot }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: statusCfg.color }}>{statusCfg.label}</span>
+                    </div>
+                  </div>
+                  {/* Added By */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Added By</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {candidate.created_by_name || 'Admin'}
+                    </span>
+                  </div>
+                  {/* Recruiter */}
+                  {candidate.hr_name && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Recruiter</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                        {candidate.hr_name}
+                      </span>
+                    </div>
                   )}
                 </div>
 
-                {/* Added By */}
-                <p className="text-[11px] font-semibold text-[var(--text-mid)] lg:text-center">{candidate.created_by_name || 'Admin'}</p>
-
-                {/* Actions */}
-                <div className="flex items-center lg:justify-end gap-2" style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                {/* Bottom Section */}
+                <div style={{ height: 1, background: 'var(--card-border, var(--table-border, rgba(148, 163, 184, 0.1)))', margin: '16px 0' }} />
+                
+                <div style={{ display: 'flex', width: '100%' }} onClick={e => e.stopPropagation()}>
                   <button onClick={e => { e.stopPropagation(); setViewTarget(candidate) }}
-                    className="text-[11px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-all">
+                    style={{ flex: 1, minHeight: 38 }}
+                    className="text-[12px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-all">
                     View Full Profile
                   </button>
-
-                  <div style={{ position: 'relative' }}>
-                    <button
-                      ref={(el) => { actionTriggerRefs.current[candidate.id] = el }}
-                      onClick={e => { e.stopPropagation(); setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id) }}
-                      className="w-8 h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]">
-                      ⋯
-                    </button>
-                    <AnimatePresence>
-                      {openDropdownId === candidate.id && (
-                        <StageDropdown
-                          candidateId={candidate.id}
-                          currentStage={stage || 'applied'}
-                          onSelect={s => stageMutation.mutate({ id: candidate.id, stage: s })}
-                          onDelete={id => setCandidateToDelete({ id, name: candidate.full_name })}
-                          onClose={() => setOpenDropdownId(null)}
-                          user={user}
-                          onChangeDesignation={() => openDesignationTransfer(candidate)}
-                          hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
-                          isInPipeline={Boolean(stageCfg)}
-                          triggerEl={actionTriggerRefs.current[candidate.id] || null}
-                          onAddToPipeline={() => {
-                            const resolvedJobId = resolveJobForCandidate(candidate)
-                            if (!resolvedJobId) {
-                              toast.error('No matching designation found from resume/profile for active jobs.')
-                              return
-                            }
-                            handleAddToPipeline(candidate.id, resolvedJobId)
-                          }}
-
-                        />
-                      )}
-                    </AnimatePresence>
-                  </div>
                 </div>
               </div>
             )
           })}
         </div>
       )}
+
+      <AnimatePresence>
+        {activeCandidate && (
+          <StageDropdown
+            candidateId={activeCandidate.id}
+            currentStage={activeCandidate.pipeline_stage || 'applied'}
+            onSelect={s => stageMutation.mutate({ id: activeCandidate.id, stage: s })}
+            onDelete={id => setCandidateToDelete({ id, name: activeCandidate.full_name })}
+            onClose={() => {
+              setOpenDropdownId(null)
+              setMenuTriggerEl(null)
+            }}
+            user={user}
+            onChangeDesignation={() => openDesignationTransfer(activeCandidate)}
+            hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
+            isInPipeline={Boolean(activeCandidate.pipeline_stage ? STAGE_CFG[activeCandidate.pipeline_stage] : null)}
+            triggerEl={menuTriggerEl}
+            onAddToPipeline={() => {
+              const resolvedJobId = resolveJobForCandidate(activeCandidate)
+              if (!resolvedJobId) {
+                toast.error('No matching designation found from resume/profile for active jobs.')
+                return
+              }
+              handleAddToPipeline(activeCandidate.id, resolvedJobId)
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {designationTarget && (
         <Modal
