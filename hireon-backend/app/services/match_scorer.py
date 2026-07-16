@@ -151,6 +151,10 @@ async def evaluate_candidate_match(
     Evaluates candidate purely using the strictly formatted LLM prompt logic.
     Returns: (final_score: float, score_breakdown: dict)
     """
+    if organization_id:
+        from app.services.ai_credit_service import AICreditsService
+        await AICreditsService.check_credits_available(None, organization_id, "candidate_matching")
+
     if not groq_client:
         logger.warning("Groq API key not configured, returning neutral breakdown.")
         return 50.0, {

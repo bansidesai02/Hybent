@@ -33,6 +33,7 @@ const AllTalentListPage = lazy(() => import('@/pages/recruiter/AllTalentListPage
 const RecruiterProfilePage = lazy(() => import('@/pages/recruiter/RecruiterProfilePage'))
 const RecruiterSettingsPage = lazy(() => import('@/pages/recruiter/RecruiterSettingsPage'))
 const PreScreeningReviewPage = lazy(() => import('@/pages/recruiter/PreScreeningReviewPage'))
+const AICreditsPage = lazy(() => import('@/pages/recruiter/AICreditsPage'))
 
 // Pre-screening (public — no auth)
 const PreScreeningPage = lazy(() => import('@/pages/candidate/PreScreeningPage'))
@@ -136,6 +137,7 @@ export default function App() {
       <Route path="settings" element={<RecruiterSettingsPage />} />
       <Route path="teams" element={<TeamManagementPage />} />
       <Route path="pre-screening/:sessionId" element={<PreScreeningReviewPage />} />
+      <Route path="ai-credits" element={<AICreditsPage />} />
     </>
   )
 

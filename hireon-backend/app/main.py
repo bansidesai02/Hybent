@@ -14,6 +14,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from app.utils.exceptions import InsufficientCreditsException
 
 from app.schemas.response import APIResponse
 from app.config import settings
@@ -133,6 +134,11 @@ async def log_requests(request: Request, call_next):
         response.headers["Expires"] = "0"
         
     return response
+
+
+@app.exception_handler(InsufficientCreditsException)
+async def insufficient_credits_handler(request: Request, exc: InsufficientCreditsException):
+    return APIResponse.error(message=exc.message, status_code=403)
 
 
 @app.exception_handler(StarletteHTTPException)

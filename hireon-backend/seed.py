@@ -34,6 +34,9 @@ from app.models.super_admin import (
     SubscriptionPlan, CompanySubscription, CompanyFeatureFlag,
     CompanyUsage, PlatformSetting
 )
+from app.models.organization_ai_credits import OrganizationAICredits
+from app.models.ai_credit_rule import AICreditRule
+from app.models.ai_usage import AIUsage
 from app.utils.permissions import (
     UserRole, JobStatus, ApplicationStage,
     InterviewType, InterviewStatus, OfferStatus,
@@ -64,7 +67,7 @@ async def clear_all(db: AsyncSession):
         "refresh_tokens", "jobs", "users", "organizations",
         "billing_transactions", "impersonation_logs", "super_admin_audit_logs",
         "company_subscriptions", "subscription_plans", "company_feature_flags",
-        "company_usage", "platform_settings"
+        "company_usage", "platform_settings", "organization_ai_credits", "ai_credit_rules"
     ]
     for t in tables:
         await db.execute(text(
@@ -257,6 +260,88 @@ async def seed():
             setting_value={"ai": True, "video": True, "bulk": True, "domain": False, "analytics": False}
         )
         db.add(global_flags)
+
+        # ── Seed AICreditRules ────────────────────────────────────────────────
+        rules = [
+            AICreditRule(feature="resume_parsing", cost_type="fixed", fixed_cost=30),
+            AICreditRule(feature="jd_generation", cost_type="fixed", fixed_cost=25),
+            AICreditRule(feature="candidate_summary", cost_type="fixed", fixed_cost=25),
+            AICreditRule(feature="ai_copilot", cost_type="dynamic", token_input_cost_per_1k=15.0, token_output_cost_per_1k=30.0),
+            AICreditRule(feature="speech_to_text", cost_type="dynamic", audio_cost_per_second=1.0000), # 60 per minute (Whisper pricing equivalent)
+            AICreditRule(feature="interview_evaluation", cost_type="fixed", fixed_cost=40),
+            AICreditRule(feature="linkedin_post_generation", cost_type="fixed", fixed_cost=15),
+            AICreditRule(feature="image_prompt_generation", cost_type="fixed", fixed_cost=10),
+            AICreditRule(feature="image_generation", cost_type="fixed", fixed_cost=150), # Cover Dall-E 3 pricing
+            AICreditRule(feature="candidate_matching", cost_type="fixed", fixed_cost=30),
+            AICreditRule(feature="pre_screening_grading", cost_type="fixed", fixed_cost=20),
+            AICreditRule(feature="interview_question_generation", cost_type="fixed", fixed_cost=25),
+            AICreditRule(feature="email_generation", cost_type="fixed", fixed_cost=10),
+            AICreditRule(feature="translation", cost_type="fixed", fixed_cost=10),
+        ]
+        db.add_all(rules)
+
+        # ── Seed OrganizationAICredits ────────────────────────────────────────
+        # 1 August 2026 as reset date matching example request
+        reset_date = datetime(2026, 8, 1, 0, 0, tzinfo=timezone.utc)
+        org_credits = OrganizationAICredits(
+            organization_id=org.id,
+            allowed_credits=100000,
+            used_credits=32450,
+            reset_at=reset_date
+        )
+        db.add(org_credits)
+
+        # ── Seed AIUsage History logs (sample data) ───────────────────────────
+        # Seed several logs spread over the last 30 days to build charts.
+        import random
+        features_list = [
+            ("resume_parsing", 20, "success"),
+            ("jd_generation", 35, "success"),
+            ("interview_evaluation", 20, "success"),
+            ("candidate_summary", 25, "success"),
+            ("ai_copilot", 50, "success"), # dynamic
+            ("speech_to_text", 120, "success"), # dynamic
+            ("image_generation", 50, "success"),
+            ("candidate_matching", 15, "success"),
+            ("email_generation", 10, "success")
+        ]
+        
+        users_list = [admin.id, recruiter.id, recruiter2.id, interviewer.id]
+        
+        # 50 records spread over 30 days
+        for i in range(50):
+            feat, cr_cost, status = random.choice(features_list)
+            if i % 12 == 0:
+                status = "failure"
+                cr_cost = 0
+                error_detail = "API Timeout"
+            else:
+                error_detail = None
+                
+            day_offset = random.randint(0, 30)
+            created_time = NOW - timedelta(days=day_offset, hours=random.randint(0, 23))
+            
+            p_tok = random.randint(100, 1000) if feat in ["ai_copilot", "jd_generation", "candidate_summary"] else 0
+            c_tok = random.randint(100, 800) if feat in ["ai_copilot", "jd_generation", "candidate_summary"] else 0
+            t_tok = p_tok + c_tok
+            
+            usage = AIUsage(
+                organization_id=org.id,
+                user_id=random.choice(users_list),
+                provider="Gemini" if feat != "resume_parsing" else "Groq",
+                model="gemini-1.5-flash-latest" if feat != "resume_parsing" else "llama-3.3-70b-versatile",
+                feature=feat,
+                prompt_tokens=p_tok,
+                completion_tokens=c_tok,
+                total_tokens=t_tok,
+                credits_used=cr_cost,
+                cost=round((t_tok / 1000.0) * 0.0015, 4) if t_tok > 0 else 0.0,
+                duration_ms=random.randint(500, 3500),
+                status=status,
+                error_detail=error_detail,
+                created_at=created_time
+            )
+            db.add(usage)
 
         await db.commit()
         print(f"  ✓ Users: 7 created (admin, 2 recruiters, 2 interviewers, 1 candidate, 1 super admin)")

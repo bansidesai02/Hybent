@@ -1684,6 +1684,83 @@ async def stream_copilot_chat(
     conversation_id: Optional[str] = None,
     approved_tool_call: Optional[dict] = None,
 ):
+    from app.services.ai_credit_service import AICreditsService
+    await AICreditsService.check_credits_available(db, organization_id, "ai_copilot")
+
+    start_time = time.time()
+    full_text = ""
+    status = "success"
+    error_msg = None
+    
+    try:
+        async for chunk in _stream_copilot_chat_impl(
+            user_message=user_message,
+            history=history,
+            organization_id=organization_id,
+            db=db,
+            page_context=page_context,
+            background_tasks=background_tasks,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            approved_tool_call=approved_tool_call
+        ):
+            if chunk:
+                try:
+                    lines = chunk.strip().split("\n")
+                    for line in lines:
+                        if line:
+                            data = json.loads(line)
+                            if data.get("type") == "chunk":
+                                full_text += data.get("content", "")
+                except Exception:
+                    pass
+            yield chunk
+    except Exception as e:
+        status = "failure"
+        error_msg = str(e)
+        raise e
+    finally:
+        from app.services.copilot_intelligence import is_jd_creation_intent
+        is_jd = is_jd_creation_intent(user_message)
+        if not is_jd and not approved_tool_call:
+            duration_ms = (time.time() - start_time) * 1000
+            if status == "success":
+                prompt_tokens = len(user_message) // 4 + 200
+                completion_tokens = len(full_text) // 4
+                await AICreditsService.deduct_credits(
+                    db=db,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    feature="ai_copilot",
+                    provider="Groq",
+                    model=GROQ_MODEL,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    duration_ms=duration_ms
+                )
+            else:
+                await AICreditsService.log_failed_request(
+                    db=db,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    feature="ai_copilot",
+                    provider="Groq",
+                    model=GROQ_MODEL,
+                    error_detail=error_msg or "Unknown error",
+                    duration_ms=duration_ms
+                )
+
+async def _stream_copilot_chat_impl(
+    user_message: str,
+    history: list[dict],
+    organization_id: uuid.UUID,
+    db: AsyncSession,
+    page_context: Optional[dict] = None,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    conversation_id: Optional[str] = None,
+    approved_tool_call: Optional[dict] = None,
+):
     client = Groq(api_key=settings.groq_api_key)
     oid_str = str(organization_id)
     uid_str = str(user_id)
@@ -1789,31 +1866,67 @@ async def stream_copilot_chat(
         tool_call_args = ""
         tool_call_id = ""
         full_text = ""
-        # NOTE: meta is yielded AFTER we have a real conversation_id
-        # (after save), to avoid sending null conversation_id upfront.
-        # Initial meta with null is still sent to let frontend know stream started.
-        meta_sent = False
 
         yield sse("meta", {"conversation_id": conversation_id})
-        meta_sent = True
 
-        for chunk in stream_resp:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta
+        try:
+            for chunk in stream_resp:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
 
-            if delta.tool_calls:
-                is_tool_call = True
-                tc = delta.tool_calls[0]
-                if tc.id:
-                    tool_call_id = tc.id
-                if tc.function.name:
-                    tool_call_name += tc.function.name
-                if tc.function.arguments:
-                    tool_call_args += tc.function.arguments
-            elif not is_tool_call and delta.content:
-                full_text += delta.content
-                yield sse("chunk", {"content": delta.content})
+                if delta.tool_calls:
+                    is_tool_call = True
+                    tc = delta.tool_calls[0]
+                    if tc.id:
+                        tool_call_id = tc.id
+                    if tc.function.name:
+                        tool_call_name += tc.function.name
+                    if tc.function.arguments:
+                        tool_call_args += tc.function.arguments
+                elif not is_tool_call and delta.content:
+                    full_text += delta.content
+                    yield sse("chunk", {"content": delta.content})
+
+        except Exception as stream_err:
+            # Groq failed_generation error thrown mid-stream (common with typos/ambiguous queries).
+            # Fall back to a synchronous non-tool call so the user still gets a response.
+            err_s = str(stream_err).lower()
+            if "failed_generation" in err_s or "failed to call a function" in err_s or "must contain either output" in err_s:
+                logger.warning("Groq tool-call failed mid-stream (%s). Falling back to plain-text call.", stream_err)
+                # Reset accumulated state from failed stream
+                is_tool_call = False
+                tool_call_name = ""
+                tool_call_args = ""
+                full_text = ""
+                # Synchronous fallback with a clean user-facing system prompt
+                # (avoids leaking internal tool names / Python code to the user)
+                fallback_messages = [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are HireOn Copilot, a helpful AI recruiting assistant. "
+                            "The user has sent a message that you couldn't fully understand (possibly due to a typo or ambiguous phrasing). "
+                            "Respond in a friendly, concise way: acknowledge what they might be looking for and politely ask them to rephrase. "
+                            "Do NOT mention tools, functions, Python code, or internal system details. "
+                            "Keep the response under 3 sentences."
+                        ),
+                    },
+                    {"role": "user", "content": user_message},
+                ]
+                fallback_resp = client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=fallback_messages,
+                    stream=False,
+                    temperature=0.3,
+                )
+                fb_text = (fallback_resp.choices[0].message.content or "").strip()
+                if not fb_text:
+                    fb_text = "I'm sorry, I couldn't quite understand that. Could you rephrase your request?"
+                full_text = fb_text
+                yield sse("chunk", {"content": fb_text})
+            else:
+                raise stream_err
 
         # ── 4. Handle Tool Call ───────────────────────────────────────────
         if is_tool_call:

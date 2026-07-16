@@ -28,4 +28,15 @@ export const aiApi = {
 
   generateImage: (prompt: string) => 
     axios.post('/v1/ai/generate-image', { prompt }),
+
+  getCreditsBalance: () =>
+    axios.get('/v1/ai/credits/balance'),
+  getCreditsHistory: (page: number = 1, limit: number = 10) =>
+    axios.get(`/v1/ai/credits/history?page=${page}&limit=${limit}`),
+  getUsageByFeature: () =>
+    axios.get('/v1/ai/credits/usage-by-feature'),
+  getUsageOverTime: () =>
+    axios.get('/v1/ai/credits/usage-over-time'),
+  buyCredits: (amount: number) =>
+    axios.post('/v1/ai/credits/buy', { amount }),
 }

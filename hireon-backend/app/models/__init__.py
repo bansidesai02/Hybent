@@ -16,6 +16,8 @@ from app.models.job_referral import JobReferral
 from app.models.candidate_document import CandidateDocument
 from app.models.message import Message
 from app.models.ai_usage import AIUsage
+from app.models.organization_ai_credits import OrganizationAICredits
+from app.models.ai_credit_rule import AICreditRule
 from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 from app.models.import_batch import ImportBatch
 from app.models.user_preference import UserPreference
@@ -32,7 +34,7 @@ __all__ = [
     "Application", "Interview", "InterviewPanelist", "Scorecard",
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
     "OtherOffer", "JobReferral", "CandidateDocument", "Message",
-    "AIUsage", "CopilotConversation", "CopilotMessage", "ImportBatch",
+    "AIUsage", "OrganizationAICredits", "AICreditRule", "CopilotConversation", "CopilotMessage", "ImportBatch",
     "UserPreference", "DesignationChangeLog",
     "PreScreeningSession", "PreScreeningResponse",
     "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag",

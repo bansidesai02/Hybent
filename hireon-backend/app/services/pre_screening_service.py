@@ -125,6 +125,10 @@ async def generate_questions(
     organization_id: Optional[uuid.UUID] = None,
 ) -> list[dict]:
     """Generate 10 personalised screening questions using Groq."""
+    if organization_id:
+        from app.services.ai_credit_service import AICreditsService
+        await AICreditsService.check_credits_available(None, organization_id, "pre_screening_questions")
+
     if not groq_client:
         logger.warning("Groq not configured — returning fallback questions")
         return _fallback_questions(job_title)
@@ -222,6 +226,10 @@ async def generate_session_summary(
     organization_id: Optional[uuid.UUID] = None,
 ) -> dict:
     """Generate an overall AI summary for a completed pre-screening session."""
+    if organization_id:
+        from app.services.ai_credit_service import AICreditsService
+        await AICreditsService.check_credits_available(None, organization_id, "pre_screening_summary")
+
     if not groq_client:
         return {"overall_impression": "AI summary unavailable.", "recommendation": "hold"}
 
@@ -337,6 +345,10 @@ async def translate_questions(
     """
     if language == "english" or language not in LANGUAGE_MAP:
         return questions
+
+    if organization_id:
+        from app.services.ai_credit_service import AICreditsService
+        await AICreditsService.check_credits_available(None, organization_id, "pre_screening_translation")
 
     if not groq_client:
         logger.warning("Groq not configured — returning original English questions")

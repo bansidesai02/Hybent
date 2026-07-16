@@ -485,3 +485,45 @@ export interface SearchResults {
   total: number
 }
 
+// ── AI Credits & Usage ──────────────────────────────────────────────────────
+
+export interface AICreditsBalance {
+  allowed_credits: number
+  used_credits: number
+  remaining_credits: number
+  reset_at: string
+  warning_level: 'info' | 'low' | 'warning' | 'danger' | 'critical'
+}
+
+export interface AIUsageLog {
+  id: string
+  provider: string
+  model: string
+  feature: string
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  credits_used: number
+  cost: number
+  duration_ms: number
+  status: 'success' | 'failure'
+  error_detail: string | null
+  created_at: string
+  user_name: string
+  user_email: string
+}
+
+export interface AIUsageHistoryResponse {
+  items: AIUsageLog[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
+export interface UsageOverTimeItem {
+  date: string
+  credits: number
+}
+
+

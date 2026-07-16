@@ -20,28 +20,34 @@ async def log_ai_usage(
     organization_id: uuid.UUID | None = None
 ):
     """
-    Log AI usage metrics to the database.
+    Log AI usage metrics to the database and deduct credits.
     This is intended to be run as a background task.
     """
     try:
-        async with AsyncSessionLocal() as session:
-            usage = AIUsage(
+        from app.services.ai_credit_service import AICreditsService
+        if status == "success":
+            await AICreditsService.deduct_credits(
+                db=None,
+                organization_id=organization_id,
+                user_id=user_id,
+                feature=feature,
                 provider=provider,
                 model=model,
-                feature=feature,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
-                total_tokens=total_tokens,
-                duration_ms=duration_ms,
-                status=status,
-                error_detail=error_detail,
-                user_id=user_id,
-                organization_id=organization_id,
-                created_at=datetime.now(timezone.utc)
+                duration_ms=duration_ms
             )
-            session.add(usage)
-            await session.commit()
-            logger.info(f"AI Usage logged: {provider} - {model} - {feature} ({total_tokens} tokens)")
+        else:
+            await AICreditsService.log_failed_request(
+                db=None,
+                organization_id=organization_id,
+                user_id=user_id,
+                feature=feature,
+                provider=provider,
+                model=model,
+                error_detail=error_detail or "Unknown Error",
+                duration_ms=duration_ms
+            )
     except Exception as e:
         # Crucial: tracker failure must not disrupt the main flow
-        logger.error(f"Failed to log AI usage: {e}")
+        logger.error(f"Failed to log AI usage and deduct credits: {e}")

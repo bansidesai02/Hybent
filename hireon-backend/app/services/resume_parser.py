@@ -470,6 +470,10 @@ async def parse_resume(
         logger.warning("Could not extract text from resume")
         return {}
 
+    if organization_id:
+        from app.services.ai_credit_service import AICreditsService
+        await AICreditsService.check_credits_available(None, organization_id, "resume_parsing")
+
     if not groq_client:
         logger.warning("No Groq API key configured — using regex fallback")
         return _regex_fallback(text)

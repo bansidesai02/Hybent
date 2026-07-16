@@ -27,6 +27,8 @@ class AIUsage(Base):
     prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    credits_used: Mapped[int] = mapped_column(Integer, default=0)
+    cost: Mapped[float | None] = mapped_column(Float, nullable=True)
     
     # Performance & Status
     duration_ms: Mapped[float] = mapped_column(Float, default=0.0)

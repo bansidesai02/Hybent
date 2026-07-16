@@ -24,7 +24,8 @@ import {
   FileSearch, 
   Video, 
   ChevronRight,
-  Building2
+  Building2,
+  Coins
 } from 'lucide-react'
 import { prefetchRoute } from '@/utils/routePrefetch'
 
@@ -149,6 +150,7 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
         items: [
           { to: '/admin/teams', label: 'Team', icon: <GlassIcon icon={<TeamIcon size={16} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
           { to: '/admin/audit', label: 'Audit Logs', icon: <GlassIcon icon="ClipboardList" variant="amber" ghost size={24} iconSize={14} glow={false} /> },
+          { to: '/admin/ai-credits', label: 'AI Credits', icon: <GlassIcon icon="Coins" variant="violet" ghost size={24} iconSize={14} glow={false} /> },
         ],
       },
     ]
@@ -193,6 +195,7 @@ const getSections = (role: UserRole, candidateBadge: number, scheduleBadge: numb
       label: 'SETTINGS',
       items: [
         { to: `${basePath}/teams`, label: 'Team', icon: <GlassIcon icon={<TeamIcon size={16} />} variant="blue" ghost size={24} iconSize={14} glow={false} /> },
+        { to: `${basePath}/ai-credits`, label: 'AI Credits', icon: <GlassIcon icon="Coins" variant="gray" ghost iconSize={14} /> },
       ],
     },
   ]

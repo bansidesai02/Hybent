@@ -29,4 +29,9 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.notifications.check_pending_feedback",
         "schedule": crontab(minute="*/5"),
     },
+    # Check and reset expired organization credits daily at midnight
+    "reset-organization-credits": {
+        "task": "app.tasks.notifications.reset_expired_organization_credits",
+        "schedule": crontab(minute=0, hour=0),
+    },
 }
