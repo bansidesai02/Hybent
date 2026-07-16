@@ -1,6 +1,0 @@
-672:             if not candidates: return f"â�Œ Candidate '{c_name}' not found."
-675:                 return f"â�“ Multiple candidates found for '{c_name}':\n{matches}\n\nPlease specify which one you mean (using their email)."
-726:                 return "â�Œ Missing table_name, record_id, or update_data for update."
-731:                 return f"â�Œ Updates to table '{table_name}' are not allowed."
-742:                     return f"â�Œ Invalid column name: {k}"
-847: # â”€â”€ Chat Service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

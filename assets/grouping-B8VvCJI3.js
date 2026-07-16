@@ -1,0 +1,1 @@
+function i(d){const a={},t=[];return d.forEach(n=>{const e=n.candidate_id||"unknown";a[e]||(a[e]={candidate_id:e,candidate_name:n.candidate_name||n.title||"Unknown Candidate",interviews:[]},t.push(e)),a[e].interviews.push(n)}),t.map(n=>a[n])}export{i as g};
