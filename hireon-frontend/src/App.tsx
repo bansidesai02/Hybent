@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import type { UserRole } from '@/types'
+import { AlertTriangle } from 'lucide-react'
 
 // Layouts (Lazy)
 const RecruiterLayout = lazy(() => import('@/components/layout/RecruiterLayout').then(m => ({ default: m.RecruiterLayout })))
@@ -117,6 +118,60 @@ function RouteFallback() {
   )
 }
 
+function ForcedLogoutModal() {
+  const { forcedLogoutReason, logout } = useAuthStore()
+
+  if (!forcedLogoutReason) return null
+
+  const handleDismiss = () => {
+    logout()
+    window.location.href = '/login'
+  }
+
+  const isDeleted = forcedLogoutReason === 'account_deleted'
+  const title = isDeleted ? 'Account Removed' : 'Session Expired'
+  const desc = isDeleted 
+    ? 'You have been logged out because your account was deleted or deactivated by an administrator. Please contact your admin if this was a mistake.'
+    : 'Your session has expired. Please sign in again.'
+  const color = isDeleted ? '#ef4444' : '#f59e0b'
+  const bgColor = isDeleted ? '#fee2e2' : '#fef3c7'
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 999999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)'
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: '24px', padding: '36px', width: '100%', maxWidth: '420px',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.1)', textAlign: 'center', border: `1px solid ${color}`
+      }}>
+        <div style={{
+          width: '64px', height: '64px', borderRadius: '32px', background: bgColor,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color
+        }}>
+          <AlertTriangle size={32} />
+        </div>
+        <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#1a1040', marginBottom: '12px' }}>
+          {title}
+        </h2>
+        <p style={{ fontSize: '15px', color: '#6b6393', lineHeight: 1.6, marginBottom: '32px' }}>
+          {desc}
+        </p>
+        <button
+          onClick={handleDismiss}
+          style={{
+            background: color, color: '#fff', width: '100%', padding: '14px',
+            borderRadius: '12px', fontWeight: 600, fontSize: '15px', cursor: 'pointer', border: 'none'
+          }}
+        >
+          Sign In Again
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const coreRoutes = (
     <>
@@ -143,6 +198,7 @@ export default function App() {
 
   return (
     <>
+      <ForcedLogoutModal />
       <Toaster 
         position="top-right" 
         toastOptions={{ 

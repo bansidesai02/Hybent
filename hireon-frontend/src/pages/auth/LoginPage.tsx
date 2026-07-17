@@ -42,6 +42,16 @@ export default function LoginPage() {
   const [fpEmail, setFpEmail] = useState('')
   const [fpLoading, setFpLoading] = useState(false)
   const [fpError, setFpError] = useState('')
+  const [logoutBanner, setLogoutBanner] = useState<'account_deleted' | 'session_expired' | null>(null)
+
+  useEffect(() => {
+    // Show logout reason banner if redirected from a forced logout
+    const reason = sessionStorage.getItem('logout_reason')
+    if (reason === 'account_deleted' || reason === 'session_expired') {
+      setLogoutBanner(reason)
+      sessionStorage.removeItem('logout_reason')
+    }
+  }, [])
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -279,6 +289,34 @@ export default function LoginPage() {
           <>
             <h1 className="form-h1">Good to see you</h1>
             <p className="form-h2">Sign in to your hiring dashboard</p>
+
+            {logoutBanner === 'account_deleted' && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.3)',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 16,
+                color: '#dc2626', fontSize: 13, fontWeight: 500, lineHeight: 1.5
+              }}>
+                <AlertTriangle size={16} style={{ marginTop: 1, flexShrink: 0 }} />
+                <span>
+                  <strong>Your account has been removed.</strong><br />
+                  You have been logged out because your account was deleted by an administrator.
+                  Please contact your admin if this was a mistake.
+                </span>
+              </div>
+            )}
+
+            {logoutBanner === 'session_expired' && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                background: 'rgba(245,158,11,0.08)', border: '1.5px solid rgba(245,158,11,0.3)',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 16,
+                color: '#b45309', fontSize: 13, fontWeight: 500, lineHeight: 1.5
+              }}>
+                <AlertTriangle size={16} style={{ marginTop: 1, flexShrink: 0 }} />
+                <span><strong>Session expired.</strong> Please sign in again.</span>
+              </div>
+            )}
 
             {serverError && <div className="server-err"><AlertTriangle size={14} className="inline mr-2" />{serverError}</div>}
 

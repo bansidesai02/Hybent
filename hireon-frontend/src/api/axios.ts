@@ -114,10 +114,23 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newToken}`
         }
         return api(originalRequest)
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         processQueue(refreshError, null)
-        tokenStorage.clear()
-        window.location.href = '/login'
+        
+        try {
+          const { useAuthStore } = await import('@/store/authStore')
+          
+          const status = refreshError?.response?.status
+          const detail: string = refreshError?.response?.data?.detail ||
+            refreshError?.response?.data?.message || ''
+
+          if (status === 403 || detail.toLowerCase().includes('inactive') || detail.toLowerCase().includes('not found')) {
+            useAuthStore.getState().setForcedLogout('account_deleted')
+          } else {
+            useAuthStore.getState().setForcedLogout('session_expired')
+          }
+        } catch (e) {}
+
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

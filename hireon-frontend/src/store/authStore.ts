@@ -22,6 +22,8 @@ interface AuthState {
   setTokens: (accessToken: string, refreshToken: string | undefined, user?: User, rememberMe?: boolean) => void
   setUser: (user: User) => void
   logout: () => void
+  forcedLogoutReason: 'account_deleted' | 'session_expired' | null
+  setForcedLogout: (reason: 'account_deleted' | 'session_expired' | null) => void
 }
 
 const customPersistStorage = {
@@ -59,6 +61,9 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       rememberMe: false,
+      forcedLogoutReason: null,
+
+      setForcedLogout: (reason) => set({ forcedLogoutReason: reason }),
 
       setTokens: (accessToken, refreshToken, user, rememberMe) => {
         const currentRememberMe = rememberMe !== undefined ? rememberMe : get().rememberMe
@@ -78,7 +83,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         tokenStorage.clear()
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, rememberMe: false })
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, rememberMe: false, forcedLogoutReason: null })
       },
     }),
     {

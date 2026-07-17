@@ -84,7 +84,7 @@ async def seed():
         force_seed = os.getenv("FORCE_SEED", "false").lower() == "true"
         
         # Check if admin already exists
-        result = await db.execute(select(User).where(User.email == "admin@brainerhub.com"))
+        result = await db.execute(select(User).where(User.email == "yashdesai494@gmail.com"))
         existing_admin = result.scalar_one_or_none()
         
         if existing_admin and not force_seed:
@@ -111,93 +111,20 @@ async def seed():
         # ── Users ─────────────────────────────────────────────────────────────
         admin = User(
             organization_id=org.id,
-            email="admin@brainerhub.com",
-            full_name="Admin",
+            email="yashdesai494@gmail.com",
+            full_name="Yash Desai",
             hashed_password=hash_password("password123"),
-            role=UserRole.ADMIN,
-            is_active=True,
-            is_verified=True,
-            last_login=ago(hours=2),
-        )
-        recruiter = User(
-            organization_id=org.id,
-            email="recruiter@brainerhub.com",
-            full_name="Bob Recruiter",
-            hashed_password=hash_password("password123"),
-            role=UserRole.RECRUITER,
-            is_active=True,
-            is_verified=True,
-            last_login=ago(minutes=30),
-        )
-        recruiter2 = User(
-            organization_id=org.id,
-            email="recruiter2@brainerhub.com",
-            full_name="Sneha HR",
-            hashed_password=hash_password("password123"),
-            role=UserRole.RECRUITER,
-            is_active=True,
-            is_verified=True,
-            last_login=ago(hours=1),
-        )
-        interviewer = User(
-            organization_id=org.id,
-            email="interviewer@brainerhub.com",
-            full_name="Carol Interviewer",
-            hashed_password=hash_password("password123"),
-            role=UserRole.INTERVIEWER,
-            is_active=True,
-            is_verified=True,
-            last_login=ago(days=1),
-        )
-        interviewer2 = User(
-            organization_id=org.id,
-            email="interviewer2@brainerhub.com",
-            full_name="Dan Techie",
-            hashed_password=hash_password("password123"),
-            role=UserRole.INTERVIEWER,
-            is_active=True,
-            is_verified=True,
-            last_login=ago(days=2),
-        )
-        candidate_user = User(
-            organization_id=org.id,
-            email="sarah.chen@gmail.com",
-            full_name="Sarah Chen",
-            hashed_password=hash_password("password123"),
-            role=UserRole.CANDIDATE,
-            is_active=True,
-            is_verified=True,
-            last_login=ago(days=1),
-        )
-        super_admin = User(
-            organization_id=org.id,
-            email="admin@hirreon.com",
-            full_name="Super Admin",
-            hashed_password=hash_password("admin"),
             role=UserRole.SUPER_ADMIN.value,
             is_active=True,
             is_verified=True,
             last_login=ago(hours=1),
         )
 
-        for u in [admin, recruiter, recruiter2, interviewer, interviewer2, candidate_user, super_admin]:
+        for u in [admin]:
             db.add(u)
         await db.flush()
 
-        # ── Candidate profile for the portal candidate user ───────────────────
-        # IMPORTANT: The users table alone is not enough — the portal endpoints
-        # look up the `candidates` table by user_id. Without this row, every
-        # call to GET/PUT /v1/portal/profile or POST /v1/portal/profile/resume
-        # returns 404 "Candidate profile not found".
-        candidate_profile = Candidate(
-            organization_id=org.id,
-            user_id=candidate_user.id,
-            email=candidate_user.email,
-            full_name=candidate_user.full_name,
-            source="portal",
-            skills=[],
-        )
-        db.add(candidate_profile)
+
 
         # ── Seed Subscription Plans ───────────────────────────────────────────
         starter_plan = SubscriptionPlan(

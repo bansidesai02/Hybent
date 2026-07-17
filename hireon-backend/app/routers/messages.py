@@ -89,7 +89,7 @@ async def send_message(
     )
 
 
-@router.get("/conversations", response_model=List[ConversationSummary])
+@router.get("/conversations", response_model=list[ConversationSummary])
 async def list_conversations(
     db: DB,
     current_user: CurrentUser,
@@ -163,7 +163,7 @@ async def list_conversations(
     return APIResponse.success(message="Conversations retrieved.", data=conversations)
 
 
-@router.get("/{other_user_id}", response_model=List[MessageRead])
+@router.get("/{other_user_id}", response_model=list[MessageRead])
 async def get_messages(
     other_user_id: uuid.UUID,
     db: DB,

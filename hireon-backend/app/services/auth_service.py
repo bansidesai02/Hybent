@@ -129,8 +129,10 @@ async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
         .where(User.id == token_obj.user_id)
     )
     user = user_result.scalar_one_or_none()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="User not found or inactive")
+    if not user:
+        raise HTTPException(status_code=403, detail="Account has been deleted")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account has been deactivated")
 
     # Issue new tokens
     new_access = create_access_token({"sub": str(user.id), "org": str(user.organization_id), "role": user.role})
