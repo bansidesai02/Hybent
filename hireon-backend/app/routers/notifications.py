@@ -39,7 +39,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
         try:
             await websocket.send_json({"type": "error", "message": "unauthorized", "detail": str(e)})
             await websocket.close(code=4001)
-        except:
+        except Exception:
             pass
         return
 

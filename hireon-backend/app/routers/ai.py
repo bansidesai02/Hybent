@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Response, BackgroundTasks
+import logging
 from app.dependencies import DB, require_recruiter, require_interviewer_or_above
 from app.services import ai_evaluator, jd_pdf_generator
 from app.services.ai_credit_service import AICreditsService
 from app.schemas.response import APIResponse
 from app.models.user import User
-from typing import List, Optional, Annotated
+from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/ai", tags=["ai"])
 
@@ -51,7 +54,7 @@ async def generate_jd(
     # Pre-check credits
     await AICreditsService.check_credits_available(db, current_user.organization_id, "jd_generation")
 
-    print(f"DEBUG: Generating JD for prompt: {prompt[:50]}...")
+    logger.debug("Generating JD for prompt: %.50s...", prompt)
     result, error_detail = await ai_evaluator.generate_jd_from_prompt(
         prompt,
         background_tasks=background_tasks,
@@ -60,10 +63,10 @@ async def generate_jd(
     )
     
     if not result:
-        print(f"DEBUG: JD Generation Failed: {error_detail}")
+        logger.warning("JD generation failed: %s", error_detail)
         raise HTTPException(status_code=500, detail=f"AI JD generation failed: {error_detail or 'Check Gemini API key.'}")
 
-    print("DEBUG: JD Generation Successful!")
+    logger.debug("JD generation successful")
     return APIResponse.success(message="Job description generated successfully.", data=result)
     
 @router.get("/test-gemini")

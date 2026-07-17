@@ -1,6 +1,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select, func
+from sqlalchemy.orm import joinedload
 from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.application import Application
 from app.models.candidate import Candidate
@@ -11,8 +12,6 @@ from app.schemas.response import APIResponse
 from app.tasks.notifications import notify_candidate_stage_change
 
 router = APIRouter(prefix="/v1/applications", tags=["applications"])
-
-from sqlalchemy.orm import joinedload
 
 async def _get_application(application_id: uuid.UUID, org_id: uuid.UUID, db) -> Application:
     result = await db.execute(

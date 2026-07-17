@@ -1,4 +1,8 @@
+import logging
+import os
+import time
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +17,8 @@ from app.utils.security import hash_password
 from pydantic import BaseModel
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
+from app.services.email_service import send_team_invite
+from app.config import settings
 
 router = APIRouter(prefix="/v1/users", tags=["users"])
 
@@ -30,9 +36,8 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
 
 
-import time
-_users_cache = {}
-_users_cache_ttl = 300 # 5 minutes
+_users_cache: dict = {}
+_users_cache_ttl = 300  # 5 minutes
 
 def invalidate_users_cache(org_id):
     org_id_str = str(org_id)
@@ -54,16 +59,14 @@ async def list_users(current_user: RecruiterUser, db: DB):
         .where(User.organization_id == current_user.organization_id)
     )
     users = result.scalars().all()
-    # Debug log to investigate why team members might not show up
-    import logging
-    print(f"DEBUG: Listing users for org {current_user.organization_id}: found {len(users)}")
-    
+    logger.debug("Listing users for org %s: found %d", current_user.organization_id, len(users))
     out_data = [UserOut.model_validate(u) for u in users]
     _users_cache[org_id_str] = (out_data, now)
     return APIResponse.success(message="Users retrieved successfully.", data=out_data)
 
 
-from app.services.email_service import send_email
+logger = logging.getLogger(__name__)
+
 
 @router.post("/invite", response_model=UserOut, status_code=201)
 async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, background_tasks: BackgroundTasks):
@@ -95,12 +98,7 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
     await db.refresh(user)
 
     # Send invite email (non-fatal — user is already saved above)
-    from app.services.email_service import send_team_invite
-    import os
-    import logging
-    logger = logging.getLogger(__name__)
-
-    frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    frontend_base = settings.frontend_url
 
     org_res = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
     org = org_res.scalar_one_or_none()
@@ -301,8 +299,6 @@ async def delete_user(user_id: uuid.UUID, current_user: AdminUser, db: DB, backg
     invalidate_users_cache(current_user.organization_id)
     return APIResponse.success(message="User deleted successfully.", data=UserOut.model_validate(user))
 
-
-from datetime import datetime, timezone
 
 class DesignationOrderUpdate(BaseModel):
     order: list[str]

@@ -26,7 +26,6 @@ class ApplicationStage(str, Enum):
     TECHNICAL_ROUND_BACK_OUT = "technical_round_back_out"
     PRACTICAL_ROUND = "practical_round"
     PRACTICAL_ROUND_SELECTED = "practical_round_selected"
-    PRACTICAL_REJECTED = "practical_rejected"
     PRACTICAL_ROUND_REJECTED = "practical_round_rejected"
     PRACTICAL_ROUND_BACK_OUT = "practical_round_back_out"
     TECHNO_FUNCTIONAL_ROUND = "techno_functional_round"
@@ -54,7 +53,6 @@ REJECTION_STAGES = [
     "pre_screening_rejected",
     "technical_round_rejected",
     "technical_round_back_out",
-    "practical_rejected",
     "practical_round_rejected",
     "practical_round_back_out",
     "techno_functional_rejected",

@@ -1,8 +1,7 @@
 import uuid
-from fastapi import APIRouter, HTTPException, Query, Depends
-from sqlalchemy import select, func
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, BackgroundTasks, Depends
+from sqlalchemy import select, func, cast, String as SAString
 from sqlalchemy.orm import selectinload
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, BackgroundTasks
 from app.dependencies import DB, get_current_user, require_recruiter, require_admin
 from app.models.user import User
 from typing import Annotated
@@ -11,11 +10,13 @@ from app.models.application import Application
 from app.models.candidate import Candidate
 from app.schemas.job import JobCreate, JobUpdate, JobOut
 from app.utils.pagination import paginate
+from app.utils.permissions import JobStatus
 from app.services.resume_parser import parse_jd
 from app.services.storage_service import save_jd, read_file_bytes
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
+from app.utils.category import extract_core_category
 
 router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 
@@ -35,14 +36,12 @@ async def list_jobs(
 ):
     query = select(Job).where(Job.organization_id == current_user.organization_id)
 
-    from app.utils.permissions import JobStatus
     if status:
         query = query.where(Job.status == status)
     elif not include_pool:
         query = query.where(Job.status != JobStatus.POOL)
         
     if search:
-        from sqlalchemy import cast, String as SAString
         query = query.where(
             Job.title.ilike(f"%{search}%")
             | Job.description.ilike(f"%{search}%")
@@ -89,7 +88,6 @@ async def list_jobs(
 
 @router.post("", response_model=JobOut, status_code=201)
 async def create_job(data: JobCreate, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
-    from app.utils.permissions import JobStatus
     create_data = data.model_dump()
     provided_display_order = create_data.pop("display_order", None)
     if data.status == JobStatus.POOL:
@@ -126,8 +124,6 @@ async def create_job(data: JobCreate, current_user: Annotated[User, Depends(requ
     await db.refresh(job)
     background_tasks.add_task(es_service.index_job, job)
     # Auto-create talent pool category if this is a real job
-    from app.utils.permissions import JobStatus
-    from app.utils.category import extract_core_category
     if job.status != JobStatus.POOL:
         core_cat = extract_core_category(job.title)
         
@@ -215,7 +211,6 @@ async def update_job(job_id: uuid.UUID, data: JobUpdate, current_user: Annotated
         if hasattr(value, "value"):
             value = value.value
         setattr(job, field, value)
-    from app.utils.permissions import JobStatus
     if job.status == JobStatus.POOL and old_status != JobStatus.POOL and (job.display_order is None or job.display_order == 0):
         max_order = (await db.execute(
             select(func.coalesce(func.max(Job.display_order), -1)).where(

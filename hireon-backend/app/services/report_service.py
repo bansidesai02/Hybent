@@ -8,6 +8,9 @@ from app.models.candidate import Candidate
 from app.utils.permissions import ApplicationStage, REJECTION_STAGES
 import csv
 import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 BACKOUT_STAGES = [
     "technical_round_back_out",
@@ -25,7 +28,7 @@ async def get_report_summary(
     start_date: str | None = None,
     end_date: str | None = None,
 ):
-    print(f"DEBUG: get_report_summary called for org={organization_id}, admin={is_admin}, recruiter={recruiter_id}, days={days}, start_date={start_date}, end_date={end_date}")
+    logger.debug("get_report_summary called for org=%s, admin=%s, recruiter=%s, days=%s, start_date=%s, end_date=%s", organization_id, is_admin, recruiter_id, days, start_date, end_date)
 
     # Resolve date filter boundaries (mirrors export_report_excel logic)
     date_from: datetime | None = None
@@ -126,7 +129,7 @@ async def get_report_summary(
         "candidates_by_role": candidates_by_role
     }
     
-    print(f"DEBUG: Final report summary with extra charts data: {summary}")
+    logger.debug("Final report summary with extra charts data: %s", summary)
     return summary
 
 async def export_report_excel(

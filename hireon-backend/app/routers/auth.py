@@ -1,14 +1,23 @@
-from fastapi import APIRouter, Response, Cookie
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, HTTPException, Response, Cookie
+from sqlalchemy import select, update
 from app.dependencies import DB, CurrentUser
 from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, TokenResponse, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.schemas.response import APIResponse
-from app.services import auth_service
+from app.services import auth_service, invitation_service
 from app.utils.security import hash_password, verify_password
-from sqlalchemy import select
 from app.models.user import User
+from app.models.candidate import Candidate
+from app.models.password_reset import PasswordResetToken
+from app.models.organization import Organization
+from app.config import settings as cfg
+from app.services.email_service import send_password_reset_email
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
+
+# NOTE: Flip to True in production (HTTPS). Currently False for local HTTP dev.
+_COOKIE_SECURE = cfg.is_production
 
 
 @router.post("/register", status_code=201)
@@ -25,7 +34,7 @@ async def login(data: LoginRequest, response: Response, db: DB):
         key="refresh_token",
         value=result["refresh_token"],
         httponly=True,
-        secure=False,   # set True in production with HTTPS
+        secure=_COOKIE_SECURE,
         samesite="lax",
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
@@ -58,7 +67,7 @@ async def refresh(
         key="refresh_token",
         value=result["refresh_token"],
         httponly=True,
-        secure=False,
+        secure=_COOKIE_SECURE,
         samesite="lax",
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
@@ -95,7 +104,6 @@ async def me(current_user: CurrentUser):
 @router.put("/me/password")
 async def change_password(data: ChangePasswordRequest, current_user: CurrentUser, db: DB):
     if not verify_password(data.current_password, current_user.hashed_password):
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     current_user.hashed_password = hash_password(data.new_password)
     return APIResponse.success(message="Password updated successfully.")
@@ -115,7 +123,6 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
         return APIResponse.success(message="If that email exists, a reset link has been sent.")
 
     # Invalidate old tokens
-    from sqlalchemy import update
     await db.execute(
         update(PasswordResetToken)
         .where(PasswordResetToken.user_id == user.id, PasswordResetToken.is_used == False)
@@ -129,8 +136,6 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
     ))
 
-    from app.config import settings as cfg
-    from app.models.organization import Organization
     org_res = await db.execute(select(Organization).where(Organization.id == user.organization_id))
     org = org_res.scalar_one_or_none()
     
@@ -147,9 +152,6 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
 
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordRequest, db: DB):
-    from app.models.password_reset import PasswordResetToken
-    from datetime import timezone
-
     result = await db.execute(
         select(PasswordResetToken).where(
             PasswordResetToken.token == data.token,
@@ -158,13 +160,11 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
     )
     token_obj = result.scalar_one_or_none()
     if not token_obj or token_obj.expires_at < datetime.now(timezone.utc):
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Reset link is invalid or has expired.")
 
     user_result = await db.execute(select(User).where(User.id == token_obj.user_id))
     user = user_result.scalar_one_or_none()
     if not user:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="User not found.")
 
     user.hashed_password = hash_password(data.new_password)
@@ -178,9 +178,6 @@ async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
     Send a magic link (invitation) to a candidate. 
     If registration is open for new candidates, create a stub profile.
     """
-    from app.models.candidate import Candidate
-    from app.models.organization import Organization
-    from app.services import invitation_service
     
     # 1. Check if candidate exists
     result = await db.execute(select(Candidate).where(Candidate.email == data.email))
@@ -193,7 +190,6 @@ async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
         org = org_result.scalar_one_or_none()
         
         if not org:
-            from fastapi import HTTPException
             raise HTTPException(status_code=500, detail="System configuration error: No organization found.")
             
         candidate = Candidate(
@@ -219,7 +215,6 @@ async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
         await db.commit()
     except Exception as e:
         await db.rollback()
-        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=f"Failed to send magic link: {str(e)}")
 
     return APIResponse.success(message="Magic link sent successfully. Please check your inbox.")

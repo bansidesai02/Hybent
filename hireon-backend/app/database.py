@@ -2,16 +2,18 @@
 Async SQLAlchemy 2.0 setup.
 Provides engine, session factory, and Base declarative class.
 """
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+import os
 from typing import AsyncGenerator
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Session
 
 from app.config import settings
 
@@ -20,9 +22,6 @@ logger = logging.getLogger(__name__)
 # ── Base (defined early for models) ──────────────────────────────────────────
 class Base(DeclarativeBase):
     pass
-
-import asyncio
-import os
 
 # ── Lazy Components ────────────────────────────────────────────────────────────
 _engine = None
@@ -122,9 +121,6 @@ def get_db_factory():
     return get_session_factory()
 
 # ── Write Tracking Event Listeners ───────────────────────────────────────────
-from sqlalchemy import event
-from sqlalchemy.orm import Session
-
 @event.listens_for(Session, "after_flush")
 def receive_after_flush(session, flush_context):
     session.info["has_writes"] = True

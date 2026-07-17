@@ -741,7 +741,7 @@ async def generate_jd_from_prompt(
             else:
                 model_name = "models/gemini-1.5-flash" # Last resort fallback
             
-            print(f"DEBUG: Using Gemini Model: {model_name}")
+            logger.debug("Using Gemini Model: %s", model_name)
             
             # Diagnostic check for the key format
             key_status = "Loaded"

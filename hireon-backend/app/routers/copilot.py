@@ -7,14 +7,13 @@ DELETE /v1/copilot/conversations/{id} — delete a conversation
 """
 import uuid
 import logging
-from typing import Optional
+from typing import Optional, Annotated
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.dependencies import DB, get_current_user
 from app.models.user import User
-from typing import Annotated
 from app.utils.permissions import RECRUITER_ROLES
 from app.services.copilot_service import stream_copilot_chat
 from app.services.ai_evaluator import transcribe_audio, clean_speech_transcript

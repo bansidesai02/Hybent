@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from sqlalchemy import select, func, or_, delete as sql_delete
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 from app.dependencies import DB, get_current_user, require_recruiter, require_admin
 from app.models.user import User
 from typing import Annotated
@@ -11,7 +12,7 @@ from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate, CandidateDesignationUpdate
 from app.services.email_service import send_candidate_invite
 from app.utils.pagination import paginate
-from app.utils.permissions import UserRole, NotificationType, JobStatus
+from app.utils.permissions import UserRole, NotificationType, JobStatus, REJECTION_STAGES
 from app.tasks.notifications import notify_organization_roles, send_system_notification, notify_candidate_stage_change
 from app.services.activity_service import log_activity
 from app.models.application import Application
@@ -23,21 +24,6 @@ from app.services import elasticsearch_service as es_service
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
 logger = logging.getLogger(__name__)
 
-from sqlalchemy.orm import selectinload
-
-REJECTION_STAGES = [
-    "rejected",
-    "pre_screening_rejected",
-    "technical_round_rejected",
-    "technical_round_back_out",
-    "practical_round_rejected",
-    "practical_round_back_out",
-    "techno_functional_rejected",
-    "management_round_rejected",
-    "hr_round_rejected",
-    "offered_back_out",
-    "offer_withdrawn"
-]
 
 @router.get("")
 async def list_candidates(

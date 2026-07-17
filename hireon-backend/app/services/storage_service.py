@@ -2,11 +2,11 @@
 Local filesystem storage service.
 Files saved to uploads/ directory, served via FastAPI StaticFiles.
 """
+import asyncio
+import logging
 import os
 import uuid
 import aiofiles
-from pathlib import Path
-
 from pathlib import Path
 
 from fastapi import UploadFile, HTTPException
@@ -14,6 +14,8 @@ import cloudinary
 import cloudinary.uploader
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Configure Cloudinary globally when the service loads
 if settings.cloudinary_cloud_name:
@@ -82,7 +84,7 @@ async def save_resume(file: UploadFile, organization_id: str) -> tuple[str, str]
             )
             return response.get("secure_url"), file.filename
         except Exception as e:
-            print(f"ERROR: Cloudinary upload failed: {str(e)}")
+            logger.error("Cloudinary resume upload failed: %s", e)
             raise HTTPException(status_code=500, detail=f"Resume upload to Cloudinary failed: {str(e)}")
 
     # 2. Fallback Local Storage Flow
@@ -127,7 +129,7 @@ async def save_jd(file: UploadFile, organization_id: str) -> tuple[str, str]:
             )
             return response.get("secure_url"), file.filename
         except Exception as e:
-            print(f"ERROR: Cloudinary upload failed: {str(e)}")
+            logger.error("Cloudinary JD upload failed: %s", e)
             raise HTTPException(status_code=500, detail=f"JD upload to Cloudinary failed: {str(e)}")
 
     # 2. Fallback Local Storage Flow
@@ -166,7 +168,6 @@ async def save_avatar(file: UploadFile, user_id: str) -> str:
 
     # 1. Cloudinary Upload Flow
     if settings.cloudinary_cloud_name:
-        import asyncio
         try:
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
@@ -179,7 +180,7 @@ async def save_avatar(file: UploadFile, user_id: str) -> str:
             )
             return response.get("secure_url")
         except Exception as e:
-            print(f"ERROR: Cloudinary upload failed: {str(e)}")
+            logger.error("Cloudinary avatar upload failed: %s", e)
             raise HTTPException(status_code=500, detail=f"Image upload to Cloudinary failed: {str(e)}")
 
     # 2. Fallback Local Storage Flow
@@ -219,7 +220,7 @@ async def save_logo(file: UploadFile, organization_id: str) -> str:
             )
             return response.get("secure_url")
         except Exception as e:
-            print(f"ERROR: Cloudinary upload failed: {str(e)}")
+            logger.error("Cloudinary logo upload failed: %s", e)
             raise HTTPException(status_code=500, detail=f"Image upload to Cloudinary failed: {str(e)}")
 
     # 2. Fallback Local Storage Flow
@@ -261,8 +262,8 @@ async def save_audio(audio_data: bytes, session_id: str, question_index: int, ex
             )
             return response["secure_url"]
         except Exception as e:
-            print(f"ERROR: Cloudinary audio upload failed: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Audio upload to Cloudinary failed: {str(e)}")
+            logger.error("Cloudinary audio upload failed: %s", e)
+            raise HTTPException(status_code=500, detail=f"Audio upload to Cloudinary failed: {str(e)}")    
 
     # Local fallback
     path = Path(settings.upload_dir) / "pre-screening" / session_id

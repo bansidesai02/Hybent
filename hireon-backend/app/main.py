@@ -4,6 +4,7 @@ Registers all routers, middleware, static files, and startup events.
 """
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -48,7 +49,6 @@ async def lifespan(app: FastAPI):
     # Always run Alembic migrations on startup to ensure Render DB is up to date
     # This fixes issues where Render Native environments don't run entrypoint.sh
     try:
-        import asyncio
         from alembic import command
         from alembic.config import Config
         def run_migrations():
@@ -112,7 +112,6 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-import time
 perf_logger = logging.getLogger("api_performance")
 
 @app.middleware("http")
