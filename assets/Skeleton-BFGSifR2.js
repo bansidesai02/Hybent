@@ -1,0 +1,1 @@
+import{j as a}from"./vendor-utils-DrKH1fKA.js";import{c as s}from"./clsx-B-dksMZM.js";function t({className:r}){return a.jsx("div",{className:s("animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg",r)})}export{t as S};
