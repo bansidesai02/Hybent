@@ -6,7 +6,7 @@ import traceback
 from sqlalchemy import select
 
 from app.services.copilot_service import run_copilot_chat
-from app.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal
 from app.models.organization import Organization
 from app.models.user import User
 

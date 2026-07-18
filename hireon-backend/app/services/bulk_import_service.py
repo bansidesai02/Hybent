@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 import pandas as pd
 from openpyxl import load_workbook
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.candidate import Candidate
 from app.models.application import Application

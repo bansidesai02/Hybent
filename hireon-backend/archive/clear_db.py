@@ -1,5 +1,5 @@
 import asyncio
-from app.database import engine
+from app.core.database import engine
 from sqlalchemy import text
 
 async def clear_all():

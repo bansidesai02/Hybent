@@ -6,9 +6,8 @@ from app.models.scorecard import Scorecard
 from app.models.interview import Interview
 from app.schemas.scorecard import ScorecardCreate, ScorecardOut
 from app.schemas.response import APIResponse
-from app.tasks.notifications import notify_candidate_stage_change, send_system_notification
+from app.tasks.notifications import send_system_notification
 from sqlalchemy.orm import selectinload
-from app.models.candidate import Candidate
 
 router = APIRouter(prefix="/v1/scorecards", tags=["scorecards"])
 interview_router = APIRouter(prefix="/v1/interviews", tags=["interviews"])

@@ -1,14 +1,13 @@
 import uuid
 import logging
-import time
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal
 from app.models.organization_ai_credits import OrganizationAICredits
 from app.models.ai_credit_rule import AICreditRule
 from app.models.ai_usage import AIUsage
-from app.models.super_admin import CompanySubscription, SubscriptionPlan
+from app.models.super_admin import CompanySubscription
 from app.utils.exceptions import InsufficientCreditsException
 from app.tasks.notifications import notify_organization_roles
 

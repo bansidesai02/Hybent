@@ -3,15 +3,15 @@ import logging
 from dataclasses import dataclass, field
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Form
 from sqlalchemy import select
-from app.dependencies import DB, CurrentUser, RecruiterUser
+from app.dependencies import DB, RecruiterUser
 from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut
-from app.services.storage_service import save_resume, read_file_bytes
+from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
 from app.services.resume_parser import parse_resume
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
-from app.config import settings
+from app.core.config import settings
 
 
 
@@ -196,7 +196,7 @@ async def upload_and_create(
         if c1 in c2 or c2 in c1: return False
         
         generics = ["software", "engineer", "developer", "backend", "frontend", "full stack", "programmer", "coder", "tech lead", "it", "web"]
-        is_c1_generic = any(g in c1 for g in generics)
+        any(g in c1 for g in generics)
         is_c2_generic = any(g in c2 for g in generics)
         
         # If target category is generic, it's not a mismatch
@@ -285,8 +285,8 @@ async def upload_and_create(
                 min_experience_years=min_experience,
             )
         
-        job_skills = list(job.skills_required or []) if not isinstance(job, _JobReq) else req_skills_list
-        job_title = job.title
+        list(job.skills_required or []) if not isinstance(job, _JobReq) else req_skills_list
+        job.title
         
         from app.services.match_scorer import evaluate_candidate_match
         score, breakdown = await evaluate_candidate_match(

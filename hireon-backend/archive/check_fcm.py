@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from app.models.user import User
-from app.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal
 import asyncio
 
 async def check():

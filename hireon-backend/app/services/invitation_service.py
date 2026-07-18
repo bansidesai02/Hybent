@@ -5,7 +5,7 @@ from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.core.config import settings
 from app.models.invitation import CandidateInvitation
 from app.models.candidate import Candidate
 from app.models.organization import Organization

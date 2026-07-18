@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, status, Response
+from fastapi import APIRouter, Response
 from app.dependencies import DB
-from app.schemas.invitation import InvitationOut, InvitationVerify, InvitationUse
+from app.schemas.invitation import InvitationOut, InvitationUse
 from app.services import invitation_service
 from app.schemas.response import APIResponse
 

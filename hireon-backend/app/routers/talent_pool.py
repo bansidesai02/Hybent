@@ -3,10 +3,9 @@ Talent pool: browse all candidates, filter by skills/tags, re-engage.
 """
 import uuid
 from fastapi import APIRouter, Query
-from sqlalchemy import select, func, cast, String, or_
+from sqlalchemy import select, func
 from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.models.candidate import Candidate
-from app.models.job import Job
 from app.schemas.candidate import CandidateOut
 from app.utils.pagination import paginate
 from app.services.activity_service import log_activity

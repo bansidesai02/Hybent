@@ -1,5 +1,5 @@
 import asyncio
-from app.database import SessionLocal
+from app.core.database import SessionLocal
 from app.models.user import User
 from sqlalchemy import select
 

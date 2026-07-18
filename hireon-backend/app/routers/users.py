@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -18,7 +17,7 @@ from pydantic import BaseModel
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
 from app.services.email_service import send_team_invite
-from app.config import settings
+from app.core.config import settings
 
 router = APIRouter(prefix="/v1/users", tags=["users"])
 

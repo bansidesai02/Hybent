@@ -1,9 +1,7 @@
 import uuid
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select, or_, and_, func, desc
-from sqlalchemy.orm import selectinload
 
 from app.dependencies import DB, CurrentUser
 from app.models.message import Message
@@ -11,7 +9,7 @@ from app.models.user import User
 from app.schemas.message import MessageCreate, MessageRead, ConversationSummary
 from app.schemas.response import APIResponse
 from app.websocket.manager import ws_manager
-from app.utils.permissions import UserRole, NotificationType
+from app.utils.permissions import NotificationType
 from app.tasks.notifications import send_system_notification
 
 router = APIRouter(prefix="/v1/messages", tags=["messages"])

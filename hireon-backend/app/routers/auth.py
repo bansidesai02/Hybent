@@ -1,9 +1,8 @@
-import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Response, Cookie
 from sqlalchemy import select, update
 from app.dependencies import DB, CurrentUser
-from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, TokenResponse, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.schemas.response import APIResponse
 from app.services import auth_service, invitation_service
 from app.utils.security import hash_password, verify_password
@@ -11,8 +10,7 @@ from app.models.user import User
 from app.models.candidate import Candidate
 from app.models.password_reset import PasswordResetToken
 from app.models.organization import Organization
-from app.config import settings as cfg
-from app.services.email_service import send_password_reset_email
+from app.core.config import settings as cfg
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 

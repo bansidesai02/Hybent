@@ -8,7 +8,7 @@ from app.models.candidate import Candidate
 from app.models.user import User
 from app.models.application import Application
 from app.models.job import Job
-from app.schemas.interview import InterviewCreate, InterviewUpdate, InterviewOut, PanelistOut
+from app.schemas.interview import InterviewCreate, InterviewUpdate, InterviewOut
 from app.services.calendar_service import create_calendar_event, cancel_calendar_event
 from app.services.email_service import (
     send_interview_invite, 

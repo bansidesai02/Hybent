@@ -1,6 +1,5 @@
 import uuid
 import logging
-from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit_log import AuditLog
 from app.websocket.manager import ws_manager

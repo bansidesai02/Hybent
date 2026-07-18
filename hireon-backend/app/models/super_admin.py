@@ -1,10 +1,10 @@
 from app.models.organization import Organization
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Float, Integer, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Float, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
+from app.core.database import Base
 
 class SubscriptionPlan(Base):
     __tablename__ = "subscription_plans"

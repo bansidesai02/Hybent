@@ -1,8 +1,5 @@
 import logging
 import uuid
-from datetime import datetime, timezone
-from app.database import AsyncSessionLocal
-from app.models.ai_usage import AIUsage
 
 logger = logging.getLogger(__name__)
 

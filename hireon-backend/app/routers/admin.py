@@ -1,10 +1,9 @@
 """
 Admin-only endpoints: audit logs, org settings, team management.
 """
-import uuid
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Query, Depends
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from app.dependencies import DB, require_admin
 from app.models.audit_log import AuditLog
 from app.models.user import User
@@ -280,7 +279,7 @@ async def test_email(
     Check backend logs for ✅ or ❌ status after calling this endpoint.
     """
     from fastapi import HTTPException
-    from app.config import settings
+    from app.core.config import settings
     from app.services.email_service import send_email
 
     # Quick SMTP configuration check before attempting

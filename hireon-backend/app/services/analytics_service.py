@@ -15,8 +15,8 @@ from app.models.offer import Offer
 from app.models.scorecard import Scorecard
 from app.schemas.analytics import (
     AnalyticsOverview, FunnelStage, FunnelData,
-    ScoreDistributionBucket, TimeToHireData, InterviewerPerformance,
-    FairnessMetrics, StagePassRate, SourcePassRate, InterviewerCalibration
+    ScoreDistributionBucket, InterviewerPerformance, FairnessMetrics,
+    StagePassRate, SourcePassRate, InterviewerCalibration
 )
 from app.utils.permissions import ApplicationStage, OfferStatus
 
@@ -248,7 +248,6 @@ async def get_interviewer_performance(org_id: uuid.UUID, db: AsyncSession) -> li
 async def get_fairness_metrics(org_id: uuid.UUID, db: AsyncSession) -> FairnessMetrics:
     """Calculates fairness/bias analytics based on real tenant data."""
     from app.models.user import User
-    from app.models.interview import InterviewPanelist
 
     # 1. Pass rates by Stage
     # A candidate "passes" a stage if their application stage is in a later bucket.

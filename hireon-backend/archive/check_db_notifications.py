@@ -2,7 +2,7 @@
 import asyncio
 import uuid
 from sqlalchemy import select
-from app.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal
 from app.models.notification import Notification
 
 async def check_latest_notifications():

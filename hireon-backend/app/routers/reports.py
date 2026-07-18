@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Response
-from app.dependencies import DB, CurrentUser, RecruiterUser
+from fastapi import APIRouter, Response
+from app.dependencies import DB, RecruiterUser
 from app.services import report_service
 from app.utils.permissions import UserRole
 from app.schemas.response import APIResponse

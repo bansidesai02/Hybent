@@ -71,7 +71,7 @@ async def generate_jd(
     
 @router.get("/test-gemini")
 async def test_gemini():
-    from app.config import settings
+    from app.core.config import settings
     import google.generativeai as genai
     
     status = {
@@ -229,7 +229,7 @@ async def generate_image(
 @router.get("/health-check")
 async def ai_health_check(current_user: Annotated[User, Depends(require_recruiter)]):
     """Diagnose AI provider availability from production server."""
-    from app.config import settings
+    from app.core.config import settings
     result = {}
     
     # Check Gemini key

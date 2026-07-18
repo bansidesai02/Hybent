@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # Import our app's Base and all models so Alembic can detect them
-from app.database import Base
+from app.core.database import Base
 import app.models  # noqa — registers all models on Base.metadata
 
 # this is the Alembic Config object
@@ -24,7 +24,7 @@ target_metadata = Base.metadata
 # Override the sqlalchemy.url from the environment / app settings so Docker
 # always uses the correct DATABASE_URL instead of the hard-coded localhost URL
 # in alembic.ini.
-from app.config import settings  # noqa: E402
+from app.core.config import settings  # noqa: E402
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 

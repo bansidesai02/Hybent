@@ -10,7 +10,7 @@ from app.models.application import Application
 from app.models.candidate import Candidate
 from app.models.job import Job
 from app.schemas.application import StageUpdate
-from app.utils.permissions import ApplicationStage, UserRole
+from app.utils.permissions import ApplicationStage
 from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/v1/pipeline", tags=["pipeline"])

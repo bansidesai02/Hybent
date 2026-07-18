@@ -85,7 +85,7 @@ services:
       dockerfile: Dockerfile
     container_name: hireon_celery_worker
     restart: unless-stopped
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.core.celery_app worker --loglevel=info
     env_file:
       - .env.docker
     environment:
@@ -111,7 +111,7 @@ services:
       dockerfile: Dockerfile
     container_name: hireon_celery_beat
     restart: unless-stopped
-    command: celery -A app.celery_app beat --loglevel=info
+    command: celery -A app.core.celery_app beat --loglevel=info
     env_file:
       - .env.docker
     environment:

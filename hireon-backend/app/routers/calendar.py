@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.core.config import settings
 from app.dependencies import get_db, CurrentUser
 from app.models.user import User
 from app.schemas.response import APIResponse

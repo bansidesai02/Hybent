@@ -1,7 +1,7 @@
 
 import asyncio
 from sqlalchemy import select, text
-from app.database import engine
+from app.core.database import engine
 
 async def debug_db():
     async with engine.connect() as conn:

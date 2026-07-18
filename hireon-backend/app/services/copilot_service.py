@@ -4,7 +4,7 @@ import logging
 import uuid
 import time
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Optional
 
 from app.services.groq_client import SafeGroq as Groq
 from sqlalchemy import text, select
@@ -12,12 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import BackgroundTasks
 import zoneinfo
 
-from app.config import settings
+from app.core.config import settings
 from app.services.copilot_intelligence import (
     preprocess_query,
-    build_search_context_from_history,
-    SearchIntent,
-    ABBREVIATION_MAP,
     is_jd_creation_intent,
     extract_role_from_jd_query,
 )
@@ -1271,8 +1268,6 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
             stage = args.get("interview_stage")
 
             # 1. Fetch Org & User details
-            from app.models.organization import Organization
-            from app.models.user import User
 
             oid = uuid.UUID(organization_id) if isinstance(organization_id, str) else organization_id
             uid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id

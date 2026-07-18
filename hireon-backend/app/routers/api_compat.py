@@ -2,7 +2,6 @@ import uuid
 from typing import Annotated
 from fastapi import APIRouter, Depends, BackgroundTasks
 from app.dependencies import DB, CurrentUser, RecruiterUser
-from app.schemas.response import APIResponse
 from app.schemas.candidate import CandidateDesignationUpdate
 from app.routers.designations import list_designations
 from app.routers.candidates import update_candidate_designation

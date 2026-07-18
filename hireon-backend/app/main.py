@@ -18,21 +18,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.utils.exceptions import InsufficientCreditsException
 
 from app.schemas.response import APIResponse
-from app.config import settings
-from app.database import engine, Base
+from app.core.config import settings
+from app.core.database import engine
 from app.websocket.manager import ws_manager
 from app.middleware.audit import AuditMiddleware
 from app.middleware.tenant import TenantMiddleware
 from app.services import elasticsearch_service as es_service
 import app.models  # noqa: F401 — register all models with Base
-from app.routers import (
-    auth, organizations, users, jobs, candidates,
-    resumes, ai, applications, pipeline,
-    interviews, scorecards, offers,
-    analytics, notifications, talent_pool, portal, admin, calendar, invitations,
-    activities, reports, messages, search, public, copilot, bulk_import, linkedin, designations, api_compat,
-    super_admin, candidate_files, pre_screening
-)
+from app.routers.api import api_router
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -200,39 +193,7 @@ uploads_path.mkdir(exist_ok=True)
 app.mount("/static/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
 
 # ── Routers ────────────────────────────────────────────────────────────────────
-app.include_router(auth.router)
-app.include_router(organizations.router)
-app.include_router(users.router)
-app.include_router(jobs.router)
-app.include_router(designations.router)
-app.include_router(candidates.router)
-app.include_router(resumes.router)
-app.include_router(ai.router)
-app.include_router(applications.router)
-app.include_router(pipeline.router)
-app.include_router(interviews.router)
-app.include_router(scorecards.router)
-app.include_router(scorecards.interview_router)
-app.include_router(offers.router)
-app.include_router(analytics.router)
-app.include_router(notifications.router)
-app.include_router(talent_pool.router)
-app.include_router(portal.router)
-app.include_router(admin.router)
-app.include_router(calendar.router)
-app.include_router(invitations.router)
-app.include_router(activities.router)
-app.include_router(reports.router)
-app.include_router(messages.router)
-app.include_router(search.router)
-app.include_router(copilot.router)
-app.include_router(bulk_import.router)
-app.include_router(linkedin.router)
-app.include_router(public.router, prefix="/api")
-app.include_router(api_compat.router)
-app.include_router(super_admin.router)
-app.include_router(candidate_files.router)
-app.include_router(pre_screening.router)
+app.include_router(api_router)
 
 
 @app.get("/", tags=["health"])

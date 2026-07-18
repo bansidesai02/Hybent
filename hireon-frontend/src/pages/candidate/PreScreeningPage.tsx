@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { CheckCircle, ChevronRight, AlertTriangle, Mic, Clock, FileText, Briefcase, Loader2 } from 'lucide-react'
 import { preScreeningApi, type PublicSession, type ScreeningQuestion, type ScreeningLanguage } from '@/api/preScreening'
-import { AudioRecorder } from '@/components/PreScreening/AudioRecorder'
+import { AudioRecorder } from '@/modules/interviewer/components/PreScreening/AudioRecorder'
 
 type PageState = 'loading' | 'intro' | 'question' | 'completed' | 'error'
 

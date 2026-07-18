@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

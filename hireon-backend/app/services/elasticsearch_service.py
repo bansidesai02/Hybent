@@ -17,7 +17,7 @@ if Elasticsearch is unavailable — callers receive None / empty results.
 import logging
 from typing import Any
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,7 @@ from app.schemas.interview import InterviewOut
 from app.schemas.offer import OfferOut, OfferRespondRequest
 from app.schemas.candidate import CandidateOut, CandidateUpdate
 from app.schemas.job import JobOut
-from app.schemas.job_referral import JobReferralCreate, JobReferralOut
+from app.schemas.job_referral import JobReferralOut
 from app.schemas.other_offer import OtherOfferCreate, OtherOfferOut
 from app.schemas.candidate_document import CandidateDocumentCreate, CandidateDocumentOut
 from app.utils.permissions import UserRole, OfferStatus, NotificationType
@@ -31,8 +31,8 @@ from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
 from app.services.resume_parser import parse_resume
 from app.schemas.response import APIResponse
-from app.tasks.notifications import notify_organization_roles, send_system_notification
-from app.config import settings
+from app.tasks.notifications import notify_organization_roles
+from app.core.config import settings
 
 router = APIRouter(prefix="/v1/portal", tags=["portal"])
 

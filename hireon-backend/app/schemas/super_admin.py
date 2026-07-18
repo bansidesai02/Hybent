@@ -1,6 +1,5 @@
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
-from typing import Any
 
 class SubscriptionPlanOut(BaseModel):
     id: str

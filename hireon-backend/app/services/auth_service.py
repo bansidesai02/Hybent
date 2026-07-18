@@ -1,7 +1,6 @@
 """
 Authentication service: register, login, token refresh, logout.
 """
-import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
@@ -9,10 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.config import settings
+from app.core.config import settings
 from app.models.organization import Organization
 from app.models.user import User, RefreshToken
-from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserOut
+from app.schemas.auth import RegisterRequest, LoginRequest, UserOut
 from app.utils.permissions import UserRole
 from app.utils.security import hash_password, verify_password, create_access_token, create_refresh_token
 

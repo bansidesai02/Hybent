@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.core.config import settings
 from app.dependencies import DB, RecruiterUser
 from app.models.candidate import Candidate
 from app.models.job import Job
@@ -494,7 +494,7 @@ async def upload_response(
         ctype: str,
         lang: str,
     ):
-        from app.database import get_session_factory
+        from app.core.database import get_session_factory
         try:
             result = await transcribe_audio(
                 audio_data=data,

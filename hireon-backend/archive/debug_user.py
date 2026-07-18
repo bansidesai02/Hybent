@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from app.database import engine, AsyncSessionLocal
+from app.core.database import engine, AsyncSessionLocal
 from app.models.user import User
 from app.models.organization import Organization
 

@@ -31,7 +31,7 @@ from app.schemas.response import APIResponse
 from app.services.activity_service import log_activity
 from app.services import supabase_storage_service
 from app.utils.permissions import UserRole
-from app.config import settings
+from app.core.config import settings
 
 router = APIRouter(prefix="/v1/candidates", tags=["candidate-files"])
 logger = logging.getLogger(__name__)

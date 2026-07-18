@@ -20,7 +20,7 @@ from jose import jwt, JWTError
 from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.responses import HTMLResponse
 
-from app.config import settings
+from app.core.config import settings
 from app.dependencies import DB, require_recruiter
 from app.models.user import User
 from app.schemas.response import APIResponse

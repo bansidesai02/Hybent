@@ -4,7 +4,6 @@ Files saved to uploads/ directory, served via FastAPI StaticFiles.
 """
 import asyncio
 import logging
-import os
 import uuid
 import aiofiles
 from pathlib import Path
@@ -13,7 +12,7 @@ from fastapi import UploadFile, HTTPException
 import cloudinary
 import cloudinary.uploader
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

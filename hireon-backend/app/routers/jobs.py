@@ -1,7 +1,6 @@
 import uuid
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, BackgroundTasks, Depends
 from sqlalchemy import select, func, cast, String as SAString
-from sqlalchemy.orm import selectinload
 from app.dependencies import DB, get_current_user, require_recruiter, require_admin
 from app.models.user import User
 from typing import Annotated
@@ -12,7 +11,7 @@ from app.schemas.job import JobCreate, JobUpdate, JobOut
 from app.utils.pagination import paginate
 from app.utils.permissions import JobStatus
 from app.services.resume_parser import parse_jd
-from app.services.storage_service import save_jd, read_file_bytes
+from app.services.storage_service import save_jd
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service

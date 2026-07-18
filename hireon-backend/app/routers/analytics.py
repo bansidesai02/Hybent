@@ -1,6 +1,6 @@
 import uuid
 from fastapi import APIRouter, Query
-from app.dependencies import DB, CurrentUser, RecruiterUser
+from app.dependencies import DB, RecruiterUser
 from app.services import analytics_service
 from app.schemas.response import APIResponse
 

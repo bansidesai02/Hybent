@@ -1,4 +1,3 @@
-import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from sqlalchemy import select
 from app.dependencies import DB, CurrentUser, AdminUser

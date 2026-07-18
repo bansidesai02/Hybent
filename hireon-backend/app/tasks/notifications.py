@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.celery_app import celery_app
-from app.database import AsyncSessionLocal
+from app.core.celery_app import celery_app
+from app.core.database import AsyncSessionLocal
 from app.models.interview import Interview, InterviewPanelist
 from app.models.scorecard import Scorecard
 from app.models.notification import Notification
@@ -354,7 +354,7 @@ def notify_candidate_stage_change(user_id: str | None, candidate_id: str, new_st
 
 async def _reset_expired_credits_async():
     from datetime import datetime, timezone, timedelta
-    from app.database import AsyncSessionLocal
+    from app.core.database import AsyncSessionLocal
     from app.models.organization_ai_credits import OrganizationAICredits
     from app.tasks.notifications import notify_organization_roles
     from sqlalchemy import select

@@ -10,10 +10,9 @@ from app.models.user import User
 from typing import Annotated
 from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate, CandidateInvite, CandidateStageUpdate, CandidateDesignationUpdate
-from app.services.email_service import send_candidate_invite
 from app.utils.pagination import paginate
 from app.utils.permissions import UserRole, NotificationType, JobStatus, REJECTION_STAGES
-from app.tasks.notifications import notify_organization_roles, send_system_notification, notify_candidate_stage_change
+from app.tasks.notifications import notify_organization_roles, notify_candidate_stage_change
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job

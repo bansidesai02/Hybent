@@ -19,7 +19,7 @@ def _init_firebase() -> bool:
     try:
         import firebase_admin
         from firebase_admin import credentials
-        from app.config import settings
+        from app.core.config import settings
 
         if not settings.firebase_service_account_json:
             logger.warning("[FCM] FIREBASE_SERVICE_ACCOUNT_JSON is not set — push notifications disabled.")

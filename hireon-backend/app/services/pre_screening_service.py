@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import BackgroundTasks
 
-from app.config import settings
+from app.core.config import settings
 from app.services.groq_client import SafeGroq as Groq
 from app.services.ai_usage_tracker import log_ai_usage
 

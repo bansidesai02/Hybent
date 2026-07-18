@@ -5,7 +5,7 @@ import sys
 # Add app directory to path
 sys.path.append(os.getcwd())
 
-from app.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal
 
 async def task_with_loop(task_id):
     print(f"Starting task {task_id} in loop {id(asyncio.get_running_loop())}")

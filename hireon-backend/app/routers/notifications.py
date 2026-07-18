@@ -2,7 +2,6 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
-from jose import JWTError
 from sqlalchemy import select
 from app.dependencies import DB, CurrentUser
 from app.models.notification import Notification

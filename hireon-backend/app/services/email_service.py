@@ -8,7 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from dateutil import parser as date_parser
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
 
 def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None, is_centered: bool = True) -> str:
     """Consistently renders the brand logo across all templates."""
-    align = "center" if is_centered else "left"
+    "center" if is_centered else "left"
     margin = "0 auto" if is_centered else "0"
     
     # Use BrainerHub logo as default fallback (or use provided URL if any)
@@ -481,7 +481,6 @@ def send_candidate_invite(
     org_logo_url: str | None = None,
     job_title: str | None = None,
 ) -> bool:
-    from datetime import datetime
     subject = f"Join the {company_name} Candidate Portal - {candidate_name}"
     if job_title:
         subject += f" - {job_title}"

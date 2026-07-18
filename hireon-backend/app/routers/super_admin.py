@@ -1,27 +1,22 @@
 import uuid
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy import select, func, text, update, delete
+from fastapi import APIRouter, HTTPException, Request
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import DB, SuperAdminUser, require_super_admin, CurrentUser
+from app.dependencies import DB, SuperAdminUser, CurrentUser
 from app.models.organization import Organization
 from app.models.user import User
 from app.models.job import Job
 from app.models.candidate import Candidate
 from app.models.interview import Interview
-from app.models.audit_log import AuditLog
 from app.models.super_admin import (
     SubscriptionPlan, CompanySubscription, CompanyFeatureFlag,
-    CompanyUsage, SuperAdminAuditLog, ImpersonationLog,
-    PlatformSetting, BillingTransaction
+    SuperAdminAuditLog, ImpersonationLog, PlatformSetting
 )
 from app.schemas.super_admin import (
-    ClientOut, ClientCreate, ClientUpdate, GlobalUserOut,
-    SuperAdminAuditLogOut, HealthStatus, SMTPBrandingSecuritySettings,
-    PlatformSettingsUpdate, SubscriptionPlanOut, ImpersonationStartRequest
+    ClientCreate, ClientUpdate, PlatformSettingsUpdate, ImpersonationStartRequest
 )
 from app.schemas.response import APIResponse
 from app.utils.security import create_access_token, hash_password

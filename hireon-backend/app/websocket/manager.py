@@ -11,7 +11,7 @@ from typing import Any
 import redis.asyncio as redis
 from fastapi import WebSocket
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +179,7 @@ class ConnectionManager:
             from sqlalchemy import select as sa_select
             from app.models.user import User
             from app.services.firebase_service import send_push
-            from app.database import AsyncSessionLocal
+            from app.core.database import AsyncSessionLocal
             import uuid
 
             async with AsyncSessionLocal() as db:
