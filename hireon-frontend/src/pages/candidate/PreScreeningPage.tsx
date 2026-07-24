@@ -233,7 +233,7 @@ export default function PreScreeningPage() {
         <div style={styles.card}>
           <div style={styles.introBrand}>
             <span style={styles.brandDot} />
-            <span style={styles.brandName}>HireOn</span>
+            <span style={styles.brandName}>Hybent Hiring</span>
           </div>
 
           <h1 style={styles.introTitle}>AI Pre-Screening Interview</h1>

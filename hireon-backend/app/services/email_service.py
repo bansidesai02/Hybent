@@ -158,7 +158,7 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                 </div>
                 <div class="footer">
                     <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com">info@hirreon.com</a></p>
-                    <p style="margin: 0 0 16px 0;">&copy; 2026 Hireon AI Platform. All rights reserved.</p>
+                    <p style="margin: 0 0 16px 0;">&copy; 2026 Hybent Hiring AI Platform. All rights reserved.</p>
                     
                     <!-- Powered by Section -->
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
@@ -303,7 +303,7 @@ def _get_calendar_invite_template(
             </div>
             <div class="footer">
                 <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hirreon.com</a></p>
-                <p style="margin: 0 0 12px 0;">&copy; {date_year} Hireon AI Platform. All rights reserved.</p>
+                <p style="margin: 0 0 12px 0;">&copy; {date_year} Hybent Hiring AI Platform. All rights reserved.</p>
                 <div style="margin-top: 8px;">
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                         <tr>
@@ -686,7 +686,7 @@ def send_demo_request_email(
     monthly_hires: str,
     hiring_challenge: str
 ) -> None:
-    """Send demo request notification to Hireon admin."""
+    """Send demo request notification to Hybent Hiring admin."""
     subject = f"New Demo Request: {first_name} {last_name} from {company_name}"
     recipient = "info@hirreon.com"
     
@@ -719,4 +719,4 @@ def send_demo_request_email(
             <a href="mailto:{work_email}" class="button">Connect to Organization</a>
         </div>
     """
-    send_email(recipient, subject, _get_base_template(content, org_name="Hireon"))
+    send_email(recipient, subject, _get_base_template(content, org_name="Hybent Hiring"))

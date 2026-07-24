@@ -484,7 +484,7 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
                   </motion.div>
 
-                  {/* Pulsing Hireon Logo Box */}
+                  {/* Pulsing Hybent Hiring Logo Box */}
                   <motion.div
                     animate={{ 
                       scale: [1, 1.05, 1],
@@ -503,7 +503,7 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
                       <div className="absolute inset-0 rounded-[12px]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25), transparent 60%)' }} />
                     </div>
 
-                    {/* Hireon 'H' SVG mark */}
+                    {/* Hybent Hiring 'H' SVG mark */}
                     <svg className="relative z-10" width="24" height="24" viewBox="0 0 22 22" fill="none">
                       <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
                       <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />

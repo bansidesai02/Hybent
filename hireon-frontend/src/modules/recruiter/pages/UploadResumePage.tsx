@@ -515,7 +515,7 @@ function UploadResumePageInner() {
           Upload Resume
         </h1>
         <p className="page-subtitle">
-          Drop a resume and watch Hireon AI analyse it against your job requirements.
+          Drop a resume and watch Hybent Hiring AI analyse it against your job requirements.
         </p>
       </header>
 

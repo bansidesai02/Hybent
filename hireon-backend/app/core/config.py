@@ -24,7 +24,7 @@ class Settings(BaseSettings):
         return v
 
     # ── App ────────────────────────────────────────────────────────────────────
-    app_name: str = "Hireon"
+    app_name: str = "Hybent Hiring"
     app_env: str = "development"
     secret_key: str = ""
     algorithm: str = "HS256"
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    smtp_from_name: str = "HireOn"
+    smtp_from_name: str = "Hybent Hiring"
     resend_api_key: str = ""
 
     # ── Google Calendar ────────────────────────────────────────────────────────

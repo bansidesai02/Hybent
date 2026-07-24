@@ -139,7 +139,7 @@ export default function OnboardingPage() {
                                 </svg>
                             </div>
                         </div>
-                        <span className="logo-wordmark lwl">Hireon</span>
+                        <span className="logo-wordmark lwl">Hybent Hiring</span>
                     </div>
 
                     <h1 className="text-2xl font-bold mb-2">Welcome, {invitation?.full_name}!</h1>

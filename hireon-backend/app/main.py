@@ -1,5 +1,5 @@
 """
-HireOn FastAPI application entry point.
+Hybent Hiring FastAPI application entry point.
 Registers all routers, middleware, static files, and startup events.
 """
 import asyncio
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup/shutdown events."""
-    logger.info(f"🚀 HireOn API starting in {settings.app_env} mode")
+    logger.info(f"🚀 Hybent Hiring API starting in {settings.app_env} mode")
 
     # Always run Alembic migrations on startup to ensure Render DB is up to date
     # This fixes issues where Render Native environments don't run entrypoint.sh
@@ -93,11 +93,11 @@ async def lifespan(app: FastAPI):
     # Close ES client
     await es_service.close()
     
-    logger.info("HireOn API shutting down")
+    logger.info("Hybent Hiring API shutting down")
 
 
 app = FastAPI(
-    title="HireOn API",
+    title="Hybent Hiring API",
     description="AI-powered recruitment automation platform",
     version="1.0.0",
     lifespan=lifespan,

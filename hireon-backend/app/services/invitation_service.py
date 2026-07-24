@@ -51,7 +51,7 @@ async def create_invitation(
     # Get organization info for the email
     org_result = await db.execute(select(Organization).where(Organization.id == organization_id))
     organization = org_result.scalar_one_or_none()
-    company_name = organization.name if organization else "HireOn"
+    company_name = organization.name if organization else "Hybent Hiring"
 
     # Construct portal URL with token
     # Assuming the onboarding page is at /onboarding/:token

@@ -16,7 +16,7 @@ export function getCalendarUrls(interview: CalendarEventData) {
   const candidateDesc = interview.candidate_name ? `Candidate: ${interview.candidate_name}\n` : ''
   const meetDesc = interview.meeting_link ? `Meeting Link: ${interview.meeting_link}\n` : ''
   const notesDesc = interview.notes ? `Notes: ${interview.notes}\n` : ''
-  const description = `${candidateDesc}${meetDesc}${notesDesc}Scheduled via Hireon AI`
+  const description = `${candidateDesc}${meetDesc}${notesDesc}Scheduled via Hybent Hiring AI`
 
   const location = interview.meeting_link || 'Virtual (Video Call)'
 
@@ -36,7 +36,7 @@ export function getCalendarUrls(interview: CalendarEventData) {
   const icsLines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Hireon AI//Calendar Integration//EN',
+    'PRODID:-//Hybent Hiring AI//Calendar Integration//EN',
     'BEGIN:VEVENT',
     `SUMMARY:${title}`,
     `DTSTART:${startStr}`,

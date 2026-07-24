@@ -1,5 +1,5 @@
 """
-Supabase Storage Service for Hireon.
+Supabase Storage Service for Hybent Hiring.
 
 Handles all file operations with Supabase Storage:
 - Resume upload and retrieval (current scope)

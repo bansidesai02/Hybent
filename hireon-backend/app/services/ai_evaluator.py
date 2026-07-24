@@ -1030,7 +1030,7 @@ async def generate_image_prompt(
                 organization_id=organization_id
             )
 
-CLEAN_TRANSCRIPT_PROMPT = """You are an AI assistant specialized in cleaning and refining spoken voice transcripts for a recruiting platform (Hireon).
+CLEAN_TRANSCRIPT_PROMPT = """You are an AI assistant specialized in cleaning and refining spoken voice transcripts for a recruiting platform (Hybent Hiring).
 Your task is to fix any transcription, grammar, punctuation, and capitalization errors in the user's input, particularly focusing on technical terms, HR terms, candidate stages, and locations.
 
 DO NOT change the core meaning or intent of the user. Only refine the syntax, correct misspelled names, capitalization, and recruiter-specific vocabulary.
@@ -1044,7 +1044,7 @@ Here is a list of common recruiting/technical terms you should correct:
 - fastapi / fast api -> FastAPI
 - python / java / devops -> Python / Java / DevOps
 - brainerhub / brainer hub -> BrainerHub
-- hireon / hire on / hire-on -> Hireon
+- hireon / hire on / hire-on -> Hybent Hiring
 - ahmedabad -> Ahmedabad
 - resume / cv -> Resume / CV
 

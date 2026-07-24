@@ -175,7 +175,7 @@ export default function RegisterPage() {
               </svg>
             </div>
           </div>
-          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hireon</span>
+          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hybent Hiring</span>
         </div>
 
         {submitted ? (
@@ -189,7 +189,7 @@ export default function RegisterPage() {
             <p className="form-h2">
               {isDemo 
                 ? "Thank you for scheduling a demo. Our team will reach out to you within 24 hours to set up your session."
-                : "Thank you for your interest in Hireon. Our team will reach out to you shortly to get your workspace ready."}
+                : "Thank you for your interest in Hybent Hiring. Our team will reach out to you shortly to get your workspace ready."}
             </p>
             <button 
               className="btn-submit" 
@@ -207,7 +207,7 @@ export default function RegisterPage() {
             </h1>
             <p className="form-h2">
               {isDemo 
-                ? 'Experience the power of Hireon AI. Schedule a personalized walkthrough with our team.'
+                ? 'Experience the power of Hybent Hiring AI. Schedule a personalized walkthrough with our team.'
                 : "Fill in your details and we'll get back to you within 24 hours to set up your account."}
             </p>
 

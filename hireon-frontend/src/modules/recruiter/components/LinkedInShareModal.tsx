@@ -88,7 +88,7 @@ function generateJobCardImage(job: Job, variant: number = 0): string {
 
   const brandGrad = ctx.createLinearGradient(60, 0, 300, 0)
   brandGrad.addColorStop(0, '#a78bfa'); brandGrad.addColorStop(1, '#0077b5')
-  ctx.fillStyle = brandGrad; ctx.font = 'bold 28px Georgia, serif'; ctx.fillText('Hireon', 60, 596)
+  ctx.fillStyle = brandGrad; ctx.font = 'bold 28px Georgia, serif'; ctx.fillText('Hybent Hiring', 60, 596)
   ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '18px Arial, sans-serif'; ctx.fillText('AI-Powered Recruitment Platform', 170, 596)
   ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '16px Arial, sans-serif'
   ctx.textAlign = 'right'; ctx.fillText('Apply now · gethireon.netlify.app', 1140, 596); ctx.textAlign = 'left'
@@ -521,7 +521,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>Connect your LinkedIn account</div>
                     <div style={{ fontSize: 13, color: 'var(--text-light)', maxWidth: 380 }}>
-                      To publish directly to LinkedIn you need to authorise Hireon once. Click below — it opens a small popup.
+                      To publish directly to LinkedIn you need to authorise Hybent Hiring once. Click below — it opens a small popup.
                     </div>
                   </div>
                   <button

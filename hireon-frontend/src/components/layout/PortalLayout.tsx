@@ -137,7 +137,7 @@ function PortalLayoutComponent() {
                   </svg>
                 </div>
               </div>
-              <span className="logo-wordmark lwl">Hireon</span>
+              <span className="logo-wordmark lwl">Hybent Hiring</span>
             </div>
           </div>
           <div className="sb-divider" />

@@ -271,7 +271,7 @@ export default function OverviewPage() {
           {greeting}, {user?.full_name?.split(' ')[0] || 'there'} 
         </h1>
         <p className="page-subtitle">
-          Here's your hiring pipeline at a glance — Hireon AI is working 24/7.
+          Here's your hiring pipeline at a glance — Hybent Hiring AI is working 24/7.
         </p>
       </header>
 

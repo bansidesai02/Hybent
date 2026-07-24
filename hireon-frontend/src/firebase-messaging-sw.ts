@@ -41,7 +41,7 @@ onBackgroundMessage(messaging, (payload) => {
     avatarUrl = self.location.origin + avatarUrl
   }
 
-  self.registration.showNotification(title ?? 'HireOn', {
+  self.registration.showNotification(title ?? 'Hybent Hiring', {
     body: body ?? '',
     icon: avatarUrl,
     badge: '/favicon.svg',

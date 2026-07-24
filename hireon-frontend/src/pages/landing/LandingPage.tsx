@@ -95,7 +95,7 @@ const features = [
     variant: 'pink' as const,
     color: 'rgba(255,107,198,0.08)',
     title: 'Smart Auto-Shortlisting',
-    description: 'Set your thresholds once. Hireon filters automatically — only the best candidates ever reach your desk.',
+    description: 'Set your thresholds once. Hybent Hiring filters automatically — only the best candidates ever reach your desk.',
     bullets: [
       'Configurable match thresholds per role',
       'Instant HR dashboard notifications',
@@ -168,7 +168,7 @@ const howItWorks = [
     icon: 'Brain',
     variant: 'violet' as const,
     title: 'AI Resume Intelligence',
-    desc: "The moment a candidate uploads their resume, Hireon's AI engine kicks in. It parses the document, extracts explicit skills like React, Node.js and TypeScript, and infers hidden skills from context clues. Experience years are calculated precisely and seniority level is determined automatically.",
+    desc: "The moment a candidate uploads their resume, Hybent Hiring's AI engine kicks in. It parses the document, extracts explicit skills like React, Node.js and TypeScript, and infers hidden skills from context clues. Experience years are calculated precisely and seniority level is determined automatically.",
     tags: [
       { label: 'Skill Extraction' },
       { label: 'Experience Calc' },
@@ -181,7 +181,7 @@ const howItWorks = [
     icon: 'Target',
     variant: 'pink' as const,
     title: 'Smart Auto-Shortlisting',
-    desc: "Hireon compares each candidate's profile against your requirements and generates a precise match score. If a candidate clears your threshold, they're instantly shortlisted, their status updated, your HR team notified, and the candidate gets an automated email — all without a single human action.",
+    desc: "Hybent Hiring compares each candidate's profile against your requirements and generates a precise match score. If a candidate clears your threshold, they're instantly shortlisted, their status updated, your HR team notified, and the candidate gets an automated email — all without a single human action.",
     tags: [
       { label: 'Match Scoring' },
       { label: 'Auto-Shortlist' },
@@ -194,7 +194,7 @@ const howItWorks = [
     icon: 'Calendar',
     variant: 'amber' as const,
     title: 'Conflict-Free Scheduling',
-    desc: "One click. Hireon cross-references the candidate's availability, the interviewer's calendar, and checks for existing bookings. It selects the optimal slot, generates a Google Meet link, and dispatches calendar invites to everyone involved. What used to take 15 emails and 3 days now takes 30 seconds.",
+    desc: "One click. Hybent Hiring cross-references the candidate's availability, the interviewer's calendar, and checks for existing bookings. It selects the optimal slot, generates a Google Meet link, and dispatches calendar invites to everyone involved. What used to take 15 emails and 3 days now takes 30 seconds.",
     tags: [
       { label: 'Slot Matching' },
       { label: 'Conflict Detection' },
@@ -207,7 +207,7 @@ const howItWorks = [
     icon: 'BarChart3',
     variant: 'teal' as const,
     title: 'Interview Intelligence & Hiring',
-    desc: "Post-interview, the interviewer submits structured feedback. Hireon's AI analyzes it, generates a summary, updates the hire probability score, and surfaces a hiring recommendation to HR. Every decision is data-backed. Every candidate is stored permanently in your searchable talent database for future roles.",
+    desc: "Post-interview, the interviewer submits structured feedback. Hybent Hiring's AI analyzes it, generates a summary, updates the hire probability score, and surfaces a hiring recommendation to HR. Every decision is data-backed. Every candidate is stored permanently in your searchable talent database for future roles.",
     tags: [
       { label: 'Feedback Analysis' },
       { label: 'Hire Probability' },
@@ -406,7 +406,7 @@ export default function LandingPage() {
               style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', boxShadow: '0 4px 14px rgba(108,71,255,0.35)' }}
             >
               <span className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.2), transparent 60%)' }} />
-              {/* Hireon 'H' mark logo — matches HTML demo */}
+              {/* Hybent Hiring 'H' mark logo — matches HTML demo */}
               <svg className="relative z-10" width="22" height="22" viewBox="0 0 22 22" fill="none">
                 <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
                 <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
@@ -423,7 +423,7 @@ export default function LandingPage() {
               backgroundClip: 'text',
             }}
           >
-            Hireon
+            Hybent Hiring
           </span>
         </Link>
 
@@ -591,7 +591,7 @@ export default function LandingPage() {
             color: 'var(--text)',
           }}
         >
-          Hire on{' '}
+          Hybent Hiring{' '}
           <span
             style={{
               background: 'linear-gradient(135deg, #6c47ff 0%, #ff6bc6 50%, #00d4c8 100%)',
@@ -616,7 +616,7 @@ export default function LandingPage() {
             color: 'var(--text-mid)',
           }}
         >
-          Hireon uses AI to parse resumes, score candidates, manage your pipeline, and close the best talent — in a fraction of the time.
+          Hybent Hiring uses AI to parse resumes, score candidates, manage your pipeline, and close the best talent — in a fraction of the time.
         </motion.p>
 
         {/* CTA buttons */}
@@ -811,7 +811,7 @@ export default function LandingPage() {
               </span>
             </h2>
             <p className="text-[20px] max-w-2xl mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.6 }}>
-              No fluff, no bloat. Every feature in Hireon was built to eliminate a specific friction point in the recruiting process.
+              No fluff, no bloat. Every feature in Hybent Hiring was built to eliminate a specific friction point in the recruiting process.
             </p>
           </motion.div>
 
@@ -873,7 +873,7 @@ export default function LandingPage() {
               viewport={{ once: true, margin: "-100px" }}
               className="flex-1 text-left"
             >
-              <p className="text-[13px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>About Hireon</p>
+              <p className="text-[13px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>About Hybent Hiring</p>
               <h2
                 className="font-black leading-tight mb-8"
                 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px,5vw,52px)', color: 'var(--text)', letterSpacing: '-1px' }}
@@ -885,13 +885,13 @@ export default function LandingPage() {
               </h2>
               <div className="space-y-6 text-[18px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
                 <p>
-                  Hireon was born from a simple mission to fix a recruiting process that hadn't meaningfully changed in decades. From her experience in Human Resources and Talent Acquisition, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
+                  Hybent Hiring was born from a simple mission to fix a recruiting process that hadn't meaningfully changed in decades. From her experience in Human Resources and Talent Acquisition, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
                 </p>
                 <p>
                   She set out to build the co-pilot she always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
                 </p>
                 <p>
-                  Today, Hireon represents that vision. By leveraging cutting-edge AI to automate the "boring parts," we're empowering talent teams to hire exceptional people faster than ever before.
+                  Today, Hybent Hiring represents that vision. By leveraging cutting-edge AI to automate the "boring parts," we're empowering talent teams to hire exceptional people faster than ever before.
                 </p>
               </div>
             </motion.div>
@@ -1170,7 +1170,7 @@ export default function LandingPage() {
                     </svg>
                   </div>
                 </div>
-                <span className="logo-wordmark lwl" style={{ fontSize: '18px' }}>Hireon</span>
+                <span className="logo-wordmark lwl" style={{ fontSize: '18px' }}>Hybent Hiring</span>
               </div>
               <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>
                 AI-powered recruiting platform that helps teams hire faster and smarter.
@@ -1216,7 +1216,7 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 text-[12px]"
             style={{ borderTop: '1px solid rgba(108,71,255,0.08)', color: 'var(--text-light)' }}
           >
-            <span>&copy; {new Date().getFullYear()} Hireon. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Hybent Hiring. All rights reserved.</span>
           </div>
         </div>
       </footer>

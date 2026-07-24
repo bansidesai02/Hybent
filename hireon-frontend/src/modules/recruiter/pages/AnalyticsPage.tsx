@@ -130,7 +130,7 @@ export default function AnalyticsPage() {
           AI Insights
 
         </h1>
-        <p className="page-subtitle">What Hireon AI has learned about your hiring pipeline.</p>
+        <p className="page-subtitle">What Hybent Hiring AI has learned about your hiring pipeline.</p>
       </header>
 
       {/* ── AI Summary Banner ── */}

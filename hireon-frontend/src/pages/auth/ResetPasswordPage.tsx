@@ -99,7 +99,7 @@ export default function ResetPasswordPage() {
               </svg>
             </div>
           </div>
-          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hireon</span>
+          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hybent Hiring</span>
         </div>
 
         {done ? (

@@ -302,7 +302,7 @@ export default function PipelinePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-[var(--text)]" style={{ fontFamily: "'Fraunces', serif" }}>Pipeline</h1>
-        <p className="text-sm text-gray-500 dark:text-[var(--text-mid)] mt-1">Drag candidates across stages — Hireon AI updates probabilities automatically.</p>
+        <p className="text-sm text-gray-500 dark:text-[var(--text-mid)] mt-1">Drag candidates across stages — Hybent Hiring AI updates probabilities automatically.</p>
       </div>
 
       {/* Controls: Search & Saved Views */}

@@ -306,7 +306,7 @@ function SidebarComponent({ role, collapsed = false, mobileOpen = false, setMobi
           </div>
           {!collapsed && (
             <span className="logo-wordmark lwl">
-              Hireon
+              Hybent Hiring
             </span>
           )}
         </div>

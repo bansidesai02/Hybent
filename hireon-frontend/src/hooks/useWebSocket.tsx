@@ -64,7 +64,7 @@ export function useWebSocket() {
 
             // Trigger Native browser popup (visible when in another app)
             if (Notification.permission === 'granted') {
-              new Notification(msg.data.title || 'Hireon Notification', {
+              new Notification(msg.data.title || 'Hybent Hiring Notification', {
                 body: msg.data.message || '',
                 icon: '/favicon.svg',
               })

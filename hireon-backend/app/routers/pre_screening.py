@@ -182,7 +182,7 @@ async def create_session(
         select(Organization).where(Organization.id == current_user.organization_id)
     )
     org = org_res.scalar_one_or_none()
-    company_name = org.name if org else "HireOn"
+    company_name = org.name if org else "Hybent Hiring"
     org_logo = org.logo_url if org else None
 
     background_tasks.add_task(

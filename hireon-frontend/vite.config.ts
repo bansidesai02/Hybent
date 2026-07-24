@@ -16,9 +16,9 @@ export default defineConfig({
       injectRegister: 'auto',
       manifestFilename: 'manifest.json',
       manifest: {
-        name: 'Hireon',
-        short_name: 'Hireon',
-        description: 'hireon: AI-powered recruitment automation platform',
+        name: 'Hybent Hiring',
+        short_name: 'Hybent Hiring',
+        description: 'Hybent Hiring: AI-powered recruitment automation platform',
         theme_color: '#6c47ff',
         background_color: '#ffffff',
         display: 'standalone',

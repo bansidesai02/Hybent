@@ -101,7 +101,7 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
 
     org_res = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
     org = org_res.scalar_one_or_none()
-    company_name = org.name if org else "HireOn"
+    company_name = org.name if org else "Hybent Hiring"
 
     try:
         send_team_invite(

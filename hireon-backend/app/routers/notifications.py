@@ -51,7 +51,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
         ws_manager._user_orgs[user_id] = org_id
     
     # Send a welcome message
-    await ws_manager.send_to_user(user_id, "connected", {"message": "Connected to HireOn notifications"})
+    await ws_manager.send_to_user(user_id, "connected", {"message": "Connected to Hybent Hiring notifications"})
 
     try:
         while True:

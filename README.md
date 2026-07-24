@@ -1,4 +1,4 @@
-# HireOn — AI-Powered Recruitment Platform
+# Hybent Hiring — AI-Powered Recruitment Platform
 
 ## Stack
 - **Backend**: FastAPI + SQLAlchemy 2.0 async + PostgreSQL + Google Gemini

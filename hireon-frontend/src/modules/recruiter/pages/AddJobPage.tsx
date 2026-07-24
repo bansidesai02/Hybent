@@ -421,7 +421,7 @@ export default function AddJobPage() {
           {isEdit ? 'Edit Job Description' : 'Upload / Add Job Description'}
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-mid)' }}>
-          Add a JD manually or upload a file — Hireon AI extracts requirements automatically.
+          Add a JD manually or upload a file — Hybent Hiring AI extracts requirements automatically.
         </p>
       </div>
 

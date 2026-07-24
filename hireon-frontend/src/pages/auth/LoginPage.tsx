@@ -234,7 +234,7 @@ export default function LoginPage() {
               </svg>
             </div>
           </div>
-          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hireon</span>
+          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hybent Hiring</span>
         </div>
 
         {view === 'forgot_sent' || view === 'magic_sent' ? (

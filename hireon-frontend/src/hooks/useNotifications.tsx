@@ -60,7 +60,7 @@ export function useNotifications({ enablePush = false }: { enablePush?: boolean 
             avatarUrl = window.location.origin + avatarUrl
           }
 
-          new Notification(title ?? 'Hireon Notification', {
+          new Notification(title ?? 'Hybent Hiring Notification', {
             body: body ?? '',
             icon: avatarUrl,
           })

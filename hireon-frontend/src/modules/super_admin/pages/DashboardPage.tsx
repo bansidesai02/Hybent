@@ -76,7 +76,7 @@ export default function DashboardPage() {
       <header className="page-header flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="page-title text-[28px] font-black leading-tight text-[var(--text)]">Super Admin Dashboard</h1>
-          <p className="page-subtitle text-[13px] text-[var(--text-light)]">Manage Hireon SaaS platform configurations, tenants, operations, and system health.</p>
+          <p className="page-subtitle text-[13px] text-[var(--text-light)]">Manage Hybent Hiring SaaS platform configurations, tenants, operations, and system health.</p>
         </div>
         <button
           onClick={() => navigate('/super-admin/clients', { state: { openWizard: true } })}

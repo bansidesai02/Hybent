@@ -37,7 +37,7 @@ export function AppLoader() {
             <div className="absolute inset-0 rounded-[22px]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.2), transparent 60%)' }} />
           </div>
 
-          {/* Hireon 'H' mark — Exact Proportions from Landing Page (22x22 source) */}
+          {/* Hybent Hiring 'H' mark — Exact Proportions from Landing Page (22x22 source) */}
           <svg className="relative z-10" width="48" height="48" viewBox="0 0 22 22" fill="none">
             <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
             <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
@@ -55,7 +55,7 @@ export function AppLoader() {
       >
         <div className="flex items-center gap-3">
           <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#6c47ff] via-[#b357ff] to-[#ff6bc6] text-transparent bg-clip-text" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Hireon
+            Hybent Hiring
           </h1>
         </div>
         <div className="mt-2 flex items-center justify-center gap-2">

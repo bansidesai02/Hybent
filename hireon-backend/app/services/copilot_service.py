@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 GROQ_MODEL = "llama-3.1-8b-instant"
 
 COPILOT_SYSTEM_PROMPT = """### 1. YOUR MISSION
-You are Hireon Copilot — a production-grade AI Hiring Assistant. Help recruiters search for candidates, analyze their pipeline, manage team members, schedule interviews, and navigate the Hireon platform.
+You are Hybent Hiring Copilot — a production-grade AI Hiring Assistant. Help recruiters search for candidates, analyze their pipeline, manage team members, schedule interviews, and navigate the Hybent Hiring platform.
 DO NOT write SQL. Use the tools provided. Never hallucinate candidate names or data.
 
 ### 2. ABBREVIATION & SHORT FORM UNDERSTANDING
@@ -1900,7 +1900,7 @@ async def _stream_copilot_chat_impl(
                     {
                         "role": "system",
                         "content": (
-                            "You are HireOn Copilot, a helpful AI recruiting assistant. "
+                            "You are Hybent Hiring Copilot, a helpful AI recruiting assistant. "
                             "The user has sent a message that you couldn't fully understand (possibly due to a typo or ambiguous phrasing). "
                             "Respond in a friendly, concise way: acknowledge what they might be looking for and politely ask them to rephrase. "
                             "Do NOT mention tools, functions, Python code, or internal system details. "
