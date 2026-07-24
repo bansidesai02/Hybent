@@ -435,7 +435,7 @@ export default function AddJobPage() {
         <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 items-start">
 
           {/* ── LEFT PANEL: Job Details ── */}
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}>
+          <div className="p-4 md:p-[22px]" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, boxShadow: 'var(--shadow)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>Job Details</div>
 
             {/* Job Title */}
@@ -603,10 +603,10 @@ export default function AddJobPage() {
           </div>
 
           {/* ── RIGHT PANEL ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-            {/* AI Magic JD Generator */}
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
+            
+            {/* AI Review / Output Section */}
+            <div className="p-4 md:p-[22px]" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, boxShadow: 'var(--shadow)' }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>✨ AI JD Generator</div>
               <p style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 12 }}>
                 Enter a short prompt to generate a full job description instantly.
@@ -672,7 +672,7 @@ export default function AddJobPage() {
             </div>
 
             {/* Upload JD File */}
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 22, boxShadow: 'var(--shadow)', position: 'relative' }}>
+            <div className="p-4 md:p-[22px]" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, boxShadow: 'var(--shadow)', position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Upload JD File</div>
                 {watch('jd_url') && (

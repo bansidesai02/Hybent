@@ -216,7 +216,7 @@ function TopbarComponent({ title, onToggleMenu }: TopbarProps) {
       </button>
 
       {/* Search bar */}
-      <div className="hidden sm:flex flex-1 justify-center" ref={searchRef}>
+      <div className="flex flex-1 justify-center px-2" ref={searchRef}>
         <div className="relative w-full max-w-[440px]">
           <div
             className="flex items-center gap-2 w-full rounded-[12px] px-[16px] py-[8px] transition-all duration-200"

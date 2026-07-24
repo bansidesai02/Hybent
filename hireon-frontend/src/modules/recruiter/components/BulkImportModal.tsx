@@ -423,7 +423,8 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
 
                 {/* Preview table */}
                 <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <table className="w-full text-sm">
+                  <div className="table-responsive">
+<table className="w-full text-sm">
                     <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">Row</th>
@@ -452,6 +453,7 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
                       ))}
                     </tbody>
                   </table>
+</div>
                 </div>
 
                 <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">

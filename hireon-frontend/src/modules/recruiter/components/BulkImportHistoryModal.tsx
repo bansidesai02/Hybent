@@ -122,7 +122,8 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
         </div>
 
         <div className="max-h-80 overflow-auto border border-gray-200 dark:border-gray-700 rounded-xl">
-          <table className="w-full text-sm">
+          <div className="table-responsive">
+<table className="w-full text-sm">
             <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th className="text-left px-3 py-2">File</th>
@@ -166,6 +167,7 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
               )}
             </tbody>
           </table>
+</div>
         </div>
 
         {detail && (
@@ -181,7 +183,8 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
                 Imported Candidates ({detail.candidates.length})
               </div>
               <div className="max-h-56 overflow-auto">
-                <table className="w-full text-sm">
+                <div className="table-responsive">
+<table className="w-full text-sm">
                   <thead className="bg-gray-100 dark:bg-gray-900">
                     <tr>
                       <th className="text-left px-3 py-2">Name</th>
@@ -206,6 +209,7 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
                     )}
                   </tbody>
                 </table>
+</div>
               </div>
             </div>
           </div>

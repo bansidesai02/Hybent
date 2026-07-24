@@ -231,7 +231,8 @@ export default function DashboardPage() {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : clients && clients.length > 0 ? (
-              <table className="w-full text-left border-collapse">
+              <div className="table-responsive">
+<table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
                     <th className="pb-3 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Client</th>
@@ -284,6 +285,7 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+</div>
             ) : (
               <div className="py-10 text-center text-[var(--text-light)] text-[12.5px]">No clients onboarded yet.</div>
             )}

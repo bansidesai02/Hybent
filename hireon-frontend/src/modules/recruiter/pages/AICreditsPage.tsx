@@ -493,7 +493,8 @@ export default function AICreditsPage() {
 
         {/* Table list */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <div className="table-responsive">
+<table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 text-[11px] font-bold text-[var(--text-mid,#7b719c)] uppercase tracking-wider border-b border-[var(--card-border,#f1f0ff)]">
                 <th className="px-6 py-4">Timestamp</th>
@@ -565,6 +566,7 @@ export default function AICreditsPage() {
               )}
             </tbody>
           </table>
+</div>
         </div>
 
         {/* Pagination Footer */}

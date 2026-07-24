@@ -278,7 +278,8 @@ export default function ClientsPage() {
               <Skeleton className="h-8 w-full" />
             </div>
           ) : processedClients.length > 0 ? (
-            <table className="w-full text-left border-collapse">
+            <div className="table-responsive">
+<table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'rgba(108,71,255,0.06)', background: 'rgba(108,71,255,0.01)' }}>
                   <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Client Organization</th>
@@ -339,6 +340,7 @@ export default function ClientsPage() {
                 ))}
               </tbody>
             </table>
+</div>
           ) : (
             <div className="py-20 text-center">
               <Building2 className="mx-auto text-[var(--text-light)] opacity-20 mb-4" size={48} />

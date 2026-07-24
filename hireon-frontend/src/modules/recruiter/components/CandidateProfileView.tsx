@@ -1752,7 +1752,7 @@ export function CandidateProfileView({
       </div>
 
       {/* ── Tabs ── */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--table-border)', marginBottom: 24, position: 'relative' }}>
+      <div className="scrollbar-hide" style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--table-border)', marginBottom: 24, position: 'relative', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {tabs.map(tab => (
           <button
             key={tab.key}
@@ -1767,6 +1767,7 @@ export function CandidateProfileView({
               cursor: 'pointer',
               position: 'relative',
               transition: 'color 0.2s',
+              whiteSpace: 'nowrap',
             }}
           >
             {tab.label}
