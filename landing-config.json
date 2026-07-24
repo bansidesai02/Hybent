@@ -1,14 +1,14 @@
 {
   "testimonials": [
     {
-      "quote": "Hireon cut our screening time by 80%. We went from 2 weeks to 2 days for first-round shortlists.",
+      "quote": "Hybent Hiring cut our screening time by 80%. We went from 2 weeks to 2 days for first-round shortlists.",
       "name": "Priya Sharma",
       "role": "Head of Talent @ Finlytic",
       "initials": "PS",
       "gradient": "linear-gradient(135deg, #ddd6fe, #a78bfa)"
     },
     {
-      "quote": "The AI match scores are eerily accurate. We haven't made a bad hire since switching to Hireon.",
+      "quote": "The AI match scores are eerily accurate. We haven't made a bad hire since switching to Hybent Hiring.",
       "name": "Marcus Chen",
       "role": "Engineering Manager @ Orbitalync",
       "initials": "MC",
@@ -53,16 +53,16 @@
   ],
   "faqs": [
     {
-      "q": "How accurate is Hireon's AI candidate matching?",
-      "a": "Hireon's AI delivers approximately 90% precision in role-specific candidate matching across more than 500 job categories. Its recommendations continuously improve as your team provides feedback and hiring outcomes."
+      "q": "How accurate is Hybent Hiring's AI candidate matching?",
+      "a": "Hybent Hiring's AI delivers approximately 90% precision in role-specific candidate matching across more than 500 job categories. Its recommendations continuously improve as your team provides feedback and hiring outcomes."
     },
     {
       "q": "Can I import my existing candidate database?",
-      "a": "Yes. You can easily import candidates by uploading a CSV file or pasting LinkedIn profile URLs. Hireon automatically parses, enriches, and organizes the data for you."
+      "a": "Yes. You can easily import candidates by uploading a CSV file or pasting LinkedIn profile URLs. Hybent Hiring automatically parses, enriches, and organizes the data for you."
     },
     {
-      "q": "How does Hireon ensure data security?",
-      "a": "Security is a top priority. All data is encrypted at rest using AES-256 and in transit using TLS 1.3. Hireon is SOC 2 Type II compliant, ensuring your recruitment data is protected with industry-standard security practices."
+      "q": "How does Hybent Hiring ensure data security?",
+      "a": "Security is a top priority. All data is encrypted at rest using AES-256 and in transit using TLS 1.3. Hybent Hiring is SOC 2 Type II compliant, ensuring your recruitment data is protected with industry-standard security practices."
     }
   ]
 }
