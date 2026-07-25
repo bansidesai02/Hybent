@@ -269,7 +269,7 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section>
+  <section className="section-cta">
     <div className="wrap">
       <div className="cta-banner">
         <h2>Let's Build the Future Together.</h2>
@@ -326,7 +326,7 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section><div className="wrap"><div className="cta-banner"><h2>Join us in building what's next.</h2><div className="cta-ctas"><a onClick={() => goTo("careers")} className={`btn btn-primary ${ activePage === "careers" ? "active" : "" }`}>View Careers</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Join us in building what's next.</h2><div className="cta-ctas"><a onClick={() => goTo("careers")} className={`btn btn-primary ${ activePage === "careers" ? "active" : "" }`}>View Careers</a></div></div></div></section>
 </div>
 
 {/* ================= PRODUCTS ================= */}
@@ -378,7 +378,7 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section><div className="wrap"><div className="cta-banner"><h2>Want to see our products in action?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Book a Demo</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Want to see our products in action?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Book a Demo</a></div></div></div></section>
 </div>
 
 {/* ================= HYBENT HIRING ================= */}
@@ -505,7 +505,7 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section><div className="wrap"><div className="cta-banner"><h2>Ready to transform your hiring?</h2><div className="cta-ctas"><a className="btn btn-primary">Start Free Trial</a><a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Talk to Sales</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Ready to transform your hiring?</h2><div className="cta-ctas"><a className="btn btn-primary">Start Free Trial</a><a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Talk to Sales</a></div></div></div></section>
 </div>
 
 {/* ================= SERVICES ================= */}
@@ -550,7 +550,7 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section><div className="wrap"><div className="cta-banner"><h2>Have a project in mind?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Let's Talk</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Have a project in mind?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Let's Talk</a></div></div></div></section>
 </div>
 
 {/* ================= CAREERS ================= */}
@@ -598,7 +598,7 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section><div className="wrap"><div className="cta-banner"><h2>Don't see your role? We'd still love to hear from you.</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Send Your Resume</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Don't see your role? We'd still love to hear from you.</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Send Your Resume</a></div></div></div></section>
 </div>
 
 {/* ================= CONTACT ================= */}
