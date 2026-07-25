@@ -194,7 +194,7 @@ export default function RegisterPage() {
             <button 
               className="btn-submit" 
               type="button" 
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/hiring')}
               style={{ marginTop: 24 }}
             >
               Return Home
@@ -286,7 +286,7 @@ export default function RegisterPage() {
             </form>
 
             <div className="foot-note" style={{ pointerEvents: isSubmitting ? 'none' : 'auto', opacity: isSubmitting ? 0.6 : 1 }}>
-              Already have an account? <Link to="/login">Sign In <ArrowRight size={14} className="ml-1 inline" /></Link>
+              Already have an account? <Link to="/hiring/login">Sign In <ArrowRight size={14} className="ml-1 inline" /></Link>
             </div>
 
             <p className="foot-note" style={{ fontSize: '11px', marginTop: '24px', opacity: 0.8, pointerEvents: isSubmitting ? 'none' : 'auto' }}>

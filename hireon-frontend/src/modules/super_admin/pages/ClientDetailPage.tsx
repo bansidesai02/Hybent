@@ -97,7 +97,7 @@ export default function ClientDetailPage() {
       toast.success('Client permanently deleted.')
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'clients'] })
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'dashboard'] })
-      navigate('/super-admin/clients')
+      navigate('/hiring/super-admin/clients')
     },
     onError: (err: any) => {
       toast.error(err.message || 'Failed to delete client.')
@@ -138,10 +138,10 @@ export default function ClientDetailPage() {
       setImpersonateReason('')
 
       // Redirect depending on user role
-      if (data.user.role === 'admin') navigate('/admin')
-      else if (data.user.role === 'interviewer') navigate('/interviewer')
-      else if (data.user.role === 'candidate') navigate('/portal')
-      else navigate('/recruiter')
+      if (data.user.role === 'admin') navigate('/hiring/admin')
+      else if (data.user.role === 'interviewer') navigate('/hiring/interviewer')
+      else if (data.user.role === 'candidate') navigate('/hiring/portal')
+      else navigate('/hiring/recruiter')
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.detail || err.message || 'Impersonation failed.')
@@ -176,7 +176,7 @@ export default function ClientDetailPage() {
     <div className="space-y-6 pb-10 pt-6">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 text-[12px] font-bold text-[var(--text-light)]">
-        <button onClick={() => navigate('/super-admin/clients')} className="hover:text-[var(--text)] transition-colors">Clients</button>
+        <button onClick={() => navigate('/hiring/super-admin/clients')} className="hover:text-[var(--text)] transition-colors">Clients</button>
         <span className="opacity-50">&rarr;</span>
         <span className="text-[var(--violet)]">{client.name}</span>
       </div>
@@ -275,7 +275,7 @@ export default function ClientDetailPage() {
             <h3 className="text-[15px] font-black text-[var(--text)] mb-5 flex items-center justify-between">
               <span>Users in Organization</span>
               <button 
-                onClick={() => navigate('/super-admin/users', { state: { clientFilter: client.name } })}
+                onClick={() => navigate('/hiring/super-admin/users', { state: { clientFilter: client.name } })}
                 className="text-[11.5px] font-bold text-[var(--violet)] hover:underline"
               >
                 Manage all users

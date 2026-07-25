@@ -255,7 +255,7 @@ export default function InterviewerDashboard() {
             </span>
           </div>
           <button
-            onClick={() => navigate('/interviewer/interviews')}
+            onClick={() => navigate('/hiring/interviewer/interviews')}
             style={{ fontSize: 14, fontWeight: 700, color: '#6c47ff', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
             View Full Calendar <GlassIcon icon="ArrowRight" variant="violet" size={16} iconSize={10} glow={false} />

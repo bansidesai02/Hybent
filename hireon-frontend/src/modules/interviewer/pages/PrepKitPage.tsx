@@ -194,7 +194,7 @@ export default function PrepKitPage() {
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <button
-          onClick={() => navigate('/interviewer/interviews')}
+          onClick={() => navigate('/hiring/interviewer/interviews')}
           style={{
             width: 36, height: 36, borderRadius: 10, border: '1px solid var(--input-border)',
             background: 'var(--input-bg)', cursor: 'pointer', display: 'flex',

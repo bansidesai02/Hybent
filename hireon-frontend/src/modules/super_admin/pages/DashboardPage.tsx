@@ -79,7 +79,7 @@ export default function DashboardPage() {
           <p className="page-subtitle text-[13px] text-[var(--text-light)]">Manage Hybent Hiring SaaS platform configurations, tenants, operations, and system health.</p>
         </div>
         <button
-          onClick={() => navigate('/super-admin/clients', { state: { openWizard: true } })}
+          onClick={() => navigate('/hiring/super-admin/clients', { state: { openWizard: true } })}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold text-white transition-all hover:scale-[1.02] active:scale-95 shadow-md self-start md:self-auto"
           style={{
             background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))',
@@ -216,7 +216,7 @@ export default function DashboardPage() {
               Recent Clients
             </h3>
             <button 
-              onClick={() => navigate('/super-admin/clients')}
+              onClick={() => navigate('/hiring/super-admin/clients')}
               className="text-[12px] font-bold text-[var(--violet)] hover:underline flex items-center gap-1"
             >
               All Clients <ArrowRight size={14} />
@@ -340,7 +340,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <button 
-              onClick={() => navigate('/super-admin/health')}
+              onClick={() => navigate('/hiring/super-admin/health')}
               className="w-full text-center py-2.5 mt-4 text-[12px] font-bold border border-dashed rounded-xl text-[var(--violet)] hover:bg-[var(--sb-hover)] transition-colors"
               style={{ borderColor: 'rgba(108,71,255,0.2)' }}
             >
@@ -358,7 +358,7 @@ export default function DashboardPage() {
             Recent Administrative Actions
           </h3>
           <button 
-            onClick={() => navigate('/super-admin/audit')}
+            onClick={() => navigate('/hiring/super-admin/audit')}
             className="text-[12px] font-bold text-[var(--violet)] hover:underline flex items-center gap-1"
           >
             Audit Log <ArrowRight size={14} />

@@ -342,6 +342,16 @@ const FormDropdown = ({
 }
 
 export default function LandingPage() {
+  useEffect(() => {
+    document.title = "Hybent Hiring | AI Recruitment Platform";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute("content", "Find, match, and hire top talent faster with an AI engine built for modern recruiting teams.");
+    }
+  }, []);
+
+  const [scrolled, setScrolled] = useState(false);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [landingConfig, setLandingConfig] = useState<{
@@ -387,7 +397,7 @@ export default function LandingPage() {
         }}
       >
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2.5 no-underline">
+        <Link to="/hiring" className="flex items-center gap-2.5 no-underline">
           <div className="relative w-[38px] h-[38px] flex items-center justify-center">
             <span
               className="absolute inset-[-7px] rounded-full border border-dashed"
@@ -452,7 +462,7 @@ export default function LandingPage() {
 
         {/* CTA buttons - Desktop only */}
         <div className="hidden lg:flex items-center gap-3">
-          <Link to="/login">
+          <Link to="/hiring/login">
             <button
               className="px-6 py-2.5 bg-transparent border rounded-[12px] text-[14px] font-bold cursor-pointer transition-all duration-200 hover:bg-[rgba(108,71,255,0.06)] active:scale-95"
               style={{ borderColor: 'rgba(108,71,255,0.25)', color: '#6c47ff', fontFamily: "'Sora', sans-serif" }}
@@ -460,7 +470,7 @@ export default function LandingPage() {
               Sign In
             </button>
           </Link>
-          <Link to="/register">
+          <Link to="/hiring/register">
             <button
               className="px-7 py-2.5 border-0 rounded-[12px] text-[14px] font-bold text-white cursor-pointer transition-all duration-200 hover:-translate-y-[1px] active:scale-95"
               style={{
@@ -476,8 +486,8 @@ export default function LandingPage() {
 
         {/* Mobile Menu Toggle */}
         <div className="lg:hidden flex items-center gap-1">
-          <Link to="/login" className="px-3 py-2 text-[13px] font-bold text-[#6c47ff]">Sign In</Link>
-          <Link to="/register">
+          <Link to="/hiring/login" className="px-3 py-2 text-[13px] font-bold text-[#6c47ff]">Sign In</Link>
+          <Link to="/hiring/register">
             <button
               className="px-4 py-2 border-0 rounded-xl text-[13px] font-bold text-white cursor-pointer"
               style={{
@@ -508,7 +518,7 @@ export default function LandingPage() {
               <ul className="flex flex-col gap-2 list-none m-0 p-0">
                 <li>
                   <Link
-                    to="/login"
+                    to="/hiring/login"
                     onClick={() => setMobileMenuOpen(false)}
                     className="block px-4 py-3 text-[16px] font-bold rounded-xl no-underline"
                     style={{ color: 'var(--violet)' }}
@@ -536,7 +546,7 @@ export default function LandingPage() {
                 })}
               </ul>
               <div className="h-px bg-gray-100 my-2" />
-              <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+              <Link to="/hiring/register" onClick={() => setMobileMenuOpen(false)}>
                 <button className="w-full py-4 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#6c47ff] to-[#8b6bff]">
                   Get Started Free
                 </button>
@@ -591,7 +601,7 @@ export default function LandingPage() {
             color: 'var(--text)',
           }}
         >
-          Hybent Hiring{' '}
+          Hire on{' '}
           <span
             style={{
               background: 'linear-gradient(135deg, #6c47ff 0%, #ff6bc6 50%, #00d4c8 100%)',
@@ -627,7 +637,7 @@ export default function LandingPage() {
           viewport={{ once: true, margin: "-100px" }}
           className="flex flex-col sm:flex-row gap-4 justify-center mb-8 w-full sm:w-auto px-6"
         >
-          <Link to="/register" className="w-full sm:w-auto">
+          <Link to="/hiring/register" className="w-full sm:w-auto">
             <button
               className="w-full sm:px-10 py-4 border-0 rounded-[10px] text-[17px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
               style={{

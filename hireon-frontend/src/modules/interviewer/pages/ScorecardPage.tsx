@@ -472,7 +472,7 @@ export default function ScorecardPage() {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <button
-          onClick={() => navigate('/interviewer/interviews')}
+          onClick={() => navigate('/hiring/interviewer/interviews')}
           style={{
             width: 36,
             height: 36,
@@ -873,7 +873,7 @@ export default function ScorecardPage() {
                   </button>
                   <Button
                     variant="outline"
-                    onClick={() => navigate('/interviewer/interviews')}
+                    onClick={() => navigate('/hiring/interviewer/interviews')}
                   >
                     Cancel
                   </Button>

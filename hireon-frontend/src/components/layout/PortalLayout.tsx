@@ -146,21 +146,21 @@ function PortalLayoutComponent() {
             {/* MAIN */}
             <div className="sb-cat">
               <div className="sb-cat-title">Main</div>
-              <NavLink to="/portal" end onMouseEnter={() => prefetchRoute('/portal')} onFocus={() => prefetchRoute('/portal')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/hiring/portal" end onMouseEnter={() => prefetchRoute('/hiring/portal')} onFocus={() => prefetchRoute('/hiring/portal')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="Map" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Application Journey
                   </>
                 )}
               </NavLink>
-              <NavLink to="/portal/interviews" onMouseEnter={() => prefetchRoute('/portal/interviews')} onFocus={() => prefetchRoute('/portal/interviews')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/hiring/portal/interviews" onMouseEnter={() => prefetchRoute('/hiring/portal/interviews')} onFocus={() => prefetchRoute('/hiring/portal/interviews')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="Calendar" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> My Interviews
                   </>
                 )}
               </NavLink>
-              <NavLink to="/portal/openings" onMouseEnter={() => prefetchRoute('/portal/openings')} onFocus={() => prefetchRoute('/portal/openings')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/hiring/portal/openings" onMouseEnter={() => prefetchRoute('/hiring/portal/openings')} onFocus={() => prefetchRoute('/hiring/portal/openings')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="Briefcase" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Job Openings
@@ -172,7 +172,7 @@ function PortalLayoutComponent() {
             {/* INTELLIGENCE */}
             <div className="sb-cat">
               <div className="sb-cat-title">Intelligence</div>
-              <NavLink to="/portal/prep" onMouseEnter={() => prefetchRoute('/portal/prep')} onFocus={() => prefetchRoute('/portal/prep')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/hiring/portal/prep" onMouseEnter={() => prefetchRoute('/hiring/portal/prep')} onFocus={() => prefetchRoute('/hiring/portal/prep')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                 {({ isActive }) => (
                   <>
                     <GlassIcon icon="FileSearch" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Preparation Hub
@@ -185,7 +185,7 @@ function PortalLayoutComponent() {
             {offersUnlocked && (
               <div className="sb-cat">
                 <div className="sb-cat-title">Resources</div>
-                <NavLink to="/portal/offers" onMouseEnter={() => prefetchRoute('/portal/offers')} onFocus={() => prefetchRoute('/portal/offers')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/hiring/portal/offers" onMouseEnter={() => prefetchRoute('/hiring/portal/offers')} onFocus={() => prefetchRoute('/hiring/portal/offers')} className={({ isActive }) => `sb-item ${isActive ? 'active' : ''}`}>
                   {({ isActive }) => (
                     <>
                       <GlassIcon icon="FileText" variant={isActive ? 'violet' : 'gray'} size={24} iconSize={14} ghost glow={false} /> Offers &amp; Documents
@@ -266,7 +266,7 @@ function PortalLayoutComponent() {
                         <p className="menu-name">{user?.full_name}</p>
                         <p className="menu-email">{user?.email}</p>
                       </div>
-                      <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/portal/profile') }}>
+                      <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/hiring/portal/profile') }}>
                         <User size={14} /> My Profile
                       </button>
                       <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', marginTop: 4, paddingTop: 4 }}>

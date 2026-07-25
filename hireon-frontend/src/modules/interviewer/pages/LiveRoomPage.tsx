@@ -215,7 +215,7 @@ export default function LiveRoomPage() {
       }}>
         {/* Back */}
         <button
-          onClick={() => navigate('/interviewer/interviews')}
+          onClick={() => navigate('/hiring/interviewer/interviews')}
           style={{
             width: 34, height: 34, borderRadius: 9,
             border: '1px solid rgba(108,71,255,0.25)',

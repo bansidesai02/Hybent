@@ -15,11 +15,11 @@ export function useAuth() {
     setTokens(data.access_token, data.refresh_token, user)
 
     // Role-based redirect
-    if (user.role === 'super_admin') navigate('/super-admin')
-    else if (user.role === 'candidate') navigate('/portal')
-    else if (user.role === 'interviewer') navigate('/interviewer')
-    else if (user.role === 'admin') navigate('/admin')
-    else navigate('/recruiter')
+    if (user.role === 'super_admin') navigate('/hiring/super-admin')
+    else if (user.role === 'candidate') navigate('/hiring/portal')
+    else if (user.role === 'interviewer') navigate('/hiring/interviewer')
+    else if (user.role === 'admin') navigate('/hiring/admin')
+    else navigate('/hiring/recruiter')
   }
 
   const basePath = user?.role === 'super_admin' ? '/super-admin' :
@@ -43,7 +43,7 @@ export function useAuth() {
     // Clear ALL React Query cache so the next user never sees stale data
     queryClient.clear()
     storeLogout()
-    navigate('/login')
+    navigate('/hiring/login')
   }
 
   const exitImpersonation = () => {
@@ -63,12 +63,12 @@ export function useAuth() {
       sessionStorage.removeItem('hireon_super_admin_user')
       
       queryClient.clear()
-      navigate('/super-admin')
+      navigate('/hiring/super-admin')
     } else {
       // fallback if backup doesn't exist
       queryClient.clear()
       storeLogout()
-      navigate('/login')
+      navigate('/hiring/login')
     }
   }
 

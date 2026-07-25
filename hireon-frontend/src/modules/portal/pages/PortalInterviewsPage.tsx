@@ -90,7 +90,7 @@ function InterviewCard({ interview }: { interview: Interview }) {
                 Join Meet
               </a>
             )}
-            <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => navigate('/portal/prep')}>
+            <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => navigate('/hiring/portal/prep')}>
               <GlassIcon icon="Target" variant="violet" size={24} iconSize={12} ghost glow={false} /> Prep Kit
             </button>
           </>

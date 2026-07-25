@@ -55,11 +55,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'super_admin') navigate('/super-admin')
-      else if (user.role === 'candidate') navigate('/portal')
-      else if (user.role === 'interviewer') navigate('/interviewer')
-      else if (user.role === 'admin') navigate('/admin')
-      else navigate('/recruiter')
+      if (user.role === 'super_admin') navigate('/hiring/super-admin')
+      else if (user.role === 'candidate') navigate('/hiring/portal')
+      else if (user.role === 'interviewer') navigate('/hiring/interviewer')
+      else if (user.role === 'admin') navigate('/hiring/admin')
+      else navigate('/hiring/recruiter')
     }
   }, [isAuthenticated, user, navigate])
 
@@ -77,10 +77,10 @@ export default function LoginPage() {
       const user = data.user
       setTokens(data.access_token, data.refresh_token, user, rememberMe)
 
-      if (user?.role === 'candidate') navigate('/portal')
-      else if (user?.role === 'interviewer') navigate('/interviewer')
-      else if (user?.role === 'admin') navigate('/admin')
-      else navigate('/recruiter')
+      if (user?.role === 'candidate') navigate('/hiring/portal')
+      else if (user?.role === 'interviewer') navigate('/hiring/interviewer')
+      else if (user?.role === 'admin') navigate('/hiring/admin')
+      else navigate('/hiring/recruiter')
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||

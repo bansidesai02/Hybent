@@ -220,7 +220,7 @@ export default function PortalDashboard() {
             <div className="stage-title">Explore Open Roles</div>
             <div className="stage-sub">Your journey starts here. Browse our open positions and find the perfect fit for your skills.</div>
             <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/openings')}>
+              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/openings')}>
                 View Openings
               </button>
             </div>
@@ -322,16 +322,16 @@ export default function PortalDashboard() {
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             {(currentIdx >= 2 && currentIdx <= 5) && (
-              <button className="btn btn-teal btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/interviews')}>
+              <button className="btn btn-teal btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/interviews')}>
                 <Calendar size={13} /> View Interviews
               </button>
             )}
             {currentIdx === 6 && (
-              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/offers')}>
+              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/offers')}>
                 <FileText size={13} /> View Offer
               </button>
             )}
-            <button className="btn btn-ghost btn-sm flex items-center gap-1.5" onClick={() => navigate('/portal/prep')}>
+            <button className="btn btn-ghost btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/prep')}>
               <Target size={13} /> Open Prep Hub
             </button>
           </div>

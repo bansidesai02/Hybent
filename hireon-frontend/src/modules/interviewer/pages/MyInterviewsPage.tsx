@@ -494,7 +494,7 @@ export default function MyInterviewsPage() {
     onEnterRoom:  () => navigate(`/interviewer/live-room/${i.id}`),
     onViewResume: () => setResumeInterview(i),
     onPrepKit:    () => navigate(`/interviewer/prep-kit/${i.id}`),
-    onReschedule: () => navigate('/interviewer/interviews'),
+    onReschedule: () => navigate('/hiring/interviewer/interviews'),
     onScorecard:  () => navigate(`/interviewer/scorecard/${i.id}`),
     onConfirm:    () => handleConfirm(i.id),
   })

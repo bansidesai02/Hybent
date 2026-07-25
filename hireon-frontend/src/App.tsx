@@ -1,24 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import React, { lazy, Suspense } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import type { UserRole } from '@/types'
 import { AlertTriangle } from 'lucide-react'
-import { Toaster } from 'react-hot-toast'
 
-// Module Routes
-import RecruiterRoutes from './routes/RecruiterRoutes'
-import AdminRoutes from './routes/AdminRoutes'
-import InterviewerRoutes from './routes/InterviewerRoutes'
-import PortalRoutes from './routes/PortalRoutes'
-import SuperAdminRoutes from './routes/SuperAdminRoutes'
+// Root Apps
+import HiringApp from './apps/HiringApp'
 
-// Public & Auth (Lazy)
-const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
-const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
-const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
-const LandingPage = lazy(() => import('@/pages/landing/LandingPage'))
-const OnboardingPage = lazy(() => import('@/pages/candidate/OnboardingPage'))
-const PreScreeningPage = lazy(() => import('@/pages/candidate/PreScreeningPage'))
+// Public Corporate Pages (Lazy)
+const CompanyPage = lazy(() => import('@/pages/company/CompanyPage'))
 
 function RouteFallback() {
   return (
@@ -43,7 +32,7 @@ function ForcedLogoutModal() {
 
   const handleDismiss = () => {
     logout()
-    window.location.href = '/login'
+    window.location.href = '/hiring/login'
   }
 
   const isDeleted = forcedLogoutReason === 'account_deleted'
@@ -90,67 +79,18 @@ function ForcedLogoutModal() {
   )
 }
 
-function RequireAuth({
-  children,
-  roles,
-}: {
-  children: React.ReactNode
-  roles?: UserRole[]
-}) {
-  const { isAuthenticated, user } = useAuthStore()
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (roles && user && !roles.includes(user.role)) {
-    if (user.role === 'super_admin') return <Navigate to="/super-admin" replace />
-    if (user.role === 'candidate') return <Navigate to="/portal" replace />
-    if (user.role === 'interviewer') return <Navigate to="/interviewer" replace />
-    if (user.role === 'admin') return <Navigate to="/admin" replace />
-    return <Navigate to="/recruiter" replace />
-  }
-  return <>{children}</>
-}
-
 export default function App() {
   return (
     <>
       <ForcedLogoutModal />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#ffffff',
-            color: '#1a1040',
-            borderRadius: '16px',
-            fontSize: '14px',
-            fontWeight: '600',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
-            padding: '12px 24px',
-            border: '1px solid #f1f0ff',
-          },
-          success: {
-            iconTheme: {
-              primary: '#6c47ff',
-              secondary: '#ffffff',
-            },
-          },
-        }}
-      />
+      
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          {/* Public */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/onboarding/:token" element={<OnboardingPage />} />
-          <Route path="/pre-screening/:token" element={<PreScreeningPage />} />
+          {/* Corporate Website */}
+          <Route path="/" element={<CompanyPage />} />
 
-          {/* Module routes */}
-          <Route path="/recruiter/*" element={<RequireAuth roles={['recruiter']}><RecruiterRoutes /></RequireAuth>} />
-          <Route path="/admin/*" element={<RequireAuth roles={['admin']}><AdminRoutes /></RequireAuth>} />
-          <Route path="/interviewer/*" element={<RequireAuth roles={['admin', 'recruiter', 'interviewer']}><InterviewerRoutes /></RequireAuth>} />
-          <Route path="/portal/*" element={<RequireAuth roles={['candidate']}><PortalRoutes /></RequireAuth>} />
-          <Route path="/super-admin/*" element={<RequireAuth roles={['super_admin']}><SuperAdminRoutes /></RequireAuth>} />
+          {/* Hiring Platform */}
+          <Route path="/hiring/*" element={<HiringApp />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

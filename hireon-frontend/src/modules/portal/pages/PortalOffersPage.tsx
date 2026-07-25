@@ -214,7 +214,7 @@ export default function PortalOffersPage() {
   // Silently redirect if not yet eligible
   useEffect(() => {
     if (!appsLoading && !offersUnlocked) {
-      navigate('/portal', { replace: true })
+      navigate('/hiring/portal', { replace: true })
     }
   }, [appsLoading, offersUnlocked, navigate])
 

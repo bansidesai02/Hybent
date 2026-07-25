@@ -136,7 +136,7 @@ export default function PreScreeningReviewPage() {
       {/* Proceed CTA */}
       {session.status === 'completed' && (
         <div style={styles.ctaBar}>
-          <Link to="/recruiter/interviews" style={styles.scheduleCta}>
+          <Link to="/hiring/recruiter/interviews" style={styles.scheduleCta}>
             <Calendar size={16} />
             Proceed to Schedule Interview
           </Link>
