@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { ArrowRight } from 'lucide-react'
 
@@ -88,19 +88,16 @@ export default function ResetPasswordPage() {
       </div>
 
       <div className="rp-card">
-        <div className="logo-wrap">
+        <Link to="/" className="logo-wrap" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="logo-orbit">
             <div className="logo-orbit-ring"></div>
-            <div className="logo-box">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
-                <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95"/>
-                <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95"/>
-              </svg>
+            <div className="logo-box" style={{ background: 'none', boxShadow: 'none' }}>
+              <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
             </div>
           </div>
-          <span className="logo-wordmark lwl" style={{ fontSize: '22px' }}>Hybent Hiring</span>
-        </div>
+          <img src="/hybent_wordmark_dark.webp" alt="HYBENT" className="wordmark-image wordmark-dark" style={{ height: '22px' }} />
+          <img src="/hybent_wordmark_light.webp" alt="HYBENT" className="wordmark-image wordmark-light" style={{ height: '22px' }} />
+        </Link>
 
         {done ? (
           <div style={{ textAlign: 'center' }}>

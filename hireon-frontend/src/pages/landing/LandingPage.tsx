@@ -397,7 +397,7 @@ export default function LandingPage() {
         }}
       >
         {/* Logo */}
-        <Link to="/hiring" className="flex items-center gap-2.5 no-underline">
+        <Link to="/" className="flex items-center gap-2.5 no-underline">
           <div className="relative w-[38px] h-[38px] flex items-center justify-center">
             <span
               className="absolute inset-[-7px] rounded-full border border-dashed"
@@ -413,28 +413,12 @@ export default function LandingPage() {
             </span>
             <span
               className="relative w-[38px] h-[38px] rounded-[11px] flex items-center justify-center overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', boxShadow: '0 4px 14px rgba(108,71,255,0.35)' }}
+              style={{ background: 'transparent', boxShadow: 'none' }}
             >
-              <span className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.2), transparent 60%)' }} />
-              {/* Hybent Hiring 'H' mark logo — matches HTML demo */}
-              <svg className="relative z-10" width="22" height="22" viewBox="0 0 22 22" fill="none">
-                <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95" />
-              </svg>
+              <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} className="relative z-10" />
             </span>
           </div>
-          <span
-            className="text-[20px] font-extrabold"
-            style={{
-              background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            Hybent Hiring
-          </span>
+          <img src="/hybent_wordmark_dark.webp" alt="HYBENT" style={{ height: '20px', objectFit: 'contain' }} />
         </Link>
 
         {/* Nav links */}
@@ -1169,19 +1153,15 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 mb-12">
             {/* Brand */}
             <div className="md:col-span-1">
-              <div className="flex items-center gap-3 mb-4">
+              <Link to="/" className="flex items-center gap-3 mb-4 no-underline cursor-pointer">
                 <div className="logo-orbit">
                   <div className="logo-orbit-ring"></div>
-                  <div className="logo-box">
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                      <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                      <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                      <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95" />
-                    </svg>
+                  <div className="logo-box" style={{ background: 'none', boxShadow: 'none' }}>
+                    <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
                   </div>
                 </div>
-                <span className="logo-wordmark lwl" style={{ fontSize: '18px' }}>Hybent Hiring</span>
-              </div>
+                <img src="/hybent_wordmark_dark.webp" alt="HYBENT" style={{ height: '18px', objectFit: 'contain' }} />
+              </Link>
               <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>
                 AI-powered recruiting platform that helps teams hire faster and smarter.
               </p>

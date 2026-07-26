@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { invitationsApi } from '@/api/invitations'
@@ -128,19 +128,18 @@ export default function OnboardingPage() {
             <style>{CSS}</style>
             <Card className="max-w-xl w-full p-10">
                 <div className="text-center mb-10">
-                    <div className="logo-wrap">
+                    <Link to="/" className="logo-wrap" style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div className="logo-orbit">
                             <div className="logo-orbit-ring">
                                 <div className="logo-orbit-dot"></div>
                             </div>
-                            <div className="logo-box">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                                    <path d="M7 5V19M17 5V19M7 12H17" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
+                            <div className="logo-box" style={{ background: 'none', boxShadow: 'none' }}>
+                                <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
                             </div>
                         </div>
-                        <span className="logo-wordmark lwl">Hybent Hiring</span>
-                    </div>
+                        <img src="/hybent_wordmark_dark.webp" alt="HYBENT" className="wordmark-image wordmark-dark" style={{ height: '26px' }} />
+                        <img src="/hybent_wordmark_light.webp" alt="HYBENT" className="wordmark-image wordmark-light" style={{ height: '26px' }} />
+                    </Link>
 
                     <h1 className="text-2xl font-bold mb-2">Welcome, {invitation?.full_name}!</h1>
                     <p className="text-gray-500 dark:text-[#b0a8d8]">

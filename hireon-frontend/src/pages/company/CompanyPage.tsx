@@ -23,6 +23,46 @@ export default function CompanyPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const buttons = document.querySelectorAll('.btn-primary');
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const btn = e.currentTarget as HTMLElement;
+      const rect = btn.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      btn.style.setProperty('--x', `${x}px`);
+      btn.style.setProperty('--y', `${y}px`);
+      
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const mx = ((x - centerX) / centerX) * 4.5; // shifts 3-5px towards cursor
+      const my = ((y - centerY) / centerY) * 4.5;
+      
+      btn.style.setProperty('--mx', `${mx}px`);
+      btn.style.setProperty('--my', `${my}px`);
+    };
+    
+    const handleMouseLeave = (e: MouseEvent) => {
+      const btn = e.currentTarget as HTMLElement;
+      btn.style.setProperty('--mx', '0px');
+      btn.style.setProperty('--my', '0px');
+    };
+    
+    buttons.forEach(btn => {
+      btn.addEventListener('mousemove', handleMouseMove as EventListener);
+      btn.addEventListener('mouseleave', handleMouseLeave as EventListener);
+    });
+    
+    return () => {
+      buttons.forEach(btn => {
+        btn.removeEventListener('mousemove', handleMouseMove as EventListener);
+        btn.removeEventListener('mouseleave', handleMouseLeave as EventListener);
+      });
+    };
+  }, [activePage]);
+
   const goTo = (pageId: string) => {
     if (pageId === 'login') {
       navigate('/login');
@@ -41,7 +81,10 @@ export default function CompanyPage() {
 
 <nav className={`nav ${isNavScrolled ? "scrolled" : ""}`} id="nav">
   <div className="wrap">
-    <div className="brand"><span className="mark">H</span>Hybent</div>
+    <Link to="/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}>
+      <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '34px', height: '34px', objectFit: 'contain' }} />
+      <img src="/hybent_wordmark_dark.webp" alt="HYBENT" style={{ height: '20px', objectFit: 'contain' }} />
+    </Link>
     <div className="navlinks">
       <a onClick={() => goTo("home")} className={activePage === "home" ? "active" : ""}>Home</a>
       <a onClick={() => goTo("about")} className={activePage === "about" ? "active" : ""}>About</a>
@@ -60,7 +103,7 @@ export default function CompanyPage() {
     </div>
     <div className="navctas">
       <a onClick={() => goTo("contact")} className={`btn btn-ghost ${ activePage === "contact" ? "active" : "" }`}>Book a Call</a>
-      <a className="btn btn-primary btn-sm" onClick={() => navigate("/hiring")}>Get Started</a>
+      <a className="btn btn-primary btn-sm" onClick={() => navigate("/hiring")}><span>Get Started</span></a>
     </div>
     <button className="mobile-menu-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
       {mobileMenuOpen ? '✕' : '☰'}
@@ -75,13 +118,13 @@ export default function CompanyPage() {
     <a onClick={() => goTo("contact")}>Contact</a>
     <div className="mobile-nav-ctas">
       <a className="btn btn-secondary" onClick={() => goTo("contact")}>Book a Call</a>
-      <a className="btn btn-primary" onClick={() => navigate("/hiring")}>Get Started</a>
+      <a className="btn btn-primary" onClick={() => navigate("/hiring")}><span>Get Started</span></a>
     </div>
   </div>
 </nav>
 
 {/* ================= HOME ================= */}
-<div className="page" id="page-home" style={{ display: activePage === "home" ? "block" : "none" }}>
+<div className={`page ${activePage === "home" ? "active" : ""}`} id="page-home" key={activePage === "home" ? "active-home" : "inactive-home"} style={{ display: activePage === "home" ? "block" : "none" }}>
 
   <section className="hero-split">
     <div className="wrap">
@@ -92,7 +135,7 @@ export default function CompanyPage() {
           <h1 className="hero-heading">Build Technology That Powers Tomorrow.</h1>
           <p className="hero-desc">We build modern software for businesses that want to move faster. Simple experiences, intelligent automation, and products designed to solve real-world challenges.</p>
           <div className="hero-ctas-split">
-            <a onClick={() => navigate("/hiring")} className={`btn btn-primary ${ activePage === "products" ? "active" : "" }`}>Explore Products</a>
+            <a onClick={() => navigate("/hiring")} className={`btn btn-primary ${ activePage === "products" ? "active" : "" }`}><span>Explore Products</span></a>
             <a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Book a Demo</a>
           </div>
           <div className="hero-trust">
@@ -189,7 +232,7 @@ export default function CompanyPage() {
         <h2>Meet Hybent Hiring.</h2>
         <p>Hybent Hiring is an AI-powered recruitment platform designed to help companies source, evaluate, manage, and hire exceptional talent faster through intelligent automation and modern recruitment workflows.</p>
         <div className="spotlight-ctas">
-          <a className="btn btn-white" onClick={() => navigate("/hiring")}>Explore Hybent Hiring</a>
+          <a className="btn btn-primary" onClick={() => navigate("/hiring")}><span>Explore Hybent Hiring</span></a>
           <a className="btn btn-outline-white">Watch Demo</a>
         </div>
         <div className="stat-chips">
@@ -274,7 +317,7 @@ export default function CompanyPage() {
       <div className="cta-banner">
         <h2>Let's Build the Future Together.</h2>
         <p>Whether you're launching a new product or scaling an existing one, Hybent is ready to build it with you.</p>
-        <div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Start Your Project</a><a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Book a Consultation</a></div>
+        <div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}><span>Start Your Project</span></a><a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Book a Consultation</a></div>
       </div>
     </div>
   </section>
@@ -282,7 +325,7 @@ export default function CompanyPage() {
 </div>
 
 {/* ================= ABOUT ================= */}
-<div className="page" id="page-about" style={{ display: activePage === "about" ? "block" : "none" }}>
+<div className={`page ${activePage === "about" ? "active" : ""}`} id="page-about" key={activePage === "about" ? "active-about" : "inactive-about"} style={{ display: activePage === "about" ? "block" : "none" }}>
   <section className="hero" style={{ paddingTop: '170px' }}>
     <div className="wrap">
       <div className="eyebrow">About Hybent</div>
@@ -326,11 +369,11 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Join us in building what's next.</h2><div className="cta-ctas"><a onClick={() => goTo("careers")} className={`btn btn-primary ${ activePage === "careers" ? "active" : "" }`}>View Careers</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Join us in building what's next.</h2><div className="cta-ctas"><a onClick={() => goTo("careers")} className={`btn btn-primary ${ activePage === "careers" ? "active" : "" }`}><span>View Careers</span></a></div></div></div></section>
 </div>
 
 {/* ================= PRODUCTS ================= */}
-<div className="page" id="page-products" style={{ display: activePage === "products" ? "block" : "none" }}>
+<div className={`page ${activePage === "products" ? "active" : ""}`} id="page-products" key={activePage === "products" ? "active-products" : "inactive-products"} style={{ display: activePage === "products" ? "block" : "none" }}>
   <section className="hero" style={{ paddingTop: '170px' }}>
     <div className="wrap">
       <div className="eyebrow">Our Products</div>
@@ -346,7 +389,7 @@ export default function CompanyPage() {
           <div className="eyebrow" style={{ background: 'white' }}>Flagship Product</div>
           <h2 style={{ fontSize: '34px', marginBottom: '14px' }}>Hybent Hiring — AI-Powered Hiring Platform</h2>
           <p style={{ color: 'var(--gray)', fontSize: '16px', lineHeight: '1.7', marginBottom: '20px' }}>Find, match, and hire top talent faster with an AI engine built for modern recruiting teams.</p>
-          <a className="btn btn-primary" onClick={() => navigate("/hiring")}>Explore Hybent Hiring</a>
+          <a className="btn btn-primary" onClick={() => navigate("/hiring")}><span>Explore Hybent Hiring</span></a>
         </div>
         <div className="mockup-frame" style={{ transform: 'none', boxShadow: '0 20px 50px -20px rgba(20,18,26,0.2)' }}>
           <div className="mockup-chrome"><span></span><span></span><span></span></div>
@@ -378,11 +421,11 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Want to see our products in action?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Book a Demo</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Want to see our products in action?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}><span>Book a Demo</span></a></div></div></div></section>
 </div>
 
 {/* ================= HYBENT HIRING ================= */}
-<div className="page" id="page-hybent-hiring" style={{ display: activePage === "hybent-hiring" ? "block" : "none" }}>
+<div className={`page ${activePage === "hybent-hiring" ? "active" : ""}`} id="page-hybent-hiring" key={activePage === "hybent-hiring" ? "active-hybent-hiring" : "inactive-hybent-hiring"} style={{ display: activePage === "hybent-hiring" ? "block" : "none" }}>
   <section className="hero" style={{ paddingTop: '190px' }}>
     <div className="hero-bg-blob"></div>
     <div className="hero-bg-blob2"></div>
@@ -391,7 +434,7 @@ export default function CompanyPage() {
       <h1 style={{ fontSize: '72px', maxWidth: '820px', margin: '0 auto 22px' }}>Hire on <span className="grad-text">Autopilot.</span></h1>
       <p className="sub" style={{ maxWidth: '600px' }}>Hybent Hiring uses AI to source, parse, screen, rank, and manage candidates—automating repetitive hiring tasks so your team can focus on finding and hiring exceptional talent faster.</p>
       <div className="hero-ctas">
-        <a className="btn btn-primary">Start Free Trial</a>
+        <a className="btn btn-primary"><span>Start Free Trial</span></a>
         <a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Book a Demo</a>
       </div>
       <div className="mockup-frame">
@@ -505,11 +548,11 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Ready to transform your hiring?</h2><div className="cta-ctas"><a className="btn btn-primary">Start Free Trial</a><a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Talk to Sales</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Ready to transform your hiring?</h2><div className="cta-ctas"><a className="btn btn-primary"><span>Start Free Trial</span></a><a onClick={() => goTo("contact")} className={`btn btn-secondary ${ activePage === "contact" ? "active" : "" }`}>Talk to Sales</a></div></div></div></section>
 </div>
 
 {/* ================= SERVICES ================= */}
-<div className="page" id="page-services" style={{ display: activePage === "services" ? "block" : "none" }}>
+<div className={`page ${activePage === "services" ? "active" : ""}`} id="page-services" key={activePage === "services" ? "active-services" : "inactive-services"} style={{ display: activePage === "services" ? "block" : "none" }}>
   <section className="hero" style={{ paddingTop: '170px' }}>
     <div className="wrap">
       <div className="eyebrow">Professional IT Services</div>
@@ -550,11 +593,11 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Have a project in mind?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Let's Talk</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Have a project in mind?</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}><span>Let's Talk</span></a></div></div></div></section>
 </div>
 
 {/* ================= CAREERS ================= */}
-<div className="page" id="page-careers" style={{ display: activePage === "careers" ? "block" : "none" }}>
+<div className={`page ${activePage === "careers" ? "active" : ""}`} id="page-careers" key={activePage === "careers" ? "active-careers" : "inactive-careers"} style={{ display: activePage === "careers" ? "block" : "none" }}>
   <section className="hero" style={{ paddingTop: '170px' }}>
     <div className="wrap">
       <div className="eyebrow">Careers at Hybent</div>
@@ -598,11 +641,11 @@ export default function CompanyPage() {
     </div>
   </section>
 
-  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Don't see your role? We'd still love to hear from you.</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}>Send Your Resume</a></div></div></div></section>
+  <section className="section-cta"><div className="wrap"><div className="cta-banner"><h2>Don't see your role? We'd still love to hear from you.</h2><div className="cta-ctas"><a onClick={() => goTo("contact")} className={`btn btn-primary ${ activePage === "contact" ? "active" : "" }`}><span>Send Your Resume</span></a></div></div></div></section>
 </div>
 
 {/* ================= CONTACT ================= */}
-<div className="page" id="page-contact" style={{ display: activePage === "contact" ? "block" : "none" }}>
+<div className={`page ${activePage === "contact" ? "active" : ""}`} id="page-contact" key={activePage === "contact" ? "active-contact" : "inactive-contact"} style={{ display: activePage === "contact" ? "block" : "none" }}>
   <section className="hero" style={{ paddingTop: '170px', paddingBottom: '60px' }}>
     <div className="wrap">
       <div className="eyebrow">Get in Touch</div>
@@ -621,7 +664,7 @@ export default function CompanyPage() {
           <select><option>Hybent Hiring</option><option>IT Services</option><option>Partnership</option><option>Other</option></select>
         </div>
         <div className="form-group"><label>Message</label><textarea placeholder="Tell us a bit about what you need..."></textarea></div>
-        <a className="btn btn-primary" style={{ width: '100%' }}>Send Message</a>
+        <a className="btn btn-primary" style={{ width: '100%' }}><span>Send Message</span></a>
       </div>
       <div>
         <div className="info-item"><div className="chip">✉</div><div><h4>Email</h4><p>hello@hybent.com</p></div></div>
@@ -645,7 +688,10 @@ export default function CompanyPage() {
   <div className="wrap">
     <div className="footer-grid">
       <div className="footer-brand">
-        <div className="brand"><span className="mark">H</span>Hybent</div>
+        <Link to="/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '34px', height: '34px', objectFit: 'contain' }} />
+          <img src="/hybent_wordmark_dark.webp" alt="HYBENT" style={{ height: '20px', objectFit: 'contain' }} />
+        </Link>
         <p>A technology company building innovative software products and delivering professional IT services.</p>
         <div className="social"><span>in</span><span>X</span><span>gh</span></div>
       </div>

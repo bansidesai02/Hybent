@@ -801,6 +801,35 @@
   background-clip: text;
 }
 
+.wordmark-image {
+  height: 20px;
+  object-fit: contain;
+  display: block;
+}
+
+.wordmark-image.wordmark-light {
+  display: none !important;
+}
+.wordmark-image.wordmark-dark {
+  display: block !important;
+}
+
+:root[data-theme="dark"] .wordmark-image.wordmark-light,
+.dark .wordmark-image.wordmark-light,
+.dark-theme .wordmark-image.wordmark-light,
+.portal-root.dark .wordmark-image.wordmark-light,
+[data-theme="dark"] .wordmark-image.wordmark-light {
+  display: block !important;
+}
+
+:root[data-theme="dark"] .wordmark-image.wordmark-dark,
+.dark .wordmark-image.wordmark-dark,
+.dark-theme .wordmark-image.wordmark-dark,
+.portal-root.dark .wordmark-image.wordmark-dark,
+[data-theme="dark"] .wordmark-image.wordmark-dark {
+  display: none !important;
+}
+
 .sb-header {
   background: transparent;
   padding: 24px 20px;

@@ -1,5 +1,5 @@
 import React, { memo, useState, useMemo, useEffect, useCallback } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, Link } from 'react-router-dom'
 import { clsx } from 'clsx'
 import type { UserRole } from '@/types'
 import { useNotificationStore } from '@/store/notificationStore'
@@ -293,23 +293,20 @@ function SidebarComponent({ role, collapsed = false, mobileOpen = false, setMobi
     >
       {/* Logo Section */}
       <div className={clsx('sb-header', collapsed && 'flex justify-center px-0')}>
-        <div className={clsx('logo-wrap', collapsed && 'justify-center gap-0')}>
+        <Link to="/" className={clsx('logo-wrap', collapsed && 'justify-center gap-0')} style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="logo-orbit">
             <div className="logo-orbit-ring"></div>
-            <div className="logo-box">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95" />
-              </svg>
+            <div className="logo-box" style={{ background: 'none', boxShadow: 'none' }}>
+              <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
             </div>
           </div>
           {!collapsed && (
-            <span className="logo-wordmark lwl">
-              Hybent Hiring
-            </span>
+            <>
+              <img src="/hybent_wordmark_dark.webp" alt="HYBENT" className="wordmark-image wordmark-dark" style={{ height: '20px' }} />
+              <img src="/hybent_wordmark_light.webp" alt="HYBENT" className="wordmark-image wordmark-light" style={{ height: '20px' }} />
+            </>
           )}
-        </div>
+        </Link>
       </div>
 
       <div className="sb-divider" />
