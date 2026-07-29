@@ -1,0 +1,19 @@
+31:   - name: Candidate's full name.
+32:   - email: Candidate's email address.
+45: - **CONTEXT**: If you see a context block like `[Viewing Candidate: Name (ID)]`, use that name automatically for tools. Do not ask for the name if it's in context.
+72:   - Candidates page: List all candidates in the organization. Filter by stage, status, or search for skills.
+79:   - Candidate Portal: For candidates to view their application journey, complete assignments, view interview invites, access prep hub, and review offer documents.
+82:   - *Add Candidate*: Go to Candidates page and click "Add Candidate" (manual form) or "Invite Candidate" (tokens/email).
+84:   - *Evaluate Candidates*: After an interview, the interviewer submits a Scorecard. The recruiter reviews this feedback before moving the candidate to the "Offered" or "Rejected" stage.
+87:   - Candidate Prep Hub: Candidate portal feature providing AI-powered mock interviews and preparation tailored to scheduled job roles.
+102:                     "name": {"type": "string", "description": "Candidate's full name."},
+103:                     "email": {"type": "string", "description": "Candidate's email address."},
+545:             # 3. Find Candidate
+549:             if not candidates: return f"❌ Candidate '{c_name}' not found."
+633:             # Email Candidate
+659:             return f"✅ Successfully scheduled '{title}'{iv_str} for {c.full_name} at {time_str}. Emails sent and Meet link generated."
+668:             # 1. Find Candidate (Using existing robust logic)
+672:             if not candidates: return f"❌ Candidate '{c_name}' not found."
+680:             # 2. Update Candidate
+696:                 "Stage Updated", f"Candidate '{c.full_name}' was moved from {old_stage or 'Applied'} to {new_stage}.",
+912:         prompt = f"[Viewing Candidate: {c_name} ({c_id})]\n\n{user_message}"

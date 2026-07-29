@@ -1,0 +1,14 @@
+name: Backend CD
+
+on:
+  push:
+    branches: [ yash ]
+
+jobs:
+  deploy:
+    name: Trigger Render Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Hook
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"

@@ -1,0 +1,1795 @@
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { superAdminApi } from '@/api/superAdmin'
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
+import { useAuth } from '@/hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { Avatar } from '@/components/ui/Avatar'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Pagination } from '@/components/ui/Pagination'
+import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
+import { GlassIcon } from '@/components/common/GlassIcon'
+import { CandidateProfileView } from '@/modules/recruiter/components/CandidateProfileView'
+import { ArrowLeft, Search, Calendar, Plus, Play, Pause, Trash2, CheckCircle, Bookmark, X, Upload, ChevronDown, Clock3, Lock } from 'lucide-react'
+import { talentPoolApi } from '@/api/talentPool'
+import { candidatesApi } from '@/api/candidates'
+import { jobsApi } from '@/api/jobs'
+import { designationsApi, type DesignationItem } from '@/api/designations'
+import { adminApi } from '@/api/admin'
+import { useNotificationStore } from '@/store/notificationStore'
+import { Select } from '@/components/ui/Select'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { BulkImportModal } from '@/modules/recruiter/components/BulkImportModal'
+import { BulkImportHistoryModal } from '@/modules/recruiter/components/BulkImportHistoryModal'
+import toast from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
+import { formatDate, formatCandidateDate } from '@/utils/formatters'
+import type { Candidate } from '@/types'
+import type { ImportResultData } from '@/api/bulkImport'
+
+// ── Stage config ───────────────────────────────────────────────────────────────
+const STAGE_CFG: Record<string, { color: string; bg: string; label: string }> = {
+  applied:                      { color: 'var(--violet)', bg: 'var(--violet)/10', label: 'Applied' },
+  pre_screening:                { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', label: 'Pre-screening' },
+  pre_screening_selected:       { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Pre-screening Selected' },
+  pre_screening_rejected:       { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Pre-screening Rejected' },
+  technical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Technical Round' },
+  technical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Technical Round Selected' },
+  technical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Technical Round Rejected' },
+  technical_round_back_out:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Technical Round Back Out' },
+  practical_round:              { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'Practical Round' },
+  practical_round_selected:     { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Practical Round Selected' },
+  practical_round_rejected:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Practical Round Rejected' },
+  hr_round:                     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)', label: 'HR Round' },
+  hr_round_selected:            { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'HR Round Selected' },
+  hr_round_rejected:            { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'HR Round Rejected' },
+  offered:                      { color: '#f59e0b', bg: 'rgba(245,158,11,0.10)', label: 'Offered' },
+  hired_joined:                 { color: '#10b981', bg: 'rgba(16,185,129,0.10)', label: 'Hired / Joined' },
+  rejected:                     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', label: 'Rejected' },
+  inactive:                     { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', label: 'Inactive' },
+}
+
+const STATUS_CFG: Record<string, { color: string; bg: string; dot: string; label: string }> = {
+  shortlisted: { color: 'var(--teal, #059669)', bg: 'rgba(16,185,129,0.12)', dot: 'var(--teal, #10b981)', label: 'Shortlisted' },
+  in_review:   { color: 'var(--violet)', bg: 'var(--violet)/10', dot: 'var(--violet)', label: 'In Review' },
+  scheduled:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.10)', dot: '#3b82f6', label: 'Scheduled' },
+  rejected:    { color: '#ef4444', bg: 'rgba(239,68,68,0.10)', dot: '#ef4444', label: 'Rejected' },
+  inactive:    { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', dot: '#94a3b8', label: 'Inactive' },
+}
+
+const REJECTION_STAGES = ['rejected','pre_screening_rejected','technical_round_rejected','technical_round_back_out','practical_round_rejected','hr_round_rejected']
+
+function getCandidateStatus(pipelineStage: string | undefined | null): string {
+  if (!pipelineStage) return 'in_review'
+  const stage = pipelineStage.toLowerCase()
+  if (stage === 'pre_screening_selected') return 'shortlisted'
+  if (['applied', 'screening', 'needs_review'].includes(stage)) return 'in_review'
+  if ([
+    'technical_round', 'technical_round_selected', 'practical_round',
+    'practical_round_selected', 'hr_round', 'hr_round_selected',
+    'management_round', 'management_round_selected',
+    'techno_functional', 'techno_functional_selected'
+  ].includes(stage)) return 'scheduled'
+  if ([
+    'rejected', 'pre_screening_rejected', 'technical_round_rejected',
+    'practical_round_rejected', 'hr_round_rejected', 'technical_round_back_out',
+    'practical_round_back_out', 'management_round_rejected', 'techno_functional_rejected'
+  ].includes(stage)) return 'rejected'
+  if (stage === 'inactive') return 'inactive'
+  return 'in_review'
+}
+
+const STAGE_GROUPS = [
+  {
+    label: 'Pre-Screening',
+    icon: <GlassIcon icon="Search" variant="blue" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'pre_screening', label: 'In Pre-screening', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'pre_screening_selected', label: 'Pre-screening Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'pre_screening_rejected', label: 'Pre-screening Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'Technical Round',
+    icon: <GlassIcon icon="Code" variant="violet" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'technical_round', label: 'In Technical Round', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'technical_round_selected', label: 'Technical Round Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'technical_round_rejected', label: 'Technical Round Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+      { key: 'technical_round_back_out', label: 'Technical Round Back Out', icon: <GlassIcon icon="RotateCcw" variant="amber" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'Practical Round',
+    icon: <GlassIcon icon="FileText" variant="violet" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'practical_round', label: 'In Practical Round', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'practical_round_selected', label: 'Practical Round Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'practical_round_rejected', label: 'Practical Round Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'HR Round',
+    icon: <GlassIcon icon="Users" variant="violet" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'hr_round', label: 'In HR Round', icon: <GlassIcon icon="Clock" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'hr_round_selected', label: 'HR Round Selected', icon: <GlassIcon icon="CheckCircle" variant="emerald" size={18} iconSize={9} ghost /> },
+      { key: 'hr_round_rejected', label: 'HR Round Rejected', icon: <GlassIcon icon="XCircle" variant="rose" size={18} iconSize={9} ghost /> },
+    ],
+  },
+  {
+    label: 'Offer & Joining',
+    icon: <GlassIcon icon="Trophy" variant="emerald" size={22} iconSize={12} ghost />,
+    stages: [
+      { key: 'offered', label: 'Offered', icon: <GlassIcon icon="Tag" variant="amber" size={18} iconSize={9} ghost /> },
+      { key: 'hired_joined', label: 'Hired / Joined', icon: <GlassIcon icon="Trophy" variant="emerald" size={18} iconSize={9} ghost /> },
+    ],
+  },
+]
+
+// ── Mini stage dropdown ────────────────────────────────────────────────────────
+function StageDropdown({ candidateId, currentStage, onSelect, onClose, onDelete, user, onAddToPipeline, onChangeDesignation, hasActiveJobs, isInPipeline, triggerEl }: {
+  candidateId: string; currentStage: string
+  onSelect: (s: string) => void; onClose: () => void
+  onDelete: (id: string) => void; user: any
+  onAddToPipeline: () => void
+  onChangeDesignation: () => void
+  hasActiveJobs: boolean
+  isInPipeline: boolean
+  triggerEl: HTMLButtonElement | null
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [openUp, setOpenUp] = useState(false)
+  const [openLeft, setOpenLeft] = useState(false)
+  const [maxHeight, setMaxHeight] = useState(420)
+  const [menuTop, setMenuTop] = useState(0)
+  const [menuLeft, setMenuLeft] = useState(0)
+  const MENU_WIDTH = 268
+
+  const computePlacement = () => {
+    if (!ref.current || !triggerEl) return
+    const viewportPadding = 12
+    const gap = 6
+    const viewportHeight = window.innerHeight
+    const viewportWidth = window.innerWidth
+    const triggerRect = triggerEl.getBoundingClientRect()
+
+    const cardEl = triggerEl.closest('.candidate-card') || triggerEl.parentElement
+    const cardRect = cardEl ? cardEl.getBoundingClientRect() : triggerRect
+
+    const naturalHeight = ref.current.offsetHeight || ref.current.scrollHeight || 380
+    const spaceBelow = viewportHeight - triggerRect.bottom - viewportPadding
+    const spaceAbove = triggerRect.top - viewportPadding
+
+    const shouldOpenUp = spaceBelow < naturalHeight && spaceAbove > spaceBelow
+    const available = shouldOpenUp ? spaceAbove : spaceBelow
+    const safeMaxHeight = Math.max(200, Math.floor(available - gap))
+
+    // Align to trigger left (opening rightward over the next card) by default.
+    // If it overflows the right edge of viewport (last card), open leftward over the left card.
+    const desiredLeft = triggerRect.left
+    const overflowsRight = desiredLeft + MENU_WIDTH + viewportPadding > viewportWidth
+
+    let clampedLeft = overflowsRight
+      ? cardRect.left - MENU_WIDTH - gap
+      : triggerRect.left
+
+    clampedLeft = Math.max(
+      viewportPadding,
+      Math.min(clampedLeft, viewportWidth - MENU_WIDTH - viewportPadding),
+    )
+
+    const computedTop = shouldOpenUp
+      ? triggerRect.top - Math.min(naturalHeight, safeMaxHeight) - gap
+      : triggerRect.bottom + gap
+
+    setOpenUp(shouldOpenUp)
+    setOpenLeft(overflowsRight)
+    setMaxHeight(safeMaxHeight)
+    setMenuLeft(clampedLeft)
+    setMenuTop(Math.max(viewportPadding, computedTop))
+  }
+
+  useLayoutEffect(() => {
+    computePlacement()
+  }, [triggerEl])
+
+  useEffect(() => {
+    const onReflow = () => computePlacement()
+    window.addEventListener('resize', onReflow)
+    window.addEventListener('scroll', onReflow, true)
+    
+    const timer = setTimeout(computePlacement, 50)
+
+    let observer: ResizeObserver | null = null
+    if (ref.current) {
+      observer = new ResizeObserver(() => {
+        computePlacement()
+      })
+      observer.observe(ref.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', onReflow)
+      window.removeEventListener('scroll', onReflow, true)
+      clearTimeout(timer)
+      if (observer) {
+        observer.disconnect()
+      }
+    }
+  }, [triggerEl])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [onClose])
+
+  return (
+    <motion.div ref={ref}
+      initial={{ opacity: 0, scale: 0.95, y: openUp ? -6 : 6 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: openUp ? -6 : 6 }} transition={{ duration: 0.14 }}
+      style={{ position: 'fixed', top: menuTop, left: menuLeft, zIndex: 9999, width: MENU_WIDTH,
+        background: '#ffffff', borderRadius: 14,
+        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03)', border: '1px solid rgba(148,163,184,0.18)',
+        padding: '8px', transformOrigin: `${openUp ? 'bottom' : 'top'} ${openLeft ? 'right' : 'left'}`, maxHeight, overflowY: 'auto' }}
+      onClick={e => e.stopPropagation()}
+    >
+      <button
+        onClick={(e) => { e.stopPropagation(); onChangeDesignation(); onClose() }}
+        style={{
+          width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 700, color: 'var(--violet)',
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(108,71,255,0.08)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      >
+        <Plus size={13} />
+        <span style={{ flex: 1 }}>Change Designation</span>
+      </button>
+      <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
+
+      {(hasActiveJobs || isInPipeline) && (
+        <>
+          {isInPipeline ? (
+            <div
+              style={{
+                width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+                background: 'rgba(148, 163, 184, 0.1)', border: '1.5px solid rgba(148, 163, 184, 0.2)',
+                cursor: 'not-allowed', fontSize: 12.5, fontWeight: 700, color: '#94a3b8',
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+              }}
+            >
+              <CheckCircle size={13} />
+              <span style={{ flex: 1 }}>Already in Pipeline</span>
+            </div>
+          ) : (
+            <button onClick={e => { e.stopPropagation(); onAddToPipeline(); onClose() }}
+              style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9,
+                background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.20)',
+                cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#059669',
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.10)' }}
+            >
+              <Plus size={13} /><span style={{ flex: 1 }}>Add in Pipeline</span>
+            </button>
+          )}
+          <div style={{ height: 1, background: 'var(--table-border)', margin: '2px 6px 6px' }} />
+        </>
+      )}
+      {STAGE_GROUPS.map((group, gi) => (
+        <div key={group.label}>
+          {gi > 0 && <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />}
+          <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-light)', textTransform: 'uppercase',
+            letterSpacing: '0.9px', padding: '6px 10px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {group.icon}
+            {group.label}
+          </p>
+          {group.stages.map(item => {
+            const cfg = STAGE_CFG[item.key] ?? STAGE_CFG.applied
+            const isActive = currentStage === item.key
+            return (
+              <button key={item.key} onClick={e => { e.stopPropagation(); onSelect(item.key) }}
+                style={{ width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+                  background: isActive ? cfg.bg : 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 12.5, fontWeight: isActive ? 700 : 500, color: isActive ? cfg.color : 'var(--text)',
+                  display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.12s' }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = cfg.bg }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'none' }}
+              >
+                {item.icon}
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {isActive && <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>Active</span>}
+              </button>
+            )
+          })}
+        </div>
+      ))}
+      <div style={{ height: 1, background: 'var(--table-border)', margin: '4px 6px' }} />
+      {user?.role === 'admin' && (
+        <button onClick={e => { e.stopPropagation(); onDelete(candidateId); onClose() }}
+          style={{ width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 9,
+            background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 500, color: '#ef4444',
+            display: 'flex', alignItems: 'center', gap: 8 }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+        >
+          <Trash2 size={12} /> Delete Candidate
+        </button>
+      )}
+    </motion.div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+export default function AllTalentListPage() {
+  const { basePath, user } = useAuth()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [viewTarget, setViewTarget] = useState<Candidate | null>(null)
+  const [designationTarget, setDesignationTarget] = useState<Candidate | null>(null)
+  const [designationSearch, setDesignationSearch] = useState('')
+  const [pendingDesignation, setPendingDesignation] = useState<DesignationItem | null>(null)
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+  const [menuTriggerEl, setMenuTriggerEl] = useState<HTMLButtonElement | null>(null)
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null)
+
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
+  const [recruiterId, setRecruiterId] = useState<string>('all')
+  const [selectedJobId, setSelectedJobId] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<string>('all')
+  const { data: globalFlags, isLoading: flagsLoading } = useQuery({ queryKey: ['super-admin', 'global-flags'], queryFn: () => superAdminApi.getGlobalFlags() })
+  const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
+  const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
+
+  const [shouldWobble, setShouldWobble] = useState(false)
+  useEffect(() => {
+    setShouldWobble(true)
+    const t = setTimeout(() => setShouldWobble(false), 800)
+    return () => clearTimeout(t)
+  }, [])
+  const [showAddJobModal, setShowAddJobModal] = useState(false)
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false)
+  const [showBulkImportHistoryModal, setShowBulkImportHistoryModal] = useState(false)
+  const [showImportActions, setShowImportActions] = useState(false)
+  const [newJobTitle, setNewJobTitle] = useState('')
+  const [isCreatingJob, setIsCreatingJob] = useState(false)
+  const newJobInputRef = useRef<HTMLInputElement>(null)
+  const actionTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const importActionsRef = useRef<HTMLDivElement>(null)
+
+  // Right-click context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; job: any } | null>(null)
+  const [renameModal, setRenameModal] = useState<{ job: any; title: string } | null>(null)
+  const [isRenamingJob, setIsRenamingJob] = useState(false)
+  const [isDeletingJob, setIsDeletingJob] = useState(false)
+  const [candidateToDelete, setCandidateToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [jobToDelete, setJobToDelete] = useState<any | null>(null)
+  const [designationReorderError, setDesignationReorderError] = useState<string | null>(null)
+
+  // Saved Views & Alerts State
+  const [savedViews, setSavedViews] = useState<any[]>(() => {
+    return JSON.parse(localStorage.getItem('hybent_hiring_talent_saved_views') || '[]')
+  })
+  const [newViewName, setNewViewName] = useState('')
+  const [activeViewId, setActiveViewId] = useState<string | null>(null)
+
+  const [alertMatchThreshold, setAlertMatchThreshold] = useState<number>(() => {
+    return parseInt(localStorage.getItem('hybent_hiring_alert_match_threshold') || '85')
+  })
+  const [alertOnOffer, setAlertOnOffer] = useState<boolean>(() => {
+    return localStorage.getItem('hybent_hiring_alert_on_offer') !== 'false'
+  })
+
+  const saveCurrentView = () => {
+    if (!newViewName.trim()) {
+      toast.error('Please enter a name for the view')
+      return
+    }
+    const newView = {
+      id: crypto.randomUUID(),
+      name: newViewName.trim(),
+      search,
+      statusFilter,
+      recruiterId,
+      selectedJobId,
+      dateFilter,
+      customDateRange,
+    }
+    const updated = [...savedViews, newView]
+    setSavedViews(updated)
+    localStorage.setItem('hybent_hiring_talent_saved_views', JSON.stringify(updated))
+    setActiveViewId(newView.id)
+    setNewViewName('')
+    toast.success(`View "${newView.name}" saved successfully!`)
+  }
+
+  const loadSavedView = (view: any) => {
+    setSearch(view.search || '')
+    setStatusFilter(view.statusFilter)
+    setRecruiterId(view.recruiterId || 'all')
+    setSelectedJobId(view.selectedJobId || 'all')
+    setDateFilter(view.dateFilter || 'all')
+    setCustomDateRange(view.customDateRange || ['', ''])
+    setActiveViewId(view.id)
+    toast.success(`Loaded view "${view.name}"`)
+  }
+
+  const deleteActiveView = () => {
+    if (!activeViewId) return
+    const updated = savedViews.filter(v => v.id !== activeViewId)
+    setSavedViews(updated)
+    localStorage.setItem('hybent_hiring_talent_saved_views', JSON.stringify(updated))
+    setActiveViewId(null)
+    toast.success('Saved view deleted')
+  }
+
+  useEffect(() => {
+    adminApi.listUsers().then((res: any) => {
+      const users = res.data
+        .filter((u: any) => u.role !== 'candidate')
+        .map((u: any) => ({ id: u.id, name: u.full_name }))
+      setRecruiters(users)
+    }).catch((err: any) => console.error("Failed to fetch recruiters", err))
+  }, [])
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['all-talent-full', page, search, statusFilter, recruiterId, selectedJobId, dateFilter, customDateRange],
+    queryFn: () => {
+      let date_from: string | undefined
+      let date_to: string | undefined
+      const now = new Date()
+      if (dateFilter === 'today') {
+        now.setHours(0,0,0,0)
+        date_from = now.toISOString()
+      } else if (dateFilter === 'week') {
+        const d = new Date(now)
+        d.setDate(d.getDate() - 7)
+        date_from = d.toISOString()
+      } else if (dateFilter === 'month') {
+        const d = new Date(now)
+        d.setMonth(d.getMonth() - 1)
+        date_from = d.toISOString()
+      } else if (dateFilter === 'custom' && customDateRange[0]) {
+        date_from = new Date(customDateRange[0]).toISOString()
+        if (customDateRange[1]) {
+          const end = new Date(customDateRange[1])
+          end.setHours(23, 59, 59, 999)
+          date_to = end.toISOString()
+        } else {
+          date_to = date_from
+        }
+      }
+
+      return talentPoolApi.list({ 
+        page, 
+        limit: 50, 
+        search: search || undefined,
+        status: statusFilter,
+        created_by_id: recruiterId !== 'all' ? recruiterId : undefined,
+        job_id: selectedJobId !== 'all' ? selectedJobId : undefined,
+        date_from,
+        date_to
+      }).then(r => r.data)
+    },
+  })
+
+  const { data: talentStats } = useQuery({
+    queryKey: ['talent-pool-stats'],
+    queryFn: () => talentPoolApi.getStats().then(r => r.data),
+  })
+
+  const { data: designationData } = useQuery({
+    queryKey: ['designations'],
+    queryFn: () => designationsApi.list().then((r: any) => r.data),
+  })
+
+  // Load saved designation order preference from backend / localStorage
+  const { data: userPrefData } = useQuery({
+    queryKey: ['user-preference-order', user?.id],
+    queryFn: () => {
+      if (!user?.id) return { order: [] }
+      return adminApi.getDesignationOrder(user.id).then((r: any) => r.data)
+    },
+    enabled: !!user?.id,
+  })
+
+  const savedOrder = React.useMemo(() => {
+    if (!user?.id) return []
+    const backendOrder = userPrefData?.order || []
+    if (backendOrder.length > 0) return backendOrder
+    try {
+      return JSON.parse(localStorage.getItem(`designation_order_${user.id}`) || '[]')
+    } catch {
+      return []
+    }
+  }, [userPrefData?.order, user?.id])
+
+  const sortedDesignations = React.useMemo(() => {
+    const items = (designationData?.items || []) as DesignationItem[]
+    if (savedOrder.length === 0) {
+      return [...items].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    }
+    const orderMap = new Map<string, number>()
+    savedOrder.forEach((id: string, index: number) => orderMap.set(id, index))
+    return [...items].sort((a, b) => {
+      const indexA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999999
+      const indexB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999999
+      if (indexA !== indexB) return indexA - indexB
+      return (a.display_order ?? 0) - (b.display_order ?? 0)
+    })
+  }, [designationData?.items, savedOrder])
+
+  const designations = sortedDesignations
+  const designationCounts = (designationData?.designation_counts || {}) as Record<string, number>
+
+  // Real-time Candidate Alert Monitor
+  useEffect(() => {
+    const items = data?.items || []
+    if (items.length === 0) return
+
+    // Get notified candidate IDs
+    const notifiedIds = new Set<string>(
+      JSON.parse(localStorage.getItem('hybent_hiring_notified_candidate_ids') || '[]')
+    )
+
+    let updatedNotified = false
+
+    items.forEach((candidate: any) => {
+      if (notifiedIds.has(candidate.id)) return
+
+      // Alert Condition 1: High Match Score
+      const matchScore = candidate.match_score ?? candidate.parsed_data?.match_score ?? 0
+      const matchesScore = matchScore >= alertMatchThreshold
+
+      // Alert Condition 2: Candidate stage is "Offer" (offered)
+      const stage = candidate.pipeline_stage || ''
+      const isOffer = stage.toLowerCase() === 'offered' || stage.toLowerCase() === 'offer' || stage.toLowerCase() === 'hired_joined'
+      const matchesOffer = alertOnOffer && isOffer
+
+      if (matchesScore || matchesOffer) {
+        // Add to notified
+        notifiedIds.add(candidate.id)
+        updatedNotified = true
+
+        const title = matchesOffer ? 'Stage Reached: Offer' : 'High Match Score Alert'
+        const message = matchesOffer
+          ? `Candidate ${candidate.full_name} has entered the "Offer" stage!`
+          : `Candidate ${candidate.full_name} matches with a score of ${matchScore}%!`
+
+        // Trigger in-app notification in store
+        useNotificationStore.getState().addNotification({
+          id: crypto.randomUUID(),
+          organization_id: '',
+          user_id: '',
+          type: 'system',
+          title,
+          message,
+          data: null,
+          is_read: false,
+          read_at: null,
+          created_at: new Date().toISOString(),
+        })
+
+        // Show premium toast
+        toast.custom((t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-enter' : 'animate-leave'
+            } max-w-md w-full bg-white dark:bg-[#1a1730] shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 border border-violet-100 dark:border-[#2a2550]`}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <div className="h-10 w-10 rounded-full bg-violet-50 dark:bg-[#201c3b] flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold text-lg">
+                    ✨
+                  </div>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {title}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {message}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-gray-100 dark:border-[#201c3b]">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-xs font-bold text-violet-600 hover:text-violet-500 dark:text-violet-400 focus:outline-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ), { duration: 5000 })
+      }
+    })
+
+    if (updatedNotified) {
+      localStorage.setItem('hybent_hiring_notified_candidate_ids', JSON.stringify(Array.from(notifiedIds)))
+    }
+  }, [data?.items, alertMatchThreshold, alertOnOffer])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (importActionsRef.current && !importActionsRef.current.contains(event.target as Node)) {
+        setShowImportActions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const { data: allJobs } = useQuery({
+    queryKey: ['jobs', 'all-for-filters'],
+    queryFn: () => jobsApi.list({ limit: 100, include_pool: true }).then((r: any) => r.data.items),
+  })
+
+  const activeJobs = allJobs?.filter((j: any) => j.status === 'active') || []
+
+  const stageMutation = useMutation({
+    mutationFn: ({ id, stage }: { id: string; stage: string }) =>
+      candidatesApi.updateStage(id, stage, REJECTION_STAGES.includes(stage)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+      toast.success('Stage updated')
+      setOpenDropdownId(null)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+  })
+
+  const inviteMutation = useMutation({
+    mutationFn: (data: { email: string; full_name: string }) => candidatesApi.invite(data),
+    onSuccess: (_, v) => {
+      toast.success(`Invitation sent to ${v.full_name}`)
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => candidatesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+      toast.success('Candidate deleted')
+    },
+    onError: () => toast.error('Failed to delete candidate'),
+  })
+
+  const transferMutation = useMutation({
+    mutationFn: ({ candidateId, designationId }: { candidateId: string; designationId: string }) =>
+      candidatesApi.updateDesignation(candidateId, designationId),
+    onMutate: async ({ candidateId, designationId }) => {
+      await queryClient.cancelQueries({ queryKey: ['all-talent-full'] })
+      await queryClient.cancelQueries({ queryKey: ['designations'] })
+
+      const previousCandidates = queryClient.getQueryData(['all-talent-full'])
+      const previousDesignations = queryClient.getQueryData(['designations'])
+
+      const newDesignation = designations.find(d => d.id === designationId)
+      if (newDesignation) {
+        queryClient.setQueryData(['all-talent-full'], (old: any) => {
+          if (!old || !old.items) return old
+          return {
+            ...old,
+            items: old.items.map((cand: any) => {
+              if (cand.id === candidateId) {
+                return {
+                  ...cand,
+                  designation_id: designationId,
+                  applied_job_title: newDesignation.title
+                }
+              }
+              return cand
+            })
+          }
+        })
+      }
+
+      return { previousCandidates, previousDesignations }
+    },
+    onSuccess: (res: any) => {
+      if (res?.data) {
+        queryClient.setQueryData(['designations'], {
+          items: res.data.designations || [],
+          designation_counts: res.data.designation_counts || {},
+          total_candidates: res.data.total_candidates ?? totalCandidates,
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+      setDesignationTarget(null)
+      setPendingDesignation(null)
+      setDesignationSearch('')
+      toast.success('Candidate designation updated successfully.')
+    },
+    onError: (err: any, variables, context: any) => {
+      if (context) {
+        queryClient.setQueryData(['all-talent-full'], context.previousCandidates)
+        queryClient.setQueryData(['designations'], context.previousDesignations)
+      }
+      toast.error(err.response?.data?.detail || 'Failed to move candidate')
+    },
+  })
+
+  const resolveJobForCandidate = (candidate: any): string | null => {
+    if (!activeJobs || activeJobs.length === 0) return null
+
+    const normalize = (v?: string | null) =>
+      (v || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9+#.\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    const roles = [
+      candidate?.applied_job_title,
+      candidate?.current_title,
+      candidate?.parsed_data?.current_title,
+      candidate?.parsed_data?.role,
+    ]
+      .map((r: any) => normalize(typeof r === 'string' ? r : ''))
+      .filter(Boolean)
+
+    const exact = activeJobs.find((j: any) => roles.includes(normalize(j.title)))
+    if (exact?.id) return exact.id
+
+    const partial = activeJobs.find((j: any) => {
+      const jt = normalize(j.title)
+      return roles.some((r: string) => r.includes(jt) || jt.includes(r))
+    })
+    if (partial?.id) return partial.id
+
+    return null
+  }
+
+  const handleAddToPipeline = async (candidateId: string, jobId: string) => {
+    try {
+      await candidatesApi.updateStage(candidateId, 'applied', false, jobId)
+      toast.success('Added to pipeline successfully')
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    } catch {
+      toast.error('Failed to add to pipeline')
+    }
+  }
+
+
+  const handleCreateJob = async () => {
+    const title = newJobTitle.trim()
+    if (!title) return
+    setIsCreatingJob(true)
+    try {
+      const res = await jobsApi.create({ title, status: 'pool', openings: 0, description: title, job_type: 'full_time' })
+      toast.success(`Designation "${title}" added!`)
+      setNewJobTitle('')
+      setShowAddJobModal(false)
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+      // Auto-select the new job tab
+      const newJob = (res as any).data
+      if (newJob?.id) setSelectedJobId(newJob.id)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to create designation')
+    } finally {
+      setIsCreatingJob(false)
+    }
+  }
+
+  const handleRenameJob = async () => {
+    if (!renameModal) return
+    const title = renameModal.title.trim()
+    if (!title) return
+    setIsRenamingJob(true)
+    try {
+      await jobsApi.update(renameModal.job.id, { title })
+      toast.success(`Renamed to "${title}"`)
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+      setRenameModal(null)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to rename')
+    } finally {
+      setIsRenamingJob(false)
+    }
+  }
+
+  const handleDeleteJob = async (job: any) => {
+    setJobToDelete(job)
+  }
+
+  const confirmDeleteJob = async () => {
+    if (!jobToDelete) return
+    setIsDeletingJob(true)
+    try {
+      await jobsApi.delete(jobToDelete.id)
+      toast.success(`"${jobToDelete.title}" deleted`)
+      if (selectedJobId === jobToDelete.id) setSelectedJobId('all')
+      queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+      queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to delete')
+    } finally {
+      setIsDeletingJob(false)
+      setContextMenu(null)
+      setJobToDelete(null)
+    }
+  }
+
+  const normalizeRole = (v?: string | null) =>
+    (v || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9+#.\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const filteredItems = data?.items || []
+  const totalCandidates = talentStats?.total_candidates ?? data?.total_candidates ?? 0
+  const handleBulkImportSuccess = (result: ImportResultData) => {
+    queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+    queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+    queryClient.invalidateQueries({ queryKey: ['designations'] })
+    queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+    setShowBulkImportModal(false)
+    toast.success(`Imported ${result.created_count} candidates into Talent DB`)
+  }
+
+  const filteredDesignations = designations.filter((designation: DesignationItem) =>
+    designation.title.toLowerCase().includes(designationSearch.trim().toLowerCase()),
+  )
+
+  const currentDesignationTitle = designationTarget?.applied_job_title || designationTarget?.current_title || ''
+  const currentDesignationItem = currentDesignationTitle
+    ? designations.find((designation: DesignationItem) => designation.title === currentDesignationTitle)
+    : null
+
+  const handleDesignationDragEnd = async (result: DropResult) => {
+    if (!result.destination) return
+    if (result.source.index === result.destination.index) return
+    const reordered = Array.from(designations) as DesignationItem[]
+    const [moved] = reordered.splice(result.source.index, 1)
+    if (!moved) return
+    reordered.splice(result.destination.index, 0, moved)
+
+    const newOrder = reordered.map((designation) => designation.id)
+
+    // Save to localStorage immediately
+    if (user?.id) {
+      localStorage.setItem(`designation_order_${user.id}`, JSON.stringify(newOrder))
+    }
+
+    // Optimistically update user-preference-order query data
+    queryClient.setQueryData(['user-preference-order', user?.id], { order: newOrder })
+
+    const previous = queryClient.getQueryData<{ items: DesignationItem[]; designation_counts?: Record<string, number>; total_candidates?: number }>(['designations'])
+    queryClient.setQueryData(['designations'], {
+      ...(previous ?? {}),
+      items: reordered.map((designation, index) => ({ ...designation, display_order: index })),
+    })
+
+    try {
+      if (user?.id) {
+        await adminApi.updateDesignationOrder(user.id, newOrder)
+      }
+      const res = await designationsApi.reorder(newOrder)
+      queryClient.setQueryData(['designations'], res.data)
+      toast.success('Designation order saved')
+    } catch (err: any) {
+      queryClient.setQueryData(['designations'], previous)
+      toast.error(err.response?.data?.detail || 'Failed to reorder designations')
+    }
+  }
+
+  const openDesignationTransfer = (candidate: Candidate) => {
+    setDesignationTarget(candidate)
+    setDesignationSearch('')
+    setPendingDesignation(null)
+  }
+
+  const handleConfirmDesignationMove = () => {
+    if (!designationTarget || !pendingDesignation) return
+    transferMutation.mutate({
+      candidateId: designationTarget.id,
+      designationId: pendingDesignation.id,
+    })
+  }
+
+  const activeCandidate = openDropdownId ? filteredItems.find((c: any) => c.id === openDropdownId) : null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 80 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <header className="page-header">
+          <button onClick={() => navigate(-1)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--text-light)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 8, padding: 0 }}>
+            <ArrowLeft size={15} /> Back to Dashboard
+          </button>
+          <h1 className="page-title" style={{ margin: 0 }}>
+            All Talent <span style={{ color: 'var(--violet)', fontSize: 18 }}>({totalCandidates})</span>
+          </h1>
+          <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
+            Complete database of all assessed candidates.
+          </p>
+        </header>
+        <div className="relative flex items-center" ref={importActionsRef}>
+          <button
+            onClick={() => {
+              if (!globalFlags?.bulk) {
+                toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                return;
+              }
+              setShowBulkImportModal(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                if (!globalFlags?.bulk) {
+                  toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                  return;
+                }
+                setShowBulkImportModal(true);
+              }
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-l-xl text-sm font-semibold text-white shadow-sm transition-all ${!globalFlags?.bulk ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:opacity-95'}`}
+            style={{
+              background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+              minHeight: 40,
+            }}
+            title={!globalFlags?.bulk ? "Feature Locked" : "Import Candidates"}
+          >
+            {!globalFlags?.bulk ? <Lock size={16} /> : <Upload size={16} />}
+            Import Candidates
+          </button>
+          <button
+            onClick={() => {
+              if (!globalFlags?.bulk) {
+                toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                return;
+              }
+              setShowImportActions((prev) => !prev);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setShowImportActions(false)
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                if (!globalFlags?.bulk) {
+                  toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                  return;
+                }
+                setShowImportActions((prev) => !prev)
+              }
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                if (!globalFlags?.bulk) {
+                  toast.error('Feature Locked: Bulk Excel Import is disabled for your organization. Please contact your administrator.');
+                  return;
+                }
+                setShowImportActions(true)
+              }
+            }}
+            aria-haspopup="menu"
+            aria-expanded={showImportActions}
+            className={`inline-flex items-center justify-center px-3 py-2 rounded-r-xl text-white shadow-sm transition-all border-l border-white/20 ${!globalFlags?.bulk ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:opacity-95'}`}
+            style={{
+              background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+              minHeight: 40,
+            }}
+          >
+            <ChevronDown size={14} className={`transition-transform duration-200 ${showImportActions ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {showImportActions && (
+              <motion.div
+                role="menu"
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                transition={{ duration: 0.15 }}
+                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-gray-200 dark:border-[var(--card-border)] bg-white dark:bg-[var(--color-bg-sidebar)] shadow-xl z-[1200] p-2"
+              >
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setShowImportActions(false)
+                    setShowBulkImportHistoryModal(true)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-left text-gray-800 dark:text-gray-100 hover:bg-violet-50 dark:hover:bg-[#201c3b] transition-colors"
+                >
+                  <Clock3 size={15} />
+                  Import History
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Filters Row */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 bg-white dark:bg-[var(--color-bg-sidebar)] p-4 rounded-2xl border border-gray-100 dark:border-[var(--card-border)]">
+        <div className="flex flex-wrap items-center gap-3 flex-1 w-full">
+          {/* Search Input */}
+          <div className="w-full sm:max-w-[280px]">
+            <Input
+              placeholder="Search by name, skill, or role..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              leftIcon={<Search size={15} />}
+            />
+          </div>
+
+          <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block mx-1" />
+
+          {/* Core Selects Group */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-[140px]">
+              <Select
+                value={recruiterId}
+                onChange={(e) => { setRecruiterId(e.target.value); setPage(1) }}
+                options={[
+                  { value: 'all', label: 'All Recruiters' },
+                  ...recruiters.map(r => ({ value: r.id, label: r.name }))
+                ]}
+              />
+            </div>
+
+            <div className="w-[140px]">
+              <Select
+                value={statusFilter || 'all'}
+                onChange={(e) => { 
+                  setStatusFilter(e.target.value === 'all' ? undefined : e.target.value); 
+                  setPage(1); 
+                }}
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  { value: 'in_review', label: 'In Review' },
+                  { value: 'shortlisted', label: 'Shortlisted' },
+                  { value: 'scheduled', label: 'Scheduled' },
+                  { value: 'rejected', label: 'Rejected' },
+                ]}
+              />
+            </div>
+
+            {/* Date Group */}
+            <div className="flex items-center gap-2">
+              <div className="w-[130px]">
+                <Select
+                  value={dateFilter}
+                  onChange={(e) => { setDateFilter(e.target.value); setPage(1) }}
+                  options={[
+                    { value: 'all', label: 'Any Date' },
+                    { value: 'today', label: 'Today' },
+                    { value: 'week', label: 'Last 7 Days' },
+                    { value: 'month', label: 'Last 30 Days' },
+                    { value: 'custom', label: 'Custom Date…' },
+                  ]}
+                />
+              </div>
+
+              {dateFilter === 'custom' && (
+                <div className="w-[180px] flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <DatePicker
+                    value={customDateRange}
+                    onChange={(range) => { setCustomDateRange(range); setPage(1) }}
+                    className="relative z-50"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Saved Views & Alerts Bar commented out
+      <div 
+        className="flex flex-wrap items-center justify-end gap-4 p-4 rounded-xl border border-gray-100 dark:border-[#2a2550] bg-white/60 dark:bg-[#161233]/60 backdrop-blur-md"
+        style={{
+          boxShadow: 'var(--shadow)',
+          marginTop: -8,
+          marginBottom: 8,
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-4">
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+              <GlassIcon icon="Zap" variant="amber" size={24} iconSize={12} ghost glow={false} />
+              <span>Score Alert:</span>
+            </div>
+            <select
+              value={alertMatchThreshold}
+              onChange={(e) => {
+                const val = parseInt(e.target.value)
+                setAlertMatchThreshold(val)
+                localStorage.setItem('hybent_hiring_alert_match_threshold', String(val))
+                toast.success(`Match score alert set to ${val}%`)
+              }}
+              className="px-2 py-1 text-xs rounded-lg border border-gray-200 dark:border-[#2a2550] bg-white dark:bg-[#1a1730] text-gray-800 dark:text-white focus:outline-none"
+            >
+              <option value="70">≥ 70%</option>
+              <option value="75">≥ 75%</option>
+              <option value="80">≥ 80%</option>
+              <option value="85">≥ 85%</option>
+              <option value="90">≥ 90%</option>
+            </select>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={alertOnOffer}
+              onChange={(e) => {
+                const val = e.target.checked
+                setAlertOnOffer(val)
+                localStorage.setItem('hybent_hiring_alert_on_offer', String(val))
+                toast.success(val ? 'Offer stage alert enabled' : 'Offer stage alert disabled')
+              }}
+              className="rounded border-gray-300 dark:border-[#2a2550] text-violet-600 focus:ring-violet-500"
+            />
+            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Alert on "Offer" Stage</span>
+          </label>
+        </div>
+      </div>
+      */}
+
+      {/* Context Menu for right-click on job tab */}
+      {contextMenu && (
+        <>
+          {/* Backdrop to close menu */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null) }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              zIndex: 9999,
+              background: 'var(--card-bg)',
+              border: '1px solid var(--card-border)',
+              borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
+              minWidth: 160,
+              overflow: 'hidden',
+              padding: '4px 0',
+            }}
+          >
+            <button
+              onClick={() => { setRenameModal({ job: contextMenu.job, title: contextMenu.job.title }); setContextMenu(null) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '10px 16px',
+                border: 'none', background: 'transparent',
+                fontSize: 13, fontWeight: 600, color: 'var(--text)',
+                cursor: 'pointer', textAlign: 'left',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--sb-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              ✏️ Rename
+            </button>
+            <div style={{ height: 1, background: 'var(--card-border)', margin: '2px 0' }} />
+            <button
+              onClick={() => handleDeleteJob(contextMenu.job)}
+              disabled={isDeletingJob}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '10px 16px',
+                border: 'none', background: 'transparent',
+                fontSize: 13, fontWeight: 600, color: '#ef4444',
+                cursor: isDeletingJob ? 'not-allowed' : 'pointer', textAlign: 'left',
+              }}
+              onMouseEnter={e => !isDeletingJob && (e.currentTarget.style.background = 'rgba(239,68,68,0.07)')}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              🗑️ {isDeletingJob ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Rename Modal */}
+      {renameModal && (
+        <Modal open onClose={() => setRenameModal(null)} title="Rename Designation">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-mid)' }}>Enter a new name for <strong>{renameModal.job.title}</strong></p>
+            <input
+              className="input-base"
+              value={renameModal.title}
+              autoFocus
+              onChange={e => setRenameModal(p => p ? { ...p, title: e.target.value } : null)}
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameJob() }}
+              placeholder="New designation name"
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setRenameModal(null)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--card-border)', background: 'transparent', color: 'var(--text-mid)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button
+                onClick={handleRenameJob}
+                disabled={isRenamingJob || !renameModal.title.trim()}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'var(--violet)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: isRenamingJob ? 'not-allowed' : 'pointer', opacity: isRenamingJob ? 0.7 : 1 }}
+              >
+                {isRenamingJob ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Jobs Tabs Row */}
+      <div className="flex items-center gap-2 px-1 mb-2 w-full">
+        <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
+        <div className="flex items-center gap-2 flex-nowrap flex-shrink-0">
+          {/* + Add Designation button */}
+          <button
+            onClick={() => { setShowAddJobModal(true); setTimeout(() => newJobInputRef.current?.focus(), 80) }}
+            title="Add new designation"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+              border: '1.5px dashed var(--violet)',
+              background: 'var(--sb-active)',
+              color: 'var(--violet)',
+              cursor: 'pointer', fontSize: 18, fontWeight: 700,
+              transition: 'all 0.18s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,71,255,0.18)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--sb-active)' }}
+          >
+            +
+          </button>
+          <button
+            onClick={() => { setSelectedJobId('all'); setPage(1); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 10,
+              border: selectedJobId === 'all' ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              background: selectedJobId === 'all' ? 'var(--sb-active)' : 'var(--kpi-bg)',
+              color: selectedJobId === 'all' ? 'var(--violet)' : 'var(--text-mid)',
+              transition: 'all 0.18s',
+              whiteSpace: 'nowrap', flexShrink: 0
+            }}
+          >
+            All
+          </button>
+        </div>
+        <DragDropContext onDragEnd={handleDesignationDragEnd}>
+          <Droppable droppableId="designations-row" direction="horizontal">
+            {(provided) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className={`flex items-center gap-2 flex-nowrap overflow-x-auto min-w-0 flex-1 ${shouldWobble ? 'animate-wobble-once' : ''}`}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {designations.map((job: any, index: number) => {
+                  const isActive = selectedJobId === job.id
+                  const designationCount = job.candidate_count ?? designationCounts[job.title] ?? 0
+                  return (
+                    <Draggable key={job.id} draggableId={job.id} index={index}>
+                      {(dragProvided, snapshot) => (
+                        <div
+                          ref={dragProvided.innerRef}
+                          {...dragProvided.draggableProps}
+                          {...dragProvided.dragHandleProps}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => { setSelectedJobId(job.id); setPage(1); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedJobId(job.id); setPage(1); } }}
+                          onContextMenu={(e) => {
+                            e.preventDefault()
+                            setContextMenu({ x: e.clientX, y: e.clientY, job })
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '7px 14px', borderRadius: 10,
+                            border: isActive ? `1.5px solid var(--violet)` : '1.5px solid var(--table-border)',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            background: isActive ? 'var(--sb-active)' : 'var(--kpi-bg)',
+                            color: isActive ? 'var(--violet)' : 'var(--text-mid)',
+                            transition: 'all 0.18s, transform 0.15s ease',
+                            whiteSpace: 'nowrap', flexShrink: 0,
+                            boxShadow: snapshot.isDragging ? '0 10px 25px rgba(108, 71, 255, 0.25)' : undefined,
+                            ...dragProvided.draggableProps.style,
+                            transform: `${dragProvided.draggableProps.style?.transform || ''} ${snapshot.isDragging ? 'scale(1.06)' : ''}`.trim() || undefined,
+                          }}
+                        >
+                          <span>{job.title}</span>
+                          {typeof designationCount === 'number' && (
+                            <span style={{ color: isActive ? 'var(--violet)' : 'var(--text-light)', fontWeight: 800 }}>
+                              ({designationCount})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </Draggable>
+                  )
+                })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
+
+      {/* Rows */}
+      {isLoading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 18, borderRadius: 14, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)' }}>
+              <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <Skeleton className="h-4 w-44" /><Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" /><Skeleton className="h-8 w-24 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      ) : !filteredItems.length ? (
+        <EmptyState title="No talent found" description={search ? 'Try adjusting your search.' : 'No candidates in the talent pool yet.'} />
+      ) : (
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 w-full">
+          {filteredItems.map((candidate: any) => {
+            const stage = candidate.pipeline_stage
+            const stageCfg = stage ? STAGE_CFG[stage] : null
+            const hasInvitation = candidate.invitations?.length > 0
+            const statusKey = getCandidateStatus(stage)
+            const statusCfg = STATUS_CFG[statusKey] || STATUS_CFG.in_review
+            const isHovered = hoveredCardId === candidate.id
+
+            return (
+              <div
+                key={candidate.id}
+                className="candidate-card"
+                onMouseEnter={() => setHoveredCardId(candidate.id)}
+                onMouseLeave={() => setHoveredCardId(null)}
+                style={{
+                  background: 'var(--card-bg, #ffffff)',
+                  borderRadius: '16px',
+                  boxShadow: isHovered ? '0 12px 24px rgba(15, 23, 42, 0.08)' : '0 4px 12px rgba(15, 23, 42, 0.04)',
+                  border: isHovered ? '1px solid var(--violet)' : '1px solid var(--card-border, var(--table-border, rgba(148, 163, 184, 0.15)))',
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  height: '100%',
+                  transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  zIndex: openDropdownId === candidate.id ? 50 : (isHovered ? 10 : 1),
+                }}
+              >
+                {/* Top Section */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                    <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={candidate.full_name}>
+                        {candidate.full_name}
+                      </p>
+                      <p style={{ fontSize: 11, color: 'var(--text-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={candidate.email}>
+                        {candidate.email}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Actions (Top Right Three Dot Menu) */}
+                  <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        setMenuTriggerEl(e.currentTarget)
+                        setOpenDropdownId(openDropdownId === candidate.id ? null : candidate.id)
+                      }}
+                      className="w-8 h-8 rounded-lg border border-gray-200 dark:border-[var(--card-border)] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[var(--color-bg-sidebar)] transition-colors text-[var(--text)]"
+                    >
+                      ⋯
+                    </button>
+                  </div>
+                </div>
+
+                {/* Middle Section */}
+                <div style={{ height: 1, background: 'var(--card-border, var(--table-border, rgba(148, 163, 184, 0.1)))', margin: '16px 0' }} />
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--text-mid)', flex: 1 }}>
+                  {/* Role */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Role</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)', textAlign: 'right', maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={candidate.applied_job_title || candidate.current_title || '—'}>
+                      {candidate.applied_job_title || candidate.current_title || '—'}
+                    </span>
+                  </div>
+                  {/* Experience */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Experience</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {candidate.experience_years || (candidate.years_experience != null ? `${candidate.years_experience}y` : (candidate.relevant_experience || '—'))}
+                    </span>
+                  </div>
+                  {/* Applied Date */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Applied Date</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {formatCandidateDate(candidate, 'dd MMM yyyy')}
+                    </span>
+                  </div>
+                  {/* Stage */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Stage</span>
+                    <div>
+                      {stageCfg ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: stageCfg.bg, color: stageCfg.color, whiteSpace: 'nowrap' }}>{stageCfg.label}</span>
+                      ) : (
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(108,71,255,0.05)', color: 'var(--text-light)', border: '1px dashed var(--table-border)' }}>
+                          {candidate.match_score != null ? 'New' : 'Unprocessed'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Status */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Status</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusCfg.dot }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: statusCfg.color }}>{statusCfg.label}</span>
+                    </div>
+                  </div>
+                  {/* Added By */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Added By</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {candidate.created_by_name || 'Admin'}
+                    </span>
+                  </div>
+                  {/* Recruiter */}
+                  {candidate.hr_name && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Recruiter</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                        {candidate.hr_name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Section */}
+                <div style={{ height: 1, background: 'var(--card-border, var(--table-border, rgba(148, 163, 184, 0.1)))', margin: '16px 0' }} />
+                
+                <div style={{ display: 'flex', width: '100%' }} onClick={e => e.stopPropagation()}>
+                  <button onClick={e => { e.stopPropagation(); setViewTarget(candidate) }}
+                    style={{ flex: 1, minHeight: 38 }}
+                    className="text-[12px] flex items-center justify-center gap-1.5 font-bold px-4 py-2 rounded-lg bg-[#6c47ff] text-white shadow-sm hover:bg-[#5a3ae6] transition-all">
+                    View Full Profile
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {activeCandidate && (
+          <StageDropdown
+            candidateId={activeCandidate.id}
+            currentStage={activeCandidate.pipeline_stage || 'applied'}
+            onSelect={s => stageMutation.mutate({ id: activeCandidate.id, stage: s })}
+            onDelete={id => setCandidateToDelete({ id, name: activeCandidate.full_name })}
+            onClose={() => {
+              setOpenDropdownId(null)
+              setMenuTriggerEl(null)
+            }}
+            user={user}
+            onChangeDesignation={() => openDesignationTransfer(activeCandidate)}
+            hasActiveJobs={!!(activeJobs && activeJobs.length > 0)}
+            isInPipeline={Boolean(activeCandidate.pipeline_stage ? STAGE_CFG[activeCandidate.pipeline_stage] : null)}
+            triggerEl={menuTriggerEl}
+            onAddToPipeline={() => {
+              const resolvedJobId = resolveJobForCandidate(activeCandidate)
+              if (!resolvedJobId) {
+                toast.error('No matching designation found from resume/profile for active jobs.')
+                return
+              }
+              handleAddToPipeline(activeCandidate.id, resolvedJobId)
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {designationTarget && (
+        <Modal
+          open
+          onClose={() => { setDesignationTarget(null); setPendingDesignation(null); setDesignationSearch('') }}
+          title="Change Designation"
+          size="lg"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.12)' }}>
+              <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-light)', marginBottom: 6 }}>Candidate</p>
+              <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{designationTarget.full_name}</p>
+              <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 2 }}>
+                Current designation: <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{currentDesignationTitle || 'Unassigned'}</span>
+              </p>
+            </div>
+
+            <Input
+              placeholder="Search designations..."
+              value={designationSearch}
+              onChange={(e) => setDesignationSearch(e.target.value)}
+              leftIcon={<Search size={15} />}
+            />
+
+            <div style={{ maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {currentDesignationItem && (
+                <div style={{ position: 'sticky', top: 0, zIndex: 1, padding: '10px 12px', borderRadius: 12, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#059669', marginBottom: 2 }}>Current designation</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{currentDesignationItem.title}</p>
+                </div>
+              )}
+
+              {filteredDesignations.length === 0 ? (
+                <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-light)', fontSize: 13 }}>
+                  No designations match your search.
+                </div>
+              ) : filteredDesignations.map((designation: DesignationItem) => {
+                const isCurrent = designation.title === currentDesignationTitle
+                return (
+                  <button
+                    key={designation.id}
+                    onClick={() => {
+                      if (isCurrent) return
+                      setPendingDesignation(designation)
+                    }}
+                    disabled={isCurrent}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      border: isCurrent ? '1.5px solid #10b981' : '1px solid var(--table-border)',
+                      background: isCurrent ? 'rgba(16,185,129,0.08)' : 'var(--kpi-bg)',
+                      cursor: isCurrent ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                    }}
+                  >
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: isCurrent ? '#059669' : 'var(--text)' }}>
+                        {designation.title}
+                      </span>
+                      <span style={{ fontSize: 11, color: isCurrent ? 'rgba(5, 150, 105, 0.7)' : 'var(--text-light)' }}>
+                        {designation.candidate_count ?? designationCounts[designation.title] ?? 0} candidates
+                      </span>
+                    </span>
+                    {isCurrent ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 800, color: '#059669', background: 'rgba(16, 185, 129, 0.15)', padding: '4px 10px', borderRadius: 20 }}>
+                        <CheckCircle size={11} /> Current
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {designationTarget && pendingDesignation && (
+        <Modal
+          open
+          onClose={() => setPendingDesignation(null)}
+          title="Move Candidate?"
+          size="md"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(108,71,255,0.06)', border: '1px solid rgba(108,71,255,0.12)' }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{designationTarget.full_name}</p>
+              <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 6 }}>
+                From <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{currentDesignationTitle || 'Unassigned'}</span>
+                {' '}to <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{pendingDesignation.title}</span>
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setPendingDesignation(null)}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: '1px solid var(--table-border)',
+                  background: 'transparent',
+                  color: 'var(--text-mid)',
+                  fontWeight: 700,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDesignationMove}
+                disabled={transferMutation.isPending}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+                  color: '#fff',
+                  fontWeight: 800,
+                  cursor: transferMutation.isPending ? 'not-allowed' : 'pointer',
+                  opacity: transferMutation.isPending ? 0.75 : 1,
+                }}
+              >
+                {transferMutation.isPending ? 'Moving...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Pagination */}
+      {data && data.pages > 1 && (
+        <Pagination page={data.page} pages={data.pages} total={data.total} limit={data.limit} onPage={setPage} />
+      )}
+
+      {/* Profile Modal */}
+      {viewTarget && (
+        <Modal open onClose={() => setViewTarget(null)} title="Candidate Profile" size="xl">
+          <CandidateProfileView 
+            candidate={viewTarget} 
+            onInvite={() => inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })}
+            onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
+            hasInvitation={Boolean(viewTarget.invitations && viewTarget.invitations.length > 0)}
+          />
+        </Modal>
+      )}
+
+      {/* Quick Add Designation Modal */}
+      {showAddJobModal && (
+        <Modal open onClose={() => { setShowAddJobModal(false); setNewJobTitle('') }} title="Add New Designation" size="sm">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
+              Create a new job designation. It will appear in the Jobs tabs immediately — even before any candidates are added.
+            </p>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
+                Designation / Job Title
+              </label>
+              <input
+                ref={newJobInputRef}
+                className="input-base"
+                placeholder="e.g. Senior React Developer"
+                value={newJobTitle}
+                onChange={e => setNewJobTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateJob(); if (e.key === 'Escape') { setShowAddJobModal(false); setNewJobTitle('') } }}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleCreateJob}
+                disabled={isCreatingJob || !newJobTitle.trim()}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 10,
+                  background: 'linear-gradient(135deg,#6c47ff,#8b6bff)',
+                  color: '#fff', border: 'none', fontWeight: 700, fontSize: 13,
+                  cursor: isCreatingJob || !newJobTitle.trim() ? 'not-allowed' : 'pointer',
+                  opacity: isCreatingJob || !newJobTitle.trim() ? 0.6 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                {isCreatingJob ? 'Creating...' : '+ Add Designation'}
+              </button>
+              <button
+                onClick={() => { setShowAddJobModal(false); setNewJobTitle('') }}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--table-border)', background: 'var(--kpi-bg)', color: 'var(--text-mid)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <BulkImportModal
+        open={showBulkImportModal}
+        onClose={() => setShowBulkImportModal(false)}
+        onSuccess={handleBulkImportSuccess}
+      />
+      <BulkImportHistoryModal
+        open={showBulkImportHistoryModal}
+        onClose={() => setShowBulkImportHistoryModal(false)}
+        onRollbackSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
+          queryClient.invalidateQueries({ queryKey: ['candidates'] })
+        }}
+      />
+
+      {candidateToDelete && (
+        <Modal
+          open={!!candidateToDelete}
+          onClose={() => setCandidateToDelete(null)}
+          title="Delete Candidate"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              Are you sure you want to delete <strong>{candidateToDelete.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  deleteMutation.mutate(candidateToDelete.id)
+                  setCandidateToDelete(null)
+                }}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Delete Candidate
+              </button>
+              <button
+                onClick={() => setCandidateToDelete(null)}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {jobToDelete && (
+        <Modal
+          open={!!jobToDelete}
+          onClose={() => setJobToDelete(null)}
+          title="Delete Designation"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              Are you sure you want to delete <strong>{jobToDelete.title}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={isDeletingJob}
+                onClick={confirmDeleteJob}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {isDeletingJob ? 'Deleting...' : 'Delete Designation'}
+              </button>
+              <button
+                onClick={() => setJobToDelete(null)}
+                className="flex-1 text-[12px] font-bold px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}

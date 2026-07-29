@@ -1,0 +1,35 @@
+import { Routes, Route } from 'react-router-dom'
+import React, { lazy } from 'react'
+
+const SuperAdminLayout = lazy(() => import('@/components/layout/SuperAdminLayout').then(m => ({ default: m.SuperAdminLayout })))
+const SuperAdminDashboard = lazy(() => import('@/modules/super_admin/pages/DashboardPage'))
+const SuperAdminAnalytics = lazy(() => import('@/modules/super_admin/pages/AnalyticsPage'))
+const SuperAdminClients = lazy(() => import('@/modules/super_admin/pages/ClientsPage'))
+const SuperAdminClientDetail = lazy(() => import('@/modules/super_admin/pages/ClientDetailPage'))
+const SuperAdminBilling = lazy(() => import('@/modules/super_admin/pages/BillingPage'))
+const SuperAdminUsers = lazy(() => import('@/modules/super_admin/pages/UsersPage'))
+const SuperAdminFlags = lazy(() => import('@/modules/super_admin/pages/FeatureFlagsPage'))
+const SuperAdminAudit = lazy(() => import('@/modules/super_admin/pages/AuditLogsPage'))
+const SuperAdminHealth = lazy(() => import('@/modules/super_admin/pages/HealthPage'))
+const SuperAdminSettings = lazy(() => import('@/modules/super_admin/pages/SettingsPage'))
+const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePage'))
+
+export default function SuperAdminRoutes() {
+  return (
+    <Routes>
+      <Route element={<SuperAdminLayout />}>
+        <Route index element={<SuperAdminDashboard />} />
+        <Route path="analytics" element={<SuperAdminAnalytics />} />
+        <Route path="clients" element={<SuperAdminClients />} />
+        <Route path="clients/:id" element={<SuperAdminClientDetail />} />
+        <Route path="billing" element={<SuperAdminBilling />} />
+        <Route path="users" element={<SuperAdminUsers />} />
+        <Route path="flags" element={<SuperAdminFlags />} />
+        <Route path="audit" element={<SuperAdminAudit />} />
+        <Route path="health" element={<SuperAdminHealth />} />
+        <Route path="settings" element={<SuperAdminSettings />} />
+        <Route path="profile" element={<AdminProfilePage />} />
+      </Route>
+    </Routes>
+  )
+}
