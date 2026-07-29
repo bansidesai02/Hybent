@@ -21,16 +21,16 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: 'hireon-frontend/package-lock.json'
+          cache-dependency-path: 'hybent-hiring-frontend/package-lock.json'
 
       - name: Install dependencies
-        working-directory: ./hireon-frontend
+        working-directory: ./hybent-hiring-frontend
         run: npm ci
 
       - name: Build Optimized Bundle
-        working-directory: ./hireon-frontend
+        working-directory: ./hybent-hiring-frontend
         env:
-          VITE_API_BASE_URL: https://hireon-ai.onrender.com
+          VITE_API_BASE_URL: https://hybent-hiring-ai.onrender.com
         run: npm run build
 
       - name: Upload Build Artifact
@@ -38,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: hireon-frontend/dist/
+          path: hybent-hiring-frontend/dist/
           include-hidden-files: true
 
   deploy:

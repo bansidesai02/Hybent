@@ -1,6 +1,6 @@
 """
 Test script: hits GET /v1/users/me and prints the full response.
-Run with: docker exec hireon_backend python /app/test_profile_api.py
+Run with: docker exec hybent_hiring_backend python /app/test_profile_api.py
 """
 import asyncio
 import sys

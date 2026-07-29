@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'hireon-backend')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'hybent-hiring-backend')))
 
 from sqlalchemy import select
 from app.database import get_session_factory

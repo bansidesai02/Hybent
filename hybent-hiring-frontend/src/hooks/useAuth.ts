@@ -1,0 +1,80 @@
+import { useAuthStore } from '@/store/authStore'
+import { useNavigate } from 'react-router-dom'
+import { authApi } from '@/api/auth'
+import { useQueryClient } from '@tanstack/react-query'
+import { tokenStorage } from '@/utils/tokenStorage'
+
+export function useAuth() {
+  const { user, isAuthenticated, setTokens, logout: storeLogout } = useAuthStore()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  const login = async (email: string, password: string) => {
+    const { data } = await authApi.login(email, password)
+    const user = data.user ?? (await authApi.me()).data
+    setTokens(data.access_token, data.refresh_token, user)
+
+    // Role-based redirect
+    if (user.role === 'super_admin') navigate('/hiring/super-admin')
+    else if (user.role === 'candidate') navigate('/hiring/portal')
+    else if (user.role === 'interviewer') navigate('/hiring/interviewer')
+    else if (user.role === 'admin') navigate('/hiring/admin')
+    else navigate('/hiring/recruiter')
+  }
+
+  const basePath = user?.role === 'super_admin' ? '/hiring/super-admin' :
+                   user?.role === 'admin' ? '/hiring/admin' : 
+                   user?.role === 'interviewer' ? '/hiring/interviewer' : 
+                   user?.role === 'candidate' ? '/hiring/portal' : '/hiring/recruiter'
+
+  const logout = async () => {
+    // If we are currently impersonating, logout should exit impersonation instead of logging out the admin entirely
+    if (user?.is_impersonating) {
+      exitImpersonation()
+      return
+    }
+
+    try {
+      const refreshToken = tokenStorage.getRefreshToken() ?? undefined
+      await authApi.logout(refreshToken)
+    } catch (_) {
+      // ignore errors
+    }
+    // Clear ALL React Query cache so the next user never sees stale data
+    queryClient.clear()
+    storeLogout()
+    navigate('/hiring/login')
+  }
+
+  const exitImpersonation = () => {
+    const adminToken = localStorage.getItem('hybent_hiring_super_admin_access_token') || sessionStorage.getItem('hybent_hiring_super_admin_access_token')
+    const adminRefreshToken = localStorage.getItem('hybent_hiring_super_admin_refresh_token') || sessionStorage.getItem('hybent_hiring_super_admin_refresh_token')
+    const adminUserStr = localStorage.getItem('hybent_hiring_super_admin_user') || sessionStorage.getItem('hybent_hiring_super_admin_user')
+
+    if (adminToken && adminUserStr) {
+      const adminUser = JSON.parse(adminUserStr)
+      setTokens(adminToken, adminRefreshToken || undefined, adminUser)
+      
+      localStorage.removeItem('hybent_hiring_super_admin_access_token')
+      localStorage.removeItem('hybent_hiring_super_admin_refresh_token')
+      localStorage.removeItem('hybent_hiring_super_admin_user')
+      sessionStorage.removeItem('hybent_hiring_super_admin_access_token')
+      sessionStorage.removeItem('hybent_hiring_super_admin_refresh_token')
+      sessionStorage.removeItem('hybent_hiring_super_admin_user')
+      
+      queryClient.clear()
+      navigate('/hiring/super-admin')
+    } else {
+      // fallback if backup doesn't exist
+      queryClient.clear()
+      storeLogout()
+      navigate('/hiring/login')
+    }
+  }
+
+  const isAdmin = user?.role === 'admin'
+  const isSuperAdmin = user?.role === 'super_admin'
+  const isImpersonating = !!user?.is_impersonating
+
+  return { user, isAuthenticated, login, logout, basePath, isAdmin, isSuperAdmin, isImpersonating, exitImpersonation }
+}

@@ -1,9 +1,9 @@
 services:
   # ── FastAPI Backend ───────────────────────────────────────────────────────
   - type: web
-    name: hireon-backend
+    name: hybent-hiring-backend
     env: docker
-    dockerContext: ./hireon-backend
+    dockerContext: ./hybent-hiring-backend
     dockerfilePath: Dockerfile
     plan: starter
     healthCheckPath: /health
@@ -12,15 +12,15 @@ services:
         value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: hireon-db
+          name: hybent-hiring-db
           property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
-          name: hireon-redis
+          name: hybent-hiring-redis
           property: connectionString
       - key: FRONTEND_URL
-        value: https://hireon-frontend.onrender.com # Update this after first deployment!
+        value: https://hybent-hiring-frontend.onrender.com # Update this after first deployment!
       - key: SECRET_KEY
         generateValue: true
       - key: GROQ_API_KEY
@@ -38,9 +38,9 @@ services:
 
   # ── React Frontend (Nginx) ────────────────────────────────────────────────
   - type: web
-    name: hireon-frontend
+    name: hybent-hiring-frontend
     env: docker
-    dockerContext: ./hireon-frontend
+    dockerContext: ./hybent-hiring-frontend
     dockerfilePath: Dockerfile
     plan: starter
     envVars:
@@ -49,9 +49,9 @@ services:
 
   # ── Celery Worker ─────────────────────────────────────────────────────────
   - type: worker
-    name: hireon-worker
+    name: hybent-hiring-worker
     env: docker
-    dockerContext: ./hireon-backend
+    dockerContext: ./hybent-hiring-backend
     dockerfilePath: Dockerfile
     dockerCommand: celery -A app.celery_app worker --loglevel=info
     envVars:
@@ -59,19 +59,19 @@ services:
         value: "true"
       - key: DATABASE_URL
         fromDatabase:
-          name: hireon-db
+          name: hybent-hiring-db
           property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
-          name: hireon-redis
+          name: hybent-hiring-redis
           property: connectionString
 
   # ── Celery Beat ───────────────────────────────────────────────────────────
   - type: worker
-    name: hireon-beat
+    name: hybent-hiring-beat
     env: docker
-    dockerContext: ./hireon-backend
+    dockerContext: ./hybent-hiring-backend
     dockerfilePath: Dockerfile
     dockerCommand: celery -A app.celery_app beat --loglevel=info
     envVars:
@@ -79,22 +79,22 @@ services:
         value: "true"
       - key: DATABASE_URL
         fromDatabase:
-          name: hireon-db
+          name: hybent-hiring-db
           property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
-          name: hireon-redis
+          name: hybent-hiring-redis
           property: connectionString
 
 # ── Databases ───────────────────────────────────────────────────────────────
 databases:
-  - name: hireon-db
+  - name: hybent-hiring-db
     plan: starter
     postgresMajorVersion: 16
 
 # ── Redis ───────────────────────────────────────────────────────────────────
 redis:
-  - name: hireon-redis
+  - name: hybent-hiring-redis
     plan: starter
     ipAllowList: [] # Only allow internal traffic

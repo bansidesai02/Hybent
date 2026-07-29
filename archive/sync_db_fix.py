@@ -4,7 +4,7 @@ import os
 from sqlalchemy import text
 
 # Add backend to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'hireon-backend')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'hybent-hiring-backend')))
 
 from app.database import get_session_factory
 

@@ -20,7 +20,7 @@
 ### 2. Backend Setup
 
 ```bash
-cd hireon-backend
+cd hybent-hiring-backend
 
 # Create virtual environment
 python -m venv venv
@@ -33,7 +33,7 @@ pip install -r requirements.txt
 copy .env.example .env
 # Edit .env: set DATABASE_URL, GEMINI_API_KEY
 
-# Create database in pgAdmin: hireon_db
+# Create database in pgAdmin: hybent_hiring_db
 
 # Run migrations (creates all 12 tables)
 alembic upgrade head
@@ -49,7 +49,7 @@ uvicorn app.main:app --reload --port 8000
 ### 3. Frontend Setup
 
 ```bash
-cd hireon-frontend
+cd hybent-hiring-frontend
 
 npm install
 npm run dev
@@ -97,8 +97,8 @@ The Vite dev server proxies all `/v1/*` calls to `localhost:8000` automatically.
 ## Project Structure
 
 ```
-hireon/
-├── hireon-backend/          # FastAPI application (65 Python files)
+hybent_hiring/
+├── hybent-hiring-backend/          # FastAPI application (65 Python files)
 │   ├── app/
 │   │   ├── main.py
 │   │   ├── config.py
@@ -114,7 +114,7 @@ hireon/
 │   ├── uploads/             # Local file storage
 │   ├── requirements.txt
 │   └── seed.py
-└── hireon-frontend/         # React application (73 TS/TSX files)
+└── hybent-hiring-frontend/         # React application (73 TS/TSX files)
     └── src/
         ├── api/             # 16 API modules
         ├── store/           # Zustand stores (auth, notifications)

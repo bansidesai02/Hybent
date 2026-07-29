@@ -4,7 +4,7 @@ import os
 import sys
 
 # Ensure the backend directory is in the python path
-sys.path.append(os.path.join(os.getcwd(), "hireon-backend"))
+sys.path.append(os.path.join(os.getcwd(), "hybent-hiring-backend"))
 
 from app.database import SessionLocal
 from app.models.candidate import Candidate

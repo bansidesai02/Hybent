@@ -3,7 +3,7 @@ import urllib.request
 import urllib.parse
 import json
 
-BASE_URL = "https://hireon-ai.onrender.com"
+BASE_URL = "https://hybent-hiring-ai.onrender.com"
 
 def measure_request(method, path, headers=None, body=None):
     url = f"{BASE_URL}{path}"

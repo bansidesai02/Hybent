@@ -3,7 +3,7 @@ import sys
 import os
 
 # Add backend to path
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), 'hireon-backend')))
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), 'hybent-hiring-backend')))
 
 from app.services.match_scorer import compute_match_score, normalize_skill
 

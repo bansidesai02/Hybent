@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'hireon-backend')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'hybent-hiring-backend')))
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -10,7 +10,7 @@ from app.models.application import Application
 from app.models.candidate import Candidate
 
 # Explicitly use 5433 for Docker Postgres
-DB_URL = "postgresql+asyncpg://hireon:12345@localhost:5433/hireon_db"
+DB_URL = "postgresql+asyncpg://hybent_hiring:12345@localhost:5433/hybent_hiring_db"
 
 async def map_data():
     engine = create_async_engine(DB_URL)
