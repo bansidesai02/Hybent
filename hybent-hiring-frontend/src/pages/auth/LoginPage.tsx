@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { 
   ArrowRight, 
   ClipboardList, 
@@ -22,7 +22,9 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { authApi } from '@/api/auth'
+import { workspaceForRole } from '@/app/paths'
 import { useAuthStore } from '@/store/authStore'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -32,7 +34,13 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
+  useDocumentTitle('Sign in — Hybent Hiring | HYBENT', 'Sign in to Hybent Hiring, the AI recruitment platform from HYBENT.')
+
   const navigate = useNavigate()
+  const location = useLocation()
+  /* RequireAuth records the page the visitor was heading for, so signing in
+     resumes the journey instead of dropping everyone on their dashboard. */
+  const intended = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
   const { setTokens, isAuthenticated, user } = useAuthStore()
   const [serverError, setServerError] = useState('')
   const [activeTab, setActiveTab] = useState<'pass' | 'magic'>('pass')
@@ -55,13 +63,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'super_admin') navigate('/hiring/super-admin')
-      else if (user.role === 'candidate') navigate('/hiring/portal')
-      else if (user.role === 'interviewer') navigate('/hiring/interviewer')
-      else if (user.role === 'admin') navigate('/hiring/admin')
-      else navigate('/hiring/recruiter')
+      navigate(intended || workspaceForRole(user.role), { replace: true })
     }
-  }, [isAuthenticated, user, navigate])
+  }, [isAuthenticated, user, intended, navigate])
 
   const {
     register,
@@ -77,10 +81,7 @@ export default function LoginPage() {
       const user = data.user
       setTokens(data.access_token, data.refresh_token, user, rememberMe)
 
-      if (user?.role === 'candidate') navigate('/hiring/portal')
-      else if (user?.role === 'interviewer') navigate('/hiring/interviewer')
-      else if (user?.role === 'admin') navigate('/hiring/admin')
-      else navigate('/hiring/recruiter')
+      navigate(intended || workspaceForRole(user?.role), { replace: true })
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||

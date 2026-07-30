@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { ArrowRight } from 'lucide-react'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export default function ResetPasswordPage() {
+  useDocumentTitle('Reset password — Hybent Hiring | HYBENT', 'Choose a new password for your Hybent Hiring account.')
+
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const token = searchParams.get('token') || ''
@@ -109,7 +112,7 @@ export default function ResetPasswordPage() {
             </div>
             <h1 className="rp-h1" style={{ marginBottom: 10 }}>Password reset!</h1>
             <p className="rp-sub" style={{ marginBottom: 32 }}>Your password has been updated successfully. You can now sign in.</p>
-            <button className="btn-submit" onClick={() => navigate('/hiring/login')}>Go to Sign In <ArrowRight size={16} className="ml-1 inline" /></button>
+            <button className="btn-submit" onClick={() => navigate('/login')}>Go to Sign In <ArrowRight size={16} className="ml-1 inline" /></button>
           </div>
         ) : (
           <>

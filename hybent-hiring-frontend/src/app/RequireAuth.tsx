@@ -1,0 +1,33 @@
+import type { ReactNode } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAuthStore } from '@/store/authStore'
+import type { UserRole } from '@/types'
+import { AUTH, workspaceForRole } from './paths'
+
+type RequireAuthProps = {
+  children: ReactNode
+  roles?: UserRole[]
+}
+
+/**
+ * Gate for the authenticated Hybent Hiring workspaces.
+ *
+ * An anonymous visitor is sent to sign in with the page they wanted recorded,
+ * so they land where they were going instead of on a generic dashboard. A
+ * signed-in user who lacks the role for this workspace is redirected to their
+ * own — never bounced back to the login screen.
+ */
+export function RequireAuth({ children, roles }: RequireAuthProps) {
+  const { isAuthenticated, user } = useAuthStore()
+  const location = useLocation()
+
+  if (!isAuthenticated) {
+    return <Navigate to={AUTH.login} state={{ from: location }} replace />
+  }
+
+  if (roles && user && !roles.includes(user.role)) {
+    return <Navigate to={workspaceForRole(user.role)} replace />
+  }
+
+  return <>{children}</>
+}

@@ -1,0 +1,32 @@
+import { SiteView } from '../components/SiteView'
+
+export default function IndustriesPage() {
+  return (
+    <SiteView route="industries">
+      <section className="hero">
+        <div className="hero__orb orb-a" data-para="0.02"></div>
+        <div className="hero__orb orb-b" data-para="-0.03"></div>
+
+        <div className="wrap">
+          <p className="eyebrow" data-rv="up"><span className="bars"><i></i><i></i><i></i></span><span>Industries</span></p>
+          <h1 style={{ fontSize: "clamp(2.35rem,4.6vw,3.6rem)", marginTop: "14px" }} data-rv="up" data-delay="80">Configured for how your sector actually hires</h1>
+          <p className="hero__sub" data-rv="up" data-delay="160">Role templates, screening criteria and scoring rubrics tuned by industry — every one of them editable, none of them locked.</p>
+        </div>
+      </section>
+
+      <section className="section" id="industries">
+        <div className="wrap">    <div className="grid g4">
+            <article className="card" data-rv="up"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><rect x="30" y="30" width="36" height="36" rx="9" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" /><path d="M40 44l-6 4 6 4M56 44l6 4-6 4" fill="none" stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" /><g stroke="url(#hbgh)" strokeWidth="2.6" strokeLinecap="round"><path d="M40 22v8M56 22v8M40 66v8M56 66v8M22 40h8M22 56h8M66 40h8M66 56h8" /></g></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Technology</h3><p className="small">Technical screening rubrics, take-home evaluation and pipelines that move at engineering speed.</p></article>
+            <article className="card" data-rv="up" data-delay="60"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><path d="M48 22l20 8v16c0 14-9 22-20 26-11-4-20-12-20-26V30z" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinejoin="round" /><path d="M38 52l7 7 15-16" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Financial services</h3><p className="small">Reference and licensing evidence captured in-flow, with a decision record for every rejection.</p></article>
+            <article className="card" data-rv="up" data-delay="120"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><rect x="26" y="34" width="44" height="30" rx="9" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" /><path d="M26 50h10l4-7 6 14 5-9 4 2h11" fill="none" stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M42 34v-6h12v6" fill="none" stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round" /></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Healthcare</h3><p className="small">Credential tracking, shift-based roles and strict privacy controls on sensitive candidate data.</p></article>
+            <article className="card" data-rv="up" data-delay="180"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><path d="M26 68V44l14 9V44l14 9V30h16v38z" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinejoin="round" /><g fill="url(#hbgh)"><circle cx="62" cy="46" r="3" /><circle cx="62" cy="58" r="3" /></g></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Manufacturing</h3><p className="small">High-volume plant hiring, certification tracking and multilingual application flows.</p></article>
+            <article className="card" data-rv="up" data-delay="240"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><path d="M28 38h40l-4 32H32z" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinejoin="round" /><path d="M39 38v-6a9 9 0 0118 0v6" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" /></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Retail &amp; commerce</h3><p className="small">Seasonal surges, store-level requisitions and same-day interview scheduling.</p></article>
+            <article className="card" data-rv="up" data-delay="300"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><rect x="24" y="36" width="48" height="32" rx="8" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" /><path d="M38 36v-6a5 5 0 015-5h10a5 5 0 015 5v6" fill="none" stroke="url(#hbgh)" strokeWidth="3" /><path d="M24 50h48" stroke="url(#hbgh)" strokeWidth="2.6" /><rect x="43" y="46" width="10" height="8" rx="3" fill="url(#hbgh)" /></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Professional services</h3><p className="small">Bench-aware hiring, reusable talent pools and fast turnaround on client-driven roles.</p></article>
+            <article className="card" data-rv="up" data-delay="360"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><path d="M24 40l24-14 24 14" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinejoin="round" /><g stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round"><path d="M32 46v20M44 46v20M56 46v20M68 46v20" /></g><path d="M24 72h48" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinecap="round" /></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Public sector</h3><p className="small">Open competition rules, panel scoring and audit trails built for disclosure.</p></article>
+            <article className="card" data-rv="up" data-delay="420"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><path d="M48 26l26 12-26 12-26-12z" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinejoin="round" /><path d="M34 44v14c0 5 7 9 14 9s14-4 14-9V44" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" /><path d="M74 38v14" stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round" /></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Education</h3><p className="small">Academic-year hiring cycles, committee reviews and verification workflows.</p></article>
+          </div>
+        </div>
+      </section>
+    </SiteView>
+  )
+}

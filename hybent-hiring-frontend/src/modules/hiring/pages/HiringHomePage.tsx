@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { motion, useScroll, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+
+import { AUTH } from '@/app/paths'
+import { HiringSectionNav } from '../components/HiringSectionNav'
 
 import { TeamIcon } from '@/components/common/CustomIcons'
 import { GlassIcon } from '@/components/common/GlassIcon'
-import { ArrowRight, Calendar, Menu, X, Check } from 'lucide-react'
+import { ArrowRight, Calendar, Check } from 'lucide-react'
 
 // ─── Animation Variants ────────────────────────────────────────────────────────
 
@@ -226,7 +229,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
     <div
       className="rounded-[16px] overflow-hidden transition-all duration-200"
       style={{
-        background: 'rgba(255,255,255,0.72)',
+        background: 'var(--glass)',
         backdropFilter: 'blur(16px)',
         border: '1px solid rgba(255,255,255,0.95)',
         boxShadow: '0 4px 20px rgba(108,71,255,0.06)',
@@ -293,7 +296,7 @@ const FormDropdown = ({
       <div 
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-6 py-4 rounded-[14px] border-2 transition-all cursor-pointer flex items-center justify-between select-none
-          ${isOpen ? 'border-[#6c47ff]/40 bg-white shadow-[0_4px_20px_rgba(108,71,255,0.12)]' : 'border-transparent bg-white shadow-[0_2px_12px_rgba(108,71,255,0.04)]'}
+          ${isOpen ? 'border-[#6c47ff]/40 bg-[var(--card-bg)] shadow-[0_4px_20px_rgba(108,71,255,0.12)]' : 'border-transparent bg-[var(--card-bg)] shadow-[0_2px_12px_rgba(108,71,255,0.04)]'}
         `}
       >
         <span className="text-[15px]" style={{ color: value ? 'var(--text)' : '#cbd5e1' }}>
@@ -316,7 +319,7 @@ const FormDropdown = ({
             animate={{ opacity: 1, y: 5, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute left-0 right-0 z-[100] mt-1 overflow-hidden rounded-[16px] border border-white bg-white/95 backdrop-blur-xl shadow-[0_20px_64px_rgba(108,71,255,0.18)]"
+            className="absolute left-0 right-0 z-[100] mt-1 overflow-hidden rounded-[16px] border border-[var(--glass-border)] bg-[var(--card-bg)] backdrop-blur-xl shadow-[0_20px_64px_rgba(108,71,255,0.18)]"
           >
             <div className="py-2 max-h-[240px] overflow-y-auto scrollbar-hide">
               {options.map((opt) => (
@@ -341,18 +344,9 @@ const FormDropdown = ({
   )
 }
 
-export default function LandingPage() {
-  useEffect(() => {
-    document.title = "Hybent Hiring | AI Recruitment Platform";
-    const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) {
-      metaDesc.setAttribute("content", "Find, match, and hire top talent faster with an AI engine built for modern recruiting teams.");
-    }
-  }, []);
-
-  const [scrolled, setScrolled] = useState(false);
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+export default function HiringHomePage() {
+  /* Title and description are owned by AppLayout via ROUTE_META, so every view
+     in the platform sets them the same way. */
 
   const [landingConfig, setLandingConfig] = useState<{
     testimonials: any[]
@@ -369,7 +363,7 @@ export default function LandingPage() {
 
 
   return (
-    <div className="min-h-screen relative" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="min-h-screen relative hb-below-nav" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       {/* Background blobs */}
       <div className="blob-bg">
         <div className="blob blob-1" />
@@ -378,167 +372,8 @@ export default function LandingPage() {
         <div className="blob blob-4" />
       </div>
 
-      {/* ── NAV ── */}
-      <nav
-        className="fixed z-[200] flex items-center justify-between gap-6"
-        style={{
-          top: '18px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 'min(calc(100% - 32px), 1200px)',
-          maxWidth: '1200px',
-          padding: '12px min(24px, 4vw)',
-          background: 'rgba(255,255,255,0.75)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-          border: '1px solid rgba(255,255,255,0.95)',
-          borderRadius: '20px',
-          boxShadow: '0 8px 40px rgba(108,71,255,0.10), 0 1px 0 rgba(255,255,255,0.8) inset',
-        }}
-      >
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2.5 no-underline">
-          <div className="relative w-[38px] h-[38px] flex items-center justify-center">
-            <span
-              className="absolute inset-[-7px] rounded-full border border-dashed"
-              style={{
-                borderColor: 'rgba(108,71,255,0.4)',
-                animation: 'orbit-spin 5s linear infinite',
-              }}
-            >
-              <span
-                className="absolute top-[-4px] left-1/2 -translate-x-1/2 w-[7px] h-[7px] rounded-full"
-                style={{ background: '#00d4c8', boxShadow: '0 0 8px rgba(0,212,200,0.9), 0 0 16px rgba(0,212,200,0.5)' }}
-              />
-            </span>
-            <span
-              className="relative w-[38px] h-[38px] rounded-[11px] flex items-center justify-center overflow-hidden"
-              style={{ background: 'transparent', boxShadow: 'none' }}
-            >
-              <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} className="relative z-10" />
-            </span>
-          </div>
-          <img src="/hybent_wordmark_dark.webp" alt="HYBENT" style={{ height: '20px', objectFit: 'contain' }} />
-        </Link>
+      <HiringSectionNav />
 
-        {/* Nav links */}
-        <ul className="hidden md:flex items-center gap-1 list-none m-0 p-0">
-          {['Features', 'How it works', 'About'].map((item) => {
-            const targetId = item.toLowerCase().replace(/\s+/g, '-');
-            return (
-              <li key={item}>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="block px-4 py-2 text-[16px] font-medium rounded-[10px] bg-transparent border-none cursor-pointer transition-all duration-200 hover:bg-[rgba(108,71,255,0.07)]"
-                  style={{ color: 'var(--text-mid)', fontFamily: 'inherit' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#6c47ff')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-mid)')}
-                >
-                  {item}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* CTA buttons - Desktop only */}
-        <div className="hidden lg:flex items-center gap-3">
-          <Link to="/hiring/login">
-            <button
-              className="px-6 py-2.5 bg-transparent border rounded-[12px] text-[14px] font-bold cursor-pointer transition-all duration-200 hover:bg-[rgba(108,71,255,0.06)] active:scale-95"
-              style={{ borderColor: 'rgba(108,71,255,0.25)', color: '#6c47ff', fontFamily: "'Sora', sans-serif" }}
-            >
-              Sign In
-            </button>
-          </Link>
-          <Link to="/hiring/register">
-            <button
-              className="px-7 py-2.5 border-0 rounded-[12px] text-[14px] font-bold text-white cursor-pointer transition-all duration-200 hover:-translate-y-[1px] active:scale-95"
-              style={{
-                background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
-                boxShadow: '0 4px 16px rgba(108,71,255,0.35)',
-                fontFamily: "'Sora', sans-serif",
-              }}
-            >
-              Get Started Free
-            </button>
-          </Link>
-        </div>
-
-        {/* Mobile Menu Toggle */}
-        <div className="lg:hidden flex items-center gap-1">
-          <Link to="/hiring/login" className="px-3 py-2 text-[13px] font-bold text-[#6c47ff]">Sign In</Link>
-          <Link to="/hiring/register">
-            <button
-              className="px-4 py-2 border-0 rounded-xl text-[13px] font-bold text-white cursor-pointer"
-              style={{
-                background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
-                boxShadow: '0 4px 12px rgba(108,71,255,0.25)',
-              }}
-            >
-              Get Started
-            </button>
-          </Link>
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="w-9 h-9 rounded-xl bg-[rgba(108,71,255,0.08)] flex items-center justify-center text-[#6c47ff] ml-1"
-          >
-            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-        </div>
-
-        {/* Mobile Menu Overlay */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-[calc(100%+12px)] left-0 right-0 p-6 bg-white/95 backdrop-blur-2xl rounded-2xl border border-white shadow-2xl z-[201] flex flex-col gap-4 lg:hidden"
-            >
-              <ul className="flex flex-col gap-2 list-none m-0 p-0">
-                <li>
-                  <Link
-                    to="/hiring/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block px-4 py-3 text-[16px] font-bold rounded-xl no-underline"
-                    style={{ color: 'var(--violet)' }}
-                  >
-                    Sign In
-                  </Link>
-                </li>
-                {['Features', 'How it works', 'About'].map((item) => {
-                  const targetId = item.toLowerCase().replace(/\s+/g, '-');
-                  return (
-                    <li key={item}>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setMobileMenuOpen(false);
-                          document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="w-full text-left block px-4 py-3 text-[16px] font-bold rounded-xl bg-transparent border-none cursor-pointer"
-                        style={{ color: 'var(--text-mid)', fontFamily: 'inherit' }}
-                      >
-                        {item}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <div className="h-px bg-gray-100 my-2" />
-              <Link to="/hiring/register" onClick={() => setMobileMenuOpen(false)}>
-                <button className="w-full py-4 rounded-xl text-[15px] font-bold text-white bg-gradient-to-r from-[#6c47ff] to-[#8b6bff]">
-                  Get Started Free
-                </button>
-              </Link>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
 
       {/* ── HERO ── */}
       <section
@@ -553,7 +388,7 @@ export default function LandingPage() {
           viewport={{ once: true, margin: "-50px" }}
           className="inline-flex items-center gap-2 mb-8 px-5 py-2 rounded-full text-[14px] font-semibold"
           style={{
-            background: 'rgba(255,255,255,0.72)',
+            background: 'var(--glass)',
             border: '1px solid rgba(255,255,255,1)',
             backdropFilter: 'blur(12px)',
             color: '#6c47ff',
@@ -621,7 +456,7 @@ export default function LandingPage() {
           viewport={{ once: true, margin: "-100px" }}
           className="flex flex-col sm:flex-row gap-4 justify-center mb-8 w-full sm:w-auto px-6"
         >
-          <Link to="/hiring/register" className="w-full sm:w-auto">
+          <Link to={AUTH.register} className="w-full sm:w-auto">
             <button
               className="w-full sm:px-10 py-4 border-0 rounded-[10px] text-[17px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
               style={{
@@ -651,13 +486,13 @@ export default function LandingPage() {
               key={s.label}
               className="group relative rounded-[24px] p-8 md:p-10 text-center overflow-hidden transition-all duration-300 hover:-translate-y-[6px]"
               style={{
-                background: 'rgba(255,255,255,0.72)',
+                background: 'var(--glass)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255,255,255,0.95)',
                 boxShadow: '0 8px 40px rgba(108,71,255,0.10)',
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(108,71,255,0.18)'; (e.currentTarget as HTMLElement).style.background = 'white' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(108,71,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.72)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(108,71,255,0.18)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(108,71,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
             >
               {/* Top border slide-in */}
               <div
@@ -736,13 +571,13 @@ export default function LandingPage() {
                 <div
                   className="flex-1 rounded-[24px] p-9 transition-all duration-300 hover:-translate-y-1"
                   style={{
-                    background: 'rgba(255,255,255,0.72)',
+                    background: 'var(--glass)',
                     backdropFilter: 'blur(16px)',
                     border: '1px solid rgba(255,255,255,0.95)',
                     boxShadow: '0 8px 40px rgba(108,71,255,0.10)',
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(108,71,255,0.18)'; (e.currentTarget as HTMLElement).style.background = 'white' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(108,71,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.72)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(108,71,255,0.18)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(108,71,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
                 >
                   <p className="text-[12px] font-bold tracking-[2px] uppercase mb-3" style={{ color: 'var(--violet)' }}>{step.phase}</p>
                   <h3 className="text-[24px] font-bold mb-3" style={{ color: 'var(--text)' }}>{step.title}</h3>
@@ -772,7 +607,7 @@ export default function LandingPage() {
                 <div
                   className="absolute left-1/2 -translate-x-1/2 top-4 w-[60px] h-[60px] rounded-full flex items-center justify-center z-10 hidden md:flex shadow-sm"
                   style={{
-                    background: 'white',
+                    background: 'var(--card-bg)',
                     boxShadow: '0 0 0 4px white',
                   }}
                 >
@@ -822,13 +657,13 @@ export default function LandingPage() {
                 key={f.title}
                 className="rounded-[24px] p-8 transition-all duration-300 hover:-translate-y-1 text-left"
                 style={{
-                  background: 'rgba(255,255,255,0.72)',
+                  background: 'var(--glass)',
                   backdropFilter: 'blur(16px)',
                   border: '1px solid rgba(255,255,255,0.95)',
                   boxShadow: '0 4px 24px rgba(108,71,255,0.06)',
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'white' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.72)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
               >
                 <div 
                   className="w-16 h-16 rounded-[20px] mb-8 flex items-center justify-center"
@@ -902,7 +737,7 @@ export default function LandingPage() {
               <div
                 className="relative rounded-[32px] p-10 overflow-hidden"
                 style={{
-                  background: 'rgba(255,255,255,0.75)',
+                  background: 'var(--glass)',
                   backdropFilter: 'blur(32px) saturate(180%)',
                   border: '1px solid rgba(255,255,255,0.95)',
                   boxShadow: '0 20px 60px rgba(108,71,255,0.12)',
@@ -971,13 +806,13 @@ export default function LandingPage() {
                 key={i}
                 className="rounded-[24px] p-8 transition-all duration-300 hover:-translate-y-1 flex flex-col"
                 style={{
-                  background: 'rgba(255,255,255,0.72)',
+                  background: 'var(--glass)',
                   backdropFilter: 'blur(16px)',
                   border: '1px solid rgba(255,255,255,0.95)',
                   boxShadow: '0 4px 24px rgba(108,71,255,0.06)',
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'white' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.72)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
               >
                 <div className="flex-1">
                   <div className="flex gap-1 mb-6 text-[#ff6bc6]">
@@ -1042,9 +877,9 @@ export default function LandingPage() {
               <motion.div
                 variants={fadeReveal}
                 key={p.name}
-                className={`rounded-[32px] p-8 transition-all duration-300 flex flex-col relative ${p.featured ? 'md:-translate-y-4 shadow-xl border-[#6c47ff]/20 bg-white' : 'hover:-translate-y-1'}`}
+                className={`rounded-[32px] p-8 transition-all duration-300 flex flex-col relative ${p.featured ? 'md:-translate-y-4 shadow-xl border-[#6c47ff]/20 bg-[var(--card-bg)]' : 'hover:-translate-y-1'}`}
                 style={{
-                  background: p.featured ? 'white' : 'rgba(255,255,255,0.72)',
+                  background: p.featured ? 'var(--card-bg)' : 'var(--glass)',
                   backdropFilter: 'blur(16px)',
                   border: `1px solid ${p.featured ? 'rgba(108,71,255,0.2)' : 'rgba(255,255,255,0.95)'}`,
                   boxShadow: p.featured ? '0 24px 80px rgba(108,71,255,0.15)' : '0 4px 24px rgba(108,71,255,0.06)',
@@ -1142,74 +977,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-
-
-      {/* ── FOOTER ── */}
-      <footer
-        className="relative z-10 py-16 px-6"
-        style={{ borderTop: '1px solid rgba(108,71,255,0.10)' }}
-      >
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 mb-12">
-            {/* Brand */}
-            <div className="md:col-span-1">
-              <Link to="/" className="flex items-center gap-3 mb-4 no-underline cursor-pointer">
-                <div className="logo-orbit">
-                  <div className="logo-orbit-ring"></div>
-                  <div className="logo-box" style={{ background: 'none', boxShadow: 'none' }}>
-                    <img src="/hybent_logo.webp" alt="Hybent Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
-                  </div>
-                </div>
-                <img src="/hybent_wordmark_dark.webp" alt="HYBENT" style={{ height: '18px', objectFit: 'contain' }} />
-              </Link>
-              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>
-                AI-powered recruiting platform that helps teams hire faster and smarter.
-              </p>
-            </div>
-
-            {/* Links */}
-            {[
-              { heading: 'Product', links: ['Features'] },
-              { heading: 'Company', links: ['About'] },
-              { heading: 'Legal', links: ['Privacy', 'Terms', 'Security', 'Cookies'] },
-            ].map((col) => (
-              <div key={col.heading}>
-                <h4 className="text-[12px] font-bold uppercase tracking-[1.5px] mb-4" style={{ color: 'var(--text-light)' }}>
-                  {col.heading}
-                </h4>
-                <ul className="space-y-2">
-                  {col.links.map((link) => {
-                    const targetId = link === 'Features' ? 'features' : link === 'About' ? 'about' : '';
-                    return (
-                      <li key={link}>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            if (targetId) {
-                              document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
-                            }
-                          }}
-                          className="text-[13px] no-underline transition-colors hover:text-violet-600 bg-transparent border-none p-0 cursor-pointer text-left"
-                          style={{ color: 'var(--text-mid)' }}
-                        >
-                          {link}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div
-            className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 text-[12px]"
-            style={{ borderTop: '1px solid rgba(108,71,255,0.08)', color: 'var(--text-light)' }}
-          >
-            <span>&copy; {new Date().getFullYear()} Hybent Hiring. All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

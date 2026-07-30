@@ -50,7 +50,7 @@ export default function OnboardingPage() {
                 setTokens(res.data.access_token, res.data.refresh_token, res.data.user)
                 navigate('/hiring/portal')
             } else {
-                navigate('/hiring/login')
+                navigate('/login')
             }
         } catch (err: any) {
             toast.error(err.response?.data?.detail || 'Failed to activate account')
@@ -102,7 +102,7 @@ export default function OnboardingPage() {
                     </div>
                     <h2 className="text-xl font-bold mb-2">Invitation Error</h2>
                     <p className="text-gray-500 dark:text-[#b0a8d8] mb-6">{error}</p>
-                    <Button onClick={() => navigate('/hiring')} variant="outline" className="w-full">
+                    <Button onClick={() => navigate('/products/hiring')} variant="outline" className="w-full">
                         Back to Home
                     </Button>
                 </Card>

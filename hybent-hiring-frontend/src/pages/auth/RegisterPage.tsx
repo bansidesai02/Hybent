@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const schema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -14,6 +15,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function RegisterPage() {
+  useDocumentTitle('Create an account — Hybent Hiring | HYBENT', 'Start using Hybent Hiring, the AI recruitment platform from HYBENT.')
+
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
@@ -191,7 +194,7 @@ export default function RegisterPage() {
             <button 
               className="btn-submit" 
               type="button" 
-              onClick={() => navigate('/hiring')}
+              onClick={() => navigate('/products/hiring')}
               style={{ marginTop: 24 }}
             >
               Return Home
@@ -283,7 +286,7 @@ export default function RegisterPage() {
             </form>
 
             <div className="foot-note" style={{ pointerEvents: isSubmitting ? 'none' : 'auto', opacity: isSubmitting ? 0.6 : 1 }}>
-              Already have an account? <Link to="/hiring/login">Sign In <ArrowRight size={14} className="ml-1 inline" /></Link>
+              Already have an account? <Link to="/login">Sign In <ArrowRight size={14} className="ml-1 inline" /></Link>
             </div>
 
             <p className="foot-note" style={{ fontSize: '11px', marginTop: '24px', opacity: 0.8, pointerEvents: isSubmitting ? 'none' : 'auto' }}>

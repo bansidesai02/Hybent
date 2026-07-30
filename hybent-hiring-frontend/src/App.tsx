@@ -1,12 +1,10 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import React, { lazy, Suspense } from 'react'
-import { useAuthStore } from '@/store/authStore'
+import { Suspense } from 'react'
+import { Toaster } from 'react-hot-toast'
 import { AlertTriangle } from 'lucide-react'
 
-// Root Apps
-import HiringApp from './apps/HiringApp'
-
-const LandingPage = lazy(() => import('@/pages/landing/LandingPage'))
+import AppRoutes from '@/app/AppRoutes'
+import { useAuthStore } from '@/store/authStore'
+import { AUTH } from '@/app/paths'
 
 function RouteFallback() {
   return (
@@ -31,7 +29,7 @@ function ForcedLogoutModal() {
 
   const handleDismiss = () => {
     logout()
-    window.location.href = '/hiring/login'
+    window.location.href = AUTH.login
   }
 
   const isDeleted = forcedLogoutReason === 'account_deleted'
@@ -82,18 +80,32 @@ export default function App() {
   return (
     <>
       <ForcedLogoutModal />
-      
+
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#ffffff',
+            color: '#1a1040',
+            borderRadius: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
+            padding: '12px 24px',
+            border: '1px solid #f1f0ff',
+          },
+          success: {
+            iconTheme: {
+              primary: '#6c47ff',
+              secondary: '#ffffff',
+            },
+          },
+        }}
+      />
+
       <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          {/* Main Landing Page */}
-          <Route path="/" element={<LandingPage />} />
-
-          {/* Hiring Platform */}
-          <Route path="/hiring/*" element={<HiringApp />} />
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppRoutes />
       </Suspense>
     </>
   )

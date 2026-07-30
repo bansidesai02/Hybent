@@ -1,2 +1,14 @@
 .env
 .env.docker
+
+# Dependencies and build output
+node_modules/
+dist/
+
+# Vite writes these while resolving a TS config
+vite.config.ts.timestamp-*.mjs
+
+# Standalone company-site prototype — its pages now live in
+# hybent-hiring-frontend/src/modules/site/
+/hybent/
+/hybent final.html

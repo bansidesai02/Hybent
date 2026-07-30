@@ -43,7 +43,7 @@ export function useAuth() {
     // Clear ALL React Query cache so the next user never sees stale data
     queryClient.clear()
     storeLogout()
-    navigate('/hiring/login')
+    navigate('/login')
   }
 
   const exitImpersonation = () => {
@@ -68,7 +68,7 @@ export function useAuth() {
       // fallback if backup doesn't exist
       queryClient.clear()
       storeLogout()
-      navigate('/hiring/login')
+      navigate('/login')
     }
   }
 

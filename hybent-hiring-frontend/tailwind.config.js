@@ -53,8 +53,11 @@ export default {
       },
 
       fontFamily: {
-        sans:     ['Sora', 'system-ui', 'sans-serif'],
-        sora:     ['Sora', 'sans-serif'],
+        // Sora is now actually loaded (it never was before), so the default
+        // stack drops it to keep every product surface rendering exactly as it
+        // does today. Use `font-sora` where Sora is deliberate.
+        sans:     ['system-ui', 'sans-serif'],
+        sora:     ['Sora', 'system-ui', 'sans-serif'],
         fraunces: ['Fraunces', 'serif'],
         display:  ['Sora', 'system-ui', 'sans-serif'],
         serif:    ['Fraunces', 'Georgia', 'serif'],
