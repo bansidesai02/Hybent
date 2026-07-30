@@ -1,0 +1,264 @@
+import { useEffect, useRef } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
+import type { Theme } from '@/hooks/useTheme'
+
+type HeaderNavProps = {
+  theme: Theme
+  onToggleTheme: () => void
+  drawerOpen: boolean
+  onToggleDrawer: () => void
+  onCloseDrawer: () => void
+}
+
+/* The mega panel sits 12px below its trigger. Opening is immediate; closing
+   waits, and is cancelled the moment the pointer re-enters trigger or panel. */
+const CLOSE_DELAY = 220
+
+export function HeaderNav({
+  theme,
+  onToggleTheme,
+  drawerOpen,
+  onToggleDrawer,
+  onCloseDrawer,
+}: HeaderNavProps) {
+  const headerRef = useRef<HTMLElement>(null)
+  const classic = theme === 'classic'
+  const themeLabel = classic ? 'Switch to signature view' : 'Switch to classic view'
+
+  /* ---------- Sticky nav ---------- */
+  useEffect(() => {
+    const nav = headerRef.current
+    if (!nav) return
+    const onScroll = () => nav.classList.toggle('stuck', window.scrollY > 12)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  /* ---------- Mega menu: hover intent ---------- */
+  useEffect(() => {
+    const root = headerRef.current
+    if (!root) return
+    const items = Array.from(root.querySelectorAll<HTMLElement>('.has-mega'))
+    const cleanups: Array<() => void> = []
+
+    const closeMega = (item: HTMLElement) => {
+      item.classList.remove('is-open')
+      item.querySelector('.navlink')?.setAttribute('aria-expanded', 'false')
+    }
+
+    items.forEach((item) => {
+      const trigger = item.querySelector<HTMLElement>('.navlink')
+      let timer: number | undefined
+
+      const open = () => {
+        window.clearTimeout(timer)
+        items.forEach((other) => other !== item && closeMega(other))
+        item.classList.add('is-open')
+        trigger?.setAttribute('aria-expanded', 'true')
+      }
+      const closeSoon = () => {
+        window.clearTimeout(timer)
+        timer = window.setTimeout(() => closeMega(item), CLOSE_DELAY)
+      }
+      const onFocusOut = (e: FocusEvent) => {
+        if (!item.contains(e.relatedTarget as Node)) closeMega(item)
+      }
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && item.classList.contains('is-open')) {
+          closeMega(item)
+          trigger?.focus()
+        }
+      }
+
+      item.addEventListener('mouseenter', open)
+      item.addEventListener('mouseleave', closeSoon)
+      item.addEventListener('focusin', open)
+      item.addEventListener('focusout', onFocusOut)
+      item.addEventListener('keydown', onKeyDown)
+      cleanups.push(() => {
+        window.clearTimeout(timer)
+        item.removeEventListener('mouseenter', open)
+        item.removeEventListener('mouseleave', closeSoon)
+        item.removeEventListener('focusin', open)
+        item.removeEventListener('focusout', onFocusOut)
+        item.removeEventListener('keydown', onKeyDown)
+      })
+    })
+
+    const onDocClick = (e: MouseEvent) => {
+      const inside = (e.target as Element)?.closest?.('.has-mega')
+      items.forEach((item) => item !== inside && closeMega(item))
+    }
+    document.addEventListener('click', onDocClick)
+
+    return () => {
+      cleanups.forEach((fn) => fn())
+      document.removeEventListener('click', onDocClick)
+    }
+  }, [])
+
+  /* ---------- Escape closes the drawer ---------- */
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseDrawer()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [drawerOpen, onCloseDrawer])
+
+  /* ---------- Premium CTA ripple ----------
+     Purely additive decoration. The anchors keep their native href, so
+     routing and keyboard activation are unaffected. */
+  const onRipple = (e: ReactPointerEvent<HTMLElement>) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const btn = e.currentTarget
+    const r = btn.getBoundingClientRect()
+    if (!r.width || !r.height) return
+    const size = Math.max(r.width, r.height) * 2.2
+    const rip = document.createElement('span')
+    rip.className = 'rip'
+    rip.style.width = rip.style.height = `${size}px`
+    rip.style.left = `${e.clientX - r.left}px`
+    rip.style.top = `${e.clientY - r.top}px`
+    btn.appendChild(rip)
+    const done = () => rip.parentNode?.removeChild(rip)
+    rip.addEventListener('animationend', done)
+    window.setTimeout(done, 800)
+  }
+
+  return (
+    <>
+      <header className="nav" id="nav" ref={headerRef}>
+        <div className="wrap nav__in">
+          <a className="brand" href="/" aria-label="HYBENT home">
+            <img className="mk" src="/assets/hybent-mark.png" alt="HYBENT" />
+            <img className="wm t-dark" src="/assets/hybent-wordmark-dark.png" alt="" /><img className="wm t-light" src="/assets/hybent-wordmark-light.png" alt="" />
+          </a>
+
+          <nav aria-label="Primary">
+            <ul className="nav__links">
+              <li className="has-mega">
+                <a className="navlink" href="/products" aria-haspopup="true" aria-expanded="false" data-nav="products platform ai">Products <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
+                <div className="mega">
+                  <div className="mega__grid">
+                    <div className="mega__item">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
+                      <span><h5>Hybent Hiring <span className="badge badge--live"><i className="dot dot--pulse"></i>Live</span></h5><p>AI recruitment platform — resume parsing, AI screening, interview management and offers in one pipeline.</p>
+                        <span className="mega__acts"><a href="/products">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/contact">Open product <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
+                      </span>
+                    </div>
+                    <div className="mega__item">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
+                      <span><h5>Platform</h5><p>The shared identity, data and automation layer every Hybent product is built on.</p>
+                        <span className="mega__acts"><a href="/platform">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/platform/ecosystem">See the layers <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
+                      </span>
+                    </div>
+                    <div className="mega__item">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-bot" /></svg></span>
+                      <span><h5>AI Capabilities</h5><p>Screening models, recruiter copilot and the evaluation harness that gates every release.</p>
+                        <span className="mega__acts"><a href="/ai">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/products">Inside Hybent Hiring <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
+                      </span>
+                    </div>
+                    <div className="mega__item">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-compass" /></svg></span>
+                      <span><h5>Roadmap</h5><p>What we are building next. Every future product stays marked coming soon until it ships.</p>
+                        <span className="mega__acts"><a href="/products/roadmap">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/products/roadmap">See what is coming <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mega__foot">
+                    <p className="small">One account. One data model. Every product you add makes the last one more useful.</p>
+                    <a className="link-arrow" href="/platform">See the platform <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                  </div>
+                </div>
+              </li>
+              <li><a className="navlink" href="/solutions" data-nav="solutions">Solutions</a></li>
+              <li><a className="navlink" href="/industries" data-nav="industries">Industries</a></li>
+              <li><a className="navlink" href="/customers" data-nav="customers">Customers</a></li>
+              <li><a className="navlink" href="/resources" data-nav="resources">Resources</a></li>
+              <li className="has-mega">
+                <a className="navlink" href="/about" aria-haspopup="true" aria-expanded="false" data-nav="about careers contact security">Company <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
+                <div className="mega mega--sm">
+                  <div className="mega__grid">
+                    <a className="mega__item" href="/about">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-eye" /></svg></span>
+                      <span><h5>About Hybent</h5><p>Who we are, what we believe, and how the company is being built.</p></span>
+                    </a>
+                    <a className="mega__item" href="/security">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-shield" /></svg></span>
+                      <span><h5>Security</h5><p>The controls every Hybent product inherits on the day it launches.</p></span>
+                    </a>
+                    <a className="mega__item" href="/careers">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-brief" /></svg></span>
+                      <span><h5>Careers</h5><p>Join early enough to shape the platform everything else is built on.</p></span>
+                    </a>
+                    <a className="mega__item" href="/contact">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-mail" /></svg></span>
+                      <span><h5>Contact</h5><p>Tell us what you are trying to fix. We reply within one business day.</p></span>
+                    </a>
+                  </div>
+                  <div className="mega__foot">
+                    <p className="small">Building a global multi-product technology company, one release at a time.</p>
+                    <a className="link-arrow" href="/about">Our story <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </nav>
+
+          <div className="nav__cta">
+            <button
+              className="theme-btn"
+              id="themeBtn"
+              type="button"
+              aria-pressed={classic}
+              aria-label={themeLabel}
+              title={themeLabel}
+              onClick={onToggleTheme}
+            ><svg className="i-off" aria-hidden="true"><use href="#i-sun" /></svg><svg className="i-on" aria-hidden="true"><use href="#i-moon" /></svg></button>
+            <a className="btn btn-quiet btn-sm" href="/contact">Log in</a>
+            <a className="btn btn-primary btn-sm" href="/contact" onPointerDown={onRipple}>Get started</a>
+            <button
+              className={drawerOpen ? 'burger open' : 'burger'}
+              id="burger"
+              aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={drawerOpen}
+              aria-controls="drawer"
+              onClick={onToggleDrawer}
+            ><span></span></button>
+          </div>
+        </div>
+      </header>
+
+      <div
+        className={drawerOpen ? 'drawer open' : 'drawer'}
+        id="drawer"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).tagName === 'A') onCloseDrawer()
+        }}
+      >
+        <p className="mono" style={{ margin: '6px 0 4px', color: 'var(--dim)' }}>Products</p>
+        <a href="/products">Hybent Hiring</a>
+        <a href="/platform">Platform</a>
+        <a href="/ai">AI Capabilities</a>
+        <a href="/products/roadmap">Roadmap</a>
+        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Explore</p>
+        <a href="/solutions">Solutions</a>
+        <a href="/industries">Industries</a>
+        <a href="/customers">Customers</a>
+        <a href="/resources">Resources</a>
+        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Company</p>
+        <a href="/about">About</a>
+        <a href="/security">Security</a>
+        <a href="/careers">Careers</a>
+        <a href="/contact">Contact</a>
+        <div className="drawer__cta">
+          <a className="btn btn-ghost btn-lg" href="/contact">Log in</a>
+          <a className="btn btn-primary btn-lg" href="/contact" onPointerDown={onRipple}>Get started</a>
+        </div>
+      </div>
+    </>
+  )
+}

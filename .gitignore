@@ -8,7 +8,5 @@ dist/
 # Vite writes these while resolving a TS config
 vite.config.ts.timestamp-*.mjs
 
-# Standalone company-site prototype — its pages now live in
-# hybent-hiring-frontend/src/modules/site/
-/hybent/
+# Design mockup that the company site was built from
 /hybent final.html
