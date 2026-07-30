@@ -1,0 +1,1 @@
+import{r as u}from"./vendor-react-Dq7nlNew.js";function c(e,t){u.useEffect(()=>{var o;document.title=e,t&&((o=document.querySelector('meta[name="description"]'))==null||o.setAttribute("content",t))},[e,t])}export{c as u};
