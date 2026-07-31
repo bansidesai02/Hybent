@@ -227,7 +227,7 @@ export function GlobalNav({
 
           <div className="nav__cta">
             <a className="btn btn-quiet btn-sm" href={AUTH.login}>Log in</a>
-            <a className="btn btn-primary btn-sm" href="/contact" onPointerDown={onRipple}>Book a Demo</a>
+            <a className="btn btn-primary btn-sm" href="/contact" onPointerDown={onRipple}>Get in Touch</a>
             <button
               className={drawerOpen ? 'burger open' : 'burger'}
               id="burger"
@@ -266,7 +266,7 @@ export function GlobalNav({
           {/* The header's Log in is hidden under 860px, so the drawer carries it. */}
           <a className="btn btn-ghost btn-lg" href={AUTH.login}>Log in</a>
           <a className="btn btn-ghost btn-lg" href="/products/hiring">Explore Hybent Hiring</a>
-          <a className="btn btn-primary btn-lg" href="/contact" onPointerDown={onRipple}>Book a Demo</a>
+          <a className="btn btn-primary btn-lg" href="/contact" onPointerDown={onRipple}>Get in Touch</a>
         </div>
       </div>
     </div>

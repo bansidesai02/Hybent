@@ -33,7 +33,7 @@ export default function HomePage() {
 
             <div className="hero__actions" data-rv="up" data-delay="240">
               <a className="btn btn-primary btn-lg" href="/products">Explore Hybent Hiring <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-              <a className="btn btn-ghost btn-lg" href="/contact">Book a demo</a>
+              <a className="btn btn-ghost btn-lg" href="/contact">Get in touch</a>
             </div>
 
             <div className="hero__meta" data-rv="up" data-delay="320">
@@ -327,7 +327,7 @@ export default function HomePage() {
                 <h2 className="h-lg">See what Hybent Hiring does to your pipeline</h2>
                 <p className="lead" style={{ marginTop: "18px" }}>A working demo on your own roles, not a slide deck. Tell us how you hire today and we will show you the difference in twenty minutes.</p>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "30px" }}>
-                  <a className="btn btn-primary btn-lg" href="/contact">Book a demo <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                  <a className="btn btn-primary btn-lg" href="/contact">Get in touch <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
                   <a className="btn btn-ghost btn-lg" href="/products">Explore Hybent Hiring</a>
                 </div>
               </div>
