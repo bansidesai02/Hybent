@@ -36,10 +36,10 @@ export function GlobalFooter() {
             <li><a href="/solutions">Hiring managers</a></li><li><a href="/solutions">IT &amp; security</a></li><li><a href="/industries">Industries</a></li></ul></div>
           <div><h5>Company</h5><ul>
             <li><a href="/about">About</a></li><li><a href="/about/timeline">Our story</a></li><li><a href="/careers">Careers</a></li>
-            <li><a href="/resources">Blog</a></li><li><a href="/contact">Contact</a></li></ul></div>
-          <div><h5>Resources</h5><ul>
+            <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
+          <div><h5>More</h5><ul>
             <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li><li><a href="/products/roadmap">Roadmap</a></li>
-            <li><a href="/resources">Insights</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
+            <li><a href="/customers">Customers</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
         </div>
 
         <div className="footer__tag"><img className="t-dark" src="/hybent/tagline-dark.png" alt="Where vision meets innovation" /><img className="t-light" src="/hybent/tagline-light.png" alt="Where vision meets innovation" /></div>

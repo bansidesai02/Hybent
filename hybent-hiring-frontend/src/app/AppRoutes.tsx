@@ -17,7 +17,7 @@ const IndustriesPage = lazy(() => import('@/modules/site/pages/IndustriesPage'))
 const SecurityPage = lazy(() => import('@/modules/site/pages/SecurityPage'))
 const CustomersPage = lazy(() => import('@/modules/site/pages/CustomersPage'))
 const AboutPage = lazy(() => import('@/modules/site/pages/AboutPage'))
-const ResourcesPage = lazy(() => import('@/modules/site/pages/ResourcesPage'))
+const FaqPage = lazy(() => import('@/modules/site/pages/FaqPage'))
 const CareersPage = lazy(() => import('@/modules/site/pages/CareersPage'))
 const ContactPage = lazy(() => import('@/modules/site/pages/ContactPage'))
 
@@ -25,6 +25,14 @@ const ContactPage = lazy(() => import('@/modules/site/pages/ContactPage'))
 const HiringHomePage = lazy(() => import('@/modules/hiring/pages/HiringHomePage'))
 
 /* ── Authentication ───────────────────────────────────────────────────────── */
+/* Two front doors. The Hybent company portal owns the canonical paths and
+   shares one design system across sign-in, sign-up and reset; the Hybent Hiring
+   forms keep the product's own light theme under /hiring. */
+const HybentLoginRoute = lazy(() => import('@/modules/site/pages/HybentLoginRoute'))
+const HybentRegisterRoute = lazy(() => import('@/modules/site/pages/HybentRegisterRoute'))
+const HybentResetPasswordRoute = lazy(() => import('@/modules/site/pages/HybentResetPasswordRoute'))
+const HybentVerifyEmailRoute = lazy(() => import('@/modules/site/pages/HybentVerifyEmailRoute'))
+const HybentCreatePasswordRoute = lazy(() => import('@/modules/site/pages/HybentCreatePasswordRoute'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
@@ -71,15 +79,23 @@ export default function AppRoutes() {
         <Route path="/security/:section?" element={<SecurityPage />} />
         <Route path="/customers/:section?" element={<CustomersPage />} />
         <Route path="/about/:section?" element={<AboutPage />} />
-        <Route path="/resources/:section?" element={<ResourcesPage />} />
+        <Route path="/faq/:section?" element={<FaqPage />} />
         <Route path="/careers/:section?" element={<CareersPage />} />
         <Route path="/contact/:section?" element={<ContactPage />} />
       </Route>
 
       {/* ── Authentication: full-bleed, no marketing chrome ── */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      {/* The parent brand owns the canonical paths; the product keeps its own
+          themed forms under /hiring. Both hit the same endpoints. */}
+      <Route path="/login" element={<HybentLoginRoute />} />
+      <Route path="/register" element={<HybentRegisterRoute />} />
+      <Route path="/reset-password" element={<HybentResetPasswordRoute />} />
+      {/* One route, four states — ?status=success|error|verifying, default sent. */}
+      <Route path="/verify-email" element={<HybentVerifyEmailRoute />} />
+      <Route path="/create-password" element={<HybentCreatePasswordRoute />} />
+      <Route path="/hiring/login" element={<LoginPage />} />
+      <Route path="/hiring/register" element={<RegisterPage />} />
+      <Route path="/hiring/reset-password" element={<ResetPasswordPage />} />
 
       {/* ── Token-gated candidate flows ── */}
       <Route path="/onboarding/:token" element={<OnboardingPage />} />

@@ -1,7 +1,7 @@
 /** Title and description for every public view, applied by AppLayout. */
 export const ROUTE_META: Record<string, { title: string; description: string }> = {
   index: {
-    title: 'HYBENT — Enterprise AI Software | Makers of Hybent Hiring',
+    title: 'Hybent | AI-Powered Software Products & IT Services',
     description:
       'HYBENT builds intelligent software products that simplify business operations using AI. Hybent Hiring, our AI recruitment platform, is live today.',
   },
@@ -50,10 +50,10 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     description:
       'HYBENT is an enterprise software company building intelligent products that simplify business operations using AI. Our mission, vision, values and story.',
   },
-  resources: {
-    title: 'Resources — insights and frequently asked questions | HYBENT',
+  faq: {
+    title: 'FAQ — the questions we get asked first | HYBENT',
     description:
-      'Notes from the team building HYBENT, plus straight answers to the questions we get asked first.',
+      'Straight answers on what is live today, how Hybent Hiring is priced, and what happens to your data.',
   },
   careers: {
     title: 'Careers — build the platform everything else stands on | HYBENT',

@@ -22,7 +22,7 @@ export const SITE = {
   security: '/security',
   customers: '/customers',
   about: '/about',
-  resources: '/resources',
+  faq: '/faq',
   careers: '/careers',
   contact: '/contact',
 } as const
@@ -33,9 +33,15 @@ export const PRODUCTS = {
 } as const
 
 export const AUTH = {
+  /** The platform's canonical sign-in — the Hybent company portal. Every
+      redirect (RequireAuth, forced logout, /dashboard) lands here. */
   login: '/login',
   register: '/register',
   resetPassword: '/reset-password',
+  /** ?status=success|error|verifying selects the state; default is "sent". */
+  verifyEmail: '/verify-email',
+  /** First password for an invited user; takes the invite token as ?token=. */
+  createPassword: '/create-password',
   /** Role-aware entry point — resolves to the caller's workspace. */
   dashboard: '/dashboard',
 } as const
@@ -43,6 +49,12 @@ export const AUTH = {
 /** Authenticated workspaces of the Hybent Hiring product. */
 export const HIRING = {
   root: '/hiring',
+  /** Product-branded auth. Same accounts and same endpoints as AUTH — these
+      exist so a visitor already inside Hybent Hiring stays in the product's own
+      theme instead of being handed to the parent brand's portal. */
+  login: '/hiring/login',
+  register: '/hiring/register',
+  resetPassword: '/hiring/reset-password',
   recruiter: '/hiring/recruiter',
   admin: '/hiring/admin',
   interviewer: '/hiring/interviewer',

@@ -305,6 +305,8 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .has-mega:focus-within .mega{opacity:1;visibility:visible;transform:translate(-50%,0);pointer-events:auto}
 .hb-site .mega__grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .hb-site .mega__item{display:flex;gap:13px;padding:13px;border-radius:var(--r-md);transition:background .25s}
+/* Fills the row when a panel holds an odd number of cards. */
+.hb-site .mega__item--full{grid-column:1/-1}
 .hb-site .mega__item:hover{background:rgba(255,255,255,.06)}
 .hb-site .mega__item h5{margin:0 0 3px;font-family:var(--f-display);font-size:.94rem;font-weight:600;display:flex;align-items:center;gap:8px}
 .hb-site .mega__item p{font-size:.8rem;color:var(--muted);line-height:1.5}
@@ -1322,6 +1324,13 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 .hb-site .mega__item:hover .icon-tile{transform:translateY(-2px) rotate(-4deg)}
 [data-theme="classic"] .hb-site .mega__item:hover .icon-tile{color:#0B8FC7}
 .hb-site .mega .icon-tile{transition:transform var(--hov-dur-lg) var(--hov-ease),color var(--hov-dur-lg) ease}
+
+/* Whole-card link. The hit area covers the card so any click opens the
+   product; the action row sits above it so those links keep their own
+   hover state and destination. */
+.hb-site .mega__item--linked{position:relative}
+.hb-site .mega__item-hit{position:absolute;inset:0;border-radius:var(--r-md);z-index:1}
+.hb-site .mega__item--linked .mega__acts{position:relative;z-index:2}
 
 
 /* ---------- 6. CTA — "Get started" -------------------------- */

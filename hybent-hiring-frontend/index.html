@@ -2,23 +2,28 @@
 <html lang="en" data-theme="classic">
   <head>
     <meta charset="UTF-8" />
+    <!-- The official Hybent mark, squared and padded. PNG fallback first for
+         browsers that ignore SVG favicons; the SVG wins where both are read. -->
+    <link rel="icon" type="image/png" href="/hybent/hybent-mark.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#FBFCFE" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>HYBENT — Enterprise AI Software | Makers of Hybent Hiring</title>
+    <title>Hybent | AI-Powered Software Products &amp; IT Services</title>
     <meta name="description" content="HYBENT builds intelligent software products that simplify business operations using AI. Hybent Hiring, our AI recruitment platform, is live today." />
     <script>
-      /* Apply the stored view before first paint so signature mode never flashes
-         the light background. Mirrors src/hooks/useTheme.ts. */
+      /* The company site and its auth pages are light-only — `data-theme` stays
+         "classic" on the html tag above and nothing removes it.
+
+         Dark mode belongs to the Hybent Hiring workspaces alone, so restore it
+         before first paint for those paths only. Without this the dashboard
+         flashes light for a frame before Topbar re-applies the preference. */
       (function () {
         try {
-          var t = localStorage.getItem('hybent-theme')
-          if (t !== 'signature' && localStorage.getItem('hybent_hiring_theme') === 'dark') t = 'signature'
-          if (t === 'signature') {
-            document.documentElement.removeAttribute('data-theme')
+          var workspace = /^\/(dashboard|hiring\/(recruiter|admin|interviewer|portal|super-admin))/
+          if (workspace.test(location.pathname) && localStorage.getItem('hybent_hiring_theme') === 'dark') {
             document.documentElement.classList.add('dark')
           }
         } catch (e) {}
