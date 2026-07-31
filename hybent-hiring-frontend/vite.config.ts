@@ -68,6 +68,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Allow tunnelled hosts (cloudflared / ngrok) to reach the dev server
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.io'],
     // Proxy API calls to backend during development — this is the frontend↔backend connection
     proxy: {
       '/v1': {

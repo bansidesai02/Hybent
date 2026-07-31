@@ -12,7 +12,7 @@ psycopg2-binary==2.9.10
 # Auth & Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-bcrypt==3.2.2
+bcrypt>=3.2.2
 
 # Validation
 pydantic
@@ -51,7 +51,7 @@ celery==5.4.0
 redis==5.0.4
 
 # Reporting
-pandas==2.2.2
+pandas>=2.2.2
 openpyxl==3.1.2
 
 # Firebase Admin SDK (push notifications)
@@ -72,4 +72,4 @@ elasticsearch[async]>=8.0.0
 # Performance optimizations
 orjson>=3.10.3
 async-lru>=2.0.4
-psutil==5.9.8
+psutil>=5.9.8
