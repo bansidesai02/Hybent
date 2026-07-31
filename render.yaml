@@ -44,8 +44,22 @@ services:
     dockerfilePath: Dockerfile
     plan: starter
     envVars:
+      # Empty means the bundle uses relative paths, which nginx then proxies —
+      # so the browser only ever talks to one origin and CORS never enters it.
       - key: VITE_API_BASE_URL
-        value: "" # Empty means use relative paths (handled by Nginx proxy)
+        value: ""
+      # Where that proxy points. The compose service name baked in as the image
+      # default does not resolve here, so both must be set to the backend's URL.
+      - key: BACKEND_ORIGIN
+        fromService:
+          type: web
+          name: hybent-hiring-backend
+          property: host
+      - key: BACKEND_HOST
+        fromService:
+          type: web
+          name: hybent-hiring-backend
+          property: host
 
   # ── Celery Worker ─────────────────────────────────────────────────────────
   - type: worker
