@@ -27,8 +27,19 @@ FROM nginx:1.27-alpine AS runtime
 # Remove the default nginx site config
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Our custom config: serves SPA + proxies /v1, /static, /ws to backend
-COPY nginx.conf /etc/nginx/conf.d/hybent_hiring.conf
+# Our config: serves the SPA and proxies /v1, /api, /static and /ws to the
+# backend. It lands in templates/ so the image's entrypoint runs envsubst over
+# it at start-up, which is what makes the backend address deployable-specific.
+COPY nginx.conf.template /etc/nginx/templates/hybent_hiring.conf.template
+
+# Only these two names are substituted — without the filter, envsubst would
+# also eat nginx's own $host, $remote_addr and friends.
+ENV NGINX_ENVSUBST_FILTER="^BACKEND_(ORIGIN|HOST)$"
+
+# Defaults match docker-compose, where the backend is a service on the same
+# network. Split deployments override both.
+ENV BACKEND_ORIGIN="http://backend:8000"
+ENV BACKEND_HOST="backend:8000"
 
 # Copy the Vite production build
 COPY --from=builder /app/dist /usr/share/nginx/html

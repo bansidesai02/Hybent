@@ -1,3 +1,14 @@
+# Rendered at container start by the nginx image's envsubst step, which only
+# replaces the two variables named in NGINX_ENVSUBST_FILTER. Every other $var
+# below is nginx's own and passes through untouched.
+#
+#   BACKEND_ORIGIN  scheme + host + port, e.g. http://backend:8000
+#   BACKEND_HOST    host + port for the Host header, e.g. backend:8000
+#
+# Defaults in the Dockerfile keep docker-compose working unchanged. A split
+# deployment (separate frontend and backend services, as on Render) overrides
+# both to the backend's own URL — a compose service name will not resolve
+# there, and nginx refuses to start on an unresolvable upstream.
 server {
     listen 80;
     server_name _;
@@ -28,11 +39,12 @@ server {
     # Mirrors the /v1 proxy in vite.config.ts (used in dev)
     # Timeout is generous (120s) to handle slow Groq/Gemini AI calls
     location /v1/ {
-        proxy_pass         http://backend:8000/v1/;
+        proxy_pass         ${BACKEND_ORIGIN}/v1/;
         proxy_http_version 1.1;
         proxy_set_header   Upgrade    $http_upgrade;
         proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host              $host;
+        proxy_set_header   Host              ${BACKEND_HOST};
+        proxy_ssl_server_name on;
         proxy_set_header   X-Real-IP         $remote_addr;
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
@@ -44,11 +56,12 @@ server {
 
     # ── Proxy: Public API calls (landing page demo requests, etc.) ────────────
     location /api/ {
-        proxy_pass         http://backend:8000/api/;
+        proxy_pass         ${BACKEND_ORIGIN}/api/;
         proxy_http_version 1.1;
         proxy_set_header   Upgrade    $http_upgrade;
         proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host              $host;
+        proxy_set_header   Host              ${BACKEND_HOST};
+        proxy_ssl_server_name on;
         proxy_set_header   X-Real-IP         $remote_addr;
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
@@ -60,9 +73,10 @@ server {
 
     # ── Proxy: Uploaded static files (resumes, avatars, etc.) ─────────────────
     location /static/ {
-        proxy_pass        http://backend:8000/static/;
+        proxy_pass        ${BACKEND_ORIGIN}/static/;
         proxy_http_version 1.1;
-        proxy_set_header  Host       $host;
+        proxy_set_header  Host       ${BACKEND_HOST};
+        proxy_ssl_server_name on;
         proxy_set_header  X-Real-IP  $remote_addr;
         add_header        Cache-Control "public, max-age=86400";
     }
@@ -70,11 +84,12 @@ server {
     # ── WebSocket proxy (real-time notifications) ──────────────────────────────
     # Upgrade and Connection headers are REQUIRED for WebSocket handshake
     location /ws/ {
-        proxy_pass         http://backend:8000/v1/notifications/ws;
+        proxy_pass         ${BACKEND_ORIGIN}/v1/notifications/ws;
         proxy_http_version 1.1;
         proxy_set_header   Upgrade    $http_upgrade;
         proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host       $host;
+        proxy_set_header   Host       ${BACKEND_HOST};
+        proxy_ssl_server_name on;
         proxy_set_header   X-Real-IP  $remote_addr;
         proxy_read_timeout  3600s;
         proxy_send_timeout  3600s;
