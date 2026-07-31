@@ -53,7 +53,7 @@ services:
     env: docker
     dockerContext: ./hybent-hiring-backend
     dockerfilePath: Dockerfile
-    dockerCommand: celery -A app.celery_app worker --loglevel=info
+    dockerCommand: celery -A app.core.celery_app worker --loglevel=info
     envVars:
       - key: SKIP_PRESTART
         value: "true"
@@ -73,7 +73,7 @@ services:
     env: docker
     dockerContext: ./hybent-hiring-backend
     dockerfilePath: Dockerfile
-    dockerCommand: celery -A app.celery_app beat --loglevel=info
+    dockerCommand: celery -A app.core.celery_app beat --loglevel=info
     envVars:
       - key: SKIP_PRESTART
         value: "true"
