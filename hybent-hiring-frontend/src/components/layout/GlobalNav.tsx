@@ -173,15 +173,9 @@ export function GlobalNav({
                         <span className="mega__acts"><a href="/ai">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/products/hiring">Inside Hybent Hiring <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
                       </span>
                     </div>
-                    <div className="mega__item">
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-compass" /></svg></span>
-                      <span><h5>Roadmap</h5><p>What we are building next. Every future product stays marked coming soon until it ships.</p>
-                        <span className="mega__acts"><a href="/products/roadmap">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/products/roadmap">See what is coming <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
-                      </span>
-                    </div>
                   </div>
                   <div className="mega__foot">
-                    <p className="small">One account. One data model. Every product you add makes the last one more useful.</p>
+                    <p className="small">Hybent Hiring is our flagship AI recruitment platform.</p>
                     <a className="link-arrow" href="/platform">See the platform <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
                   </div>
                 </div>
@@ -251,7 +245,6 @@ export function GlobalNav({
         <a href="/products/hiring">Hybent Hiring</a>
         <a href="/platform">Platform</a>
         <a href="/ai">AI Capabilities</a>
-        <a href="/products/roadmap">Roadmap</a>
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Explore</p>
         <a href="/solutions">Solutions</a>
         <a href="/industries">Industries</a>

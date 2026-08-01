@@ -53,9 +53,9 @@ export default function AboutPage() {
                     <rect x="752" y="50" width="82" height="34" rx="11" /><rect x="752" y="83" width="82" height="34" rx="11" /><rect x="752" y="116" width="82" height="34" rx="11" />
                   </g>
                   <g fontFamily="Sora" fontSize="11.5" fill="var(--dim)" textAnchor="middle">
-                    <text x="793" y="72">CRM</text><text x="793" y="105">HRMS</text><text x="793" y="138">ERP</text>
+                    <text x="793" y="105">Hybent Hiring</text>
                   </g>
-                  <text x="793" y="170" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" letterSpacing="1.3" fill="var(--dim)">COMING SOON</text>
+                  <text x="793" y="170" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" letterSpacing="1.3" fill="var(--dim)">PRODUCT</text>
                 </svg>
               </div>
             </div>
@@ -88,8 +88,8 @@ export default function AboutPage() {
             <li className="tl__item"><p className="tl__yr">Foundation</p><h4>Platform before product</h4><p className="small">Identity, permissions, workflow and audit built first — the layer every future product would depend on.</p></li>
             <li className="tl__item"><p className="tl__yr">Build</p><h4>Hybent Hiring takes shape</h4><p className="small">Resume parsing, AI screening and interview management designed alongside recruiters, and rewritten until it held up.</p></li>
             <li className="tl__item"><p className="tl__yr">Launch</p><h4>Hybent Hiring goes live</h4><p className="small">Our first product ships as an AI recruitment platform for teams that hire continuously.</p></li>
-            <li className="tl__item" data-now=""><p className="tl__yr">Now</p><h4>Growing with our first customers</h4><p className="small">Onboarding early customers, shipping weekly, and building the team that will carry the next product.</p></li>
-            <li className="tl__item"><p className="tl__yr">Next</p><h4>The ecosystem takes form</h4><p className="small">More products on the same platform — each one listed as coming soon until the day it actually ships.</p></li>
+            <li className="tl__item" data-now=""><p className="tl__yr">Now</p><h4>Growing with our first customers</h4><p className="small">Onboarding early customers, shipping weekly, and enhancing the recruiter experience.</p></li>
+            <li className="tl__item"><p className="tl__yr">Next</p><h4>Continuous Innovation</h4><p className="small">Enhancing Hybent Hiring with deeper AI screening, recruiter copilot features, and enterprise capabilities.</p></li>
           </ol>
         </div>
       </section>
