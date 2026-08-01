@@ -26,10 +26,11 @@ export default function HomePage() {
                 <span>how you grow.</span>
                 <span>how you scale.</span>
                 <span>how you work.</span>
+                <span>how you innovate.</span>
               </span>
             </h1>
 
-            <p className="hero__sub" data-rv="up" data-delay="160">HYBENT builds intelligent software products that simplify how businesses operate. Hybent Hiring, our AI recruitment platform, is live today — the first product in an enterprise ecosystem we are building for the long term.</p>
+            <p className="hero__sub" data-rv="up" data-delay="160">HYBENT builds intelligent products and delivers technology services that help businesses innovate, grow, and scale. Hybent Hiring, our flagship AI recruitment platform, is the first step in a long-term ecosystem of innovative business software designed to help organizations hire, scale, and succeed.</p>
 
             <div className="hero__actions" data-rv="up" data-delay="240">
               <a className="btn btn-primary btn-lg" href="/products">Explore Hybent Hiring <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
