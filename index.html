@@ -13,52 +13,22 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Hybent | AI-Powered Software Products &amp; IT Services</title>
     <meta name="description" content="HYBENT builds intelligent software products that simplify business operations using AI. Hybent Hiring, our AI recruitment platform, is live today." />
-    <script>
-      /* The company site and its auth pages are light-only — `data-theme` stays
-         "classic" on the html tag above and nothing removes it.
-
-         Dark mode belongs to the Hybent Hiring workspaces alone, so restore it
-         before first paint for those paths only. Without this the dashboard
-         flashes light for a frame before Topbar re-applies the preference. */
-      (function () {
-        try {
-          var workspace = /^\/(dashboard|hiring\/(recruiter|admin|interviewer|portal|super-admin))/
-          if (workspace.test(location.pathname) && localStorage.getItem('hybent_hiring_theme') === 'dark') {
-            document.documentElement.classList.add('dark')
-          }
-        } catch (e) {}
-      })()
-    </script>
+    <!-- Hybent is light-only. `data-theme="classic"` is set statically on the
+         html tag above and nothing ever changes it, so there is no pre-paint
+         script and no theme flash to guard against. -->
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet"
-      />
-    </noscript>
     <!-- Hybent company design system: Sora (display), Manrope (body), IBM Plex Mono -->
     <link
       href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/assets/index-3ka1eT5G.js"></script>
+    <script type="module" crossorigin src="/assets/index-BD4H-Gtv.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-Dq7nlNew.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-BdCe_VYk.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-Bw2nnZL6.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-8QdS1XKp.css">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-DTJyimhB.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-DScsN51q.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-QFF7L7nr.css">
   <link rel="manifest" href="/manifest.json"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
