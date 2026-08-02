@@ -76,7 +76,7 @@ export default function SolutionsPage() {
               <text x="62" y="112">CANDIDATE</text><text x="178" y="112">EMPLOYEE</text></g>
           </svg>
                 <div className="card card--flat stat"><b>One</b><span>Candidate record, carried forward</span><em>Shared person model</em></div>
-                <div className="card card--flat stat"><b>Soon</b><span>HRMS continues where Hybent Hiring ends</span><em>Coming soon</em></div>
+                <div className="card card--flat stat"><b>Complete</b><span>Full audit trail from apply to offer</span><em>Automated workflow</em></div>
               </div>
             </div>
           </div>
