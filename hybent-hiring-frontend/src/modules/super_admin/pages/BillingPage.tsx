@@ -1,15 +1,78 @@
-import React from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Check, CreditCard } from 'lucide-react'
+
 import { superAdminApi } from '@/api/superAdmin'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { 
-  CreditCard, 
-  Check, 
-  HelpCircle,
-  TrendingUp,
-  FileSpreadsheet
-} from 'lucide-react'
+import {
+  Badge,
+  Card,
+  type Column,
+  DataTable,
+  PageHeader,
+  StatCard,
+  StatGrid,
+} from '@/components/hb'
+
+/**
+ * The three subscription tiers, and who is on which.
+ *
+ * Rebuilt on the design system in phase 9. Beyond appearance:
+ *
+ * - Each plan card carried its own accent hex and tinted background (blue,
+ *   violet, pink) alongside a "POPULAR" ribbon. The ribbon already says which
+ *   one is being recommended; the other two colours said nothing.
+ * - Every card ended in a full-width button reading "Default plan parameters"
+ *   with no `onClick`. A control that cannot be actioned should not look like
+ *   one — the limits are stated in the card body instead.
+ * - One table header was `text(--text-light)`, which is not a class and never
+ *   resolved.
+ */
+
+const formatCurrency = (val: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(val)
+
+const PLANS = [
+  {
+    name: 'Starter',
+    price: 8000,
+    users: 20,
+    jobs: 10,
+    features: ['Basic AI parser', 'Phone interview scheduling', 'Basic analytics dashboard'],
+  },
+  {
+    name: 'Pro',
+    price: 24000,
+    users: 50,
+    jobs: 20,
+    features: ['Deep AI scoring engine', 'Recorded video interviews', 'Bulk candidate import'],
+    popular: true,
+  },
+  {
+    name: 'Enterprise',
+    price: 60000,
+    users: 999,
+    jobs: 999,
+    features: ['Unlimited AI scoring', 'Dedicated custom subdomain', 'Full CSV/Excel report export'],
+  },
+]
+
+const STATUS_TONE: Record<string, 'success' | 'info' | 'error'> = {
+  active: 'success',
+  pending: 'info',
+  suspended: 'error',
+}
+
+interface ClientRow {
+  id: string
+  name: string
+  slug: string
+  plan: string
+  status: string
+  mrr: number
+}
 
 export default function BillingPage() {
   const { data: clients, isLoading } = useQuery({
@@ -17,189 +80,134 @@ export default function BillingPage() {
     queryFn: () => superAdminApi.getClients(),
   })
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(val)
-  }
+  const rows = (clients ?? []) as ClientRow[]
+  const totalMrr = rows.reduce((sum, c) => sum + (c.mrr || 0), 0)
+  const activeCount = rows.filter((c) => c.status === 'active').length
 
-  const plans = [
+  const columns: Array<Column<ClientRow>> = [
     {
-      name: 'Starter',
-      price: 8000,
-      users: 20,
-      jobs: 10,
-      features: ['Basic AI Parser', 'Phone Interviews Scheduling', 'Basic Analytics Dashboard'],
-      color: '#3b82f6',
-      bg: 'rgba(59, 130, 246, 0.05)'
+      key: 'name',
+      header: 'Organisation',
+      cardTitle: true,
+      cell: (client) => (
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-sm bg-hb-grad font-mono text-hb-micro font-bold text-white">
+            {client.name.substring(0, 2).toUpperCase()}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-hb-sm font-semibold text-hb-text">
+              {client.name}
+            </span>
+            <span className="block truncate text-hb-xs text-hb-muted">
+              {client.slug}.hirreon.com
+            </span>
+          </span>
+        </span>
+      ),
+    },
+    { key: 'plan', header: 'Plan', width: '140px', cell: (c) => <Badge>{c.plan}</Badge> },
+    {
+      key: 'cycle',
+      header: 'Cycle',
+      width: '130px',
+      cell: () => <span className="text-hb-muted">Monthly</span>,
     },
     {
-      name: 'Pro',
-      price: 24000,
-      users: 50,
-      jobs: 20,
-      features: ['Deep AI Scoring Engine', 'Recorded Video Interviews', 'Bulk Candidate Sheet Import'],
-      color: 'var(--violet)',
-      bg: 'rgba(108, 71, 255, 0.05)',
-      popular: true
+      key: 'mrr',
+      header: 'MRR',
+      width: '140px',
+      align: 'right',
+      cell: (c) => (
+        <span className="font-mono tabular-nums text-hb-text">{formatCurrency(c.mrr)}</span>
+      ),
     },
     {
-      name: 'Enterprise',
-      price: 60000,
-      users: 999,
-      jobs: 999,
-      features: ['Unlimited AI Scoring', 'Dedicated Custom Subdomain URL', 'Full Reports CSV/Excel Downloads'],
-      color: '#ff6bc6',
-      bg: 'rgba(255, 107, 198, 0.05)'
-    }
+      key: 'status',
+      header: 'Status',
+      width: '120px',
+      cell: (c) => <Badge tone={STATUS_TONE[c.status] ?? 'neutral'}>{c.status}</Badge>,
+    },
   ]
 
   return (
-    <div className="space-y-8 pb-10 pt-6">
-      {/* Header */}
-      <header className="page-header">
-        <h1 className="page-title text-[28px] font-black leading-tight text-[var(--text)]">Billing & Plans</h1>
-        <p className="page-subtitle text-[13px] text-[var(--text-light)]">Manage standard subscription packages, limits parameters, and monitor active organization billing contracts.</p>
-      </header>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Platform"
+        title="Billing & plans"
+        description="Standard subscription packages, their limits, and every active billing contract."
+      />
 
-      {/* Subscription Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans.map(p => (
-          <div 
-            key={p.name}
-            className="rounded-[24px] border p-6 flex flex-col justify-between relative overflow-hidden"
-            style={{ 
-              background: 'var(--card-bg)', 
-              borderColor: p.popular ? 'var(--violet)' : 'var(--card-border)',
-              boxShadow: p.popular ? '0 10px 30px rgba(108, 71, 255, 0.15)' : 'none'
-            }}
-          >
-            {p.popular && (
-              <span 
-                className="absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white"
-                style={{ background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))' }}
-              >
-                POPULAR
-              </span>
-            )}
-            <div>
-              <p className="text-[16px] font-black text-[var(--text)]">{p.name}</p>
-              <div className="flex items-baseline gap-1 mt-2.5">
-                <span className="text-[28px] font-black text-[var(--text)]">{formatCurrency(p.price)}</span>
-                <span className="text-[12px] text-[var(--text-light)]">/ month</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-light)] mt-1">10% discount on yearly payments</p>
-              
-              <div className="sb-divider my-4" />
+      <div className="space-y-hb-5">
+        <StatGrid className="xl:grid-cols-3">
+          <StatCard
+            label="Total MRR"
+            value={formatCurrency(totalMrr)}
+            icon={<CreditCard />}
+            loading={isLoading}
+          />
+          <StatCard label="Active contracts" value={activeCount} loading={isLoading} />
+          <StatCard label="Total tenants" value={rows.length} loading={isLoading} />
+        </StatGrid>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-2.5 text-[12.5px] font-semibold text-[var(--text-mid)]">
-                  <Check className="text-emerald-500 flex-shrink-0" size={15} />
-                  <span>Up to {p.users === 999 ? 'Unlimited' : p.users} User Accounts</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-[12.5px] font-semibold text-[var(--text-mid)]">
-                  <Check className="text-emerald-500 flex-shrink-0" size={15} />
-                  <span>Up to {p.jobs === 999 ? 'Unlimited' : p.jobs} Active Jobs</span>
-                </div>
-                {p.features.map(feat => (
-                  <div key={feat} className="flex items-center gap-2.5 text-[12.5px] font-semibold text-[var(--text-mid)]">
-                    <Check className="text-emerald-500 flex-shrink-0" size={15} />
-                    <span>{feat}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <button 
-              className="w-full mt-6 py-2 rounded-xl text-[12.5px] font-bold text-center border transition-all"
-              style={{
-                borderColor: p.popular ? 'var(--violet)' : 'var(--input-border)',
-                background: p.popular ? 'var(--violet)' : 'transparent',
-                color: p.popular ? 'white' : 'var(--text-mid)',
-              }}
+        <div className="grid gap-hb-4 md:grid-cols-3">
+          {PLANS.map((p) => (
+            <Card
+              key={p.name}
+              padding="loose"
+              className={`relative flex flex-col ${p.popular ? 'border-hb-blue/45' : ''}`}
             >
-              Default plan parameters
-            </button>
-          </div>
-        ))}
-      </div>
+              {p.popular && (
+                <Badge tone="brand" className="absolute right-4 top-4">
+                  Popular
+                </Badge>
+              )}
 
-      {/* active billing renewal contracts */}
-      <div className="rounded-[24px] border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-        <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
-          <h3 className="text-[16px] font-black text-[var(--text)] flex items-center gap-2">
-            <CreditCard className="text-[var(--violet)]" size={18} />
-            Active Organization Billing Contracts
-          </h3>
-        </div>
+              <p className="font-display text-hb-h3 text-hb-text">{p.name}</p>
+              <p className="mt-2 flex items-baseline gap-1.5">
+                <span className="hb-grad-text font-display text-hb-num">
+                  {formatCurrency(p.price)}
+                </span>
+                <span className="text-hb-xs text-hb-muted">/ month</span>
+              </p>
+              <p className="mt-1 text-hb-xs text-hb-muted">10% discount on yearly payments.</p>
 
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-6 space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : clients && clients.length > 0 ? (
-            <div className="table-responsive">
-<table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'rgba(108,71,255,0.06)', background: 'rgba(108,71,255,0.01)' }}>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Organization Name</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Plan Subscribed</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Billing cycle</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-right">MRR Price</th>
-                  <th className="p-4 text-[11px] font-black text(--text-light) uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clients.map(client => (
-                  <tr
-                    key={client.id}
-                    className="border-b last:border-b-0"
-                    style={{ borderColor: 'rgba(108,71,255,0.03)' }}
-                  >
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[var(--violet)]/10 text-[var(--violet)] flex items-center justify-center font-bold text-[11px]">
-                          {client.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-[13.5px] font-bold text-[var(--text)]">{client.name}</p>
-                          <p className="text-[11px] text-[var(--text-light)]">{client.slug}.hirreon.com</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-[13px] font-bold text-[var(--text)]">{client.plan}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-[12.5px] font-semibold text-[var(--text-mid)] capitalize">Monthly cycle</span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <span className="text-[13.5px] font-black text-[var(--text)]">{formatCurrency(client.mrr)}</span>
-                    </td>
-                    <td className="p-4">
-                      <span
-                        className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
-                        style={{
-                          background: client.status === 'active' ? 'rgba(16,185,129,0.1)' : client.status === 'pending' ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)',
-                          color: client.status === 'active' ? '#10b981' : client.status === 'pending' ? '#3b82f6' : '#ef4444'
-                        }}
-                      >
-                        {client.status.toUpperCase()}
-                      </span>
-                    </td>
-                  </tr>
+              <ul className="mt-hb-4 space-y-2.5 border-t border-hb-border pt-hb-4">
+                {[
+                  `Up to ${p.users === 999 ? 'unlimited' : p.users} user accounts`,
+                  `Up to ${p.jobs === 999 ? 'unlimited' : p.jobs} active jobs`,
+                  ...p.features,
+                ].map((feat) => (
+                  <li key={feat} className="flex items-start gap-2.5 text-hb-sm text-hb-muted">
+                    <Check size={15} aria-hidden className="mt-0.5 shrink-0 text-hb-success" />
+                    {feat}
+                  </li>
                 ))}
-              </tbody>
-            </table>
-</div>
-          ) : (
-            <div className="py-14 text-center text-[var(--text-light)] text-[12.5px]">No billing contracts records active.</div>
-          )}
+              </ul>
+            </Card>
+          ))}
         </div>
+
+        <Card padding="none">
+          <div className="border-b border-hb-border px-5 py-4 xl:px-7">
+            <h2 className="inline-flex items-center gap-2 font-display text-hb-h3 text-hb-text">
+              <CreditCard size={18} aria-hidden className="text-hb-cyan" />
+              Active billing contracts
+            </h2>
+          </div>
+          <DataTable
+            columns={columns}
+            rows={rows}
+            rowKey={(c) => c.id}
+            loading={isLoading}
+            caption="Active billing contracts by organisation"
+            empty={{
+              icon: <CreditCard />,
+              title: 'No billing contracts',
+              description: 'Contracts appear here once a tenant is onboarded.',
+              size: 'page',
+            }}
+          />
+        </Card>
       </div>
     </div>
   )

@@ -1,0 +1,387 @@
+import {
+  lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState,
+  type ReactNode,
+} from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { clsx } from 'clsx'
+import { AnimatePresence, motion } from 'framer-motion'
+import {
+  Briefcase, Calendar, LogOut, Menu, Search, SearchX, Settings, User, Users, X,
+} from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import { globalSearch } from '@/api/search'
+import type { SearchResult, SearchResults } from '@/types'
+
+const MessageInbox = lazy(() =>
+  import('../MessageInbox').then((m) => ({ default: m.MessageInbox }))
+)
+const NotificationBell = lazy(() =>
+  import('../NotificationBell').then((m) => ({ default: m.NotificationBell }))
+)
+
+/**
+ * The workspace top bar, on the Hybent design system.
+ *
+ * Message inbox and notification bell stay lazy and deferred behind a short
+ * timer, as they were: both open websockets and fetch on mount, and loading
+ * them in the first frame measurably delayed first paint on the dashboard.
+ * They keep their existing appearance for now — they are migrated with the
+ * notification surfaces later, not here.
+ */
+
+interface HbTopbarProps {
+  onToggleMenu: () => void
+  /** Off in the candidate portal, which has no scoped search API. */
+  search?: boolean
+  /** Off in the candidate portal, which has no team messaging. */
+  messages?: boolean
+  /** Extra entries above Sign out. Defaults to Profile and Settings. */
+  menuItems?: Array<{ label: string; icon: ReactNode; path: string }>
+}
+
+/** Deferred so the bell and inbox never compete with the page's own data. */
+function DeferredWidgets({ messages }: { messages: boolean }) {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setReady(true), 700)
+    return () => window.clearTimeout(id)
+  }, [])
+
+  const reserved = messages ? 'w-[76px]' : 'w-9'
+  if (!ready) return <div className={clsx('h-9', reserved)} aria-hidden />
+
+  return (
+    <Suspense fallback={<div className={clsx('h-9', reserved)} aria-hidden />}>
+      {messages && (
+        <div className="hidden sm:block">
+          <MessageInbox />
+        </div>
+      )}
+      <div className="relative">
+        <NotificationBell />
+      </div>
+    </Suspense>
+  )
+}
+
+function HbTopbarComponent({
+  onToggleMenu,
+  search = true,
+  messages = true,
+  menuItems: menuItemsOverride,
+}: HbTopbarProps) {
+  const { user, logout, basePath } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResults | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const searchRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  /* ── Search ─────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults(null)
+      setSearching(false)
+      return
+    }
+    const timer = window.setTimeout(async () => {
+      setSearching(true)
+      try {
+        setResults(await globalSearch(query))
+      } catch (error) {
+        console.error('Search failed:', error)
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  /* Close both popovers on an outside click. */
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (searchRef.current && !searchRef.current.contains(target)) setSearchOpen(false)
+      if (menuRef.current && !menuRef.current.contains(target)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
+
+  /* Escape closes whichever is open. */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setSearchOpen(false)
+      setMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
+  /* Navigating away should not leave a popover hanging. */
+  useEffect(() => {
+    setSearchOpen(false)
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  const onResultClick = useCallback(
+    (result: SearchResult) => {
+      const path =
+        result.type === 'candidate' ? `${basePath}/candidates`
+        : result.type === 'job' ? `${basePath}/jobs`
+        : result.type === 'interview' ? `${basePath}/interviews`
+        : result.type === 'user' ? `${basePath}/teams`
+        : basePath
+
+      navigate(path, { state: { search: result.title } })
+      setQuery('')
+      setResults(null)
+      setSearchOpen(false)
+    },
+    [basePath, navigate]
+  )
+
+  const initials = user?.full_name
+    ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'U'
+
+  const menuItems = useMemo(
+    () =>
+      menuItemsOverride ?? [
+        { label: 'My Profile', icon: <User size={15} />, path: `${basePath}/profile` },
+        { label: 'Settings', icon: <Settings size={15} />, path: `${basePath}/settings` },
+      ],
+    [menuItemsOverride, basePath]
+  )
+
+  const section = (title: string, icon: ReactNode, items: SearchResult[]) => {
+    if (!items.length) return null
+    return (
+      <div key={title} className="mb-3 last:mb-0">
+        <h3 className="flex items-center gap-2 px-3 py-1.5 font-mono text-hb-label uppercase text-hb-dim">
+          {icon} {title}
+        </h3>
+        <ul>
+          {items.map((res) => (
+            <li key={res.id}>
+              <button
+                type="button"
+                onClick={() => onResultClick(res)}
+                className="flex w-full items-center gap-3 rounded-hb-sm px-3 py-2 text-left transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none focus-visible:shadow-hb-ring"
+              >
+                <span className="grid h-8 w-8 flex-none place-items-center overflow-hidden rounded-hb-sm border border-hb-border bg-hb-surface-2 text-hb-muted">
+                  {res.avatar_url ? (
+                    <img src={res.avatar_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    RESULT_ICON[res.type] ?? <User size={14} />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-hb-sm font-semibold text-hb-text">{res.title}</span>
+                  <span className="block truncate text-hb-xs text-hb-muted">{res.subtitle}</span>
+                </span>
+                {res.meta && (
+                  <span className="flex-none rounded-hb-full border border-hb-border px-2 py-0.5 font-mono text-hb-micro text-hb-muted">
+                    {res.meta}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  return (
+    <header className="flex h-hb-topbar flex-none items-center gap-3 border-b border-hb-border bg-hb-surface px-hb-4 md:px-hb-6">
+      {/* Drawer toggle, below lg */}
+      <button
+        type="button"
+        onClick={onToggleMenu}
+        aria-label="Open navigation"
+        className="grid h-10 w-10 flex-none place-items-center rounded-hb-full border border-hb-border text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring lg:hidden"
+      >
+        <Menu size={18} aria-hidden />
+      </button>
+
+      {/* ── Search ───────────────────────────────────────────────────────── */}
+      {search && (
+      <div ref={searchRef} className="relative min-w-0 flex-1 max-w-[440px]">
+        <label htmlFor="workspace-search" className="sr-only">
+          Search candidates, roles and interviews
+        </label>
+        <Search
+          size={16}
+          aria-hidden
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hb-dim"
+        />
+        <input
+          id="workspace-search"
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setSearchOpen(true)}
+          placeholder="Search candidates, roles, interviews…"
+          className={clsx(
+            'h-10 w-full rounded-hb-full border border-hb-border bg-hb-surface-2 pl-11 pr-9',
+            'font-body text-hb-sm text-hb-text placeholder:text-hb-dim',
+            'transition-[border-color,box-shadow] duration-hb ease-hb',
+            'focus:border-hb-blue/60 focus:bg-hb-surface focus:outline-none focus:shadow-hb-ring',
+            '[&::-webkit-search-cancel-button]:hidden'
+          )}
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            aria-label="Clear search"
+            className="absolute right-2.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-hb-dim transition-colors duration-hb hover:bg-hb-muted/10 hover:text-hb-text"
+          >
+            <X size={13} aria-hidden />
+          </button>
+        )}
+
+        <AnimatePresence>
+          {searchOpen && (query || results) && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.16, ease: [0.2, 0.8, 0.3, 1] }}
+              role="region"
+              aria-label="Search results"
+              className="absolute left-0 right-0 top-[calc(100%+8px)] z-[100] max-h-[460px] overflow-y-auto rounded-hb-md border border-hb-border bg-hb-elevated p-2 shadow-hb-3"
+            >
+              {searching && (
+                <p aria-live="polite" className="p-8 text-center text-hb-sm text-hb-muted">
+                  Searching for “{query}”…
+                </p>
+              )}
+
+              {!searching && !results && query && (
+                <div className="p-8 text-center">
+                  <Search size={26} aria-hidden className="mx-auto mb-2 text-hb-dim opacity-50" />
+                  <p className="text-hb-sm font-semibold text-hb-text">Search across everything</p>
+                  <p className="text-hb-xs text-hb-muted">Candidates, jobs, team members and more</p>
+                </div>
+              )}
+
+              {!searching && results && results.total === 0 && (
+                <div className="p-8 text-center">
+                  <SearchX size={26} aria-hidden className="mx-auto mb-2 text-hb-dim opacity-50" />
+                  <p className="text-hb-sm font-semibold text-hb-text">No results found</p>
+                  <p className="text-hb-xs text-hb-muted">Try searching for something else</p>
+                </div>
+              )}
+
+              {!searching && results && results.total > 0 && (
+                <>
+                  {section('Candidates', <User size={11} />, results.candidates)}
+                  {section('Jobs', <Briefcase size={11} />, results.jobs)}
+                  {section('Interviews', <Calendar size={11} />, results.interviews)}
+                  {section('Team', <Users size={11} />, results.users)}
+                  <p
+                    aria-live="polite"
+                    className="mt-2 border-t border-hb-border pt-2 text-center font-mono text-hb-label uppercase text-hb-dim"
+                  >
+                    {results.total} results
+                  </p>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      )}
+
+      <div className="flex-1" />
+
+      {/* ── Right cluster ────────────────────────────────────────────────── */}
+      <div className="flex flex-none items-center gap-1.5 sm:gap-2">
+        <DeferredWidgets messages={messages} />
+
+        {/* User menu */}
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label="Account menu"
+            className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-xs font-bold text-hb-on-brand transition-transform duration-hb hover:scale-105 focus-visible:outline-none focus-visible:shadow-hb-ring"
+          >
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+            ) : (
+              initials
+            )}
+          </button>
+
+          <AnimatePresence>
+            {menuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: [0.2, 0.8, 0.3, 1] }}
+                role="menu"
+                className="absolute right-0 top-[calc(100%+8px)] z-[100] w-56 overflow-hidden rounded-hb-md border border-hb-border bg-hb-elevated p-1.5 shadow-hb-3"
+              >
+                <div className="border-b border-hb-border px-3 pb-2.5 pt-1.5">
+                  <p className="truncate text-hb-sm font-semibold text-hb-text">
+                    {user?.full_name || 'Account'}
+                  </p>
+                  <p className="truncate text-hb-xs text-hb-muted">{user?.email}</p>
+                </div>
+
+                {menuItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="mt-1 flex items-center gap-2.5 rounded-hb-sm px-3 py-2 text-hb-sm text-hb-text transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  >
+                    <span className="text-hb-dim">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                ))}
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    logout()
+                  }}
+                  className="mt-1 flex w-full items-center gap-2.5 rounded-hb-sm px-3 py-2 text-left text-hb-sm text-hb-error transition-colors duration-hb hover:bg-hb-error/8 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                >
+                  <LogOut size={15} aria-hidden />
+                  Sign out
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+const RESULT_ICON: Record<string, ReactNode> = {
+  candidate: <User size={14} />,
+  job: <Briefcase size={14} />,
+  interview: <Calendar size={14} />,
+  user: <Users size={14} />,
+}
+
+export const HbTopbar = memo(HbTopbarComponent)

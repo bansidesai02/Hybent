@@ -13,6 +13,7 @@ import {
   LockIcon,
   MailIcon,
 } from './HybentAuthKit'
+import { useAuthProduct } from './useAuthProduct'
 
 /**
  * Hybent Login Portal — the company brand's sign-in.
@@ -97,9 +98,20 @@ export default function HybentLoginPortal({
   const busy = loading || googleLoading
   const showEmailError = touched.email && Boolean(emailError)
   const showPasswordError = touched.password && Boolean(passwordError)
+  /* `?product=hiring` puts "Hybent Hiring" above the title, so someone arriving
+     from a product is not silently handed to the parent brand. */
+  const product = useAuthProduct()
 
   return (
-    <HybentAuthShell title="Welcome Back" subtitle="Sign in to continue to Hybent">
+    <HybentAuthShell
+      eyebrow={product.label}
+      title="Welcome Back"
+      subtitle={
+        product.label
+          ? `Sign in to continue to ${product.label}`
+          : 'Sign in to continue to Hybent'
+      }
+    >
       {formError && (
         <p className="hlp-alert" role="alert">
           <span className="hlp-alert__icon"><AlertIcon /></span>

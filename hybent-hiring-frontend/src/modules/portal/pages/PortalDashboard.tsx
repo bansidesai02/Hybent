@@ -1,136 +1,151 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { Fragment } from 'react'
+import {
+  CalendarDays,
+  Check,
+  Circle,
+  CircleDashed,
+  FileText,
+  Map,
+  Target,
+  Trophy,
+} from 'lucide-react'
+
 import { portalApi } from '@/api/portal'
-import { useAuthStore } from '@/store/authStore'
 import { formatDate } from '@/utils/formatters'
 import { RecentActivityFeed } from '@/components/common/RecentActivityFeed'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import { Check, Circle, CircleDashed, Calendar, FileText, Target, Map, Trophy } from 'lucide-react'
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  IconTile,
+  Meter,
+  PageHeader,
+  Skeleton,
+} from '@/components/hb'
+
+/**
+ * The candidate's home: where their application stands, what has happened,
+ * and what comes next.
+ *
+ * Rebuilt on the design system in phase 7. The page was written against
+ * `portal.css` — `.card`, `.ctitle`, `.chip`, `.tracker-*`, `.rh-*`, `.kpi` —
+ * a parallel design system only these nine pages used, with its own fonts
+ * (Plus Jakarta Sans, Space Grotesk) and its own palette. It also carried two
+ * complete dead components: `StageChip` and `StageTracker` were defined at the
+ * top of the file and never rendered — the tracker on screen was a third,
+ * inline implementation.
+ */
 
 // Display stages shown in the tracker
 const STAGES = [
-  { key: 'applied',      label: 'Applied',      sublabel: '' },
-  { key: 'shortlisted',  label: 'Shortlisted',  sublabel: 'Pre-screening' },
-  { key: 'round1',       label: 'Round 1',      sublabel: 'Technical' },
-  { key: 'round2',       label: 'Round 2',      sublabel: 'Techno-Functional' },
-  { key: 'round3',       label: 'Round 3',      sublabel: 'Management' },
-  { key: 'hr_round',     label: 'HR Round',     sublabel: 'Final Step' },
-  { key: 'offer',        label: 'Offer',        sublabel: '' },
+  { key: 'applied', label: 'Applied', sublabel: '' },
+  { key: 'shortlisted', label: 'Shortlisted', sublabel: 'Pre-screening' },
+  { key: 'round1', label: 'Round 1', sublabel: 'Technical' },
+  { key: 'round2', label: 'Round 2', sublabel: 'Techno-functional' },
+  { key: 'round3', label: 'Round 3', sublabel: 'Management' },
+  { key: 'hr_round', label: 'HR round', sublabel: 'Final step' },
+  { key: 'offer', label: 'Offer', sublabel: '' },
 ] as const
 
 // Maps backend pipeline_stage → tracker step index (0-based)
 function stageIndex(stage: string): number {
   if (!stage || stage === 'applied' || stage === 'needs_review') return 0
-  // Shortlisted: pre-screening selected
-  if (stage === 'pre_screening_selected') return 1
-  // Pre-screening (in progress) → still shortlisted step
-  if (stage === 'pre_screening') return 1
-  // Round 1: Technical
+  if (stage === 'pre_screening_selected' || stage === 'pre_screening') return 1
   if (['technical_round', 'technical_round_selected', 'technical_round_rejected', 'technical_round_back_out'].includes(stage)) return 2
-  // Round 2: Techno-Functional / Practical
   if (['practical_round', 'practical_round_selected', 'practical_round_rejected', 'practical_round_back_out',
        'techno_functional_round', 'techno_functional_selected', 'techno_functional_rejected'].includes(stage)) return 3
-  // Round 3: Management / Interviewed
   if (['management_round', 'management_round_selected', 'management_round_rejected', 'interviewed', 'interview'].includes(stage)) return 4
-  // HR Round
   if (['hr_round', 'hr_round_selected', 'hr_round_rejected'].includes(stage)) return 5
-  // Offer / Hired
   if (['offered', 'offer', 'hired', 'hired_joined'].includes(stage)) return 6
   return 0
 }
 
-function getProgressPercent(currentIndex: number): number {
-  const pct = [10, 25, 40, 55, 70, 85, 100]
-  return pct[Math.min(currentIndex, pct.length - 1)]
-}
+const PROGRESS = [10, 25, 40, 55, 70, 85, 100]
+const progressPercent = (i: number) => PROGRESS[Math.min(i, PROGRESS.length - 1)]
 
+const STAGE_TITLE = [
+  'Application received',
+  'Shortlisted — pre-screening',
+  'Round 1 — technical',
+  'Round 2 — techno-functional',
+  'Round 3 — management',
+  'HR round',
+  'Offer stage',
+]
 
+const STAGE_SUB = [
+  'Your application has been received and is waiting to be reviewed by the team.',
+  'Great news! You have been shortlisted. An HR representative will reach out to you shortly.',
+  'You are in the technical round. Complete your scheduled technical interview.',
+  'You have cleared round 1! You are now in the techno-functional round.',
+  'Excellent progress! You are in the final management round.',
+  'Almost there! The HR round is the final step before the offer.',
+  'Your offer document is being prepared. Please check your offers section.',
+]
 
-function StageChip({ stage }: { stage: string }) {
-  const cfg: Record<string, { bg: string; color: string; label: string }> = {
-    applied:   { bg: 'var(--sb-active)', color: 'var(--brand)', label: 'Applied' },
-    screening: { bg: 'rgba(245,158,11,0.12)', color: 'var(--amber)', label: 'Screening' },
-    pre_screening: { bg: 'rgba(59,130,246,0.10)', color: 'var(--indigo)', label: 'Pre-screening' },
-    technical_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Technical Round' },
-    practical_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Practical Round' },
-    techno_functional_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Techno-Functional Round' },
-    management_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Management Round' },
-    hr_round: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'HR Round' },
-    interview: { bg: 'rgba(6,182,212,0.12)',  color: 'var(--teal)', label: 'Interview' },
-    interviewed: { bg: 'rgba(6,182,212,0.12)', color: 'var(--teal)', label: 'Interviewed' },
-    offer:     { bg: 'rgba(16,185,129,0.12)', color: 'var(--green)', label: 'Offer' },
-    hired:     { bg: 'rgba(16,185,129,0.16)', color: 'var(--green)', label: 'Hired' },
-    rejected:  { bg: 'rgba(239,68,68,0.10)',  color: 'var(--red)', label: 'Rejected' },
-  }
-  const c = cfg[stage] ?? cfg.applied
+/** The seven-step journey, done → active → pending. */
+function StageTracker({ current }: { current: number }) {
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '4px 11px',
-        borderRadius: 20,
-        fontSize: 11,
-        fontWeight: 600,
-        fontFamily: "'Plus Jakarta Sans', sans-serif",
-        background: c.bg,
-        color: c.color,
-      }}
-    >
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
-      {c.label}
-    </span>
+    <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+      <ol className="flex min-w-[720px] items-start md:min-w-0" aria-label="Application stages">
+        {STAGES.map((s, i) => {
+          const done = i < current
+          const active = i === current
+          return (
+            <Fragment key={s.key}>
+              {i > 0 && (
+                <span
+                  aria-hidden
+                  className={`mt-3.5 h-0.5 flex-1 rounded-full ${
+                    i <= current ? 'bg-hb-grad' : 'bg-hb-border'
+                  }`}
+                />
+              )}
+              <li
+                className="flex w-[92px] shrink-0 flex-col items-center gap-1.5 text-center"
+                aria-current={active ? 'step' : undefined}
+              >
+                <span
+                  className={`grid h-7 w-7 place-items-center rounded-full border transition-all duration-hb ${
+                    done
+                      ? 'border-transparent bg-hb-grad text-white'
+                      : active
+                        ? 'border-hb-cyan/50 bg-hb-cyan/12 text-hb-cyan shadow-[0_0_0_4px_rgb(var(--hb-cyan)/0.14)]'
+                        : 'border-hb-border text-hb-dim'
+                  }`}
+                >
+                  {done ? (
+                    <Check size={13} aria-hidden />
+                  ) : active ? (
+                    <Circle size={8} fill="currentColor" aria-hidden />
+                  ) : (
+                    <CircleDashed size={10} aria-hidden />
+                  )}
+                </span>
+                <span
+                  className={`text-hb-xs font-semibold ${
+                    active ? 'text-hb-text' : done ? 'text-hb-muted' : 'text-hb-dim'
+                  }`}
+                >
+                  {s.label}
+                </span>
+                {s.sublabel && (
+                  <span className="font-mono text-hb-micro uppercase text-hb-dim">
+                    {s.sublabel}
+                  </span>
+                )}
+              </li>
+            </Fragment>
+          )
+        })}
+      </ol>
+    </div>
   )
 }
-
-function StageTracker({ stage }: { stage: string }) {
-  const current = stageIndex(stage)
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 16 }}>
-      {STAGES.map((s, i) => {
-        const isDone = i < current
-        const isActive = i === current
-        return (
-          <div key={s.key} style={{ display: 'flex', alignItems: 'center', flex: i < STAGES.length - 1 ? 1 : undefined }}>
-            {/* Dot */}
-            <div
-              title={s.label}
-              style={{
-                width: isActive ? 14 : 10,
-                height: isActive ? 14 : 10,
-                borderRadius: '50%',
-                flexShrink: 0,
-                background: isDone
-                  ? 'linear-gradient(135deg,var(--brand),var(--brand2))'
-                  : isActive
-                  ? 'linear-gradient(135deg,var(--teal),var(--brand3))'
-                  : 'rgba(176,164,204,0.35)',
-                boxShadow: isActive ? '0 0 0 4px rgba(6,182,212,0.18)' : undefined,
-                animation: isActive ? 'portal-stage-pulse 2s ease-in-out infinite' : undefined,
-                transition: 'all 0.3s',
-              }}
-            />
-            {/* Line */}
-            {i < STAGES.length - 1 && (
-              <div
-                style={{
-                  flex: 1,
-                  height: 3,
-                  borderRadius: 2,
-                  background: isDone || isActive
-                    ? 'linear-gradient(90deg,var(--brand),var(--brand2))'
-                    : 'rgba(176,164,204,0.25)',
-                  margin: '0 2px',
-                  transition: 'background 0.3s',
-                }}
-              />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )}
 
 export default function PortalDashboard() {
   const navigate = useNavigate()
@@ -153,79 +168,53 @@ export default function PortalDashboard() {
   })
 
   if (appsLoading || intLoading || profileLoading) {
-    return <div className="p-8 text-center text-[var(--text-lite)]">Loading application journey...</div>
+    return (
+      <div className="pb-hb-10">
+        <Skeleton className="mb-hb-6 h-12 w-80" rounded="md" />
+        <Skeleton className="mb-hb-5 h-64 w-full" rounded="md" />
+        <div className="grid gap-hb-4 lg:grid-cols-3">
+          {[1, 2, 3].map((n) => (
+            <Skeleton key={n} className="h-72 w-full" rounded="md" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
-  const activeApp = applications?.find((a: any) => !['hired', 'rejected'].includes(a.stage)) || applications?.[0]
+  const activeApp =
+    applications?.find((a: any) => !['hired', 'rejected'].includes(a.stage)) || applications?.[0]
 
-  // If no Application record yet but recruiter set a pipeline_stage on the candidate,
-  // build a synthetic display object so the tracker renders correctly
-  const syntheticApp = !activeApp && profile?.pipeline_stage
-    ? {
-        id: 'synthetic',
-        stage: profile.pipeline_stage as string,
-        applied_at: profile.created_at,
-        stage_changed_at: profile.updated_at,
-        job: null as any,
-        match_score: profile.match_score,
-        source: profile.source,
-        rejection_reason: null,
-      }
-    : null
+  // If no Application record yet but recruiter set a pipeline_stage on the
+  // candidate, build a synthetic display object so the tracker still renders.
+  const syntheticApp =
+    !activeApp && profile?.pipeline_stage
+      ? {
+          id: 'synthetic',
+          stage: profile.pipeline_stage as string,
+          applied_at: profile.created_at,
+          job: null as any,
+        }
+      : null
 
   const displayApp = activeApp ?? syntheticApp
 
   if (!displayApp) {
     return (
-      <div className="page active" id="page-journey">
-        <div className="ph">
-          <div className="pt flex items-center gap-2">
-            Your Application Journey <GlassIcon icon="Map" variant="violet" size={24} iconSize={14} glow={false} />
-          </div>
-          <div className="ps">Start applying to open roles to track your progress!</div>
-        </div>
-
-        {/* Tracker Card for empty state */}
-        <div className="card" style={{ marginBottom: 20, overflow: 'hidden' }}>
-          <div className="ctitle">
-            Stage Progress
-            <span className="ctag teal">Step 0 of 7</span>
-          </div>
-          
-          <div className="tracker-wrap overflow-x-auto scrollbar-none pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="w-full min-w-[750px] md:min-w-0 relative" style={{ padding: '44px 0 28px' }}>
-              <div className="tracker-line"></div>
-              <div className="tracker-progress" style={{ width: '0%' }}></div>
-              <div className="tracker-steps">
-                {STAGES.map((s) => (
-                  <div key={s.key} className="tstep pending">
-                    <div className="tstep-dot">
-                      <CircleDashed size={8} />
-                    </div>
-                    <div className="tstep-label">{s.label}</div>
-                    {s.sublabel && (
-                      <div style={{ fontSize: 9, color: 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                        {s.sublabel}
-                      </div>
-                    )}
-                    <div className="tstep-note">Pending</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="stage-detail-card" style={{ marginTop: 24 }}>
-            <div className="stage-label">Ready to Begin</div>
-            <div className="stage-title">Explore Open Roles</div>
-            <div className="stage-sub">Your journey starts here. Browse our open positions and find the perfect fit for your skills.</div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/openings')}>
-                View Openings
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="pb-hb-10">
+        <PageHeader
+          eyebrow="Candidate portal"
+          title={<>Your application <span className="hb-grad-text">journey</span></>}
+          description="Start applying to open roles to track your progress here."
+        />
+        <Card padding="none">
+          <EmptyState
+            icon={<Map />}
+            title="Ready to begin"
+            description="Browse our open positions and find the perfect fit for your skills."
+            size="page"
+            action={{ label: 'View openings', onClick: () => navigate('/hiring/portal/openings') }}
+          />
+        </Card>
       </div>
     )
   }
@@ -233,203 +222,219 @@ export default function PortalDashboard() {
   const currentIdx = stageIndex(displayApp.stage)
   const isRejected = displayApp.stage === 'rejected'
   const isHired = displayApp.stage === 'hired'
-  const progressWidth = `${getProgressPercent(currentIdx)}%`
+  const progress = progressPercent(currentIdx)
 
-  // Sort interviews by date descending
-  const history = [...(interviews || [])].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+  const history = [...(interviews || [])].sort(
+    (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
+  )
 
-  // Calc days in process
-  const msInSys = Date.now() - new Date(displayApp.applied_at).getTime()
-  const daysInProcess = Math.max(1, Math.floor(msInSys / (1000 * 60 * 60 * 24)))
+  const daysInProcess = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(displayApp.applied_at).getTime()) / 86_400_000)
+  )
+
+  const roleTitle =
+    displayApp.job?.title ||
+    (syntheticApp ? profile?.applied_job_title || 'Your application' : 'Role')
 
   return (
-    <div className="page active" id="page-journey">
-      <div className="ph">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div className="pt flex items-center gap-2">
-              Your Application Journey <GlassIcon icon="Map" variant="violet" size={24} iconSize={14} glow={false} />
-            </div>
-            <div className="ps">Applying for <strong>{displayApp.job?.title || (syntheticApp ? profile?.applied_job_title || 'Your Application' : 'Role')}</strong> · Applied {formatDate(displayApp.applied_at)}</div>
-          </div>
-          {isRejected ? (
-            <span className="chip chip-red"><span className="chd"></span>Rejected</span>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Candidate portal"
+        title={<>Your application <span className="hb-grad-text">journey</span></>}
+        description={
+          <>
+            Applying for <strong className="font-semibold text-hb-text">{roleTitle}</strong> ·
+            applied {formatDate(displayApp.applied_at)}
+          </>
+        }
+        actions={
+          isRejected ? (
+            <Badge tone="error" dot>Rejected</Badge>
           ) : isHired ? (
-            <span className="chip chip-green"><span className="chd"></span>Hired!</span>
+            <Badge tone="success" dot>Hired!</Badge>
           ) : (
-            <span className="chip chip-teal"><span className="chd"></span>Stage: {displayApp.stage.charAt(0).toUpperCase() + displayApp.stage.slice(1)}</span>
-          )}
-        </div>
-      </div>
+            <Badge tone="info" dot>
+              Step {Math.min(currentIdx + 1, 7)} of 7
+            </Badge>
+          )
+        }
+      />
 
-      {/* Tracker Card */}
-      <div className="card" style={{ marginBottom: 20, overflow: 'hidden' }}>
-        <div className="ctitle">
-          Stage Progress
-          <span className="ctag teal">Step {Math.min(currentIdx + 1, 7)} of 7</span>
-        </div>
-        
-        <div className="tracker-wrap overflow-x-auto scrollbar-none pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="w-full min-w-[750px] md:min-w-0 relative" style={{ padding: '44px 0 28px' }}>
-            <div className="tracker-line"></div>
-            <div className="tracker-progress" style={{ width: progressWidth }}></div>
-            <div className="tracker-steps">
-              {STAGES.map((s, i) => {
-                const isDone = currentIdx > i
-                const isActive = currentIdx === i
-                return (
-                  <div key={s.key} className={`tstep ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}>
-                    <div className="tstep-dot">
-                      {isDone ? <Check size={12} /> : isActive ? <Circle size={8} fill="currentColor" /> : <CircleDashed size={8} />}
-                    </div>
-                    <div className="tstep-label">{s.label}</div>
-                    {s.sublabel && (
-                      <div style={{ fontSize: 9, color: isActive ? '#06b6d4' : 'var(--text-lite)', fontWeight: 600, marginTop: 2, textAlign: 'center', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                        {s.sublabel}
-                      </div>
-                    )}
-                    {i === 0 && isActive && <div className="tstep-date">{formatDate(displayApp.applied_at)}</div>}
-                    {!isDone && !isActive && <div className="tstep-note">Pending</div>}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
+      <div className="space-y-hb-5">
+        <Card padding="loose">
+          <CardHeader
+            title="Stage progress"
+            action={<Badge tone="info">Step {Math.min(currentIdx + 1, 7)} of 7</Badge>}
+          />
 
-        {/* Dynamic Stage Detail Card based on active stage */}
-        <div className="stage-detail-card">
-          <div className="stage-label">Current Stage</div>
-          <div className="stage-title">
-            {currentIdx === 0 && 'Application Received'}
-            {currentIdx === 1 && 'Shortlisted — Pre-screening'}
-            {currentIdx === 2 && 'Round 1 — Technical Round'}
-            {currentIdx === 3 && 'Round 2 — Techno-Functional Round'}
-            {currentIdx === 4 && 'Round 3 — Final Round (Management)'}
-            {currentIdx === 5 && 'HR Round'}
-            {currentIdx === 6 && (isHired ? <>Welcome to the team! <GlassIcon icon="Trophy" variant="emerald" size={24} iconSize={14} glow={false} className="inline-block" /></> : 'Offer Stage')}
-            {isRejected && 'Application Closed'}
-          </div>
-          <div className="stage-sub">
-            {currentIdx === 0 && 'Your application has been received and is waiting to be reviewed by the team.'}
-            {currentIdx === 1 && 'Great news! You have been shortlisted. An HR representative will reach out to you shortly.'}
-            {currentIdx === 2 && 'You are in the Technical Round. Complete your scheduled technical interview.'}
-            {currentIdx === 3 && 'You have cleared Round 1! You are now in the Techno-Functional round.'}
-            {currentIdx === 4 && 'Excellent progress! You are in the Final Management round.'}
-            {currentIdx === 5 && 'Almost there! You are in the HR round — final step before the offer.'}
-            {currentIdx === 6 && (isHired ? 'You have officially accepted the offer. Congratulations!' : 'Your offer document is being prepared. Please check your offers section.')}
-            {isRejected && "Thank you for your time. This application didn't proceed further."}
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            {(currentIdx >= 2 && currentIdx <= 5) && (
-              <button className="btn btn-teal btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/interviews')}>
-                <Calendar size={13} /> View Interviews
-              </button>
-            )}
-            {currentIdx === 6 && (
-              <button className="btn btn-primary btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/offers')}>
-                <FileText size={13} /> View Offer
-              </button>
-            )}
-            <button className="btn btn-ghost btn-sm flex items-center gap-1.5" onClick={() => navigate('/hiring/portal/prep')}>
-              <Target size={13} /> Open Prep Hub
-            </button>
-          </div>
-        </div>
-      </div>
+          <StageTracker current={currentIdx} />
 
-      <div className="g2">
-        {/* Round History */}
-        <div className="card">
-          <div className="ctitle">Round History</div>
-          <div>
-            {history.length === 0 ? (
-              <div className="py-4 text-center text-[12px] text-[var(--text-lite)]">No interview history yet.</div>
-            ) : (
-              history.map((intv) => {
-                const isUpcoming = intv.status === 'scheduled';
-                const isPassed = intv.status === 'completed' || (intv.status as string) === 'passed';
-                const isFailed = (intv.status as string) === 'failed' || intv.status === 'cancelled';
-                return (
-                  <div className="rh-item" key={intv.id}>
-                    <div className={`rh-dot ${isUpcoming ? 'rhd-active' : isPassed ? 'rhd-done' : 'rhd-pend'}`}></div>
-                    <div className="min-w-0 flex-1">
-                      <div className="rh-name truncate" title={intv.title}>{intv.title}</div>
-                      <div className="truncate" style={{ fontSize: 11, color: 'var(--text-lite)' }}>
-                        {intv.interview_type.replace('_', ' ')} · {intv.duration_minutes} min · {formatDate(intv.scheduled_at)}
-                      </div>
-                    </div>
-                    {isUpcoming && <span className="chip chip-teal flex-shrink-0">Upcoming</span>}
-                    {isPassed && <span className="chip chip-green flex-shrink-0">Passed ✓</span>}
-                    {isFailed && <span className="chip chip-gray flex-shrink-0">Closed</span>}
-                  </div>
-                )
-              })
-            )}
-            {/* Show pending next rounds based on stage */}
-            {currentIdx === 2 && (
-              <div className="rh-item">
-                <div className="rh-dot rhd-pend"></div>
-                <div className="min-w-0 flex-1">
-                  <div className="rh-name truncate" title="Next Rounds">Next Rounds</div>
-                  <div className="truncate" style={{ fontSize: 11, color: 'var(--text-lite)' }}>Pending HR scheduling</div>
-                </div>
-                <span className="chip chip-gray flex-shrink-0" style={{ fontSize: 10 }}>Upcoming</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Live Activity Feed */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="ctitle" style={{ marginBottom: 0 }}>Live Activity</div>
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-              Live
-            </span>
-          </div>
-          <div className="max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-            <RecentActivityFeed limit={5} />
-          </div>
-        </div>
-
-        {/* Application Stats */}
-        <div className="card">
-          <div className="ctitle">Your Application Stats</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="kpi" style={{ border: 'none', padding: 0, boxShadow: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
-              <GlassIcon icon="Calendar" variant="blue" size={40} iconSize={18} glow={false} />
-              <div><div className="kpi-val" style={{ fontSize: 24 }}>{daysInProcess}</div><div className="kpi-lbl">Days in Process</div></div>
-            </div>
-            
-            <div style={{ borderTop: '1px solid var(--table-border)', paddingTop: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 8, fontFamily: "'Space Grotesk', sans-serif" }}>Process Completion</div>
-              <div className="pbar"><div className="pfill" style={{ width: progressWidth }}></div></div>
-              <div style={{ fontSize: 11, color: 'var(--text-lite)', marginTop: 5 }}>
-                {Math.min(currentIdx + 1, 7)} of 7 stages · {progressWidth}
-              </div>
-            </div>
-            
-            <div style={{ borderTop: '1px solid var(--table-border)', paddingTop: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 10, fontFamily: "'Space Grotesk', sans-serif" }}>Applied Role</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{displayApp.job?.title || (syntheticApp ? profile?.applied_job_title || 'Invited Candidate' : 'Unknown Role')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-lite)', marginTop: 3 }}>
-                {displayApp.job?.department || ''} · {displayApp.job?.location || 'Remote'}
-              </div>
-              {displayApp.job?.skills_required && displayApp.job.skills_required.length > 0 && (
-                <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {displayApp.job.skills_required.slice(0, 4).map((skill: string) => (
-                    <span key={skill} style={{ background: 'rgba(124,58,237,.08)', color: 'var(--brand)', fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20 }}>
-                      {skill}
-                    </span>
-                  ))}
-                </div>
+          <div className="mt-hb-4 rounded-hb-md border border-hb-border bg-hb-surface-2 p-5">
+            <p className="font-mono text-hb-label uppercase text-hb-dim">
+              {isRejected ? 'Application closed' : 'Current stage'}
+            </p>
+            <h3 className="mt-1.5 flex items-center gap-2 font-display text-hb-h3 text-hb-text">
+              {isRejected ? (
+                'Application closed'
+              ) : isHired ? (
+                <>
+                  Welcome to the team!
+                  <Trophy size={18} aria-hidden className="text-hb-warning" />
+                </>
+              ) : (
+                STAGE_TITLE[currentIdx]
               )}
+            </h3>
+            <p className="mt-1.5 max-w-[62ch] text-hb-sm text-hb-muted">
+              {isRejected
+                ? "Thank you for your time. This application didn't proceed further."
+                : isHired
+                  ? 'You have officially accepted the offer. Congratulations!'
+                  : STAGE_SUB[currentIdx]}
+            </p>
+            <div className="mt-hb-4 flex flex-wrap gap-2">
+              {currentIdx >= 2 && currentIdx <= 5 && !isRejected && (
+                <Button
+                  size="sm"
+                  icon={<CalendarDays size={14} />}
+                  onClick={() => navigate('/hiring/portal/interviews')}
+                >
+                  View interviews
+                </Button>
+              )}
+              {currentIdx === 6 && (
+                <Button
+                  size="sm"
+                  icon={<FileText size={14} />}
+                  onClick={() => navigate('/hiring/portal/offers')}
+                >
+                  View offer
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={<Target size={14} />}
+                onClick={() => navigate('/hiring/portal/prep')}
+              >
+                Open prep hub
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
 
+        <div className="grid gap-hb-4 lg:grid-cols-3">
+          {/* ── Round history ─────────────────────────────────────────────── */}
+          <Card padding="default">
+            <CardHeader title="Round history" />
+            {history.length === 0 ? (
+              <EmptyState
+                icon={<CalendarDays />}
+                title="No interviews yet"
+                description="Your interview rounds will appear here as they are scheduled."
+              />
+            ) : (
+              <ul className="space-y-3">
+                {history.map((intv) => {
+                  const upcoming = intv.status === 'scheduled'
+                  const passed = intv.status === 'completed' || (intv.status as string) === 'passed'
+                  return (
+                    <li key={intv.id} className="flex items-center gap-3">
+                      <span
+                        aria-hidden
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          upcoming ? 'bg-hb-cyan' : passed ? 'bg-hb-success' : 'bg-hb-dim'
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-hb-sm font-semibold text-hb-text" title={intv.title}>
+                          {intv.title}
+                        </p>
+                        <p className="truncate text-hb-xs text-hb-muted">
+                          {intv.interview_type.replace(/_/g, ' ')} · {intv.duration_minutes} min ·{' '}
+                          {formatDate(intv.scheduled_at)}
+                        </p>
+                      </div>
+                      {upcoming ? (
+                        <Badge tone="info">Upcoming</Badge>
+                      ) : passed ? (
+                        <Badge tone="success">Passed</Badge>
+                      ) : (
+                        <Badge>Closed</Badge>
+                      )}
+                    </li>
+                  )
+                })}
+                {currentIdx === 2 && (
+                  <li className="flex items-center gap-3">
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-hb-dim" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-hb-sm font-semibold text-hb-text">Next rounds</p>
+                      <p className="text-hb-xs text-hb-muted">Pending HR scheduling</p>
+                    </div>
+                    <Badge>Upcoming</Badge>
+                  </li>
+                )}
+              </ul>
+            )}
+          </Card>
+
+          {/* ── Live activity ─────────────────────────────────────────────── */}
+          <Card padding="default">
+            <CardHeader
+              title="Live activity"
+              action={<Badge tone="success" dot="pulse">Live</Badge>}
+            />
+            <div className="max-h-[320px] overflow-y-auto pr-2">
+              <RecentActivityFeed limit={5} />
+            </div>
+          </Card>
+
+          {/* ── Stats ─────────────────────────────────────────────────────── */}
+          <Card padding="default">
+            <CardHeader title="Your application stats" />
+            <div className="space-y-hb-4">
+              <div className="flex items-center gap-3.5">
+                <IconTile size="sm">
+                  <CalendarDays />
+                </IconTile>
+                <div>
+                  <p className="hb-grad-text font-display text-hb-num">{daysInProcess}</p>
+                  <p className="text-hb-xs text-hb-muted">Days in process</p>
+                </div>
+              </div>
+
+              <div className="border-t border-hb-border pt-hb-4">
+                <Meter
+                  value={progress}
+                  label="Process completion"
+                  valueLabel={`${Math.min(currentIdx + 1, 7)} of 7 stages`}
+                />
+              </div>
+
+              <div className="border-t border-hb-border pt-hb-4">
+                <p className="mb-1.5 font-mono text-hb-label uppercase text-hb-dim">Applied role</p>
+                <p className="text-hb-sm font-semibold text-hb-text">
+                  {displayApp.job?.title ||
+                    (syntheticApp ? profile?.applied_job_title || 'Invited candidate' : 'Unknown role')}
+                </p>
+                <p className="mt-0.5 text-hb-xs text-hb-muted">
+                  {[displayApp.job?.department, displayApp.job?.location || 'Remote']
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+                {displayApp.job?.skills_required?.length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {displayApp.job.skills_required.slice(0, 4).map((skill: string) => (
+                      <Badge key={skill}>{skill}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   )

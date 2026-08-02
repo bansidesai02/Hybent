@@ -1,6 +1,24 @@
 /**
- * PreScreeningSessionView — shared component used by PreScreeningReviewPage and PreScreenTab.
- * Renders AI summary + all response cards for a pre-screening session.
+ * The read-only view of one pre-screening session: the AI summary, and every
+ * question with its recorded answer.
+ *
+ * Shared by the recruiter's `PreScreeningReviewPage` and the `PreScreenTab` on
+ * a candidate profile — which is why it lives in a component file rather than
+ * on either page.
+ *
+ * Rebuilt on the design system in phase 8. What went, beyond the two 140-line
+ * `styles` objects:
+ *
+ * - `CATEGORY_CFG` gave each of the three question categories its own hex, so
+ *   "Role & Requirements" was blue, "Your Experience" violet and
+ *   "Professional Awareness" amber. Blue and amber are the product's info and
+ *   warning colours; using them to distinguish three neutral categories meant
+ *   an amber pill that warned about nothing. The category is named in the pill.
+ * - `STATUS_CFG` was exported and never read, here or anywhere else.
+ * - The audio scrubber was a `<div onClick>`: no tab stop, no keyboard seek, no
+ *   announced value. It is now a real slider.
+ * - Strengths were `#166534` and concerns `#991b1b` — two greens and two reds
+ *   away from the tokens every other verdict in the product uses.
  */
 import { useState, useEffect, useRef } from 'react'
 import {
@@ -10,49 +28,59 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  Loader2,
   CheckCircle,
   AlertTriangle,
   Star,
   Play,
   Pause,
 } from 'lucide-react'
+
 import { preScreeningApi, type PreScreeningSession, type AISummary } from '@/api/preScreening'
+import { Badge, type BadgeTone, Button, Card, CardHeader, Meter } from '@/components/hb'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const CATEGORY_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  job_description: { label: 'Role & Requirements', color: '#3b82f6', bg: 'rgba(59,130,246,0.10)' },
-  resume:          { label: 'Your Experience',     color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)' },
-  role_awareness:  { label: 'Professional Awareness', color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
+const CATEGORY_LABEL: Record<string, string> = {
+  job_description: 'Role & requirements',
+  resume: 'Your experience',
+  role_awareness: 'Professional awareness',
 }
 
-export const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: 'Pending',     color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
-  in_progress: { label: 'In Progress', color: '#3b82f6', bg: 'rgba(59,130,246,0.10)' },
-  completed:   { label: 'Completed',   color: '#22c55e', bg: 'rgba(34,197,94,0.10)'  },
+const RECOMMENDATION_CFG: Record<
+  string,
+  { label: string; tone: BadgeTone; icon: React.ReactNode }
+> = {
+  proceed: { label: 'Proceed to interview', tone: 'success', icon: <CheckCircle size={16} /> },
+  hold: { label: 'Hold / review', tone: 'warning', icon: <Clock size={16} /> },
+  reject: { label: 'Not suitable', tone: 'error', icon: <AlertTriangle size={16} /> },
 }
 
-export const RECOMMENDATION_CFG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  proceed: { label: 'Proceed to Interview', color: '#22c55e', icon: <CheckCircle size={16} /> },
-  hold:    { label: 'Hold / Review',        color: '#f59e0b', icon: <Clock size={16} /> },
-  reject:  { label: 'Not Suitable',         color: '#ef4444', icon: <AlertTriangle size={16} /> },
+const BANNER_TONE: Record<BadgeTone, string> = {
+  neutral: 'border-hb-border bg-hb-surface-2 text-hb-text',
+  success: 'border-hb-success/25 bg-hb-success/8 text-hb-success',
+  warning: 'border-hb-warning/25 bg-hb-warning/8 text-hb-warning',
+  error: 'border-hb-error/25 bg-hb-error/8 text-hb-error',
+  info: 'border-hb-cyan/25 bg-hb-cyan/8 text-hb-cyan',
+  brand: 'border-hb-blue/25 bg-hb-blue/8 text-hb-blue',
 }
 
 // ── ScoreStars ────────────────────────────────────────────────────────────────
 
-export function ScoreStars({ score }: { score: number }) {
+export function ScoreStars({ score, label }: { score: number; label: string }) {
   return (
-    <div style={{ display: 'flex', gap: '2px' }}>
-      {Array.from({ length: 5 }, (_, i) => (
+    <span
+      className="inline-flex items-center gap-0.5"
+      aria-label={`${label}: ${score} out of 5`}
+    >
+      {[1, 2, 3, 4, 5].map((s) => (
         <Star
-          key={i}
+          key={s}
           size={14}
-          fill={i < score ? '#f59e0b' : 'none'}
-          color={i < score ? '#f59e0b' : '#d1d5db'}
+          aria-hidden
+          className={s <= score ? 'fill-hb-warning text-hb-warning' : 'text-hb-dim opacity-35'}
         />
       ))}
-    </div>
+    </span>
   )
 }
 
@@ -64,7 +92,7 @@ function formatTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
-export function ResponseCard({
+function ResponseCard({
   question,
   response,
   index,
@@ -83,7 +111,7 @@ export function ResponseCard({
   const [isPlaying, setIsPlaying] = useState(false)
   const [playbackTime, setPlaybackTime] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const cat = CATEGORY_CFG[question.category] || CATEGORY_CFG.role_awareness
+  const category = CATEGORY_LABEL[question.category] ?? CATEGORY_LABEL.role_awareness
 
   // Total duration: use stored DB value immediately — no metadata wait
   const totalSeconds = response?.duration_seconds ?? 0
@@ -119,41 +147,35 @@ export function ResponseCard({
     }
   }
 
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const seekTo = (seconds: number) => {
     const audio = audioRef.current
     if (!audio || !totalSeconds) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    audio.currentTime = pct * totalSeconds
-    setPlaybackTime(pct * totalSeconds)
+    const clamped = Math.max(0, Math.min(totalSeconds, seconds))
+    audio.currentTime = clamped
+    setPlaybackTime(clamped)
   }
 
-  const progressPct = totalSeconds > 0 ? Math.min((playbackTime / totalSeconds) * 100, 100) : 0
-
   return (
-    <div style={cardStyles.wrap}>
-      <div style={cardStyles.header}>
-        <div style={cardStyles.qMeta}>
-          <span style={cardStyles.qNum}>Q{index + 1}</span>
-          <span style={{ ...cardStyles.catBadge, color: cat.color, background: cat.bg }}>
-            {cat.label}
-          </span>
+    <Card padding="compact" className="space-y-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-hb-label uppercase text-hb-dim">Q{index + 1}</span>
+          <Badge>{category}</Badge>
         </div>
         {totalSeconds > 0 && (
-          <span style={cardStyles.duration}>
-            <Clock size={12} />
+          <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-hb-xs tabular-nums text-hb-muted">
+            <Clock size={12} aria-hidden />
             {Math.round(totalSeconds)}s
           </span>
         )}
       </div>
 
-      <p style={cardStyles.qText}>{question.text}</p>
+      <p className="text-hb-sm font-semibold leading-relaxed text-hb-text">{question.text}</p>
 
       {response ? (
-        <div style={cardStyles.responseArea}>
+        <div className="space-y-2">
           {audioUrl && (
-            <div style={cardStyles.playerWrap}>
-              {/* Hidden audio element */}
+            <div className="flex items-center gap-2.5 rounded-hb-md border border-hb-border bg-hb-surface-2 px-3 py-2">
               <audio
                 ref={audioRef}
                 src={audioUrl}
@@ -163,208 +185,79 @@ export function ResponseCard({
                 onEnded={() => { setIsPlaying(false); setPlaybackTime(0); if (audioRef.current) audioRef.current.currentTime = 0 }}
                 onTimeUpdate={() => { if (audioRef.current) setPlaybackTime(audioRef.current.currentTime) }}
               />
-              {/* Play / Pause button */}
-              <button style={cardStyles.playBtn} onClick={handlePlayPause} title={isPlaying ? 'Pause' : 'Play'}>
-                {isPlaying ? <Pause size={14} fill="white" /> : <Play size={14} fill="white" />}
+              <button
+                type="button"
+                onClick={handlePlayPause}
+                aria-label={isPlaying ? `Pause answer to question ${index + 1}` : `Play answer to question ${index + 1}`}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hb-grad text-white transition-transform duration-hb hover:scale-105 focus-visible:outline-none focus-visible:shadow-hb-ring"
+              >
+                {isPlaying ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}
               </button>
-              {/* Progress + time */}
-              <div style={cardStyles.playerRight}>
-                <div style={cardStyles.progressTrack} onClick={handleProgressClick}>
-                  <div style={{ ...cardStyles.progressFill, width: `${progressPct}%` }} />
+
+              <div className="min-w-0 flex-1 space-y-1">
+                {/* A real slider: tab-reachable, arrow-seekable, and announced
+                    with its position. The visible bar is the `Meter` every
+                    other proportion in the product uses; the input sits on top
+                    of it, transparent, and carries the semantics. */}
+                <div className="relative">
+                  <Meter
+                    value={playbackTime}
+                    max={Math.max(totalSeconds, 1)}
+                    size="xs"
+                    aria-label={`Answer ${index + 1} playback position`}
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(totalSeconds, 1)}
+                    step={0.1}
+                    value={playbackTime}
+                    onChange={(e) => seekTo(Number(e.target.value))}
+                    aria-label={`Seek answer to question ${index + 1}`}
+                    aria-valuetext={`${formatTime(playbackTime)} of ${formatTime(totalSeconds)}`}
+                    className="absolute inset-x-0 -inset-y-2 w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-hb-blue [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-hb-blue"
+                  />
                 </div>
-                <div style={cardStyles.timeRow}>
-                  <span style={cardStyles.currentTime}>{formatTime(playbackTime)}</span>
-                  <span style={cardStyles.timeSep}>/</span>
-                  <span style={cardStyles.totalTime}>{formatTime(totalSeconds)}</span>
-                </div>
+                <p className="font-mono text-hb-xs tabular-nums text-hb-muted">
+                  <span className="text-hb-text">{formatTime(playbackTime)}</span>
+                  {' / '}
+                  {formatTime(totalSeconds)}
+                </p>
               </div>
             </div>
           )}
 
           <button
-            style={cardStyles.transcriptToggle}
+            type="button"
             onClick={() => setTranscriptOpen(o => !o)}
+            aria-expanded={transcriptOpen}
+            className="inline-flex items-center gap-1.5 rounded-hb-xs text-hb-xs font-semibold text-hb-cyan transition-colors duration-hb hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring"
           >
-            <FileText size={13} />
-            {transcriptOpen ? 'Hide Transcript' : 'Show Transcript'}
-            {transcriptOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            <FileText size={13} aria-hidden />
+            {transcriptOpen ? 'Hide transcript' : 'Show transcript'}
+            {transcriptOpen ? <ChevronUp size={13} aria-hidden /> : <ChevronDown size={13} aria-hidden />}
           </button>
 
           {transcriptOpen && (
-            <div style={cardStyles.transcript}>
+            <div className="rounded-hb-md border border-hb-border bg-hb-surface-2 px-3.5 py-3">
               {response.transcript ? (
-                <p style={cardStyles.transcriptText}>{response.transcript}</p>
+                <p className="text-hb-sm leading-relaxed text-hb-text">{response.transcript}</p>
               ) : (
-                <p style={cardStyles.transcriptPending}>Transcript is still being processed…</p>
+                <p className="text-hb-sm italic text-hb-muted">
+                  Transcript is still being processed…
+                </p>
               )}
             </div>
           )}
         </div>
       ) : (
-        <div style={cardStyles.noResponse}>
-          <Mic size={14} />
+        <p className="inline-flex items-center gap-1.5 text-hb-sm italic text-hb-dim">
+          <Mic size={14} aria-hidden />
           No response recorded
-        </div>
+        </p>
       )}
-    </div>
+    </Card>
   )
-}
-
-const cardStyles: Record<string, React.CSSProperties> = {
-  wrap: {
-    background: '#fff',
-    borderRadius: '14px',
-    border: '1px solid var(--card-border, #e8e6ff)',
-    padding: '18px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  qMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  qNum: {
-    fontWeight: 800,
-    fontSize: '12px',
-    color: '#9ca3af',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.6px',
-  },
-  catBadge: {
-    padding: '3px 10px',
-    borderRadius: '20px',
-    fontSize: '11px',
-    fontWeight: 600,
-  },
-  duration: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    fontSize: '12px',
-    color: '#9ca3af',
-  },
-  qText: {
-    fontSize: '14px',
-    fontWeight: 600,
-    color: '#1a1040',
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  responseArea: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  },
-  playerWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    background: '#fff',
-    border: '1px solid #e8e6ff',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    boxShadow: '0 1px 4px rgba(108,71,255,0.06)',
-  },
-  playBtn: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    border: 'none',
-    background: 'linear-gradient(135deg, #6c47ff, #9b80ff)',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    flexShrink: 0,
-    boxShadow: '0 2px 8px rgba(108,71,255,0.28)',
-  },
-  playerRight: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
-    minWidth: 0,
-  },
-  progressTrack: {
-    height: '4px',
-    borderRadius: '2px',
-    background: '#e8e6ff',
-    overflow: 'hidden',
-    cursor: 'pointer',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: '2px',
-    background: 'linear-gradient(90deg, #6c47ff, #ff6bc6)',
-    transition: 'width 0.15s linear',
-  },
-  timeRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '3px',
-  },
-  currentTime: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#6c47ff',
-    fontVariantNumeric: 'tabular-nums',
-  } as React.CSSProperties,
-  timeSep: {
-    fontSize: '10px',
-    color: '#c4bfec',
-  },
-  totalTime: {
-    fontSize: '11px',
-    fontWeight: 500,
-    color: '#9ca3af',
-    fontVariantNumeric: 'tabular-nums',
-  } as React.CSSProperties,
-  transcriptToggle: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '5px',
-    background: 'transparent',
-    border: 'none',
-    color: '#6c47ff',
-    fontWeight: 600,
-    fontSize: '12px',
-    cursor: 'pointer',
-    padding: '2px 0',
-  },
-  transcript: {
-    background: '#f7f5ff',
-    borderRadius: '10px',
-    padding: '12px 14px',
-    border: '1px solid #e8e6ff',
-  },
-  transcriptText: {
-    fontSize: '13px',
-    color: '#374151',
-    lineHeight: 1.6,
-    margin: 0,
-  },
-  transcriptPending: {
-    fontSize: '13px',
-    color: '#9ca3af',
-    fontStyle: 'italic',
-    margin: 0,
-  },
-  noResponse: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '13px',
-    color: '#9ca3af',
-    fontStyle: 'italic',
-  },
 }
 
 // ── PreScreeningSessionView ───────────────────────────────────────────────────
@@ -392,126 +285,139 @@ export function PreScreeningSessionView({
   })()
 
   const responseMap = new Map(session.responses.map(r => [r.question_index, r]))
+  const rec = parsedSummary?.recommendation
+    ? RECOMMENDATION_CFG[parsedSummary.recommendation]
+    : undefined
 
   return (
-    <div style={svStyles.root}>
-      {/* AI Summary section */}
-      <div style={svStyles.section}>
-        <div style={svStyles.sectionHeader}>
-          <h2 style={svStyles.sectionTitle}>
-            <Sparkles size={16} color="#6c47ff" />
-            AI Summary
-          </h2>
-          <div style={svStyles.sectionActions}>
-            {parsedSummary && (
-              <button
-                style={svStyles.iconToggle}
-                onClick={() => setSummaryExpanded(o => !o)}
-              >
-                {summaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-            )}
-            {session.status === 'completed' && onSummarise && (
-              <button
-                style={svStyles.generateBtn}
-                onClick={onSummarise}
-                disabled={summarising}
-              >
-                {summarising ? (
-                  <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Generating…</>
-                ) : (
-                  <><Sparkles size={14} /> {parsedSummary ? 'Regenerate' : 'Generate AI Summary'}</>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="space-y-hb-6">
+      {/* ── AI summary ──────────────────────────────────────────────────── */}
+      <section className="space-y-hb-3">
+        <CardHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Sparkles size={16} aria-hidden className="text-hb-cyan" />
+              AI summary
+            </span>
+          }
+          action={
+            <>
+              {parsedSummary && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSummaryExpanded(o => !o)}
+                  aria-expanded={summaryExpanded}
+                  icon={summaryExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                >
+                  {summaryExpanded ? 'Collapse' : 'Expand'}
+                </Button>
+              )}
+              {session.status === 'completed' && onSummarise && (
+                <Button
+                  size="sm"
+                  icon={<Sparkles size={14} />}
+                  onClick={onSummarise}
+                  loading={summarising}
+                >
+                  {parsedSummary ? 'Regenerate' : 'Generate AI summary'}
+                </Button>
+              )}
+            </>
+          }
+        />
 
         {parsedSummary && summaryExpanded ? (
-          <div style={svStyles.summaryCard}>
-            {parsedSummary.recommendation && (
-              <div
-                style={{
-                  ...svStyles.recBanner,
-                  color: RECOMMENDATION_CFG[parsedSummary.recommendation]?.color || '#6b7280',
-                  background: `${RECOMMENDATION_CFG[parsedSummary.recommendation]?.color || '#6b7280'}12`,
-                  borderColor: `${RECOMMENDATION_CFG[parsedSummary.recommendation]?.color || '#6b7280'}30`,
-                }}
+          <Card padding="default" className="space-y-hb-4">
+            {rec && (
+              <p
+                className={`flex flex-wrap items-center gap-2 rounded-hb-md border px-4 py-2.5 text-hb-sm ${BANNER_TONE[rec.tone]}`}
               >
-                {RECOMMENDATION_CFG[parsedSummary.recommendation]?.icon}
-                <span style={{ fontWeight: 700 }}>
-                  {RECOMMENDATION_CFG[parsedSummary.recommendation]?.label}
-                </span>
+                <span aria-hidden className="shrink-0">{rec.icon}</span>
+                <span className="font-semibold">{rec.label}</span>
                 {parsedSummary.recommendation_reason && (
-                  <span style={{ fontWeight: 400, opacity: 0.9 }}>
-                    — {parsedSummary.recommendation_reason}
-                  </span>
+                  <span className="text-hb-muted">— {parsedSummary.recommendation_reason}</span>
                 )}
-              </div>
+              </p>
             )}
 
-            <div style={svStyles.scoreGrid}>
+            <div className="grid gap-2.5 sm:grid-cols-3">
               {[
                 { label: 'Communication', score: parsedSummary.communication_score },
-                { label: 'Technical',     score: parsedSummary.technical_score },
-                { label: 'Culture Fit',   score: parsedSummary.culture_fit_score },
+                { label: 'Technical', score: parsedSummary.technical_score },
+                { label: 'Culture fit', score: parsedSummary.culture_fit_score },
               ].map(({ label, score }) => (
-                <div key={label} style={svStyles.scoreItem}>
-                  <span style={svStyles.scoreLabel}>{label}</span>
-                  <ScoreStars score={score} />
+                <div
+                  key={label}
+                  className="space-y-1.5 rounded-hb-md border border-hb-border bg-hb-surface-2 p-3"
+                >
+                  <p className="font-mono text-hb-label uppercase text-hb-dim">{label}</p>
+                  <ScoreStars score={score} label={label} />
                 </div>
               ))}
             </div>
 
             {parsedSummary.overall_impression && (
-              <div style={svStyles.impressionBox}>
-                <p style={svStyles.impressionText}>{parsedSummary.overall_impression}</p>
-              </div>
+              <p className="rounded-hb-md border border-hb-border bg-hb-surface-2 p-3.5 text-hb-sm leading-relaxed text-hb-text">
+                {parsedSummary.overall_impression}
+              </p>
             )}
 
-            <div style={svStyles.twoCols}>
+            <div className="grid gap-hb-4 sm:grid-cols-2">
               {parsedSummary.key_strengths?.length > 0 && (
                 <div>
-                  <p style={svStyles.listTitle}>Key Strengths</p>
-                  <ul style={svStyles.list}>
+                  <p className="mb-1.5 font-mono text-hb-label uppercase text-hb-dim">
+                    Key strengths
+                  </p>
+                  <ul className="list-disc space-y-1 pl-4 text-hb-sm text-hb-success">
                     {parsedSummary.key_strengths.map((s, i) => (
-                      <li key={i} style={{ color: '#166534' }}>{s}</li>
+                      <li key={i}>
+                        <span className="text-hb-text">{s}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
               {parsedSummary.concerns?.length > 0 && (
                 <div>
-                  <p style={svStyles.listTitle}>Concerns</p>
-                  <ul style={svStyles.list}>
+                  <p className="mb-1.5 font-mono text-hb-label uppercase text-hb-dim">Concerns</p>
+                  <ul className="list-disc space-y-1 pl-4 text-hb-sm text-hb-error">
                     {parsedSummary.concerns.map((c, i) => (
-                      <li key={i} style={{ color: '#991b1b' }}>{c}</li>
+                      <li key={i}>
+                        <span className="text-hb-text">{c}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
         ) : !parsedSummary ? (
-          <div style={svStyles.summaryEmpty}>
-            <p style={svStyles.summaryEmptyText}>
-              {session.status !== 'completed'
-                ? 'Summary will be available once the candidate completes the pre-screening.'
-                : 'Click "Generate AI Summary" to analyse the candidate\'s responses.'}
-            </p>
+          <div className="rounded-hb-md border border-dashed border-hb-border bg-hb-surface-2 p-5 text-center text-hb-sm text-hb-muted">
+            {session.status !== 'completed'
+              ? 'Summary will be available once the candidate completes the pre-screening.'
+              : 'Generate the AI summary to analyse the candidate’s responses.'}
           </div>
         ) : null}
-      </div>
+      </section>
 
-      {/* Responses section */}
-      <div style={svStyles.section}>
-        <div style={svStyles.sectionHeader}>
-          <h2 style={svStyles.sectionTitle}>
-            <Mic size={16} color="#6c47ff" />
-            Responses ({session.responses.length} / {session.questions.length})
-          </h2>
-        </div>
-        <div style={svStyles.responseList}>
+      {/* ── Responses ───────────────────────────────────────────────────── */}
+      <section className="space-y-hb-3">
+        <CardHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Mic size={16} aria-hidden className="text-hb-cyan" />
+              Responses
+            </span>
+          }
+          action={
+            <Badge>
+              {session.responses.length} of {session.questions.length} answered
+            </Badge>
+          }
+        />
+
+        <div className="space-y-hb-3">
           {session.questions.map((q, i) => (
             <ResponseCard
               key={q.id}
@@ -521,151 +427,7 @@ export function PreScreeningSessionView({
             />
           ))}
         </div>
-      </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </section>
     </div>
   )
-}
-
-const svStyles: Record<string, React.CSSProperties> = {
-  root: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-  },
-  section: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '16px',
-    fontWeight: 700,
-    color: '#1a1040',
-    margin: 0,
-  },
-  sectionActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  iconToggle: {
-    background: 'var(--input-bg)',
-    border: '1px solid var(--card-border)',
-    borderRadius: '8px',
-    padding: '5px',
-    cursor: 'pointer',
-    display: 'flex',
-    color: 'var(--text-mid)',
-  },
-  generateBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '8px 16px',
-    borderRadius: '10px',
-    border: 'none',
-    background: 'linear-gradient(135deg, #6c47ff, #9b80ff)',
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  summaryCard: {
-    background: '#fff',
-    borderRadius: '16px',
-    border: '1px solid #e8e6ff',
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '14px',
-  },
-  recBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '10px 16px',
-    borderRadius: '10px',
-    border: '1px solid',
-    fontSize: '14px',
-    flexWrap: 'wrap',
-  },
-  scoreGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '12px',
-  },
-  scoreItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    padding: '12px',
-    background: '#fafafa',
-    borderRadius: '10px',
-    border: '1px solid #f0edff',
-  },
-  scoreLabel: {
-    fontSize: '12px',
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
-  },
-  impressionBox: {
-    padding: '14px',
-    background: '#f7f5ff',
-    borderRadius: '10px',
-    border: '1px solid #e8e6ff',
-  },
-  impressionText: {
-    fontSize: '14px',
-    color: '#374151',
-    lineHeight: 1.6,
-    margin: 0,
-  },
-  twoCols: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-  },
-  listTitle: {
-    fontWeight: 700,
-    fontSize: '12px',
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
-    margin: '0 0 6px 0',
-  },
-  list: {
-    margin: 0,
-    paddingLeft: '16px',
-    fontSize: '13px',
-    lineHeight: 1.7,
-  },
-  summaryEmpty: {
-    padding: '20px',
-    background: '#fafafa',
-    borderRadius: '12px',
-    border: '1px dashed #e5e7eb',
-    textAlign: 'center',
-  },
-  summaryEmptyText: {
-    color: '#9ca3af',
-    fontSize: '14px',
-    margin: 0,
-  },
-  responseList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
 }

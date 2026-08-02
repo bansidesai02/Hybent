@@ -12,6 +12,7 @@ import {
   SuccessIcon,
   UserIcon,
 } from './HybentAuthKit'
+import { useAuthProduct } from './useAuthProduct'
 
 /**
  * Hybent Register Portal — the company brand's create-account surface.
@@ -95,6 +96,7 @@ export default function HybentRegisterPortal({
   }
 
   const busy = loading || googleLoading
+  const product = useAuthProduct()
 
   if (done) {
     return (
@@ -121,7 +123,12 @@ export default function HybentRegisterPortal({
   const showOrg = touched.organization && Boolean(orgError)
 
   return (
-    <HybentAuthShell title="Create your account" subtitle="Start building on Hybent" wide>
+    <HybentAuthShell
+      eyebrow={product.label}
+      title="Create your account"
+      subtitle={product.label ? `Get started with ${product.label}` : 'Start building on Hybent'}
+      wide
+    >
       {formError && (
         <p className="hlp-alert" role="alert">
           <span className="hlp-alert__icon"><AlertIcon /></span>

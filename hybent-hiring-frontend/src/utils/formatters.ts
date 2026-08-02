@@ -63,11 +63,19 @@ export function formatScore(score: number | null | undefined): string {
   return `${Math.round(score)}%`
 }
 
+/**
+ * The three score bands, as token classes.
+ *
+ * Same thresholds `ScoreRing`, `Meter` and `ScoreDistribution` use, so a match
+ * score reads identically wherever it appears. Was Tailwind's own emerald /
+ * amber / red with `dark:` counterparts that stopped applying when the product
+ * went light-only.
+ */
 export function scoreColor(score: number | null | undefined): string {
-  if (score == null) return 'text-gray-400'
-  if (score >= 80) return 'text-emerald-600 dark:text-emerald-400'
-  if (score >= 60) return 'text-amber-600 dark:text-amber-400'
-  return 'text-red-500 dark:text-red-400'
+  if (score == null) return 'text-hb-dim'
+  if (score >= 80) return 'text-hb-success'
+  if (score >= 60) return 'text-hb-warning'
+  return 'text-hb-error'
 }
 
 export function stageLabel(stage: string): string {

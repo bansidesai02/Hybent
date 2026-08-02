@@ -10,6 +10,7 @@ import {
   LockIcon,
   SuccessIcon,
 } from './HybentAuthKit'
+import { useAuthProduct } from './useAuthProduct'
 
 /**
  * Hybent Reset Password Portal — the company brand's set-a-new-password surface.
@@ -89,6 +90,8 @@ export default function HybentResetPasswordPortal({
     }
   }
 
+  const product = useAuthProduct()
+
   if (done) {
     return (
       <HybentAuthShell title="Password updated" subtitle="You can sign in with your new password">
@@ -109,7 +112,11 @@ export default function HybentResetPasswordPortal({
   const showConfirm = touched.confirm && Boolean(confirmError)
 
   return (
-    <HybentAuthShell title="Set new password" subtitle="Choose a password you have not used before">
+    <HybentAuthShell
+      eyebrow={product.label}
+      title="Set new password"
+      subtitle="Choose a password you have not used before"
+    >
       {!hasToken && (
         <p className="hlp-alert" role="alert">
           <span className="hlp-alert__icon"><AlertIcon /></span>

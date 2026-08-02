@@ -1,982 +1,396 @@
-import { Link } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
-import { AUTH } from '@/app/paths'
-import { HiringSectionNav } from '../components/HiringSectionNav'
+import { SiteView } from '@/modules/site/components/SiteView'
+import { AUTH, SITE } from '@/app/paths'
 
-import { TeamIcon } from '@/components/common/CustomIcons'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import { ArrowRight, Calendar, Check } from 'lucide-react'
+/**
+ * Hybent Hiring — the product's page inside the company site.
+ *
+ * Rebuilt in phase 5 on the site design system. It previously carried its own:
+ * Fraunces headlines, a violet→pink→teal gradient, GlassIcon tiles in five
+ * accent colours, hand-rolled framer-motion variants and 65 inline styles —
+ * none of which appear anywhere else on hybent.com. Sitting one click from
+ * /products, it read as a different company's page.
+ *
+ * Now it is built from the same vocabulary as every other site view: `.hero`,
+ * `.section`, `.card`, `.icon-tile`, `.eyebrow`, `.chip`, `.faq`, `.cta-band`,
+ * with `[data-rv]` for scroll reveal. Nothing here names a colour or a font —
+ * `hybent-site.css` owns all of it, so the page cannot drift again.
+ */
 
-// ─── Animation Variants ────────────────────────────────────────────────────────
+/* ─── Content ──────────────────────────────────────────────────────────────── */
 
-const fadeReveal = {
-  hidden: {
-    y: 30,
-    opacity: 0,
-  },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: { 
-      duration: 1.0, 
-      ease: [0.22, 1, 0.36, 1],
-    }
-  }
-}
-
-const staggerContainer = {
-  hidden: {},
-  visible: { 
-    transition: { 
-      staggerChildren: 0.08 
-    } 
-  }
-}
-
-const scaleReveal = {
-  hidden: {
-    scale: 0.96,
-    y: 20,
-    opacity: 0,
-  },
-  visible: {
-    scale: 1,
-    y: 0,
-    opacity: 1,
-    transition: { 
-      duration: 1.0, 
-      ease: [0.22, 1, 0.36, 1] 
-    }
-  }
-}
-
-const sideReveal = {
-  hidden: ({ side }: { side: 'left' | 'right' }) => ({
-    x: side === 'left' ? -30 : 30,
-    y: 20,
-    opacity: 0,
-  }),
-  visible: {
-    x: 0,
-    y: 0,
-    opacity: 1,
-    transition: { 
-      duration: 1.0, 
-      ease: [0.22, 1, 0.36, 1],
-    }
-  }
-}
-
-// ─── Data ──────────────────────────────────────────────────────────────────────
-
-const stats = [
+const STATS = [
   { value: '80%', label: 'Reduction in resume screening time' },
   { value: '90%', label: 'Interview scheduling fully automated' },
   { value: '60%', label: 'Faster overall time-to-hire' },
   { value: '30h', label: 'HR hours saved every single week' },
 ]
 
-const features = [
+const PHASES = [
   {
-    icon: 'Brain',
-    variant: 'violet' as const,
-    color: 'rgba(108,71,255,0.08)',
+    phase: 'Phase 01 — Intake',
+    icon: 'i-ai',
     title: 'AI Resume Intelligence',
-    description: 'Parse any resume format in under 10 seconds. Get precise skills, experience years, and match scores automatically.',
-    bullets: [
-      'PDF & DOCX parsing, any format',
-      'Explicit + Inferred skill extraction',
-      'Experience years auto-calculated',
-      'Seniority level classification',
-      '87% average match accuracy'
-    ]
+    desc: "The moment a candidate uploads their resume, Hybent Hiring's AI engine kicks in. It parses the document, extracts explicit skills like React, Node.js and TypeScript, and infers hidden skills from context clues. Experience years are calculated precisely and seniority level is determined automatically.",
+    tags: ['Skill extraction', 'Experience calc', 'Seniority detection', '~10 seconds'],
   },
   {
-    icon: 'Target',
-    variant: 'pink' as const,
-    color: 'rgba(255,107,198,0.08)',
+    phase: 'Phase 02 — Scoring',
+    icon: 'i-target',
     title: 'Smart Auto-Shortlisting',
-    description: 'Set your thresholds once. Hybent Hiring filters automatically — only the best candidates ever reach your desk.',
+    desc: "Hybent Hiring compares each candidate's profile against your requirements and generates a precise match score. If a candidate clears your threshold, they're instantly shortlisted, their status updated, your HR team notified, and the candidate gets an automated email — all without a single human action.",
+    tags: ['Match scoring', 'Auto-shortlist', 'HR notification', 'Fully automated'],
+  },
+  {
+    phase: 'Phase 03 — Scheduling',
+    icon: 'i-cal',
+    title: 'Conflict-Free Scheduling',
+    desc: "One click. Hybent Hiring cross-references the candidate's availability, the interviewer's calendar, and checks for existing bookings. It selects the optimal slot, generates a Google Meet link, and dispatches calendar invites to everyone involved. What used to take 15 emails and 3 days now takes 30 seconds.",
+    tags: ['Slot matching', 'Conflict detection', 'Meet link', '30 seconds'],
+  },
+  {
+    phase: 'Phase 04 — Decision',
+    icon: 'i-chart',
+    title: 'Interview Intelligence & Hiring',
+    desc: "Post-interview, the interviewer submits structured feedback. Hybent Hiring's AI analyses it, generates a summary, updates the hire probability score, and surfaces a hiring recommendation to HR. Every decision is data-backed, and every candidate is stored permanently in your searchable talent database.",
+    tags: ['Feedback analysis', 'Hire probability', 'Talent database', 'AI recommendation'],
+  },
+]
+
+const FEATURES = [
+  {
+    icon: 'i-ai',
+    title: 'AI Resume Intelligence',
+    desc: 'Parse any resume format in under 10 seconds. Get precise skills, experience years and match scores automatically.',
+    bullets: [
+      'PDF and DOCX parsing, any format',
+      'Explicit and inferred skill extraction',
+      'Experience years auto-calculated',
+      'Seniority level classification',
+      '87% average match accuracy',
+    ],
+  },
+  {
+    icon: 'i-target',
+    title: 'Smart Auto-Shortlisting',
+    desc: 'Set your thresholds once. Hybent Hiring filters automatically — only the best candidates ever reach your desk.',
     bullets: [
       'Configurable match thresholds per role',
       'Instant HR dashboard notifications',
       'Automatic candidate status emails',
       'Multi-role concurrent processing',
-      'Zero manual resume filtering'
-    ]
+      'Zero manual resume filtering',
+    ],
   },
   {
-    icon: 'Calendar',
-    variant: 'teal' as const,
-    color: 'rgba(0,212,200,0.08)',
+    icon: 'i-cal',
     title: 'Conflict-Free Scheduling',
-    description: 'One-click interview scheduling that prevents double-booking and removes every back-and-forth email.',
+    desc: 'One-click interview scheduling that prevents double-booking and removes every back-and-forth email.',
     bullets: [
-      'Candidate + interviewer availability sync',
+      'Candidate and interviewer availability sync',
       'Automatic conflict detection',
       'Google Meet link generation',
       'Calendar invites to all parties',
-      'Reschedule handling built-in'
-    ]
+      'Reschedule handling built in',
+    ],
   },
   {
-    icon: 'MessageSquare',
-    variant: 'violet' as const,
-    color: 'rgba(108,71,255,0.08)',
+    icon: 'i-users',
     title: 'Interview Intelligence',
-    description: 'Structure your feedback, remove bias, and continuously improve hiring decisions with AI-powered analysis.',
+    desc: 'Structure your feedback, remove bias, and continuously improve hiring decisions with AI-powered analysis.',
     bullets: [
       'Structured feedback forms per role',
       'AI-generated interview summaries',
       'Hire probability updated after each stage',
       'Bias detection across candidates',
-      'Multi-interviewer score aggregation'
-    ]
+      'Multi-interviewer score aggregation',
+    ],
   },
   {
-    icon: 'Database',
-    variant: 'violet' as const,
-    color: 'rgba(108,71,255,0.08)',
+    icon: 'i-db',
     title: 'Permanent Talent Database',
-    description: "Every candidate you've ever considered is stored, indexed, and searchable — forever. Never lose great talent again.",
+    desc: 'Every candidate you have ever considered is stored, indexed and searchable — forever. Never lose great talent again.',
     bullets: [
       'Permanent storage of all profiles',
-      'Full-text skill & experience search',
+      'Full-text skill and experience search',
       'Re-match past candidates to new roles',
       'Smart alerts for role-candidate fits',
-      'Hire in days, not weeks for repeat roles'
-    ]
+      'Hire in days for repeat roles',
+    ],
   },
   {
-    icon: 'BarChart3',
-    variant: 'teal' as const,
-    color: 'rgba(0,212,200,0.08)',
+    icon: 'i-chart',
     title: 'Predictive Analytics',
-    description: 'Understand your pipeline health, spot bottlenecks, and continuously improve your hiring funnel with data.',
+    desc: 'Understand pipeline health, spot bottlenecks, and continuously improve your hiring funnel with data.',
     bullets: [
-      'Real-time pipeline funnel visualization',
+      'Real-time pipeline funnel visualisation',
       'Time-to-hire trend tracking',
-      'Hire probability modeling per role',
+      'Hire probability modelling per role',
       'Sourcing channel performance',
-      'Team workload & efficiency reports'
-    ]
-  }
-]
-
-const howItWorks = [
-  {
-    phase: 'Phase 01 — Intake',
-    icon: 'Brain',
-    variant: 'violet' as const,
-    title: 'AI Resume Intelligence',
-    desc: "The moment a candidate uploads their resume, Hybent Hiring's AI engine kicks in. It parses the document, extracts explicit skills like React, Node.js and TypeScript, and infers hidden skills from context clues. Experience years are calculated precisely and seniority level is determined automatically.",
-    tags: [
-      { label: 'Skill Extraction' },
-      { label: 'Experience Calc' },
-      { label: 'Seniority Detection' },
-      { label: '~10 seconds', color: 'teal' as const },
-    ],
-  },
-  {
-    phase: 'Phase 02 — Scoring',
-    icon: 'Target',
-    variant: 'pink' as const,
-    title: 'Smart Auto-Shortlisting',
-    desc: "Hybent Hiring compares each candidate's profile against your requirements and generates a precise match score. If a candidate clears your threshold, they're instantly shortlisted, their status updated, your HR team notified, and the candidate gets an automated email — all without a single human action.",
-    tags: [
-      { label: 'Match Scoring' },
-      { label: 'Auto-Shortlist' },
-      { label: 'HR Notification', color: 'pink' as const },
-      { label: 'Fully Automated', color: 'teal' as const },
-    ],
-  },
-  {
-    phase: 'Phase 03 — Scheduling',
-    icon: 'Calendar',
-    variant: 'amber' as const,
-    title: 'Conflict-Free Scheduling',
-    desc: "One click. Hybent Hiring cross-references the candidate's availability, the interviewer's calendar, and checks for existing bookings. It selects the optimal slot, generates a Google Meet link, and dispatches calendar invites to everyone involved. What used to take 15 emails and 3 days now takes 30 seconds.",
-    tags: [
-      { label: 'Slot Matching' },
-      { label: 'Conflict Detection' },
-      { label: 'Meet Link', color: 'pink' as const },
-      { label: '30 seconds', color: 'teal' as const },
-    ],
-  },
-  {
-    phase: 'Phase 04 — Decision',
-    icon: 'BarChart3',
-    variant: 'teal' as const,
-    title: 'Interview Intelligence & Hiring',
-    desc: "Post-interview, the interviewer submits structured feedback. Hybent Hiring's AI analyzes it, generates a summary, updates the hire probability score, and surfaces a hiring recommendation to HR. Every decision is data-backed. Every candidate is stored permanently in your searchable talent database for future roles.",
-    tags: [
-      { label: 'Feedback Analysis' },
-      { label: 'Hire Probability' },
-      { label: 'Talent Database', color: 'pink' as const },
-      { label: 'AI Recommendation', color: 'teal' as const },
+      'Team workload and efficiency reports',
     ],
   },
 ]
 
+type Faq = { q: string; a: string }
 
+/* ─── Small pieces ─────────────────────────────────────────────────────────── */
 
-// ─── FAQ Item ──────────────────────────────────────────────────────────────────
-function FaqItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false)
+function Eyebrow({ children }: { children: string }) {
   return (
-    <div
-      className="rounded-[16px] overflow-hidden transition-all duration-200"
-      style={{
-        background: 'var(--glass)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.95)',
-        boxShadow: '0 4px 20px rgba(108,71,255,0.06)',
-      }}
-    >
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left"
-      >
-        <span className="text-[15px] font-600 text-text-dark">{q}</span>
-        <span
-          className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-white text-lg font-bold transition-transform duration-200"
-          style={{
-            background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
-            transform: open ? 'rotate(45deg)' : 'rotate(0deg)',
-          }}
-        >
-          +
-        </span>
-      </button>
-      {open && (
-        <div className="px-6 pb-5 text-[14px] leading-relaxed" style={{ color: 'var(--text-mid)' }}>
-          {a}
-        </div>
-      )}
-    </div>
+    <p className="eyebrow">
+      <span className="bars"><i /><i /><i /></span>
+      <span>{children}</span>
+    </p>
   )
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
-// ─── Custom Components ────────────────────────────────────────────────────────
+function Tile({ icon }: { icon: string }) {
+  return (
+    <span className="icon-tile">
+      <svg aria-hidden="true"><use href={`#${icon}`} /></svg>
+    </span>
+  )
+}
 
-const FormDropdown = ({ 
-  label, 
-  options, 
-  value, 
-  onChange, 
-  placeholder 
-}: { 
-  label: string, 
-  options: string[], 
-  value: string, 
-  onChange: (val: string) => void,
-  placeholder?: string
-}) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+/* ─── Page ─────────────────────────────────────────────────────────────────── */
+
+export default function HiringHomePage() {
+  /* FAQ copy is editable without a deploy, so it stays remote. */
+  const [faqs, setFaqs] = useState<Faq[]>([])
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
+    let live = true
+    fetch('/landing-config.json')
+      .then((res) => res.json())
+      .then((data) => {
+        if (live) setFaqs(data.faqs ?? [])
+      })
+      .catch(() => {
+        /* The section simply does not render. A marketing FAQ is not worth an
+           error state on an otherwise complete page. */
+      })
+    return () => {
+      live = false
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   return (
-    <div className="space-y-2 relative" ref={containerRef}>
-      <label className="text-[11px] font-bold uppercase tracking-[1.2px] ml-1" style={{ color: '#9689bb' }}>
-        {label}
-      </label>
-      <div 
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-6 py-4 rounded-[14px] border-2 transition-all cursor-pointer flex items-center justify-between select-none
-          ${isOpen ? 'border-[#6c47ff]/40 bg-[var(--card-bg)] shadow-[0_4px_20px_rgba(108,71,255,0.12)]' : 'border-transparent bg-[var(--card-bg)] shadow-[0_2px_12px_rgba(108,71,255,0.04)]'}
-        `}
-      >
-        <span className="text-[15px]" style={{ color: value ? 'var(--text)' : '#cbd5e1' }}>
-          {value || placeholder}
-        </span>
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c47ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m6 9 6 6 6-6"/>
-          </svg>
-        </motion.div>
-      </div>
+    <SiteView route="hiring">
+      {/* ── Hero ──────────────────────────────────────────────────────────── */}
+      <section className="hero">
+        <div className="hero__orb orb-a" data-para="0.02" />
+        <div className="hero__orb orb-b" data-para="-0.03" />
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 5, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute left-0 right-0 z-[100] mt-1 overflow-hidden rounded-[16px] border border-[var(--glass-border)] bg-[var(--card-bg)] backdrop-blur-xl shadow-[0_20px_64px_rgba(108,71,255,0.18)]"
-          >
-            <div className="py-2 max-h-[240px] overflow-y-auto scrollbar-hide">
-              {options.map((opt) => (
-                <div
-                  key={opt}
-                  onClick={() => {
-                    onChange(opt)
-                    setIsOpen(false)
-                  }}
-                  className={`px-6 py-3 text-[14px] font-medium transition-colors cursor-pointer hover:bg-[#6c47ff]/05
-                    ${value === opt ? 'text-[#6c47ff] bg-[#6c47ff]/05' : 'text-gray-700'}
-                  `}
-                >
-                  {opt}
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
+        <div className="wrap center">
+          <p className="hero__pill" data-rv="up">
+            <i className="dot dot--pulse" />
+            AI-powered recruiting platform
+          </p>
 
-export default function HiringHomePage() {
-  /* Title and description are owned by AppLayout via ROUTE_META, so every view
-     in the platform sets them the same way. */
+          <h1 className="h-xl" data-rv="up" data-delay="80" style={{ marginTop: '18px' }}>
+            Hire on <span className="grad-text">autopilot</span>.
+          </h1>
 
-  const [landingConfig, setLandingConfig] = useState<{
-    testimonials: any[]
-    pricing: any[]
-    faqs: any[]
-  }>({ testimonials: [], pricing: [], faqs: [] });
+          <p className="hero__sub" data-rv="up" data-delay="160">
+            Hybent Hiring uses AI to parse resumes, score candidates, manage your pipeline and
+            close the best talent — in a fraction of the time.
+          </p>
 
-  useEffect(() => {
-    fetch('/landing-config.json')
-      .then(res => res.json())
-      .then(data => setLandingConfig(data))
-      .catch(err => console.error('Failed to load landing config:', err));
-  }, []);
-
-
-  return (
-    <div className="min-h-screen relative hb-below-nav" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      {/* Background blobs */}
-      <div className="blob-bg">
-        <div className="blob blob-1" />
-        <div className="blob blob-2" />
-        <div className="blob blob-3" />
-        <div className="blob blob-4" />
-      </div>
-
-      <HiringSectionNav />
-
-
-      {/* ── HERO ── */}
-      <section
-        className="relative z-10 flex flex-col items-center justify-start text-center"
-        style={{ padding: '120px 48px 40px' }}
-      >
-        {/* Badge */}
-        <motion.div
-          variants={fadeReveal}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="inline-flex items-center gap-2 mb-8 px-5 py-2 rounded-full text-[14px] font-semibold"
-          style={{
-            background: 'var(--glass)',
-            border: '1px solid rgba(255,255,255,1)',
-            backdropFilter: 'blur(12px)',
-            color: '#6c47ff',
-            boxShadow: '0 4px 16px rgba(108,71,255,0.08)',
-          }}
-        >
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{
-              background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-              boxShadow: '0 0 0 3px rgba(108,71,255,0.2)',
-              animation: 'pulse-glow 2s infinite',
-            }}
-          />
-          AI-Powered Recruiting Platform
-        </motion.div>
-
-        {/* Headline */}
-        <motion.h1
-          variants={fadeReveal}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="font-black leading-[1.0] mb-7 max-w-[1000px]"
-          style={{
-            fontFamily: "'Fraunces', serif",
-            fontSize: 'clamp(48px, 7.5vw, 108px)',
-            letterSpacing: '-2px',
-            color: 'var(--text)',
-          }}
-        >
-          Hire on{' '}
-          <span
-            style={{
-              background: 'linear-gradient(135deg, #6c47ff 0%, #ff6bc6 50%, #00d4c8 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            Autopilot
-          </span>
-          .
-        </motion.h1>
-
-        {/* Subheadline */}
-        <motion.p
-          variants={fadeReveal}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="text-[22px] leading-[1.75] max-w-[800px] mb-14"
-          style={{
-            color: 'var(--text-mid)',
-          }}
-        >
-          Hybent Hiring uses AI to parse resumes, score candidates, manage your pipeline, and close the best talent — in a fraction of the time.
-        </motion.p>
-
-        {/* CTA buttons */}
-        <motion.div
-          variants={fadeReveal}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          className="flex flex-col sm:flex-row gap-4 justify-center mb-8 w-full sm:w-auto px-6"
-        >
-          <Link to={AUTH.register} className="w-full sm:w-auto">
-            <button
-              className="w-full sm:px-10 py-4 border-0 rounded-[10px] text-[17px] font-semibold text-white cursor-pointer transition-all duration-300 relative overflow-hidden hover:-translate-y-[3px] flex items-center justify-center gap-2"
-              style={{
-                background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
-                boxShadow: '0 8px 28px rgba(108,71,255,0.38)',
-                fontFamily: "'Sora', sans-serif",
-              }}
-            >
-              Start for Free <ArrowRight size={20} />
-            </button>
-          </Link>
-        </motion.div>
-      </section>
-
-      {/* ── STATS ── */}
-      <section className="relative z-10 py-12 px-6 md:px-20">
-        <motion.div
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, margin: "-100px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5"
-        >
-          {stats.map((s) => (
-            <motion.div
-              variants={fadeReveal}
-              key={s.label}
-              className="group relative rounded-[24px] p-8 md:p-10 text-center overflow-hidden transition-all duration-300 hover:-translate-y-[6px]"
-              style={{
-                background: 'var(--glass)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.95)',
-                boxShadow: '0 8px 40px rgba(108,71,255,0.10)',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(108,71,255,0.18)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(108,71,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
-            >
-              {/* Top border slide-in */}
-              <div
-                className="absolute top-0 left-0 right-0 h-[3px] origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-[400ms]"
-                style={{ background: 'linear-gradient(90deg, #6c47ff, #ff6bc6)' }}
-              />
-              <span
-                className="block font-black leading-none mb-3"
-                style={{
-                  fontFamily: "'Fraunces', serif",
-                  fontSize: 'clamp(48px, 6vw, 64px)',
-                  background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                {s.value}
-              </span>
-              <p className="text-[14px] md:text-[16px] font-medium" style={{ color: 'var(--text-mid)', lineHeight: 1.5 }}>{s.label}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" className="relative z-10 py-16 px-6">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            variants={fadeReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="text-center mb-20"
-          >
-            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>How It Works</p>
-            <h2
-              className="font-black leading-tight mb-5"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
-            >
-              From application to offer,<br />
-              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                all automated.
-              </span>
-            </h2>
-            <p className="text-[20px] max-w-[640px] mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.7 }}>
-              Four intelligent phases that take a candidate from resume submission to hiring decision — with AI doing the heavy lifting at every step.
-            </p>
-          </motion.div>
-
-          {/* Timeline */}
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: false, margin: "-100px" }}
-            className="relative"
-          >
-            {/* Center line */}
-            <div
-              className="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 rounded-sm hidden md:block"
-              style={{ background: 'linear-gradient(180deg, #6c47ff, #ff6bc6, #00d4c8)' }}
-            />
-
-            {howItWorks.map((step, i) => (
-              <motion.div
-                custom={{ side: i % 2 === 0 ? 'left' : 'right' }}
-                variants={sideReveal}
-                key={step.phase}
-                className={`relative flex gap-12 md:gap-[120px] mb-[80px] items-start ${i % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-100px" }}
-              >
-                {/* Content card */}
-                <div
-                  className="flex-1 rounded-[24px] p-9 transition-all duration-300 hover:-translate-y-1"
-                  style={{
-                    background: 'var(--glass)',
-                    backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(255,255,255,0.95)',
-                    boxShadow: '0 8px 40px rgba(108,71,255,0.10)',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(108,71,255,0.18)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(108,71,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
-                >
-                  <p className="text-[12px] font-bold tracking-[2px] uppercase mb-3" style={{ color: 'var(--violet)' }}>{step.phase}</p>
-                  <h3 className="text-[24px] font-bold mb-3" style={{ color: 'var(--text)' }}>{step.title}</h3>
-                  <p className="text-[16px] leading-[1.7] mb-5" style={{ color: 'var(--text-mid)' }}>{step.desc}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {step.tags.map((tag) => (
-                      <span
-                        key={tag.label}
-                        className="px-3 py-1 rounded-full text-[11px] font-semibold"
-                        style={
-                          tag.color === 'pink'
-                            ? { background: 'rgba(255,107,198,0.10)', color: '#ff6bc6' }
-                            : tag.color === 'teal'
-                              ? { background: 'rgba(0,212,200,0.10)', color: '#00d4c8' }
-                              : { background: 'rgba(108,71,255,0.08)', color: 'var(--violet)' }
-                        }
-                      >
-                        {tag.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Spacer (desktop only) */}
-                <div className="flex-1 hidden md:block" />
-
-                <div
-                  className="absolute left-1/2 -translate-x-1/2 top-4 w-[60px] h-[60px] rounded-full flex items-center justify-center z-10 hidden md:flex shadow-sm"
-                  style={{
-                    background: 'var(--card-bg)',
-                    boxShadow: '0 0 0 4px white',
-                  }}
-                >
-                  <GlassIcon icon={step.icon} variant={step.variant} size={50} iconSize={24} glow={false} rounded="50%" />
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section id="features" className="relative z-10 py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            variants={fadeReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="text-center mb-16"
-          >
-            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Platform Features</p>
-            <h2
-              className="font-black leading-tight mb-4"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
-            >
-              Everything your hiring<br />
-              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                team actually needs.
-              </span>
-            </h2>
-            <p className="text-[20px] max-w-2xl mx-auto" style={{ color: 'var(--text-mid)', lineHeight: 1.6 }}>
-              No fluff, no bloat. Every feature in Hybent Hiring was built to eliminate a specific friction point in the recruiting process.
-            </p>
-          </motion.div>
-
-          <motion.div 
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {features.map((f) => (
-              <motion.div
-                variants={fadeReveal}
-                key={f.title}
-                className="rounded-[24px] p-8 transition-all duration-300 hover:-translate-y-1 text-left"
-                style={{
-                  background: 'var(--glass)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255,255,255,0.95)',
-                  boxShadow: '0 4px 24px rgba(108,71,255,0.06)',
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
-              >
-                <div 
-                  className="w-16 h-16 rounded-[20px] mb-8 flex items-center justify-center"
-                  style={{ background: f.color }}
-                >
-                  <GlassIcon icon={f.icon} variant={f.variant} size={64} iconSize={28} glow={false} />
-                </div>
-                <h3 className="text-[22px] font-bold mb-3" style={{ color: 'var(--text)' }}>{f.title}</h3>
-                <p className="text-[16px] leading-relaxed mb-6" style={{ color: 'var(--text-mid)' }}>{f.description}</p>
-                <ul className="flex flex-col gap-2.5 list-none p-0 m-0">
-                  {f.bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-2.5 text-[13px] font-medium" style={{ color: 'var(--text-mid)' }}>
-                      <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17L4 12" stroke="#00d4c8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── ABOUT ── */}
-      <section id="about" className="relative z-10 py-16 px-6 overflow-hidden">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col lg:flex-row items-center gap-16">
-            {/* Text content */}
-            <motion.div 
-              custom={{ side: 'left' }}
-              variants={sideReveal}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              className="flex-1 text-left"
-            >
-              <p className="text-[13px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>About Hybent Hiring</p>
-              <h2
-                className="font-black leading-tight mb-8"
-                style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(32px,5vw,52px)', color: 'var(--text)', letterSpacing: '-1px' }}
-              >
-                Reimagining the Future<br />
-                <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                  of Talent Acquisition.
-                </span>
-              </h2>
-              <div className="space-y-6 text-[18px] leading-[1.7] max-w-xl" style={{ color: 'var(--text-mid)' }}>
-                <p>
-                  Hybent Hiring was born from a simple mission to fix a recruiting process that hadn't meaningfully changed in decades. From her experience in Human Resources and Talent Acquisition, she saw first-hand how great teams were drowning in manual spreadsheets and inbox chaos.
-                </p>
-                <p>
-                  She set out to build the co-pilot she always wished existed — not just another database, but an intelligent layer that handles the repetitive, time-consuming work so recruiters can focus on the human side of hiring.
-                </p>
-                <p>
-                  Today, Hybent Hiring represents that vision. By leveraging cutting-edge AI to automate the "boring parts," we're empowering talent teams to hire exceptional people faster than ever before.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Founder Card */}
-            <motion.div 
-              custom={{ side: 'right' }}
-              variants={sideReveal}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              className="w-full lg:w-[460px] flex-shrink-0"
-            >
-              <div
-                className="relative rounded-[32px] p-10 overflow-hidden"
-                style={{
-                  background: 'var(--glass)',
-                  backdropFilter: 'blur(32px) saturate(180%)',
-                  border: '1px solid rgba(255,255,255,0.95)',
-                  boxShadow: '0 20px 60px rgba(108,71,255,0.12)',
-                }}
-              >
-                {/* Decorative blob inside card */}
-                <div
-                  className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-[60px] opacity-20 pointer-events-none"
-                  style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)' }}
-                />
-
-                <div className="relative z-10 text-right">
-                  {/* Quotes Icon at top - kept left aligned for standard structure or move to right? User said Sabse uper quotes, but usually they are left. I'll keep them left but move the profile to the right. */}
-                  <div className="mb-6 opacity-10 flex justify-start">
-                    <svg width="40" height="30" viewBox="0 0 40 30" fill="var(--violet)">
-                      <path d="M0 30V15C0 6.66667 6.66667 0 15 0V7.5C10.8333 7.5 7.5 10.8333 7.5 15H15V30H0ZM22 30V15C22 6.66667 28.6667 0 37 0V7.5C32.8333 7.5 29.5 10.8333 29.5 15H37V30H22Z" />
-                    </svg>
-                  </div>
-
-                  <blockquote className="text-[18px] sm:text-[20px] leading-[1.8] font-medium text-left mb-6" style={{ color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
-                    "I didn't want to build just another HR tool. I wanted to build the thing I wish existed — a recruiter's co-pilot that handles the boring parts so humans can focus on the human parts."
-                  </blockquote>
-                  <div className="text-right">
-                    {/* <span className="text-[15px] font-bold" style={{ color: 'var(--text)', opacity: 0.9 }}>— Bansi Desai</span> */}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+          <div className="hero__actions" data-rv="up" data-delay="240">
+            <a className="btn btn-primary btn-lg" href={AUTH.register}>
+              Start for free
+              <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
+            </a>
+            <a className="btn btn-ghost btn-lg" href={SITE.contact}>Book a demo</a>
           </div>
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
-      {/*
-      <section id="testimonials" className="relative z-10 py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            variants={fadeReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="text-center mb-16"
-          >
-            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Wall of Love</p>
-            <h2
-              className="font-black leading-tight mb-4"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
-            >
-              Loved by hiring<br />
-              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                teams everywhere.
-              </span>
-            </h2>
-          </motion.div>
+      {/* ── Outcomes ──────────────────────────────────────────────────────── */}
+      <section className="section section--tight">
+        <div className="wrap">
+          <div className="grid g4">
+            {STATS.map((s, i) => (
+              <div className="card card--flat stat" key={s.value} data-rv="up" data-delay={i * 70}>
+                <b>{s.value}</b>
+                <span>{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-          <motion.div 
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="grid sm:grid-cols-2 md:grid-cols-3 gap-6"
-          >
-            {landingConfig.testimonials.map((t, i) => (
-              <motion.div
-                variants={fadeReveal}
-                key={i}
-                className="rounded-[24px] p-8 transition-all duration-300 hover:-translate-y-1 flex flex-col"
-                style={{
-                  background: 'var(--glass)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255,255,255,0.95)',
-                  boxShadow: '0 4px 24px rgba(108,71,255,0.06)',
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(108,71,255,0.14)'; (e.currentTarget as HTMLElement).style.background = 'var(--card-bg)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(108,71,255,0.06)'; (e.currentTarget as HTMLElement).style.background = 'var(--glass)' }}
-              >
-                <div className="flex-1">
-                  <div className="flex gap-1 mb-6 text-[#ff6bc6]">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <svg key={star} width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                      </svg>
-                    ))}
-                  </div>
-                  <p className="text-[17px] font-medium leading-[1.6] mb-8" style={{ color: 'var(--text-dark)' }}>"{t.quote}"</p>
+      {/* ── How it works ──────────────────────────────────────────────────── */}
+      <section className="section" id="how-it-works">
+        <div className="wrap">
+          <div className="section-head" data-rv="up">
+            <Eyebrow>How it works</Eyebrow>
+            <h2 className="h-lg">Four phases, and your team touches almost none of them</h2>
+            <p className="lead">
+              From the second a resume lands to the moment an offer is signed, the work that used
+              to fill a recruiter&rsquo;s week happens on its own.
+            </p>
+          </div>
+
+          <div className="grid g2">
+            {PHASES.map((p, i) => (
+              <article className="card" key={p.phase} data-rv="up" data-delay={i * 80}>
+                <span className="card__glow" />
+                <Tile icon={p.icon} />
+                <p className="mono" style={{ margin: '18px 0 8px' }}>{p.phase}</p>
+                <h3 className="h-sm">{p.title}</h3>
+                <p className="small" style={{ marginTop: '12px' }}>{p.desc}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '22px' }}>
+                  {p.tags.map((t) => (
+                    <span className="chip" key={t}>{t}</span>
+                  ))}
                 </div>
-                <div className="flex items-center gap-4">
-                  <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-[15px]"
-                    style={{ background: t.gradient }}
-                  >
-                    {t.initials}
-                  </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features ──────────────────────────────────────────────────────── */}
+      <section className="section section--canvas" id="features">
+        <div className="wrap">
+          <div className="section-head" data-rv="up">
+            <Eyebrow>Capabilities</Eyebrow>
+            <h2 className="h-lg">Everything the pipeline needs, in one product</h2>
+            <p className="lead">
+              Not a collection of integrations. One system where parsing, scoring, scheduling and
+              analytics share the same candidate record.
+            </p>
+          </div>
+
+          <div className="grid g3">
+            {FEATURES.map((f, i) => (
+              <article className="card" key={f.title} data-rv="up" data-delay={(i % 3) * 80}>
+                <span className="card__glow" />
+                <Tile icon={f.icon} />
+                <h3 className="h-sm" style={{ marginTop: '18px' }}>{f.title}</h3>
+                <p className="small" style={{ marginTop: '10px' }}>{f.desc}</p>
+                <ul className="feat-list">
+                  {f.bullets.map((b) => (
+                    <li key={b}>
+                      <svg aria-hidden="true"><use href="#i-check" /></svg>
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── About ─────────────────────────────────────────────────────────── */}
+      <section className="section" id="about">
+        <div className="wrap">
+          <div className="split">
+            <div data-rv="left">
+              <Eyebrow>About Hybent Hiring</Eyebrow>
+              <h2 className="h-lg">Reimagining the future of talent acquisition</h2>
+              <p className="lead" style={{ marginTop: '22px' }}>
+                Hybent Hiring was born from a simple mission — to fix a recruiting process that had
+                not meaningfully changed in decades.
+              </p>
+              <p className="small" style={{ marginTop: '18px' }}>
+                From years in human resources and talent acquisition, our founder saw first-hand how
+                great teams were drowning in manual spreadsheets and inbox chaos. She set out to
+                build the co-pilot she always wished existed — not another database, but an
+                intelligent layer that handles the repetitive work so recruiters can focus on the
+                human side of hiring.
+              </p>
+              <p className="small" style={{ marginTop: '14px' }}>
+                Today Hybent Hiring is that vision, in production. By automating the parts nobody
+                wanted to do, talent teams hire exceptional people faster than they thought possible.
+              </p>
+            </div>
+
+            <div data-rv="right">
+              {/* Markup mirrors the site's own `.quote` — mark, paragraph,
+                  footer with avatar — so it inherits the card styling rather
+                  than approximating it. */}
+              <div className="card card--flat quote">
+                <span className="quote__mark" aria-hidden="true">&ldquo;</span>
+                <p>
+                  I didn&rsquo;t want to build just another HR tool. I wanted to build the thing I
+                  wish existed — a recruiter&rsquo;s co-pilot that handles the boring parts so
+                  humans can focus on the human parts.
+                </p>
+                <footer>
+                  <span className="avatar" aria-hidden="true">HH</span>
                   <div>
-                    <div className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>{t.name}</div>
-                    <div className="text-[13px] font-medium" style={{ color: 'var(--text-mid)' }}>{t.role}</div>
+                    <b>Founder</b>
+                    <span>Hybent Hiring</span>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-      */}
-
-      {/* ── PRICING ── */}
-      {/*
-      <section id="pricing" className="relative z-10 py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            variants={fadeReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="text-center mb-16"
-          >
-            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Pricing</p>
-            <h2
-              className="font-black leading-tight mb-4"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(40px,6vw,72px)', color: 'var(--text)', letterSpacing: '-1px' }}
-            >
-              Simple, transparent<br />
-              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                pricing for everyone.
-              </span>
-            </h2>
-          </motion.div>
-
-          <motion.div 
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-center"
-          >
-            {landingConfig.pricing.map((p, i) => (
-              <motion.div
-                variants={fadeReveal}
-                key={p.name}
-                className={`rounded-[32px] p-8 transition-all duration-300 flex flex-col relative ${p.featured ? 'md:-translate-y-4 shadow-xl border-[#6c47ff]/20 bg-[var(--card-bg)]' : 'hover:-translate-y-1'}`}
-                style={{
-                  background: p.featured ? 'var(--card-bg)' : 'var(--glass)',
-                  backdropFilter: 'blur(16px)',
-                  border: `1px solid ${p.featured ? 'rgba(108,71,255,0.2)' : 'rgba(255,255,255,0.95)'}`,
-                  boxShadow: p.featured ? '0 24px 80px rgba(108,71,255,0.15)' : '0 4px 24px rgba(108,71,255,0.06)',
-                  zIndex: p.featured ? 10 : 1,
-                  transform: p.featured ? 'scale(1.05)' : 'scale(1)',
-                }}
-              >
-                {p.featured && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-[#6c47ff] to-[#ff6bc6] text-white px-4 py-1.5 rounded-full text-[12px] font-bold tracking-wide shadow-lg">
-                    MOST POPULAR
-                  </div>
-                )}
-                <div className="mb-8 mt-2">
-                  <h3 className="text-[22px] font-bold mb-2" style={{ color: p.featured ? '#6c47ff' : 'var(--text)' }}>{p.name}</h3>
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-[44px] font-black tracking-tight" style={{ color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>{p.price}</span>
-                    <span className="text-[14px] font-medium" style={{ color: 'var(--text-mid)' }}>{p.period}</span>
-                  </div>
-                  <p className="text-[15px] font-medium" style={{ color: 'var(--text-mid)' }}>{p.desc}</p>
-                </div>
-
-                <div className="flex-1 mb-8">
-                  <ul className="flex flex-col gap-4 list-none p-0 m-0">
-                    {p.features.map((f: string) => (
-                      <li key={f} className="flex items-start gap-3 text-[14px] font-medium" style={{ color: 'var(--text-dark)' }}>
-                        <Check size={18} className="flex-shrink-0 mt-0.5 text-[#00d4c8]" strokeWidth={3} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <button
-                  className="w-full py-4 rounded-[12px] text-[15px] font-bold transition-all duration-300"
-                  style={{
-                    background: p.featured ? 'linear-gradient(135deg, #6c47ff, #8b6bff)' : 'rgba(108,71,255,0.05)',
-                    color: p.featured ? 'white' : '#6c47ff',
-                    boxShadow: p.featured ? '0 8px 24px rgba(108,71,255,0.3)' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!p.featured) {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.1)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!p.featured) {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(108,71,255,0.05)'
-                    }
-                  }}
-                >
-                  {p.cta}
-                </button>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-      */}
-
-      {/* ── FAQS ── */}
-      <section id="faqs" className="relative z-10 py-16 px-6">
-        <div className="max-w-3xl mx-auto">
-          <motion.div
-            variants={fadeReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="text-center mb-16"
-          >
-            <p className="text-[14px] font-bold tracking-[2px] uppercase mb-4" style={{ color: 'var(--violet)' }}>Got Questions?</p>
-            <h2
-              className="font-black leading-tight mb-4"
-              style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(36px,5vw,56px)', color: 'var(--text)', letterSpacing: '-1px' }}
-            >
-              Frequently Asked<br />
-              <span style={{ background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                Questions.
-              </span>
-            </h2>
-          </motion.div>
-
-          <motion.div 
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="flex flex-col gap-4"
-          >
-            {landingConfig.faqs.map((faq, i) => (
-              <motion.div variants={fadeReveal} key={i}>
-                <FaqItem q={faq.q} a={faq.a} />
-              </motion.div>
-            ))}
-          </motion.div>
+                </footer>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-    </div>
+      {/* ── FAQs ──────────────────────────────────────────────────────────── */}
+      {faqs.length > 0 && (
+        <section className="section section--tight" id="faqs">
+          <div className="wrap" style={{ maxWidth: '860px' }}>
+            <div className="section-head center" data-rv="up">
+              <Eyebrow>Questions</Eyebrow>
+              <h2 className="h-lg">Frequently asked</h2>
+            </div>
+
+            <div className="faq" data-rv="up">
+              {faqs.map((faq, i) => (
+                <details key={faq.q} open={i === 0}>
+                  <summary>
+                    {faq.q}
+                    <span className="pm" />
+                  </summary>
+                  <div className="ans">{faq.a}</div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Close ─────────────────────────────────────────────────────────── */}
+      <section className="section">
+        <div className="wrap">
+          <div className="cta-band" data-rv="scale">
+            <div className="split">
+              <div>
+                <Eyebrow>Get started</Eyebrow>
+                <h2 className="h-lg">See what Hybent Hiring does to your pipeline</h2>
+                <p className="lead" style={{ marginTop: '22px' }}>
+                  Bring one open role. We will show you the parsing, the scoring and the scheduling
+                  on your own candidates, not a demo dataset.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '30px' }}>
+                  <a className="btn btn-primary" href={AUTH.register}>
+                    Start for free
+                    <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
+                  </a>
+                  <a className="btn btn-ghost" href={SITE.contact}>Talk to us</a>
+                </div>
+              </div>
+              <div>
+                <p className="mono" style={{ marginBottom: '14px' }}>What you get on day one</p>
+                <ul className="feat-list">
+                  <li><svg aria-hidden="true"><use href="#i-check" /></svg>Resume parsing on your existing pipeline</li>
+                  <li><svg aria-hidden="true"><use href="#i-check" /></svg>Match scoring against your live roles</li>
+                  <li><svg aria-hidden="true"><use href="#i-check" /></svg>Scheduling wired to your calendars</li>
+                  <li><svg aria-hidden="true"><use href="#i-check" /></svg>Every candidate kept, indexed and searchable</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </SiteView>
   )
 }

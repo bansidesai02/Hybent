@@ -1,40 +1,47 @@
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Modal } from '@/components/ui/Modal'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
+import { Download } from 'lucide-react'
+import { Button, Dialog, Input } from '@/components/hb'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { formatDate } from '@/utils/formatters'
-import { 
-  Document, 
-  Packer, 
-  Paragraph, 
-  TextRun, 
-  AlignmentType, 
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
   HeadingLevel,
   ImageRun,
-  BorderStyle,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType
 } from 'docx'
 import { saveAs } from 'file-saver'
 import { toast } from 'react-hot-toast'
 import type { Candidate, Application } from '@/types'
 
+/**
+ * Every field here is interpolated straight into a legal document, so a field
+ * that is present but empty is worse than one that is absent — it produces a
+ * grammatical hole in a signed letter.
+ *
+ * `.default()` alone does not prevent that: it only fills an *undefined* value,
+ * so clearing the input and submitting passed an empty string through to the
+ * DOCX and emitted "You are being hired to work at ." and "You will be on
+ * probation for  from your Date of Joining." Each of the three defaulted fields
+ * now also carries `.min(1)`.
+ *
+ * `salary` stays optional — some organisations agree compensation separately —
+ * but when it is given it is now written into the letter, which it previously
+ * was not.
+ */
 const offerSchema = z.object({
   candidate_name: z.string().min(1, 'Name required'),
   job_role: z.string().min(1, 'Job role required'),
   joining_date: z.string().min(1, 'Date required'),
   salary: z.string().optional(),
-  location: z.string().default('Ahmedabad office'),
-  probation_period: z.string().default('three months'),
-  agreement_years: z.string().default('2 years'),
+  location: z.string().min(1, 'Office location required').default('Ahmedabad office'),
+  probation_period: z.string().min(1, 'Probation period required').default('three months'),
+  agreement_years: z.string().min(1, 'Agreement period required').default('2 years'),
 })
 
 type OfferFormData = z.infer<typeof offerSchema>
@@ -46,22 +53,22 @@ interface GenerateOfferModalProps {
   organizationName?: string
 }
 
-export function GenerateOfferModal({ 
-  onClose, 
-  candidate, 
+const FORM_ID = 'generate-offer-form'
+
+export function GenerateOfferModal({
+  onClose,
+  candidate,
   application,
-  organizationName 
+  organizationName
 }: GenerateOfferModalProps) {
   const { user: authUser } = useAuth()
   const { profile } = useProfile()
-  
+
   const finalOrgName = organizationName || profile?.organization_name || authUser?.organization_name || 'Our Company'
-  
+
   const {
     register,
     handleSubmit,
-    control,
-    setValue,
     formState: { errors, isSubmitting }
   } = useForm<OfferFormData>({
     resolver: zodResolver(offerSchema),
@@ -95,6 +102,9 @@ export function GenerateOfferModal({
     })
 
     const logoBuffer = profile?.avatar_url ? await fetchImageAsBuffer(profile.avatar_url) : null
+    /* Trimmed here so a whitespace-only entry counts as absent rather than
+       printing "Annual CTC:   " into the letter. */
+    const salary = data.salary?.trim()
 
     const doc = new Document({
       sections: [{
@@ -176,6 +186,21 @@ export function GenerateOfferModal({
             ],
           }),
 
+          /* Compensation. The field was collected and then dropped on the floor —
+             a recruiter could type a CTC, download the letter, and send an offer
+             with no salary in it and no warning. Omitted entirely when blank
+             rather than printed as an empty label. */
+          ...(salary
+            ? [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: 'Annual CTC: ', bold: true, font: 'Arial', size: 24 }),
+                    new TextRun({ text: salary, font: 'Arial', size: 24 }),
+                  ],
+                }),
+              ]
+            : []),
+
           new Paragraph({
             children: [
               new TextRun({ text: `You are being hired to work at `, font: 'Arial', size: 24 }),
@@ -255,52 +280,72 @@ export function GenerateOfferModal({
   }
 
   return (
-    <Modal open={true} onClose={onClose} title="Generate Offer Letter (DOCX)">
-      <form onSubmit={handleSubmit(generateDocx)} className="p-6 flex flex-col gap-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input 
-            label="Candidate Name" 
-            {...register('candidate_name')} 
-            error={errors.candidate_name?.message} 
+    <Dialog
+      open
+      onClose={onClose}
+      size="lg"
+      title="Generate Offer Letter (DOCX)"
+      description="The letter is built in the browser and downloaded straight away — nothing is saved or sent."
+      footer={
+        <>
+          <Button variant="quiet" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            type="submit"
+            form={FORM_ID}
+            loading={isSubmitting}
+            icon={<Download size={15} />}
+          >
+            Download DOCX
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} onSubmit={handleSubmit(generateDocx)} className="pb-2">
+        <div className="grid gap-hb-4 md:grid-cols-2">
+          <Input
+            label="Candidate Name"
+            {...register('candidate_name')}
+            error={errors.candidate_name?.message}
           />
-          <Input 
-            label="Job Role" 
-            {...register('job_role')} 
-            error={errors.job_role?.message} 
+          <Input
+            label="Job Role"
+            {...register('job_role')}
+            error={errors.job_role?.message}
           />
-          <Input 
+          <Input
             type="date"
-            label="Joining Date" 
-            {...register('joining_date')} 
-            error={errors.joining_date?.message} 
+            label="Joining Date"
+            {...register('joining_date')}
+            error={errors.joining_date?.message}
           />
-          <Input 
-            label="Office Location" 
-            {...register('location')} 
-            error={errors.location?.message} 
+          <Input
+            label="Office Location"
+            {...register('location')}
+            error={errors.location?.message}
           />
-          <Input 
-            label="Probation Period" 
-            {...register('probation_period')} 
-            error={errors.probation_period?.message} 
+          <Input
+            label="Probation Period"
+            {...register('probation_period')}
+            error={errors.probation_period?.message}
           />
-          <Input 
-            label="Agreement Period" 
-            {...register('agreement_years')} 
-            error={errors.agreement_years?.message} 
+          <Input
+            label="Agreement Period"
+            {...register('agreement_years')}
+            error={errors.agreement_years?.message}
           />
-        </div>
-
-          <Input 
-            label="Annual CTC / Salary" 
-            {...register('salary')} 
+          <Input
+            label="Annual CTC / Salary"
+            placeholder="e.g. ₹12,00,000"
+            description="Optional. Printed in the letter as an Annual CTC line; left out entirely if blank."
+            {...register('salary')}
+            error={errors.salary?.message}
+            fieldClassName="md:col-span-2"
           />
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={onClose} type="button">Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Download DOCX</Button>
         </div>
       </form>
-    </Modal>
+    </Dialog>
   )
 }

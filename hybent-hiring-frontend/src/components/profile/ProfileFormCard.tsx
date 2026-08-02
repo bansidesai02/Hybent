@@ -9,9 +9,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useProfile } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
 import ImageCropperModal from '@/components/common/ImageCropperModal'
-import { GlassIcon } from '@/components/common/GlassIcon'
 import { Camera } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
+import { Avatar } from '@/components/hb'
 
 interface ProfileFormCardProps {
   portalTitle?: string
@@ -189,7 +188,7 @@ export default function ProfileFormCard({
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              style={{ display: 'none' }}
+              className="hidden"
               onChange={onFileSelect}
             />
             <div className="profile-avatar-info">
@@ -289,7 +288,7 @@ export default function ProfileFormCard({
             )}
           </div>
 
-          <div className="profile-field" style={{ marginTop: '1.5rem' }}>
+          <div className="profile-field mt-6">
             <label className="profile-field-label">Role</label>
             {isAdmin ? (
               <input
@@ -311,10 +310,9 @@ export default function ProfileFormCard({
           </div>
 
           <button
-            className="profile-save-btn"
+            className="profile-save-btn mt-8 w-full"
             onClick={handleSave}
             disabled={isUpdating || isUploadingAvatar}
-            style={{ width: '100%', marginTop: '2rem' }}
           >
             {isUpdating ? 'Saving...' : 'Save Changes'}
           </button>

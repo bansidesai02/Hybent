@@ -4,7 +4,6 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { GlobalNav } from './GlobalNav'
 import { GlobalFooter } from './GlobalFooter'
 import { SiteSvgDefs } from './SiteSvgDefs'
-import { useLightTheme } from '@/hooks/useLightTheme'
 import { ROUTE_META } from '@/app/routeMeta'
 import '@/styles/hybent-site.css'
 
@@ -21,7 +20,9 @@ import '@/styles/hybent-site.css'
  * sidebar/topbar chrome and must not sit under a marketing header.
  */
 export default function AppLayout() {
-  useLightTheme()
+  /* No theme call here by design. Every public surface is light-only — light is
+     the brand — and ThemeProvider enforces that from the URL, so the site
+     cannot inherit a dark preference set inside a workspace. */
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()

@@ -46,15 +46,23 @@ export const AUTH = {
   dashboard: '/dashboard',
 } as const
 
+/**
+ * There is exactly one sign-in for the whole platform: `AUTH.login`.
+ *
+ * The product used to carry its own — a second auth stack under `/hiring` with
+ * the same endpoints and accounts behind a different design system — plus a
+ * second "Sign In" button in an in-page product nav. Between them a visitor
+ * could reach three different-looking doors to the same lock. Both are gone;
+ * every entry point in the app now resolves here.
+ *
+ * `/hiring/login` still redirects, carrying `?product=hiring` so someone
+ * arriving from an old bookmark is told which product they are signing in to.
+ * That is a label on one page, not a second way in.
+ */
+
 /** Authenticated workspaces of the Hybent Hiring product. */
 export const HIRING = {
   root: '/hiring',
-  /** Product-branded auth. Same accounts and same endpoints as AUTH — these
-      exist so a visitor already inside Hybent Hiring stays in the product's own
-      theme instead of being handed to the parent brand's portal. */
-  login: '/hiring/login',
-  register: '/hiring/register',
-  resetPassword: '/hiring/reset-password',
   recruiter: '/hiring/recruiter',
   admin: '/hiring/admin',
   interviewer: '/hiring/interviewer',

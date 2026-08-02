@@ -1,198 +1,194 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { toast } from 'react-hot-toast'
+import { AlertTriangle, CheckCircle2, Download, FileText, Lock, XCircle } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from 'recharts'
+
+import { useAuth } from '@/hooks/useAuth'
 import { reportsApi } from '@/api/reports'
 import { adminApi } from '@/api/admin'
 import { superAdminApi } from '@/api/superAdmin'
-import { useAuth } from '@/hooks/useAuth'
-import { Select } from '@/components/ui/Select'
-import { Input } from '@/components/ui/Input'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { motion } from 'framer-motion'
-import { toast } from 'react-hot-toast'
-import { 
-  FileText, 
-  CheckCircle, 
-  AlertTriangle, 
-  XCircle, 
-  Download, 
-  Lightbulb,
-  Lock
-} from 'lucide-react'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import type { ReportSummary, User } from '@/types'
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Cell,
-  LabelList,
-  PieChart,
-  Pie,
-} from 'recharts'
+import type { ReportSummary } from '@/types'
+import {
+  Badge,
+  Button,
+  Card,
+  ChartFrame,
+  ChartTooltip,
+  Input,
+  PageHeader,
+  Select,
+  Skeleton,
+  StatCard,
+  StatGrid,
+  axisProps,
+  chartLabel,
+  ChartLegend,
+  useChartTheme,
+} from '@/components/hb'
 
-// ─── Glass card wrapper ─────────────────────────────────────────────────────────
-function GlassCard({ children, className = '', style = {} }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-  return (
-    <div
-      className={`rounded-[24px] p-6 bg-white dark:bg-[var(--card-bg)] border border-gray-100 dark:border-[var(--card-border)] shadow-sm ${className}`}
-      style={style}
-    >
-      {children}
-    </div>
-  )
-}
-
-const COLORS = ['var(--violet)', 'var(--teal, #10b981)', 'var(--amber, #f59e0b)', 'var(--pink, #ff6bc6)', '#3b82f6', '#8b5cf6', '#f97316', '#ef4444']
+/**
+ * Advanced analytics and export.
+ *
+ * Rebuilt on the design system in phase 6. This is the page `useChartTheme`
+ * exists for: recharts takes hex strings rather than classes, so it had eight
+ * hardcoded colours in a `COLORS` array plus five more inline, and three
+ * hand-built tooltip components that each styled themselves differently. The
+ * series palette and the tooltip now come from tokens and follow the theme.
+ */
 
 export default function ReportsPage() {
   const { user } = useAuth()
+  const chart = useChartTheme()
   const isAdmin = user?.role === 'admin'
-  const [days, setDays] = useState<string>('30')
-  const [startDate, setStartDate] = useState<string>('')
-  const [endDate, setEndDate] = useState<string>('')
-  const [recruiterId, setRecruiterId] = useState<string>('all')
-  const [recruiters, setRecruiters] = useState<{ id: string; name: string }[]>([])
 
-  // Single source of truth for all active filters — used by both the summary query and export
+  const [days, setDays] = useState('30')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [recruiterId, setRecruiterId] = useState('all')
+  const [recruiters, setRecruiters] = useState<Array<{ id: string; name: string }>>([])
+
+  /* One filter object drives the on-screen data and the export, so the
+     spreadsheet can never disagree with the charts above it. */
   const filterParams = useMemo(() => {
     const p: { days?: number; start_date?: string; end_date?: string; recruiter_id?: string } = {}
     if (days === 'custom') {
       if (startDate) p.start_date = startDate
       if (endDate) p.end_date = endDate
     } else if (days !== 'all') {
-      p.days = parseInt(days)
+      p.days = parseInt(days, 10)
     }
     if (isAdmin && recruiterId !== 'all') p.recruiter_id = recruiterId
     return p
   }, [days, startDate, endDate, recruiterId, isAdmin])
 
   const { data: summary, isLoading } = useQuery<ReportSummary>({
-    // Include full filterParams in the key so React Query refetches on any filter change
     queryKey: ['reports', 'summary', filterParams],
     queryFn: () => reportsApi.getSummary(filterParams).then((r) => r.data),
   })
 
-  const { data: globalFlags } = useQuery({ queryKey: ['super-admin', 'global-flags'], queryFn: () => superAdminApi.getGlobalFlags() })
+  const { data: globalFlags } = useQuery({
+    queryKey: ['super-admin', 'global-flags'],
+    queryFn: () => superAdminApi.getGlobalFlags(),
+  })
 
   useEffect(() => {
-    if (isAdmin) {
-      adminApi.listUsers().then(res => {
-        // Filter out candidates from the recruiter list
-        const users = res.data
-          .filter((u: any) => u.role !== 'candidate')
-          .map((u: any) => ({ id: u.id, name: u.full_name }))
-        setRecruiters(users)
-      }).catch(err => console.error("Failed to fetch recruiters", err))
-    }
+    if (!isAdmin) return
+    adminApi
+      .listUsers()
+      .then((res) =>
+        setRecruiters(
+          res.data
+            .filter((u: any) => u.role !== 'candidate')
+            .map((u: any) => ({ id: u.id, name: u.full_name }))
+        )
+      )
+      .catch((err) => console.error('Failed to fetch recruiters', err))
   }, [isAdmin])
 
-  const handleDownload = async () => {
-    if (!globalFlags?.analytics) {
-      toast.error('Feature Locked: Advanced Export Metrics is disabled for your organization. Please contact your administrator.');
-      return;
+  const exportEnabled = !!globalFlags?.analytics
+
+  const download = async () => {
+    if (!exportEnabled) {
+      toast.error('Advanced export is disabled for your organisation. Contact your administrator.')
+      return
     }
     try {
-      // Reuse the same filterParams object — export and on-screen data are always in sync
-      const res = await reportsApi.export(filterParams);
-      const filename = `recruitment_report_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success('Excel report downloaded successfully');
+      const res = await reportsApi.export(filterParams)
+      const url = URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `recruitment_report_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success('Report downloaded')
     } catch (error) {
-      console.error('Download failed', error);
-      toast.error('Failed to download report');
+      console.error('Download failed', error)
+      toast.error('Failed to download the report')
     }
   }
 
   const funnelData = [
-    { name: 'Applied', value: summary?.applied ?? 0, color: 'var(--violet)' },
-    { name: 'Hired', value: summary?.hired ?? 0, color: 'var(--teal, #10b981)' },
-    { name: 'Backout', value: summary?.backout ?? 0, color: 'var(--amber, #f59e0b)' },
-    { name: 'Rejected', value: summary?.rejected ?? 0, color: '#ff6bc6' },
+    { name: 'Applied', value: summary?.applied ?? 0 },
+    { name: 'Hired', value: summary?.hired ?? 0 },
+    { name: 'Backed out', value: summary?.backout ?? 0 },
+    { name: 'Rejected', value: summary?.rejected ?? 0 },
   ]
 
-  const stagesData = summary?.stages_distribution 
-    ? Object.entries(summary.stages_distribution).map(([key, val]) => ({ 
-        name: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), 
-        value: val 
+  const stagesData = summary?.stages_distribution
+    ? Object.entries(summary.stages_distribution).map(([key, value]) => ({
+        name: key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+        value,
       }))
     : []
 
   const rolesData = summary?.candidates_by_role
-    ? Object.entries(summary.candidates_by_role).map(([key, val]) => ({ 
-        name: key, 
-        value: val 
-      }))
+    ? Object.entries(summary.candidates_by_role).map(([name, value]) => ({ name, value }))
     : []
 
-  const stats = [
-    { label: 'Total Applied', value: summary?.applied ?? 0, icon: <GlassIcon icon="FileText" variant="violet" size={48} iconSize={20} glow={false} />, color: 'var(--violet)' },
-    { label: 'Total Hired', value: summary?.hired ?? 0, icon: <GlassIcon icon="CheckCircle" variant="emerald" size={48} iconSize={20} glow={false} />, color: '#10b981' },
-    { label: 'Total Backout', value: summary?.backout ?? 0, icon: <GlassIcon icon="AlertTriangle" variant="amber" size={48} iconSize={20} glow={false} />, color: '#f59e0b' },
-    { label: 'Total Rejected', value: summary?.rejected ?? 0, icon: <GlassIcon icon="XCircle" variant="rose" size={48} iconSize={20} glow={false} />, color: '#ff6bc6' },
-  ]
+  /* Outcomes are the one place a fixed semantic colour is right: hired is
+     success, backed out is a warning, rejected is an error. */
+  const FUNNEL_TONES = [chart.series[0], chart.success, chart.warning, chart.error]
 
   return (
-    <div className="space-y-8 select-none max-w-[1400px] mx-auto pb-10">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-2">
-        <header className="page-header !mb-0">
-          <h1 className="page-title">
-            Advanced Analytics
-          </h1>
-          <p className="page-subtitle">
-            Detailed recruitment metrics and data export.
-          </p>
-        </header>
-        <button
-          onClick={handleDownload}
-          className={`text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-violet-200 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${!globalFlags?.analytics ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:scale-105 transition-transform'}`}
-          style={{ background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)' }}
-          title={!globalFlags?.analytics ? "Feature Locked" : "Download Excel Report"}
-        >
-          {!globalFlags?.analytics ? <Lock size={18} /> : <Download size={18} />} Download Excel Report
-        </button>
-      </div>
+    <div className="mx-auto max-w-hb-page pb-hb-10">
+      <PageHeader
+        eyebrow="Reports"
+        title="Advanced analytics"
+        description="Detailed recruitment metrics, with the same filters applied to the export."
+        actions={
+          <Button
+            icon={exportEnabled ? <Download size={16} /> : <Lock size={16} />}
+            disabled={!exportEnabled}
+            title={exportEnabled ? 'Download Excel report' : 'Export is disabled for your organisation'}
+            onClick={download}
+          >
+            Download Excel report
+          </Button>
+        }
+      />
 
-      {/* Filters for Admin */}
-      <GlassCard className="bg-gray-50/30 dark:bg-[var(--color-bg-sidebar)]">
-        <div className="flex flex-col lg:flex-row gap-6 items-end w-full">
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+      <div className="space-y-hb-6">
+        <Card padding="default">
+          <div className="grid gap-hb-4 md:grid-cols-2 xl:grid-cols-4">
             <Select
-              label="Date Range"
+              label="Date range"
               value={days}
               onChange={(e) => setDays(e.target.value)}
               options={[
-                { value: '7', label: 'Last 7 Days' },
-                { value: '30', label: 'Last 30 Days' },
-                { value: '90', label: 'Last 90 Days' },
-                { value: 'custom', label: 'Custom Range' },
-                { value: 'all', label: 'All Time' },
+                { value: '7', label: 'Last 7 days' },
+                { value: '30', label: 'Last 30 days' },
+                { value: '90', label: 'Last 90 days' },
+                { value: 'custom', label: 'Custom range' },
+                { value: 'all', label: 'All time' },
               ]}
             />
 
             {days === 'custom' && (
               <>
                 <Input
+                  label="From"
                   type="date"
-                  label="Start Date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
                 <Input
+                  label="To"
                   type="date"
-                  label="End Date"
                   value={endDate}
+                  min={startDate || undefined}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
               </>
@@ -200,255 +196,129 @@ export default function ReportsPage() {
 
             {isAdmin && (
               <Select
-                label="Recruiter Filter"
+                label="Recruiter"
                 value={recruiterId}
                 onChange={(e) => setRecruiterId(e.target.value)}
                 options={[
-                  { value: 'all', label: 'All Recruiters' },
-                  ...recruiters.map(r => ({ value: r.id, label: r.name }))
+                  { value: 'all', label: 'All recruiters' },
+                  ...recruiters.map((r) => ({ value: r.id, label: r.name })),
                 ]}
               />
             )}
           </div>
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-3 shrink-0">
-            Filters apply to cards, charts &amp; export
-          </div>
-        </div>
-      </GlassCard>
+          <p className="mt-hb-3 font-mono text-hb-label uppercase text-hb-dim">
+            Filters apply to the cards, charts and export
+          </p>
+        </Card>
 
-      {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <GlassCard className="relative overflow-hidden group hover:border-violet-200 transition-colors">
-              <div className="flex items-center gap-4">
-                  {stat.icon}
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[2px] text-gray-400">{stat.label}</p>
-                  {isLoading ? (
-                    <Skeleton className="h-8 w-16 mt-1" />
-                  ) : (
-                    <h2 className="text-3xl font-black text-gray-900 dark:text-[var(--text)]">
-                      {stat.value}
-                    </h2>
-                  )}
-                </div>
-              </div>
-              <div 
-                className="absolute -bottom-4 -right-4 w-24 h-24 blur-3xl opacity-10 group-hover:opacity-20 transition-opacity"
-                style={{ backgroundColor: stat.color }}
-              />
-            </GlassCard>
-          </motion.div>
-        ))}
-      </div>
+        <StatGrid>
+          <StatCard label="Total applied" value={summary?.applied ?? 0} icon={<FileText />} loading={isLoading} />
+          <StatCard label="Total hired" value={summary?.hired ?? 0} icon={<CheckCircle2 />} loading={isLoading} />
+          <StatCard label="Total backed out" value={summary?.backout ?? 0} icon={<AlertTriangle />} loading={isLoading} />
+          <StatCard label="Total rejected" value={summary?.rejected ?? 0} icon={<XCircle />} loading={isLoading} />
+        </StatGrid>
 
-      {/* ── Information Banner ── */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative overflow-hidden rounded-[28px] p-8 text-white shadow-2xl shadow-violet-200 dark:shadow-none"
-        style={{ background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink, #ff6bc6) 100%)' }}
-      >
-        <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-          <div className="flex-1">
-            <h2 className="text-2xl font-black mb-3 flex items-center gap-2" style={{ fontFamily: "'Fraunces', serif" }}>
-              Data Transparency & Insights <GlassIcon icon="Lightbulb" variant="amber" size={32} iconSize={18} glow={false} />
-            </h2>
-            <p className="text-white/80 font-medium leading-relaxed">
-              Our reporting engine aggregates data from every touchpoint in your hiring funnel. 
-              Admins have a birds-eye view of organization-wide performance, while HR partners see metrics 
-              specifically tailored to their managed positions.
-            </p>
-          </div>
-          <div className="flex gap-4">
-             <div className="px-6 py-4 rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md text-center">
-                <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Accuracy</p>
-                <p className="text-xl font-bold">Real-time</p>
-             </div>
-             <div className="px-6 py-4 rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md text-center">
-                <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Format</p>
-                <p className="text-xl font-bold">CSV / XLSX</p>
-             </div>
-          </div>
-        </div>
-        
-        {/* Decorative ambient light */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-violet-500/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 blur-[100px] rounded-full" />
-      </motion.div>
-
-      {/* ── Main Funnel & Stats ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        
-        {/* Funnel Chart */}
-        <div className="xl:col-span-2">
-          <GlassCard className="p-0 h-full overflow-hidden border-gray-100 dark:border-[var(--card-border)] flex flex-col">
-            <div className="p-6 border-b border-gray-50 dark:border-[var(--card-border)] flex items-center justify-between bg-gray-50/50 dark:bg-[var(--color-bg-card)]">
-               <div>
-                 <h3 className="font-bold text-gray-800 dark:text-[var(--text)]">Recruitment Funnel Breakdown</h3>
-                 <p className="text-xs text-gray-400 dark:text-[var(--text-mid)] font-medium">Visualizing candidate progression across major milestones</p>
-               </div>
-               <span className="text-[10px] text-[var(--violet)] dark:text-white font-black bg-violet-100 dark:bg-[var(--violet)] px-3 py-1.5 rounded-xl uppercase tracking-wider">Live Insights</span>
-            </div>
-            <div className="p-8 flex-1 min-h-[400px]">
-               {isLoading ? (
-                 <Skeleton className="w-full h-full rounded-2xl" />
-               ) : (
-                 <ResponsiveContainer width="100%" height="100%">
-                   <BarChart data={funnelData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }} barSize={60}>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
-                     <XAxis 
-                       dataKey="name" 
-                       axisLine={false} 
-                       tickLine={false} 
-                       tick={{ fontSize: 12, fontWeight: 700, fill: '#94a3b8' }}
-                       dy={10}
-                     />
-                     <YAxis hide />
-                     <Tooltip
-                        cursor={false}
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-white dark:bg-[var(--card-bg)] p-4 rounded-2xl shadow-2xl border border-gray-100 dark:border-[var(--card-border)] min-w-[140px]">
-                                <p className="text-[10px] font-black text-gray-400 dark:text-[var(--text-mid)] uppercase tracking-widest mb-1">{payload[0].payload.name}</p>
-                                <p className="text-2xl font-black" style={{ color: payload[0].payload.color }}>
-                                  {payload[0].value}
-                                </p>
-                              </div>
-                            )
-                          }
-                          return null
-                        }}
-                     />
-                     <Bar dataKey="value" radius={[12, 12, 12, 12]} animationDuration={1000}>
-                       {funnelData.map((entry, index) => (
-                         <Cell key={`cell-${index}`} fill={entry.color} />
-                       ))}
-                       <LabelList dataKey="value" position="top" style={{ fontSize: 14, fontWeight: 900, fill: '#1e293b' }} offset={15} />
-                     </Bar>
-                   </BarChart>
-                 </ResponsiveContainer>
-               )}
-            </div>
-          </GlassCard>
-        </div>
-
-        {/* Stages Distribution Pie Chart */}
-        <GlassCard className="p-0 overflow-hidden border-gray-100 dark:border-[var(--card-border)] h-full flex flex-col">
-          <div className="p-6 border-b border-gray-50 dark:border-[var(--card-border)] bg-gray-50/50 dark:bg-[var(--color-bg-card)]">
-            <h3 className="font-bold text-gray-800 dark:text-[var(--text)]">Stages Distribution</h3>
-            <p className="text-xs text-gray-400 dark:text-[var(--text-mid)] font-medium">Candidate spread across all active stages</p>
-          </div>
-          <div className="p-4 flex-1 flex flex-col items-center justify-center min-h-[300px]">
-             {isLoading ? <Skeleton className="w-48 h-48 rounded-full" /> : (
-               <div className="w-full h-full relative">
-                 <ResponsiveContainer width="100%" height={300}>
-                   <PieChart>
-                     <Pie
-                       data={stagesData}
-                       cx="50%"
-                       cy="50%"
-                       innerRadius={60}
-                       outerRadius={80}
-                       paddingAngle={5}
-                       dataKey="value"
-                       animationDuration={1500}
-                     >
-                       {stagesData.map((_entry, index) => (
-                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                       ))}
-                     </Pie>
-                     <Tooltip 
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-white dark:bg-[var(--card-bg)] p-3 rounded-xl shadow-xl border border-gray-100 dark:border-[var(--card-border)]">
-                                <p className="text-[11px] font-bold text-gray-800 dark:text-[var(--text)]">{payload[0].name}</p>
-                                <p className="text-lg font-black" style={{ color: payload[0].payload.fill }}>{payload[0].value} Candidates</p>
-                              </div>
-                            )
-                          }
-                          return null
-                        }}
-                     />
-                   </PieChart>
-                 </ResponsiveContainer>
-                 {/* Legend */}
-                 <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 justify-center px-4 overflow-y-auto max-h-[100px]">
-                    {stagesData.map((entry, index) => (
-                      <div key={entry.name} className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                        <span className="text-[10px] font-bold text-gray-500 dark:text-[var(--text-mid)] whitespace-nowrap">{entry.name} ({entry.value})</span>
-                      </div>
+        <div className="grid gap-hb-6 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            {isLoading ? (
+              <Skeleton className="h-[340px] w-full" rounded="md" />
+            ) : (
+              <ChartFrame
+                title="Recruitment funnel"
+                action={<Badge tone="info">Live</Badge>}
+                height={300}
+              >
+                <BarChart data={funnelData} margin={{ top: 24, right: 12, left: 0, bottom: 4 }} barSize={56}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
+                  <XAxis dataKey="name" {...axisProps(chart)} dy={8} />
+                  <YAxis hide />
+                  <ChartTooltip />
+                  <Bar dataKey="value" radius={[10, 10, 10, 10]} animationDuration={800}>
+                    {funnelData.map((_, i) => (
+                      <Cell key={i} fill={FUNNEL_TONES[i % FUNNEL_TONES.length]} />
                     ))}
-                 </div>
-               </div>
-             )}
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      offset={12}
+                      style={chartLabel(chart, { emphasis: true })}
+                    />
+                  </Bar>
+                </BarChart>
+              </ChartFrame>
+            )}
           </div>
-        </GlassCard>
-      </div>
 
-      {/* ── Lower Row: Roles Analysis ── */}
-      <GlassCard className="p-0 overflow-hidden border-gray-100 dark:border-[var(--card-border)]">
-        <div className="p-6 border-b border-gray-50 dark:border-[var(--card-border)] bg-gray-50/50 dark:bg-[var(--color-bg-card)] flex items-center justify-between">
-           <div>
-             <h3 className="font-bold text-gray-800 dark:text-[var(--text)]">Candidates by Open Position</h3>
-             <p className="text-xs text-gray-400 dark:text-[var(--text-mid)] font-medium">Application volume across currently active roles</p>
-           </div>
-           <span className="text-[10px] text-emerald-600 font-black bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">High Accuracy</span>
+          {isLoading ? (
+            <Skeleton className="h-[340px] w-full" rounded="md" />
+          ) : stagesData.length === 0 ? (
+            <Card padding="loose">
+              <h3 className="font-display text-hb-h3 text-hb-text">Stage distribution</h3>
+              <p className="mt-2 text-hb-sm text-hb-muted">No candidates in any stage yet.</p>
+            </Card>
+          ) : (
+            <Card padding="default">
+              <h3 className="mb-1 font-display text-hb-h3 text-hb-text">Stage distribution</h3>
+              <p className="mb-3 text-hb-sm text-hb-muted">Spread across all active stages</p>
+
+              <ChartFrame height={220} className="border-0 bg-transparent p-0">
+                <PieChart>
+                  <Pie
+                    data={stagesData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={56}
+                    outerRadius={82}
+                    paddingAngle={4}
+                    dataKey="value"
+                    animationDuration={900}
+                    stroke="none"
+                  >
+                    {stagesData.map((_, i) => (
+                      <Cell key={i} fill={chart.series[i % chart.series.length]} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip />
+                </PieChart>
+              </ChartFrame>
+
+              {/* The legend carries the labels; the arcs alone cannot, since a
+                  six-colour palette repeats past six stages. */}
+              <ChartLegend items={stagesData} theme={chart} className="mt-3" />
+            </Card>
+          )}
         </div>
-        <div className="p-8 h-[350px]">
-           {isLoading ? (
-             <Skeleton className="w-full h-full rounded-2xl" />
-           ) : (
-             <ResponsiveContainer width="100%" height="100%">
-               <BarChart
-                 layout="vertical"
-                 data={rolesData}
-                 margin={{ top: 5, right: 60, left: 100, bottom: 5 }}
-               >
-                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="rgba(0,0,0,0.03)" />
-                 <XAxis type="number" hide />
-                 <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    axisLine={false} 
-                    tickLine={false}
-                    width={90}
-                    tick={{ fontSize: 11, fontWeight: 700, fill: 'var(--text-mid)' }}
-                 />
-                 <Tooltip
-                    cursor={{ fill: 'rgba(139, 92, 246, 0.05)' }}
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white dark:bg-[var(--card-bg)] p-3 rounded-xl shadow-xl border border-gray-100 dark:border-[var(--card-border)]">
-                             <p className="text-[11px] font-bold text-gray-800 dark:text-[var(--text)] mb-1">{payload[0].payload.name}</p>
-                             <p className="text-base font-black text-emerald-500">{payload[0].value} Applications</p>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                 />
-                 <Bar dataKey="value" fill="var(--violet)" radius={[0, 10, 10, 0]} barSize={32}>
-                   {rolesData.map((_entry, index) => (
-                     <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--violet)' : 'var(--brand2, #8b5cf6)'} />
-                   ))}
-                   <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: 'var(--text-mid)' }} offset={14} />
-                 </Bar>
-               </BarChart>
-             </ResponsiveContainer>
-           )}
-        </div>
-      </GlassCard>
+
+        {isLoading ? (
+          <Skeleton className="h-[360px] w-full" rounded="md" />
+        ) : rolesData.length === 0 ? (
+          <Card padding="loose">
+            <h3 className="font-display text-hb-h3 text-hb-text">Candidates by open position</h3>
+            <p className="mt-2 text-hb-sm text-hb-muted">No applications against active roles yet.</p>
+          </Card>
+        ) : (
+          <ChartFrame
+            title="Candidates by open position"
+            action={<Badge tone="success">High accuracy</Badge>}
+            height={Math.max(240, rolesData.length * 44)}
+          >
+            <BarChart layout="vertical" data={rolesData} margin={{ top: 4, right: 48, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
+              <XAxis type="number" hide />
+              <YAxis dataKey="name" type="category" width={130} {...axisProps(chart)} />
+              <ChartTooltip />
+              <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={26} fill={chart.series[0]}>
+                <LabelList
+                  dataKey="value"
+                  position="right"
+                  offset={10}
+                  style={chartLabel(chart)}
+                />
+              </Bar>
+            </BarChart>
+          </ChartFrame>
+        )}
+      </div>
     </div>
   )
 }

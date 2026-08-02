@@ -1,200 +1,200 @@
-import React from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { FileText, ShieldCheck } from 'lucide-react'
+
 import { superAdminApi } from '@/api/superAdmin'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { 
-  ShieldCheck, 
-  Search, 
-  ChevronDown,
-  FileText
-} from 'lucide-react'
+import {
+  Badge,
+  Card,
+  type Column,
+  DataTable,
+  PageHeader,
+  Pagination,
+  Select,
+  Toolbar,
+  ToolbarSearch,
+} from '@/components/hb'
+
+/**
+ * The platform security trail: impersonation sessions, billing adjustments,
+ * user changes and flag edits, across every tenant.
+ *
+ * Rebuilt on the design system in phase 9. The important fix is not visual:
+ * the action cell rendered `log.action` through `dangerouslySetInnerHTML`.
+ * That field is a plain string column on `SuperAdminAuditLog` and the strings
+ * interpolate client names and user emails, so any markup a tenant could get
+ * into one of those fields would have executed here — on the screen that
+ * exists specifically to be trustworthy. It renders as text now. (The super
+ * admin dashboard had the same sink in its log snippet.)
+ *
+ * Known limitation, unchanged: the search box filters the current page of 50
+ * rows in the browser. The client and category filters are server-side.
+ */
+
+const TYPE_OPTIONS = [
+  { value: 'all', label: 'All actions' },
+  { value: 'impersonation', label: 'Impersonation' },
+  { value: 'billing', label: 'Billing' },
+  { value: 'user', label: 'User changes' },
+  { value: 'job', label: 'Job postings' },
+]
+
+const PAGE_SIZE = 50
 
 export default function AuditLogsPage() {
-  const [filterClient, setFilterClient] = React.useState('all')
-  const [filterType, setFilterType] = React.useState('all')
-  const [searchQuery, setSearchQuery] = React.useState('')
-  const [page, setPage] = React.useState(0)
-  const PAGE_SIZE = 50
+  const [filterClient, setFilterClient] = useState('all')
+  const [filterType, setFilterType] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [page, setPage] = useState(1)
 
-  // Queries
   const { data: logsResponse, isLoading } = useQuery({
     queryKey: ['super-admin', 'audit-logs', filterClient, filterType, page],
-    queryFn: () => superAdminApi.getAuditLogs({
-      client: filterClient !== 'all' ? filterClient : undefined,
-      category: filterType !== 'all' ? filterType : undefined,
-      limit: PAGE_SIZE,
-      offset: page * PAGE_SIZE
-    })
+    queryFn: () =>
+      superAdminApi.getAuditLogs({
+        client: filterClient !== 'all' ? filterClient : undefined,
+        category: filterType !== 'all' ? filterType : undefined,
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+      }),
   })
 
   const { data: clients } = useQuery({
     queryKey: ['super-admin', 'clients'],
-    queryFn: () => superAdminApi.getClients()
+    queryFn: () => superAdminApi.getClients(),
   })
 
-  // Reset page when filters change
-  React.useEffect(() => { setPage(0) }, [filterClient, filterType])
+  useEffect(() => { setPage(1) }, [filterClient, filterType])
 
-  // Filter logs on the client side for search
-  const filteredLogs = React.useMemo(() => {
+  const filteredLogs = useMemo(() => {
     const list = logsResponse?.logs || []
     if (!searchQuery.trim()) return list
     const q = searchQuery.toLowerCase()
-    return list.filter((l: any) => 
-      l.action?.toLowerCase().includes(q) || 
-      l.actor?.toLowerCase().includes(q) ||
-      l.client?.toLowerCase().includes(q)
+    return list.filter(
+      (l: any) =>
+        l.action?.toLowerCase().includes(q) ||
+        l.actor?.toLowerCase().includes(q) ||
+        l.client?.toLowerCase().includes(q)
     )
   }, [logsResponse, searchQuery])
 
   const totalCount = logsResponse?.total || 0
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+
+  const columns: Array<Column<any>> = [
+    {
+      key: 'action',
+      header: 'Action',
+      cardTitle: true,
+      cell: (log) => (
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-hb-border bg-hb-surface-2 text-hb-cyan">
+            <ShieldCheck size={14} aria-hidden />
+          </span>
+          {/* Plain text. This was `dangerouslySetInnerHTML`. */}
+          <span className="min-w-0 text-hb-sm font-semibold text-hb-text">{log.action}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Category',
+      width: '150px',
+      cell: (log) => (
+        <Badge tone={log.type === 'impersonation' ? 'warning' : 'neutral'}>
+          {log.type === 'impersonation' ? 'Impersonation' : 'User'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'client',
+      header: 'Tenant',
+      width: '180px',
+      cell: (log) => <span className="text-hb-muted">{log.client}</span>,
+    },
+    {
+      key: 'actor',
+      header: 'Actor',
+      width: '200px',
+      cell: (log) => <span className="truncate text-hb-muted">{log.actor}</span>,
+    },
+    {
+      key: 'time',
+      header: 'When',
+      width: '180px',
+      cell: (log) => <span className="font-mono text-hb-xs text-hb-muted">{log.time}</span>,
+    },
+  ]
 
   return (
-    <div className="space-y-8 pb-10 pt-6">
-      {/* Header */}
-      <header className="page-header">
-        <h1 className="page-title text-[28px] font-black leading-tight text-[var(--text)]">Audit Logs</h1>
-        <p className="page-subtitle text-[13px] text-[var(--text-light)]">Platform security audit trials. Track impersonation sessions, user actions, billing adjustments, and flag changes.</p>
-      </header>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Platform"
+        title="Audit logs"
+        description="Impersonation sessions, user actions, billing adjustments and flag changes across every tenant."
+        actions={!isLoading ? <Badge tone="info">{totalCount} entries</Badge> : undefined}
+      />
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 flex-wrap justify-between">
-        <div className="flex items-center gap-3.5 flex-wrap">
-          {/* Client Filter */}
-          <div className="relative">
-            <select
-              value={filterClient}
-              onChange={(e) => setFilterClient(e.target.value)}
-              className="appearance-none pr-8 pl-3 py-1.5 rounded-xl border border-[var(--input-border)] bg-[var(--search-bg)] text-[12.5px] font-bold text-[var(--text-mid)] focus:outline-none focus:border-[var(--violet)]"
-            >
-              <option value="all">All clients</option>
-              {clients?.map(c => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-light)] pointer-events-none" size={13} />
-          </div>
+      <Toolbar>
+        <ToolbarSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search this page…"
+          aria-label="Search log entries on the current page"
+        />
+        <Select
+          options={[
+            { value: 'all', label: 'All clients' },
+            ...(clients ?? []).map((c) => ({ value: c.name, label: c.name })),
+          ]}
+          value={filterClient}
+          onChange={(e) => setFilterClient(e.target.value)}
+          aria-label="Filter by tenant"
+          fieldClassName="w-auto"
+        />
+        <Select
+          options={TYPE_OPTIONS}
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          aria-label="Filter by category"
+          fieldClassName="w-auto"
+        />
+      </Toolbar>
 
-          {/* Action Filter */}
-          <div className="relative">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="appearance-none pr-8 pl-3 py-1.5 rounded-xl border border-[var(--input-border)] bg-[var(--search-bg)] text-[12.5px] font-bold text-[var(--text-mid)] focus:outline-none focus:border-[var(--violet)]"
-            >
-              <option value="all">All actions</option>
-              <option value="impersonation">Impersonation</option>
-              <option value="billing">Billing</option>
-              <option value="user">User changes</option>
-              <option value="job">Job postings</option>
-            </select>
-            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-light)] pointer-events-none" size={13} />
-          </div>
-        </div>
+      <Card padding="none">
+        <DataTable
+          columns={columns}
+          rows={filteredLogs}
+          rowKey={(_log, i) => i}
+          loading={isLoading}
+          caption="Platform-wide administrative audit trail"
+          empty={{
+            icon: <FileText />,
+            title: 'No audit logs found',
+            description: 'Try relaxing the search or filters.',
+            size: 'page',
+            action:
+              searchQuery || filterClient !== 'all' || filterType !== 'all'
+                ? {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setSearchQuery('')
+                      setFilterClient('all')
+                      setFilterType('all')
+                    },
+                  }
+                : undefined,
+          }}
+        />
 
-        {/* Search */}
-        <div 
-          className="flex items-center gap-2 rounded-xl px-3 py-1.5 bg-[var(--search-bg)] border border-[var(--input-border)] w-full sm:w-[240px]"
-        >
-          <Search size={16} className="text-[var(--text-light)] opacity-60" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search logs..."
-            className="border-none bg-transparent text-[12.5px] outline-none w-full text-[var(--text)]"
-          />
-        </div>
-      </div>
-
-      {/* Main Table Card */}
-      <div className="rounded-[24px] border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-6 space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : filteredLogs.length > 0 ? (
-            <div className="table-responsive">
-<table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'rgba(108,71,255,0.06)', background: 'rgba(108,71,255,0.01)' }}>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Administrative Action</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Tenant Client</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Actor username</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLogs.map((log: any, index: number) => (
-                  <tr
-                    key={index}
-                    className="border-b last:border-b-0 hover:bg-[var(--sb-hover)]/30 transition-colors"
-                    style={{ borderColor: 'rgba(108,71,255,0.03)' }}
-                  >
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: log.type === 'impersonation' ? 'rgba(108,71,255,0.08)' : 'rgba(16,185,129,0.08)' }}>
-                          <ShieldCheck size={14} className={log.type === 'impersonation' ? 'text-[var(--violet)]' : 'text-emerald-500'} />
-                        </div>
-                        <p className="text-[13px] font-bold text-[var(--text)]" dangerouslySetInnerHTML={{ __html: log.action }} />
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-[12.5px] font-semibold text-[var(--text-mid)]">{log.client}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-[12.5px] font-semibold text-[var(--text-mid)]">{log.actor}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-[12.5px] font-semibold text-[var(--text-light)]">{log.time}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-</div>
-          ) : (
-            <div className="py-20 text-center">
-              <FileText className="mx-auto text-[var(--text-light)] opacity-20 mb-4" size={48} />
-              <p className="text-[15px] font-bold text-[var(--text)]">No audit logs found</p>
-              <p className="text-[12.5px] text-[var(--text-light)] mt-1">Try relaxing search or filter inputs.</p>
-            </div>
-          )}
-        </div>
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
-            <span className="text-[12px] font-semibold text-[var(--text-light)]">
-              Showing {page * PAGE_SIZE + 1} to {Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount} logs
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-3 py-1.5 rounded-xl border text-[12px] font-bold disabled:opacity-50 hover:bg-[var(--sb-hover)] transition-colors"
-                style={{ borderColor: 'var(--input-border)', color: 'var(--text-mid)' }}
-              >
-                Previous
-              </button>
-              <span className="text-[12px] font-bold text-[var(--text)] mx-2">
-                Page {page + 1} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="px-3 py-1.5 rounded-xl border text-[12px] font-bold disabled:opacity-50 hover:bg-[var(--sb-hover)] transition-colors"
-                style={{ borderColor: 'var(--input-border)', color: 'var(--text-mid)' }}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+        <Pagination
+          page={page}
+          pages={totalPages}
+          total={totalCount}
+          limit={PAGE_SIZE}
+          onPage={setPage}
+          noun="log entries"
+        />
+      </Card>
     </div>
   )
 }

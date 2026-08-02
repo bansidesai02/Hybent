@@ -1,8 +1,26 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ArrowRight, Lightbulb, Sparkles, Target } from 'lucide-react'
+
 import { portalApi } from '@/api/portal'
-import { Sparkles, Target, Lightbulb, ArrowRight, Loader2, FileText } from 'lucide-react'
-import { GlassIcon } from '@/components/common/GlassIcon'
+import {
+  Badge,
+  Card,
+  CardHeader,
+  EmptyState,
+  IconTile,
+  PageHeader,
+  Skeleton,
+} from '@/components/hb'
+
+/**
+ * AI-generated interview prep: a flashcard hero, focus topics and a question
+ * bank, tailored to the candidate's next round.
+ *
+ * Rebuilt on the design system in phase 7 — the last portal page off
+ * portal.css (`.prep-*`, `.pcc-*`, `.ptopic-*`, `.pprac-*`). The flashcard
+ * hero keeps its tap-to-advance behaviour but is a real button now.
+ */
 
 interface Flashcard {
   topic: string
@@ -18,7 +36,7 @@ export default function PortalPrepHub() {
     queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
 
-  // We fetch interviews to get the "Next Interview" info for the header
+  // We fetch interviews to get the "next interview" info for the header
   const { data: interviews } = useQuery({
     queryKey: ['portal', 'interviews'],
     queryFn: () => portalApi.myInterviews().then((r: any) => r.data),
@@ -29,21 +47,20 @@ export default function PortalPrepHub() {
   if (interviews && interviews.length > 0) {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
-    
+
     const upcoming = interviews
       .filter((i: any) => new Date(i.scheduled_at) >= todayStart && i.status !== 'cancelled')
       .sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-      
-    if (upcoming.length > 0) {
-      nextInterview = upcoming[0]
-    }
+
+    if (upcoming.length > 0) nextInterview = upcoming[0]
   }
 
-  // Tie active application to the next interview if one exists
-  const activeAppId = nextInterview?.application_id 
-    ? nextInterview.application_id 
-    : (applications?.find((a: any) => !['hired', 'rejected'].includes(a.stage))?.id || applications?.[0]?.id)
-    
+  // Tie the active application to the next interview if one exists
+  const activeAppId = nextInterview?.application_id
+    ? nextInterview.application_id
+    : applications?.find((a: any) => !['hired', 'rejected'].includes(a.stage))?.id ||
+      applications?.[0]?.id
+
   const activeApp = applications?.find((a: any) => a.id === activeAppId)
 
   const { data: prepData, isLoading: prepLoading } = useQuery({
@@ -57,29 +74,47 @@ export default function PortalPrepHub() {
   const rawFlashcards = prepData?.flashcards || []
   const focusAreas = prepData?.focus_areas || []
 
-  // Normalize
   const flashcards: Flashcard[] = rawFlashcards.map((fc: any) => ({
-    topic: fc.category || fc.topic || "Prep",
+    topic: fc.category || fc.topic || 'Prep',
     question: fc.question,
-    answer: fc.answer || (fc.key_points ? fc.key_points.join(" • ") : fc.hint || "Review key concepts.")
+    answer:
+      fc.answer || (fc.key_points ? fc.key_points.join(' • ') : fc.hint || 'Review key concepts.'),
   }))
 
   const nextInterviewDate = nextInterview ? new Date(nextInterview.scheduled_at) : null
-  const timeStr = nextInterviewDate ? nextInterviewDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : ""
-  const dateStr = nextInterviewDate ? `${nextInterviewDate.getMonth() + 1}/${nextInterviewDate.getDate()}/${nextInterviewDate.getFullYear()}` : ""
-  const titleStr = nextInterview?.title || activeApp?.job?.title || "Specific Round"
+  const timeStr = nextInterviewDate
+    ? nextInterviewDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    : ''
+  const dateStr = nextInterviewDate
+    ? nextInterviewDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : ''
+  const titleStr = nextInterview?.title || activeApp?.job?.title || 'your next'
 
   if (appsLoading) {
-    return <div className="p-8 text-center text-[var(--text-lite)]">Loading Prep Hub...</div>
+    return (
+      <div className="pb-hb-10">
+        <Skeleton className="mb-hb-6 h-12 w-80" rounded="md" />
+        <Skeleton className="mb-hb-5 h-52 w-full" rounded="md" />
+        <div className="grid gap-hb-4 md:grid-cols-2">
+          <Skeleton className="h-72 w-full" rounded="md" />
+          <Skeleton className="h-72 w-full" rounded="md" />
+        </div>
+      </div>
+    )
   }
 
   if (!activeApp) {
     return (
-      <div className="page active">
-        <div className="ph">
-          <div className="pt flex items-center justify-center gap-2">Interview Prep Hub <Target size={24} /></div>
-          <div className="ps">Apply for a job to unlock tailored prep materials.</div>
-        </div>
+      <div className="pb-hb-10">
+        <PageHeader eyebrow="Candidate portal" title="Interview prep hub" />
+        <Card padding="none">
+          <EmptyState
+            icon={<Target />}
+            title="Nothing to prepare yet"
+            description="Apply for a job to unlock tailored prep materials."
+            size="page"
+          />
+        </Card>
       </div>
     )
   }
@@ -92,102 +127,111 @@ export default function PortalPrepHub() {
     }
   }
 
-
-
   return (
-    <div className="page active" id="page-prep">
-      
-      {/* HEADER SECTION MATCHING MOCKUP */}
-      <div className="prep-header">
-        <div>
-          <div className="pt flex items-center gap-2">Interview Prep Hub <GlassIcon icon="Target" variant="violet" size={24} iconSize={14} glow={false} /></div>
-          <div className="ps">AI-generated tips, questions, and flashcards — tailored for your {titleStr} interview.</div>
-        </div>
-        {nextInterview && (
-          <div className="prep-next-btn">
-            <div className="prep-next-l">NEXT INTERVIEW</div>
-            <div className="prep-next-time">{timeStr}</div>
-            <div className="prep-next-sub">{dateStr} &middot; {titleStr}</div>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Candidate portal"
+        title="Interview prep hub"
+        description={`AI-generated tips, questions and flashcards — tailored for your ${titleStr} interview.`}
+        actions={
+          nextInterview ? (
+            <div className="rounded-hb-md border border-hb-border bg-hb-surface px-4 py-2.5 text-right">
+              <p className="font-mono text-hb-micro uppercase tracking-[.14em] text-hb-dim">
+                Next interview
+              </p>
+              <p className="font-display text-hb-h3 text-hb-text">{timeStr}</p>
+              <p className="text-hb-micro text-hb-muted">
+                {dateStr} · {titleStr}
+              </p>
+            </div>
+          ) : undefined
+        }
+      />
+
+      <div className="space-y-hb-5">
+        {prepLoading && (
+          <Card padding="loose" className="flex flex-col items-center gap-3 text-center">
+            <Sparkles size={32} aria-hidden className="animate-pulse text-hb-cyan" />
+            <p className="text-hb-body font-semibold text-hb-text">
+              Analyzing your résumé and generating personalized prep questions…
+            </p>
+            <p className="text-hb-sm text-hb-muted">This might take a few seconds.</p>
+          </Card>
+        )}
+
+        {flashcards.length > 0 && currentQ && (
+          <button
+            type="button"
+            onClick={handleNextQ}
+            className="block w-full rounded-hb-lg bg-hb-grad-diag p-8 text-center text-white transition-transform duration-hb ease-hb hover:-translate-y-0.5 focus-visible:outline-none focus-visible:shadow-hb-ring md:p-10"
+          >
+            <span className="font-mono text-hb-label uppercase tracking-[.22em] text-white/75">
+              Question {activeQuestion + 1} of {flashcards.length} · {currentQ.topic}
+            </span>
+            <span className="mx-auto mt-4 block max-w-[38ch] font-display text-hb-h2 leading-snug">
+              {currentQ.question}
+            </span>
+            <span className="mt-5 inline-flex items-center gap-1.5 text-hb-xs text-white/75">
+              Tap to see the next question
+              <ArrowRight size={13} aria-hidden />
+            </span>
+          </button>
+        )}
+
+        {!prepLoading && (flashcards.length > 0 || focusAreas.length > 0) && (
+          <div className="grid gap-hb-4 md:grid-cols-2">
+            <Card padding="default">
+              <CardHeader title="Topics to prepare" action={<Badge tone="brand">Role specific</Badge>} />
+              {focusAreas.length > 0 ? (
+                <ul className="space-y-3">
+                  {focusAreas.map((area: any, idx: number) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <IconTile size="sm">
+                        <Lightbulb />
+                      </IconTile>
+                      <div className="min-w-0">
+                        <p className="text-hb-sm font-semibold text-hb-text">{area.topic}</p>
+                        <p className="mt-0.5 text-hb-xs text-hb-muted">
+                          {area.reason || 'AI-recommended focus area'}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-hb-sm text-hb-muted">No specific topics generated.</p>
+              )}
+            </Card>
+
+            <Card padding="default">
+              <CardHeader title="AI practice questions" />
+              <ul className="space-y-3">
+                {flashcards.map((card, idx) => (
+                  <li key={idx} className="flex items-start gap-3">
+                    <IconTile size="sm">
+                      <Sparkles />
+                    </IconTile>
+                    <div className="min-w-0">
+                      <p className="text-hb-sm leading-snug text-hb-text">{card.question}</p>
+                      <Badge className="mt-1.5">{card.topic}</Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           </div>
         )}
+
+        {!flashcards.length && !prepLoading && (
+          <Card padding="none">
+            <EmptyState
+              icon={<Sparkles />}
+              title="No prep materials available"
+              description="Prep questions are generated once your application has a résumé attached."
+            />
+          </Card>
+        )}
       </div>
-
-      {prepLoading && (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--primary)', marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <GlassIcon icon="Sparkles" variant="violet" size={48} iconSize={24} />
-          <div style={{ fontWeight: 600 }}>Analyzing your resume and generating personalized prep questions...</div>
-          <div style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 8 }}>This might take a few seconds.</div>
-        </div>
-      )}
-
-      {flashcards.length > 0 && currentQ && (
-        <div className="prep-hero" onClick={handleNextQ}>
-          <div className="phero-tag">QUESTION {activeQuestion + 1} OF {flashcards.length} · {currentQ.topic}</div>
-          <div className="phero-q">{currentQ.question}</div>
-          <div className="phero-foot flex items-center justify-center gap-2">
-            Tap to see next question <GlassIcon icon="ArrowRight" variant="violet" size={20} iconSize={12} ghost glow={false} />
-          </div>
-        </div>
-      )}
-
-      {!prepLoading && (flashcards.length > 0 || focusAreas.length > 0) && (
-        <div className="prep-cols">
-          
-          {/* LEFT COL: Topics to Prepare */}
-          <div className="prep-col-card">
-            <div className="pcc-head">
-              <div className="pcc-title">Topics to Prepare</div>
-              <div className="ctag violet">Role Specific</div>
-            </div>
-            <div className="pcc-list">
-              {focusAreas.length > 0 ? focusAreas.map((area: any, idx: number) => {
-                return (
-                  <div key={idx} className="ptopic-item">
-                    <div className="pti-top">
-                      <div className="pti-name">
-                        <div className="pti-ico"><GlassIcon icon="Lightbulb" variant="amber" size={24} iconSize={12} ghost glow={false} /></div>
-                        {area.topic}
-                      </div>
-                    </div>
-                    <div className="pti-sub">{area.reason || "AI Recommended Focus Area"}</div>
-                  </div>
-                )
-              }) : (
-                <div className="text-[var(--text-lite)] text-sm">No specific topics generated.</div>
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT COL: AI Practice Questions */}
-          <div className="prep-col-card">
-            <div className="pcc-head">
-              <div className="pcc-title">AI Practice Questions</div>
-            </div>
-            <div className="pcc-list">
-              {flashcards.map((card, idx) => (
-                <div key={idx} className="pprac-item">
-                  <div className="pti-ico flex items-center justify-center">
-                    <GlassIcon icon="Sparkles" variant="violet" size={24} iconSize={12} ghost glow={false} />
-                  </div>
-                  <div className="ppi-content">
-                    <div className="ppi-q">{card.question}</div>
-                    <div className="ppi-tag">{card.topic}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* Fallback if somehow no prep data could be generated and not loading */}
-      {!flashcards.length && !prepLoading && (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-mid)', marginBottom: 20 }}>
-          No prep materials available.
-        </div>
-      )}
-
     </div>
   )
 }

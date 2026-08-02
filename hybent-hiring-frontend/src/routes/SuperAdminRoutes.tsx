@@ -1,7 +1,8 @@
 import { Routes, Route } from 'react-router-dom'
-import React, { lazy } from 'react'
+import { lazy } from 'react'
 
-const SuperAdminLayout = lazy(() => import('@/components/layout/SuperAdminLayout').then(m => ({ default: m.SuperAdminLayout })))
+/* Phase 10: the Hybent shell is the only shell. */
+const Shell = lazy(() => import('@/components/layout/shell/AppShell').then(m => ({ default: m.SuperAdminShell })))
 const SuperAdminDashboard = lazy(() => import('@/modules/super_admin/pages/DashboardPage'))
 const SuperAdminAnalytics = lazy(() => import('@/modules/super_admin/pages/AnalyticsPage'))
 const SuperAdminClients = lazy(() => import('@/modules/super_admin/pages/ClientsPage'))
@@ -17,7 +18,7 @@ const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePa
 export default function SuperAdminRoutes() {
   return (
     <Routes>
-      <Route element={<SuperAdminLayout />}>
+      <Route element={<Shell />}>
         <Route index element={<SuperAdminDashboard />} />
         <Route path="analytics" element={<SuperAdminAnalytics />} />
         <Route path="clients" element={<SuperAdminClients />} />

@@ -1,47 +1,60 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import toast from 'react-hot-toast'
+import { MessageSquare, Plus, Users } from 'lucide-react'
+
 import { adminApi } from '@/api/admin'
-import { candidatesApi } from '@/api/candidates'
-import type { User, UserRole } from '@/types'
-import { Button } from '@/components/ui/Button'
-import { Avatar } from '@/components/ui/Avatar'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Modal } from '@/components/ui/Modal'
-import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
+import type { User } from '@/types'
 import { useAuthStore } from '@/store/authStore'
 import { useMessageStore } from '@/store/messageStore'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  ConfirmDialog,
+  Dialog,
+  EmptyState,
+  Input,
+  PageHeader,
+  Select,
+  Skeleton,
+} from '@/components/hb'
 
-import toast from 'react-hot-toast'
+/**
+ * The admin's view of everyone inside the organisation.
+ *
+ * Rebuilt on the design system in phase 9. Three things beyond appearance:
+ *
+ * - `RoleBadge` and its three-hex `ROLE_STYLE` map were defined at the top of
+ *   the file and never rendered, so a page called "Team" showed no roles at
+ *   all — you could not tell an admin from an interviewer. The role is now on
+ *   every row, as a `Badge`.
+ * - The row hover wrote `element.style.borderColor` from two mouse handlers,
+ *   which is the hover state `Card variant="interactive"` already provides and
+ *   which never fired for keyboard users.
+ * - The "Message" button drew its chat bubble as a hand-written inline `<svg>`
+ *   path while the rest of the product uses lucide.
+ */
 
-// ─── Role badge ───────────────────────────────────────────────────────────────
-const ROLE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  admin:       { bg: 'rgba(108,71,255,0.10)', color: '#6c47ff', label: 'Admin' },
-  recruiter:   { bg: 'rgba(59,130,246,0.10)', color: '#2563eb', label: 'HR / Recruiter' },
-  interviewer: { bg: 'rgba(251,191,36,0.10)', color: '#d97706', label: 'Interviewer' },
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Admin',
+  recruiter: 'HR / Recruiter',
+  interviewer: 'Interviewer',
 }
 
-function RoleBadge({ role }: { role: string }) {
-  const s = ROLE_STYLE[role] ?? { bg: 'rgba(107,114,128,0.10)', color: '#6b7280', label: role }
-  return (
-    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color }}>
-      {s.label}
-    </span>
-  )
-}
-
-// ─── Invite modal ─────────────────────────────────────────────────────────────
 const ROLES = [
-  { value: '', label: 'Select role' },
   { value: 'admin', label: 'Admin' },
   { value: 'recruiter', label: 'HR / Recruiter' },
   { value: 'interviewer', label: 'Interviewer' },
 ]
+
+// ─── Invite dialog ────────────────────────────────────────────────────────────
 
 const inviteSchema = z.object({
   full_name: z.string().min(2, 'Name required'),
@@ -51,7 +64,7 @@ const inviteSchema = z.object({
 })
 type InviteForm = z.infer<typeof inviteSchema>
 
-function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function InviteDialog({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm<InviteForm>({
     resolver: zodResolver(inviteSchema),
   })
@@ -59,39 +72,80 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     mutationFn: (data: InviteForm) => adminApi.inviteUser(data),
     onSuccess,
   })
+
   return (
-    <Modal open onClose={onClose} title="Invite To Teams" size="sm">
-      <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-        <Input label="Full Name" placeholder="Jane Smith" error={errors.full_name?.message} {...register('full_name')} />
-        <Input label="Email" type="email" placeholder="jane@company.com" error={errors.email?.message} {...register('email')} />
-        <Controller name="role" control={control} render={({ field }) => (
-          <Select label="Role" options={ROLES} error={errors.role?.message} {...field} />
-        )} />
-        <Input label="Temporary Password" type="password" placeholder="Min 8 characters" error={errors.password?.message} {...register('password')} />
-        {mutation.isError && <p className="text-sm text-red-500">Failed to invite user. Email may already be registered.</p>}
-        <div className="flex gap-3 justify-end pt-2">
-          <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting || mutation.isPending}>Send Invite</Button>
-        </div>
+    <Dialog
+      open
+      onClose={onClose}
+      title="Invite a team member"
+      description="They will be able to sign in with the temporary password you set here."
+      size="sm"
+      footer={
+        <>
+          <Button variant="quiet" size="sm" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            type="submit"
+            form="invite-member"
+            loading={isSubmitting || mutation.isPending}
+          >
+            Send invite
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="invite-member"
+        onSubmit={handleSubmit((d) => mutation.mutate(d))}
+        className="space-y-hb-4"
+      >
+        <Input
+          label="Full name"
+          placeholder="Jane Smith"
+          error={errors.full_name?.message}
+          {...register('full_name')}
+        />
+        <Input
+          label="Email"
+          type="email"
+          placeholder="jane@company.com"
+          error={errors.email?.message}
+          {...register('email')}
+        />
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Role"
+              placeholder="Select role"
+              options={ROLES}
+              error={errors.role?.message}
+              {...field}
+            />
+          )}
+        />
+        <Input
+          label="Temporary password"
+          type="password"
+          placeholder="Min 8 characters"
+          error={errors.password?.message}
+          {...register('password')}
+        />
+        {mutation.isError && (
+          <p role="alert" className="text-hb-sm text-hb-error">
+            Failed to invite user. The email may already be registered.
+          </p>
+        )}
       </form>
-    </Modal>
+    </Dialog>
   )
 }
 
-// ─── Section heading ──────────────────────────────────────────────────────────
-function SectionHeading({ title, count, subtitle }: { title: string; count: number; subtitle: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>{title}</h2>
-      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--violet)', background: 'rgba(108,71,255,0.08)', padding: '2px 8px', borderRadius: 20 }}>
-        {count}
-      </span>
-      <span style={{ fontSize: 12, color: 'var(--text-light)', marginLeft: 2 }}>{subtitle}</span>
-    </div>
-  )
-}
+// ─── Main page ────────────────────────────────────────────────────────────────
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TeamManagementPage() {
   const queryClient = useQueryClient()
   const { user: currentUser } = useAuthStore()
@@ -99,10 +153,8 @@ export default function TeamManagementPage() {
   const [toggleTarget, setToggleTarget] = useState<User | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
   const openChat = useMessageStore(s => s.openChat)
-  // Team members (admin + recruiter + interviewer)
 
-  // Team members (admin + recruiter + interviewer)
-  const { data: users, isLoading: usersLoading } = useQuery({
+  const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => adminApi.listUsers().then((r) => r.data),
   })
@@ -130,201 +182,177 @@ export default function TeamManagementPage() {
     onError: () => toast.error('Failed to delete user'),
   })
 
-  const isLoading = usersLoading
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <header className="page-header !mb-0">
-          <h1 className="page-title">
-            Team
-          </h1>
-          <p className="page-subtitle">
-            Your internal teams (Admins, HR Recruiters & Interviewers)
-          </p>
-        </header>
-        {currentUser?.role === 'admin' && (
-          <button
-            onClick={() => setShowInvite(true)}
-            className="btn-primary-gradient"
-            style={{ padding: '10px 20px', borderRadius: 12 }}
-          >
-            + Invite Member
-          </button>
-        )}
-      </div>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Admin"
+        title="Team"
+        description="Everyone inside your organisation — admins, HR recruiters and interviewers."
+        actions={
+          currentUser?.role === 'admin' ? (
+            <Button icon={<Plus size={15} />} onClick={() => setShowInvite(true)}>
+              Invite member
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', borderRadius: 14, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)' }}>
-              <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-56" />
-              </div>
-              <Skeleton className="h-6 w-24 rounded-full" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <>
-          {/* ── Section 1: Internal Team ── */}
-          <div>
-            <SectionHeading
-              title="Team"
-              count={teamMembers.length}
-              subtitle="Admins, HR Recruiters & Interviewers"
-            />
-            {teamMembers.length === 0 ? (
-              <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                <p style={{ fontSize: 13, color: 'var(--text-light)' }}>No members in teams yet. Invite someone to get started.</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {teamMembers.map((member, i) => (
-                  <motion.div
-                    key={member.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="flex flex-col sm:flex-row sm:items-center items-start gap-4 p-4 md:p-[14px_20px] rounded-2xl bg-[var(--kpi-bg)] border border-[var(--table-border)] transition-all w-full"
-                    style={{
-                      transition: 'border-color 0.15s',
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(108,71,255,0.25)' }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--table-border)' }}
+      <Card padding="loose">
+        <CardHeader
+          title="Members"
+          subtitle="Admins, HR recruiters and interviewers."
+          action={!isLoading ? <Badge tone="info">{teamMembers.length}</Badge> : undefined}
+        />
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-[74px] w-full" rounded="md" />
+            ))}
+          </div>
+        ) : teamMembers.length === 0 ? (
+          <EmptyState
+            icon={<Users />}
+            title="No members yet"
+            description="Invite someone to get started."
+            action={
+              currentUser?.role === 'admin'
+                ? { label: 'Invite member', onClick: () => setShowInvite(true) }
+                : undefined
+            }
+          />
+        ) : (
+          <ul className="space-y-2">
+            {teamMembers.map((member, i) => {
+              const isSelf = currentUser?.id === member.id
+              const canManage = currentUser?.role === 'admin' && !isSelf
+
+              return (
+                <motion.li
+                  key={member.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <Card
+                    variant="interactive"
+                    padding="compact"
+                    className="flex flex-col items-start gap-hb-3 sm:flex-row sm:items-center"
                   >
-                    {/* Avatar and Info wrapper to stay horizontal on mobile */}
-                    <div className="flex items-center gap-3.5 w-full sm:w-auto flex-1 min-w-0">
-                      {/* Avatar with online dot */}
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div className="flex w-full min-w-0 flex-1 items-center gap-3.5">
+                      <span className="relative shrink-0">
                         <Avatar name={member.full_name} src={member.avatar_url} size="md" />
-                        <span style={{
-                          position: 'absolute', bottom: -1, right: -1,
-                          width: 11, height: 11, borderRadius: '50%',
-                          background: member.is_active ? '#10b981' : '#9ca3af',
-                          border: '2px solid var(--kpi-bg)',
-                        }} />
-                      </div>
+                        <span
+                          title={member.is_active ? 'Active' : 'Deactivated'}
+                          className={`absolute -bottom-px -right-px h-3 w-3 rounded-full border-2 border-hb-surface ${
+                            member.is_active ? 'bg-hb-success' : 'bg-hb-dim'
+                          }`}
+                        >
+                          <span className="sr-only">
+                            {member.is_active ? 'Active' : 'Deactivated'}
+                          </span>
+                        </span>
+                      </span>
 
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{member.full_name}</p>
-                          {currentUser?.id === member.id && (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--violet)', background: 'rgba(108,71,255,0.08)', padding: '1px 6px', borderRadius: 20 }}>you</span>
-                          )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-hb-sm font-semibold text-hb-text">
+                            {member.full_name}
+                          </p>
+                          {isSelf && <Badge tone="brand">You</Badge>}
+                          <Badge>{ROLE_LABEL[member.role] ?? member.role}</Badge>
                         </div>
-                        <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 1 }}>{member.email}</p>
+                        <p className="mt-0.5 truncate text-hb-xs text-hb-muted">{member.email}</p>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start mt-2 sm:mt-0 pl-[54px] sm:pl-0">
-                      {currentUser?.id !== member.id && member.is_active && (
-                        <button
-                          onClick={() => openChat({
-                            id: member.id,
-                            full_name: member.full_name,
-                            avatar_url: member.avatar_url
-                          })}
-                          style={{
-                            padding: '6px 10px', borderRadius: 8, border: 'none',
-                            fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                            background: 'var(--violet)', color: 'white',
-                            display: 'flex', alignItems: 'center', gap: 4,
-                            boxShadow: '0 4px 12px rgba(108,71,255,0.2)'
-                          }}
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 pl-[54px] sm:w-auto sm:pl-0">
+                      {!isSelf && member.is_active && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<MessageSquare size={14} />}
+                          onClick={() =>
+                            openChat({
+                              id: member.id,
+                              full_name: member.full_name,
+                              avatar_url: member.avatar_url,
+                            })
+                          }
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
                           Message
-                        </button>
+                        </Button>
                       )}
 
-                      {/* Toggle active action - Admin only */}
-                      {currentUser?.role === 'admin' && currentUser?.id !== member.id && (
+                      {canManage && (
                         <>
-                          <button
+                          <Button
+                            size="sm"
+                            variant={member.is_active ? 'danger' : 'ghost'}
                             onClick={() => setToggleTarget(member)}
-                            style={{
-                              padding: '5px 12px', borderRadius: 8, border: '1px solid',
-                              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                              background: 'transparent',
-                              color: member.is_active ? '#ef4444' : '#059669',
-                              borderColor: member.is_active ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)',
-                            }}
                           >
                             {member.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
+                          </Button>
 
-                          {/* Delete action - Admin only, visible only if deactivated */}
+                          {/* Deletion is permanent, so it is only offered once
+                              the softer step — deactivation — has been taken. */}
                           {!member.is_active && (
-                            <button
+                            <Button
+                              size="sm"
+                              variant="danger"
                               onClick={() => setDeleteTarget(member)}
-                              style={{
-                                padding: '5px 12px', borderRadius: 8, border: '1px solid',
-                                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                background: 'transparent',
-                                color: '#ef4444',
-                                borderColor: 'rgba(239,68,68,0.25)',
-                              }}
                             >
                               Delete
-                            </button>
+                            </Button>
                           )}
                         </>
                       )}
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
+                  </Card>
+                </motion.li>
+              )
+            })}
+          </ul>
+        )}
+      </Card>
 
-        </>
-      )}
-
-      {/* Invite Modal */}
       {showInvite && (
-        <InviteModal
+        <InviteDialog
           onClose={() => setShowInvite(false)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['users'] })
             setShowInvite(false)
-            toast.success('Invitation sent successfully!')
+            toast.success('Invitation sent successfully')
           }}
         />
       )}
 
-      {/* Toggle Confirm */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!toggleTarget}
         onClose={() => setToggleTarget(null)}
-        onConfirm={() => toggleTarget && toggleActiveMutation.mutate({ id: toggleTarget.id, is_active: !toggleTarget.is_active })}
-        title={toggleTarget?.is_active ? 'Deactivate User' : 'Activate User'}
-        message={
+        onConfirm={() =>
+          toggleTarget &&
+          toggleActiveMutation.mutate({ id: toggleTarget.id, is_active: !toggleTarget.is_active })
+        }
+        title={toggleTarget?.is_active ? 'Deactivate user' : 'Activate user'}
+        description={
           toggleTarget?.is_active
             ? `Deactivate ${toggleTarget?.full_name}? They will no longer be able to log in.`
             : `Reactivate ${toggleTarget?.full_name}? They will regain access to the platform.`
         }
-        confirmText={toggleTarget?.is_active ? 'Deactivate' : 'Activate'}
-        danger={toggleTarget?.is_active}
+        confirmLabel={toggleTarget?.is_active ? 'Deactivate' : 'Activate'}
+        destructive={toggleTarget?.is_active}
         loading={toggleActiveMutation.isPending}
       />
 
-      {/* Delete Confirm */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-        title="Delete User"
-        message={`Are you sure you want to permanently delete ${deleteTarget?.full_name}? This action cannot be undone.`}
-        confirmText="Delete Permanently"
-        danger={true}
+        title="Delete user"
+        description={`Permanently delete ${deleteTarget?.full_name}? This cannot be undone.`}
+        confirmLabel="Delete permanently"
+        destructive
         loading={deleteMutation.isPending}
       />
     </div>

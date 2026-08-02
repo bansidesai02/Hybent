@@ -1,148 +1,165 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { 
-  BookOpen, 
-  Video, 
-  Lock, 
-  FileText, 
-  User, 
-  Sparkles, 
-  Mic, 
-  ClipboardCheck, 
-  ArrowLeft
+import toast from 'react-hot-toast'
+import {
+  BookOpen,
+  ClipboardCheck,
+  FileText,
+  Lock,
+  Mic,
+  Sparkles,
+  User,
+  Video,
 } from 'lucide-react'
+
 import { interviewsApi } from '@/api/interviews'
 import { applicationsApi } from '@/api/applications'
 import { candidatesApi } from '@/api/candidates'
-import { Card } from '@/components/ui/Card'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Avatar } from '@/components/ui/Avatar'
-import { useInterviewStore, CHECKLIST_CRITERIA } from '@/store/interviewStore'
+import { CHECKLIST_CRITERIA, useInterviewStore } from '@/store/interviewStore'
 import { useAuthStore } from '@/store/authStore'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Checkbox,
+  EmptyState,
+  Meter,
+  PageHeader,
+  Skeleton,
+} from '@/components/hb'
 
-// ─── Question Generator ────────────────────────────────────────────────────────
+/**
+ * The prep kit for one interview: who you are about to meet, a question bank,
+ * and the checklist that unlocks the meeting link.
+ *
+ * Rebuilt on the design system in phase 8. Three things beyond appearance:
+ *
+ * - Both action buttons pointed at `/interviewer/...`, dropping the `/hiring`
+ *   prefix the whole workspace is mounted under, so "Start interview mode" and
+ *   "Scorecard" both landed on the marketing homepage.
+ * - `generateQuestions` was called with a hardcoded empty skill list, which
+ *   made the entire fourteen-skill bank below dead code — every interviewer saw
+ *   the same four generic questions no matter who they were interviewing. The
+ *   candidate's skills were already loaded on this page for the chips.
+ * - Each question carried a `tagColor` hex, so eight tags were painted in seven
+ *   colours that encoded nothing the tag text did not already say.
+ */
+
+/* ─── Question bank ────────────────────────────────────────────────────────── */
 
 interface Question {
   text: string
   tag: string
-  tagColor: string
 }
 
 const SKILL_QUESTIONS: Record<string, Question[]> = {
   react: [
-    { text: 'How do you manage complex state in React — when do you pick Redux vs Context vs Zustand?', tag: 'State Management', tagColor: '#6c47ff' },
-    { text: 'Explain how React reconciliation works and how you\'ve optimized renders in production.', tag: 'React Deep Dive', tagColor: '#6c47ff' },
+    { text: 'How do you manage complex state in React — when do you pick Redux vs Context vs Zustand?', tag: 'State management' },
+    { text: "Explain how React reconciliation works and how you've optimized renders in production.", tag: 'React deep dive' },
   ],
   typescript: [
-    { text: 'How has TypeScript\'s strict mode caught real bugs in your codebase? Walk me through a specific example.', tag: 'TypeScript', tagColor: '#3b82f6' },
-    { text: 'Explain generic types and how you\'ve used them to build reusable utilities or components.', tag: 'TypeScript', tagColor: '#3b82f6' },
+    { text: "How has TypeScript's strict mode caught real bugs in your codebase? Walk me through a specific example.", tag: 'TypeScript' },
+    { text: "Explain generic types and how you've used them to build reusable utilities or components.", tag: 'TypeScript' },
   ],
   python: [
-    { text: 'How do you approach async programming in Python — asyncio vs threading vs multiprocessing?', tag: 'Python', tagColor: '#f59e0b' },
-    { text: 'Walk me through your experience with Python type hints and static analysis in production.', tag: 'Python', tagColor: '#f59e0b' },
+    { text: 'How do you approach async programming in Python — asyncio vs threading vs multiprocessing?', tag: 'Python' },
+    { text: 'Walk me through your experience with Python type hints and static analysis in production.', tag: 'Python' },
   ],
   fastapi: [
-    { text: 'How have you structured a FastAPI application for scale — routers, dependencies, middleware?', tag: 'Backend', tagColor: '#10b981' },
+    { text: 'How have you structured a FastAPI application for scale — routers, dependencies, middleware?', tag: 'Backend' },
   ],
   django: [
-    { text: 'Describe how you\'ve optimized Django ORM queries in a high-traffic application.', tag: 'Backend', tagColor: '#10b981' },
+    { text: "Describe how you've optimized Django ORM queries in a high-traffic application.", tag: 'Backend' },
   ],
   nodejs: [
-    { text: 'How do you handle backpressure and memory leaks in a Node.js backend under heavy load?', tag: 'Backend', tagColor: '#10b981' },
+    { text: 'How do you handle backpressure and memory leaks in a Node.js backend under heavy load?', tag: 'Backend' },
   ],
   sql: [
-    { text: 'Walk me through a complex query optimization you\'ve done — indexes, execution plans, partitioning.', tag: 'Database', tagColor: '#8b5cf6' },
+    { text: "Walk me through a complex query optimization you've done — indexes, execution plans, partitioning.", tag: 'Database' },
   ],
   postgresql: [
-    { text: 'How have you used PostgreSQL-specific features (CTEs, window functions, JSONB) in production?', tag: 'Database', tagColor: '#8b5cf6' },
+    { text: 'How have you used PostgreSQL-specific features (CTEs, window functions, JSONB) in production?', tag: 'Database' },
   ],
   aws: [
-    { text: 'Describe your experience architecting on AWS — which services did you use and how did you handle cost optimization?', tag: 'Cloud', tagColor: '#f59e0b' },
+    { text: 'Describe your experience architecting on AWS — which services did you use and how did you handle cost optimization?', tag: 'Cloud' },
   ],
   docker: [
-    { text: 'How have you structured Docker multi-stage builds and container orchestration in your projects?', tag: 'DevOps', tagColor: '#06b6d4' },
+    { text: 'How have you structured Docker multi-stage builds and container orchestration in your projects?', tag: 'DevOps' },
   ],
   kubernetes: [
-    { text: 'Walk me through a challenging Kubernetes deployment issue you debugged and resolved.', tag: 'DevOps', tagColor: '#06b6d4' },
+    { text: 'Walk me through a challenging Kubernetes deployment issue you debugged and resolved.', tag: 'DevOps' },
   ],
   nextjs: [
-    { text: 'Explain the difference between SSR, SSG, and ISR in Next.js — when do you use each?', tag: 'Frontend', tagColor: '#6c47ff' },
+    { text: 'Explain the difference between SSR, SSG, and ISR in Next.js — when do you use each?', tag: 'Frontend' },
   ],
   graphql: [
-    { text: 'How have you handled N+1 query problems in a GraphQL API? Walk me through your solution.', tag: 'Backend', tagColor: '#10b981' },
+    { text: 'How have you handled N+1 query problems in a GraphQL API? Walk me through your solution.', tag: 'Backend' },
   ],
   redis: [
-    { text: 'How have you used Redis for caching, pub/sub, or session storage? Describe a specific use case.', tag: 'Infrastructure', tagColor: '#ef4444' },
+    { text: 'How have you used Redis for caching, pub/sub, or session storage? Describe a specific use case.', tag: 'Infrastructure' },
   ],
 }
+
+const SYSTEM_DESIGN: Question = {
+  text: 'Design a distributed system that needs to handle 1 million events per day with sub-second latency — walk me through your architecture decisions.',
+  tag: 'System design',
+}
+const TECHNICAL: Question = {
+  text: 'What does your ideal code review process look like? What do you look for as both an author and a reviewer?',
+  tag: 'Technical depth',
+}
+const CULTURE: Question[] = [
+  {
+    text: 'Tell me about a time you had a strong technical disagreement with a teammate. How did you resolve it and what did you learn?',
+    tag: 'Culture fit',
+  },
+  {
+    text: 'Describe a technical decision you made that turned out to be wrong. How did you course-correct?',
+    tag: 'Culture fit',
+  },
+]
 
 function generateQuestions(skills: string[], interviewType: string): Question[] {
   const result: Question[] = []
   const seen = new Set<string>()
 
+  const push = (q: Question) => {
+    if (seen.has(q.text)) return
+    seen.add(q.text)
+    result.push(q)
+  }
+
   skills.forEach((skill) => {
     const key = skill.toLowerCase().replace(/[^a-z]/g, '')
-    const qs = SKILL_QUESTIONS[key]
-    if (qs) {
-      qs.forEach((q) => {
-        if (!seen.has(q.text)) {
-          seen.add(q.text)
-          result.push(q)
-        }
-      })
-    }
+    SKILL_QUESTIONS[key]?.forEach(push)
   })
 
-  // Always add system design + behavioral
-  const systemDesign: Question = {
-    text: 'Design a distributed system that needs to handle 1 million events per day with sub-second latency — walk me through your architecture decisions.',
-    tag: 'System Design',
-    tagColor: '#8b5cf6',
-  }
-  const technical: Question = {
-    text: 'What does your ideal code review process look like? What do you look for as both an author and a reviewer?',
-    tag: 'Technical Depth',
-    tagColor: '#6c47ff',
-  }
-  const culture1: Question = {
-    text: 'Tell me about a time you had a strong technical disagreement with a teammate. How did you resolve it and what did you learn?',
-    tag: 'Culture Fit',
-    tagColor: '#00d4c8',
-  }
-  const culture2: Question = {
-    text: 'Describe a technical decision you made that turned out to be wrong. How did you course-correct?',
-    tag: 'Culture Fit',
-    tagColor: '#00d4c8',
-  }
-
-  if (!seen.has(systemDesign.text)) result.push(systemDesign)
-  if (interviewType === 'technical' || interviewType === 'final') {
-    if (!seen.has(technical.text)) result.push(technical)
-  }
-  if (!seen.has(culture1.text)) result.push(culture1)
-  if (!seen.has(culture2.text)) result.push(culture2)
+  push(SYSTEM_DESIGN)
+  if (interviewType === 'technical' || interviewType === 'final') push(TECHNICAL)
+  CULTURE.forEach(push)
 
   return result.slice(0, 8)
 }
 
-// No local CHECKLIST constant needed, using CHECKLIST_CRITERIA from store
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+/* ─── Page ─────────────────────────────────────────────────────────────────── */
 
 export default function PrepKitPage() {
   const { interviewId } = useParams<{ interviewId: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  
-  const toggleStep = useInterviewStore(s => s.toggleStep)
-  const checklists = useInterviewStore(s => s.checklists)
-  const isComplete = useInterviewStore(s => s.isComplete)
 
-  const interviewChecklist = checklists[interviewId!] || new Array(CHECKLIST_CRITERIA.length).fill(false)
-  const checkedCount = interviewChecklist.filter(Boolean).length
-  const isChecklistComplete = isComplete(interviewId!) || user?.role !== 'interviewer'
+  const toggleStep = useInterviewStore((s) => s.toggleStep)
+  const checklists = useInterviewStore((s) => s.checklists)
+  const isComplete = useInterviewStore((s) => s.isComplete)
+
+  const checked = checklists[interviewId!] ?? new Array(CHECKLIST_CRITERIA.length).fill(false)
+  const checkedCount = checked.filter(Boolean).length
+  /* The gate is for interviewers. A recruiter or admin sitting in on the round
+     can always open the link. */
+  const unlocked = isComplete(interviewId!) || user?.role !== 'interviewer'
 
   const { data: interview, isLoading: intLoading } = useQuery({
     queryKey: ['interview', interviewId],
@@ -158,23 +175,39 @@ export default function PrepKitPage() {
 
   const candidate = application?.candidate
   const isLoading = intLoading || appLoading
+  const skills = candidate?.skills ?? []
+  const questions = interview ? generateQuestions(skills, interview.interview_type) : []
 
-
-
-  const questions = interview ? generateQuestions([], interview.interview_type) : []
+  async function openResume() {
+    if (!candidate) return
+    if (candidate.resume_storage_path) {
+      try {
+        const res = await candidatesApi.getResumeUrl(candidate.id ?? '')
+        const data = (res.data as any)?.data ?? res.data
+        if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+        else toast.error('Could not load resume. Please try again.')
+      } catch {
+        toast.error('Could not load resume. Please try again.')
+      }
+      return
+    }
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
+    const url = candidate.resume_url!.startsWith('http')
+      ? candidate.resume_url!
+      : `${base}${candidate.resume_url}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
 
   if (isLoading) {
     return (
-      <div style={{ maxWidth: 980, margin: '0 auto' }}>
-        <Skeleton className="h-10 w-64 mb-6" />
-        <div className="grid md:grid-cols-5 gap-6">
-          <div className="md:col-span-2 space-y-4">
-            <Skeleton className="h-56 rounded-2xl" />
-            <Skeleton className="h-64 rounded-2xl" />
+      <div className="pb-hb-10">
+        <Skeleton className="mb-hb-6 h-12 w-72" rounded="md" />
+        <div className="grid gap-hb-5 md:grid-cols-5">
+          <div className="space-y-hb-4 md:col-span-2">
+            <Skeleton className="h-56 w-full" rounded="md" />
+            <Skeleton className="h-64 w-full" rounded="md" />
           </div>
-          <div className="md:col-span-3">
-            <Skeleton className="h-[480px] rounded-2xl" />
-          </div>
+          <Skeleton className="h-[480px] w-full md:col-span-3" rounded="md" />
         </div>
       </div>
     )
@@ -182,312 +215,219 @@ export default function PrepKitPage() {
 
   if (!interview) {
     return (
-      <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-lite)' }}>
-        Interview not found.
+      <div className="pb-hb-10">
+        <Card padding="none">
+          <EmptyState
+            icon={<BookOpen />}
+            title="Interview not found"
+            description="This interview may have been cancelled or reassigned."
+            size="page"
+            action={{
+              label: 'Back to my interviews',
+              onClick: () => navigate('/hiring/interviewer/interviews'),
+            }}
+          />
+        </Card>
       </div>
     )
   }
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="pb-hb-10">
+      <PageHeader
+        breadcrumbs={[
+          { label: 'My interviews', to: '/hiring/interviewer/interviews' },
+          { label: 'Prep kit' },
+        ]}
+        eyebrow="Prep kit"
+        title="Interview prep kit"
+        description={`${interview.title || 'General interview'} · questions tailored to ${
+          skills.length > 0 ? "the candidate's skills" : 'the standard bank'
+        }.`}
+        actions={
+          interview.meeting_link ? (
+            unlocked ? (
+              <Button
+                icon={<Video size={15} />}
+                href={interview.meeting_link}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Join Google Meet
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                icon={<Lock size={14} />}
+                disabled
+                title={`Complete all ${CHECKLIST_CRITERIA.length} checklist items to unlock the meeting link`}
+              >
+                Link locked
+              </Button>
+            )
+          ) : undefined
+        }
+      />
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <button
-          onClick={() => navigate('/hiring/interviewer/interviews')}
-          style={{
-            width: 36, height: 36, borderRadius: 10, border: '1px solid var(--input-border)',
-            background: 'var(--input-bg)', cursor: 'pointer', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', color: 'var(--text-mid)', flexShrink: 0,
-          }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)', fontFamily: "'Poppins', sans-serif", lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <BookOpen size={22} className="text-[var(--violet)]" /> Interview Prep Kit
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2 }}>
-            {interview.title} · Suggested questions from standard interview bank
-          </p>
-        </div>
-        {interview.meeting_link && (
-          isChecklistComplete ? (
-            <a href={interview.meeting_link} target="_blank" rel="noreferrer">
-              <button style={{
-                display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px',
-                borderRadius: 8, background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.30)',
-                color: '#059669', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
-              }}>
-                <Video size={14} /> Google Meet
-              </button>
-            </a>
-          ) : (
-            <button 
-              onClick={() => {}}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px',
-                borderRadius: 8, background: 'var(--input-bg)', border: '1.5px solid var(--input-border)',
-                color: 'var(--text-lite)', fontSize: 12, fontWeight: 700, cursor: 'not-allowed', fontFamily: "'Sora', sans-serif",
-                opacity: 0.6
-              }}
-              title="Complete checklist to unlock link"
-            >
-              <Lock size={14} /> Link Locked
-            </button>
-          )
-        )}
-      </div>
+      <div className="grid gap-hb-5 md:grid-cols-5">
+        {/* ── Left: who you are meeting, and what to do first ─────────────── */}
+        <div className="space-y-hb-4 md:col-span-2">
+          <Card padding="default">
+            <CardHeader title="Candidate snapshot" />
 
-      {/* ── Body ────────────────────────────────────────────────────────── */}
-      <div className="grid md:grid-cols-5 gap-6">
-
-        {/* Left Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="md:col-span-2">
-
-          {/* Candidate Snapshot */}
-          <Card>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 12 }}>
-              Candidate Snapshot
-            </p>
             {candidate ? (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                  <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{candidate.full_name}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-mid)' }}>{candidate.current_title ?? 'Candidate'}</p>
-                    {candidate.current_company && (
-                      <p style={{ fontSize: 11, color: 'var(--text-lite)' }}>{candidate.current_company}</p>
-                    )}
+              <div className="space-y-hb-4">
+                <div className="flex items-center gap-3">
+                  <Avatar name={candidate.full_name} src={candidate.avatar_url} size="lg" />
+                  <div className="min-w-0">
+                    <p className="truncate text-hb-body font-semibold text-hb-text">
+                      {candidate.full_name}
+                    </p>
+                    <p className="truncate text-hb-xs text-hb-muted">
+                      {candidate.current_title ?? 'Candidate'}
+                      {candidate.current_company ? ` · ${candidate.current_company}` : ''}
+                    </p>
                   </div>
                 </div>
 
                 {(candidate.years_experience != null || candidate.relevant_experience) && (
-                  <p style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 10 }}>
-                    <span style={{ fontWeight: 600 }}>Experience:</span> {candidate.years_experience != null ? `${candidate.years_experience} years` : candidate.relevant_experience}
+                  <p className="text-hb-sm text-hb-muted">
+                    <span className="font-semibold text-hb-text">Experience: </span>
+                    {candidate.years_experience != null
+                      ? `${candidate.years_experience} years`
+                      : candidate.relevant_experience}
                   </p>
                 )}
 
-                {candidate.skills?.length > 0 && (
+                {skills.length > 0 && (
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 7 }}>Skills</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {candidate.skills.slice(0, 12).map((skill) => (
-                        <span key={skill} style={{
-                          fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                          background: 'rgba(108,71,255,0.08)', color: '#6c47ff',
-                          border: '1px solid rgba(108,71,255,0.15)',
-                        }}>
-                          {skill}
-                        </span>
+                    <p className="mb-2 font-mono text-hb-label uppercase text-hb-dim">Skills</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {skills.slice(0, 12).map((skill) => (
+                        <Badge key={skill}>{skill}</Badge>
                       ))}
                     </div>
                   </div>
                 )}
 
-
                 {(candidate.resume_storage_path || candidate.resume_url) && (
-                  <button
-                    onClick={async () => {
-                      if (candidate.resume_storage_path) {
-                        try {
-                          const { candidatesApi } = await import('@/api/candidates')
-                          const res = await candidatesApi.getResumeUrl(candidate.id ?? '')
-                          const data = (res.data as any)?.data ?? res.data
-                          if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
-                        } catch { alert('Could not load resume. Please try again.') }
-                      } else {
-                        const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
-                        const url = candidate.resume_url!.startsWith('http')
-                          ? candidate.resume_url!
-                          : `${baseUrl}${candidate.resume_url}`
-                        window.open(url, '_blank', 'noopener,noreferrer')
-                      }
-                    }}
-                    style={{
-                      width: '100%', padding: '8px', borderRadius: 8, border: '1.5px solid rgba(108,71,255,0.25)',
-                      background: 'rgba(108,71,255,0.05)', color: '#6c47ff', fontSize: 12,
-                      fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      marginTop: 12,
-                    }}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<FileText size={14} />}
+                    onClick={openResume}
+                    className="w-full"
                   >
-                    <FileText size={14} /> View Resume
-                  </button>
+                    View résumé
+                  </Button>
                 )}
               </div>
             ) : (
-              <div style={{ padding: '16px 0', textAlign: 'center' }}>
-                <p style={{ fontSize: 22, color: 'var(--text-mid)', display: 'flex', justifyContent: 'center' }}><User size={32} /></p>
-                <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 6, fontWeight: 600 }}>
-                  {interview.candidate_name ?? 'Candidate'}
-                </p>
-                <p style={{ fontSize: 11, color: 'var(--text-lite)', marginTop: 3 }}>
-                  Detailed profile unavailable
-                </p>
-              </div>
+              <EmptyState
+                icon={<User />}
+                title={interview.candidate_name ?? 'Candidate'}
+                description="Detailed profile unavailable for this round."
+              />
             )}
           </Card>
 
-          {/* Pre-Interview Checklist */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Pre-Interview Checklist
-              </p>
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                background: checkedCount === CHECKLIST_CRITERIA.length ? 'rgba(16,185,129,0.12)' : 'rgba(108,71,255,0.09)',
-                color: checkedCount === CHECKLIST_CRITERIA.length ? '#059669' : '#6c47ff',
-              }}>
-                {checkedCount}/{CHECKLIST_CRITERIA.length}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <Card padding="default">
+            <CardHeader
+              title="Pre-interview checklist"
+              action={
+                <Badge tone={checkedCount === CHECKLIST_CRITERIA.length ? 'success' : 'info'}>
+                  {checkedCount}/{CHECKLIST_CRITERIA.length}
+                </Badge>
+              }
+            />
+
+            <Meter
+              value={checkedCount}
+              max={CHECKLIST_CRITERIA.length}
+              tone={checkedCount === CHECKLIST_CRITERIA.length ? 'success' : 'brand'}
+              size="xs"
+              aria-label="Checklist progress"
+              className="mb-hb-4"
+            />
+
+            <div className="space-y-3">
               {CHECKLIST_CRITERIA.map((item, idx) => (
-                <label key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!interviewChecklist[idx]}
-                    onChange={() => toggleStep(interviewId!, idx)}
-                    style={{ accentColor: '#6c47ff', width: 14, height: 14, cursor: 'pointer', flexShrink: 0, marginTop: 1 }}
-                  />
-                  <span style={{
-                    fontSize: 12, color: interviewChecklist[idx] ? 'var(--text-lite)' : 'var(--text-mid)',
-                    fontWeight: interviewChecklist[idx] ? 400 : 500,
-                    textDecoration: interviewChecklist[idx] ? 'line-through' : 'none',
-                    lineHeight: 1.5, transition: 'all 0.15s',
-                  }}>
-                    {item}
-                  </span>
-                </label>
+                <Checkbox
+                  key={item}
+                  checked={!!checked[idx]}
+                  onChange={() => toggleStep(interviewId!, idx)}
+                  label={
+                    <span className={checked[idx] ? 'text-hb-dim line-through' : undefined}>
+                      {item}
+                    </span>
+                  }
+                />
               ))}
             </div>
           </Card>
-
         </div>
 
-        {/* Right Column: AI Questions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="md:col-span-3">
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BookOpen size={16} className="text-[var(--violet)]" /> Suggested Questions
-              </h3>
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                background: 'rgba(108,71,255,0.09)', color: '#6c47ff',
-                border: '1px solid rgba(108,71,255,0.18)', textTransform: 'uppercase', letterSpacing: '0.8px',
-              }}>
-                Standard Bank
-              </span>
-            </div>
+        {/* ── Right: the questions ────────────────────────────────────────── */}
+        <div className="space-y-hb-4 md:col-span-3">
+          <Card padding="default">
+            <CardHeader
+              title="Suggested questions"
+              subtitle={
+                skills.length > 0
+                  ? `Drawn from the candidate's listed skills and the ${interview.interview_type.replace(/_/g, ' ')} bank.`
+                  : 'The candidate listed no skills, so these come from the standard bank.'
+              }
+              action={<Badge>{questions.length} questions</Badge>}
+            />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            <ul className="space-y-2.5">
               {questions.map((q, idx) => (
-                <motion.div
-                  key={idx}
+                <motion.li
+                  key={q.text}
                   initial={{ opacity: 0, x: 10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.055 }}
-                  style={{
-                    display: 'flex', gap: 12, padding: '14px 16px',
-                    borderRadius: 12, background: 'rgba(108,71,255,0.03)',
-                    border: '1px solid var(--card-border)',
-                  }}
+                  className="flex gap-3 rounded-hb-md border border-hb-border bg-hb-surface-2 p-4"
                 >
-                  <div style={{
-                    width: 26, height: 26, borderRadius: 8,
-                    background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0,
-                  }}>
+                  <span
+                    aria-hidden
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-hb-sm bg-hb-grad font-mono text-hb-micro font-bold text-white"
+                  >
                     {idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-hb-sm leading-relaxed text-hb-text">{q.text}</p>
+                    <Badge className="mt-2">{q.tag}</Badge>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.65, fontWeight: 500 }}>
-                      {q.text}
-                    </p>
-                    <span style={{
-                      display: 'inline-block', marginTop: 8, fontSize: 10, fontWeight: 700,
-                      padding: '2px 8px', borderRadius: 6,
-                      color: q.tagColor, background: `${q.tagColor}15`,
-                      border: `1px solid ${q.tagColor}25`,
-                    }}>
-                      {q.tag}
-                    </span>
-                  </div>
-                </motion.div>
+                </motion.li>
               ))}
-            </div>
+            </ul>
           </Card>
 
-          {/* Action bar */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            {interview.meeting_link && (
-              isChecklistComplete ? (
-                <a href={interview.meeting_link} target="_blank" rel="noreferrer" style={{ flex: 1 }}>
-                  <button style={{
-                    width: '100%', padding: '11px 0', borderRadius: 10, border: 'none',
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Sora', sans-serif",
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
-                  }}>
-                    <Video size={14} /> Enter Google Meet
-                  </button>
-                </a>
-              ) : (
-                <div style={{ flex: 1, opacity: 0.5, cursor: 'not-allowed' }}>
-                  <button disabled style={{
-                    width: '100%', padding: '11px 0', borderRadius: 10, border: '1.5px solid var(--input-border)',
-                    background: 'var(--input-bg)',
-                    color: 'var(--text-lite)', fontSize: 13, fontWeight: 700, cursor: 'not-allowed',
-                    fontFamily: "'Sora', sans-serif",
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
-                  }}>
-                    <Video size={14} /> Enter Google Meet
-                  </button>
-                </div>
-              )
-            )}
-            <button
-              onClick={() => navigate(`/interviewer/live-room/${interviewId}`)}
-              style={{
-                flex: 1, padding: '11px 0', borderRadius: 10, border: 'none',
-                background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
-                color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'Sora', sans-serif",
-                boxShadow: '0 4px 14px rgba(108,71,255,0.28)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
-              }}
+          <div className="flex flex-wrap gap-2.5">
+            <Button
+              icon={<Mic size={15} />}
+              onClick={() => navigate(`/hiring/interviewer/live-room/${interviewId}`)}
+              className="flex-1"
             >
-              <Mic size={14} /> Start Interview Mode
-            </button>
-            <button
-              onClick={() => navigate(`/interviewer/scorecard/${interviewId}`)}
-              style={{
-                padding: '11px 18px', borderRadius: 10,
-                border: '1.5px solid rgba(108,71,255,0.30)',
-                background: 'none', color: '#6c47ff', fontSize: 13, fontWeight: 700,
-                cursor: 'pointer', fontFamily: "'Sora', sans-serif",
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7
-              }}
+              Start interview mode
+            </Button>
+            <Button
+              variant="ghost"
+              icon={<ClipboardCheck size={15} />}
+              onClick={() => navigate(`/hiring/interviewer/scorecard/${interviewId}`)}
             >
-              <ClipboardCheck size={14} /> Scorecard
-            </button>
+              Scorecard
+            </Button>
           </div>
 
-          {!isChecklistComplete && (
-            <p style={{
-              fontSize: 11, color: '#6c47ff', marginTop: 12, textAlign: 'center',
-              fontWeight: 600, background: 'rgba(108,71,255,0.06)', padding: '8px', borderRadius: 8
-            }}>
-              <Sparkles size={14} className="inline-block mr-1" /> Complete all {CHECKLIST_CRITERIA.length} checklist items to unlock the Google Meet link
+          {!unlocked && (
+            <p className="flex items-center justify-center gap-2 rounded-hb-md border border-hb-border bg-hb-surface-2 px-4 py-2.5 text-hb-xs text-hb-muted">
+              <Sparkles size={14} aria-hidden className="shrink-0 text-hb-cyan" />
+              Complete all {CHECKLIST_CRITERIA.length} checklist items to unlock the Google Meet
+              link.
             </p>
           )}
-
         </div>
       </div>
     </div>

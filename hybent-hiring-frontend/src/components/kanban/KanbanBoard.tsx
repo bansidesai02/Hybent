@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { candidatesApi } from '@/api/candidates'
 import { useNotificationStore } from '@/store/notificationStore'
 import toast from 'react-hot-toast'
+import { Sparkles } from 'lucide-react'
 
 const STAGES: ApplicationStage[] = ['applied', 'screening', 'interview', 'interviewed', 'offer', 'rejected']
 
@@ -58,29 +59,29 @@ export function KanbanBoard({ data, onCardClick }: KanbanBoardProps) {
           <div
             className={`${
               t.visible ? 'animate-enter' : 'animate-leave'
-            } max-w-md w-full bg-white dark:bg-[#1a1730] shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 border border-violet-100 dark:border-[#2a2550]`}
+            } pointer-events-auto flex w-full max-w-md rounded-hb-lg border border-hb-border bg-hb-elevated shadow-hb-3`}
           >
             <div className="flex-1 w-0 p-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0 pt-0.5">
-                  <div className="h-10 w-10 rounded-full bg-violet-50 dark:bg-[#201c3b] flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold text-lg">
-                    ✨
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-hb-blue/10 text-hb-cyan">
+                    <Sparkles size={18} aria-hidden />
                   </div>
                 </div>
                 <div className="ml-3 flex-1">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                  <p className="text-hb-sm font-semibold text-hb-text">
                     {title}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  <p className="mt-1 text-hb-xs text-hb-muted">
                     {message}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="flex border-l border-gray-100 dark:border-[#201c3b]">
+            <div className="flex border-l border-hb-border">
               <button
                 onClick={() => toast.dismiss(t.id)}
-                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-xs font-bold text-violet-600 hover:text-violet-500 dark:text-violet-400 focus:outline-none"
+                className="flex w-full items-center justify-center rounded-r-hb-lg border border-transparent p-4 text-hb-xs font-semibold text-hb-cyan transition-colors duration-hb hover:text-hb-text focus:outline-none"
               >
                 Close
               </button>

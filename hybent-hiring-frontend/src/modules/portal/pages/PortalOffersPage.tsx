@@ -1,15 +1,44 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import { Banknote, FileText, Inbox, Sparkles, Trophy, UserCheck } from 'lucide-react'
+
 import { portalApi } from '@/api/portal'
 import type { Offer } from '@/types'
-import { Modal } from '@/components/ui/Modal'
-import { Textarea } from '@/components/ui/Textarea'
-import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { formatDate, formatSalary } from '@/utils/formatters'
-import { GlassIcon } from '@/components/common/GlassIcon'
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  ConfirmDialog,
+  Dialog,
+  EmptyState,
+  IconTile,
+  PageHeader,
+  Skeleton,
+  Textarea,
+} from '@/components/hb'
 
-function DeclineModal({
+/**
+ * Pending offers, the compensation breakdown, and the documents that unlock
+ * after acceptance.
+ *
+ * Rebuilt on the design system in phase 7. Beyond appearance:
+ *
+ * - Accept/decline outcomes were reported with `window.alert`, which blocks
+ *   the tab and reads as a browser error. They are toasts now, like every
+ *   other mutation in the product.
+ * - The pending-offer banner (`.offer-banner`, two absolutely-positioned
+ *   `.ob-bg` layers) came from portal.css. It is the brand gradient now —
+ *   the one place in the portal loud treatment is earned, because an offer
+ *   is the moment the whole journey builds to.
+ * - The decline flow used a `Modal` from the legacy `components/ui` kit; it
+ *   is the design system's `Dialog` with a destructive footer.
+ */
+
+function DeclineDialog({
   offer,
   onClose,
   onConfirm,
@@ -22,47 +51,54 @@ function DeclineModal({
 }) {
   const [reason, setReason] = useState('')
   return (
-    <Modal open onClose={onClose} title="Decline Offer" size="sm">
-      <p style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 14 }}>
-        Are you sure you want to decline the offer for <strong>{offer.position_title}</strong>?
-      </p>
+    <Dialog
+      open
+      onClose={onClose}
+      title="Decline offer"
+      description={`Are you sure you want to decline the offer for ${offer.position_title}?`}
+      size="sm"
+      closeOnOverlayClick={false}
+      footer={
+        <>
+          <Button variant="quiet" size="sm" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="danger" size="sm" loading={loading} onClick={() => onConfirm(reason)}>
+            Decline offer
+          </Button>
+        </>
+      }
+    >
       <Textarea
         label="Reason (optional)"
-        placeholder="Let the recruiter know why you're declining..."
+        placeholder="Let the recruiter know why you're declining…"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         rows={3}
       />
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-        <button className="btn btn-outline" onClick={onClose}>Cancel</button>
-        <button
-          className="btn btn-primary"
-          style={{ background: 'var(--red)' }}
-          onClick={() => onConfirm(reason)}
-          disabled={loading}
-        >
-          {loading ? 'Declining…' : 'Decline Offer'}
-        </button>
-      </div>
-    </Modal>
+    </Dialog>
   )
 }
 
 function CtcRow({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px',
-      borderRadius: 10, background: highlight ? 'var(--sb-active)' : 'var(--sb-hover)',
-      borderBottom: '1px solid var(--border)', marginBottom: 4,
-    }}>
-      <span style={{ fontSize: 13, color: highlight ? 'var(--text)' : 'var(--text-mid)', fontWeight: highlight ? 700 : 500 }}>
+    <div
+      className={`flex items-center justify-between gap-4 rounded-hb-sm px-4 py-3 ${
+        highlight ? 'bg-hb-blue/8' : 'bg-hb-surface-2'
+      }`}
+    >
+      <span
+        className={`text-hb-sm ${highlight ? 'font-semibold text-hb-text' : 'text-hb-muted'}`}
+      >
         {label}
       </span>
-      <span style={{
-        fontSize: highlight ? 16 : 14, fontWeight: highlight ? 700 : 600,
-        color: highlight ? 'var(--brand)' : 'var(--text)',
-        fontFamily: highlight ? "'DM Serif Display', serif" : "'Space Grotesk', sans-serif"
-      }}>
+      <span
+        className={
+          highlight
+            ? 'hb-grad-text font-display text-hb-h3'
+            : 'font-mono text-hb-sm tabular-nums text-hb-text'
+        }
+      >
         {value}
       </span>
     </div>
@@ -85,91 +121,136 @@ function OfferCard({
   const total = (offer.base_salary ?? 0) + (offer.bonus ?? 0)
 
   return (
-    <div className="card" style={{ padding: isPending ? 0 : 20, overflow: 'hidden' }}>
-      
-      {isPending && (
-        <div className="offer-banner">
-          <div className="ob-bg"></div><div className="ob-bg ob-bg2"></div>
-          <div className="ob-content">
-            <div className="ob-tag" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <GlassIcon icon="Sparkles" variant="amber" size={18} iconSize={10} glow={false} />
-              Pending Offer
-            </div>
-            <div className="ob-title">{offer.position_title}</div>
-            <div className="ob-sub">
-              {formatSalary(offer.base_salary, null, offer.salary_currency)} / year {offer.equity ? '· Plus Equity' : ''}
-            </div>
-            {offer.expiry_date && (
-              <div style={{ fontSize: 12, opacity: 0.8, marginTop: 8 }}>
-                Expires {formatDate(offer.expiry_date)}
-              </div>
+    <Card padding="none" className="overflow-hidden">
+      {isPending ? (
+        <div className="bg-hb-grad-diag p-6 text-white">
+          <p className="inline-flex items-center gap-1.5 rounded-hb-full bg-white/15 px-3 py-1 font-mono text-hb-label uppercase">
+            <Sparkles size={12} aria-hidden />
+            Pending offer
+          </p>
+          <h3 className="mt-3 font-display text-hb-h2">{offer.position_title}</h3>
+          <p className="mt-1 text-hb-sm text-white/85">
+            {formatSalary(offer.base_salary, null, offer.salary_currency)} / year
+            {offer.equity ? ' · plus equity' : ''}
+          </p>
+          {offer.expiry_date && (
+            <p className="mt-2 text-hb-xs text-white/70">Expires {formatDate(offer.expiry_date)}</p>
+          )}
+          <div className="mt-hb-4 flex flex-wrap gap-2">
+            {/* White on the gradient: the two actions must read against the
+                banner, not the page. */}
+            <Button
+              onClick={onAccept}
+              className="!bg-white !bg-none !text-hb-blue hover:!bg-white/90"
+            >
+              Accept offer
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={onDecline}
+              className="!border-white/40 !text-white hover:!bg-white/10"
+            >
+              Decline
+            </Button>
+            {offer.pdf_url && (
+              <Button
+                variant="ghost"
+                icon={<FileText size={14} />}
+                href={offer.pdf_url}
+                target="_blank"
+                rel="noreferrer"
+                className="!border-white/40 !text-white hover:!bg-white/10"
+              >
+                View PDF
+              </Button>
             )}
-            <div className="ob-actions">
-              <button className="btn btn-primary" style={{ background: 'var(--green)', boxShadow: '0 4px 14px rgba(16,185,129,.3)' }} onClick={onAccept}>Accept Offer</button>
-              <button className="btn btn-outline" style={{ borderColor: 'rgba(255,255,255,.3)', color: '#fff' }} onClick={onDecline}>Decline</button>
-              {offer.pdf_url && (
-                <a href={offer.pdf_url} target="_blank" rel="noreferrer" className="btn btn-ghost" style={{ color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <GlassIcon icon="FileText" variant="gray" size={18} iconSize={10} glow={false} />
-                  View PDF
-                </a>
-              )}
-            </div>
           </div>
+        </div>
+      ) : (
+        <div className="flex items-start justify-between gap-4 border-b border-hb-border p-6 pb-4">
+          <div>
+            <h3 className="font-display text-hb-h3 text-hb-text">{offer.position_title}</h3>
+            <p className="mt-1 text-hb-xs text-hb-muted">
+              Status:{' '}
+              <Badge tone={isAccepted ? 'success' : isDeclined ? 'error' : 'neutral'}>
+                {offer.status}
+              </Badge>
+            </p>
+          </div>
+          {offer.pdf_url && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<FileText size={14} />}
+              href={offer.pdf_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              PDF
+            </Button>
+          )}
         </div>
       )}
 
-      <div style={{ padding: isPending ? 24 : 0 }}>
-        {!isPending && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700 }}>{offer.position_title}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-lite)' }}>Status: <span style={{ textTransform: 'capitalize', color: isAccepted ? 'var(--green)' : isDeclined ? 'var(--red)' : '' }}>{offer.status}</span></div>
-            </div>
-            {offer.pdf_url && (
-              <a href={offer.pdf_url} className="btn btn-outline btn-sm" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <GlassIcon icon="FileText" variant="gray" size={18} iconSize={10} glow={false} />
-                PDF
-              </a>
+      <div className="space-y-hb-4 p-6">
+        <div>
+          <p className="mb-2.5 font-mono text-hb-label uppercase text-hb-dim">
+            Compensation breakdown
+          </p>
+          <div className="space-y-1">
+            <CtcRow
+              label="Base salary"
+              value={formatSalary(offer.base_salary, null, offer.salary_currency)}
+            />
+            {offer.bonus != null && (
+              <CtcRow label="Bonus" value={formatSalary(offer.bonus, null, offer.salary_currency)} />
+            )}
+            {offer.equity && <CtcRow label="Equity" value={offer.equity} />}
+            {offer.start_date && <CtcRow label="Start date" value={formatDate(offer.start_date)} />}
+            {(offer.bonus != null || offer.equity) && (
+              <CtcRow
+                label="Total CTC (excl. equity)"
+                value={formatSalary(total, null, offer.salary_currency)}
+                highlight
+              />
             )}
           </div>
-        )}
-
-        <div style={{ marginBottom: 18 }}>
-          <div className="ctitle" style={{ fontSize: 12, letterSpacing: '1px' }}>COMPENSATION BREAKDOWN</div>
-          <CtcRow label="Base Salary" value={formatSalary(offer.base_salary, null, offer.salary_currency)} />
-          {offer.bonus != null && <CtcRow label="Bonus" value={formatSalary(offer.bonus, null, offer.salary_currency)} />}
-          {offer.equity && <CtcRow label="Equity" value={offer.equity} />}
-          {offer.start_date && <CtcRow label="Start Date" value={formatDate(offer.start_date)} />}
-          {(offer.bonus != null || offer.equity) && (
-            <CtcRow label="Total CTC (excl. equity)" value={formatSalary(total, null, offer.salary_currency)} highlight />
-          )}
         </div>
 
         {offer.benefits && (
-          <div style={{ marginBottom: 18 }}>
-            <div className="ctitle" style={{ fontSize: 12, letterSpacing: '1px' }}>BENEFITS</div>
-            <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{offer.benefits}</p>
+          <div>
+            <p className="mb-1.5 font-mono text-hb-label uppercase text-hb-dim">Benefits</p>
+            <p className="text-hb-sm leading-relaxed text-hb-muted">{offer.benefits}</p>
           </div>
         )}
 
         {isAccepted && (
-          <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--sb-active)', border: '1px solid var(--border)', color: 'var(--green)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <GlassIcon icon="Trophy" variant="emerald" size={24} iconSize={12} glow={false} />
+          <p className="flex items-center gap-2.5 rounded-hb-md border border-hb-success/25 bg-hb-success/8 px-4 py-3 text-hb-sm font-semibold text-hb-success">
+            <Trophy size={16} aria-hidden />
             Accepted on {formatDate(offer.responded_at as string)}
-          </div>
+          </p>
         )}
 
         {isDeclined && (
-          <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--red)' }}>
+          <div className="rounded-hb-md border border-hb-error/25 bg-hb-error/8 px-4 py-3 text-hb-sm text-hb-error">
             Declined on {formatDate(offer.responded_at as string)}
-            {offer.decline_reason && <div style={{ marginTop: 4, fontSize: 12, opacity: 0.8 }}>Reason: {offer.decline_reason}</div>}
+            {offer.decline_reason && (
+              <p className="mt-1 text-hb-xs opacity-80">Reason: {offer.decline_reason}</p>
+            )}
           </div>
         )}
       </div>
-
-    </div>
+    </Card>
   )
 }
+
+/* The document checklist is static UI today — no upload endpoint exists yet.
+   Kept as display-only rows, matching the previous behaviour. */
+const DOCUMENTS = [
+  { icon: <FileText />, name: 'Signed offer letter', meta: 'Requires signature', badge: <Badge tone="warning" dot>Pending</Badge> },
+  { icon: <Banknote />, name: 'Bank details form', meta: 'For payroll processing', badge: <Badge tone="success" dot>Done</Badge> },
+  { icon: <UserCheck />, name: 'Government ID', meta: 'Aadhar / PAN / passport', badge: <Badge tone="warning" dot>Upload</Badge> },
+]
 
 export default function PortalOffersPage() {
   const navigate = useNavigate()
@@ -186,9 +267,12 @@ export default function PortalOffersPage() {
     queryKey: ['portal', 'applications'],
     queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
-  const offersUnlocked = applications?.some(
-    (a: any) => OFFER_ELIGIBLE_STAGES.includes(a.stage) || OFFER_ELIGIBLE_STAGES.includes(a.candidate?.pipeline_stage)
-  ) ?? false
+  const offersUnlocked =
+    applications?.some(
+      (a: any) =>
+        OFFER_ELIGIBLE_STAGES.includes(a.stage) ||
+        OFFER_ELIGIBLE_STAGES.includes(a.candidate?.pipeline_stage)
+    ) ?? false
 
   const { data: offers, isLoading, isError } = useQuery({
     queryKey: ['portal', 'offers'],
@@ -203,13 +287,12 @@ export default function PortalOffersPage() {
       queryClient.invalidateQueries({ queryKey: ['portal', 'offers'] })
       setAcceptTarget(null)
       setDeclineTarget(null)
-      alert('Offer status updated.')
+      toast.success('Offer status updated')
     },
-    onError: () => alert('Failed to respond to offer.'),
+    onError: () => toast.error('Failed to respond to the offer.'),
   })
 
-  // Has accepted offer? Check if we should render doc tracker section.
-  const hasAccepted = offers?.some((o: any) => o.status === 'accepted') || false;
+  const hasAccepted = offers?.some((o: any) => o.status === 'accepted') || false
 
   // Silently redirect if not yet eligible
   useEffect(() => {
@@ -219,30 +302,34 @@ export default function PortalOffersPage() {
   }, [appsLoading, offersUnlocked, navigate])
 
   return (
-    <div className="page active">
-      <div className="ph">
-        <div className="pt" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          Offer & Documents
-          <GlassIcon icon="FileText" variant="violet" size={32} iconSize={16} />
-        </div>
-        <div className="ps">Review pending offers and complete your pre-joining documents.</div>
-      </div>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Candidate portal"
+        title="Offer & documents"
+        description="Review pending offers and complete your pre-joining documents."
+      />
 
       {offersUnlocked && (
-        <div className="g2">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div className="grid gap-hb-5 lg:grid-cols-3">
+          <div className="space-y-hb-5 lg:col-span-2">
             {isLoading ? (
-               <div className="py-8 text-[var(--text-lite)]">Loading offers...</div>
+              <Skeleton className="h-72 w-full" rounded="md" />
             ) : isError ? (
-               <div className="py-8 text-[var(--red)]">Failed to load offers.</div>
+              <div
+                role="alert"
+                className="rounded-hb-md border border-hb-error/25 bg-hb-error/8 p-4 text-hb-sm text-hb-error"
+              >
+                Failed to load offers.
+              </div>
             ) : offers?.length === 0 ? (
-               <div className="card py-12 text-center text-[var(--text-lite)]">
-                  <div className="flex justify-center mb-4">
-                    <GlassIcon icon="Inbox" variant="violet" size={60} iconSize={28} />
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>No offers yet</div>
-                  <div style={{ fontSize: 13 }}>When a company extends you an offer, it will appear here.</div>
-               </div>
+              <Card padding="none">
+                <EmptyState
+                  icon={<Inbox />}
+                  title="No offers yet"
+                  description="When a company extends you an offer, it will appear here."
+                  size="page"
+                />
+              </Card>
             ) : (
               offers?.map((offer: any) => (
                 <OfferCard
@@ -255,68 +342,54 @@ export default function PortalOffersPage() {
             )}
           </div>
 
-          {/* Right Column: Required Documents */}
-          <div>
-            <div className="card">
-              <div className="ctitle">
-                Required Documents 
-                {hasAccepted ? <span className="ctag amber">Action Needed</span> : <span className="ctag gray">Locked</span>}
-              </div>
-              
-              {hasAccepted ? (
-                <div className="doc-list">
-                  <div className="doc-item">
-                    <GlassIcon icon="FileText" variant="violet" size={40} iconSize={18} />
-                    <div className="doc-info">
-                      <div className="doc-name">Signed Offer Letter</div>
-                      <div className="doc-meta">Requires signature</div>
+          <Card padding="default" className="self-start">
+            <CardHeader
+              title="Required documents"
+              action={
+                hasAccepted ? <Badge tone="warning">Action needed</Badge> : <Badge>Locked</Badge>
+              }
+            />
+            {hasAccepted ? (
+              <ul className="space-y-3">
+                {DOCUMENTS.map((doc) => (
+                  <li key={doc.name} className="flex items-center gap-3">
+                    <IconTile size="sm">{doc.icon}</IconTile>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-hb-sm font-semibold text-hb-text">{doc.name}</p>
+                      <p className="text-hb-xs text-hb-muted">{doc.meta}</p>
                     </div>
-                    <span className="chip chip-amber"><span className="chd"></span>Pending</span>
-                  </div>
-                  
-                  <div className="doc-item">
-                    <GlassIcon icon="Banknote" variant="emerald" size={40} iconSize={18} />
-                    <div className="doc-info">
-                      <div className="doc-name">Bank Details Form</div>
-                      <div className="doc-meta">For payroll processing</div>
-                    </div>
-                    <span className="chip chip-green"><span className="chd"></span>Done</span>
-                  </div>
-
-                  <div className="doc-item">
-                    <GlassIcon icon="UserCheck" variant="amber" size={40} iconSize={18} />
-                    <div className="doc-info">
-                      <div className="doc-name">Government ID</div>
-                      <div className="doc-meta">Aadhar / PAN / Passport</div>
-                    </div>
-                    <span className="chip chip-amber"><span className="chd"></span>Upload</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-6 text-center text-[13px] text-[var(--text-lite)] px-2">
-                  Document collection will unlock once you accept a job offer.
-                </div>
-              )}
-            </div>
-          </div>
+                    {doc.badge}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-5 text-center text-hb-sm text-hb-muted">
+                Document collection unlocks once you accept a job offer.
+              </p>
+            )}
+          </Card>
         </div>
       )}
 
-      <ConfirmModal
+      <ConfirmDialog
         open={!!acceptTarget}
         onClose={() => setAcceptTarget(null)}
-        onConfirm={() => acceptTarget && respondMutation.mutate({ id: acceptTarget.id, accept: true })}
-        title="Accept Offer"
-        message={`Are you sure you want to accept the offer for "${acceptTarget?.position_title}"?`}
-        confirmText="Accept Offer"
+        onConfirm={() =>
+          acceptTarget && respondMutation.mutate({ id: acceptTarget.id, accept: true })
+        }
+        title="Accept offer"
+        description={`Accept the offer for "${acceptTarget?.position_title}"? The recruiter is notified immediately.`}
+        confirmLabel="Accept offer"
         loading={respondMutation.isPending}
       />
 
       {declineTarget && (
-        <DeclineModal
+        <DeclineDialog
           offer={declineTarget}
           onClose={() => setDeclineTarget(null)}
-          onConfirm={(reason) => respondMutation.mutate({ id: declineTarget.id, accept: false, reason })}
+          onConfirm={(reason) =>
+            respondMutation.mutate({ id: declineTarget.id, accept: false, reason })
+          }
           loading={respondMutation.isPending}
         />
       )}
