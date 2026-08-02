@@ -180,8 +180,29 @@ export function GlobalNav({
                   </div>
                 </div>
               </li>
-              <li><a className="navlink" href="/solutions" data-nav="solutions">Solutions</a></li>
-              <li><a className="navlink" href="/industries" data-nav="industries">Industries</a></li>
+              <li className="has-mega">
+                <a className="navlink" href="/solutions" aria-haspopup="true" aria-expanded="false" data-nav="solutions services industries hire-talent">Solutions <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
+                <div className="mega mega--sm">
+                  <div className="mega__grid">
+                    <a className="mega__item" href="/services">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
+                      <span><h5>Services</h5><p>Enterprise IT services, custom software development, web &amp; mobile engineering.</p></span>
+                    </a>
+                    <a className="mega__item" href="/industries">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-brief" /></svg></span>
+                      <span><h5>Industries</h5><p>Role templates, screening criteria, and scoring rubrics configured by sector.</p></span>
+                    </a>
+                    <a className="mega__item mega__item--full" href="/hire-talent">
+                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
+                      <span><h5>Hire Talent</h5><p>On-demand dedicated software engineering talent and flexible tech staffing.</p></span>
+                    </a>
+                  </div>
+                  <div className="mega__foot">
+                    <p className="small">Transforming business operations with intelligent software and top-tier talent.</p>
+                    <a className="link-arrow" href="/solutions">Explore solutions <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                  </div>
+                </div>
+              </li>
               <li><a className="navlink" href="/customers" data-nav="customers">Customers</a></li>
               <li className="has-mega">
                 <a className="navlink" href="/about" aria-haspopup="true" aria-expanded="false" data-nav="about careers contact security faq">Company <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
@@ -245,9 +266,12 @@ export function GlobalNav({
         <a href="/products/hiring">Hybent Hiring</a>
         <a href="/platform">Platform</a>
         <a href="/ai">AI Capabilities</a>
-        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Explore</p>
-        <a href="/solutions">Solutions</a>
+        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Solutions</p>
+        <a href="/services">Services</a>
         <a href="/industries">Industries</a>
+        <a href="/hire-talent">Hire Talent</a>
+        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Explore</p>
+        <a href="/solutions">Solutions Overview</a>
         <a href="/customers">Customers</a>
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Company</p>
         <a href="/about">About</a>

@@ -13,13 +13,16 @@ const ProductsPage = lazy(() => import('@/modules/site/pages/ProductsPage'))
 const PlatformPage = lazy(() => import('@/modules/site/pages/PlatformPage'))
 const AiCapabilitiesPage = lazy(() => import('@/modules/site/pages/AiCapabilitiesPage'))
 const SolutionsPage = lazy(() => import('@/modules/site/pages/SolutionsPage'))
+const ServicesPage = lazy(() => import('@/modules/site/pages/ServicesPage'))
 const IndustriesPage = lazy(() => import('@/modules/site/pages/IndustriesPage'))
+const HireTalentPage = lazy(() => import('@/modules/site/pages/HireTalentPage'))
 const SecurityPage = lazy(() => import('@/modules/site/pages/SecurityPage'))
 const CustomersPage = lazy(() => import('@/modules/site/pages/CustomersPage'))
 const AboutPage = lazy(() => import('@/modules/site/pages/AboutPage'))
 const FaqPage = lazy(() => import('@/modules/site/pages/FaqPage'))
 const CareersPage = lazy(() => import('@/modules/site/pages/CareersPage'))
 const ContactPage = lazy(() => import('@/modules/site/pages/ContactPage'))
+const PrivacyPage = lazy(() => import('@/modules/site/pages/PrivacyPage'))
 
 /* ── Products living inside the company site ──────────────────────────────── */
 const HiringHomePage = lazy(() => import('@/modules/hiring/pages/HiringHomePage'))
@@ -75,13 +78,16 @@ export default function AppRoutes() {
         <Route path="/platform/:section?" element={<PlatformPage />} />
         <Route path="/ai/:section?" element={<AiCapabilitiesPage />} />
         <Route path="/solutions/:section?" element={<SolutionsPage />} />
+        <Route path="/services/:section?" element={<ServicesPage />} />
         <Route path="/industries/:section?" element={<IndustriesPage />} />
+        <Route path="/hire-talent/:section?" element={<HireTalentPage />} />
         <Route path="/security/:section?" element={<SecurityPage />} />
         <Route path="/customers/:section?" element={<CustomersPage />} />
         <Route path="/about/:section?" element={<AboutPage />} />
         <Route path="/faq/:section?" element={<FaqPage />} />
         <Route path="/careers/:section?" element={<CareersPage />} />
         <Route path="/contact/:section?" element={<ContactPage />} />
+        <Route path="/privacy/:section?" element={<PrivacyPage />} />
       </Route>
 
       {/* ── Authentication: full-bleed, no marketing chrome ── */}
