@@ -28,9 +28,13 @@ export function GlobalFooter() {
               <a href="/" aria-label="YouTube"><svg aria-hidden="true"><use href="#i-yt" /></svg></a>
             </div>
           </div>
-          <div><h5>Products</h5><ul>
-            <li><a href="/products/hiring">Hybent Hiring</a></li><li><a href="/products/roadmap">CRM — soon</a></li><li><a href="/products/roadmap">HRMS — soon</a></li>
-            <li><a href="/products/roadmap">ERP — soon</a></li><li><a href="/products/roadmap">Analytics — soon</a></li><li><a href="/products/roadmap">Full roadmap</a></li></ul></div>
+          <div><h5>Products &amp; Services</h5><ul>
+            <li><a href="/products/hiring">Hybent Hiring</a></li>
+            <li><a href="/solutions">IT Services</a></li>
+            <li><a href="/solutions">Custom Software</a></li>
+            <li><a href="/solutions">Hire Talent</a></li>
+            <li><a href="/solutions">Web &amp; Mobile Apps</a></li>
+          </ul></div>
           <div><h5>Solutions</h5><ul>
             <li><a href="/solutions">Talent acquisition</a></li><li><a href="/solutions">People operations</a></li>
             <li><a href="/solutions">Hiring managers</a></li><li><a href="/solutions">IT &amp; security</a></li><li><a href="/industries">Industries</a></li></ul></div>
@@ -38,7 +42,7 @@ export function GlobalFooter() {
             <li><a href="/about">About</a></li><li><a href="/about/timeline">Our story</a></li><li><a href="/careers">Careers</a></li>
             <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
           <div><h5>More</h5><ul>
-            <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li><li><a href="/products/roadmap">Roadmap</a></li>
+            <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li>
             <li><a href="/customers">Customers</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
         </div>
 
@@ -47,7 +51,7 @@ export function GlobalFooter() {
         <div className="footer__bottom">
           <p>© 2026 HYBENT. All rights reserved.</p>
           <p style={{ display: "flex", gap: "18px", flexWrap: "wrap" }}>
-            <a href="/">Privacy</a><a href="/">Terms</a><a href="/">Cookies</a><a href="/">Accessibility</a><a href="/">Sub-processors</a>
+            <a href="/privacy">Privacy</a><a href="/">Terms</a><a href="/">Cookies</a>
           </p>
         </div>
       </div>

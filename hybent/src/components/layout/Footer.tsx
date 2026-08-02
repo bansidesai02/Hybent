@@ -45,7 +45,7 @@ export function Footer() {
         <div className="footer__bottom">
           <p>© 2026 HYBENT. All rights reserved.</p>
           <p style={{ display: "flex", gap: "18px", flexWrap: "wrap" }}>
-            <a href="/">Privacy</a><a href="/">Terms</a><a href="/">Cookies</a><a href="/">Accessibility</a><a href="/">Sub-processors</a>
+            <a href="/privacy">Privacy</a><a href="/">Terms</a><a href="/">Cookies</a>
           </p>
         </div>
       </div>

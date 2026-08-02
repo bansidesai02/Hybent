@@ -30,10 +30,20 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     description:
       'Four ways teams put HYBENT to work: talent acquisition, people operations, hiring managers, and IT & security.',
   },
+  services: {
+    title: 'Enterprise IT Services & Custom Software | HYBENT',
+    description:
+      'Enterprise IT services, custom software engineering, cloud architecture, and AI integration for scaling enterprises.',
+  },
   industries: {
     title: 'Industries — configured for how your sector hires | HYBENT',
     description:
       'Role templates, screening criteria and scoring rubrics tuned by industry — from technology and financial services to healthcare, manufacturing and the public sector.',
+  },
+  'hire-talent': {
+    title: 'Hire Talent — Dedicated Engineers & Tech Staffing | HYBENT',
+    description:
+      'Scale your engineering organization instantly with top pre-vetted software developers, AI engineers, and tech leads.',
   },
   security: {
     title: 'Security & compliance | HYBENT',
@@ -64,5 +74,10 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     title: 'Contact HYBENT — talk to the team',
     description:
       'Tell us what you are trying to fix. Someone from the team replies within one business day.',
+  },
+  privacy: {
+    title: 'Privacy Policy | HYBENT — Protection & Data Trust',
+    description:
+      'Learn how Hybent collects, uses, protects, and handles personal information across our AI-powered products, website, and IT services.',
   },
 }

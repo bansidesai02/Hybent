@@ -58,6 +58,10 @@ const META: Record<string, { t: string; d: string }> = {
     t: 'Contact HYBENT — talk to the team',
     d: 'Tell us what you are trying to fix. Someone from the team replies within one business day.',
   },
+  privacy: {
+    t: 'Privacy Policy | HYBENT — Protection & Data Trust',
+    d: 'Learn how Hybent collects, uses, protects, and handles personal information across our AI-powered products, website, and IT services.',
+  },
 }
 
 export default function Layout() {

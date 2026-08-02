@@ -12,6 +12,7 @@ import AboutPage from './pages/AboutPage'
 import ResourcesPage from './pages/ResourcesPage'
 import CareersPage from './pages/CareersPage'
 import ContactPage from './pages/ContactPage'
+import PrivacyPage from './pages/PrivacyPage'
 
 /* The optional second segment is a deep link to a section inside the view
    (/products/roadmap, /platform/ecosystem, /about/timeline) — Layout scrolls
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/resources/:section?" element={<ResourcesPage />} />
         <Route path="/careers/:section?" element={<CareersPage />} />
         <Route path="/contact/:section?" element={<ContactPage />} />
+        <Route path="/privacy/:section?" element={<PrivacyPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -10,7 +10,7 @@ export default function PlatformPage() {
         <div className="wrap">
           <p className="eyebrow" data-rv="up"><span className="bars"><i></i><i></i><i></i></span><span>The ecosystem</span></p>
           <h1 style={{ fontSize: "clamp(2.35rem,4.6vw,3.6rem)", marginTop: "14px" }} data-rv="up" data-delay="80">Four layers. Everything above inherits everything below.</h1>
-          <p className="hero__sub" data-rv="up" data-delay="160">This is why our second product will cost less to build than the first, and why switching one on will never mean starting another integration project. Hybent Hiring is live; everything else on this layer is coming soon.</p>
+          <p className="hero__sub" data-rv="up" data-delay="160">Hybent Hiring is our flagship AI recruitment product, built on top of our unified security, intelligence, and data platform foundation.</p>
         </div>
       </section>
 
@@ -19,12 +19,9 @@ export default function PlatformPage() {
           <div className="eco" data-rv="scale">
             <div className="eco__layers">
               <div className="eco__layer">
-                <div><p className="mono" style={{ marginBottom: "6px" }}>Layer 04</p><h4>Products</h4><p className="small">What your teams open every day. Hybent Hiring is live — the rest are coming soon.</p></div>
+                <div><p className="mono" style={{ marginBottom: "6px" }}>Layer 04</p><h4>Products</h4><p className="small">What your teams open every day. Hybent Hiring is live in production.</p></div>
                 <div className="eco__mods">
                   <span className="mod mod--live"><span className="dot" style={{ background: "#34D399" }}></span>Hybent Hiring</span>
-                  <span className="mod">CRM</span><span className="mod">HRMS</span><span className="mod">ERP</span><span className="mod">Projects</span>
-                  <span className="mod">Helpdesk</span><span className="mod">Finance</span><span className="mod">Analytics</span>
-                  <span className="mod">Marketing</span><span className="mod">Support</span><span className="mod">Collaboration</span><span className="mod">Documents</span>
                 </div>
               </div>
               <div className="eco__layer">
