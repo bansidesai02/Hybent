@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 import HybentLoginPortal from './HybentLoginPortal'
 import type { HybentLoginValues } from './HybentLoginPortal'
+import { useAuthProduct, withProduct } from './useAuthProduct'
 import { authApi } from '@/api/auth'
 import { AUTH, workspaceForRole } from '@/app/paths'
 import { useAuthStore } from '@/store/authStore'
@@ -24,6 +25,7 @@ export default function HybentLoginRoute() {
   const navigate = useNavigate()
   const location = useLocation()
   const { setTokens, isAuthenticated, user } = useAuthStore()
+  const product = useAuthProduct()
 
   /* RequireAuth parks the page the visitor wanted here, same as the product form. */
   const intended = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
@@ -52,8 +54,11 @@ export default function HybentLoginRoute() {
   return (
     <HybentLoginPortal
       onSubmit={handleSubmit}
-      onForgotPassword={() => navigate(AUTH.resetPassword)}
-      onCreateAccount={() => navigate(AUTH.register)}
+      /* `?product=` rides along, or the "Hybent Hiring" kicker disappears the
+         moment someone clicks through to reset or sign-up — which is exactly
+         the hand-off the deleted product-branded pages existed to prevent. */
+      onForgotPassword={() => navigate(withProduct(AUTH.resetPassword, product.key))}
+      onCreateAccount={() => navigate(withProduct(AUTH.register, product.key))}
     />
   )
 }

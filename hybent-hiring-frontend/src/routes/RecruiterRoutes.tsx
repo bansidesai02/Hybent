@@ -1,7 +1,9 @@
 import { Routes, Route } from 'react-router-dom'
-import React, { lazy } from 'react'
+import { lazy } from 'react'
 
-const RecruiterLayout = lazy(() => import('@/components/layout/RecruiterLayout').then(m => ({ default: m.RecruiterLayout })))
+/* Phase 10: the Hybent shell is the only shell. `?ui=next` and the legacy
+   RecruiterLayout are gone. */
+const Shell = lazy(() => import('@/components/layout/shell/AppShell').then(m => ({ default: m.WorkspaceShell })))
 
 const OverviewPage = lazy(() => import('@/modules/recruiter/pages/OverviewPage'))
 const JobsListPage = lazy(() => import('@/modules/recruiter/pages/JobsListPage'))
@@ -24,7 +26,7 @@ const TeamManagementPage = lazy(() => import('@/modules/admin/pages/TeamManageme
 export default function RecruiterRoutes() {
   return (
     <Routes>
-      <Route element={<RecruiterLayout />}>
+      <Route element={<Shell />}>
         <Route index element={<OverviewPage />} />
         <Route path="jobs" element={<JobsListPage />} />
         <Route path="jobs/new" element={<AddJobPage />} />

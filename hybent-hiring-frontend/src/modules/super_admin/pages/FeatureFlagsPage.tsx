@@ -1,193 +1,200 @@
-import React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { superAdminApi } from '@/api/superAdmin'
-import { Skeleton } from '@/components/ui/Skeleton'
 import { toast } from 'react-hot-toast'
-import { ToggleLeft, Sliders, ToggleRight, Building2 } from 'lucide-react'
+import { Building2, Sliders, ToggleLeft } from 'lucide-react'
+
+import { superAdminApi } from '@/api/superAdmin'
+import {
+  Card,
+  CardHeader,
+  type Column,
+  DataTable,
+  EmptyState,
+  PageHeader,
+  Skeleton,
+  Switch,
+} from '@/components/hb'
+
+/**
+ * Platform-wide feature defaults, and the per-tenant overrides that beat them.
+ *
+ * Rebuilt on the design system in phase 9. Every toggle on this page — five
+ * global ones and five per client, so potentially hundreds — was a `<button>`
+ * wrapping a translated `<div>` with no accessible name and no state, which
+ * meant a screen reader announced the override matrix as a grid of identical
+ * unlabelled buttons. They are `Switch` now, each named by its column and row.
+ */
+
+const FLAGS = [
+  { key: 'ai', title: 'AI scoring engine', short: 'AI scoring', desc: 'Deep AI screening of candidate résumés.' },
+  { key: 'video', title: 'Video interviews', short: 'Video', desc: 'Candidates recording asynchronous answers.' },
+  { key: 'bulk', title: 'Bulk Excel import', short: 'Bulk import', desc: 'Uploading candidate rosters as a sheet.' },
+  { key: 'domain', title: 'Custom subdomain', short: 'Custom domain', desc: 'Branded host URLs for the applicant portal.' },
+  { key: 'analytics', title: 'Advanced export', short: 'Export', desc: 'Downloading CSV reports and charts.' },
+]
+
+interface ClientRow {
+  id: string
+  name: string
+  slug: string
+  flags?: Record<string, boolean>
+}
 
 export default function FeatureFlagsPage() {
   const queryClient = useQueryClient()
 
-  // Queries
   const { data: globalFlags, isLoading: globalLoading } = useQuery({
     queryKey: ['super-admin', 'global-flags'],
-    queryFn: () => superAdminApi.getGlobalFlags()
+    queryFn: () => superAdminApi.getGlobalFlags(),
   })
 
   const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['super-admin', 'clients'],
-    queryFn: () => superAdminApi.getClients()
+    queryFn: () => superAdminApi.getClients(),
   })
 
-  // Mutations
   const updateGlobalFlagsMutation = useMutation({
-    mutationFn: (updatedFlags: Record<string, boolean>) => superAdminApi.updateGlobalFlags(updatedFlags),
+    mutationFn: (updatedFlags: Record<string, boolean>) =>
+      superAdminApi.updateGlobalFlags(updatedFlags),
     onSuccess: () => {
-      toast.success('Global default feature flags updated successfully!')
+      toast.success('Global defaults updated')
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'global-flags'] })
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update global feature flags.')
-    }
+    onError: (err: any) => toast.error(err.message || 'Failed to update the global defaults.'),
   })
 
   const updateClientFlagsMutation = useMutation({
-    mutationFn: ({ clientId, flags }: { clientId: string; flags: Record<string, boolean> }) => 
+    mutationFn: ({ clientId, flags }: { clientId: string; flags: Record<string, boolean> }) =>
       superAdminApi.updateClientFlags(clientId, flags),
     onSuccess: () => {
-      toast.success('Client feature flags override updated successfully!')
+      toast.success('Client override updated')
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'clients'] })
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update client feature flags overrides.')
-    }
+    onError: (err: any) => toast.error(err.message || 'Failed to update the client override.'),
   })
 
-  const handleGlobalFlagChange = (flagKey: string, val: boolean) => {
-    if (!globalFlags) return
-    const newFlags = { ...globalFlags, [flagKey]: val }
-    updateGlobalFlagsMutation.mutate(newFlags)
-  }
-
-  const handleClientFlagChange = (client: any, flagKey: string, val: boolean) => {
-    const currentFlags = { ...client.flags }
-    const newFlags = { ...currentFlags, [flagKey]: val }
-    updateClientFlagsMutation.mutate({ clientId: client.id, flags: newFlags })
-  }
-
-  const flagConfigs = [
-    { key: 'ai', title: 'AI Scoring Engine', desc: 'Default state for deep AI candidate resume screening.' },
-    { key: 'video', title: 'Video Interviews', desc: 'Allows candidates recording asynchronous answers.' },
-    { key: 'bulk', title: 'Bulk Excel Import', desc: 'Support upload sheet candidate rosters parser.' },
-    { key: 'domain', title: 'Custom Subdomain URL', desc: 'Renders custom branded domain host urls.' },
-    { key: 'analytics', title: 'Advanced Export metrics', desc: 'Allows downloading CSV reports charts.' }
+  const columns: Array<Column<ClientRow>> = [
+    {
+      key: 'name',
+      header: 'Client',
+      width: 'minmax(200px, 1.5fr)',
+      cardTitle: true,
+      cell: (client) => (
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-hb-xs bg-hb-grad font-mono text-hb-micro font-bold text-white">
+            {client.name.substring(0, 2).toUpperCase()}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-hb-sm font-semibold text-hb-text">
+              {client.name}
+            </span>
+            <span className="block truncate text-hb-xs text-hb-muted">
+              {client.slug}.hirreon.com
+            </span>
+          </span>
+        </span>
+      ),
+    },
+    ...FLAGS.map<Column<ClientRow>>((f) => ({
+      key: f.key,
+      header: f.short,
+      align: 'center' as const,
+      width: '130px',
+      cell: (client) => (
+        <span className="flex justify-center">
+          <Switch
+            size="sm"
+            /* A matrix cell has no visible label of its own — the column
+               header names the flag but is not associated with the control. */
+            aria-label={`${f.title} for ${client.name}`}
+            checked={Boolean(client.flags?.[f.key])}
+            disabled={updateClientFlagsMutation.isPending}
+            onChange={(next) =>
+              updateClientFlagsMutation.mutate({
+                clientId: client.id,
+                flags: { ...(client.flags ?? {}), [f.key]: next } as Record<string, boolean>,
+              })
+            }
+          />
+        </span>
+      ),
+    })),
   ]
 
   return (
-    <div className="space-y-8 pb-10 pt-6">
-      {/* Header */}
-      <header className="page-header">
-        <h1 className="page-title text-[28px] font-black leading-tight text-[var(--text)]">Feature Flags</h1>
-        <p className="page-subtitle text-[13px] text-[var(--text-light)]">Control default feature configurations, toggles rules, and override individual organization access flags.</p>
-      </header>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Platform"
+        title="Feature flags"
+        description="Set the defaults new tenants inherit, and override them per client."
+      />
 
-      {/* Global Feature Flags defaults */}
-      <div className="rounded-[24px] border p-6" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-        <div className="mb-5">
-          <h3 className="text-[16px] font-black text-[var(--text)] flex items-center gap-2">
-            <Sliders className="text-[var(--violet)]" size={18} />
-            Global Platform Defaults
-          </h3>
-          <p className="text-[11.5px] text-[var(--text-light)] mt-0.5">These defaults determine feature states for new client registrations. Existing organizations overrides are unaffected.</p>
-        </div>
+      <div className="space-y-hb-5">
+        <Card padding="loose">
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <Sliders size={18} aria-hidden className="text-hb-cyan" />
+                Global defaults
+              </span>
+            }
+            subtitle="Applied to new client registrations. Existing overrides are unaffected."
+          />
 
-        <div className="divide-y" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
           {globalLoading ? (
-            <div className="space-y-3 py-3">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((n) => (
+                <Skeleton key={n} className="h-10 w-full" rounded="md" />
+              ))}
             </div>
           ) : globalFlags ? (
-            flagConfigs.map(f => {
-              const val = !!globalFlags[f.key]
-              return (
-                <div key={f.key} className="flex items-center justify-between py-3.5">
-                  <div className="max-w-[80%]">
-                    <p className="text-[13.5px] font-bold text-[var(--text)]">{f.title}</p>
-                    <p className="text-[11.5px] text-[var(--text-light)] mt-0.5">{f.desc}</p>
-                  </div>
-                  <button
-                    onClick={() => handleGlobalFlagChange(f.key, !val)}
+            <div className="divide-y divide-hb-border">
+              {FLAGS.map((f) => (
+                <div key={f.key} className="py-3.5 first:pt-0 last:pb-0">
+                  <Switch
+                    label={f.title}
+                    description={f.desc}
+                    checked={Boolean((globalFlags as any)[f.key])}
                     disabled={updateGlobalFlagsMutation.isPending}
-                    className={`w-10 h-[22px] rounded-full relative p-0.5 transition-colors duration-200 focus:outline-none ${val ? 'bg-[var(--violet)]' : 'bg-slate-300 dark:bg-slate-600'}`}
-                  >
-                    <div 
-                      className={`w-[18px] h-[18px] bg-white rounded-full transition-transform duration-200 ${val ? 'translate-x-[18px]' : 'translate-x-0'}`} 
-                    />
-                  </button>
+                    onChange={(next) =>
+                      updateGlobalFlagsMutation.mutate({
+                        ...(globalFlags as Record<string, boolean>),
+                        [f.key]: next,
+                      })
+                    }
+                  />
                 </div>
-              )
-            })
-          ) : (
-            <div className="py-6 text-center text-[var(--text-light)] text-[12.5px]">No feature flags available.</div>
-          )}
-        </div>
-      </div>
-
-      {/* Per-Client Overrides Matrix */}
-      <div className="rounded-[24px] border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-        <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
-          <h3 className="text-[16px] font-black text-[var(--text)] flex items-center gap-2">
-            <ToggleLeft className="text-[var(--violet)]" size={18} />
-            Per-Client Feature Override Matrix
-          </h3>
-        </div>
-
-        <div className="overflow-x-auto">
-          {clientsLoading ? (
-            <div className="p-6 space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-8 w-full" />
+              ))}
             </div>
-          ) : clients && clients.length > 0 ? (
-            <div className="table-responsive">
-<table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'rgba(108,71,255,0.06)', background: 'rgba(108,71,255,0.01)' }}>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider min-w-[200px]">Client name</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-center">AI Scoring</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-center">Video Interviews</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-center">Bulk Import</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-center">Custom Domain</th>
-                  <th className="p-4 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-center">Analytics Export</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clients.map(client => (
-                  <tr
-                    key={client.id}
-                    className="border-b last:border-b-0 hover:bg-[var(--sb-hover)]/30 transition-colors"
-                    style={{ borderColor: 'rgba(108,71,255,0.03)' }}
-                  >
-                    <td className="p-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded bg-[var(--violet)]/10 text-[var(--violet)] flex items-center justify-center font-bold text-[10.5px]">
-                          {client.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-bold text-[var(--text)]">{client.name}</p>
-                          <p className="text-[10.5px] text-[var(--text-light)]">{client.slug}.hirreon.com</p>
-                        </div>
-                      </div>
-                    </td>
-                    {['ai', 'video', 'bulk', 'domain', 'analytics'].map(flagKey => {
-                      const val = !!client.flags?.[flagKey]
-                      return (
-                        <td key={flagKey} className="p-4 text-center">
-                          <button
-                            onClick={() => handleClientFlagChange(client, flagKey, !val)}
-                            disabled={updateClientFlagsMutation.isPending}
-                            className={`w-9 h-[20px] rounded-full relative p-0.5 transition-colors duration-200 focus:outline-none mx-auto ${val ? 'bg-[var(--violet)]' : 'bg-slate-300 dark:bg-slate-600'}`}
-                          >
-                            <div 
-                              className={`w-[16px] h-[16px] bg-white rounded-full transition-transform duration-200 ${val ? 'translate-x-[16px]' : 'translate-x-0'}`} 
-                            />
-                          </button>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-</div>
           ) : (
-            <div className="py-14 text-center">
-              <Building2 className="mx-auto text-[var(--text-light)] opacity-20 mb-3" size={42} />
-              <p className="text-[14px] font-bold text-[var(--text)]">No clients found</p>
-            </div>
+            <EmptyState
+              icon={<ToggleLeft />}
+              title="No feature flags"
+              description="The platform reported no configurable flags."
+            />
           )}
-        </div>
+        </Card>
+
+        <Card padding="none">
+          <div className="border-b border-hb-border px-5 py-4 xl:px-7">
+            <h2 className="inline-flex items-center gap-2 font-display text-hb-h3 text-hb-text">
+              <ToggleLeft size={18} aria-hidden className="text-hb-cyan" />
+              Per-client overrides
+            </h2>
+          </div>
+          <DataTable
+            columns={columns}
+            rows={(clients ?? []) as ClientRow[]}
+            rowKey={(c) => c.id}
+            loading={clientsLoading}
+            caption="Feature flag overrides for each client organisation"
+            empty={{
+              icon: <Building2 />,
+              title: 'No clients found',
+              description: 'Onboard a tenant to override its feature access.',
+              size: 'page',
+            }}
+          />
+        </Card>
       </div>
     </div>
   )

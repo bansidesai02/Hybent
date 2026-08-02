@@ -35,21 +35,21 @@ export function AddToCalendarDropdown({ interview }: AddToCalendarDropdownProps)
     <div className="relative inline-block text-left" ref={containerRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-[#2a2550] bg-white dark:bg-[#1a1730] text-[11px] font-bold text-gray-700 dark:text-[#ede9ff] hover:bg-gray-50 dark:hover:bg-[#201c3b] transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-hb-sm border border-hb-border bg-hb-surface px-3 py-1.5 text-hb-xs font-semibold text-hb-text transition-colors duration-hb hover:bg-hb-surface-2"
       >
-        <CalendarIcon size={12} className="text-violet-500" />
+        <CalendarIcon size={12} className="text-hb-cyan" />
         Add to Calendar
         <ChevronDown size={10} className="opacity-60" />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1.5 w-40 rounded-xl bg-white dark:bg-[#1a1730] border border-gray-100 dark:border-[#2a2550] shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute right-0 z-[100] mt-1.5 w-40 overflow-hidden rounded-hb-md border border-hb-border bg-hb-elevated shadow-hb-2">
           <a
             href={urls.google}
             target="_blank"
             rel="noreferrer"
             onClick={() => setOpen(false)}
-            className="flex items-center justify-between px-3.5 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-violet-50 dark:hover:bg-violet-950/20 font-semibold transition-colors"
+            className="flex items-center justify-between px-3.5 py-2 text-hb-xs font-semibold text-hb-text transition-colors duration-hb hover:bg-hb-surface-2"
           >
             Google Calendar <ExternalLink size={10} className="opacity-40" />
           </a>
@@ -58,7 +58,7 @@ export function AddToCalendarDropdown({ interview }: AddToCalendarDropdownProps)
             target="_blank"
             rel="noreferrer"
             onClick={() => setOpen(false)}
-            className="flex items-center justify-between px-3.5 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-violet-50 dark:hover:bg-violet-950/20 font-semibold border-t border-gray-50 dark:border-[#201c3b] transition-colors"
+            className="flex items-center justify-between border-t border-hb-border px-3.5 py-2 text-hb-xs font-semibold text-hb-text transition-colors duration-hb hover:bg-hb-surface-2"
           >
             Outlook Calendar <ExternalLink size={10} className="opacity-40" />
           </a>
@@ -66,7 +66,7 @@ export function AddToCalendarDropdown({ interview }: AddToCalendarDropdownProps)
             href={urls.ics}
             download={`${interview.title || 'interview'}.ics`}
             onClick={() => setOpen(false)}
-            className="flex items-center justify-between px-3.5 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-violet-50 dark:hover:bg-violet-950/20 font-semibold border-t border-gray-50 dark:border-[#201c3b] transition-colors"
+            className="flex items-center justify-between border-t border-hb-border px-3.5 py-2 text-hb-xs font-semibold text-hb-text transition-colors duration-hb hover:bg-hb-surface-2"
           >
             iCal / ICS File <ExternalLink size={10} className="opacity-40" />
           </a>

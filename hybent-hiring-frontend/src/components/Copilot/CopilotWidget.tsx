@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+﻿import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useMessageStore } from '@/store/messageStore'
@@ -8,59 +8,78 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
 import { candidatesApi } from '@/api/candidates'
 import type { Candidate } from '@/types'
+import { ArrowRight, Banknote, Clock, Mail, MapPin, Star } from 'lucide-react'
+import { Avatar, Badge, Button, Card } from '@/components/hb'
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+/* â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   On the Hybent design system.
+
+   This object is the widget's entire visual identity â€” the 2,000 lines below it
+   are speech recognition, dragging and streaming, and are untouched. Every value
+   here used to come from the old product palette: the launcher was a
+   violetâ†’pink orb, message bubbles were `--violet`â†’`--violet-mid`, and the
+   waveform was drawn in `#EC4899`/`#8B5CF6`. None of those colours exist in
+   Hybent. They are now the brand gradient and the `--hb-*` tokens, so the
+   copilot reads as part of the product rather than as a widget bolted onto it.
+
+   Kept as a style object rather than moved to classes because the widget is
+   dragged, resized and animated from script, which reads and writes these
+   values directly.
+   ---------------------------------------------------------------------------- */
 const s: Record<string, React.CSSProperties> = {
-  fab: { position: 'fixed', bottom: '80px', right: 'min(28px, 4vw)', width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-hover)', zIndex: 9999, transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease', color: '#fff', fontSize: '24px' },
-  panel: { position: 'fixed', bottom: '150px', right: 'min(28px, 4vw)', width: '400px', maxWidth: 'calc(100vw - min(56px, 8vw))', height: '600px', maxHeight: 'calc(100vh - 120px)', borderRadius: '24px', background: 'var(--glass)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', border: '1px solid var(--glass-border-soft)', boxShadow: 'var(--shadow-h)', display: 'flex', flexDirection: 'column', zIndex: 9998, overflow: 'hidden', animation: 'copilotSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)' },
-  header: { padding: '18px 24px', background: 'var(--topbar-bg)', borderBottom: '1px solid var(--card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
-  headerTitle: { color: 'var(--text)', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px' },
+  fab: { position: 'fixed', bottom: '80px', right: 'min(28px, 4vw)', width: '56px', height: '56px', borderRadius: '50%', background: 'var(--hb-grad-diag)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 34px -14px rgb(76 111 255 / .55)', zIndex: 9999, transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease', color: 'rgb(var(--hb-on-brand))', fontSize: '24px' },
+  panel: { position: 'fixed', bottom: '150px', right: 'min(28px, 4vw)', width: '400px', maxWidth: 'calc(100vw - min(56px, 8vw))', height: '600px', maxHeight: 'calc(100vh - 120px)', borderRadius: 'var(--hb-r-lg)', background: 'rgb(var(--hb-elevated))', border: '1px solid var(--hb-border)', boxShadow: 'var(--hb-sh-3)', display: 'flex', flexDirection: 'column', zIndex: 9998, overflow: 'hidden', animation: 'copilotSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)' },
+  header: { padding: '18px 22px', background: 'rgb(var(--hb-surface))', borderBottom: '1px solid var(--hb-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
+  headerTitle: { color: 'rgb(var(--hb-text))', fontFamily: 'var(--hb-f-display)', fontWeight: 600, fontSize: '17px', display: 'flex', alignItems: 'center', gap: '10px' },
   headerActions: { display: 'flex', gap: '8px' },
-  iconBtn: { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '10px', color: 'var(--text-mid)', cursor: 'pointer', padding: '6px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  messages: { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  userBubble: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word' },
-  botBubble: { background: 'var(--kpi-bg)', color: 'var(--text)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--input-border)', boxShadow: 'var(--shadow-card)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word', overflow: 'hidden', minWidth: 0 },
-  thinkingBubble: { background: 'var(--kpi-bg)', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--input-border)', display: 'flex', alignItems: 'center', gap: '6px' },
-  footer: { padding: '14px 16px', borderTop: '1px solid var(--card-border)', display: 'flex', gap: '6px', alignItems: 'flex-end', flexShrink: 0, background: 'var(--topbar-bg)' },
-  input: { flex: 1, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', color: 'var(--text)', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
-  sendBtn: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', border: 'none', borderRadius: '12px', color: '#fff', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0, boxShadow: 'var(--shadow-card)' },
+  iconBtn: { background: 'rgb(var(--hb-surface-2))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-muted))', cursor: 'pointer', padding: '6px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  messages: { flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px' },
+  userBubble: { background: 'var(--hb-grad-diag)', color: 'rgb(var(--hb-on-brand))', fontWeight: 500, borderRadius: '18px 18px 4px 18px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--hb-sh-1)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word' },
+  botBubble: { background: 'rgb(var(--hb-surface-2))', color: 'rgb(var(--hb-text))', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--hb-border)', boxShadow: 'var(--hb-sh-1)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word', overflow: 'hidden', minWidth: 0 },
+  thinkingBubble: { background: 'rgb(var(--hb-surface-2))', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--hb-border)', display: 'flex', alignItems: 'center', gap: '6px' },
+  footer: { padding: '14px 16px', borderTop: '1px solid var(--hb-border)', display: 'flex', gap: '6px', alignItems: 'flex-end', flexShrink: 0, background: 'rgb(var(--hb-surface))' },
+  input: { flex: 1, background: 'rgb(var(--hb-surface))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-text))', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
+  sendBtn: { background: 'var(--hb-grad-diag)', border: 'none', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-on-brand))', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0, boxShadow: 'var(--hb-sh-1)' },
   emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '32px 24px', textAlign: 'center' },
-  emptyIcon: { fontSize: '48px', background: 'linear-gradient(135deg, var(--violet), var(--pink))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 8px 16px var(--hover-row))' },
-  emptyTitle: { color: 'var(--text)', fontWeight: 700, fontSize: '18px' },
-  emptySubtitle: { color: 'var(--text-mid)', fontSize: '14px', lineHeight: 1.6 },
-  promptGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', width: '100%', marginTop: '16px' },
-  promptCard: { background: 'var(--kpi-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '6px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)', textAlign: 'left' },
+  /* The site's `.grad-text`, inline â€” the launcher's own glyph is the one place
+     in the panel the full gradient is allowed to shout. */
+  emptyIcon: { fontSize: '48px', background: 'var(--hb-grad)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+  emptyTitle: { color: 'rgb(var(--hb-text))', fontFamily: 'var(--hb-f-display)', fontWeight: 600, fontSize: '19px' },
+  emptySubtitle: { color: 'rgb(var(--hb-muted))', fontSize: '14px', lineHeight: 1.6 },
+  promptGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', width: '100%', marginTop: '16px' },
+  promptCard: { background: 'rgb(var(--hb-surface-2))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', padding: '14px', display: 'flex', flexDirection: 'column', gap: '6px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)', textAlign: 'left' },
   promptCardIcon: { fontSize: '20px' },
-  promptCardTitle: { color: 'var(--text)', fontSize: '13px', fontWeight: 600 },
-  promptCardText: { color: 'var(--text-mid)', fontSize: '11px', lineHeight: 1.4 },
+  promptCardTitle: { color: 'rgb(var(--hb-text))', fontSize: '13px', fontWeight: 600 },
+  promptCardText: { color: 'rgb(var(--hb-muted))', fontSize: '12px', lineHeight: 1.4 },
   // History panel
   historyPanel: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  historyHeader: { padding: '16px 24px', borderBottom: '1px solid var(--card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
-  historyTitle: { color: 'var(--text)', fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' },
-  newChatBtn: { background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', padding: '7px 14px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease' },
-  historyList: { flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '8px' },
-  historyGroup: { color: 'var(--text-mid)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '8px 0 4px' },
-  historyItem: { background: 'var(--kpi-bg)', border: '1px solid var(--input-border)', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s ease' },
-  historyItemTitle: { flex: 1, color: 'var(--text)', fontSize: '13px', lineHeight: 1.4, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' },
-  historyItemDate: { color: 'var(--text-mid)', fontSize: '11px', flexShrink: 0 },
-  historyDeleteBtn: { background: 'transparent', border: 'none', color: 'var(--text-mid)', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', flexShrink: 0, transition: 'all 0.2s ease', opacity: 0.6 },
-  historyEmpty: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-mid)', fontSize: '14px', gap: '12px' },
-  backBtn: { background: 'transparent', border: 'none', color: 'var(--text-mid)', cursor: 'pointer', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease' },
-  loadingRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', color: 'var(--text-mid)', fontSize: '14px' },
-  micBtn: { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '12px', color: 'var(--text-mid)', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0 },
-  micBtnActive: { background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', animation: 'micPulse 1.5s infinite ease-in-out' },
-  // Skill chips container — needs maxWidth to prevent overflow
-  skillsContainer: { display: 'flex', flexWrap: 'wrap' as const, gap: '4px', borderTop: '1px solid var(--input-border)', paddingTop: '8px', maxWidth: '100%', overflow: 'hidden' },
+  historyHeader: { padding: '16px 22px', borderBottom: '1px solid var(--hb-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
+  historyTitle: { color: 'rgb(var(--hb-text))', fontFamily: 'var(--hb-f-display)', fontWeight: 600, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' },
+  newChatBtn: { background: 'var(--hb-grad-diag)', border: 'none', borderRadius: 'var(--hb-r-full)', color: 'rgb(var(--hb-on-brand))', cursor: 'pointer', padding: '7px 14px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease' },
+  historyList: { flex: 1, overflowY: 'auto', padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  /* The site's mono label â€” 10px at .16em, not a bolded 11px sans. */
+  historyGroup: { color: 'rgb(var(--hb-dim))', fontFamily: 'var(--hb-f-mono)', fontSize: '10px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.16em', padding: '8px 0 4px' },
+  historyItem: { background: 'rgb(var(--hb-surface-2))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s ease' },
+  historyItemTitle: { flex: 1, color: 'rgb(var(--hb-text))', fontSize: '13px', lineHeight: 1.4, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' },
+  historyItemDate: { color: 'rgb(var(--hb-dim))', fontFamily: 'var(--hb-f-mono)', fontSize: '10px', flexShrink: 0 },
+  historyDeleteBtn: { background: 'transparent', border: 'none', color: 'rgb(var(--hb-muted))', cursor: 'pointer', padding: '4px', borderRadius: 'var(--hb-r-xs)', display: 'flex', flexShrink: 0, transition: 'all 0.2s ease', opacity: 0.6 },
+  historyEmpty: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgb(var(--hb-muted))', fontSize: '14px', gap: '12px' },
+  backBtn: { background: 'transparent', border: 'none', color: 'rgb(var(--hb-muted))', cursor: 'pointer', padding: '4px', borderRadius: 'var(--hb-r-xs)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease' },
+  loadingRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', color: 'rgb(var(--hb-muted))', fontSize: '14px' },
+  micBtn: { background: 'rgb(var(--hb-surface-2))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-muted))', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0 },
+  micBtnActive: { background: 'rgb(var(--hb-error) / .1)', border: '1px solid rgb(var(--hb-error))', color: 'rgb(var(--hb-error))', animation: 'micPulse 1.5s infinite ease-in-out' },
+  // Skill chips container â€” needs maxWidth to prevent overflow
+  skillsContainer: { display: 'flex', flexWrap: 'wrap' as const, gap: '4px', borderTop: '1px solid var(--hb-border)', paddingTop: '8px', maxWidth: '100%', overflow: 'hidden' },
 }
 
 const EXAMPLE_PROMPTS = [
-  { icon: '🔍', title: 'Search Talent', prompt: 'Show React developers with 3+ years experience' },
-  { icon: '📊', title: 'Analytics', prompt: 'Give me a hiring overview' },
-  { icon: '📅', title: 'Interviews', prompt: "What interviews are scheduled today?" },
-  { icon: '⚡', title: 'Pipeline', prompt: 'Show candidates in technical round' },
+  { icon: 'ðŸ”', title: 'Search Talent', prompt: 'Show React developers with 3+ years experience' },
+  { icon: 'ðŸ“Š', title: 'Analytics', prompt: 'Give me a hiring overview' },
+  { icon: 'ðŸ“…', title: 'Interviews', prompt: "What interviews are scheduled today?" },
+  { icon: 'âš¡', title: 'Pipeline', prompt: 'Show candidates in technical round' },
 ]
 
-// Stopwords for candidate name suggestions — intentionally EXCLUDES tech skill names
+// Stopwords for candidate name suggestions â€” intentionally EXCLUDES tech skill names
 // (react, python, etc.) so that "schedule interview for React developer Amit" suggests "Amit"
 const COPILOT_STOPWORDS = [
   // English common words
@@ -75,7 +94,7 @@ const COPILOT_STOPWORDS = [
   'you', 'your', 'yours', 'yourself', 'yourselves',
   // Conversational / Greetings
   'hello', 'hi', 'hey', 'please', 'thanks', 'thank', 'ok', 'okay', 'yes', 'no', 'yeah', 'yep',
-  // Recruiter filler words (NOT tech skills — those are search terms)
+  // Recruiter filler words (NOT tech skills â€” those are search terms)
   'candidate', 'candidates', 'profile', 'profiles', 'resume', 'resumes', 'cv',
   'job', 'jobs', 'vacancy', 'open', 'role', 'roles',
   'experience', 'exp', 'year', 'years', 'month', 'months',
@@ -98,7 +117,7 @@ const COPILOT_STOPWORDS = [
   'thaa', 'dhundo', 'nikalo', 'dikhao', 'db', 'show', 'find', 'list', 'search'
 ]
 
-// ── SVG Icons ─────────────────────────────────────────────────────────────────
+// â”€â”€ SVG Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SendIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
 const TrashIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
 const CloseIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -109,7 +128,7 @@ const MaximizeIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill=
 const PlusIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 const MicIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
 
-// ── Date grouping helper ──────────────────────────────────────────────────────
+// â”€â”€ Date grouping helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function groupConversationsByDate(convs: ConversationSummary[]) {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -150,169 +169,111 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
     .slice(0, 2)
     .toUpperCase()
 
+  /* The copilot's own statusâ†’colour map, the last of the fifty-six the audit
+     found. It now reads the same tokens `StatusPill` does, so a stage in a chat
+     bubble matches the same stage in the candidates table. Kept local rather
+     than swapped for `StatusPill` itself because the value arriving here is
+     free text from the model ("Stage: Technical Round"), not an API enum. */
   const getStageStyle = (stageText?: string): React.CSSProperties => {
     const text = (stageText || '').toLowerCase()
-    if (text.includes('applied')) return { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)' }
-    if (text.includes('screening')) return { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }
+    const tone = (token: string): React.CSSProperties => ({
+      background: `rgb(var(${token}) / .10)`,
+      color: `rgb(var(${token}))`,
+      border: `1px solid rgb(var(${token}) / .30)`,
+    })
+
+    if (text.includes('applied')) return tone('--hb-blue')
+    if (text.includes('screening')) return tone('--hb-warning')
     if (text.includes('technical') || text.includes('practical') || text.includes('interview')) {
-      return { background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139,92,246,0.2)' }
+      return tone('--hb-violet')
     }
-    if (text.includes('offered') || text.includes('hired')) return { background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }
-    if (text.includes('rejected')) return { background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }
-    
-    return { background: 'var(--input-bg)', color: 'var(--text-mid)', border: '1px solid var(--input-border)' }
+    if (text.includes('offered') || text.includes('hired')) return tone('--hb-success')
+    if (text.includes('rejected')) return tone('--hb-error')
+
+    return {
+      background: 'rgb(var(--hb-surface-2))',
+      color: 'rgb(var(--hb-muted))',
+      border: '1px solid var(--hb-border)',
+    }
   }
 
+  /* Facts arrive from the model as pre-formatted strings, so they are listed
+     rather than mapped to fields. The emoji they used to be prefixed with are
+     gone â€” lucide glyphs match the rest of the product and, unlike emoji, are
+     not read aloud as "envelope" before every address. */
+  const facts: Array<{ icon: React.ReactNode; value: string; truncate?: boolean }> = [
+    candidate.email && { icon: <Mail size={12} aria-hidden />, value: candidate.email, truncate: true },
+    candidate.location && { icon: <MapPin size={12} aria-hidden />, value: candidate.location },
+    candidate.experience && { icon: <Star size={12} aria-hidden />, value: candidate.experience },
+    candidate.notice && { icon: <Clock size={12} aria-hidden />, value: candidate.notice },
+    candidate.salary && { icon: <Banknote size={12} aria-hidden />, value: candidate.salary },
+  ].filter(Boolean) as Array<{ icon: React.ReactNode; value: string; truncate?: boolean }>
+
   return (
-    <div style={{
-      background: 'var(--topbar-bg)',
-      border: '1px solid var(--input-border)',
-      borderRadius: '16px',
-      padding: '16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-      boxShadow: 'var(--shadow-card)',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-      cursor: 'pointer',
-      width: '100%',
-      boxSizing: 'border-box'
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-2px)'
-      e.currentTarget.style.boxShadow = 'var(--shadow-hover)'
-      e.currentTarget.style.borderColor = 'var(--violet)'
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'none'
-      e.currentTarget.style.boxShadow = 'var(--shadow-card)'
-      e.currentTarget.style.borderColor = 'var(--input-border)'
-    }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{
-          width: '38px',
-          height: '38px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '14px',
-          fontWeight: 700,
-          flexShrink: 0
-        }}>
-          {initials}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {candidate.name}
-          </div>
+    <Card variant="interactive" padding="compact" className="w-full">
+      <div className="flex items-center gap-3">
+        <Avatar name={candidate.name} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-hb-body font-semibold text-hb-text">{candidate.name}</p>
           {candidate.title && (
-            <div style={{ fontSize: '12px', color: 'var(--text-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {candidate.title}
-            </div>
+            <p className="truncate text-hb-xs text-hb-muted">{candidate.title}</p>
           )}
         </div>
       </div>
 
-      {(candidate.email || candidate.location || candidate.experience || candidate.notice || candidate.salary) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '6px', fontSize: '12px', color: 'var(--text-mid)', borderTop: '1px solid var(--input-border)', paddingTop: '10px' }}>
-          {candidate.email && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>📧</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidate.email}</span>
+      {facts.length > 0 && (
+        <dl className="mt-3 grid gap-1.5 border-t border-hb-border pt-2.5 text-hb-xs text-hb-muted">
+          {facts.map((f) => (
+            <div key={f.value} className="flex items-center gap-1.5">
+              <span className="shrink-0 text-hb-dim">{f.icon}</span>
+              <span className={f.truncate ? 'truncate' : undefined}>{f.value}</span>
             </div>
-          )}
-          {candidate.location && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>📍</span>
-              <span>{candidate.location}</span>
-            </div>
-          )}
-          {candidate.experience && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>⭐</span>
-              <span>{candidate.experience}</span>
-            </div>
-          )}
-          {candidate.notice && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>⏳</span>
-              <span>{candidate.notice}</span>
-            </div>
-          )}
-          {candidate.salary && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>💰</span>
-              <span>{candidate.salary}</span>
-            </div>
-          )}
-        </div>
+          ))}
+        </dl>
       )}
 
       {candidate.skills && (
-        <div style={s.skillsContainer}>
-          {candidate.skills.replace('Skills:', '').split(',').map((skill, sIdx) => {
-            const skillClean = skill.trim()
-            if (!skillClean) return null
-            return (
-              <span key={sIdx} style={{
-                background: 'var(--bg2)',
-                color: 'var(--text)',
-                padding: '3px 8px',
-                borderRadius: '8px',
-                fontSize: '10px',
-                border: '1px solid var(--input-border)',
-                whiteSpace: 'nowrap',
-                maxWidth: '100%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}>
-                {skillClean}
-              </span>
-            )
-          })}
-        </div>
+        <ul className="mt-3 flex flex-wrap gap-1 overflow-hidden border-t border-hb-border pt-2">
+          {candidate.skills
+            .replace('Skills:', '')
+            .split(',')
+            .map((skill) => skill.trim())
+            .filter(Boolean)
+            .map((skill) => (
+              <li key={skill}>
+                <Badge>{skill}</Badge>
+              </li>
+            ))}
+        </ul>
       )}
 
       {(candidate.stage || (onViewProfile && candidate.email)) && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--input-border)', paddingTop: '8px' }}>
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-hb-border pt-2.5">
           {candidate.stage ? (
-            <span style={{
-              padding: '3px 8px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              fontWeight: 600,
-              ...getStageStyle(candidate.stage)
-            }}>
+            <span
+              className="inline-flex items-center rounded-hb-full px-2.5 py-1 font-mono text-hb-micro uppercase"
+              style={getStageStyle(candidate.stage)}
+            >
               {candidate.stage.replace('Stage:', '').trim()}
             </span>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
           {onViewProfile && candidate.email && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onViewProfile(candidate.email!) }}
-              style={{
-                background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#fff',
-                cursor: 'pointer',
-                padding: '4px 10px',
-                fontSize: '11px',
-                fontWeight: 600,
-                transition: 'opacity 0.2s ease'
+            <Button
+              size="sm"
+              trailingIcon={<ArrowRight size={13} />}
+              onClick={(e) => {
+                e.stopPropagation()
+                onViewProfile(candidate.email!)
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
             >
-              View Profile →
-            </button>
+              View profile
+            </Button>
           )}
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -321,7 +282,7 @@ function fmtTime(iso: string) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-// ── Main Widget ───────────────────────────────────────────────────────────────
+// â”€â”€ Main Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function CopilotWidget() {
   const {
     isOpen, toggle, close, isThinking, setThinking,
@@ -699,7 +660,7 @@ export function CopilotWidget() {
     try {
       const res = await copilotApi.getConversations()
       setConversations(res.data)
-    } catch { /* silent — history is non-critical */ }
+    } catch { /* silent â€” history is non-critical */ }
     finally { setHistoryLoading(false) }
   }, [])
 
@@ -799,7 +760,7 @@ export function CopilotWidget() {
     const historySnapshot = useCopilotStore.getState().messages
     const activeConvId = useCopilotStore.getState().conversationId
 
-    addMessage({ role: 'user', content: isApproval ? '👍 Action Approved' : msg })
+    addMessage({ role: 'user', content: isApproval ? 'ðŸ‘ Action Approved' : msg })
 
     if (!isApproval) {
       setInput('')
@@ -869,9 +830,9 @@ export function CopilotWidget() {
             if (!messageAdded) {
               messageAdded = true
               setThinking(false)
-              addMessage({ role: 'assistant', content: `⚠️ ${errMsg}` })
+              addMessage({ role: 'assistant', content: `âš ï¸ ${errMsg}` })
             } else {
-              useCopilotStore.getState().updateLastMessageContent(`\n\n⚠️ ${errMsg}`)
+              useCopilotStore.getState().updateLastMessageContent(`\n\nâš ï¸ ${errMsg}`)
             }
           }
         }
@@ -884,7 +845,7 @@ export function CopilotWidget() {
     }
   }, [isThinking, pageContext, addMessage, setThinking, setConversationId, queryClient])
 
-  // ── Focus management ──────────────────────────────────────────────────────
+  // â”€â”€ Focus management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Auto-focus textarea when STT finishes and transcript is ready to send
   useEffect(() => {
     if (sttStatus === 'ready') {
@@ -955,11 +916,15 @@ export function CopilotWidget() {
         const x = startX + i * (barWidth + gap)
         const y = centerY - barHeight / 2
         
+        /* The brand gradient's own stops. Canvas cannot read a CSS custom
+           property, so these are the literal values behind `--hb-grad` â€” the
+           one place in the product where a hex is unavoidable. Previously
+           pinkâ†’violetâ†’pink, neither of which is a Hybent colour. */
         const grad = ctx.createLinearGradient(x, y, x, y + barHeight)
-        grad.addColorStop(0, '#EC4899') // pink
-        grad.addColorStop(0.5, '#8B5CF6') // violet
-        grad.addColorStop(1, '#EC4899') // pink
-        
+        grad.addColorStop(0, '#22CFFF')   // cyan
+        grad.addColorStop(0.5, '#4C6FFF') // blue
+        grad.addColorStop(1, '#A855F7')   // violet
+
         ctx.fillStyle = grad
         
         ctx.beginPath()
@@ -1433,41 +1398,41 @@ export function CopilotWidget() {
   }
 
   const parseCandidateCard = (text: string): CandidateCardData | null => {
-    if (!text.includes('👤')) return null
+    if (!text.includes('ðŸ‘¤')) return null
     const lines = text.split('\n')
     const card: CandidateCardData = { name: '' }
     
     for (const line of lines) {
       const trimmed = line.trim()
       
-      if (trimmed.includes('👤')) {
-        const match = trimmed.match(/👤\s*(.*)/)
+      if (trimmed.includes('ðŸ‘¤')) {
+        const match = trimmed.match(/ðŸ‘¤\s*(.*)/)
         if (match) {
           card.name = match[1].replace(/\*\*/g, '').trim()
         }
-      } else if (trimmed.includes('📧')) {
-        const match = trimmed.match(/📧\s*(.*)/)
+      } else if (trimmed.includes('ðŸ“§')) {
+        const match = trimmed.match(/ðŸ“§\s*(.*)/)
         if (match) card.email = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('💼')) {
-        const match = trimmed.match(/💼\s*(.*)/)
+      } else if (trimmed.includes('ðŸ’¼')) {
+        const match = trimmed.match(/ðŸ’¼\s*(.*)/)
         if (match) card.title = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('📍')) {
-        const match = trimmed.match(/📍\s*(.*)/)
+      } else if (trimmed.includes('ðŸ“')) {
+        const match = trimmed.match(/ðŸ“\s*(.*)/)
         if (match) card.location = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('⭐')) {
-        const match = trimmed.match(/⭐\s*(.*)/)
+      } else if (trimmed.includes('â­')) {
+        const match = trimmed.match(/â­\s*(.*)/)
         if (match) card.experience = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('🛠️')) {
-        const match = trimmed.match(/🛠️\s*(.*)/)
+      } else if (trimmed.includes('ðŸ› ï¸')) {
+        const match = trimmed.match(/ðŸ› ï¸\s*(.*)/)
         if (match) card.skills = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('⏳')) {
-        const match = trimmed.match(/⏳\s*(.*)/)
+      } else if (trimmed.includes('â³')) {
+        const match = trimmed.match(/â³\s*(.*)/)
         if (match) card.notice = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('📌')) {
-        const match = trimmed.match(/📌\s*(.*)/)
+      } else if (trimmed.includes('ðŸ“Œ')) {
+        const match = trimmed.match(/ðŸ“Œ\s*(.*)/)
         if (match) card.stage = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('💰')) {
-        const match = trimmed.match(/💰\s*(.*)/)
+      } else if (trimmed.includes('ðŸ’°')) {
+        const match = trimmed.match(/ðŸ’°\s*(.*)/)
         if (match) card.salary = match[1].replace(/\*\*/g, '').trim()
       }
     }
@@ -1529,10 +1494,10 @@ export function CopilotWidget() {
           onClick={handleCtaClick}
           style={{
             marginTop: '12px',
-            background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)',
+            background: 'var(--hb-grad-diag)',
             border: 'none',
             borderRadius: '10px',
-            color: '#fff',
+            color: 'rgb(var(--hb-on-brand))',
             cursor: 'pointer',
             padding: '10px 20px',
             fontSize: '13px',
@@ -1540,13 +1505,13 @@ export function CopilotWidget() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: 'var(--shadow-card)',
+            boxShadow: 'var(--hb-sh-1)',
             transition: 'all 0.2s ease',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)' }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
         >
-          <span>✨</span> {ctaButtonText} <span>→</span>
+          <span>âœ¨</span> {ctaButtonText} <span>â†’</span>
         </button>
       )
     }
@@ -1554,15 +1519,15 @@ export function CopilotWidget() {
     if (parts.length <= 1) {
       try {
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+          <div className="flex w-full flex-col items-start">
             <ReactMarkdown>{cleanContent}</ReactMarkdown>
             {renderCta()}
           </div>
         )
       } catch {
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
-            <span style={{ whiteSpace: 'pre-wrap' }}>{cleanContent}</span>
+          <div className="flex w-full flex-col items-start">
+            <span className="whitespace-pre-wrap">{cleanContent}</span>
             {renderCta()}
           </div>
         )
@@ -1570,7 +1535,7 @@ export function CopilotWidget() {
     }
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', minWidth: 0 }}>
+      <div className="flex w-full min-w-0 flex-col gap-3.5">
         {parts.map((part, idx) => {
           const candidate = parseCandidateCard(part)
           if (candidate) {
@@ -1581,7 +1546,7 @@ export function CopilotWidget() {
           try {
             return <ReactMarkdown key={idx}>{trimmedPart}</ReactMarkdown>
           } catch {
-            return <span key={idx} style={{ whiteSpace: 'pre-wrap' }}>{trimmedPart}</span>
+            return <span key={idx} className="whitespace-pre-wrap">{trimmedPart}</span>
           }
         })}
       </div>
@@ -1628,29 +1593,29 @@ export function CopilotWidget() {
     <>
       <style>{`
         @keyframes copilotSlideUp { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes copilotDot { 0%,80%,100% { transform:translateY(0); opacity:0.3; } 40% { transform:translateY(-4px); opacity:1; background:var(--pink); } }
-        .c-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--violet); animation:copilotDot 1.2s infinite ease-in-out; }
+        @keyframes copilotDot { 0%,80%,100% { transform:translateY(0); opacity:0.3; } 40% { transform:translateY(-4px); opacity:1; background:rgb(var(--hb-magenta)); } }
+        .c-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:rgb(var(--hb-blue)); animation:copilotDot 1.2s infinite ease-in-out; }
         .c-dot:nth-child(2){animation-delay:0.2s;} .c-dot:nth-child(3){animation-delay:0.4s;}
-        .c-fab:hover { transform:scale(1.08) translateY(-4px) !important; box-shadow:var(--shadow-h) !important; }
-        .c-icon-btn:hover { background:var(--hover-row) !important; color:var(--text) !important; }
+        .c-fab:hover { transform:scale(1.08) translateY(-4px) !important; box-shadow:var(--hb-sh-2) !important; }
+        .c-icon-btn:hover { background:rgb(var(--hb-surface-2)) !important; color:rgb(var(--hb-text)) !important; }
         .c-send:hover { opacity:0.9; transform:scale(1.05); }
-        .c-send:disabled { background:var(--input-bg) !important; color:var(--text-mid) !important; box-shadow:none !important; transform:none !important; cursor:not-allowed !important; }
-        .c-card:hover { background:var(--hover-row) !important; border-color:var(--violet) !important; transform:translateY(-2px); }
-        .c-input:focus { border-color:var(--violet) !important; box-shadow:0 0 0 3px var(--search-bg) !important; }
-        .c-hist-item:hover { background:var(--hover-row) !important; border-color:var(--violet) !important; }
-        .c-hist-del:hover { opacity:1 !important; color:var(--pink) !important; }
-        .c-clear-all:hover { opacity:0.8; color:var(--pink) !important; text-shadow: 0 0 4px rgba(236,72,153,0.2); }
+        .c-send:disabled { background:rgb(var(--hb-surface)) !important; color:rgb(var(--hb-muted)) !important; box-shadow:none !important; transform:none !important; cursor:not-allowed !important; }
+        .c-card:hover { background:rgb(var(--hb-surface-2)) !important; border-color:rgb(var(--hb-blue)) !important; transform:translateY(-2px); }
+        .c-input:focus { border-color:rgb(var(--hb-blue)) !important; box-shadow:0 0 0 3px rgb(var(--hb-surface-2)) !important; }
+        .c-hist-item:hover { background:rgb(var(--hb-surface-2)) !important; border-color:rgb(var(--hb-blue)) !important; }
+        .c-hist-del:hover { opacity:1 !important; color:rgb(var(--hb-magenta)) !important; }
+        .c-clear-all:hover { opacity:0.8; color:rgb(var(--hb-magenta)) !important; text-shadow: 0 0 4px rgb(var(--hb-magenta) / .2); }
         .c-new-chat:hover { opacity:0.9; transform:scale(1.02); }
-        .c-back:hover { color:var(--text) !important; }
+        .c-back:hover { color:rgb(var(--hb-text)) !important; }
         .c-messages::-webkit-scrollbar,.c-hist-list::-webkit-scrollbar { width:5px; }
         .c-messages::-webkit-scrollbar-track,.c-hist-list::-webkit-scrollbar-track { background:transparent; }
-        .c-messages::-webkit-scrollbar-thumb,.c-hist-list::-webkit-scrollbar-thumb { background:var(--violet-light); border-radius:10px; }
+        .c-messages::-webkit-scrollbar-thumb,.c-hist-list::-webkit-scrollbar-thumb { background:rgb(var(--hb-blue) / .35); border-radius:10px; }
         .c-bot p{margin:0 0 10px 0;} .c-bot p:last-child{margin:0;} .c-bot ul,.c-bot ol{margin:6px 0 10px 20px;padding:0;} .c-bot li{margin:4px 0;}
-        .c-bot strong{color:var(--text);font-weight:600;}
-        .c-bot code{background:var(--bg2);border-radius:6px;padding:2px 6px;font-size:13px;font-family:ui-monospace,monospace;color:var(--pink);border:1px solid var(--input-border);}
-        .c-bot pre{background:var(--bg2);padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--input-border);}
-        .c-bot pre code{background:transparent;border:none;padding:0;color:var(--text);}
-        @keyframes micPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .c-bot strong{color:rgb(var(--hb-text));font-weight:600;}
+        .c-bot code{background:rgb(var(--hb-surface-2));border-radius:6px;padding:2px 6px;font-size:13px;font-family:ui-monospace,monospace;color:rgb(var(--hb-magenta));border:1px solid var(--hb-border);}
+        .c-bot pre{background:rgb(var(--hb-surface-2));padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--hb-border);}
+        .c-bot pre code{background:transparent;border:none;padding:0;color:rgb(var(--hb-text));}
+        @keyframes micPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--hb-error) / .4); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgb(var(--hb-error) / 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--hb-error) / 0); } }
         @keyframes recordBlink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         .c-blink { animation: recordBlink 1.5s infinite ease-in-out; }
       `}</style>
@@ -1670,7 +1635,7 @@ export function CopilotWidget() {
         onTouchStart={handleFabTouchStart}
         aria-label="Open AI Copilot"
       >
-        {isOpen ? <CloseIcon /> : '✦'}
+        {isOpen ? <CloseIcon /> : 'âœ¦'}
       </button>
 
       {/* Panel */}
@@ -1712,9 +1677,9 @@ export function CopilotWidget() {
             ) : (
               <>
                 <div style={s.headerTitle}>
-                  <span style={{ background: 'linear-gradient(135deg, var(--violet), var(--pink))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '18px' }}>✦</span>
+                  <span className="hb-grad-text text-[18px]">âœ¦</span>
                   <span>Recruiter Copilot</span>
-                  {isThinking && <span style={{ fontSize: '12px', opacity: 0.8, fontWeight: 400, color: 'var(--violet-light)' }}>thinking...</span>}
+                  {isThinking && <span className="text-hb-xs font-normal text-hb-blue/40">thinking...</span>}
                 </div>
                 <div style={s.headerActions}>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={() => setIsMinimized(!isMinimized)} title={isMinimized ? "Maximize" : "Minimize"}>
@@ -1735,18 +1700,18 @@ export function CopilotWidget() {
                 <div style={s.historyPanel}>
                   {/* Global Clear All button */}
                   {conversations.length > 0 && !historyLoading && !convLoading && (
-                    <div style={{ padding: '8px 24px 0', display: 'flex', justifyContent: 'flex-end' }}>
+                    <div className="flex justify-end px-6 pt-2">
                       <button
                         className="c-clear-all"
                         onClick={handleClearAll}
                         style={{
-                          background: 'transparent', border: 'none', color: 'var(--text-mid)',
+                          background: 'transparent', border: 'none', color: 'rgb(var(--hb-muted))',
                           cursor: 'pointer', fontSize: '12px', fontWeight: 600,
                           display: 'flex', alignItems: 'center', gap: '4px',
                           padding: '4px 8px', borderRadius: '6px', transition: 'all 0.2s ease'
                         }}
                       >
-                        🗑️ Clear All History
+                        ðŸ—‘ï¸ Clear All History
                       </button>
                     </div>
                   )}
@@ -1756,9 +1721,9 @@ export function CopilotWidget() {
                     </div>
                   ) : conversations.length === 0 ? (
                     <div style={s.historyEmpty}>
-                      <span style={{ fontSize: '36px' }}>🕐</span>
+                      <span className="text-[36px]">ðŸ•</span>
                       <div>No past conversations yet.</div>
-                      <div style={{ fontSize: '12px', opacity: 0.7 }}>Your chats will appear here.</div>
+                      <div className="text-hb-xs opacity-70">Your chats will appear here.</div>
                     </div>
                   ) : (
                     <div className="c-hist-list" style={s.historyList}>
@@ -1779,7 +1744,7 @@ export function CopilotWidget() {
                                   style={{
                                     background: 'transparent',
                                     border: 'none',
-                                    color: 'var(--pink)',
+                                    color: 'rgb(var(--hb-magenta))',
                                     cursor: 'pointer',
                                     fontSize: '11px',
                                     fontWeight: 600,
@@ -1799,7 +1764,7 @@ export function CopilotWidget() {
                               <div
                                 key={conv.id}
                                 className="c-hist-item"
-                                style={{ ...s.historyItem, borderColor: conv.id === conversationId ? 'var(--violet)' : undefined }}
+                                style={{ ...s.historyItem, borderColor: conv.id === conversationId ? 'rgb(var(--hb-blue))' : undefined }}
                                 onClick={() => loadConversation(conv.id)}
                               >
                                 <div style={s.historyItemTitle} title={conv.title}>{conv.title}</div>
@@ -1827,14 +1792,14 @@ export function CopilotWidget() {
                           zIndex: 10001, padding: '20px',
                         }}>
                           <div style={{
-                            background: 'var(--kpi-bg)', border: '1px solid var(--violet-light)', borderRadius: '12px',
+                            background: 'rgb(var(--hb-surface-2))', border: '1px solid rgb(var(--hb-blue) / .35)', borderRadius: '12px',
                             padding: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', maxWidth: '280px', width: '100%', textAlign: 'center'
                           }}>
-                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text)', fontSize: '15px' }}>Delete All History?</h4>
-                            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-mid)' }}>This action cannot be undone and will permanently delete all chat history.</p>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button onClick={() => setShowClearConfirm(false)} style={{ flex: 1, padding: '8px', background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-                              <button onClick={confirmClearAll} style={{ flex: 1, padding: '8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Delete All</button>
+                            <h4 className="mb-2.5 text-hb-body text-hb-text">Delete All History?</h4>
+                            <p className="mb-5 text-hb-sm text-hb-muted">This action cannot be undone and will permanently delete all chat history.</p>
+                            <div className="flex gap-2.5">
+                              <button onClick={() => setShowClearConfirm(false)} style={{ flex: 1, padding: '8px', background: 'rgb(var(--hb-surface-2))', color: 'rgb(var(--hb-text))', border: '1px solid var(--hb-border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                              <button onClick={confirmClearAll} style={{ flex: 1, padding: '8px', background: 'rgb(var(--hb-error))', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Delete All</button>
                             </div>
                           </div>
                         </div>
@@ -1852,9 +1817,9 @@ export function CopilotWidget() {
                       </div>
                     ) : messages.length === 0 ? (
                       <div style={s.emptyState}>
-                        <div style={s.emptyIcon}>✦</div>
+                        <div style={s.emptyIcon}>âœ¦</div>
                         <div style={s.emptyTitle}>Your Recruiter AI Copilot</div>
-                        <div style={s.emptySubtitle}>Ask me anything — candidates, jobs, interviews, offers, or pipeline stats.</div>
+                        <div style={s.emptySubtitle}>Ask me anything â€” candidates, jobs, interviews, offers, or pipeline stats.</div>
                         <div style={s.promptGrid}>
                           {EXAMPLE_PROMPTS.map((item) => (
                             <button key={item.title} className="c-card" style={s.promptCard} onClick={() => handleSend(item.prompt)}>
@@ -1887,15 +1852,15 @@ export function CopilotWidget() {
                                 width: '32px', 
                                 height: '32px', 
                                 borderRadius: '50%', 
-                                background: 'var(--violet-light)', 
+                                background: 'rgb(var(--hb-blue) / .35)', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center', 
                                 fontSize: '11px', 
                                 fontWeight: 700, 
-                                color: 'var(--violet)', 
+                                color: 'rgb(var(--hb-blue))', 
                                 flexShrink: 0, 
-                                border: '1px solid var(--violet-light)'
+                                border: '1px solid rgb(var(--hb-blue) / .35)'
                               }}>
                                 HR
                               </div>
@@ -1904,15 +1869,15 @@ export function CopilotWidget() {
                                 width: '32px', 
                                 height: '32px', 
                                 borderRadius: '50%', 
-                                background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)', 
+                                background: 'var(--hb-grad-diag)', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center', 
-                                color: '#fff',
+                                color: 'rgb(var(--hb-on-brand))',
                                 fontSize: '14px', 
                                 flexShrink: 0 
                               }}>
-                                ✦
+                                âœ¦
                               </div>
                             )}
                             
@@ -1932,15 +1897,15 @@ export function CopilotWidget() {
                               width: '32px', 
                               height: '32px', 
                               borderRadius: '50%', 
-                              background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)', 
+                              background: 'var(--hb-grad-diag)', 
                               display: 'flex', 
                               alignItems: 'center', 
                               justifyContent: 'center', 
-                              color: '#fff',
+                              color: 'rgb(var(--hb-on-brand))',
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              ✦
+                              âœ¦
                             </div>
                             <div style={s.thinkingBubble}>
                               <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
@@ -1953,43 +1918,43 @@ export function CopilotWidget() {
                               width: '32px', 
                               height: '32px', 
                               borderRadius: '50%', 
-                              background: 'linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%)', 
+                              background: 'var(--hb-grad-diag)', 
                               display: 'flex', 
                               alignItems: 'center', 
                               justifyContent: 'center', 
-                              color: '#fff',
+                              color: 'rgb(var(--hb-on-brand))',
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              ✦
+                              âœ¦
                             </div>
-                            <div style={{ ...s.thinkingBubble, background: 'rgba(139, 92, 246, 0.05)', borderColor: 'var(--violet-light)' }}>
+                            <div style={{ ...s.thinkingBubble, background: 'rgb(var(--hb-blue) / .05)', borderColor: 'rgb(var(--hb-blue) / .35)' }}>
                               <span className="c-dot" style={{ animationDelay: '0s' }} /><span className="c-dot" style={{ animationDelay: '0.2s' }} /><span className="c-dot" style={{ animationDelay: '0.4s' }} />
-                              <span style={{ fontSize: '13px', color: 'var(--violet)', fontWeight: 500, marginLeft: '6px' }}>Transcribing voice...</span>
+                              <span className="ml-1.5 text-hb-sm font-medium text-hb-blue">Transcribing voice...</span>
                             </div>
                           </div>
                         )}
                         {pendingApproval && (
-                          <div style={{ padding: '14px', background: 'rgba(139,92,246,0.04)', borderRadius: '12px', border: '1px solid var(--violet-light)', margin: '4px 0' }}>
-                            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span>⚠️</span>
+                          <div className="my-1 rounded-hb-md border border-hb-blue/35 bg-hb-blue/[0.04] p-3.5">
+                            <div className="mb-2 flex items-center gap-1.5 text-hb-sm font-bold text-hb-text">
+                              <span>âš ï¸</span>
                               <span>Approval Required: {(pendingApproval.name as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</span>
                             </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-mid)', marginBottom: '12px' }}>
+                            <div className="mb-3 text-hb-xs text-hb-muted">
                               Review the action below and confirm to proceed.
                             </div>
                             <div style={{
-                              fontSize: '12px', color: 'var(--text-mid)', marginBottom: '16px',
-                              background: 'var(--topbar-bg)', padding: '10px 12px', borderRadius: '8px',
+                              fontSize: '12px', color: 'rgb(var(--hb-muted))', marginBottom: '16px',
+                              background: 'rgb(var(--hb-surface))', padding: '10px 12px', borderRadius: '8px',
                               display: 'flex', flexDirection: 'column', gap: '6px',
-                              border: '1px solid var(--input-border)'
+                              border: '1px solid var(--hb-border)'
                             }}>
                               {Object.entries(pendingApproval.args).map(([k, v]) => (
-                                <div key={k} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                  <span style={{ fontWeight: 600, color: 'var(--text)', minWidth: '120px', flexShrink: 0 }}>
+                                <div key={k} className="flex items-start gap-2">
+                                  <span className="min-w-[120px] shrink-0 font-semibold text-hb-text">
                                     {k.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}:
                                   </span>
-                                  <span style={{ color: 'var(--text)', wordBreak: 'break-word' }}>{String(v)}</span>
+                                  <span style={{ color: 'rgb(var(--hb-text))', wordBreak: 'break-word' }}>{String(v)}</span>
                                 </div>
                               ))}
                             </div>
@@ -1997,26 +1962,26 @@ export function CopilotWidget() {
                               <button
                                 onClick={() => handleSend(undefined, pendingApproval)}
                                 style={{
-                                  flex: 1, padding: '9px', background: 'linear-gradient(135deg, var(--violet), var(--violet-mid))',
-                                  color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer',
+                                  flex: 1, padding: '9px', background: 'var(--hb-grad-diag)',
+                                  color: 'rgb(var(--hb-on-brand))', border: 'none', borderRadius: '8px', cursor: 'pointer',
                                   fontWeight: 600, fontSize: '13px', transition: 'opacity 0.2s ease'
                                 }}
                                 disabled={isThinking}
                                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88' }}
                                 onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                               >
-                                ✓ Approve
+                                âœ“ Approve
                               </button>
                               <button
                                 onClick={() => setPendingApproval(null)}
                                 style={{
                                   flex: 1, padding: '9px', background: 'transparent',
-                                  border: '1px solid var(--input-border)', color: 'var(--text)',
+                                  border: '1px solid var(--hb-border)', color: 'rgb(var(--hb-text))',
                                   borderRadius: '8px', cursor: 'pointer', fontWeight: 500, fontSize: '13px'
                                 }}
                                 disabled={isThinking}
                               >
-                                ✕ Cancel
+                                âœ• Cancel
                               </button>
                             </div>
                           </div>
@@ -2030,20 +1995,20 @@ export function CopilotWidget() {
                   {audioError && (
                     <div style={{
                       padding: '10px 16px',
-                      background: 'rgba(239, 68, 68, 0.08)',
-                      borderTop: '1px solid rgba(239, 68, 68, 0.15)',
-                      borderBottom: '1px solid rgba(239, 68, 68, 0.15)',
+                      background: 'rgb(var(--hb-error) / .08)',
+                      borderTop: '1px solid rgb(var(--hb-error) / .15)',
+                      borderBottom: '1px solid rgb(var(--hb-error) / .15)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: '12px'
                     }}>
-                      <span style={{ fontSize: '13px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500 }}>
-                        ⚠️ {audioError}
+                      <span style={{ fontSize: '13px', color: 'rgb(var(--hb-error))', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500 }}>
+                        âš ï¸ {audioError}
                       </span>
                       <button 
                         onClick={() => setAudioError(null)}
-                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}
+                        style={{ background: 'transparent', border: 'none', color: 'rgb(var(--hb-error))', cursor: 'pointer', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}
                       >
                         Dismiss
                       </button>
@@ -2054,25 +2019,25 @@ export function CopilotWidget() {
                   {candidateSuggestions.length > 0 && (
                     <div style={{
                       padding: '8px 16px',
-                      background: 'var(--bg2)',
-                      borderTop: '1px solid var(--input-border)',
+                      background: 'rgb(var(--hb-surface-2))',
+                      borderTop: '1px solid var(--hb-border)',
                       display: 'flex',
                       flexWrap: 'wrap',
                       gap: '8px',
                       alignItems: 'center'
                     }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-mid)', fontWeight: 600 }}>Did you mean:</span>
+                      <span style={{ fontSize: '11px', color: 'rgb(var(--hb-muted))', fontWeight: 600 }}>Did you mean:</span>
                       {candidateSuggestions.map((item, idx) => (
                         <button
                           key={`${item.candidate.id}-${idx}`}
                           onClick={() => applySuggestion(item.candidate.full_name, item.matchedWord)}
                           style={{
-                            background: 'var(--kpi-bg)',
-                            border: '1px solid var(--input-border)',
+                            background: 'rgb(var(--hb-surface-2))',
+                            border: '1px solid var(--hb-border)',
                             borderRadius: '12px',
                             padding: '4px 10px',
                             fontSize: '12px',
-                            color: 'var(--text)',
+                            color: 'rgb(var(--hb-text))',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -2080,15 +2045,15 @@ export function CopilotWidget() {
                             transition: 'all 0.2s ease'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--violet)'
-                            e.currentTarget.style.background = 'var(--hover-row)'
+                            e.currentTarget.style.borderColor = 'rgb(var(--hb-blue))'
+                            e.currentTarget.style.background = 'rgb(var(--hb-surface-2))'
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--input-border)'
-                            e.currentTarget.style.background = 'var(--kpi-bg)'
+                            e.currentTarget.style.borderColor = 'var(--hb-border)'
+                            e.currentTarget.style.background = 'rgb(var(--hb-surface-2))'
                           }}
                         >
-                          👤 {item.candidate.full_name}
+                          ðŸ‘¤ {item.candidate.full_name}
                         </button>
                       ))}
                     </div>
@@ -2107,9 +2072,9 @@ export function CopilotWidget() {
                     </button>
                     
                     {isRecording && !isSpeechSupported ? (
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: '14px', height: '42px', boxSizing: 'border-box' }}>
-                        <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                          <span className="c-blink" style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', background: 'rgb(var(--hb-surface))', border: '1px solid var(--hb-border)', borderRadius: '14px', height: '42px', boxSizing: 'border-box' }}>
+                        <div style={{ color: 'rgb(var(--hb-error))', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <span className="c-blink" style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'rgb(var(--hb-error))', display: 'inline-block' }} />
                           {formatTimer(recordingSeconds)}
                         </div>
                         <canvas
@@ -2129,12 +2094,12 @@ export function CopilotWidget() {
                             isTranscribing
                               ? 'Transcribing voice...'
                               : sttStatus === 'listening'
-                                ? 'Listening… speak now'
+                                ? 'Listeningâ€¦ speak now'
                                 : sttStatus === 'refining'
-                                  ? 'Refining transcript…'
+                                  ? 'Refining transcriptâ€¦'
                                   : sttStatus === 'ready'
                                     ? 'Review & press Enter to send'
-                                    : 'Ask me anything about candidates, jobs, interviews…'
+                                    : 'Ask me anything about candidates, jobs, interviewsâ€¦'
                           }
                           value={input}
                           rows={1}
@@ -2145,9 +2110,9 @@ export function CopilotWidget() {
                         {sttStatus === 'ready' && (
                           <div style={{
                             position: 'absolute', bottom: '-18px', left: '4px',
-                            fontSize: '10px', color: 'var(--violet)', fontWeight: 600, opacity: 0.85
+                            fontSize: '10px', color: 'rgb(var(--hb-blue))', fontWeight: 600, opacity: 0.85
                           }}>
-                            ↵ Press Enter to send
+                            â†µ Press Enter to send
                           </div>
                         )}
                       </div>
@@ -2157,7 +2122,7 @@ export function CopilotWidget() {
                       className="c-send"
                       style={{
                         ...s.sendBtn,
-                        background: isRecording ? 'linear-gradient(135deg, #ef4444, #dc2626)' : s.sendBtn.background
+                        background: isRecording ? 'rgb(var(--hb-error))' : s.sendBtn.background
                       }}
                       onClick={isRecording ? stopRecording : () => handleSend()}
                       disabled={isThinking || isTranscribing || sttStatus === 'refining' || (!input.trim() && !isRecording)}

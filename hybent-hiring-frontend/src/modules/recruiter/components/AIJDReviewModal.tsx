@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
-import { aiApi } from '@/api/ai'
+import { useState } from 'react'
+import { FileDown, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Modal } from '@/components/ui/Modal'
+import { aiApi } from '@/api/ai'
+import { Button, Card, CardHeader, Dialog, Input, Textarea } from '@/components/hb'
 
 interface JDData {
   title: string
@@ -13,6 +14,18 @@ interface JDData {
   description: string
 }
 
+type ListField = 'key_responsibilities' | 'required_qualifications_skills' | 'good_to_have'
+
+const blankJD = (): JDData => ({
+  title: '',
+  location: '',
+  experience: '',
+  key_responsibilities: [],
+  required_qualifications_skills: [],
+  good_to_have: [],
+  description: '',
+})
+
 interface AIJDReviewModalProps {
   open: boolean
   onClose: () => void
@@ -20,30 +33,79 @@ interface AIJDReviewModalProps {
   onApply: (approvedData: JDData) => void
 }
 
+/**
+ * One card per list: add, edit in place, remove. The three lists differ only in
+ * what they contain, so they get one appearance — the sidebar lists are not a
+ * quieter variant of the responsibilities list.
+ */
+function EditableList({
+  title,
+  itemNoun,
+  items,
+  onAdd,
+  onChange,
+  onRemove,
+}: {
+  title: string
+  /** Singular, lowercase — used to name each row for assistive tech. */
+  itemNoun: string
+  items: string[]
+  onAdd: () => void
+  onChange: (index: number, value: string) => void
+  onRemove: (index: number) => void
+}) {
+  return (
+    <Card>
+      <CardHeader
+        title={title}
+        action={
+          <Button
+            variant="quiet"
+            size="sm"
+            icon={<Plus size={14} />}
+            aria-label={`Add ${itemNoun}`}
+            onClick={onAdd}
+          >
+            Add
+          </Button>
+        }
+      />
+      {items.length === 0 ? (
+        <p className="text-hb-sm text-hb-muted">Nothing added yet.</p>
+      ) : (
+        <ul className="space-y-hb-2">
+          {items.map((item, i) => (
+            <li key={i} className="flex items-center gap-hb-2">
+              <Input
+                aria-label={`${itemNoun} ${i + 1}`}
+                fieldClassName="flex-1 min-w-0"
+                value={item}
+                onChange={(e) => onChange(i, e.target.value)}
+              />
+              <Button
+                variant="quiet"
+                size="sm"
+                className="shrink-0 w-8 px-0"
+                aria-label={`Remove ${itemNoun} ${i + 1}`}
+                icon={<X size={15} />}
+                onClick={() => onRemove(i)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 export function AIJDReviewModal({ open, onClose, data: initialData, onApply }: AIJDReviewModalProps) {
   // Use local state for editing
-  const [data, setData] = useState<JDData>(initialData || {
-    title: '',
-    location: '',
-    experience: '',
-    key_responsibilities: [],
-    required_qualifications_skills: [],
-    good_to_have: [],
-    description: ''
-  })
+  const [data, setData] = useState<JDData>(initialData || blankJD())
 
   // Sync state if initialData changes (when generation completes)
   const [lastInitialData, setLastInitialData] = useState<JDData | null>(null)
   if (initialData !== lastInitialData) {
-    setData(initialData || {
-      title: '',
-      location: '',
-      experience: '',
-      key_responsibilities: [],
-      required_qualifications_skills: [],
-      good_to_have: [],
-      description: ''
-    })
+    setData(initialData || blankJD())
     setLastInitialData(initialData)
   }
 
@@ -53,17 +115,17 @@ export function AIJDReviewModal({ open, onClose, data: initialData, onApply }: A
     setData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleListChange = (field: 'key_responsibilities' | 'required_qualifications_skills' | 'good_to_have', index: number, value: string) => {
+  const handleListChange = (field: ListField, index: number, value: string) => {
     const newList = [...data[field]]
     newList[index] = value
     setData(prev => ({ ...prev, [field]: newList }))
   }
 
-  const addListItem = (field: 'key_responsibilities' | 'required_qualifications_skills' | 'good_to_have') => {
+  const addListItem = (field: ListField) => {
     setData(prev => ({ ...prev, [field]: [...prev[field], ''] }))
   }
 
-  const removeListItem = (field: 'key_responsibilities' | 'required_qualifications_skills' | 'good_to_have', index: number) => {
+  const removeListItem = (field: ListField, index: number) => {
     setData(prev => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }))
   }
 
@@ -94,165 +156,92 @@ export function AIJDReviewModal({ open, onClose, data: initialData, onApply }: A
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Review AI Generated JD" size="xl">
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <p className="text-slate-500 text-xs">
-            Review and refine the AI output before applying it to your job opening.
-          </p>
-          <button
-            type="button"
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="xl"
+      title="Review AI Generated JD"
+      description="Review and refine the AI output before applying it to your job opening."
+      footer={
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<FileDown size={15} />}
+            loading={isExporting}
             onClick={handleExportPDF}
-            disabled={isExporting}
-            className="px-3 py-1.5 bg-white border border-violet-200 text-violet-600 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-violet-50 transition-colors disabled:opacity-50"
           >
-            {isExporting ? 'Exporting...' : '📄 Export PDF'}
-          </button>
+            {isExporting ? 'Exporting…' : 'Export PDF'}
+          </Button>
+          <Button size="sm" onClick={handleApprove}>
+            Approve &amp; Apply
+          </Button>
+        </>
+      }
+    >
+      <div className="grid gap-hb-6 md:grid-cols-3 pb-hb-2">
+        <div className="md:col-span-2 space-y-hb-6">
+          <Card>
+            <CardHeader title="Core Information" />
+            <div className="space-y-hb-4">
+              <Input
+                label="Job Position"
+                value={data.title}
+                onChange={(e) => handleFieldChange('title', e.target.value)}
+              />
+
+              <div className="grid gap-hb-4 sm:grid-cols-2">
+                <Input
+                  label="Location"
+                  value={data.location}
+                  onChange={(e) => handleFieldChange('location', e.target.value)}
+                />
+                <Input
+                  label="Experience"
+                  placeholder="e.g. 3+ Years"
+                  value={data.experience}
+                  onChange={(e) => handleFieldChange('experience', e.target.value)}
+                />
+              </div>
+
+              <Textarea
+                label="Job Description"
+                value={data.description}
+                onChange={(e) => handleFieldChange('description', e.target.value)}
+              />
+            </div>
+          </Card>
+
+          <EditableList
+            title="Key Responsibilities"
+            itemNoun="responsibility"
+            items={data.key_responsibilities}
+            onAdd={() => addListItem('key_responsibilities')}
+            onChange={(i, value) => handleListChange('key_responsibilities', i, value)}
+            onRemove={(i) => removeListItem('key_responsibilities', i)}
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Main Editor Section */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-5">
-              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-4">Core Information</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">Job Position</label>
-                  <input 
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none transition-all font-semibold text-sm"
-                    value={data.title}
-                    onChange={(e) => handleFieldChange('title', e.target.value)}
-                  />
-                </div>
+        <div className="space-y-hb-6">
+          <EditableList
+            title="Qualifications"
+            itemNoun="qualification"
+            items={data.required_qualifications_skills}
+            onAdd={() => addListItem('required_qualifications_skills')}
+            onChange={(i, value) => handleListChange('required_qualifications_skills', i, value)}
+            onRemove={(i) => removeListItem('required_qualifications_skills', i)}
+          />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">Location</label>
-                    <input 
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none transition-all text-sm"
-                      value={data.location}
-                      onChange={(e) => handleFieldChange('location', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">Experience</label>
-                    <input 
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none transition-all font-bold text-sm"
-                      value={data.experience}
-                      placeholder="e.g. 3+ Years"
-                      onChange={(e) => handleFieldChange('experience', e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">Job Description</label>
-                  <textarea 
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none transition-all min-h-[100px] text-sm"
-                    value={data.description}
-                    onChange={(e) => handleFieldChange('description', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Key Responsibilities</h3>
-                <button 
-                  type="button"
-                  onClick={() => addListItem('key_responsibilities')}
-                  className="text-[10px] font-bold text-violet-600 hover:underline"
-                >
-                  + Add
-                </button>
-              </div>
-              <div className="space-y-2">
-                {data.key_responsibilities.map((item, i) => (
-                  <div key={i} className="flex gap-2">
-                    <input 
-                      className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                      value={item}
-                      onChange={(e) => handleListChange('key_responsibilities', i, e.target.value)}
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => removeListItem('key_responsibilities', i)}
-                      className="text-slate-300 hover:text-rose-500 text-lg leading-none"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar Sections */}
-          <div className="space-y-6">
-            <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Qualifications</h3>
-                <button 
-                  type="button"
-                  onClick={() => addListItem('required_qualifications_skills')}
-                  className="text-xs font-bold text-violet-600"
-                >
-                  +
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {data.required_qualifications_skills.map((item, i) => (
-                  <div key={i} className="flex gap-1 group">
-                    <input 
-                      className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded text-[11px]"
-                      value={item}
-                      onChange={(e) => handleListChange('required_qualifications_skills', i, e.target.value)}
-                    />
-                    <button type="button" onClick={() => removeListItem('required_qualifications_skills', i)} className="opacity-0 group-hover:opacity-100 text-rose-500">×</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Good to have</h3>
-                <button 
-                  type="button"
-                  onClick={() => addListItem('good_to_have')}
-                  className="text-xs font-bold text-violet-600"
-                >
-                  +
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {data.good_to_have.map((item, i) => (
-                  <div key={i} className="flex gap-1 group">
-                    <input 
-                      className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded text-[11px]"
-                      value={item}
-                      onChange={(e) => handleListChange('good_to_have', i, e.target.value)}
-                    />
-                    <button type="button" onClick={() => removeListItem('good_to_have', i)} className="opacity-0 group-hover:opacity-100 text-rose-500">×</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleApprove}
-                className="w-full py-3 bg-violet-600 text-white rounded-xl font-black text-sm shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all"
-              >
-                Approve & Apply
-              </button>
-            </div>
-          </div>
+          <EditableList
+            title="Good to have"
+            itemNoun="good-to-have skill"
+            items={data.good_to_have}
+            onAdd={() => addListItem('good_to_have')}
+            onChange={(i, value) => handleListChange('good_to_have', i, value)}
+            onRemove={(i) => removeListItem('good_to_have', i)}
+          />
         </div>
       </div>
-    </Modal>
+    </Dialog>
   )
 }

@@ -1,52 +1,92 @@
 /**
- * Pre-Screening Interview Page — public, token-based (no login required)
- * Candidate answers 10 AI-generated questions via audio recording.
+ * Pre-screening interview page — public, token-based (no login required).
+ * The candidate answers 10 AI-generated questions via audio recording.
  * Supports English, Hindi, and Gujarati with TTS question playback.
+ *
+ * Rebuilt on the design system in phase 7. The page renders outside the app
+ * shell (it has its own route, no sidebar), so it wraps itself in `.hb-app`
+ * for the token background. What went: a 400-line `styles` object with the
+ * old violet/pink wash and per-category colours — blue for "Role &
+ * Requirements", violet for "Your Experience", amber for "Professional
+ * Awareness", which put the product's warning colour on the most harmless
+ * category of the three. The category is named in its badge.
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { CheckCircle, ChevronRight, AlertTriangle, Mic, Clock, FileText, Briefcase, Loader2 } from 'lucide-react'
-import { preScreeningApi, type PublicSession, type ScreeningQuestion, type ScreeningLanguage } from '@/api/preScreening'
+import {
+  AlertTriangle,
+  Briefcase,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  FileText,
+  Loader2,
+  Mic,
+} from 'lucide-react'
+
+import {
+  preScreeningApi,
+  type PublicSession,
+  type ScreeningQuestion,
+  type ScreeningLanguage,
+} from '@/api/preScreening'
 import { AudioRecorder } from '@/modules/interviewer/components/PreScreening/AudioRecorder'
+import { Badge, Button, Card, Meter, Skeleton } from '@/components/hb'
 
 type PageState = 'loading' | 'intro' | 'question' | 'completed' | 'error'
 
 // ── Language configuration ────────────────────────────────────────────────────
 
-const LANGUAGE_OPTIONS: { key: ScreeningLanguage; label: string; nativeLabel: string; flag: string; ttsCode: string }[] = [
-  { key: 'english',  label: 'English',  nativeLabel: 'English',    flag: '🇬🇧', ttsCode: 'en-IN' },
-  { key: 'hindi',    label: 'Hindi',    nativeLabel: 'हिन्दी',      flag: '🇮🇳', ttsCode: 'hi-IN' },
-  { key: 'gujarati', label: 'Gujarati', nativeLabel: 'ગુજરાતી',    flag: '🇮🇳', ttsCode: 'gu-IN' },
+const LANGUAGE_OPTIONS: {
+  key: ScreeningLanguage
+  label: string
+  nativeLabel: string
+  flag: string
+}[] = [
+  { key: 'english', label: 'English', nativeLabel: 'English', flag: '🇬🇧' },
+  { key: 'hindi', label: 'Hindi', nativeLabel: 'हिन्दी', flag: '🇮🇳' },
+  { key: 'gujarati', label: 'Gujarati', nativeLabel: 'ગુજરાતી', flag: '🇮🇳' },
 ]
 
 const LANGUAGE_TTS_CODE: Record<ScreeningLanguage, string> = {
-  english:  'en-IN',
-  hindi:    'hi-IN',
+  english: 'en-IN',
+  hindi: 'hi-IN',
   gujarati: 'gu-IN',
 }
 
-const CATEGORY_LABELS_I18N: Record<ScreeningLanguage, Record<string, { label: string; color: string }>> = {
+const CATEGORY_LABELS_I18N: Record<ScreeningLanguage, Record<string, string>> = {
   english: {
-    job_description: { label: 'Role & Requirements', color: '#3b82f6' },
-    resume:          { label: 'Your Experience',     color: '#8b5cf6' },
-    role_awareness:  { label: 'Professional Awareness', color: '#f59e0b' },
+    job_description: 'Role & requirements',
+    resume: 'Your experience',
+    role_awareness: 'Professional awareness',
   },
   hindi: {
-    job_description: { label: 'भूमिका और आवश्यकताएं', color: '#3b82f6' },
-    resume:          { label: 'आपका अनुभव',            color: '#8b5cf6' },
-    role_awareness:  { label: 'व्यावसायिक जागरूकता',   color: '#f59e0b' },
+    job_description: 'भूमिका और आवश्यकताएं',
+    resume: 'आपका अनुभव',
+    role_awareness: 'व्यावसायिक जागरूकता',
   },
   gujarati: {
-    job_description: { label: 'ભૂમિકા અને જરૂરિયાતો', color: '#3b82f6' },
-    resume:          { label: 'તમારો અનુભવ',            color: '#8b5cf6' },
-    role_awareness:  { label: 'વ્યવસાયિક જ્ઞાન',        color: '#f59e0b' },
+    job_description: 'ભૂમિકા અને જરૂરિયાતો',
+    resume: 'તમારો અનુભવ',
+    role_awareness: 'વ્યવસાયિક જ્ઞાન',
   },
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  job_description: <Briefcase size={14} />,
-  resume:          <FileText size={14} />,
-  role_awareness:  <Mic size={14} />,
+  job_description: <Briefcase size={13} />,
+  resume: <FileText size={13} />,
+  role_awareness: <Mic size={13} />,
+}
+
+/** Full-viewport centring: this page has no app shell around it. */
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="hb-app flex min-h-screen items-start justify-center px-4 py-8">
+      <Card padding="loose" className="w-full max-w-[640px]">
+        {children}
+      </Card>
+    </div>
+  )
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -74,7 +114,7 @@ export default function PreScreeningPage() {
 
     preScreeningApi
       .takeSession(token)
-      .then(res => {
+      .then((res) => {
         const s = res.data
         if (s.status === 'completed') {
           setSession(s)
@@ -93,44 +133,48 @@ export default function PreScreeningPage() {
         if (s.response_count > 0) {
           const answered = new Set(Array.from({ length: s.response_count }, (_, i) => i))
           setAnsweredIndices(answered)
-          setCurrentIndex(s.response_count >= s.questions.length ? s.questions.length - 1 : s.response_count)
+          setCurrentIndex(
+            s.response_count >= s.questions.length ? s.questions.length - 1 : s.response_count
+          )
         }
         setPageState(s.status === 'in_progress' ? 'question' : 'intro')
       })
-      .catch(err => {
-        const msg = err?.response?.data?.detail || 'Could not load the pre-screening session.'
-        setErrorMsg(msg)
+      .catch((err) => {
+        setErrorMsg(err?.response?.data?.detail || 'Could not load the pre-screening session.')
         setPageState('error')
       })
   }, [token])
 
-  // ── Language selection handler ──────────────────────────────────────────────
-  const handleSelectLanguage = useCallback(async (lang: ScreeningLanguage) => {
-    if (!session || lang === selectedLanguage) return
-    setSelectedLanguage(lang)
+  // ── Language selection ──────────────────────────────────────────────────────
+  const handleSelectLanguage = useCallback(
+    async (lang: ScreeningLanguage) => {
+      if (!session || lang === selectedLanguage) return
+      setSelectedLanguage(lang)
 
-    if (lang === 'english') {
-      setTranslatedQuestions([])
-      return
-    }
+      if (lang === 'english') {
+        setTranslatedQuestions([])
+        return
+      }
 
-    setLangLoading(true)
-    try {
-      const res = await preScreeningApi.updateLanguage(session.id, lang)
-      setTranslatedQuestions(res.data.translated_questions)
-    } catch {
-      // Fall back to original English questions silently
-      setTranslatedQuestions([])
-    } finally {
-      setLangLoading(false)
-    }
-  }, [session, selectedLanguage])
+      setLangLoading(true)
+      try {
+        const res = await preScreeningApi.updateLanguage(session.id, lang)
+        setTranslatedQuestions(res.data.translated_questions)
+      } catch {
+        // Fall back to original English questions silently
+        setTranslatedQuestions([])
+      } finally {
+        setLangLoading(false)
+      }
+    },
+    [session, selectedLanguage]
+  )
 
-  // ── Active questions (translated if applicable) ─────────────────────────────
+  // Active questions (translated if applicable)
   const activeQuestions: ScreeningQuestion[] =
     selectedLanguage !== 'english' && translatedQuestions.length > 0
       ? translatedQuestions
-      : (session?.questions ?? [])
+      : session?.questions ?? []
 
   const ttsCode = LANGUAGE_TTS_CODE[selectedLanguage]
   const categoryLabels = CATEGORY_LABELS_I18N[selectedLanguage]
@@ -149,9 +193,9 @@ export default function PreScreeningPage() {
     async (blob: Blob, durationSeconds: number) => {
       if (!session) throw new Error('No session')
       await preScreeningApi.uploadResponse(session.id, currentIndex, blob, durationSeconds)
-      setAnsweredIndices(prev => new Set([...prev, currentIndex]))
+      setAnsweredIndices((prev) => new Set([...prev, currentIndex]))
     },
-    [session, currentIndex],
+    [session, currentIndex]
   )
 
   const handleNext = useCallback(async () => {
@@ -172,144 +216,148 @@ export default function PreScreeningPage() {
   // ── Render: loading ─────────────────────────────────────────────────────────
   if (pageState === 'loading') {
     return (
-      <div style={styles.fullPage}>
-        <div style={styles.card}>
-          <div style={styles.loadingPulse} />
-          <div style={{ ...styles.loadingPulse, width: '60%' }} />
-          <div style={{ ...styles.loadingPulse, height: '120px' }} />
+      <Shell>
+        <div className="space-y-hb-4">
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-3/5" />
+          <Skeleton className="h-32 w-full" rounded="md" />
         </div>
-      </div>
+      </Shell>
     )
   }
 
   // ── Render: error ───────────────────────────────────────────────────────────
   if (pageState === 'error') {
     return (
-      <div style={styles.fullPage}>
-        <div style={styles.card}>
-          <div style={styles.errorBox}>
-            <AlertTriangle size={40} color="#ef4444" />
-            <h2 style={styles.errorTitle}>Unable to Load Session</h2>
-            <p style={styles.errorMsg}>{errorMsg}</p>
-          </div>
+      <Shell>
+        <div role="alert" className="flex flex-col items-center gap-3 py-6 text-center">
+          <AlertTriangle size={38} aria-hidden className="text-hb-error" />
+          <h1 className="font-display text-hb-h2 text-hb-text">Unable to load session</h1>
+          <p className="text-hb-sm text-hb-muted">{errorMsg}</p>
         </div>
-      </div>
+      </Shell>
     )
   }
 
   // ── Render: completed ───────────────────────────────────────────────────────
   if (pageState === 'completed') {
     return (
-      <div style={styles.fullPage}>
-        <div style={styles.card}>
-          <div style={styles.completedBox}>
-            <div style={styles.completedIcon}>
-              <CheckCircle size={56} color="#22c55e" />
-            </div>
-            <h1 style={styles.completedTitle}>Pre-Screening Complete!</h1>
-            <p style={styles.completedSub}>
-              Thank you, <strong>{session?.candidate_name}</strong>. Your responses have been recorded
-              and will be reviewed by the hiring team.
-            </p>
-            {session?.job_title && (
-              <div style={styles.jobBadge}>
-                <Briefcase size={14} />
-                {session.job_title}
-              </div>
-            )}
-            <p style={styles.completedNote}>
-              You will hear back regarding next steps. You may now close this tab.
-            </p>
-          </div>
+      <Shell>
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <span className="grid h-20 w-20 place-items-center rounded-full border border-hb-success/25 bg-hb-success/10 text-hb-success">
+            <CheckCircle size={44} aria-hidden />
+          </span>
+          <h1 className="font-display text-hb-h1 text-hb-text">Pre-screening complete!</h1>
+          <p className="max-w-[44ch] text-hb-sm text-hb-muted">
+            Thank you, <strong className="text-hb-text">{session?.candidate_name}</strong>. Your
+            responses have been recorded and will be reviewed by the hiring team.
+          </p>
+          {session?.job_title && (
+            <Badge tone="brand">
+              <Briefcase size={12} aria-hidden /> {session.job_title}
+            </Badge>
+          )}
+          <p className="text-hb-xs text-hb-dim">
+            You will hear back regarding next steps. You may now close this tab.
+          </p>
         </div>
-      </div>
+      </Shell>
     )
   }
 
   // ── Render: intro ───────────────────────────────────────────────────────────
   if (pageState === 'intro' && session) {
     return (
-      <div style={styles.fullPage}>
-        <div style={styles.card}>
-          <div style={styles.introBrand}>
-            <span style={styles.brandDot} />
-            <span style={styles.brandName}>Hybent Hiring</span>
+      <Shell>
+        <div className="space-y-hb-5">
+          <div>
+            <p className="mb-2 flex items-center gap-2 font-mono text-hb-eyebrow uppercase text-hb-muted">
+              <span aria-hidden className="h-2 w-2 rounded-full bg-hb-grad" />
+              Hybent Hiring
+            </p>
+            <h1 className="font-display text-hb-h1 text-hb-text">AI pre-screening interview</h1>
+            <p className="mt-2 text-hb-sm leading-relaxed text-hb-muted">
+              Hi <strong className="text-hb-text">{session.candidate_name}</strong>! You've been
+              invited to complete a short pre-screening for the{' '}
+              <strong className="text-hb-text">{session.job_title || 'open position'}</strong>{' '}
+              role.
+            </p>
           </div>
-
-          <h1 style={styles.introTitle}>AI Pre-Screening Interview</h1>
-          <p style={styles.introSub}>
-            Hi <strong>{session.candidate_name}</strong>! You've been invited to complete a short
-            pre-screening for the{' '}
-            <strong>{session.job_title || 'open position'}</strong> role.
-          </p>
 
           {/* Language selector */}
-          <div style={styles.langSection}>
-            <p style={styles.langTitle}>Select Interview Language</p>
-            <div style={styles.langGrid}>
-              {LANGUAGE_OPTIONS.map(opt => (
-                <button
-                  key={opt.key}
-                  style={{
-                    ...styles.langBtn,
-                    ...(selectedLanguage === opt.key ? styles.langBtnActive : {}),
-                  }}
-                  onClick={() => handleSelectLanguage(opt.key)}
-                  disabled={langLoading}
-                >
-                  <span style={styles.langFlag}>{opt.flag}</span>
-                  <span style={styles.langLabel}>{opt.label}</span>
-                  <span style={styles.langNative}>{opt.nativeLabel}</span>
-                  {selectedLanguage === opt.key && (
-                    <span style={styles.langCheck}>✓</span>
-                  )}
-                </button>
-              ))}
+          <fieldset>
+            <legend className="mb-2.5 font-mono text-hb-label uppercase text-hb-dim">
+              Select interview language
+            </legend>
+            <div className="grid grid-cols-3 gap-2">
+              {LANGUAGE_OPTIONS.map((opt) => {
+                const active = selectedLanguage === opt.key
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    disabled={langLoading}
+                    onClick={() => handleSelectLanguage(opt.key)}
+                    className={`flex flex-col items-center gap-0.5 rounded-hb-md border px-3 py-3 transition-all duration-hb ease-hb focus-visible:outline-none focus-visible:shadow-hb-ring disabled:opacity-60 ${
+                      active
+                        ? 'border-hb-blue/45 bg-hb-blue/8'
+                        : 'border-hb-border hover:border-hb-border-strong'
+                    }`}
+                  >
+                    <span aria-hidden className="text-lg leading-none">{opt.flag}</span>
+                    <span className="text-hb-sm font-semibold text-hb-text">{opt.label}</span>
+                    <span className="text-hb-xs text-hb-muted">{opt.nativeLabel}</span>
+                  </button>
+                )
+              })}
             </div>
             {langLoading && (
-              <div style={styles.langLoadingRow}>
-                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', color: 'var(--violet)' }} />
-                <span style={styles.langLoadingText}>Translating questions…</span>
-              </div>
+              <p role="status" className="mt-2.5 flex items-center gap-2 text-hb-xs text-hb-muted">
+                <Loader2 size={13} aria-hidden className="animate-spin text-hb-cyan" />
+                Translating questions…
+              </p>
             )}
-          </div>
+          </fieldset>
 
-          <div style={styles.infoGrid}>
-            <div style={styles.infoItem}>
-              <div style={styles.infoIcon}><Mic size={18} /></div>
-              <div>
-                <div style={styles.infoLabel}>10 Questions</div>
-                <div style={styles.infoDesc}>AI-personalised for this role</div>
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {[
+              { icon: <Mic size={17} />, label: '10 questions', desc: 'AI-personalised for this role' },
+              { icon: <Clock size={17} />, label: '15–20 minutes', desc: 'Typical completion time' },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center gap-3 rounded-hb-md border border-hb-border bg-hb-surface-2 p-3.5"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-hb-sm border border-hb-border bg-hb-surface text-hb-cyan">
+                  {item.icon}
+                </span>
+                <div>
+                  <p className="text-hb-sm font-semibold text-hb-text">{item.label}</p>
+                  <p className="text-hb-xs text-hb-muted">{item.desc}</p>
+                </div>
               </div>
-            </div>
-            <div style={styles.infoItem}>
-              <div style={styles.infoIcon}><Clock size={18} /></div>
-              <div>
-                <div style={styles.infoLabel}>15–20 minutes</div>
-                <div style={styles.infoDesc}>Typical completion time</div>
-              </div>
+            ))}
+          </div>
+
+          <div>
+            <p className="mb-2 font-mono text-hb-label uppercase text-hb-dim">
+              Question breakdown
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge>3 · {categoryLabels.job_description}</Badge>
+              <Badge>3 · {categoryLabels.resume}</Badge>
+              <Badge>4 · {categoryLabels.role_awareness}</Badge>
             </div>
           </div>
 
-          <div style={styles.categoryBreakdown}>
-            <p style={styles.breakdownTitle}>Question Breakdown</p>
-            <div style={styles.categoryRow}>
-              <span style={{ ...styles.catBadge, background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
-                3 {categoryLabels.job_description.label}
-              </span>
-              <span style={{ ...styles.catBadge, background: 'rgba(139,92,246,0.1)', color: '#8b5cf6' }}>
-                3 {categoryLabels.resume.label}
-              </span>
-              <span style={{ ...styles.catBadge, background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
-                4 {categoryLabels.role_awareness.label}
-              </span>
-            </div>
-          </div>
-
-          <div style={styles.tips}>
-            <p style={styles.tipsTitle}>Tips for a great session</p>
-            <ul style={styles.tipsList}>
-              <li>Find a quiet place with stable internet connection</li>
+          <div className="rounded-hb-md border border-hb-border bg-hb-surface-2 p-4">
+            <p className="mb-2 font-mono text-hb-label uppercase text-hb-dim">
+              Tips for a great session
+            </p>
+            <ul className="list-disc space-y-1 pl-4 text-hb-sm text-hb-muted">
+              <li>Find a quiet place with a stable internet connection</li>
               <li>The AI will read each question aloud — listen carefully</li>
               <li>Speak clearly and at a natural pace</li>
               <li>You have up to 3 minutes per question</li>
@@ -318,69 +366,74 @@ export default function PreScreeningPage() {
             </ul>
           </div>
 
-          <button
-            style={{ ...styles.startBtn, opacity: langLoading ? 0.6 : 1 }}
+          <Button
+            size="lg"
+            className="w-full"
             onClick={handleStart}
             disabled={langLoading}
+            icon={<ChevronRight size={17} />}
           >
-            Start Pre-Screening
-            <ChevronRight size={18} />
-          </button>
+            Start pre-screening
+          </Button>
         </div>
-      </div>
+      </Shell>
     )
   }
 
   // ── Render: question ────────────────────────────────────────────────────────
   if (pageState === 'question' && session) {
-    const question: ScreeningQuestion = activeQuestions[currentIndex] ?? session.questions[currentIndex]
-    const catInfo = categoryLabels[question.category] ?? categoryLabels.role_awareness
+    const question: ScreeningQuestion =
+      activeQuestions[currentIndex] ?? session.questions[currentIndex]
+    const categoryLabel = categoryLabels[question.category] ?? categoryLabels.role_awareness
     const isAnswered = answeredIndices.has(currentIndex)
+    const activeLang = LANGUAGE_OPTIONS.find((o) => o.key === selectedLanguage)
 
     return (
-      <div style={styles.fullPage}>
-        <div style={styles.card}>
+      <Shell>
+        <div className="space-y-hb-5">
           {/* Header */}
-          <div style={styles.qHeader}>
-            <div style={styles.progressWrap}>
-              <div style={styles.progressBar}>
-                <div
-                  style={{
-                    ...styles.progressFill,
-                    width: `${((currentIndex + (isAnswered ? 1 : 0)) / session.questions.length) * 100}%`,
-                  }}
-                />
-              </div>
-              <span style={styles.progressLabel}>
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-3">
+              <Meter
+                value={currentIndex + (isAnswered ? 1 : 0)}
+                max={session.questions.length}
+                size="sm"
+                aria-label="Interview progress"
+                className="flex-1"
+              />
+              <span className="shrink-0 font-mono text-hb-xs tabular-nums text-hb-muted">
                 {currentIndex + 1} / {session.questions.length}
               </span>
             </div>
-            <div style={styles.qHeaderMeta}>
-              <div style={{ ...styles.catTag, color: catInfo.color, background: `${catInfo.color}18` }}>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge tone="brand">
                 {CATEGORY_ICONS[question.category]}
-                {catInfo.label}
-              </div>
-              {selectedLanguage !== 'english' && (
-                <div style={styles.langIndicator}>
-                  {LANGUAGE_OPTIONS.find(o => o.key === selectedLanguage)?.flag}{' '}
-                  {LANGUAGE_OPTIONS.find(o => o.key === selectedLanguage)?.label}
-                </div>
+                {categoryLabel}
+              </Badge>
+              {selectedLanguage !== 'english' && activeLang && (
+                <Badge>
+                  {activeLang.flag} {activeLang.label}
+                </Badge>
               )}
             </div>
           </div>
 
           {/* Question text */}
-          <div style={styles.questionBox}>
-            <span style={styles.qNum}>Question {currentIndex + 1}</span>
-            <p style={styles.qText}>{question.text}</p>
+          <div className="rounded-hb-md border border-hb-border bg-hb-surface-2 p-5">
+            <p className="font-mono text-hb-label uppercase text-hb-dim">
+              Question {currentIndex + 1}
+            </p>
+            <p className="mt-2 text-hb-lead font-semibold leading-relaxed text-hb-text">
+              {question.text}
+            </p>
           </div>
 
           {/* Recorder with TTS */}
-          <div style={styles.answerSection}>
-            <div style={styles.answerLabel}>
-              <Mic size={13} />
-              Your Answer
-            </div>
+          <div>
+            <p className="mb-2 flex items-center gap-1.5 font-mono text-hb-label uppercase text-hb-dim">
+              <Mic size={12} aria-hidden />
+              Your answer
+            </p>
             <AudioRecorder
               key={`${currentIndex}-${question.text}`}
               onUpload={handleUpload}
@@ -393,440 +446,45 @@ export default function PreScreeningPage() {
 
           {/* Next button */}
           {isAnswered && (
-            <button style={styles.nextBtn} onClick={handleNext}>
-              {currentIndex + 1 < session.questions.length ? (
-                <>Next Question <ChevronRight size={16} /></>
-              ) : (
-                <>Finish &amp; Submit <CheckCircle size={16} /></>
-              )}
-            </button>
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={handleNext}
+              icon={
+                currentIndex + 1 < session.questions.length ? (
+                  <ChevronRight size={16} />
+                ) : (
+                  <CheckCircle size={16} />
+                )
+              }
+            >
+              {currentIndex + 1 < session.questions.length ? 'Next question' : 'Finish & submit'}
+            </Button>
           )}
 
           {/* Dot indicators */}
-          <div style={styles.dotRow}>
+          <div
+            className="flex flex-wrap items-center justify-center gap-1.5"
+            aria-label={`${answeredIndices.size} of ${session.questions.length} questions answered`}
+          >
             {session.questions.map((_, i) => (
-              <div
+              <span
                 key={i}
-                style={{
-                  ...styles.dot,
-                  background: answeredIndices.has(i)
-                    ? '#22c55e'
+                aria-hidden
+                className={`h-2 w-2 rounded-full ${
+                  answeredIndices.has(i)
+                    ? 'bg-hb-success'
                     : i === currentIndex
-                    ? 'var(--violet, #6c47ff)'
-                    : 'var(--card-border, #e8e6ff)',
-                }}
+                      ? 'bg-hb-blue'
+                      : 'bg-hb-border'
+                }`}
               />
             ))}
           </div>
         </div>
-      </div>
+      </Shell>
     )
   }
 
   return null
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const styles: Record<string, React.CSSProperties> = {
-  fullPage: {
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f0edff 0%, #fff5fb 100%)',
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    padding: '32px 16px',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '620px',
-    background: '#fff',
-    borderRadius: '24px',
-    boxShadow: '0 20px 60px rgba(108,71,255,0.10)',
-    padding: '36px 32px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
-  },
-  loadingPulse: {
-    width: '100%',
-    height: '24px',
-    borderRadius: '8px',
-    background: '#f0edff',
-    animation: 'pulse 1.5s ease-in-out infinite',
-  },
-  errorBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px',
-    textAlign: 'center',
-    padding: '24px 0',
-  },
-  errorTitle: {
-    fontSize: '20px',
-    fontWeight: 700,
-    color: '#1a1040',
-    margin: 0,
-  },
-  errorMsg: {
-    color: '#6b7280',
-    fontSize: '14px',
-    margin: 0,
-  },
-  completedBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '16px',
-    textAlign: 'center',
-    padding: '12px 0',
-  },
-  completedIcon: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '50%',
-    background: 'rgba(34,197,94,0.1)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  completedTitle: {
-    fontSize: '26px',
-    fontWeight: 800,
-    color: '#1a1040',
-    margin: 0,
-  },
-  completedSub: {
-    color: '#374151',
-    fontSize: '15px',
-    lineHeight: 1.6,
-    margin: 0,
-  },
-  jobBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '6px 14px',
-    borderRadius: '20px',
-    background: 'rgba(108,71,255,0.08)',
-    color: '#6c47ff',
-    fontWeight: 600,
-    fontSize: '13px',
-  },
-  completedNote: {
-    color: '#9ca3af',
-    fontSize: '13px',
-    margin: 0,
-  },
-  introBrand: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  brandDot: {
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-  },
-  brandName: {
-    fontWeight: 800,
-    fontSize: '16px',
-    color: '#1a1040',
-  },
-  introTitle: {
-    fontSize: '26px',
-    fontWeight: 800,
-    color: '#1a1040',
-    margin: 0,
-    lineHeight: 1.2,
-  },
-  introSub: {
-    color: '#374151',
-    fontSize: '15px',
-    lineHeight: 1.6,
-    margin: 0,
-  },
-  // Language selector
-  langSection: {
-    background: '#f7f5ff',
-    borderRadius: '16px',
-    padding: '18px',
-    border: '1px solid #e8e6ff',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  langTitle: {
-    fontWeight: 700,
-    fontSize: '13px',
-    color: '#6b7280',
-    margin: 0,
-    textTransform: 'uppercase',
-    letterSpacing: '0.6px',
-  },
-  langGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '10px',
-  },
-  langBtn: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
-    padding: '14px 8px',
-    borderRadius: '12px',
-    border: '2px solid #e8e6ff',
-    background: '#fff',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    position: 'relative',
-  } as React.CSSProperties,
-  langBtnActive: {
-    border: '2px solid #6c47ff',
-    background: 'rgba(108,71,255,0.06)',
-  } as React.CSSProperties,
-  langFlag: {
-    fontSize: '22px',
-    lineHeight: 1,
-  },
-  langLabel: {
-    fontWeight: 700,
-    fontSize: '13px',
-    color: '#1a1040',
-  },
-  langNative: {
-    fontSize: '12px',
-    color: '#9ca3af',
-  },
-  langCheck: {
-    position: 'absolute',
-    top: '6px',
-    right: '8px',
-    fontSize: '12px',
-    color: '#6c47ff',
-    fontWeight: 800,
-  } as React.CSSProperties,
-  langLoadingRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  langLoadingText: {
-    fontSize: '13px',
-    color: '#6c47ff',
-  },
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
-  },
-  infoItem: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '10px',
-    padding: '14px',
-    borderRadius: '12px',
-    background: '#f7f5ff',
-    border: '1px solid #e8e6ff',
-  },
-  infoIcon: {
-    color: '#6c47ff',
-    flexShrink: 0,
-    marginTop: '2px',
-  },
-  infoLabel: {
-    fontWeight: 700,
-    fontSize: '14px',
-    color: '#1a1040',
-  },
-  infoDesc: {
-    fontSize: '12px',
-    color: '#9ca3af',
-    marginTop: '2px',
-  },
-  categoryBreakdown: {
-    background: '#fafafa',
-    borderRadius: '12px',
-    padding: '16px',
-    border: '1px solid #f0edff',
-  },
-  breakdownTitle: {
-    fontWeight: 700,
-    fontSize: '13px',
-    color: '#6b7280',
-    margin: '0 0 10px 0',
-    textTransform: 'uppercase',
-    letterSpacing: '0.6px',
-  },
-  categoryRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-  },
-  catBadge: {
-    padding: '5px 12px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: 600,
-  },
-  tips: {
-    background: '#fffbeb',
-    borderRadius: '12px',
-    padding: '16px',
-    border: '1px solid #fde68a',
-  },
-  tipsTitle: {
-    fontWeight: 700,
-    fontSize: '13px',
-    color: '#92400e',
-    margin: '0 0 8px 0',
-  },
-  tipsList: {
-    margin: 0,
-    paddingLeft: '18px',
-    color: '#78350f',
-    fontSize: '13px',
-    lineHeight: 1.8,
-  },
-  startBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    width: '100%',
-    padding: '14px',
-    borderRadius: '14px',
-    border: 'none',
-    background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-    color: '#fff',
-    fontWeight: 800,
-    fontSize: '16px',
-    cursor: 'pointer',
-    boxShadow: '0 8px 24px rgba(108,71,255,0.25)',
-    transition: 'opacity 0.2s',
-  },
-  qHeader: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  progressWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  progressBar: {
-    flex: 1,
-    height: '8px',
-    borderRadius: '4px',
-    background: '#f0edff',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: '4px',
-    background: 'linear-gradient(90deg, #6c47ff, #ff6bc6)',
-    transition: 'width 0.4s ease',
-  },
-  progressLabel: {
-    fontSize: '13px',
-    fontWeight: 700,
-    color: '#6c47ff',
-    whiteSpace: 'nowrap',
-  },
-  qHeaderMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  catTag: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '5px',
-    padding: '4px 12px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: 600,
-  },
-  langIndicator: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-    padding: '3px 10px',
-    borderRadius: '20px',
-    background: 'rgba(108,71,255,0.08)',
-    color: '#6c47ff',
-    fontSize: '11px',
-    fontWeight: 600,
-  },
-  questionBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    padding: '20px',
-    background: '#f7f5ff',
-    borderRadius: '16px',
-    border: '1px solid #e8e6ff',
-  },
-  qNum: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: '0.8px',
-  },
-  qText: {
-    fontSize: '17px',
-    fontWeight: 600,
-    color: '#1a1040',
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  nextBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    width: '100%',
-    padding: '13px',
-    borderRadius: '12px',
-    border: 'none',
-    background: '#1a1040',
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: '15px',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s',
-  },
-  dotRow: {
-    display: 'flex',
-    gap: '6px',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  dot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    transition: 'background 0.3s',
-  },
-  answerSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  answerLabel: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '5px',
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: '0.7px',
-  },
 }

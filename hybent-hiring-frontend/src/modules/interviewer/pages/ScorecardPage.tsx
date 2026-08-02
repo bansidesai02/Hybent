@@ -1,308 +1,257 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'framer-motion'
-import { useAuthStore } from '@/store/authStore'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import {
+  ArrowLeft,
+  CalendarDays,
+  Check,
+  CircleHelp,
+  MessageSquare,
+  Puzzle,
+  Settings,
+  Sparkles,
+  Star,
+  Users,
+  X,
+} from 'lucide-react'
+
 import { interviewsApi } from '@/api/interviews'
-import { candidatesApi } from '@/api/candidates'
 import { scorecardsApi } from '@/api/scorecards'
 import { aiApi } from '@/api/ai'
+import { formatDate, formatDateTime } from '@/utils/formatters'
 import type { Scorecard } from '@/types'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Avatar } from '@/components/ui/Avatar'
-import { formatDateTime, formatDate } from '@/utils/formatters'
-import { 
-  Settings, 
-  MessageSquare, 
-  Users, 
-  Puzzle, 
-  Check, 
-  CircleHelp, 
-  X, 
-  Star, 
-  Calendar, 
-  Sparkles,
-  ArrowLeft,
-  ClipboardList,
-  CheckCircle2,
-  XCircle
-} from 'lucide-react'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import { TeamIcon } from '@/components/common/CustomIcons'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  IconTile,
+  Meter,
+  PageHeader,
+  Skeleton,
+  Textarea,
+  type BadgeTone,
+} from '@/components/hb'
 
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+/**
+ * The interviewer's scorecard.
+ *
+ * Rebuilt on the design system in phase 8. The page was unreachable until this
+ * phase: it reads `useParams<{ interviewId }>()`, but the route was registered
+ * as a bare `scorecard` with no segment, so `interviewId` was always undefined
+ * and every query stayed disabled.
+ *
+ * Also replaced: a local `Toast` component duplicating `react-hot-toast`, and a
+ * `REC_OPTIONS` table carrying four hardcoded colour fields per option.
+ */
 
 type Recommendation = 'hire' | 'maybe' | 'no_hire'
 type CriterionKey = 'technical' | 'communication' | 'culture_fit' | 'problem_solving'
 
-interface CriterionConfig {
+const CRITERIA: Array<{
   key: CriterionKey
   label: string
-  emoji: React.ReactNode
+  icon: React.ReactNode
   description: string
-}
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const CRITERIA: CriterionConfig[] = [
-  { key: 'technical', label: 'Technical Skills', emoji: 'Settings', description: 'Depth of technical knowledge and ability to apply it' },
-  { key: 'communication', label: 'Communication', emoji: 'MessageSquare', description: 'Clarity, listening, and articulation skills' },
-  { key: 'culture_fit', label: 'Culture Fit', emoji: <TeamIcon size={12} />, description: 'Alignment with team values and work style' },
-  { key: 'problem_solving', label: 'Problem Solving', emoji: 'Puzzle', description: 'Approach to ambiguous problems and critical thinking' },
-]
-
-const REC_OPTIONS: { value: Recommendation; label: string; emoji: React.ReactNode; mapTo: string; color: string; bg: string; border: string; selectedBg: string }[] = [
+}> = [
   {
-    value: 'hire',
-    label: 'Hire',
-    emoji: <Check size={14} strokeWidth={3} />,
-    mapTo: 'yes',
-    color: '#059669',
-    bg: 'rgba(16,185,129,0.05)',
-    border: 'rgba(16,185,129,0.25)',
-    selectedBg: 'rgba(16,185,129,0.12)',
+    key: 'technical',
+    label: 'Technical skills',
+    icon: <Settings />,
+    description: 'Depth of technical knowledge and the ability to apply it',
   },
   {
-    value: 'maybe',
-    label: 'Maybe',
-    emoji: <CircleHelp size={14} />,
-    mapTo: 'maybe',
-    color: '#d97706',
-    bg: 'rgba(251,191,36,0.05)',
-    border: 'rgba(251,191,36,0.25)',
-    selectedBg: 'rgba(251,191,36,0.12)',
+    key: 'communication',
+    label: 'Communication',
+    icon: <MessageSquare />,
+    description: 'Clarity, listening and articulation',
   },
   {
-    value: 'no_hire',
-    label: 'Rejected',
-    emoji: <X size={14} strokeWidth={3} />,
-    mapTo: 'no',
-    color: '#ef4444',
-    bg: 'rgba(239,68,68,0.05)',
-    border: 'rgba(239,68,68,0.25)',
-    selectedBg: 'rgba(239,68,68,0.12)',
+    key: 'culture_fit',
+    label: 'Culture fit',
+    icon: <Users />,
+    description: 'Alignment with team values and working style',
+  },
+  {
+    key: 'problem_solving',
+    label: 'Problem solving',
+    icon: <Puzzle />,
+    description: 'Approach to ambiguous problems and critical thinking',
   },
 ]
 
-const REC_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  strong_yes: { label: 'Strong Hire', color: '#059669', bg: 'rgba(16,185,129,0.12)' },
-  yes: { label: 'Hire', color: '#059669', bg: 'rgba(16,185,129,0.10)' },
-  maybe: { label: 'Maybe', color: '#d97706', bg: 'rgba(251,191,36,0.12)' },
-  no: { label: 'Rejected', color: '#ef4444', bg: 'rgba(239,68,68,0.10)' },
-  strong_no: { label: 'Strong No', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+/** `mapTo` is the API's enum; the label is what the interviewer reads. */
+const RECOMMENDATIONS: Array<{
+  value: Recommendation
+  label: string
+  icon: React.ReactNode
+  mapTo: string
+  tone: 'success' | 'warning' | 'error'
+}> = [
+  { value: 'hire', label: 'Hire', icon: <Check size={15} strokeWidth={3} />, mapTo: 'yes', tone: 'success' },
+  { value: 'maybe', label: 'Maybe', icon: <CircleHelp size={15} />, mapTo: 'maybe', tone: 'warning' },
+  { value: 'no_hire', label: 'No hire', icon: <X size={15} strokeWidth={3} />, mapTo: 'no', tone: 'error' },
+]
+
+const REC_SELECTED = {
+  success: 'border-hb-success bg-hb-success/10 text-hb-success',
+  warning: 'border-hb-warning bg-hb-warning/10 text-hb-warning',
+  error: 'border-hb-error bg-hb-error/10 text-hb-error',
+} as const
+
+/** The API's recommendation enum, as something readable. */
+const REC_BADGE: Record<string, { label: string; tone: BadgeTone }> = {
+  strong_yes: { label: 'Strong hire', tone: 'success' },
+  yes: { label: 'Hire', tone: 'success' },
+  maybe: { label: 'Maybe', tone: 'warning' },
+  no: { label: 'No hire', tone: 'error' },
+  strong_no: { label: 'Strong no', tone: 'error' },
 }
 
-// ─── Star Rating ──────────────────────────────────────────────────────────────
+/** Minimum words each field needs before the scorecard can be submitted. */
+const MIN_WORDS = { notes: 100, strengths: 30, weaknesses: 30 }
+
+const wordCount = (t: string) => {
+  const trimmed = t.trim()
+  return trimmed === '' ? 0 : trimmed.split(/\s+/).length
+}
+
+/* ── Star rating ────────────────────────────────────────────────────────── */
 
 function StarRating({
   value,
   onChange,
-  size = 28,
+  label,
+  size = 26,
 }: {
   value: number
   onChange?: (v: number) => void
+  label: string
   size?: number
-  readonly?: boolean
 }) {
-  const [hover, setHover] = useState(0)
-  const isReadonly = !onChange
+  const readOnly = !onChange
+
+  if (readOnly) {
+    return (
+      <span className="inline-flex items-center gap-1" aria-label={`${label}: ${value} out of 5`}>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <Star
+            key={s}
+            size={size}
+            aria-hidden
+            className={s <= value ? 'fill-hb-warning text-hb-warning' : 'text-hb-dim opacity-35'}
+          />
+        ))}
+      </span>
+    )
+  }
 
   return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <span
-          key={star}
-          onClick={() => !isReadonly && onChange!(star)}
-          onMouseEnter={() => !isReadonly && setHover(star)}
-          onMouseLeave={() => !isReadonly && setHover(0)}
-          style={{
-            cursor: isReadonly ? 'default' : 'pointer',
-            color: star <= (hover || value) ? '#fbbf24' : 'rgba(108,71,255,0.18)',
-            transition: 'all 0.12s',
-            transform: hover === star && !isReadonly ? 'scale(1.15)' : 'scale(1)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            userSelect: 'none',
-          }}
+    <div role="radiogroup" aria-label={`${label} rating`} className="inline-flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <button
+          key={s}
+          type="button"
+          role="radio"
+          aria-checked={value === s}
+          aria-label={`${s} out of 5`}
+          onClick={() => onChange(s)}
+          className="transition-transform duration-hb hover:scale-115 focus-visible:outline-none focus-visible:shadow-hb-ring"
         >
-          <Star 
-            size={size} 
-            fill={star <= (hover || value) ? 'currentColor' : 'none'} 
-            strokeWidth={2}
+          <Star
+            size={size}
+            aria-hidden
+            className={s <= value ? 'fill-hb-warning text-hb-warning' : 'text-hb-dim opacity-35'}
           />
-        </span>
+        </button>
       ))}
       {value > 0 && (
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mid)', marginLeft: 6 }}>
-          {value}/5
-        </span>
+        <span className="ml-1.5 font-mono text-hb-xs tabular-nums text-hb-muted">{value}/5</span>
       )}
     </div>
   )
 }
 
-// ─── Existing Scorecard Card ──────────────────────────────────────────────────
+/* ── A submitted scorecard, read-only ───────────────────────────────────── */
 
-function ExistingCard({ card }: { card: Scorecard }) {
+function SubmittedCard({ card, own }: { card: Scorecard; own?: boolean }) {
   const rec = REC_BADGE[card.recommendation]
-  const criteria = Array.isArray(card.criteria_scores) ? card.criteria_scores : (card.criteria_scores as any)?.criteria ?? []
+  const criteria = Array.isArray(card.criteria_scores)
+    ? card.criteria_scores
+    : ((card.criteria_scores as any)?.criteria ?? [])
 
   return (
-    <div
-      style={{
-        background: 'var(--card-bg)',
-        border: '1px solid var(--card-border)',
-        borderRadius: 14,
-        padding: '18px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <Card padding="default" className={own ? 'border-hb-blue/40' : undefined}>
+      <div className="mb-hb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
           <Avatar name={card.submitted_by_name ?? 'Reviewer'} size="sm" />
           <div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-              {card.submitted_by_name ?? 'Anonymous'}
+            <p className="text-hb-sm font-semibold text-hb-text">
+              {own ? 'Your scorecard' : (card.submitted_by_name ?? 'Anonymous')}
             </p>
-            <p style={{ fontSize: 11, color: 'var(--text-lite)' }}>{formatDate(card.submitted_at)}</p>
+            <p className="font-mono text-hb-micro text-hb-dim">{formatDate(card.submitted_at)}</p>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <StarRating value={card.overall_rating} size={16} />
-          {rec && (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '3px 10px',
-                borderRadius: 20,
-                background: rec.bg,
-                color: rec.color,
-                border: `1px solid ${rec.color}33`,
-              }}
-            >
-              {rec.label}
-            </span>
-          )}
+        <div className="flex items-center gap-2.5">
+          <StarRating value={card.overall_rating} label="Overall" size={16} />
+          {rec && <Badge tone={rec.tone}>{rec.label}</Badge>}
         </div>
       </div>
 
-      {/* Criteria bars */}
-      {criteria.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {criteria.map((c: any) => (
-            <div key={c.criterion}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-mid)' }}>{c.criterion}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-lite)' }}>{c.score}/5</span>
-              </div>
-              <div style={{ height: 6, background: 'rgba(108,71,255,0.10)', borderRadius: 3, overflow: 'hidden' }}>
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${(c.score / 5) * 100}%`,
-                    background: 'linear-gradient(90deg, #6c47ff, #ff6bc6)',
-                    borderRadius: 3,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid gap-hb-5 md:grid-cols-2">
+        {criteria.length > 0 && (
+          <div className="space-y-hb-3">
+            <h3 className="font-mono text-hb-label uppercase text-hb-dim">Competencies</h3>
+            {criteria.map((c: any) => (
+              <Meter
+                key={c.criterion}
+                label={c.criterion}
+                value={c.score}
+                max={5}
+                size="xs"
+                valueLabel={`${c.score}/5`}
+              />
+            ))}
+          </div>
+        )}
 
-      {/* Text fields */}
-      {card.summary && (
-        <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.65, fontStyle: 'italic' }}>
-          "{card.summary}"
-        </p>
-      )}
-      {(card.strengths || card.weaknesses) && (
-        <div style={{ display: 'flex', gap: 14 }}>
-          {card.strengths && (
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 3 }}>Strengths</p>
-              <p style={{ fontSize: 12, color: 'var(--text-mid)' }}>{card.strengths}</p>
+        <div className="space-y-hb-4">
+          <div>
+            <h3 className="mb-1.5 font-mono text-hb-label uppercase text-hb-dim">Summary</h3>
+            <p className="text-hb-sm leading-relaxed text-hb-muted">
+              {card.summary || 'No summary provided.'}
+            </p>
+          </div>
+          <div className="grid gap-hb-3 sm:grid-cols-2">
+            <div>
+              <h3 className="mb-1 font-mono text-hb-label uppercase text-hb-success">Strengths</h3>
+              <p className="text-hb-xs leading-relaxed text-hb-muted">
+                {card.strengths || 'None listed'}
+              </p>
             </div>
-          )}
-          {card.weaknesses && (
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 3 }}>Concerns</p>
-              <p style={{ fontSize: 12, color: 'var(--text-mid)' }}>{card.weaknesses}</p>
+            <div>
+              <h3 className="mb-1 font-mono text-hb-label uppercase text-hb-error">Concerns</h3>
+              <p className="text-hb-xs leading-relaxed text-hb-muted">
+                {card.weaknesses || 'None listed'}
+              </p>
             </div>
-          )}
+          </div>
         </div>
-      )}
-      {card.criteria_scores && Array.isArray(card.criteria_scores) && (
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          {card.criteria_scores.map((s: any, i: number) => (
-            <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-[#1e1a35]/50 px-2 py-1 rounded-lg border border-gray-100 dark:border-[#2a2550]">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{s.criterion}</span>
-              <div className="flex text-amber-400">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} size={10} fill={star <= s.score ? 'currentColor' : 'none'} className={star <= s.score ? 'opacity-100' : 'opacity-20'} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      </div>
+    </Card>
   )
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
-
-function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 80 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 80 }}
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        background: type === 'success' ? '#059669' : '#ef4444',
-        color: '#fff',
-        borderRadius: 12,
-        padding: '12px 18px',
-        fontSize: 13,
-        fontWeight: 600,
-        zIndex: 1000,
-        boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}
-    >
-      {type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-      {message}
-    </motion.div>
-  )
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+/* ── Page ───────────────────────────────────────────────────────────────── */
 
 export default function ScorecardPage() {
   const { interviewId } = useParams<{ interviewId: string }>()
-  const interview_id = interviewId
   const navigate = useNavigate()
-  const location = useLocation()
   const queryClient = useQueryClient()
 
-  // (No longer using location.state for rawNotes)
-
-  const hasTriggeredAiRef = useRef(false)
-
-  // Form state
   const [criteria, setCriteria] = useState<Record<CriterionKey, number>>({
     technical: 0,
     communication: 0,
@@ -313,79 +262,63 @@ export default function ScorecardPage() {
   const [notes, setNotes] = useState('')
   const [strengths, setStrengths] = useState('')
   const [weaknesses, setWeaknesses] = useState('')
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiSuggestions, setAiSuggestions] = useState<any>(null)
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3500)
-  }, [])
-
-  // Automatically summarize raw notes from localStorage
+  /* The live room writes raw notes to localStorage. On first mount they are run
+     through the AI summariser once — the ref guards against StrictMode's double
+     invoke firing a second paid call. */
+  const summarised = useRef(false)
   useEffect(() => {
-    const rawNotes = localStorage.getItem(`hybent_hiring_notes_${interview_id}`)
+    const raw = localStorage.getItem(`hybent_hiring_notes_${interviewId}`)
+    if (!raw || summarised.current) return
 
-    if (rawNotes && !hasTriggeredAiRef.current) {
-      hasTriggeredAiRef.current = true
-      setNotes('Analyzing your live notes with AI...')
-      setAiLoading(true)
-      
-      aiApi.evaluateNotes(rawNotes)
-        .then((res) => {
-          const aiData = res.data
-          if (aiData?.professional_description) {
-            setNotes(aiData.professional_description)
-            showToast('AI successfully summarized your live notes.', 'success')
-          } else {
-            setNotes(rawNotes)
-            showToast('Failed to fully summarize, using raw notes.', 'error')
-          }
-        })
-        .catch(() => {
-          setNotes(rawNotes)
-          showToast('AI summary failed, using your raw notes instead.', 'error')
-        })
-        .finally(() => setAiLoading(false))
-    }
-  }, [interview_id, showToast])
+    summarised.current = true
+    setNotes('Summarising your live notes…')
+    setAiLoading(true)
 
-  const getCounts = (text: string) => {
-    const trimmed = text.trim()
-    return {
-      chars: trimmed.length,
-      words: trimmed === '' ? 0 : trimmed.split(/\s+/).length
-    }
+    aiApi
+      .evaluateNotes(raw)
+      .then((res) => {
+        const summary = res.data?.professional_description
+        if (summary) {
+          setNotes(summary)
+          toast.success('Your live notes were summarised')
+        } else {
+          setNotes(raw)
+          toast.error('Could not summarise — using your raw notes')
+        }
+      })
+      .catch(() => {
+        setNotes(raw)
+        toast.error('Could not summarise — using your raw notes')
+      })
+      .finally(() => setAiLoading(false))
+  }, [interviewId])
+
+  const counts = {
+    notes: wordCount(notes),
+    strengths: wordCount(strengths),
+    weaknesses: wordCount(weaknesses),
   }
 
-  const notesCounts = getCounts(notes)
-  const strengthsCounts = getCounts(strengths)
-  const weaknessesCounts = getCounts(weaknesses)
+  const scores = Object.values(criteria)
+  const allRated = scores.every((v) => v > 0)
+  const average = scores.reduce((a, b) => a + b, 0) / scores.length
+  const overallRating = allRated ? Math.round(average) : 0
 
-
-
-  // Derived overall rating = average of 4 criteria (rounded)
-  const criteriaValues = Object.values(criteria)
-  const allRated = criteriaValues.every((v) => v > 0)
-  const overallRating = allRated
-    ? Math.round(criteriaValues.reduce((a, b) => a + b, 0) / criteriaValues.length)
-    : 0
-
-  // Queries
   const { data: interview, isLoading: intLoading } = useQuery({
     queryKey: ['interview', interviewId],
     queryFn: () => interviewsApi.get(interviewId!).then((r) => r.data),
     enabled: !!interviewId,
   })
 
-  // Fetch my existing scorecard for this interview
-  const { data: myScorecard, isLoading: myScLoading } = useQuery({
+  const { data: myScorecard, isLoading: myLoading } = useQuery({
     queryKey: ['my_scorecard', interviewId],
     queryFn: () => scorecardsApi.getMyScorecardForInterview(interviewId!).then((r) => r.data),
     enabled: !!interviewId,
   })
 
-  const { data: scorecards, isLoading: scLoading } = useQuery({
+  const { data: scorecards, isLoading: othersLoading } = useQuery({
     queryKey: ['scorecards', 'application', interview?.application_id],
     queryFn: () => scorecardsApi.getForApplication(interview!.application_id || '').then((r) => r.data),
     enabled: !!interview?.application_id,
@@ -393,16 +326,13 @@ export default function ScorecardPage() {
 
   const mutation = useMutation({
     mutationFn: () => {
-      const recOption = REC_OPTIONS.find((r) => r.value === recommendation)!
+      const rec = RECOMMENDATIONS.find((r) => r.value === recommendation)!
       return scorecardsApi.submit({
         interview_id: interviewId!,
         application_id: interview!.application_id || undefined,
         overall_rating: overallRating,
-        recommendation: recOption.mapTo,
-        criteria_scores: CRITERIA.map((c) => ({
-          criterion: c.label,
-          score: criteria[c.key],
-        })),
+        recommendation: rec.mapTo,
+        criteria_scores: CRITERIA.map((c) => ({ criterion: c.label, score: criteria[c.key] })),
         strengths: strengths || undefined,
         weaknesses: weaknesses || undefined,
         summary: notes || undefined,
@@ -410,504 +340,254 @@ export default function ScorecardPage() {
     },
     onSuccess: async () => {
       try {
-        // Automatically mark interview as completed upon scorecard submission
+        /* Submitting a scorecard is what marks the interview done — there is no
+           separate "complete" action anywhere in the product. */
         await interviewsApi.update(interviewId!, { status: 'completed', feedback: 'submitted' })
-        
         queryClient.invalidateQueries({ queryKey: ['my-interviews'] })
         queryClient.invalidateQueries({ queryKey: ['interview', interviewId] })
-        queryClient.invalidateQueries({ queryKey: ['scorecards', 'application', interview?.application_id] })
+        queryClient.invalidateQueries({
+          queryKey: ['scorecards', 'application', interview?.application_id],
+        })
         queryClient.invalidateQueries({ queryKey: ['my_scorecard', interviewId] })
         queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
         queryClient.invalidateQueries({ queryKey: ['candidates'] })
-        
-        showToast('Scorecard submitted & Interview completed!')
+        toast.success('Scorecard submitted — interview marked complete')
       } catch (err) {
-        console.error('Failed to mark interview as completed', err)
-        showToast('Scorecard submitted, but failed to update status', 'error')
+        console.error('Failed to mark the interview completed', err)
+        toast.error('Scorecard saved, but the interview status did not update')
       }
-      
-      // Reset form
+
       setCriteria({ technical: 0, communication: 0, culture_fit: 0, problem_solving: 0 })
       setRecommendation(null)
       setNotes('')
       setStrengths('')
       setWeaknesses('')
-      localStorage.removeItem(`hybent_hiring_notes_${interviewId}`) // Clean up
+      localStorage.removeItem(`hybent_hiring_notes_${interviewId}`)
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      showToast(msg ?? 'Failed to submit scorecard', 'error')
+      toast.error(msg ?? 'Failed to submit the scorecard')
     },
   })
 
-  const canSubmit = 
-    allRated && 
-    recommendation !== null && 
-    notesCounts.words >= 100 && 
-    strengthsCounts.words >= 30 && 
-    weaknessesCounts.words >= 30 && 
+  const canSubmit =
+    allRated &&
+    recommendation !== null &&
+    counts.notes >= MIN_WORDS.notes &&
+    counts.strengths >= MIN_WORDS.strengths &&
+    counts.weaknesses >= MIN_WORDS.weaknesses &&
     !mutation.isPending
 
-  // ── Loading ────────────────────────────────────────────────────────────────────
-  if (intLoading || myScLoading) {
+  if (intLoading || myLoading) {
     return (
-      <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-28 w-full rounded-2xl" />
-        <Skeleton className="h-96 w-full rounded-2xl" />
+      <div className="mx-auto max-w-4xl space-y-hb-5">
+        <Skeleton className="h-10 w-56" />
+        <Skeleton className="h-28 w-full" rounded="md" />
+        <Skeleton className="h-96 w-full" rounded="md" />
       </div>
     )
   }
 
   if (!interview) {
-    return <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-lite)' }}>Interview not found.</div>
+    return (
+      <Card padding="none">
+        <EmptyState
+          tone="error"
+          title="Interview not found"
+          description="This interview may have been cancelled or reassigned."
+          action={{
+            label: 'Back to my interviews',
+            onClick: () => navigate('/hiring/interviewer/interviews'),
+          }}
+          size="page"
+        />
+      </Card>
+    )
   }
 
-  const isAlreadySubmitted = mutation.isSuccess || !!myScorecard
-  const displayScorecard = myScorecard || mutation.data?.data
+  const submitted = mutation.isSuccess || !!myScorecard
+  const mine = myScorecard || mutation.data?.data
+  const others = (scorecards ?? []).filter((sc) => sc.id !== mine?.id)
+
+  /** Word-count hint that turns success once the minimum is met. */
+  const counter = (n: number, min: number) => (
+    <span className={n >= min ? 'text-hb-success' : 'text-hb-dim'}>
+      {n} / {min} words
+    </span>
+  )
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <button
-          onClick={() => navigate('/hiring/interviewer/interviews')}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            border: '1px solid var(--input-border)',
-            background: 'var(--input-bg)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-mid)',
-            flexShrink: 0,
-          }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h1 style={{ fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)', fontFamily: "'Poppins', sans-serif", lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ClipboardList size={22} className="text-[var(--violet)]" /> Scoreboard
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2 }}>
-            {interview.title} · Rate the candidate across key competencies
-          </p>
-        </div>
-      </div>
-
-      {/* ── Interview Info Banner ─────────────────────────────────────────── */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(108,71,255,0.07), rgba(255,107,198,0.04))',
-          border: '1px solid rgba(108,71,255,0.15)',
-          borderRadius: 14,
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-        }}
+    <div className="mx-auto max-w-4xl pb-hb-10">
+      <Button
+        variant="quiet"
+        size="sm"
+        icon={<ArrowLeft size={15} />}
+        to="/hiring/interviewer/interviews"
+        className="mb-3"
       >
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            background: 'linear-gradient(135deg, rgba(108,71,255,0.14), rgba(139,107,255,0.06))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            fontSize: 18,
-          }}
-        >
-          <Calendar size={18} className="text-[var(--violet)]" />
-        </div>
-        <div>
-          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{interview.title}</p>
-          <p style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 2 }}>
-            {formatDateTime(interview.scheduled_at)} · {interview.duration_minutes} min ·{' '}
-            {interview.interview_type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-          </p>
-        </div>
-      </div>
+        My interviews
+      </Button>
 
-      {/* ── My Submitted Scorecard (If exists) ────────────────────────── */}
-      {displayScorecard && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{
-            background: 'var(--card-bg)',
-            border: '2px solid #6c47ff',
-            borderRadius: 16,
-            padding: '24px',
-            boxShadow: '0 4px 20px rgba(108,71,255,0.08)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif", display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Star size={20} fill="var(--amber, #fbbf24)" className="text-[var(--amber, #fbbf24)]" /> Your Submitted Scorecard
-              </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                 <StarRating value={displayScorecard.overall_rating} size={20} />
-                 {REC_BADGE[displayScorecard.recommendation] && (
-                    <span style={{
-                      fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-                      background: REC_BADGE[displayScorecard.recommendation].bg,
-                      color: REC_BADGE[displayScorecard.recommendation].color,
-                      border: `1px solid ${REC_BADGE[displayScorecard.recommendation].color}33`
-                    }}>
-                      {REC_BADGE[displayScorecard.recommendation].label}
-                    </span>
-                 )}
-              </div>
-            </div>
+      <PageHeader
+        eyebrow="Scorecard"
+        title="Rate this interview"
+        description={`${interview.title} — score the candidate across the four competencies and record your recommendation.`}
+      />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-[30px]">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Competencies</h3>
-                {Array.isArray(displayScorecard.criteria_scores) && displayScorecard.criteria_scores.map((c: any) => (
-                  <div key={c.criterion}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.criterion}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#6c47ff' }}>{c.score}/5</span>
-                    </div>
-                    <div style={{ height: 6, background: 'rgba(108,71,255,0.08)', borderRadius: 3 }}>
-                      <div style={{ height: '100%', width: `${(c.score/5)*100}%`, background: 'linear-gradient(90deg, #6c47ff, #7c3aed)', borderRadius: 3 }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Summary</h3>
-                  <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, background: 'var(--input-bg)', padding: '12px', borderRadius: 10, border: '1px solid var(--card-border)' }}>
-                    {displayScorecard.summary || 'No summary provided.'}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', marginBottom: 6 }}>Strengths</h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5 }}>{displayScorecard.strengths || 'None listed'}</p>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', marginBottom: 6 }}>Concerns</h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5 }}>{displayScorecard.weaknesses || 'None listed'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="space-y-hb-5">
+        <Card padding="default" className="flex items-center gap-3.5">
+          <IconTile>
+            <CalendarDays />
+          </IconTile>
+          <div className="min-w-0">
+            <p className="text-hb-body font-semibold text-hb-text">{interview.title}</p>
+            <p className="mt-0.5 text-hb-xs capitalize text-hb-muted">
+              {formatDateTime(interview.scheduled_at)} · {interview.duration_minutes} min ·{' '}
+              {interview.interview_type.replace(/_/g, ' ')}
+            </p>
           </div>
-        </div>
-      )}
+        </Card>
 
-      {!displayScorecard && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-        {/* ── Left Column ───────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-          {/* Competency Ratings */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Competency Ratings <span style={{ color: '#ef4444' }}>*</span></h2>
-              {allRated && (
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: '3px 10px',
-                    borderRadius: 20,
-                    background: 'rgba(108,71,255,0.09)',
-                    color: '#6c47ff',
-                  }}
-                >
-                  Avg: {(criteriaValues.reduce((a, b) => a + b, 0) / criteriaValues.length).toFixed(1)}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {CRITERIA.map((crit, idx) => (
-                <div
-                  key={crit.key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    padding: '14px 0',
-                    borderBottom: idx < CRITERIA.length - 1 ? '1px solid var(--table-border)' : 'none',
-                  }}
-                >
-                  <div style={{ minWidth: 140 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <GlassIcon icon={crit.emoji as any} variant="gray" size={24} iconSize={12} glow={false} /> {crit.label}
-                    </p>
-                    <p style={{ fontSize: 10, color: 'var(--text-lite)', marginTop: 2 }}>{crit.description}</p>
-                  </div>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <StarRating
-                      value={criteria[crit.key]}
-                      onChange={(v) => !isAlreadySubmitted && setCriteria((prev) => ({ ...prev, [crit.key]: v }))}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Recommendation */}
-          <Card>
-            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>
-              Your Recommendation <span style={{ color: '#ef4444' }}>*</span>
-            </h2>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {REC_OPTIONS.map((opt) => {
-                const isSelected = recommendation === opt.value
-                return (
-                  <button
-                    key={opt.value}
-                    disabled={isAlreadySubmitted}
-                    onClick={() => !isAlreadySubmitted && setRecommendation(opt.value)}
-                    style={{
-                      flex: 1,
-                      padding: '10px 4px',
-                      borderRadius: 10,
-                      border: `2px solid ${isSelected ? opt.color : opt.border}`,
-                      background: isSelected ? opt.selectedBg : opt.bg,
-                      color: opt.color,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: isAlreadySubmitted ? 'default' : 'pointer',
-                      transition: 'all 0.18s',
-                      fontFamily: "'Sora', sans-serif",
-                    }}
-                  >
-                    <div className="flex items-center justify-center gap-1.5">{opt.emoji} {opt.label}</div>
-                  </button>
-                )
-              })}
-            </div>
-          </Card>
-        </div>
-
-        {/* ── Right Column ──────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <Card>
-            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
-              Interview Notes <span style={{ color: '#ef4444' }}>*</span>
-            </h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'var(--text-mid)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.8px',
-                    }}
-                  >
-                    Overall Notes / Summary <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: notesCounts.words >= 100 ? '#059669' : 'var(--text-lite)' }}>
-                    {notesCounts.words} / 100
-                  </span>
-                </div>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  disabled={isAlreadySubmitted}
-                  placeholder="Share your overall observations and impressions..."
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    border: '1.5px solid var(--input-border)',
-                    fontFamily: "'Sora', sans-serif",
-                    fontSize: 13,
-                    color: 'var(--text)',
-                    background: 'var(--kpi-bg, white)',
-                    resize: 'vertical',
-                    outline: 'none',
-                    lineHeight: 1.65,
-                    boxSizing: 'border-box',
-                  }}
+        {mine ? (
+          <SubmittedCard card={mine} own />
+        ) : (
+          <div className="grid gap-hb-5 md:grid-cols-2">
+            {/* ── Ratings and recommendation ── */}
+            <div className="space-y-hb-4">
+              <Card padding="default">
+                <CardHeader
+                  title="Competency ratings"
+                  action={allRated ? <Badge tone="info">Avg {average.toFixed(1)}</Badge> : undefined}
                 />
-              </div>
+                <ul>
+                  {CRITERIA.map((c) => (
+                    <li
+                      key={c.key}
+                      className="flex flex-wrap items-center gap-hb-3 border-b border-hb-border py-3.5 last:border-0"
+                    >
+                      <IconTile size="sm">{c.icon}</IconTile>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-hb-sm font-semibold text-hb-text">{c.label}</p>
+                        <p className="text-hb-xs text-hb-muted">{c.description}</p>
+                      </div>
+                      <StarRating
+                        label={c.label}
+                        value={criteria[c.key]}
+                        onChange={(v) => setCriteria((prev) => ({ ...prev, [c.key]: v }))}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </Card>
 
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: '#059669',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.8px',
-                    }}
-                  >
-                    Strengths <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: strengthsCounts.words >= 30 ? '#059669' : 'var(--text-lite)' }}>
-                    {strengthsCounts.words} / 30
-                  </span>
+              <Card padding="default">
+                <CardHeader title="Your recommendation" />
+                <div role="radiogroup" aria-label="Recommendation" className="flex gap-2">
+                  {RECOMMENDATIONS.map((opt) => {
+                    const on = recommendation === opt.value
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => setRecommendation(opt.value)}
+                        className={
+                          'flex flex-1 items-center justify-center gap-2 rounded-hb-sm border-2 py-2.5 text-hb-sm font-semibold transition-colors duration-hb focus-visible:outline-none focus-visible:shadow-hb-ring ' +
+                          (on
+                            ? REC_SELECTED[opt.tone]
+                            : 'border-hb-border text-hb-muted hover:border-hb-border-strong hover:text-hb-text')
+                        }
+                      >
+                        {opt.icon}
+                        {opt.label}
+                      </button>
+                    )
+                  })}
                 </div>
-                <textarea
+              </Card>
+            </div>
+
+            {/* ── Written feedback ── */}
+            <Card padding="default">
+              <CardHeader
+                title="Written feedback"
+                subtitle="All three are required, with a minimum length — a one-line scorecard helps nobody decide."
+              />
+
+              <div className="space-y-hb-4">
+                <Textarea
+                  label="Overall summary"
+                  required
+                  rows={5}
+                  value={notes}
+                  disabled={aiLoading}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Your overall observations and impressions…"
+                  description={
+                    aiLoading ? 'Summarising your live notes…' : counter(counts.notes, MIN_WORDS.notes)
+                  }
+                />
+
+                <Textarea
+                  label="Strengths"
+                  required
+                  rows={3}
                   value={strengths}
                   onChange={(e) => setStrengths(e.target.value)}
-                  disabled={isAlreadySubmitted}
-                  placeholder="What did the candidate do well? Key positive signals..."
-                  rows={2}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    border: '1.5px solid rgba(16,185,129,0.25)',
-                    fontFamily: "'Sora', sans-serif",
-                    fontSize: 13,
-                    color: 'var(--text)',
-                    background: 'var(--kpi-bg, white)',
-                    resize: 'vertical',
-                    outline: 'none',
-                    lineHeight: 1.65,
-                    boxSizing: 'border-box',
-                  }}
+                  placeholder="What did the candidate do well? Key positive signals…"
+                  description={counter(counts.strengths, MIN_WORDS.strengths)}
                 />
-              </div>
 
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: '#ef4444',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.8px',
-                    }}
-                  >
-                    Areas of Concern <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: weaknessesCounts.words >= 30 ? '#059669' : 'var(--text-lite)' }}>
-                    {weaknessesCounts.words} / 30
-                  </span>
-                </div>
-                <textarea
+                <Textarea
+                  label="Areas of concern"
+                  required
+                  rows={3}
                   value={weaknesses}
                   onChange={(e) => setWeaknesses(e.target.value)}
-                  disabled={isAlreadySubmitted}
-                  placeholder="What gaps or red flags were noticed?..."
-                  rows={2}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    border: '1.5px solid rgba(239,68,68,0.25)',
-                    fontFamily: "'Sora', sans-serif",
-                    fontSize: 13,
-                    color: 'var(--text)',
-                    background: 'var(--kpi-bg, white)',
-                    resize: 'vertical',
-                    outline: 'none',
-                    lineHeight: 1.65,
-                    boxSizing: 'border-box',
-                  }}
+                  placeholder="What gaps or red flags did you notice?…"
+                  description={counter(counts.weaknesses, MIN_WORDS.weaknesses)}
                 />
               </div>
-            </div>
 
-            {/* Submit area */}
-            <div style={{ marginTop: 18 }}>
-              {isAlreadySubmitted ? (
-                <div
-                  style={{
-                    background: 'rgba(16,185,129,0.08)',
-                    border: '1px solid rgba(16,185,129,0.20)',
-                    borderRadius: 10,
-                    padding: '12px 16px',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#059669',
-                    textAlign: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8
-                  }}
+              <div className="mt-hb-5 flex gap-2">
+                <Button
+                  fullWidth
+                  icon={<Sparkles size={15} />}
+                  disabled={!canSubmit}
+                  loading={mutation.isPending}
+                  onClick={() => mutation.mutate()}
                 >
-                  <CheckCircle2 size={16} /> Scorecard submitted successfully!
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    onClick={() => canSubmit && mutation.mutate()}
-                    disabled={!canSubmit}
-                    style={{
-                      flex: 1,
-                      padding: '11px 0',
-                      borderRadius: 10,
-                      border: 'none',
-                      background: canSubmit
-                        ? 'linear-gradient(135deg, #6c47ff, #8b6bff)'
-                        : 'rgba(108,71,255,0.15)',
-                      color: canSubmit ? '#fff' : 'rgba(108,71,255,0.5)',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: canSubmit ? 'pointer' : 'not-allowed',
-                      fontFamily: "'Sora', sans-serif",
-                      boxShadow: canSubmit ? '0 4px 14px rgba(108,71,255,0.30)' : 'none',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8
-                    }}
-                  >
-                    {mutation.isPending ? 'Submitting…' : <><Sparkles size={16} /> Submit Scorecard</>}
-                  </button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/hiring/interviewer/interviews')}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
-              {!canSubmit && !isAlreadySubmitted && !mutation.isPending && (
-                <p style={{ fontSize: 11, color: 'var(--text-lite)', marginTop: 8, textAlign: 'center', lineHeight: 1.5 }}>
-                  Rate all competencies, choose a recommendation, and provide detailed notes:<br/>
-                  (Min 100 words for Summary, 30 for Strengths & Concerns)
+                  Submit scorecard
+                </Button>
+                <Button variant="ghost" to="/hiring/interviewer/interviews">
+                  Cancel
+                </Button>
+              </div>
+
+              {!canSubmit && !submitted && !mutation.isPending && (
+                <p className="mt-hb-3 text-center text-hb-xs text-hb-muted">
+                  Rate all four competencies, pick a recommendation, and meet the word minimums
+                  above.
                 </p>
               )}
-            </div>
-          </Card>
-        </div>
-      </div>
-    )}
-
-      {/* ── Existing Scorecards ──────────────────────────────────────────────── */}
-      {!scLoading && scorecards && scorecards.length > 0 && (
-        <div>
-          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
-            Other Scorecards ({scorecards.length})
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {scorecards.map((sc) => (
-              <ExistingCard key={sc.id} card={sc} />
-            ))}
+            </Card>
           </div>
-        </div>
-      )}
+        )}
 
-      <AnimatePresence>
-        {toast && <Toast {...toast} />}
-      </AnimatePresence>
+        {!othersLoading && others.length > 0 && (
+          <section>
+            <h2 className="mb-hb-3 font-display text-hb-h3 text-hb-text">
+              Other scorecards ({others.length})
+            </h2>
+            <div className="space-y-hb-3">
+              {others.map((sc) => (
+                <SubmittedCard key={sc.id} card={sc} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   )
 }

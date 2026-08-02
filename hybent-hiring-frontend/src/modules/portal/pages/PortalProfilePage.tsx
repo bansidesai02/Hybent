@@ -1,13 +1,43 @@
-import React, { useState, useRef } from 'react'
-
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { CalendarDays, Camera, FileText, Loader2, Save } from 'lucide-react'
+
 import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
-import { Avatar } from '@/components/ui/Avatar'
-import { formatSalary } from '@/utils/formatters'
 import ImageCropperModal from '@/components/common/ImageCropperModal'
-import { User, Loader2, Camera, Calendar, FileText, AlertTriangle, Paperclip, X, Check } from 'lucide-react'
-import { GlassIcon } from '@/components/common/GlassIcon'
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  ConfirmDialog,
+  Dropzone,
+  Input,
+  Meter,
+  PageHeader,
+  Skeleton,
+  TagInput,
+  Textarea,
+} from '@/components/hb'
+
+/**
+ * The candidate's own profile: identity, compensation, availability, résumé,
+ * skills.
+ *
+ * Rebuilt on the design system in phase 7. Beyond appearance:
+ *
+ * - Every validation failure and outcome was a `window.alert`/`window.confirm`
+ *   (five of them). Toasts and a `ConfirmDialog` now.
+ * - The résumé drop target was a hand-rolled `.upload-zone` div with a click
+ *   handler — not focusable, not announced. It is the design system's
+ *   `Dropzone`, which is a real button.
+ * - Skills were a chip row with an inline `<input className="skill-tag add">`;
+ *   they are `TagInput`.
+ * - The form still submits via `FormData` over uncontrolled inputs — that
+ *   behaviour is kept, since it works and touching every field's state model
+ *   is not a redesign concern.
+ */
 
 function completionPercent(data: any): number {
   const fields = [
@@ -21,35 +51,17 @@ function completionPercent(data: any): number {
     !!data.resume_url || !!data.resume_storage_path,
     !!data.experience_years,
     !!data.current_ctc,
-    !!data.availability_status
+    !!data.availability_status,
   ]
   return Math.round((fields.filter(Boolean).length / fields.length) * 100)
 }
 
-function FieldRow({ label, name, value, placeholder, type = 'text', readOnly = false }: { label: string; name?: string; value: string; placeholder: string; type?: string; readOnly?: boolean }) {
-  return (
-    <div>
-      <label className="flabel">{label}</label>
-      <input
-        name={name}
-        type={type}
-        defaultValue={value}
-        placeholder={placeholder}
-        readOnly={readOnly}
-        className="finput"
-      />
-    </div>
-  )
-}
-
 export default function PortalProfilePage() {
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
-  const [dragOver, setDragOver] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [saveStatus, setSaveStatus] = useState<{ type: 'error' | 'success', msg: string } | null>(null)
   const { user, setUser } = useAuthStore()
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [confirmRemovePhoto, setConfirmRemovePhoto] = useState(false)
 
   const queryClient = useQueryClient()
 
@@ -59,24 +71,25 @@ export default function PortalProfilePage() {
   })
 
   const [skills, setSkills] = useState<string[]>([])
-  const [newSkill, setNewSkill] = useState('')
 
-  React.useEffect(() => {
-    if (profile) {
-      setSkills(profile.skills || profile.tags || [])
-    }
+  useEffect(() => {
+    if (profile) setSkills(profile.skills || profile.tags || [])
   }, [profile])
-
 
   // ── Resume upload ──────────────────────────────────────────────────────────
   const uploadMutation = useMutation({
     mutationFn: (file: File) => portalApi.uploadResume(file),
     onSuccess: () => {
       setUploadError(null)
+      toast.success('Résumé uploaded and parsed')
       queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
     },
     onError: (err: any) => {
-      setUploadError(err?.response?.data?.message || err?.response?.data?.detail || 'Upload failed. Please try again.')
+      setUploadError(
+        err?.response?.data?.message ||
+          err?.response?.data?.detail ||
+          'Upload failed. Please try again.'
+      )
     },
   })
 
@@ -88,9 +101,7 @@ export default function PortalProfilePage() {
       // Also sync auth store so the topbar avatar updates instantly
       if (res?.data) setUser(res.data)
     },
-    onError: () => {
-      alert('Failed to upload avatar. Only JPG, PNG, WEBP under 5 MB are allowed.')
-    },
+    onError: () => toast.error('Failed to upload avatar. JPG, PNG or WEBP under 5 MB only.'),
   })
 
   const deleteAvatarMutation = useMutation({
@@ -98,6 +109,7 @@ export default function PortalProfilePage() {
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
       if (res?.data) setUser(res.data)
+      setConfirmRemovePhoto(false)
     },
   })
 
@@ -105,64 +117,50 @@ export default function PortalProfilePage() {
     if (!file) return
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     if (!allowed.includes(file.type)) {
-      alert('Only JPG, PNG, WEBP or GIF images are supported.')
+      toast.error('Only JPG, PNG, WEBP or GIF images are supported.')
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image is too large. Maximum size is 5 MB.')
+      toast.error('Image is too large. Maximum size is 5 MB.')
       return
     }
-    
+
     const reader = new FileReader()
-    reader.addEventListener('load', () => {
-      setImageToCrop(reader.result as string)
-    })
+    reader.addEventListener('load', () => setImageToCrop(reader.result as string))
     reader.readAsDataURL(file)
-  }
-
-  const handleCropComplete = (croppedFile: File) => {
-    avatarMutation.mutate(croppedFile)
-    setImageToCrop(null)
-  }
-
-  const handleDeleteAvatar = () => {
-    if (confirm('Are you sure you want to remove your profile picture?')) {
-      deleteAvatarMutation.mutate()
-    }
   }
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => portalApi.updateProfile(data),
     onSuccess: () => {
-      setSaveStatus({ type: 'success', msg: 'Profile saved successfully!' })
+      toast.success('Profile saved')
       queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
-      setTimeout(() => setSaveStatus(null), 3000)
     },
-    onError: (err: any) => {
-      setSaveStatus({ type: 'error', msg: err?.response?.data?.message || err?.response?.data?.detail || 'Failed to save profile. Please try again.' })
-    },
+    onError: (err: any) =>
+      toast.error(
+        err?.response?.data?.message ||
+          err?.response?.data?.detail ||
+          'Failed to save profile. Please try again.'
+      ),
   })
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setSaveStatus(null)
     const formData = new FormData(e.currentTarget)
     const data: Record<string, any> = Object.fromEntries(formData.entries())
-    
+
     // Combine first and last name
     if (data.first_name || data.last_name) {
       data.full_name = `${data.first_name || ''} ${data.last_name || ''}`.trim()
       delete data.first_name
       delete data.last_name
     }
-    
-    data.tags = skills
 
+    data.tags = skills
     saveMutation.mutate(data)
   }
 
-
-  const handleFile = (file: File | undefined) => {
+  const handleResumeFile = (file: File | undefined) => {
     if (!file) return
     const allowed = [
       'application/pdf',
@@ -181,8 +179,31 @@ export default function PortalProfilePage() {
     uploadMutation.mutate(file)
   }
 
+  async function openResume() {
+    if (profile?.resume_storage_path) {
+      try {
+        const res = await portalApi.getResumeUrl()
+        const data = (res.data as any)?.data ?? res.data
+        if (data?.url) window.open(data.url, '_blank', 'noreferrer')
+        else toast.error('Could not load the résumé. Please try again.')
+      } catch {
+        toast.error('Could not load the résumé. Please try again.')
+      }
+    } else if (profile?.resume_url) {
+      window.open(profile.resume_url, '_blank', 'noreferrer')
+    }
+  }
+
   if (isLoading) {
-    return <div className="p-8 text-center text-[var(--text-lite)]">Loading profile...</div>
+    return (
+      <div className="pb-hb-10">
+        <Skeleton className="mb-hb-6 h-12 w-80" rounded="md" />
+        <div className="grid gap-hb-5 lg:grid-cols-2">
+          <Skeleton className="h-[560px] w-full" rounded="md" />
+          <Skeleton className="h-[560px] w-full" rounded="md" />
+        </div>
+      </div>
+    )
   }
 
   const initials = profile?.full_name
@@ -193,335 +214,303 @@ export default function PortalProfilePage() {
   const isComplete = pct >= 80
 
   return (
-    <div className="page active" id="page-profile">
-      <div className="ph">
-        <div className="pt" style={{ display: 'flex', alignItems: 'center', gap: 10 }}> My Profile &amp; Resume <GlassIcon icon="User" variant="violet" size={30} iconSize={16} /></div>
-        <div className="ps">Keep your profile up to date to help interviewers understand you better.</div>
-      </div>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Candidate portal"
+        title="My profile & résumé"
+        description="Keep your profile up to date to help interviewers understand you better."
+      />
 
-      <form id="profile-form" className="g2" style={{ marginBottom: 20 }} onSubmit={handleSave}>
+      <form onSubmit={handleSave} className="grid items-start gap-hb-5 lg:grid-cols-2">
+        {/* ── Profile ─────────────────────────────────────────────────────── */}
+        <Card padding="loose">
+          <CardHeader title="Profile" />
 
-
-        {/* PROFILE CARD */}
-        <div className="card">
-          <div className="ctitle">Profile</div>
-
-          <div className="profile-avatar-row">
-            {/* Clickable avatar with upload buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <div style={{ position: 'relative' }}>
-                <div
-                  className="prof-av-big"
-                  onClick={() => avatarInputRef.current?.click()}
-                  title="Click to change photo"
-                  style={{ cursor: 'pointer' }}
-                >
-                  {user?.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt="avatar"
-                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-                    />
+          <div className="mb-hb-5 flex items-start gap-4">
+            <div className="flex shrink-0 flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                title="Change photo"
+                aria-label="Change profile photo"
+                className="group relative grid h-20 w-20 place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-h2 text-white focus-visible:outline-none focus-visible:shadow-hb-ring"
+              >
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
+                <span className="absolute inset-0 grid place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity duration-hb group-hover:opacity-100 group-focus-visible:opacity-100">
+                  {avatarMutation.isPending ? (
+                    <Loader2 size={22} className="animate-spin" aria-hidden />
                   ) : (
-                    initials
+                    <Camera size={20} aria-hidden />
                   )}
-                  {/* Camera overlay on hover */}
-                  <div style={{
-                    position: 'absolute', inset: 0, borderRadius: '50%',
-                    background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: 22, opacity: 0,
-                    transition: 'opacity 0.2s',
-                    color: '#fff',
-                  }}
-                    className="prof-av-overlay"
-                  >
-                    {avatarMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <GlassIcon icon="Camera" variant="gray" size={32} iconSize={18} ghost glow={false} />}
-                  </div>
-                </div>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleAvatarFile(e.target.files?.[0])}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 10, fontSize: 11, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
-                <div style={{ color: 'var(--brand)', cursor: 'pointer' }} onClick={() => avatarInputRef.current?.click()}>
-                  UPLOAD
-                </div>
-              </div>
+                </span>
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleAvatarFile(e.target.files?.[0])}
+              />
+              <Button
+                type="button"
+                variant="quiet"
+                size="sm"
+                onClick={() => avatarInputRef.current?.click()}
+              >
+                Upload
+              </Button>
             </div>
 
-            <div>
-              <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: 'var(--text)' }}>
+            <div className="min-w-0">
+              <h3 className="font-display text-hb-h2 text-hb-text">
                 {profile?.full_name || 'Candidate'}
-              </div>
+              </h3>
               {profile?.current_title && (
-                <div style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 3 }}>
-                  {profile.current_title}
-                </div>
+                <p className="mt-0.5 text-hb-sm text-hb-muted">{profile.current_title}</p>
               )}
               {profile?.organization_name && (
-                <div style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 2, fontWeight: 600 }}>
+                <p className="text-hb-xs font-semibold text-hb-muted">
                   {profile.organization_name}
-                </div>
+                </p>
               )}
-              <div style={{ marginTop: 8, display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-                <span className={`chip ${isComplete ? 'chip-green' : 'chip-amber'}`}>
-                  <span className="chd"></span>{isComplete ? 'Profile Complete' : 'Incomplete'} ({pct}%)
-                </span>
-                <span className="chip chip-violet"><span className="chd"></span>Active</span>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <Badge tone={isComplete ? 'success' : 'warning'} dot>
+                  {isComplete ? 'Profile complete' : 'Incomplete'} ({pct}%)
+                </Badge>
+                <Badge tone="brand" dot>Active</Badge>
                 {user?.avatar_url && (
-                  <button
+                  <Button
                     type="button"
-                    onClick={() => deleteAvatarMutation.mutate()}
+                    variant="quiet"
+                    size="sm"
+                    onClick={() => setConfirmRemovePhoto(true)}
                     disabled={deleteAvatarMutation.isPending}
-                    style={{
-                      background: 'none', border: 'none', color: '#ef4444',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      padding: '2px 6px', borderRadius: 4,
-                      textDecoration: 'underline',
-                    }}
                   >
-                    {deleteAvatarMutation.isPending ? 'Removing...' : 'Remove Photo'}
-                  </button>
+                    Remove photo
+                  </Button>
                 )}
               </div>
+              <Meter value={pct} size="xs" aria-label="Profile completion" className="mt-3 max-w-[220px]" />
             </div>
           </div>
 
-          <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="First Name" name="first_name" value={profile?.full_name?.split(' ')[0] || ''} placeholder="First" />
-            <FieldRow label="Last Name" name="last_name" value={profile?.full_name?.split(' ').slice(1).join(' ') || ''} placeholder="Last" />
-          </div>
-
-          <div style={{ marginBottom: 12 }}>
-            <FieldRow label="Email" name="email" value={profile?.email || ''} placeholder="Email address" type="email" />
-          </div>
-
-          <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="Phone" name="phone" value={profile?.phone || ''} placeholder="+1 555-0000" type="tel" />
-            <FieldRow label="Location" name="location" value={profile?.location || ''} placeholder="City, Country" />
-          </div>
-
-          <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="Experience" name="experience_years" value={profile?.experience_years != null ? `${profile.experience_years} Years` : ''} placeholder="e.g. 5 Years" />
-            <FieldRow label="Notice Period" name="notice_period_days" value={profile?.notice_period_days != null ? `${profile.notice_period_days} Days` : ''} placeholder="e.g. 30 Days" />
-          </div>
-
-          <div className="frow" style={{ marginBottom: 12 }}>
-            <FieldRow label="Current CTC" name="current_ctc" value={profile?.current_ctc || ''} placeholder="e.g. ₹22,00,000" />
-            <FieldRow label="Expected CTC" name="expected_ctc" value={profile?.expected_ctc || ''} placeholder="e.g. ₹32,00,000" />
-          </div>
-
-          <div className="frow" style={{ marginBottom: 12 }}>
-            <div>
-              <label className="flabel">YOU WILL ABLE TO JOIN WITHIN</label>
-              <input
-                type="text"
-                name="availability_status"
-                className="finput"
-                defaultValue={profile?.availability_status || ''}
-                placeholder="e.g. 15 Days"
+          <div className="space-y-hb-4">
+            <div className="grid gap-hb-4 sm:grid-cols-2">
+              <Input
+                label="First name"
+                name="first_name"
+                defaultValue={profile?.full_name?.split(' ')[0] || ''}
+                placeholder="First"
+              />
+              <Input
+                label="Last name"
+                name="last_name"
+                defaultValue={profile?.full_name?.split(' ').slice(1).join(' ') || ''}
+                placeholder="Last"
               />
             </div>
-          </div>
 
-          {/* INTERVIEW AVAILABILITY */}
-          <div style={{ borderTop: '1px solid var(--table-border)', paddingTop: 14, marginTop: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '.8px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <GlassIcon icon="Calendar" variant="violet" size={24} iconSize={12} ghost glow={false} /> INTERVIEW AVAILABILITY
+            <Input
+              label="Email"
+              name="email"
+              type="email"
+              defaultValue={profile?.email || ''}
+              placeholder="Email address"
+            />
+
+            <div className="grid gap-hb-4 sm:grid-cols-2">
+              <Input
+                label="Phone"
+                name="phone"
+                type="tel"
+                defaultValue={profile?.phone || ''}
+                placeholder="+1 555-0000"
+              />
+              <Input
+                label="Location"
+                name="location"
+                defaultValue={profile?.location || ''}
+                placeholder="City, country"
+              />
             </div>
-            <div className="frow" style={{ marginBottom: 10 }}>
-              <div>
-                <label className="flabel">Preferred Interview Date</label>
-                <input 
+
+            <div className="grid gap-hb-4 sm:grid-cols-2">
+              <Input
+                label="Experience"
+                name="experience_years"
+                defaultValue={profile?.experience_years != null ? `${profile.experience_years} Years` : ''}
+                placeholder="e.g. 5 years"
+              />
+              <Input
+                label="Notice period"
+                name="notice_period_days"
+                defaultValue={profile?.notice_period_days != null ? `${profile.notice_period_days} Days` : ''}
+                placeholder="e.g. 30 days"
+              />
+            </div>
+
+            <div className="grid gap-hb-4 sm:grid-cols-2">
+              <Input
+                label="Current CTC"
+                name="current_ctc"
+                defaultValue={profile?.current_ctc || ''}
+                placeholder="e.g. ₹22,00,000"
+              />
+              <Input
+                label="Expected CTC"
+                name="expected_ctc"
+                defaultValue={profile?.expected_ctc || ''}
+                placeholder="e.g. ₹32,00,000"
+              />
+            </div>
+
+            <Input
+              label="You can join within"
+              name="availability_status"
+              defaultValue={profile?.availability_status || ''}
+              placeholder="e.g. 15 days"
+            />
+
+            <div className="border-t border-hb-border pt-hb-4">
+              <p className="mb-3 flex items-center gap-2 font-mono text-hb-label uppercase text-hb-dim">
+                <CalendarDays size={13} aria-hidden className="text-hb-cyan" />
+                Interview availability
+              </p>
+              <div className="grid gap-hb-4 sm:grid-cols-2">
+                <Input
+                  label="Preferred interview date"
                   type="date"
                   name="interview_availability_days"
-                  className="finput" 
-                  defaultValue={Array.isArray(profile?.interview_availability_days) ? profile?.interview_availability_days[0] : (profile?.interview_availability_days || '')} 
+                  defaultValue={
+                    Array.isArray(profile?.interview_availability_days)
+                      ? profile?.interview_availability_days[0]
+                      : profile?.interview_availability_days || ''
+                  }
                 />
-              </div>
-              <div>
-                <label className="flabel">Preferred Time Slot</label>
-                <input 
-                  type="time" 
+                <Input
+                  label="Preferred time slot"
+                  type="time"
                   name="interview_time_slot"
-                  className="finput" 
-                  defaultValue={profile?.interview_time_slot || ''} 
+                  defaultValue={profile?.interview_time_slot || ''}
                 />
               </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 24 }}>
-            {saveStatus && (
-              <div style={{ 
-                color: saveStatus.type === 'success' ? '#10B981' : '#EF4444', 
-                fontSize: 14, 
-                fontWeight: 600
-              }}>
-                {saveStatus.msg}
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={saveMutation.isPending}
-              style={{
-                background: 'var(--brand)',
-                color: 'white',
-                border: 'none',
-                padding: '10px 24px',
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
-                opacity: saveMutation.isPending ? 0.7 : 1,
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
-              }}
-            >
-              {saveMutation.isPending ? 'Saving...' : 'Save Profile'}
-            </button>
-          </div>
-        </div>
 
-        {/* SIDE COLUMN */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div className="flex justify-end border-t border-hb-border pt-hb-4">
+              <Button type="submit" icon={<Save size={15} />} loading={saveMutation.isPending}>
+                Save profile
+              </Button>
+            </div>
+          </div>
+        </Card>
 
-          {/* Bio Box */}
-          <div className="card">
-            <div className="ctitle">Bio &amp; Summary</div>
-            <textarea
+        {/* ── Side column ─────────────────────────────────────────────────── */}
+        <div className="space-y-hb-5">
+          <Card padding="loose">
+            <CardHeader title="Bio & summary" />
+            <Textarea
               name="summary"
-              className="ftarea"
               defaultValue={profile?.summary || ''}
-              placeholder="Tell us about yourself..."
+              placeholder="Tell us about yourself…"
+              rows={5}
             />
-          </div>
+          </Card>
 
-          {/* Links Box */}
-          <div className="card">
-            <div className="ctitle">Links &amp; Social</div>
-            <div style={{ marginBottom: 12 }}>
-              <FieldRow label="LinkedIn" name="linkedin_url" value={profile?.linkedin_url || ''} placeholder="linkedin.com/in/" />
+          <Card padding="loose">
+            <CardHeader title="Links & social" />
+            <div className="space-y-hb-4">
+              <Input
+                label="LinkedIn"
+                name="linkedin_url"
+                defaultValue={profile?.linkedin_url || ''}
+                placeholder="linkedin.com/in/"
+              />
+              <Input
+                label="GitHub"
+                name="github_url"
+                defaultValue={profile?.github_url || ''}
+                placeholder="github.com/"
+              />
+              <Input
+                label="Portfolio"
+                name="portfolio_url"
+                defaultValue={profile?.portfolio_url || ''}
+                placeholder="https://"
+              />
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <FieldRow label="GitHub" name="github_url" value={profile?.github_url || ''} placeholder="github.com/" />
-            </div>
-            <div>
-              <FieldRow label="Portfolio" name="portfolio_url" value={profile?.portfolio_url || ''} placeholder="https://" />
-            </div>
-          </div>
+          </Card>
 
-          {/* Resume & Skills Box */}
-          <div className="card">
-            <div className="ctitle">Resume <span className="ctag violet">Required</span></div>
+          <Card padding="loose">
+            <CardHeader title="Résumé" action={<Badge tone="brand">Required</Badge>} />
 
             {(profile?.resume_storage_path || profile?.resume_url) && (
-              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <GlassIcon icon="FileText" variant="emerald" size={24} iconSize={12} ghost glow={false} />
-                <button
-                  onClick={async () => {
-                    if (profile?.resume_storage_path) {
-                      try {
-                        const { portalApi } = await import('@/api/portal')
-                        const res = await portalApi.getResumeUrl()
-                        const data = (res.data as any)?.data ?? res.data
-                        if (data?.url) window.open(data.url, '_blank', 'noreferrer')
-                      } catch { alert('Could not load resume. Please try again.') }
-                    } else {
-                      window.open(profile!.resume_url!, '_blank', 'noreferrer')
-                    }
-                  }}
-                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >
-                  {profile?.resume_filename || 'View Current Resume'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={openResume}
+                className="mb-hb-4 flex w-full items-center gap-2.5 rounded-hb-md border border-hb-success/25 bg-hb-success/8 px-4 py-3 text-left text-hb-sm font-semibold text-hb-success transition-colors duration-hb hover:bg-hb-success/12 focus-visible:outline-none focus-visible:shadow-hb-ring"
+              >
+                <FileText size={15} aria-hidden className="shrink-0" />
+                {profile?.resume_filename || 'View current résumé'}
+              </button>
             )}
 
             {uploadError && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', marginBottom: 12, fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <GlassIcon icon="AlertTriangle" variant="rose" size={24} iconSize={12} ghost glow={false} /> {uploadError}
-              </div>
+              <p
+                role="alert"
+                className="mb-hb-4 rounded-hb-md border border-hb-error/25 bg-hb-error/8 px-3.5 py-2.5 text-hb-xs text-hb-error"
+              >
+                {uploadError}
+              </p>
             )}
 
-            <div
-              className="upload-zone"
-              onClick={() => !uploadMutation.isPending && fileInputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault()
-                setDragOver(false)
-                handleFile(e.dataTransfer.files[0])
-              }}
-              style={{
-                ...(dragOver ? { borderColor: 'var(--brand)', background: 'rgba(124,58,237,.07)' } : {}),
-                cursor: uploadMutation.isPending ? 'not-allowed' : 'pointer',
-                opacity: uploadMutation.isPending ? 0.7 : 1,
-              }}
-            >
-              <div className="upload-zone-ico" style={{ marginBottom: 12 }}>
-                {uploadMutation.isPending ? <Loader2 className="animate-spin" size={24} /> : <GlassIcon icon="Paperclip" variant="violet" size={48} iconSize={24} />}
-              </div>
-              <div className="upload-zone-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
-                {uploadMutation.isPending ? 'Uploading & parsing resume...' : 'Drop your resume here'}
-              </div>
-              <div className="upload-zone-sub" style={{ fontSize: 11, opacity: 0.7 }}>
-                {uploadMutation.isPending ? 'This may take a moment' : 'PDF, DOC, DOCX — max 5 MB'}
-              </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".pdf,.doc,.docx"
-                style={{ display: 'none' }}
-                onChange={(e) => handleFile(e.target.files?.[0])}
+            <Dropzone
+              onFiles={(files) => handleResumeFile(files[0])}
+              accept=".pdf,.doc,.docx"
+              title="Drop your résumé here"
+              description="Parsed automatically to fill your profile."
+              formats={['PDF', 'DOC', 'DOCX']}
+              busy={uploadMutation.isPending}
+              busyLabel="Uploading & parsing résumé…"
+            />
+
+            <div className="mt-hb-5">
+              <TagInput
+                label="Skills"
+                value={skills}
+                onChange={setSkills}
+                placeholder="Add a skill and press Enter"
               />
             </div>
-
-            <div className="ctitle" style={{ marginTop: 20 }}>Skills</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-              {skills.map((skill: string) => (
-                <span key={skill} className="skill-tag" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {skill}
-                  <button 
-                    type="button" 
-                    onClick={() => setSkills(skills.filter(s => s !== skill))} 
-                    style={{ background: 'none', border: 'none', color: 'currentcolor', cursor: 'pointer', padding: 0, margin: 0, display: 'flex', alignItems: 'center' }}
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-              <input
-                type="text"
-                value={newSkill}
-                onChange={(e) => setNewSkill(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const val = newSkill.trim();
-                    if (val && !skills.includes(val)) setSkills([...skills, val]);
-                    setNewSkill('');
-                  }
-                }}
-                placeholder="+ Add skill"
-                className="skill-tag add"
-                style={{ background: 'transparent', outline: 'none', width: '90px' }}
-              />
-            </div>
-          </div>
-
-
+          </Card>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={confirmRemovePhoto}
+        onClose={() => setConfirmRemovePhoto(false)}
+        onConfirm={() => deleteAvatarMutation.mutate()}
+        title="Remove profile photo?"
+        description="Your initials will be shown instead."
+        confirmLabel="Remove photo"
+        destructive
+        loading={deleteAvatarMutation.isPending}
+      />
 
       {imageToCrop && (
         <ImageCropperModal
           image={imageToCrop}
-          onCropComplete={handleCropComplete}
+          onCropComplete={(croppedFile: File) => {
+            avatarMutation.mutate(croppedFile)
+            setImageToCrop(null)
+          }}
           onCancel={() => setImageToCrop(null)}
         />
       )}

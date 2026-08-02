@@ -1,53 +1,94 @@
-import { useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
+import { ClipboardList, X } from 'lucide-react'
+
 import { adminApi } from '@/api/admin'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Pagination } from '@/components/ui/Pagination'
 import { formatDateTime } from '@/utils/formatters'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import { TeamIcon } from '@/components/common/CustomIcons'
+import {
+  Avatar,
+  Badge,
+  type BadgeTone,
+  Button,
+  Card,
+  type Column,
+  DataTable,
+  FilterChips,
+  Input,
+  PageHeader,
+  Pagination,
+  Toolbar,
+  ToolbarSearch,
+} from '@/components/hb'
 
+/**
+ * Every action taken in the organisation, newest first.
+ *
+ * Rebuilt on the design system in phase 9. The old page carried seventeen
+ * hardcoded colours: thirteen in `ACTION_STYLE` (one per action) and four in
+ * `ROLE_STYLE` (one per role), each painting a pill background, a pill text
+ * colour, a filter chip and — via two `onMouseEnter`/`onMouseLeave` handlers
+ * that wrote to `element.style` directly — a row border and box-shadow on
+ * hover. Thirteen colours for thirteen actions is a legend nobody can hold in
+ * their head, and it put amber (the product's warning colour) on "Rescheduled"
+ * and blue (info) on "Edited", neither of which is a warning or a notice.
+ *
+ * What a reader actually scans an audit log for is *destructive* rows. So the
+ * tone map below is three entries, not thirteen: something was created,
+ * something was destroyed, or something changed. The action itself is named in
+ * the pill, which is what tells you it was a reschedule rather than a cancel.
+ */
 
-// ─── Action styling ───────────────────────────────────────────────────────────
-const ACTION_STYLE: Record<string, { bg: string; color: string; icon: React.ReactNode; label: string }> = {
-  CREATE:       { bg: 'rgba(16,185,129,0.10)',  color: '#059669', icon: <GlassIcon icon="Plus" variant="emerald" size={20} iconSize={10} glow={false} />, label: 'Created' },
-  UPDATE:       { bg: 'rgba(59,130,246,0.10)',  color: '#2563eb', icon: <GlassIcon icon="Edit2" variant="blue" size={20} iconSize={10} glow={false} />, label: 'Edited' },
-  UPDATE_STAGE: { bg: 'rgba(108,71,255,0.10)',  color: '#6c47ff', icon: <GlassIcon icon="RefreshCw" variant="violet" size={20} iconSize={10} glow={false} />, label: 'Stage Change' },
-  SCHEDULE:     { bg: 'rgba(108,71,255,0.10)',  color: '#6c47ff', icon: <GlassIcon icon="Calendar" variant="violet" size={20} iconSize={10} glow={false} />, label: 'Scheduled' },
-  RESCHEDULE:   { bg: 'rgba(245,158,11,0.12)',  color: '#d97706', icon: <GlassIcon icon="Clock" variant="amber" size={20} iconSize={10} glow={false} />, label: 'Rescheduled' },
-  CANCEL:       { bg: 'rgba(239,68,68,0.10)',   color: '#dc2626', icon: <GlassIcon icon="X" variant="rose" size={20} iconSize={10} glow={false} />, label: 'Cancelled' },
-  DELETE:       { bg: 'rgba(239,68,68,0.12)',   color: '#b91c1c', icon: <GlassIcon icon="Trash2" variant="rose" size={20} iconSize={10} glow={false} />, label: 'Deleted' },
-  INVITE:       { bg: 'rgba(255,107,198,0.10)', color: '#db2777', icon: <GlassIcon icon="Mail" variant="pink" size={20} iconSize={10} glow={false} />, label: 'Invited' },
-  ADD_COMMENT:  { bg: 'rgba(20,184,166,0.10)',  color: '#0d9488', icon: <GlassIcon icon="MessageSquare" variant="teal" size={20} iconSize={10} glow={false} />, label: 'Comment Added' },
-  LOGIN:        { bg: 'rgba(16,185,129,0.10)',  color: '#059669', icon: <GlassIcon icon="LogIn" variant="emerald" size={20} iconSize={10} glow={false} />, label: 'Login' },
-  LOGOUT:       { bg: 'rgba(107,114,128,0.10)', color: '#6b7280', icon: <GlassIcon icon="LogOut" variant="gray" size={20} iconSize={10} glow={false} />, label: 'Logout' },
-  OFFER_SENT:   { bg: 'rgba(251,191,36,0.10)',  color: '#d97706', icon: <GlassIcon icon="Send" variant="amber" size={20} iconSize={10} glow={false} />, label: 'Offer Sent' },
-  OFFER_RESPONDED: { bg: 'rgba(59,130,246,0.10)', color: '#2563eb', icon: <GlassIcon icon="Check" variant="blue" size={20} iconSize={10} glow={false} />, label: 'Offer Response' },
+/** The only distinction worth a colour: was this additive or destructive? */
+const ACTION_TONE: Record<string, BadgeTone> = {
+  CREATE: 'success',
+  INVITE: 'success',
+  LOGIN: 'success',
+  DELETE: 'error',
+  CANCEL: 'error',
 }
 
-const RESOURCE_ICON: Record<string, React.ReactNode> = {
-  job: <GlassIcon icon="Briefcase" variant="violet" size={18} iconSize={10} glow={false} />, 
-  candidate: <GlassIcon icon="User" variant="violet" size={18} iconSize={10} glow={false} />, 
-  interview: <GlassIcon icon="Calendar" variant="violet" size={18} iconSize={10} glow={false} />, 
-  offer: <GlassIcon icon="FileText" variant="violet" size={18} iconSize={10} glow={false} />,
-  user: <GlassIcon icon={<TeamIcon size={10} />} variant="violet" size={18} iconSize={10} glow={false} />,
-  organization: <GlassIcon icon="Building2" variant="violet" size={18} iconSize={10} glow={false} />, 
-  application: <GlassIcon icon="ClipboardList" variant="violet" size={18} iconSize={10} glow={false} />,
-  hr_note: <GlassIcon icon="Lock" variant="violet" size={18} iconSize={10} glow={false} />, 
-  comment: <GlassIcon icon="MessageSquare" variant="violet" size={18} iconSize={10} glow={false} />,
+const ACTION_LABEL: Record<string, string> = {
+  CREATE: 'Created',
+  UPDATE: 'Edited',
+  UPDATE_STAGE: 'Stage change',
+  SCHEDULE: 'Scheduled',
+  RESCHEDULE: 'Rescheduled',
+  CANCEL: 'Cancelled',
+  DELETE: 'Deleted',
+  INVITE: 'Invited',
+  ADD_COMMENT: 'Comment added',
+  LOGIN: 'Login',
+  LOGOUT: 'Logout',
+  OFFER_SENT: 'Offer sent',
+  OFFER_RESPONDED: 'Offer response',
 }
 
-const ROLE_STYLE: Record<string, { bg: string; color: string }> = {
-  admin:       { bg: 'rgba(239,68,68,0.10)',   color: '#dc2626' },
-  recruiter:   { bg: 'rgba(108,71,255,0.10)', color: '#6c47ff' },
-  interviewer: { bg: 'rgba(59,130,246,0.10)', color: '#2563eb' },
-  candidate:   { bg: 'rgba(16,185,129,0.10)', color: '#059669' },
-}
+const ACTION_FILTERS = [
+  'CREATE',
+  'UPDATE',
+  'UPDATE_STAGE',
+  'SCHEDULE',
+  'RESCHEDULE',
+  'CANCEL',
+  'DELETE',
+  'ADD_COMMENT',
+  'INVITE',
+  'OFFER_SENT',
+] as const
 
-const ACTION_FILTERS = ['', 'CREATE', 'UPDATE', 'UPDATE_STAGE', 'SCHEDULE', 'RESCHEDULE', 'CANCEL', 'DELETE', 'ADD_COMMENT', 'INVITE', 'OFFER_SENT']
-const RESOURCE_FILTERS = ['', 'job', 'candidate', 'interview', 'offer', 'hr_note', 'comment', 'user']
+const RESOURCE_FILTERS = [
+  'job',
+  'candidate',
+  'interview',
+  'offer',
+  'hr_note',
+  'comment',
+  'user',
+] as const
+
+const titleise = (s: string) =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—'
 
 // ─── Human-readable description builder ──────────────────────────────────────
 function buildDescription(log: any): string {
@@ -113,50 +154,30 @@ function buildDescription(log: any): string {
   }
 }
 
-// ─── User initial avatar ──────────────────────────────────────────────────────
-function UserAvatar({ name, role }: { name: string; role?: string }) {
-  const initials = (name || 'S').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  const rs = ROLE_STYLE[role || ''] ?? { bg: 'rgba(107,114,128,0.15)', color: '#6b7280' }
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: 28, height: 28, borderRadius: '50%', fontSize: 11, fontWeight: 800,
-      flexShrink: 0, background: rs.bg, color: rs.color,
-    }}>
-      {initials}
-    </span>
-  )
-}
-
-// ─── Filter pill helper ───────────────────────────────────────────────────────
-function Pill({ active, onClick, children, activeColor = '#6c47ff', activeBg = 'rgba(108,71,255,0.10)' }: any) {
-  return (
-    <button onClick={onClick} style={{
-      padding: '5px 14px', borderRadius: 20, border: '1px solid',
-      fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
-      background: active ? activeBg : 'var(--kpi-bg)',
-      color: active ? activeColor : 'var(--text-mid)',
-      borderColor: active ? activeColor + '55' : 'var(--table-border)',
-      flexShrink: 0,
-      whiteSpace: 'nowrap'
-    }}>
-      {children}
-    </button>
-  )
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AuditLogsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const resourceId = searchParams.get('resource_id')
 
   const [page, setPage] = useState(1)
-  const [action, setAction] = useState('')
-  const [resourceType, setResourceType] = useState('')
+  const [action, setAction] = useState<string | null>(null)
+  const [resourceType, setResourceType] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+
+  /* The old bar needed an explicit "Go" (or Enter) because every keystroke
+     would otherwise have hit the API. Debouncing buys the live-search feel
+     without the request storm, and drops the button the rest of the product
+     does not have. */
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearch(searchInput)
+      setPage(1)
+    }, 350)
+    return () => clearTimeout(id)
+  }, [searchInput])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['audit-logs', page, action, resourceType, resourceId, search, dateFrom, dateTo],
@@ -172,13 +193,8 @@ export default function AuditLogsPage() {
       }).then(r => r.data),
   })
 
-  const handleSearch = useCallback(() => {
-    setSearch(searchInput)
-    setPage(1)
-  }, [searchInput])
-
   const handleClearFilters = () => {
-    setAction(''); setResourceType(''); setSearch(''); setSearchInput(''); setDateFrom(''); setDateTo(''); setPage(1)
+    setAction(null); setResourceType(null); setSearch(''); setSearchInput(''); setDateFrom(''); setDateTo(''); setPage(1)
     if (resourceId) {
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('resource_id')
@@ -186,215 +202,161 @@ export default function AuditLogsPage() {
     }
   }
 
-  const hasActiveFilters = action || resourceType || search || dateFrom || dateTo || resourceId
+  const hasActiveFilters = Boolean(
+    action || resourceType || search || dateFrom || dateTo || resourceId
+  )
+
+  const columns: Array<Column<any>> = [
+    {
+      key: 'action',
+      header: 'Action',
+      width: '150px',
+      cell: (log) => (
+        <Badge tone={ACTION_TONE[log.action] ?? 'neutral'}>
+          {ACTION_LABEL[log.action] ?? log.action}
+        </Badge>
+      ),
+    },
+    {
+      key: 'resource',
+      header: 'Resource',
+      width: '120px',
+      cell: (log) => <span className="text-hb-muted">{titleise(log.resource_type || '')}</span>,
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      cardTitle: true,
+      cell: (log) => {
+        const description = buildDescription(log)
+        return (
+          <span className="block truncate text-hb-text" title={description}>
+            {description}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'user',
+      header: 'Edited by',
+      width: '220px',
+      cell: (log) =>
+        log.user_name ? (
+          <span className="flex min-w-0 items-center gap-2">
+            <Avatar name={log.user_name} size="sm" />
+            <span className="min-w-0 flex-1 truncate text-hb-muted">{log.user_name}</span>
+            {log.user_role && <Badge>{titleise(log.user_role)}</Badge>}
+          </span>
+        ) : (
+          <span className="italic text-hb-dim">System</span>
+        ),
+    },
+    {
+      key: 'when',
+      header: 'When',
+      width: '160px',
+      cell: (log) => <span className="text-hb-muted">{formatDateTime(log.created_at)}</span>,
+    },
+  ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Admin"
+        title="Audit logs"
+        description="A complete history of every action taken in your organisation."
+        actions={
+          <>
+            {data && <Badge tone="info">{data.total} total</Badge>}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" icon={<X size={14} />} onClick={handleClearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px,3vw,30px)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.5px', marginBottom: 4 }}>
-            Audit Logs
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-light)' }}>
-            Complete history of all actions taken in your organisation
-            {data && <span style={{ marginLeft: 8, fontWeight: 700, color: 'var(--violet)' }}>· {data.total} total</span>}
-          </p>
-        </div>
-        {hasActiveFilters && (
-          <button onClick={handleClearFilters} style={{
-            padding: '6px 16px', borderRadius: 20, border: '1px solid rgba(239,68,68,0.3)',
-            fontSize: 11, fontWeight: 700, cursor: 'pointer', color: '#dc2626',
-            background: 'rgba(239,68,68,0.07)',
-          }}>
-            ✕ Clear Filters
-          </button>
-        )}
+      <Toolbar>
+        <ToolbarSearch
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search by user name…"
+          aria-label="Search audit logs by user name"
+        />
+        <Input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
+          aria-label="Filter from date"
+          fieldClassName="w-auto"
+        />
+        <span aria-hidden className="text-hb-sm text-hb-dim">
+          to
+        </span>
+        <Input
+          type="date"
+          value={dateTo}
+          onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
+          aria-label="Filter to date"
+          fieldClassName="w-auto"
+        />
+      </Toolbar>
+
+      <div className="mb-hb-4 space-y-2">
+        <FilterChips
+          options={ACTION_FILTERS.map((a) => ({ value: a, label: ACTION_LABEL[a] ?? a }))}
+          value={action as (typeof ACTION_FILTERS)[number] | null}
+          onChange={(next) => { setAction(next); setPage(1) }}
+          allLabel="All actions"
+        />
+        <FilterChips
+          options={RESOURCE_FILTERS.map((r) => ({ value: r, label: titleise(r) }))}
+          value={resourceType as (typeof RESOURCE_FILTERS)[number] | null}
+          onChange={(next) => { setResourceType(next); setPage(1) }}
+          allLabel="All resources"
+        />
       </div>
 
-      {/* ── Search + Date Range ── */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* Search input */}
-        <div style={{ display: 'flex', gap: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--table-border)', background: 'var(--kpi-bg)', flex: '1 1 200px', maxWidth: 300, alignItems: 'center' }}>
-          <div style={{ paddingLeft: 12, color: 'var(--violet)' }}>
-            <GlassIcon icon="Search" variant="violet" size={24} iconSize={12} glow={false} />
-          </div>
-          <input
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Search by user name…"
-            style={{ flex: 1, padding: '8px 12px', border: 'none', background: 'transparent', fontSize: 12, color: 'var(--text)', outline: 'none' }}
-          />
-          <button onClick={handleSearch} style={{ padding: '8px 14px', background: 'var(--violet)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>Go</button>
-        </div>
-
-        {/* Date from */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 600 }}>From</span>
-          <input type="date" value={dateFrom}
-            onChange={e => { setDateFrom(e.target.value); setPage(1) }}
-            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--table-border)', background: 'var(--kpi-bg)', color: 'var(--text)', fontSize: 12, outline: 'none', cursor: 'pointer' }}
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 600 }}>To</span>
-          <input type="date" value={dateTo}
-            onChange={e => { setDateTo(e.target.value); setPage(1) }}
-            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--table-border)', background: 'var(--kpi-bg)', color: 'var(--text)', fontSize: 12, outline: 'none', cursor: 'pointer' }}
-          />
-        </div>
-      </div>
-
-      {/* ── Action filter pills ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '100%', overflow: 'hidden' }}>
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0 w-[calc(100%+2rem)] sm:w-full">
-          {ACTION_FILTERS.map(a => {
-            const as = ACTION_STYLE[a]
-            return (
-              <Pill key={a || 'all-actions'} active={action === a}
-                activeColor={as?.color ?? '#6c47ff'}
-                activeBg={as?.bg ?? 'rgba(108,71,255,0.10)'}
-                onClick={() => { setAction(a); setPage(1) }}
-              >
-                {a ? <div className="flex items-center gap-1.5">{as?.icon}{as?.label ?? a}</div> : 'All Actions'}
-              </Pill>
-            )
-          })}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0 w-[calc(100%+2rem)] sm:w-full">
-          {RESOURCE_FILTERS.map(r => (
-            <Pill key={r || 'all-resources'} active={resourceType === r}
-              activeColor="#059669" activeBg="rgba(16,185,129,0.08)"
-              onClick={() => { setResourceType(r); setPage(1) }}
-            >
-              {r ? <div className="flex items-center gap-1.5">{RESOURCE_ICON[r] ?? ''} {r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' ')}</div> : 'All Resources'}
-            </Pill>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Content ── */}
-      {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} style={{ display: 'flex', gap: 14, padding: '14px 20px', borderRadius: 12, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)', alignItems: 'center' }}>
-              <Skeleton className="h-6 w-24 rounded-full" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 flex-1" />
-              <Skeleton className="h-8 w-36" />
-              <Skeleton className="h-4 w-28" />
-            </div>
-          ))}
-        </div>
-      ) : isError ? (
-        <div style={{ borderRadius: 12, padding: 16, fontSize: 13, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.20)', color: '#ef4444' }}>
+      {isError ? (
+        <div
+          role="alert"
+          className="rounded-hb-md border border-hb-error/25 bg-hb-error/8 p-4 text-hb-sm text-hb-error"
+        >
           Failed to load audit logs.
         </div>
-      ) : !data?.items.length ? (
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
-          <div className="flex justify-center mb-4">
-            <GlassIcon icon="ClipboardList" variant="violet" size={60} iconSize={28} />
-          </div>
-          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginTop: 12 }}>No audit logs found</p>
-          <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>
-            {hasActiveFilters ? 'Try adjusting your filters' : 'Actions will be logged here automatically'}
-          </p>
-        </div>
       ) : (
-        <>
-          <div className="w-full overflow-x-auto pb-2">
-            <div className="min-w-[800px] flex flex-col gap-6">
-              {/* Column headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 100px 1fr 210px 150px', gap: 12, padding: '0 20px', fontSize: 10, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                <span>Action</span>
-                <span>Resource</span>
-                <span>Description</span>
-                <span>Edited By</span>
-                <span>When</span>
-              </div>
+        <Card padding="none">
+          <DataTable
+            columns={columns}
+            rows={data?.items ?? []}
+            rowKey={(log) => log.id}
+            loading={isLoading}
+            caption="Audit log of actions taken in this organisation"
+            empty={{
+              icon: <ClipboardList />,
+              title: 'No audit logs found',
+              description: hasActiveFilters
+                ? 'Try adjusting your filters.'
+                : 'Actions will be logged here automatically.',
+              size: 'page',
+              ...(hasActiveFilters
+                ? { action: { label: 'Clear filters', onClick: handleClearFilters } }
+                : {}),
+            }}
+          />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {data.items.map((log: any, i: number) => {
-                  const as = ACTION_STYLE[log.action] ?? { bg: 'rgba(107,114,128,0.10)', color: '#6b7280', icon: '•', label: log.action }
-                  const rs = ROLE_STYLE[log.user_role] ?? { bg: 'rgba(107,114,128,0.10)', color: '#6b7280' }
-                  const description = buildDescription(log)
-
-                  return (
-                    <motion.div
-                      key={log.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.02 }}
-                      style={{
-                        display: 'grid', gridTemplateColumns: '130px 100px 1fr 210px 150px',
-                        gap: 12, alignItems: 'center', padding: '12px 20px',
-                        borderRadius: 12, background: 'var(--kpi-bg)', border: '1px solid var(--table-border)',
-                        transition: 'border-color 0.15s, box-shadow 0.15s',
-                      }}
-                      onMouseEnter={e => {
-                        const el = e.currentTarget as HTMLElement
-                        el.style.borderColor = as.color + '44'
-                        el.style.boxShadow = `0 2px 12px ${as.color}18`
-                      }}
-                      onMouseLeave={e => {
-                        const el = e.currentTarget as HTMLElement
-                        el.style.borderColor = 'var(--table-border)'
-                        el.style.boxShadow = 'none'
-                      }}
-                    >
-                      {/* Action badge */}
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: as.bg, color: as.color, width: 'fit-content' }}>
-                        {as.icon}
-                        {as.label}
-                      </span>
-
-                      {/* Resource */}
-                      <span className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)' }}>
-                        {RESOURCE_ICON[log.resource_type] ?? null}
-                        {log.resource_type
-                          ? (log.resource_type.charAt(0).toUpperCase() + log.resource_type.slice(1)).replace('_', ' ')
-                          : '—'}
-                      </span>
-
-                      {/* Human-readable description */}
-                      <span style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={description}>
-                        {description}
-                      </span>
-
-                      {/* Edited By — avatar + name + role pill */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                        {log.user_name ? (
-                          <>
-                            <UserAvatar name={log.user_name} role={log.user_role} />
-                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                              {log.user_name}
-                            </span>
-                            {log.user_role && (
-                              <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: rs.bg, color: rs.color, textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>
-                                {log.user_role}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span style={{ fontSize: 12, color: 'var(--text-light)', fontStyle: 'italic' }}>system</span>
-                        )}
-                      </div>
-
-                      {/* Timestamp */}
-                      <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
-                        {formatDateTime(log.created_at)}
-                      </span>
-                    </motion.div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          <Pagination page={data.page} pages={data.pages} total={data.total} limit={data.limit} onPage={setPage} />
-        </>
+          {data && (
+            <Pagination
+              page={data.page}
+              pages={data.pages}
+              total={data.total}
+              limit={data.limit}
+              onPage={setPage}
+              noun="log entries"
+            />
+          )}
+        </Card>
       )}
     </div>
   )

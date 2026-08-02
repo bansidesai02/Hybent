@@ -1,12 +1,30 @@
 import { useState } from 'react'
-import { Modal } from '@/components/ui/Modal'
-import { Textarea } from '@/components/ui/Textarea'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { portalApi } from '@/api/portal'
-import { Job, Application } from '@/types'
 import toast from 'react-hot-toast'
 import { Building2, CheckCircle, Lightbulb } from 'lucide-react'
-import { GlassIcon } from '@/components/common/GlassIcon'
+
+import { portalApi } from '@/api/portal'
+import { Job, Application } from '@/types'
+import {
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  EmptyState,
+  Input,
+  PageHeader,
+  Skeleton,
+  Textarea,
+} from '@/components/hb'
+
+/**
+ * Open roles the candidate can apply to or refer a friend into.
+ *
+ * Rebuilt on the design system in phase 7 — off portal.css's `.card`/`.btn`
+ * and the legacy `Modal`. One oddity kept faithfully but worth naming: the
+ * referral form's "LinkedIn profile" input posts as `relationship`, because
+ * that is the field name the backend expects.
+ */
 
 export default function PortalOpenings() {
   const queryClient = useQueryClient()
@@ -23,7 +41,6 @@ export default function PortalOpenings() {
     queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
 
-  // Map of job_id -> boolean to check if user already applied
   const appliedJobIds = new Set(applications?.map((app: Application) => app.job_id))
 
   const applyMutation = useMutation({
@@ -34,182 +51,212 @@ export default function PortalOpenings() {
       setApplyTarget(null)
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to submit application'
-      toast.error(msg)
+      toast.error(
+        err?.response?.data?.message || err?.response?.data?.detail || 'Failed to submit application'
+      )
       setApplyTarget(null)
     },
   })
 
   const referMutation = useMutation({
-    mutationFn: ({ jobId, data }: { jobId: string; data: FormData }) => portalApi.referJob(jobId, data),
+    mutationFn: ({ jobId, data }: { jobId: string; data: FormData }) =>
+      portalApi.referJob(jobId, data),
     onSuccess: () => {
       toast.success('Referral submitted successfully!')
       setReferTarget(null)
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to submit referral'
-      toast.error(msg)
+      toast.error(
+        err?.response?.data?.message || err?.response?.data?.detail || 'Failed to submit referral'
+      )
     },
   })
 
-
   return (
-    <div className="page active" id="page-openings">
-      <div className="ph">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div className="pt" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              Current Openings <GlassIcon icon="Building2" variant="violet" size={28} iconSize={14} />
-            </div>
-            <div className="ps">Explore other roles or refer a friend to earn rewards!</div>
-          </div>
-        </div>
-      </div>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Candidate portal"
+        title="Current openings"
+        description="Explore other roles or refer a friend to earn rewards."
+      />
 
       {jobsLoading ? (
-        <div className="p-8 text-center text-[var(--text-lite)]">Loading openings...</div>
-      ) : (jobs?.length === 0) ? (
-        <div className="p-8 text-center text-[var(--text-lite)]">No open positions currently available.</div>
+        <div className="grid gap-hb-4 sm:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3].map((n) => (
+            <Skeleton key={n} className="h-56 w-full" rounded="md" />
+          ))}
+        </div>
+      ) : jobs?.length === 0 ? (
+        <Card padding="none">
+          <EmptyState
+            icon={<Building2 />}
+            title="No open positions"
+            description="New roles will appear here as soon as they open."
+            size="page"
+          />
+        </Card>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-          {jobs?.map(job => {
+        <div className="grid gap-hb-4 sm:grid-cols-2 xl:grid-cols-3">
+          {jobs?.map((job) => {
             const hasApplied = appliedJobIds.has(job.id)
-            const referralBonus = job.title.includes('Senior') ? '$2,000' : '$1,500'
 
             return (
-              <div className="card" key={job.id} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4, fontFamily: "'Fraunces', serif" }}>{job.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-mid)' }}>{job.department || 'General'} · {job.location || 'Remote'}</div>
+              <Card key={job.id} padding="default" className="flex h-full flex-col">
+                <div className="mb-3">
+                  <h3 className="font-display text-hb-h3 text-hb-text">{job.title}</h3>
+                  <p className="mt-1 text-hb-xs text-hb-muted">
+                    {job.department || 'General'} · {job.location || 'Remote'}
+                  </p>
+                </div>
+
+                {job.skills_required && job.skills_required.length > 0 && (
+                  <div className="mb-hb-4 flex flex-wrap gap-1.5">
+                    {job.skills_required.slice(0, 4).map((t) => (
+                      <Badge key={t}>{t}</Badge>
+                    ))}
                   </div>
-                </div>
+                )}
 
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-                  {job.skills_required?.slice(0, 4).map(t => (
-                    <span key={t} style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: 'var(--sb-active)', color: 'var(--brand)' }}>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="opening-card-actions" style={{ marginTop: 'auto', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div className="mt-auto flex gap-2 border-t border-hb-border pt-hb-4">
                   {!hasApplied ? (
                     <>
-                      <button
-                        className="btn btn-primary"
-                        style={{ flex: 1, justifyContent: 'center' }}
-                        onClick={() => setApplyTarget(job)}
+                      <Button className="flex-1" onClick={() => setApplyTarget(job)}>
+                        Apply now
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="flex-1"
+                        onClick={() => setReferTarget(job)}
                       >
-                        Apply Now
-                      </button>
-                      <button className="btn btn-outline" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setReferTarget({ ...job, referralBonus })}>Refer a Friend</button>
+                        Refer a friend
+                      </Button>
                     </>
                   ) : (
-                    <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center', gap: 6 }} disabled>
-                      <CheckCircle size={14} /> Applied
-                    </button>
+                    <Badge tone="success" className="w-full justify-center py-2">
+                      <CheckCircle size={13} aria-hidden /> Applied
+                    </Badge>
                   )}
                 </div>
-              </div>
+              </Card>
             )
           })}
         </div>
       )}
 
-      {/* Apply Confirmation Modal */}
-      {applyTarget && (
-        <Modal open onClose={() => setApplyTarget(null)} title="Confirm Application" size="sm">
-          <div style={{ fontSize: 14, color: 'var(--text-mid)', marginBottom: 20, lineHeight: 1.6 }}>
-            You are about to apply for <strong style={{ color: 'var(--text)' }}>{applyTarget.title}</strong>.
-            <br />
-            Your current resume and profile will be submitted to the recruiter.
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-lite)', marginBottom: 20, padding: '12px 16px', borderRadius: 12, background: 'var(--sb-hover)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <GlassIcon icon="Lightbulb" variant="amber" size={28} iconSize={12} ghost glow={false} />
-            <span>Make sure your resume is up to date in your profile before applying.</span>
-          </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button className="btn btn-outline" onClick={() => setApplyTarget(null)}>Cancel</button>
-            <button
-              className="btn btn-primary"
-              onClick={() => applyMutation.mutate(applyTarget.id)}
-              disabled={applyMutation.isPending}
+      {/* ── Apply confirmation ────────────────────────────────────────────── */}
+      <Dialog
+        open={!!applyTarget}
+        onClose={() => setApplyTarget(null)}
+        title="Confirm application"
+        description={
+          applyTarget
+            ? `You are about to apply for ${applyTarget.title}. Your current résumé and profile will be submitted to the recruiter.`
+            : undefined
+        }
+        size="sm"
+        footer={
+          <>
+            <Button variant="quiet" size="sm" onClick={() => setApplyTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => applyTarget && applyMutation.mutate(applyTarget.id)}
+              loading={applyMutation.isPending}
             >
-              {applyMutation.isPending ? 'Submitting…' : 'Submit Application'}
-            </button>
-          </div>
-        </Modal>
-      )}
+              Submit application
+            </Button>
+          </>
+        }
+      >
+        <p className="flex items-start gap-2.5 rounded-hb-md border border-hb-warning/25 bg-hb-warning/8 px-3.5 py-3 text-hb-xs text-hb-text">
+          <Lightbulb size={15} aria-hidden className="mt-0.5 shrink-0 text-hb-warning" />
+          Make sure your résumé is up to date in your profile before applying.
+        </p>
+      </Dialog>
 
-      {/* Referral Modal */}
-      {referTarget && (
-        <Modal open onClose={() => setReferTarget(null)} title={`Refer for ${referTarget.title}`} size="md">
-          <form onSubmit={(e) => {
+      {/* ── Referral ──────────────────────────────────────────────────────── */}
+      <Dialog
+        open={!!referTarget}
+        onClose={() => setReferTarget(null)}
+        title={referTarget ? `Refer a friend for ${referTarget.title}` : 'Refer a friend'}
+        size="md"
+        footer={
+          <>
+            <Button variant="quiet" size="sm" type="button" onClick={() => setReferTarget(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" type="submit" form="refer-friend" loading={referMutation.isPending}>
+              Submit referral
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="refer-friend"
+          className="space-y-hb-4"
+          onSubmit={(e) => {
             e.preventDefault()
             const formData = new FormData(e.currentTarget)
-            
-            // Handle splitting the single name input into first/last name
-            const fullName = formData.get('referee_full_name') as string || ''
+
+            // Split the single name input into the first/last the API expects.
+            const fullName = (formData.get('referee_full_name') as string) || ''
             const nameParts = fullName.trim().split(' ')
-            const firstName = nameParts[0] || 'Unknown'
-            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Unknown'
-            
-            formData.set('referee_first_name', firstName)
-            formData.set('referee_last_name', lastName)
+            formData.set('referee_first_name', nameParts[0] || 'Unknown')
+            formData.set(
+              'referee_last_name',
+              nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Unknown'
+            )
             formData.delete('referee_full_name')
 
             referMutation.mutate({ jobId: referTarget.id, data: formData })
-          }}>
-
-          <div className="frow" style={{ marginBottom: 12 }}>
-            <div>
-              <label className="flabel">Friend's Name</label>
-              <input name="referee_full_name" className="finput" placeholder="e.g. John Doe" required />
-            </div>
-            <div>
-              <label className="flabel">Friend's Email</label>
-              <input name="referee_email" type="email" className="finput" placeholder="john@example.com" required />
-            </div>
+          }}
+        >
+          <div className="grid gap-hb-4 sm:grid-cols-2">
+            <Input
+              label="Friend's name"
+              name="referee_full_name"
+              placeholder="e.g. John Doe"
+              required
+            />
+            <Input
+              label="Friend's email"
+              name="referee_email"
+              type="email"
+              placeholder="john@example.com"
+              required
+            />
           </div>
 
-          <div className="frow" style={{ marginBottom: 12 }}>
-            <div>
-              <label className="flabel">Friend's Number</label>
-              <input name="referee_phone" type="tel" className="finput" placeholder="e.g. +1 555-0000" />
-            </div>
-            <div>
-              <label className="flabel">LinkedIn Profile (Optional)</label>
-              <input name="relationship" className="finput" placeholder="https://linkedin.com/in/..." />
-            </div>
+          <div className="grid gap-hb-4 sm:grid-cols-2">
+            <Input
+              label="Friend's number"
+              name="referee_phone"
+              type="tel"
+              placeholder="e.g. +1 555-0000"
+            />
+            <Input
+              label="LinkedIn profile (optional)"
+              name="relationship"
+              placeholder="https://linkedin.com/in/…"
+            />
           </div>
 
           <Textarea
             name="reason"
             label="Why are they a good fit?"
-            placeholder="Tell us why we should hire your friend..."
+            placeholder="Tell us why we should hire your friend…"
             rows={3}
           />
 
-          <div style={{ marginTop: 12 }}>
-            <label className="flabel">Upload Resume (Optional)</label>
-            <input name="resume" type="file" className="finput" accept=".pdf,.doc,.docx" style={{ padding: '8px 12px' }} />
-          </div>
-          
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-            <button type="button" className="btn btn-outline" onClick={() => setReferTarget(null)}>Cancel</button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={referMutation.isPending}
-            >
-              {referMutation.isPending ? 'Submitting...' : 'Submit Referral'}
-            </button>
-          </div>
-          </form>
-        </Modal>
-      )}
-
+          <Input
+            label="Upload résumé (optional)"
+            name="resume"
+            type="file"
+            accept=".pdf,.doc,.docx"
+          />
+        </form>
+      </Dialog>
     </div>
   )
 }

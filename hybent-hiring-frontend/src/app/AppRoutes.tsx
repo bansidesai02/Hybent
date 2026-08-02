@@ -28,21 +28,31 @@ const PrivacyPage = lazy(() => import('@/modules/site/pages/PrivacyPage'))
 const HiringHomePage = lazy(() => import('@/modules/hiring/pages/HiringHomePage'))
 
 /* ── Authentication ───────────────────────────────────────────────────────── */
-/* Two front doors. The Hybent company portal owns the canonical paths and
-   shares one design system across sign-in, sign-up and reset; the Hybent Hiring
-   forms keep the product's own light theme under /hiring. */
+/* One front door. The Hybent portal owns every auth path and shares one design
+   system across sign-in, sign-up and reset. A visitor arriving from a product
+   carries `?product=`, which puts that product's name above the title.
+
+   The `/hiring/*` forms that used to live beside these were deleted in phase 4
+   and now redirect here — they were the same endpoints and the same accounts
+   behind a second, drifting design system. */
 const HybentLoginRoute = lazy(() => import('@/modules/site/pages/HybentLoginRoute'))
 const HybentRegisterRoute = lazy(() => import('@/modules/site/pages/HybentRegisterRoute'))
 const HybentResetPasswordRoute = lazy(() => import('@/modules/site/pages/HybentResetPasswordRoute'))
 const HybentVerifyEmailRoute = lazy(() => import('@/modules/site/pages/HybentVerifyEmailRoute'))
 const HybentCreatePasswordRoute = lazy(() => import('@/modules/site/pages/HybentCreatePasswordRoute'))
-const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
-const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
-const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 
 /* ── Candidate entry points reached by emailed token ──────────────────────── */
 const OnboardingPage = lazy(() => import('@/pages/candidate/OnboardingPage'))
 const PreScreeningPage = lazy(() => import('@/pages/candidate/PreScreeningPage'))
+
+/* ── Design system review surface ─────────────────────────────────────────────
+   The condition wraps the `import()` itself, not just the route. Vite replaces
+   `import.meta.env.DEV` with a literal at build time, so in production the
+   dynamic import is dead code and Rollup emits no chunk for it — guarding only
+   the route still shipped the whole gallery to dist. */
+const KitchenSink = import.meta.env.DEV
+  ? lazy(() => import('@/dev/KitchenSink'))
+  : null
 
 /* ── Authenticated Hybent Hiring workspaces ───────────────────────────────── */
 const RecruiterRoutes = lazy(() => import('@/routes/RecruiterRoutes'))
@@ -64,6 +74,12 @@ const SuperAdminRoutes = lazy(() => import('@/routes/SuperAdminRoutes'))
  * sidebar and topbar.
  */
 export default function AppRoutes() {
+  /* Built here rather than inline: narrowing `KitchenSink` away from null does
+     not reach into a nested JSX attribute, so the element is composed first. */
+  const kitchenSinkRoute = KitchenSink ? (
+    <Route path="/dev/kitchen-sink" element={<KitchenSink />} />
+  ) : null
+
   return (
     <Routes>
       {/* ── Public surface: one shared shell, many views ── */}
@@ -99,13 +115,22 @@ export default function AppRoutes() {
       {/* One route, four states — ?status=success|error|verifying, default sent. */}
       <Route path="/verify-email" element={<HybentVerifyEmailRoute />} />
       <Route path="/create-password" element={<HybentCreatePasswordRoute />} />
-      <Route path="/hiring/login" element={<LoginPage />} />
-      <Route path="/hiring/register" element={<RegisterPage />} />
-      <Route path="/hiring/reset-password" element={<ResetPasswordPage />} />
+      {/* The product's old front doors. Kept as redirects rather than removed:
+          they are in inboxes, bookmarks and at least one nginx config, and a
+          404 on a sign-in link is the worst possible way to learn that. */}
+      <Route path="/hiring/login" element={<Navigate to="/login?product=hiring" replace />} />
+      <Route path="/hiring/register" element={<Navigate to="/register?product=hiring" replace />} />
+      <Route
+        path="/hiring/reset-password"
+        element={<Navigate to="/reset-password?product=hiring" replace />}
+      />
 
       {/* ── Token-gated candidate flows ── */}
       <Route path="/onboarding/:token" element={<OnboardingPage />} />
       <Route path="/pre-screening/:token" element={<PreScreeningPage />} />
+
+      {/* ── Design system, dev only ── */}
+      {kitchenSinkRoute}
 
       {/* ── Role-aware entry point into the product ── */}
       <Route path="/dashboard" element={<DashboardRedirect />} />

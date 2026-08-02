@@ -13,18 +13,22 @@ interface ActivityToastProps {
     timestamp: string
   }
 }
-import { GlassIcon } from '@/components/common/GlassIcon'
+import { Bell, Briefcase, CalendarDays, CheckCircle, FileText, Trophy, User } from 'lucide-react'
+import { IconTile } from '@/components/hb'
 
+/* One tile, one glyph. `GlassIcon` gave each of these seven types its own
+   accent variant, which is a legend for something the toast already says in
+   words. */
 const getIcon = (type: string) => {
-  switch (type) {
-    case 'job': return <GlassIcon icon="Briefcase" variant="violet" size={40} iconSize={18} glow={false} />
-    case 'candidate': return <GlassIcon icon="User" variant="blue" size={40} iconSize={18} glow={false} />
-    case 'interview': return <GlassIcon icon="Calendar" variant="indigo" size={40} iconSize={18} glow={false} />
-    case 'application': return <GlassIcon icon="FileText" variant="indigo" size={40} iconSize={18} glow={false} />
-    case 'scorecard': return <GlassIcon icon="CheckCircle" variant="emerald" size={40} iconSize={18} glow={false} />
-    case 'offer': return <GlassIcon icon="Trophy" variant="amber" size={40} iconSize={18} glow={false} />
-    default: return <GlassIcon icon="Bell" variant="violet" size={40} iconSize={18} glow={false} />
-  }
+  const glyph =
+    type === 'job' ? <Briefcase /> :
+    type === 'candidate' ? <User /> :
+    type === 'interview' ? <CalendarDays /> :
+    type === 'application' ? <FileText /> :
+    type === 'scorecard' ? <CheckCircle /> :
+    type === 'offer' ? <Trophy /> :
+    <Bell />
+  return <IconTile size="sm">{glyph}</IconTile>
 }
 
 export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
@@ -51,7 +55,7 @@ export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
                 Live Activity
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               </p>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+              <span className="font-mono text-hb-micro font-bold uppercase text-hb-dim">
                 {payload.timestamp ? timeAgo(payload.timestamp) : 'Now'}
               </span>
             </div>
@@ -64,7 +68,7 @@ export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
       <div className="flex border-l border-gray-100/50">
         <button
           onClick={() => toast.dismiss(t.id)}
-          className="w-full border border-transparent rounded-none rounded-r-2xl px-4 flex items-center justify-center text-[10px] font-black text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/30 transition-all uppercase tracking-widest focus:outline-none"
+          className="flex w-full items-center justify-center rounded-r-2xl border border-transparent px-4 font-mono text-hb-micro font-bold uppercase tracking-widest text-hb-cyan transition-all duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus:outline-none"
         >
           View
         </button>

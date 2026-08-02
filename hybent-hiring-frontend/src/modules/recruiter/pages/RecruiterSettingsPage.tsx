@@ -1,29 +1,48 @@
-import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'react-hot-toast'
+import Cropper, { type Area, type Point } from 'react-easy-crop'
+import { Building2, Camera, Mail, ShieldCheck } from 'lucide-react'
+
 import { useAuth } from '@/hooks/useAuth'
 import { organizationsApi } from '@/api/organizations'
 import { authApi, profileApi } from '@/api/auth'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'react-hot-toast'
-import { clsx } from 'clsx'
-import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/utils/cropImage'
 import type { Organization } from '@/types'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import { 
-  Building2, 
-  ShieldCheck, 
-  Camera, 
-  Mail, 
-  Settings, 
-  Lock, 
-  Shield 
-} from 'lucide-react'
+import {
+  Badge,
+  Button,
+  Card,
+  CardDivider,
+  CardHeader,
+  Dialog,
+  IconTile,
+  Input,
+  Label,
+  PageHeader,
+} from '@/components/hb'
 
+/**
+ * Company and account settings.
+ *
+ * Rebuilt on the design system. Three things here were broken rather than just
+ * off-brand: the logo target was a `<div onClick>` with a hidden file input, so
+ * it could not be reached or fired from a keyboard; the crop modal was a
+ * hand-rolled `fixed inset-0` overlay with no focus trap, no Escape and an
+ * unlabelled `✕` button, and is now `Dialog`; and the zoom slider carried
+ * `aria-labelledby="Zoom"` pointing at an id that does not exist, so it was
+ * announced with no name at all.
+ *
+ * The role chip no longer switches between violet and emerald on `isAdmin` —
+ * the role it already spells out is the information, and the colour was
+ * duplicating it in a palette that means nothing.
+ */
 export default function RecruiterSettingsPage() {
   const { user, isAdmin } = useAuth()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const zoomId = useId()
+  const passwordPanelId = useId()
 
   // ── States ──────────────────────────────────────────────────────────────────
   const [currentPassword, setCurrentPassword] = useState('')
@@ -32,16 +51,16 @@ export default function RecruiterSettingsPage() {
   const [recoveryEmail, setRecoveryEmail] = useState('')
   const [orgName, setOrgName] = useState('')
   const [isPasswordChanging, setIsPasswordChanging] = useState(false)
-  
+
   // Cropper specific state
   const [tempImage, setTempImage] = useState<string | null>(null)
-  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [isCropping, setIsCropping] = useState(false)
 
   // ── Data Fetching ───────────────────────────────────────────────────────────
-  const { data: organization, isLoading: orgLoading } = useQuery({
+  const { data: organization } = useQuery({
     queryKey: ['organization', 'me'],
     queryFn: () => organizationsApi.getMe().then(res => res.data),
     enabled: !!isAdmin,
@@ -91,6 +110,8 @@ export default function RecruiterSettingsPage() {
     onError: () => toast.error('Failed to change password. Check your current password.'),
   })
 
+  /* `recovery_email` is not on `ProfileUpdatePayload`, so this stays loosely
+     typed until the API type catches up. */
   const updateProfileMutation = useMutation({
     mutationFn: (data: any) => profileApi.updateMe(data),
     onSuccess: () => {
@@ -121,7 +142,7 @@ export default function RecruiterSettingsPage() {
     }
   }
 
-  const onCropComplete = (_: any, croppedAreaPixels: any) => {
+  const onCropComplete = (_: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels)
   }
 
@@ -160,309 +181,229 @@ export default function RecruiterSettingsPage() {
     updateProfileMutation.mutate({ recovery_email: recoveryEmail })
   }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  }
-
   return (
-    <div className="max-w-5xl mx-auto space-y-10 pb-20 pt-4">
-      {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="flex flex-col md:flex-row md:items-end justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-4xl font-black text-gray-900 dark:text-[#ede9ff] tracking-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Settings
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-[#b0a8d8] mt-2 font-medium">
-            Manage your {isAdmin ? 'company' : 'account'} preferences and security settings.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-[#1e1a35] px-4 py-2 rounded-full">
-          <span className={clsx("w-2 h-2 rounded-full animate-pulse", isAdmin ? "bg-violet-500" : "bg-emerald-500")}></span>
-          Role: {user?.role || 'User'}
-        </div>
-      </motion.div>
+    <div className="mx-auto max-w-3xl pb-hb-10">
+      <PageHeader
+        eyebrow="Account"
+        title="Settings"
+        description={`Manage your ${isAdmin ? 'company' : 'account'} preferences and security settings.`}
+        actions={<Badge tone="neutral">Role: {user?.role || 'User'}</Badge>}
+      />
 
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="max-w-4xl mx-auto space-y-8"
-      >
+      <div className="space-y-hb-6">
         {/* Admin Section: Company Details */}
         {isAdmin && (
-          <motion.div variants={itemVariants} className="bg-white dark:bg-[#0f111a] rounded-[32px] border border-gray-100 dark:border-[#2a2550] shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-            <div className="px-8 py-6 border-b border-gray-50 dark:border-[#2a2550] flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">Company Details</h3>
-                <p className="text-[11px] text-gray-400 font-bold mt-0.5">MANAGE YOUR ORGANIZATION ASSETS</p>
-              </div>
-              <GlassIcon icon="Building2" variant="blue" size={32} iconSize={16} glow={false} />
-            </div>
-            
-            <div className="p-8 space-y-8">
-              {/* Logo Upload */}
-              <div className="flex flex-col sm:flex-row items-center gap-8">
-                <div className="relative group">
-                  <div 
-                    onClick={onLogoClick}
-                    className="w-24 h-24 rounded-3xl bg-gray-50 dark:bg-[#1e1a35] border-2 border-dashed border-gray-200 dark:border-[#4a4570] flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#6c47ff] group-hover:shadow-lg"
-                  >
-                    {organization?.logo_url ? (
-                      <img src={organization.logo_url} alt="logo" className="w-full h-full object-contain p-2" />
-                    ) : (
-                      <Camera className="w-8 h-8 opacity-40 group-hover:scale-110 transition-transform text-gray-400" />
-                    )}
-                    
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <span className="text-white text-[10px] font-black uppercase tracking-widest">Update</span>
-                    </div>
-                  </div>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleFileChange} 
-                    className="hidden" 
-                    accept="image/*"
-                  />
-                </div>
-                
-                <div className="flex-1 space-y-4 w-full">
-                  <div>
-                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Organization Name</label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        value={orgName}
-                        onChange={(e) => setOrgName(e.target.value)}
-                        className="flex-1 bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3.5 text-sm font-bold focus:ring-2 focus:ring-[#6c47ff]/20 outline-none transition-all"
-                        placeholder="Acme Inc."
-                      />
-                      <button 
-                        onClick={handleUpdateOrg}
-                        className="bg-[#6c47ff] text-white px-6 rounded-2xl text-xs font-black shadow-lg shadow-violet-200 dark:shadow-none hover:translate-y-[-2px] active:translate-y-[1px] transition-all disabled:opacity-50"
-                        disabled={updateOrgMutation.isPending || !orgName || orgName === organization?.name}
-                      >
-                        {updateOrgMutation.isPending ? 'Saving...' : 'Save'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Common Section: Account Security */}
-        <motion.div variants={itemVariants} className="bg-white dark:bg-[#0f111a] rounded-[32px] border border-gray-100 dark:border-[#2a2550] shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-          <div className="px-8 py-6 border-b border-gray-50 dark:border-[#2a2550] flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">Account Security</h3>
-              <p className="text-[11px] text-gray-400 font-bold mt-0.5">PROTECT YOUR ACCOUNT ACCESS</p>
-            </div>
-            <GlassIcon icon="ShieldCheck" variant="amber" size={32} iconSize={16} glow={false} />
-          </div>
-
-          <div className="p-8 space-y-10">
-            {/* Recovery Email */}
-            <div>
-              <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 block">Recovery Email Address</label>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative group">
-                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 group-focus-within:opacity-100 transition-opacity text-gray-400" />
-                  <input 
-                    type="email" 
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl pl-12 pr-5 py-3.5 text-sm font-bold focus:ring-2 focus:ring-[#6c47ff]/20 outline-none transition-all"
-                    placeholder="backup@email.com"
-                  />
-                </div>
-                <button 
-                  onClick={handleUpdateRecoveryEmail}
-                  disabled={updateProfileMutation.isPending || !recoveryEmail || recoveryEmail === user?.recovery_email}
-                  className="bg-gray-100 dark:bg-[#1e1a35] text-gray-900 dark:text-gray-100 px-6 py-4 rounded-2xl text-xs font-black hover:bg-gray-200 dark:hover:bg-gray-700 transition-all disabled:opacity-50"
-                >
-                  {updateProfileMutation.isPending ? 'Updating...' : 'Update Email'}
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-400 font-medium mt-3 px-1">Used for password recovery and critical security alerts.</p>
-            </div>
-
-            <div className="h-px bg-gray-50 dark:bg-[#1e1a35]" />
-
-            {/* Password Change */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[13px] font-black text-gray-900 dark:text-[#ede9ff]">Change Password</h4>
-                <button 
-                  onClick={() => setIsPasswordChanging(!isPasswordChanging)}
-                  className="text-[11px] font-black text-[#6c47ff] uppercase tracking-wider"
-                >
-                  {isPasswordChanging ? 'Cancel' : 'Edit'}
-                </button>
-              </div>
-
-              <AnimatePresence>
-                {isPasswordChanging && (
-                  <motion.form 
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    onSubmit={handlePasswordSubmit}
-                    className="space-y-4 overflow-hidden"
-                  >
-                    <div className="grid sm:grid-cols-2 gap-4 pt-2">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Current Password</label>
-                        <input 
-                          type="password"
-                          required
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
-                        />
-                      </div>
-                      <div />
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">New Password</label>
-                        <input 
-                          type="password"
-                          required
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Confirm New Password</label>
-                        <input 
-                          type="password"
-                          required
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#1e1a35]/50 border border-gray-200 dark:border-[#4a4570] rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#6c47ff] transition-colors"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end pt-2">
-                      <button 
-                        type="submit"
-                        className="bg-[#6c47ff] text-white px-8 py-3.5 rounded-2xl text-[11px] font-black shadow-lg shadow-violet-200 dark:shadow-none hover:scale-[1.02] active:scale-[0.98] transition-all"
-                        disabled={changePasswordMutation.isPending}
-                      >
-                        {changePasswordMutation.isPending ? 'UPDATING...' : 'UPDATE PASSWORD'}
-                      </button>
-                    </div>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </motion.div>
-        <div className="h-20" />
-      </motion.div>
-
-      {/* ── Cropper Modal ──────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {isCropping && tempImage && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
-          >
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={handleCancelCrop}
-              className="absolute inset-0 bg-[#02040a]/90 backdrop-blur-md" 
+          <Card as="section">
+            <CardHeader
+              title="Company details"
+              subtitle="Manage your organization's name and logo."
+              icon={
+                <IconTile size="sm">
+                  <Building2 />
+                </IconTile>
+              }
             />
-            
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl bg-white dark:bg-[#0f111a] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden flex flex-col h-[80vh] sm:h-[600px]"
-            >
-              <div className="px-8 py-6 border-b border-gray-100 dark:border-[#2a2550] flex items-center justify-between shrink-0">
-                <div>
-                  <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">Adjust Logo</h3>
-                  <p className="text-[11px] text-gray-400 font-bold mt-0.5">CROP AND POSITION YOUR IMAGE</p>
-                </div>
-                <button 
-                  onClick={handleCancelCrop}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-[#1e1a35] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
 
-              <div className="relative flex-1 bg-gray-950">
-                <Cropper
-                  image={tempImage}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={1}
-                  onCropChange={setCrop}
-                  onCropComplete={onCropComplete}
-                  onZoomChange={setZoom}
-                  cropShape="round"
-                  showGrid={false}
+            <div className="flex flex-col items-start gap-hb-6 sm:flex-row">
+              {/* Logo Upload */}
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  onClick={onLogoClick}
+                  aria-label={organization?.logo_url ? 'Change company logo' : 'Upload company logo'}
+                  className="group relative grid h-24 w-24 place-items-center overflow-hidden rounded-hb-md border border-dashed border-hb-border-strong bg-hb-surface-2 transition-colors duration-hb ease-hb hover:border-hb-blue/60 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                >
+                  {organization?.logo_url ? (
+                    <img src={organization.logo_url} alt="" className="h-full w-full object-contain p-2" />
+                  ) : (
+                    <Camera className="h-7 w-7 text-hb-dim" aria-hidden />
+                  )}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 grid place-items-center bg-hb-surface/85 font-mono text-hb-label uppercase text-hb-text opacity-0 transition-opacity duration-hb ease-hb group-hover:opacity-100 group-focus-visible:opacity-100"
+                  >
+                    Update
+                  </span>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="image/*"
                 />
               </div>
 
-              <div className="px-8 py-8 border-t border-gray-100 dark:border-[#2a2550] space-y-6 shrink-0">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-[11px] font-black text-gray-400 uppercase tracking-widest">
-                    <span>Zoom Level</span>
-                    <span>{Math.round(zoom * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    value={zoom}
-                    min={1}
-                    max={3}
-                    step={0.1}
-                    aria-labelledby="Zoom"
-                    onChange={(e) => setZoom(Number(e.target.value))}
-                    className="w-full h-1.5 bg-gray-100 dark:bg-[#1e1a35] rounded-lg appearance-none cursor-pointer accent-[#6c47ff]"
+              <div className="flex w-full flex-1 flex-col gap-hb-3 sm:flex-row sm:items-end">
+                <Input
+                  label="Organization name"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Acme Inc."
+                  fieldClassName="w-full flex-1"
+                />
+                <Button
+                  onClick={handleUpdateOrg}
+                  loading={updateOrgMutation.isPending}
+                  disabled={!orgName || orgName === organization?.name}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Common Section: Account Security */}
+        <Card as="section">
+          <CardHeader
+            title="Account security"
+            subtitle="Protect your account access."
+            icon={
+              <IconTile size="sm">
+                <ShieldCheck />
+              </IconTile>
+            }
+          />
+
+          {/* Recovery Email */}
+          <div className="flex flex-col gap-hb-3 sm:flex-row sm:items-end">
+            <Input
+              type="email"
+              label="Recovery email address"
+              description="Used for password recovery and critical security alerts."
+              leadingIcon={<Mail size={15} />}
+              value={recoveryEmail}
+              onChange={(e) => setRecoveryEmail(e.target.value)}
+              placeholder="backup@email.com"
+              fieldClassName="w-full flex-1"
+            />
+            <Button
+              variant="ghost"
+              onClick={handleUpdateRecoveryEmail}
+              loading={updateProfileMutation.isPending}
+              disabled={!recoveryEmail || recoveryEmail === user?.recovery_email}
+            >
+              Update email
+            </Button>
+          </div>
+
+          <CardDivider />
+
+          {/* Password Change */}
+          <div>
+            <div className="flex items-center justify-between gap-hb-4">
+              <h4 className="font-display text-hb-h3 text-hb-text">Change password</h4>
+              <Button
+                variant="quiet"
+                size="sm"
+                aria-expanded={isPasswordChanging}
+                /* Only pointed at the panel while it exists — a dangling
+                   `aria-controls` is the same defect as the old dangling
+                   `aria-labelledby` on the zoom slider. */
+                aria-controls={isPasswordChanging ? passwordPanelId : undefined}
+                onClick={() => setIsPasswordChanging(!isPasswordChanging)}
+              >
+                {isPasswordChanging ? 'Cancel' : 'Edit'}
+              </Button>
+            </div>
+
+            {isPasswordChanging && (
+              <form id={passwordPanelId} onSubmit={handlePasswordSubmit} className="mt-hb-5 space-y-hb-5">
+                {/* `col-start-1` puts the new/confirm pair on their own row without
+                    the empty grid cell the old markup used as a spacer. */}
+                <div className="grid gap-hb-4 sm:grid-cols-2">
+                  <Input
+                    type="password"
+                    label="Current password"
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                  <Input
+                    type="password"
+                    label="New password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    fieldClassName="sm:col-start-1"
+                  />
+                  <Input
+                    type="password"
+                    label="Confirm new password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                 </div>
-
-                <div className="flex gap-4">
-                  <button 
-                    onClick={handleCancelCrop}
-                    className="flex-1 px-6 py-4 rounded-2xl text-xs font-black text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 transition-all border border-gray-100 dark:border-[#2a2550]"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleApplyCrop}
-                    disabled={uploadLogoMutation.isPending}
-                    className="flex-[2] bg-[#6c47ff] text-white px-8 py-4 rounded-2xl text-xs font-black shadow-xl shadow-violet-200 dark:shadow-none hover:translate-y-[-2px] active:translate-y-[1px] transition-all disabled:opacity-50"
-                  >
-                    {uploadLogoMutation.isPending ? 'Uploading...' : 'Apply Image'}
-                  </button>
+                <div className="flex justify-end">
+                  <Button type="submit" loading={changePasswordMutation.isPending}>
+                    Update password
+                  </Button>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </form>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* ── Cropper Dialog ─────────────────────────────────────────────────────── */}
+      <Dialog
+        open={isCropping && !!tempImage}
+        onClose={handleCancelCrop}
+        title="Adjust logo"
+        description="Crop and position your image."
+        size="md"
+        footer={
+          <>
+            <Button variant="quiet" onClick={handleCancelCrop}>
+              Cancel
+            </Button>
+            <Button onClick={handleApplyCrop} loading={uploadLogoMutation.isPending}>
+              Apply image
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-hb-5">
+          <div className="relative h-[320px] overflow-hidden rounded-hb-md border border-hb-border bg-hb-surface-2">
+            {tempImage && (
+              <Cropper
+                image={tempImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                cropShape="round"
+                showGrid={false}
+              />
+            )}
+          </div>
+
+          <div className="space-y-hb-2">
+            <div className="flex items-center justify-between gap-hb-3">
+              <Label htmlFor={zoomId}>Zoom level</Label>
+              <span className="font-mono text-hb-micro text-hb-muted">{Math.round(zoom * 100)}%</span>
+            </div>
+            <input
+              id={zoomId}
+              type="range"
+              value={zoom}
+              min={1}
+              max={3}
+              step={0.1}
+              /* The readout beside the label is a percentage while the raw
+                 value is 1–3, so without this a screen reader announces "2.1"
+                 against a visible "210%". */
+              aria-valuetext={`${Math.round(zoom * 100)}%`}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="w-full cursor-pointer accent-hb-blue"
+            />
+          </div>
+        </div>
+      </Dialog>
     </div>
   )
 }

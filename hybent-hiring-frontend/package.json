@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:ds": "eslint src --ext ts,tsx --no-eslintrc -c .eslintrc.ds.cjs",
+    "lint:ds:count": "eslint src --ext ts,tsx --no-eslintrc -c .eslintrc.ds.cjs -f json | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);const n=r.reduce((a,f)=>a+f.warningCount,0);const files=r.filter(f=>f.warningCount).length;console.log(`design-system debt: ${n} violations across ${files} files`)})\""
   },
   "dependencies": {
     "@hello-pangea/dnd": "^16.6.0",

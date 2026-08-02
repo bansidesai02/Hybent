@@ -1,7 +1,50 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
-import { Mic, Square, RotateCcw, CheckCircle, Loader2, AlertCircle, Volume2, VolumeX, Play, Pause } from 'lucide-react'
+import { useRef, useState, useEffect, type CSSProperties } from 'react'
+import {
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  Mic,
+  Pause,
+  Play,
+  RotateCcw,
+  Square,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
 
-export type RecorderState = 'speaking' | 'idle' | 'countdown' | 'recording' | 'stopped' | 'uploading' | 'done' | 'error'
+import { Badge, Button, Meter } from '@/components/hb'
+
+/**
+ * Record one spoken answer: read the question aloud, count in, capture, review,
+ * submit.
+ *
+ * Rebuilt on the design system in phase 8. The recorder logic below is
+ * unchanged; what went was a 320-line `styles` object that hardcoded the old
+ * violet/pink palette in seventeen places and painted the three verdict
+ * colours (#ef4444 stop, #22c55e submit, #ffd54f notice) as raw hexes.
+ *
+ * Three defects fixed on the way through:
+ *
+ * - The unmount cleanup revoked `audioBlobUrl` from an effect with an empty
+ *   dependency array, so it always read the initial `null` and never revoked
+ *   anything. Every recording leaked its blob until the tab closed. The URL now
+ *   lives in a ref that the cleanup can actually see.
+ * - `startCountdown` was wrapped in `useCallback([])` and is not passed to a
+ *   memoised child, so the only thing the empty dependency list bought was a
+ *   stale closure over `maxDurationSeconds`. Unwrapped.
+ * - The stop button animated `micPulse`, a keyframe that is not defined
+ *   anywhere in the app. It has been inert since it was written.
+ */
+
+export type RecorderState =
+  | 'speaking'
+  | 'idle'
+  | 'countdown'
+  | 'recording'
+  | 'stopped'
+  | 'uploading'
+  | 'done'
+  | 'error'
 
 interface AudioRecorderProps {
   onUpload: (blob: Blob, durationSeconds: number) => Promise<void>
@@ -10,6 +53,9 @@ interface AudioRecorderProps {
   questionText?: string
   languageCode?: string
 }
+
+const BAR_COUNT = 24
+const FLOOR_HEIGHT = 4
 
 /**
  * Returns the best available SpeechSynthesis voice for a BCP-47 langCode.
@@ -84,6 +130,24 @@ async function speakQuestion(
   return { utterance, keepAlive }
 }
 
+/**
+ * Live amplitude drives height and opacity, so this is geometry from data, not
+ * appearance — the one thing a class cannot express.
+ *
+ * The bar is 4px wide, which is too narrow to show a gradient of its own. So
+ * every bar paints the *same* `--hb-grad` blown up to the full width of the
+ * row (`bg-[length:2400%_100%]`, 24 bars × 100%) and slides it to its own
+ * position. The waveform then reads as one cyan→blue→violet sweep rather than
+ * twenty-four identical cyan sticks.
+ */
+function barStyle(height: number, index: number): CSSProperties {
+  return {
+    height: `${height}px`,
+    opacity: 0.7 + (height / 40) * 0.3,
+    backgroundPositionX: `${(index / (BAR_COUNT - 1)) * 100}%`,
+  }
+}
+
 export function AudioRecorder({
   onUpload,
   disabled = false,
@@ -97,7 +161,7 @@ export function AudioRecorder({
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [canReRecord, setCanReRecord] = useState(false)
-  const [waveHeights, setWaveHeights] = useState<number[]>(Array(24).fill(4))
+  const [waveHeights, setWaveHeights] = useState<number[]>(Array(BAR_COUNT).fill(FLOOR_HEIGHT))
   const [ttsSpeaking, setTtsSpeaking] = useState(false)
 
   const [isPlaying, setIsPlaying] = useState(false)
@@ -115,6 +179,9 @@ export function AudioRecorder({
   const animFrameRef = useRef<number | null>(null)
   const startTimeRef = useRef<number>(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  /* The unmount cleanup cannot read `audioBlobUrl` — it would capture the
+     initial null. This ref is what it revokes. */
+  const blobUrlRef = useRef<string | null>(null)
 
   // Auto-speak question when component mounts or question changes
   useEffect(() => {
@@ -147,7 +214,7 @@ export function AudioRecorder({
       if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current)
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current)
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-      if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl)
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
     }
   }, [])
 
@@ -168,9 +235,9 @@ export function AudioRecorder({
       const draw = () => {
         const data = new Uint8Array(analyser.frequencyBinCount)
         analyser.getByteFrequencyData(data)
-        const bars = Array.from({ length: 24 }, (_, i) => {
-          const val = data[Math.floor((i / 24) * data.length)] || 0
-          return Math.max(4, (val / 255) * 40)
+        const bars = Array.from({ length: BAR_COUNT }, (_, i) => {
+          const val = data[Math.floor((i / BAR_COUNT) * data.length)] || 0
+          return Math.max(FLOOR_HEIGHT, (val / 255) * 40)
         })
         setWaveHeights(bars)
         animFrameRef.current = requestAnimationFrame(draw)
@@ -186,7 +253,7 @@ export function AudioRecorder({
       cancelAnimationFrame(animFrameRef.current)
       animFrameRef.current = null
     }
-    setWaveHeights(Array(24).fill(4))
+    setWaveHeights(Array(BAR_COUNT).fill(FLOOR_HEIGHT))
   }
 
   const handleReplayQuestion = () => {
@@ -230,7 +297,7 @@ export function AudioRecorder({
     if (audioRef.current) audioRef.current.currentTime = 0
   }
 
-  const startCountdown = useCallback(() => {
+  const startCountdown = () => {
     window.speechSynthesis?.cancel()
     setTtsSpeaking(false)
     setRecorderState('countdown')
@@ -244,7 +311,7 @@ export function AudioRecorder({
         startRecording()
       }
     }, 1000)
-  }, [])
+  }
 
   const startRecording = async () => {
     setErrorMsg(null)
@@ -271,6 +338,7 @@ export function AudioRecorder({
         const blob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' })
         blobRef.current = blob
         const url = URL.createObjectURL(blob)
+        blobUrlRef.current = url
         setAudioBlobUrl(url)
         setRecorderState('stopped')
         stopWaveform()
@@ -306,7 +374,8 @@ export function AudioRecorder({
   }
 
   const handleReRecord = () => {
-    if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl)
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+    blobUrlRef.current = null
     setAudioBlobUrl(null)
     blobRef.current = null
     setElapsed(0)
@@ -335,42 +404,60 @@ export function AudioRecorder({
     return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
-  const progressPct = Math.min((elapsed / maxDurationSeconds) * 100, 100)
+  const replayButton = questionText ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      icon={<Volume2 size={15} />}
+      onClick={handleReplayQuestion}
+      disabled={ttsSpeaking}
+      title="Replay question aloud"
+    >
+      {ttsSpeaking ? 'Playing…' : 'Replay question'}
+    </Button>
+  ) : null
 
   return (
-    <div style={styles.container}>
-      {/* Waveform / visual */}
-      <div style={styles.waveContainer}>
+    <div className="flex flex-col gap-hb-4 rounded-hb-lg border border-hb-border bg-hb-surface-2 p-5">
+      {/* ── Stage ─────────────────────────────────────────────────────────── */}
+      <div className="flex min-h-[72px] items-center justify-center">
         {recorderState === 'speaking' ? (
-          <div style={styles.speakingRow}>
-            <div style={styles.speakingPulse}>
-              <Volume2 size={28} color="#fff" />
-            </div>
-            <div style={styles.speakingInfo}>
-              <span style={styles.speakingLabel}>AI is reading the question…</span>
-              <span style={styles.speakingHint}>Listen carefully, then record your answer</span>
+          <div className="flex w-full items-center gap-hb-4">
+            <span className="relative flex h-14 w-14 shrink-0 items-center justify-center">
+              <span className="absolute inset-0 animate-ping rounded-full bg-hb-blue/25" />
+              <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-hb-grad text-white">
+                <Volume2 size={26} aria-hidden />
+              </span>
+            </span>
+            <div className="min-w-0">
+              <p className="text-hb-body font-semibold text-hb-text">
+                AI is reading the question…
+              </p>
+              <p className="text-hb-xs text-hb-muted">
+                Listen carefully, then record your answer.
+              </p>
             </div>
           </div>
         ) : recorderState === 'countdown' ? (
-          <div style={styles.countdownCircle}>
-            <span style={styles.countdownNum}>{countdown}</span>
+          <div
+            role="status"
+            aria-live="assertive"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-hb-grad font-display text-hb-h2 text-white"
+          >
+            {countdown}
           </div>
         ) : recorderState === 'recording' ? (
-          <div style={styles.waveform}>
+          <div aria-hidden className="flex h-12 items-center gap-[3px]">
             {waveHeights.map((h, i) => (
               <div
                 key={i}
-                style={{
-                  ...styles.wavebar,
-                  height: `${h}px`,
-                  opacity: 0.7 + (h / 40) * 0.3,
-                  animationDelay: `${i * 40}ms`,
-                }}
+                style={barStyle(h, i)}
+                className="w-1 rounded-full bg-hb-grad bg-[length:2400%_100%] transition-[height] duration-100"
               />
             ))}
           </div>
         ) : recorderState === 'stopped' || recorderState === 'done' ? (
-          <div style={styles.customPlayerWrap}>
+          <div className="w-full space-y-2">
             {audioBlobUrl && (
               <audio
                 ref={audioRef}
@@ -381,483 +468,126 @@ export function AudioRecorder({
                 onPause={() => setIsPlaying(false)}
               />
             )}
-            <div style={styles.playerLabel}>Your Recording</div>
-            <div style={styles.playerRow}>
-              <button style={styles.playPauseBtn} onClick={handlePlayPause} title={isPlaying ? 'Pause' : 'Play'}>
-                {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
+            <p className="font-mono text-hb-label uppercase text-hb-dim">Your recording</p>
+            <div className="flex items-center gap-3 rounded-hb-md border border-hb-border bg-hb-surface px-3.5 py-2.5">
+              <button
+                type="button"
+                onClick={handlePlayPause}
+                aria-label={isPlaying ? 'Pause playback' : 'Play recording'}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-hb-grad text-white transition-transform duration-hb hover:scale-105 focus-visible:outline-none focus-visible:shadow-hb-ring"
+              >
+                {isPlaying ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
               </button>
-              <div style={styles.playerProgressWrap}>
-                <div style={styles.playerProgressBar}>
-                  <div
-                    style={{
-                      ...styles.playerProgressFill,
-                      width: elapsed > 0 ? `${Math.min((playbackTime / elapsed) * 100, 100)}%` : '0%',
-                    }}
-                  />
-                </div>
-                <div style={styles.playerTimeRow}>
-                  <span style={styles.playerTime}>{formatTime(playbackTime)}</span>
-                  <span style={styles.playerTimeSep}>/</span>
-                  <span style={styles.playerTimeTotal}>{formatTime(elapsed)}</span>
-                </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <Meter
+                  value={playbackTime}
+                  max={Math.max(elapsed, 1)}
+                  size="xs"
+                  aria-label="Playback position"
+                />
+                <p className="font-mono text-hb-xs tabular-nums text-hb-muted">
+                  <span className="text-hb-text">{formatTime(playbackTime)}</span>
+                  {' / '}
+                  {formatTime(elapsed)}
+                </p>
               </div>
             </div>
           </div>
         ) : recorderState === 'uploading' ? (
-          <div style={styles.statusRow}>
-            <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', color: 'var(--violet)' }} />
-            <span style={styles.statusText}>Uploading response…</span>
-          </div>
+          <p role="status" className="flex items-center gap-2.5 text-hb-body text-hb-muted">
+            <Loader2 size={22} aria-hidden className="animate-spin text-hb-cyan" />
+            Uploading response…
+          </p>
         ) : recorderState === 'error' ? (
-          <div style={styles.statusRow}>
-            <AlertCircle size={24} color="#ef4444" />
-            <span style={{ ...styles.statusText, color: '#ef4444' }}>{errorMsg}</span>
-          </div>
+          <p role="alert" className="flex items-center gap-2.5 text-hb-sm text-hb-error">
+            <AlertCircle size={20} aria-hidden className="shrink-0" />
+            {errorMsg}
+          </p>
         ) : (
-          <div style={styles.idleHint}>
-            <Mic size={32} style={{ color: 'var(--text-mid)', opacity: 0.5 }} />
-            <span style={styles.hintText}>Press Record to begin</span>
+          <div className="flex flex-col items-center gap-2 text-hb-dim">
+            <Mic size={30} aria-hidden />
+            <p className="text-hb-sm text-hb-muted">Press record to begin.</p>
           </div>
         )}
       </div>
 
-      {/* TTS unavailable notice */}
+      {/* ── Notices ───────────────────────────────────────────────────────── */}
       {ttsUnavailable && (
-        <div style={styles.ttsUnavailableBanner}>
-          <VolumeX size={14} />
-          <span>Voice audio not available for this language on your device — please read the question above.</span>
-        </div>
+        <p className="flex items-start gap-2 rounded-hb-md border border-hb-warning/25 bg-hb-warning/8 px-3.5 py-2 text-hb-xs text-hb-text">
+          <VolumeX size={14} aria-hidden className="mt-0.5 shrink-0 text-hb-warning" />
+          Voice audio is not available for this language on your device — please read the question
+          above.
+        </p>
       )}
 
-      {/* Timer bar */}
       {recorderState === 'recording' && (
-        <div style={styles.timerWrap}>
-          <div style={styles.timerBar}>
-            <div style={{ ...styles.timerFill, width: `${progressPct}%` }} />
-          </div>
-          <span style={styles.timerLabel}>
+        <div className="flex items-center gap-3">
+          <Meter
+            value={elapsed}
+            max={maxDurationSeconds}
+            size="sm"
+            aria-label="Recording time used"
+            className="flex-1"
+          />
+          <span className="min-w-[74px] shrink-0 text-right font-mono text-hb-xs tabular-nums text-hb-muted">
             {formatTime(elapsed)} / {formatTime(maxDurationSeconds)}
           </span>
         </div>
       )}
 
-      {/* Controls */}
-      <div style={styles.controls}>
+      {/* ── Controls ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
         {recorderState === 'speaking' && (
-          <button style={styles.skipTtsBtn} onClick={handleStopTTS}>
-            <VolumeX size={15} />
-            Skip Audio
-          </button>
+          <Button variant="ghost" size="sm" icon={<VolumeX size={15} />} onClick={handleStopTTS}>
+            Skip audio
+          </Button>
         )}
 
         {(recorderState === 'idle' || recorderState === 'error') && (
-          <div style={styles.actionRow}>
-            {questionText && (
-              <button
-                style={ttsSpeaking ? styles.replayBtnActive : styles.replayBtn}
-                onClick={handleReplayQuestion}
-                disabled={ttsSpeaking}
-                title="Replay question aloud"
-              >
-                <Volume2 size={15} />
-                {ttsSpeaking ? 'Playing…' : 'Replay Question'}
-              </button>
-            )}
-            <button
-              style={styles.recordBtn}
+          <>
+            {replayButton}
+            <Button
+              icon={<Mic size={17} />}
               onClick={startCountdown}
               disabled={disabled || ttsSpeaking}
             >
-              <Mic size={18} />
-              Record Answer
-            </button>
-          </div>
+              Record answer
+            </Button>
+          </>
         )}
 
         {recorderState === 'countdown' && (
-          <button style={{ ...styles.recordBtn, opacity: 0.6 }} disabled>
-            <Mic size={18} />
+          <Button icon={<Mic size={17} />} disabled>
             Starting in {countdown}…
-          </button>
+          </Button>
         )}
 
         {recorderState === 'recording' && (
-          <button style={styles.stopBtn} onClick={stopRecording}>
-            <Square size={16} fill="white" />
-            Stop Recording
-          </button>
+          <Button variant="danger" icon={<Square size={15} fill="currentColor" />} onClick={stopRecording}>
+            Stop recording
+          </Button>
         )}
 
         {recorderState === 'stopped' && (
-          <div style={styles.actionRow}>
-            {questionText && (
-              <button
-                style={ttsSpeaking ? styles.replayBtnActive : styles.replayBtn}
-                onClick={handleReplayQuestion}
-                disabled={ttsSpeaking}
-                title="Replay question aloud"
-              >
-                <Volume2 size={15} />
-                {ttsSpeaking ? 'Playing…' : 'Replay Question'}
-              </button>
-            )}
+          <>
+            {replayButton}
             {canReRecord && (
-              <button style={styles.reRecordBtn} onClick={handleReRecord}>
-                <RotateCcw size={15} />
+              <Button variant="ghost" size="sm" icon={<RotateCcw size={15} />} onClick={handleReRecord}>
                 Re-record
-              </button>
+              </Button>
             )}
-            <button style={styles.submitBtn} onClick={handleSubmit}>
-              <CheckCircle size={16} />
-              Submit Answer
-            </button>
-          </div>
+            <Button icon={<CheckCircle size={16} />} onClick={handleSubmit}>
+              Submit answer
+            </Button>
+          </>
         )}
 
         {recorderState === 'done' && (
-          <div style={styles.doneRow}>
-            <CheckCircle size={20} color="#22c55e" />
-            <span style={styles.doneText}>Answer submitted</span>
-          </div>
+          <Badge tone="success" dot>
+            Answer submitted
+          </Badge>
         )}
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes wavePulse {
-          0%, 100% { transform: scaleY(1); }
-          50% { transform: scaleY(1.4); }
-        }
-        @keyframes speakPulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(108,71,255,0.4); }
-          50% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(108,71,255,0); }
-        }
-      `}</style>
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    padding: '20px',
-    background: 'var(--kpi-bg, #f7f5ff)',
-    borderRadius: '16px',
-    border: '1px solid var(--card-border, #e8e6ff)',
-  },
-  waveContainer: {
-    minHeight: '72px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  speakingRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    width: '100%',
-  },
-  speakingPulse: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, var(--violet, #6c47ff), var(--violet-mid, #9b80ff))',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    animation: 'speakPulse 1.2s ease-in-out infinite',
-  },
-  speakingInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  speakingLabel: {
-    color: 'var(--violet, #6c47ff)',
-    fontWeight: 700,
-    fontSize: '14px',
-  },
-  speakingHint: {
-    color: 'var(--text-mid)',
-    fontSize: '12px',
-  },
-  countdownCircle: {
-    width: '64px',
-    height: '64px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, var(--violet, #6c47ff), var(--violet-mid, #9b80ff))',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countdownNum: {
-    color: '#fff',
-    fontSize: '28px',
-    fontWeight: 800,
-  },
-  waveform: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '3px',
-    height: '48px',
-  },
-  wavebar: {
-    width: '4px',
-    borderRadius: '2px',
-    background: 'linear-gradient(180deg, var(--violet, #6c47ff), var(--pink, #ff6bc6))',
-    transition: 'height 0.1s ease',
-    animation: 'wavePulse 0.8s ease-in-out infinite',
-  },
-  customPlayerWrap: {
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  } as React.CSSProperties,
-  playerLabel: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: '0.7px',
-  } as React.CSSProperties,
-  playerRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    background: '#fff',
-    borderRadius: '12px',
-    padding: '10px 14px',
-    border: '1px solid #e8e6ff',
-    boxShadow: '0 1px 4px rgba(108,71,255,0.06)',
-  },
-  playPauseBtn: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '50%',
-    border: 'none',
-    background: 'linear-gradient(135deg, #6c47ff, #9b80ff)',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    flexShrink: 0,
-    boxShadow: '0 4px 12px rgba(108,71,255,0.30)',
-    transition: 'transform 0.15s, box-shadow 0.15s',
-  },
-  playerProgressWrap: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  } as React.CSSProperties,
-  playerProgressBar: {
-    height: '5px',
-    borderRadius: '3px',
-    background: '#e8e6ff',
-    overflow: 'hidden',
-  },
-  playerProgressFill: {
-    height: '100%',
-    borderRadius: '3px',
-    background: 'linear-gradient(90deg, #6c47ff, #ff6bc6)',
-    transition: 'width 0.25s linear',
-  },
-  playerTimeRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  playerTime: {
-    fontSize: '12px',
-    fontWeight: 700,
-    color: '#6c47ff',
-    fontVariantNumeric: 'tabular-nums',
-  } as React.CSSProperties,
-  playerTimeSep: {
-    fontSize: '11px',
-    color: '#c4c0e8',
-    fontWeight: 500,
-  },
-  playerTimeTotal: {
-    fontSize: '12px',
-    fontWeight: 500,
-    color: '#9ca3af',
-    fontVariantNumeric: 'tabular-nums',
-  } as React.CSSProperties,
-  statusRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  statusText: {
-    color: 'var(--text-mid)',
-    fontSize: '14px',
-  },
-  idleHint: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  hintText: {
-    color: 'var(--text-mid)',
-    fontSize: '13px',
-  },
-  timerWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  timerBar: {
-    flex: 1,
-    height: '6px',
-    borderRadius: '3px',
-    background: 'var(--card-border, #e8e6ff)',
-    overflow: 'hidden',
-  },
-  timerFill: {
-    height: '100%',
-    borderRadius: '3px',
-    background: 'linear-gradient(90deg, var(--violet, #6c47ff), var(--pink, #ff6bc6))',
-    transition: 'width 0.5s linear',
-  },
-  timerLabel: {
-    fontSize: '12px',
-    color: 'var(--text-mid)',
-    whiteSpace: 'nowrap',
-    minWidth: '72px',
-    textAlign: 'right',
-  },
-  controls: {
-    display: 'flex',
-    justifyContent: 'center',
-  },
-  skipTtsBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '8px 18px',
-    borderRadius: '10px',
-    border: '1px solid var(--card-border)',
-    background: 'var(--input-bg)',
-    color: 'var(--text-mid)',
-    fontWeight: 600,
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  actionRow: {
-    display: 'flex',
-    gap: '10px',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  replayBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '10px 16px',
-    borderRadius: '10px',
-    border: '1px solid var(--violet, #6c47ff)',
-    background: 'transparent',
-    color: 'var(--violet, #6c47ff)',
-    fontWeight: 600,
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  replayBtnActive: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '10px 16px',
-    borderRadius: '10px',
-    border: '1px solid var(--card-border)',
-    background: 'var(--input-bg)',
-    color: 'var(--text-mid)',
-    fontWeight: 600,
-    fontSize: '13px',
-    cursor: 'not-allowed',
-    opacity: 0.7,
-  },
-  recordBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '11px 24px',
-    borderRadius: '12px',
-    border: 'none',
-    background: 'linear-gradient(135deg, var(--violet, #6c47ff), var(--violet-mid, #9b80ff))',
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: '14px',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s',
-  },
-  stopBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '11px 24px',
-    borderRadius: '12px',
-    border: 'none',
-    background: '#ef4444',
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: '14px',
-    cursor: 'pointer',
-    animation: 'micPulse 1.5s ease-in-out infinite',
-  },
-  reRecordBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '10px 18px',
-    borderRadius: '10px',
-    border: '1px solid var(--card-border)',
-    background: 'var(--input-bg)',
-    color: 'var(--text-mid)',
-    fontWeight: 600,
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  submitBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '10px 22px',
-    borderRadius: '10px',
-    border: 'none',
-    background: '#22c55e',
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: '14px',
-    cursor: 'pointer',
-  },
-  doneRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  doneText: {
-    color: '#22c55e',
-    fontWeight: 600,
-    fontSize: '14px',
-  },
-  ttsUnavailableBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 14px',
-    borderRadius: '10px',
-    background: '#fff8e1',
-    border: '1px solid #ffd54f',
-    color: '#795548',
-    fontSize: '12px',
-    fontWeight: 500,
-  } as React.CSSProperties,
 }

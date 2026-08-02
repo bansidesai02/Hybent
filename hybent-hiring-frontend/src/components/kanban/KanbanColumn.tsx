@@ -1,52 +1,54 @@
 import { Droppable } from '@hello-pangea/dnd'
-import { KanbanCard } from './KanbanCard'
-import type { KanbanCard as KanbanCardType, ApplicationStage } from '@/types'
 import { clsx } from 'clsx'
 
-interface KanbanColumnProps {
+import { KanbanCard } from './KanbanCard'
+import type { KanbanCard as KanbanCardType, ApplicationStage } from '@/types'
+import { Badge, statusDef } from '@/components/hb'
+
+/**
+ * One column of the pipeline board.
+ *
+ * Rebuilt on the design system in phase 10. `stageConfig` gave each of the six
+ * stages its own hex, painted as a 4px top border and a dot — six colours to
+ * distinguish six columns that are already side by side, in order, each with
+ * its name in the header. The stage label now comes from `statusDef`, the same
+ * source `StatusPill` uses everywhere else, so a stage is worded identically
+ * on the board and in a table.
+ */
+
+/** Board headings, where the pipeline stage names differ from the pill's. */
+const BOARD_LABEL: Partial<Record<ApplicationStage, string>> = {
+  screening: 'Shortlisted',
+  interview: 'In interview',
+  offer: 'Offer / hired',
+}
+
+export function KanbanColumn({
+  stage,
+  cards,
+  onCardClick,
+}: {
   stage: ApplicationStage
   cards: KanbanCardType[]
   onCardClick?: (card: KanbanCardType) => void
-}
-
-const stageConfig: Partial<Record<ApplicationStage, { label: string; color: string }>> = {
-  applied: { label: 'Applied', color: '#6c47ff' },
-  screening: { label: 'Shortlisted', color: '#f59e0b' },
-  interview: { label: 'In Interview', color: '#00d4c8' },
-  interviewed: { label: 'Interviewed', color: '#8b5cf6' },
-  offer: { label: 'Offer / Hired', color: '#10b981' },
-  rejected: { label: 'Rejected', color: '#ef4444' },
-}
-
-export function KanbanColumn({ stage, cards, onCardClick }: KanbanColumnProps) {
-  const config = stageConfig[stage] || { label: stage, color: '#ccc' }
+}) {
+  const label = BOARD_LABEL[stage] ?? statusDef(stage)?.label ?? stage
 
   return (
-    <div 
-      className="flex flex-col min-w-[280px] sm:min-w-[250px] lg:min-w-[220px] flex-shrink-0 lg:flex-1 rounded-xl bg-[var(--bg2)] dark:bg-[var(--glass)] border border-gray-200 dark:border-[var(--glass-border)]"
-      style={{ borderTop: `4px solid ${config.color}` }}
-    >
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-200 dark:border-[var(--glass-border)]">
-        <div 
-          className="w-2 h-2 rounded-full" 
-          style={{ backgroundColor: config.color }} 
-        />
-        <span className="text-sm font-semibold text-gray-700 dark:text-[#b0a8d8]">{config.label}</span>
-        <span className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-[#b0a8d8] rounded-full px-2 py-0.5 font-medium">
-          {cards.length}
-        </span>
+    <div className="flex min-w-[280px] shrink-0 flex-col rounded-hb-md border border-hb-border bg-hb-surface-2 sm:min-w-[250px] lg:min-w-[220px] lg:flex-1">
+      <div className="flex items-center gap-2 border-b border-hb-border px-3 py-2.5">
+        <span className="text-hb-sm font-semibold text-hb-text">{label}</span>
+        <Badge className="ml-auto">{cards.length}</Badge>
       </div>
 
-      {/* Droppable area */}
       <Droppable droppableId={stage}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={clsx(
-              'flex-1 p-2 space-y-2 min-h-24 transition-colors duration-150',
-              snapshot.isDraggingOver && 'bg-violet-50 dark:bg-violet-900/10'
+              'min-h-24 flex-1 space-y-2 p-2 transition-colors duration-hb',
+              snapshot.isDraggingOver && 'bg-hb-blue/[0.06]'
             )}
           >
             {cards.map((card, idx) => (

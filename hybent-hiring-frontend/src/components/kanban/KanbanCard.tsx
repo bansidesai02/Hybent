@@ -1,17 +1,23 @@
 import { Draggable } from '@hello-pangea/dnd'
 import type { KanbanCard as KanbanCardType } from '@/types'
-import { Avatar } from '@/components/ui/Avatar'
-import { ScoreRing } from '@/components/ui/ScoreRing'
-import { Badge } from '@/components/ui/Badge'
-import { timeAgo } from '@/utils/formatters'
+import { Avatar, Badge } from '@/components/hb'
 
-interface KanbanCardProps {
+/**
+ * One candidate on the pipeline board.
+ *
+ * Rebuilt on the design system in phase 10. `provided.draggableProps` still
+ * supplies its own `style` — that is the drag library positioning the card in
+ * flight, the one place inline style is unavoidable and not appearance.
+ */
+export function KanbanCard({
+  card,
+  index,
+  onClick,
+}: {
   card: KanbanCardType
   index: number
   onClick?: () => void
-}
-
-export function KanbanCard({ card, index, onClick }: KanbanCardProps) {
+}) {
   return (
     <Draggable draggableId={card.id} index={index}>
       {(provided, snapshot) => (
@@ -20,43 +26,33 @@ export function KanbanCard({ card, index, onClick }: KanbanCardProps) {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`
-            bg-white dark:bg-[var(--card-bg)] rounded-xl p-4 border border-gray-100 dark:border-[var(--card-border)]
-            cursor-pointer select-none transition-all duration-200 shadow-sm
-            ${snapshot.isDragging
-              ? 'shadow-xl scale-105 border-[var(--violet)]/50 dark:border-[var(--violet)]'
-              : 'hover:shadow-md hover:border-gray-200 dark:hover:border-[var(--input-border)]'
-            }
-          `}
+          className={`cursor-pointer select-none rounded-hb-md border bg-hb-surface p-4 shadow-hb-1 transition-all duration-hb ease-hb ${
+            snapshot.isDragging
+              ? 'scale-[1.03] border-hb-blue/50 shadow-hb-3'
+              : 'border-hb-border hover:border-hb-border-strong hover:shadow-hb-2'
+          }`}
         >
-          <div className="mb-4">
-            <p className="text-[15px] font-bold text-gray-900 dark:text-[var(--text)] truncate">
+          <div className="mb-hb-4">
+            <p className="truncate text-hb-body font-semibold text-hb-text">
               {card.candidate_name}
             </p>
             {card.current_title && (
-              <p className="text-[13px] text-gray-400 dark:text-[var(--text-light)] truncate mt-0.5 font-medium">
-                {card.current_title}
-              </p>
+              <p className="mt-0.5 truncate text-hb-sm text-hb-muted">{card.current_title}</p>
             )}
           </div>
 
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50 dark:border-[var(--border)]/40">
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase text-gray-400 dark:text-[var(--text-light)] font-bold leading-none mb-1">Added By</span>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-[var(--text-mid)] truncate max-w-[100px]">
+          <div className="mt-hb-4 flex items-center justify-between border-t border-hb-border pt-3">
+            <div className="flex min-w-0 flex-col">
+              <span className="mb-1 font-mono text-hb-micro uppercase leading-none text-hb-dim">
+                Added by
+              </span>
+              <span className="max-w-[100px] truncate text-hb-xs font-semibold text-hb-muted">
                 {card.created_by_name || 'Admin'}
               </span>
             </div>
-            <div className="flex items-center gap-2.5">
-              <div 
-                className="bg-[var(--violet)]/10 text-[var(--violet)] px-2 py-1 rounded-lg text-[11px] font-black"
-                style={{ letterSpacing: '0.2px' }}
-              >
-                {card.match_score}%
-              </div>
-              <div className="opacity-90">
-                <Avatar name={card.candidate_name} size="xs" />
-              </div>
+            <div className="flex shrink-0 items-center gap-2.5">
+              <Badge tone="brand">{card.match_score}%</Badge>
+              <Avatar name={card.candidate_name} size="xs" />
             </div>
           </div>
         </div>

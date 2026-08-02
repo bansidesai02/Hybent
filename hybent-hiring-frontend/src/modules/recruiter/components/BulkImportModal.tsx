@@ -1,18 +1,145 @@
-import { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Modal } from '@/components/ui/Modal'
-import { Button } from '@/components/ui/Button'
-import { Upload, Check, AlertTriangle, CheckCircle, AlertCircle, ChevronDown, Search } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Copy,
+  FileSpreadsheet,
+  Search,
+  UserPlus,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
-import { bulkImportApi, type ImportResultData, type SheetInfo, type SheetPreviewData } from '@/api/bulkImport'
+import {
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  Dialog,
+  Dropzone,
+  Input,
+  Select,
+  StatCard,
+  type Column,
+} from '@/components/hb'
+import {
+  bulkImportApi,
+  type ImportResultData,
+  type PreviewRow,
+  type SheetPreviewData,
+  type SheetInfo,
+} from '@/api/bulkImport'
 
-interface PreviewRow {
-  row_number: number
-  raw_data: Record<string, any>
-  parsed_data: Record<string, any>
-  is_valid: boolean
-  errors: string[]
+/**
+ * Bulk candidate import: upload → sheet-select → preview → importing → complete.
+ *
+ * Migrated onto the design system. Three things changed shape:
+ *
+ * · The drop target was a `<div onClick>` over a hidden input, unreachable by
+ *   keyboard. It is the `Dropzone` primitive now, which also clears its input
+ *   after every pick — so a file rejected for type or size can be re-picked,
+ *   which the old hidden input silently refused to do.
+ *
+ * · The panel picker was a hand-built listbox with its own search box, outside
+ *   click listener and z-index. It is a native `Select`: keyboard type-ahead
+ *   comes for free and it cannot be clipped by the dialog's scroll container.
+ *
+ * · The importing spinner drew the Hybent mark from hardcoded gradient stops.
+ *   Same composition, built from tokens.
+ */
+
+const PREVIEW_COLUMNS: Array<Column<PreviewRow>> = [
+  {
+    key: 'row',
+    header: 'Row',
+    width: '72px',
+    cell: (row) => <span className="font-mono text-hb-xs text-hb-muted">{row.row_number}</span>,
+  },
+  {
+    key: 'name',
+    header: 'Name',
+    cardTitle: true,
+    cell: (row) => (
+      <span className="font-semibold text-hb-text">{String(row.parsed_data.full_name ?? '-')}</span>
+    ),
+  },
+  {
+    key: 'email',
+    header: 'Email',
+    cell: (row) => <span className="text-hb-muted">{String(row.parsed_data.email ?? '-')}</span>,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    cell: (row) =>
+      row.is_valid ? (
+        <Badge tone="success">Valid</Badge>
+      ) : (
+        <span className="inline-flex items-start gap-1.5 text-hb-xs text-hb-error">
+          <AlertTriangle size={13} aria-hidden className="mt-px shrink-0" />
+          {row.errors[0]}
+        </span>
+      ),
+  },
+]
+
+/** One of the two mutually exclusive import modes. */
+function ImportOption({
+  checked,
+  onChange,
+  title,
+  description,
+}: {
+  checked: boolean
+  onChange: () => void
+  title: string
+  description: string
+}) {
+  return (
+    <label
+      className={clsx(
+        'flex cursor-pointer items-start gap-hb-3 rounded-hb-sm border p-hb-3',
+        'transition-colors duration-hb ease-hb',
+        checked
+          ? 'border-hb-blue/50 bg-hb-blue/5'
+          : 'border-hb-border bg-hb-surface hover:border-hb-border-strong hover:bg-hb-surface-2'
+      )}
+    >
+      <input
+        type="radio"
+        name="import-option"
+        checked={checked}
+        onChange={onChange}
+        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-hb-blue focus-visible:shadow-hb-ring focus-visible:outline-none"
+      />
+      <span className="min-w-0">
+        <span className="block font-semibold text-hb-text">{title}</span>
+        <span className="block text-hb-xs text-hb-muted">{description}</span>
+      </span>
+    </label>
+  )
+}
+
+/** Collapsed list of rows the import did not create. */
+function ResultDetails({
+  title,
+  children,
+}: {
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <div className="space-y-hb-2">
+      <h4 className="font-display text-hb-h3 text-hb-text">{title}</h4>
+      <details>
+        <summary className="cursor-pointer text-hb-xs text-hb-muted transition-colors duration-hb hover:text-hb-text">
+          Show details
+        </summary>
+        <div className="mt-hb-2 space-y-1 text-hb-xs">{children}</div>
+      </details>
+    </div>
+  )
 }
 
 type Stage = 'upload' | 'sheet-select' | 'preview' | 'importing' | 'complete' | 'error'
@@ -35,10 +162,17 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
   const [result, setResult] = useState<ImportResultData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
-  const [panelDropdownOpen, setPanelDropdownOpen] = useState(false)
   const [panelSearch, setPanelSearch] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const panelDropdownRef = useRef<HTMLDivElement>(null)
+
+  /* A workbook can carry dozens of similarly-prefixed panel names, which is why
+     the old bespoke listbox shipped a search box. A native <select> only offers
+     first-character type-ahead, so the substring filter stays as a real field
+     above it. The selected panel is never filtered out, or the <select> would
+     fall back to showing nothing while a value is still set. */
+  const panelQuery = panelSearch.trim().toLowerCase()
+  const panelMatches = sheets.filter(
+    (s) => !panelQuery || s.name.toLowerCase().includes(panelQuery) || s.name === selectedSheet
+  )
 
   const getFriendlyError = (err: any, fallback: string) => {
     const status = err?.response?.status
@@ -62,36 +196,6 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
       return 'Backend is unreachable. Please ensure API server is running and healthy, then retry.'
     }
     return fallback
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  useEffect(() => {
-    const onOutside = (event: MouseEvent) => {
-      if (panelDropdownRef.current && !panelDropdownRef.current.contains(event.target as Node)) {
-        setPanelDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onOutside)
-    return () => document.removeEventListener('mousedown', onOutside)
-  }, [])
-
-  const filteredSheets = useMemo(() => {
-    const q = panelSearch.trim().toLowerCase()
-    if (!q) return sheets
-    return sheets.filter((s) => s.name.toLowerCase().includes(q))
-  }, [sheets, panelSearch])
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const files = e.dataTransfer.files
-    if (files.length > 0) {
-      await handleFileSelect(files[0])
-    }
   }
 
   const handleFileSelect = async (selectedFile: File) => {
@@ -195,9 +299,7 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
     setPreview(null)
     setResult(null)
     setError('')
-    setPanelDropdownOpen(false)
     setPanelSearch('')
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleClose = () => {
@@ -212,428 +314,332 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
     }
   }
 
+  const footer = (() => {
+    if (stage === 'upload') {
+      return (
+        <Button variant="ghost" onClick={handleClose}>
+          Cancel
+        </Button>
+      )
+    }
+    if (stage === 'sheet-select') {
+      return (
+        <>
+          <Button variant="ghost" onClick={() => setStage('upload')}>
+            Back
+          </Button>
+          <Button onClick={handlePreview} loading={loading} disabled={!importAll && !selectedSheet}>
+            {loading ? 'Loading…' : 'Preview'}
+          </Button>
+        </>
+      )
+    }
+    if (stage === 'preview' && preview) {
+      return (
+        <>
+          <Button variant="ghost" onClick={() => setStage('sheet-select')}>
+            Back
+          </Button>
+          <Button onClick={handleImport} loading={loading}>
+            {loading ? 'Preparing…' : 'Import Candidates'}
+          </Button>
+        </>
+      )
+    }
+    if (stage === 'complete' && result) {
+      return <Button onClick={handleClose}>Done</Button>
+    }
+    if (stage === 'error') {
+      return (
+        <>
+          <Button variant="ghost" onClick={() => setStage('sheet-select')}>
+            Back
+          </Button>
+          <Button onClick={handleImport}>Retry</Button>
+        </>
+      )
+    }
+    return undefined
+  })()
+
   return (
-    <Modal open={open} onClose={handleClose} title="Bulk Import Candidates" size="xl">
-      <div className="p-6">
-        <AnimatePresence mode="wait">
-          {/* UPLOAD STAGE */}
-          {stage === 'upload' && (
-            <motion.div key="upload" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="space-y-4">
-                <div
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={clsx(
-                    'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
-                    'hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10',
-                    error ? 'border-red-300 bg-red-50 dark:bg-red-900/10' : 'border-gray-300 dark:border-gray-600'
-                  )}
-                >
-                  <Upload className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Drag and drop your file</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">or click to select</p>
-                  <p className="text-xs text-gray-400">Supports .xlsx and .csv files (max 50MB)</p>
-                </div>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      title="Bulk Import Candidates"
+      size="xl"
+      footer={footer}
+    >
+      <AnimatePresence mode="wait">
+        {/* UPLOAD STAGE */}
+        {stage === 'upload' && (
+          <motion.div
+            key="upload"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-hb-4"
+          >
+            <Dropzone
+              icon={<FileSpreadsheet />}
+              title="Drag and drop your file"
+              description="Or click to select. Maximum 50 MB."
+              formats={['XLSX', 'CSV']}
+              accept=".xlsx,.csv"
+              busy={loading}
+              busyLabel="Uploading…"
+              onFiles={([selected]) => handleFileSelect(selected)}
+            />
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.csv"
-                  onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-                  className="hidden"
+            {file && (
+              <Card padding="compact" className="flex items-center justify-between gap-hb-4">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-hb-text">{file.name}</p>
+                  <p className="text-hb-xs text-hb-muted">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <CheckCircle2 size={18} aria-hidden className="shrink-0 text-hb-success" />
+              </Card>
+            )}
+
+            {error && (
+              <p
+                role="alert"
+                className="flex items-start gap-hb-3 rounded-hb-sm border border-hb-error/30 bg-hb-error/10 p-hb-4 text-hb-sm text-hb-error"
+              >
+                <AlertCircle size={18} aria-hidden className="mt-px shrink-0" />
+                {error}
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* SHEET SELECTION STAGE */}
+        {stage === 'sheet-select' && (
+          <motion.div
+            key="sheet-select"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-hb-4"
+          >
+            <Card padding="compact">
+              <p className="font-semibold text-hb-text">File: {fileName}</p>
+              <p className="text-hb-xs text-hb-muted">{sheets.length} sheet(s) detected</p>
+            </Card>
+
+            <div className="space-y-hb-3">
+              <h3 className="font-display text-hb-h3 text-hb-text">Import Options</h3>
+
+              <ImportOption
+                checked={importAll}
+                onChange={() => {
+                  setImportAll(true)
+                  setSelectedSheet('')
+                }}
+                title="Import All Panels"
+                description="Import candidates from all sheets"
+              />
+
+              <ImportOption
+                checked={!importAll}
+                onChange={() => setImportAll(false)}
+                title="Import Specific Panel"
+                description="Choose a sheet to import"
+              />
+            </div>
+
+            {!importAll && (
+              <div className="space-y-hb-2">
+                {sheets.length > 1 && (
+                  <Input
+                    type="search"
+                    aria-label="Search panels"
+                    placeholder="Search panel…"
+                    leadingIcon={<Search size={14} />}
+                    value={panelSearch}
+                    onChange={(e) => setPanelSearch(e.target.value)}
+                  />
+                )}
+                <Select
+                  label="Select Panel"
+                  placeholder="Choose a sheet…"
+                  description={panelMatches.length === 0 ? 'No panel found.' : undefined}
+                  value={selectedSheet}
+                  onChange={(e) => setSelectedSheet(e.target.value)}
+                  options={panelMatches.map((sheet) => ({
+                    value: sheet.name,
+                    label: `${sheet.name} (${sheet.row_count} rows)`,
+                  }))}
                 />
-
-                {file && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{file.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                      </div>
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    </div>
-                  </div>
-                )}
-
-                {error && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-                  </div>
-                )}
-
-                <div className="flex gap-3 justify-end pt-4">
-                  <Button variant="outline" onClick={handleClose}>
-                    Cancel
-                  </Button>
-                  <Button onClick={() => fileInputRef.current?.click()} disabled={loading}>
-                    {loading ? 'Uploading...' : 'Select File'}
-                  </Button>
-                </div>
               </div>
-            </motion.div>
-          )}
+            )}
+          </motion.div>
+        )}
 
-          {/* SHEET SELECTION STAGE */}
-          {stage === 'sheet-select' && (
-            <motion.div key="sheet-select" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">File: {fileName}</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">{sheets.length} sheet(s) detected</p>
-                </div>
+        {/* PREVIEW STAGE */}
+        {stage === 'preview' && preview && (
+          <motion.div
+            key="preview"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-hb-4"
+          >
+            <Card padding="compact">
+              <p className="font-semibold text-hb-text">Total Rows: {preview.total_rows}</p>
+              <p className="text-hb-xs text-hb-muted">Preview shows first 10 rows</p>
+              {preview.has_errors && (
+                <p className="mt-hb-2 flex items-center gap-1.5 text-hb-xs text-hb-warning">
+                  <AlertTriangle size={13} aria-hidden className="shrink-0" />
+                  Some rows have validation errors
+                </p>
+              )}
+            </Card>
 
-                <div className="space-y-3">
-                  <h3 className="font-medium text-gray-900 dark:text-white">Import Options</h3>
+            <div className="max-h-96 overflow-y-auto">
+              <DataTable
+                caption="Preview of the rows this import will create"
+                columns={PREVIEW_COLUMNS}
+                rows={preview.preview_rows}
+                rowKey={(row) => row.row_number}
+              />
+            </div>
+          </motion.div>
+        )}
 
-                  <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="import-option"
-                      checked={importAll}
-                      onChange={() => {
-                        setImportAll(true)
-                        setSelectedSheet('')
-                      }}
-                      className="w-4 h-4"
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">Import All Panels</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Import candidates from all sheets</p>
-                    </div>
-                  </label>
+        {/* IMPORTING STAGE */}
+        {stage === 'importing' && (
+          <motion.div
+            key="importing"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            role="status"
+            className="flex flex-col items-center justify-center gap-hb-4 py-hb-10 text-center"
+          >
+            <div className="relative mb-hb-2">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                className="absolute -inset-2.5 rounded-hb-full border border-dashed border-hb-blue/40"
+              >
+                <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-hb-full bg-hb-cyan" />
+              </motion.div>
 
-                  <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="import-option"
-                      checked={!importAll}
-                      onChange={() => setImportAll(false)}
-                      className="w-4 h-4"
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">Import Specific Panel</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Choose a sheet to import</p>
-                    </div>
-                  </label>
-                </div>
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="relative grid h-12 w-12 place-items-center rounded-hb-tile bg-hb-grad text-hb-on-brand shadow-hb-2"
+              >
+                <FileSpreadsheet size={21} aria-hidden />
+              </motion.div>
+            </div>
 
-                {!importAll && (
-                  <div className="space-y-2" ref={panelDropdownRef}>
-                    <label className="text-sm font-medium text-gray-900 dark:text-white">Select Panel</label>
-                    <button
-                      type="button"
-                      onClick={() => setPanelDropdownOpen((prev) => !prev)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') setPanelDropdownOpen(false)
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          setPanelDropdownOpen((prev) => !prev)
-                        }
-                      }}
-                      className="w-full border border-violet-300 rounded-xl px-4 py-3 text-left bg-white dark:bg-gray-900 hover:border-violet-400 transition-colors flex items-center justify-between"
-                      aria-haspopup="listbox"
-                      aria-expanded={panelDropdownOpen}
+            <div>
+              <h3 className="font-display text-hb-h3 text-hb-text">Importing candidates…</h3>
+              <p className="mt-1 text-hb-sm text-hb-muted">
+                Please wait while we process your data
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* COMPLETE STAGE */}
+        {stage === 'complete' && result && (
+          <motion.div
+            key="complete"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-hb-4"
+          >
+            <div className="flex items-start gap-hb-3 rounded-hb-md border border-hb-success/30 bg-hb-success/10 p-hb-4">
+              <CheckCircle2 size={22} aria-hidden className="mt-px shrink-0 text-hb-success" />
+              <div>
+                <p className="font-display text-hb-h3 text-hb-text">
+                  Import Completed Successfully!
+                </p>
+                <p className="mt-1 text-hb-sm text-hb-muted">
+                  Created {result.created_count} candidates, Skipped {result.skipped_count}, Errors{' '}
+                  {result.error_count}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-hb-3 sm:grid-cols-3">
+              <StatCard label="Created" value={result.created_count} icon={<UserPlus />} />
+              <StatCard label="Duplicates" value={result.skipped_count} icon={<Copy />} />
+              <StatCard label="Errors" value={result.error_count} icon={<AlertTriangle />} />
+            </div>
+
+            {result.preview_data.length > 0 && (
+              <div className="space-y-hb-2">
+                <h4 className="font-display text-hb-h3 text-hb-text">Sample Imported Candidates</h4>
+                <ul className="max-h-48 space-y-hb-2 overflow-y-auto">
+                  {result.preview_data.map((candidate) => (
+                    <li
+                      key={candidate.id}
+                      className="rounded-hb-sm border border-hb-border bg-hb-surface-2 p-hb-3"
                     >
-                      <span className={selectedSheet ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-400'}>
-                        {selectedSheet
-                          ? `${selectedSheet} (${sheets.find((s) => s.name === selectedSheet)?.row_count ?? 0} rows)`
-                          : 'Choose a sheet...'}
-                      </span>
-                      <ChevronDown size={16} className={clsx('text-gray-500 transition-transform', panelDropdownOpen && 'rotate-180')} />
-                    </button>
+                      <p className="font-semibold text-hb-text">{candidate.name}</p>
+                      <p className="text-hb-xs text-hb-muted">{candidate.email}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                    <AnimatePresence>
-                      {panelDropdownOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -6 }}
-                          transition={{ duration: 0.15 }}
-                          className="border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 shadow-lg overflow-hidden z-20 relative"
-                        >
-                          <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-3">
-                            <div className="relative">
-                              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                              <input
-                                value={panelSearch}
-                                onChange={(e) => setPanelSearch(e.target.value)}
-                                placeholder="Search panel..."
-                                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-violet-200"
-                              />
-                            </div>
-                          </div>
-                          <div className="max-h-56 overflow-y-auto">
-                            {filteredSheets.map((sheet) => {
-                              const active = selectedSheet === sheet.name
-                              return (
-                                <button
-                                  key={sheet.name}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedSheet(sheet.name)
-                                    setPanelDropdownOpen(false)
-                                  }}
-                                  className={clsx(
-                                    'w-full px-4 py-2.5 text-left text-sm transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0',
-                                    active
-                                      ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 font-medium'
-                                      : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
-                                  )}
-                                >
-                                  <span>{sheet.name}</span>
-                                  <span className="text-gray-500 ml-1">• {sheet.row_count} rows</span>
-                                </button>
-                              )
-                            })}
-                            {!filteredSheets.length && (
-                              <div className="px-4 py-4 text-sm text-gray-500">No panel found.</div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+            {result.duplicates.length > 0 && (
+              <ResultDetails title={`Skipped Duplicates (${result.duplicates.length})`}>
+                {result.duplicates.slice(0, 5).map((dup) => (
+                  <p key={dup.existing_id} className="text-hb-muted">
+                    Row {dup.row_number}: {dup.full_name} ({dup.email})
+                  </p>
+                ))}
+                {result.duplicates.length > 5 && (
+                  <p className="text-hb-dim">…and {result.duplicates.length - 5} more</p>
                 )}
+              </ResultDetails>
+            )}
 
-                <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <Button variant="outline" onClick={() => setStage('upload')}>
-                    Back
-                  </Button>
-                  <Button onClick={handlePreview} disabled={loading || (!importAll && !selectedSheet)}>
-                    {loading ? 'Loading...' : 'Preview'}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PREVIEW STAGE */}
-          {stage === 'preview' && preview && (
-            <motion.div key="preview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Total Rows: {preview.total_rows}</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Preview shows first 10 rows</p>
-                  {preview.has_errors && (
-                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">⚠️ Some rows have validation errors</p>
-                  )}
-                </div>
-
-                {/* Preview table */}
-                <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <div className="table-responsive">
-<table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                      <tr>
-                        <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">Row</th>
-                        <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">Name</th>
-                        <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">Email</th>
-                        <th className="px-4 py-2 text-left font-medium text-gray-700 dark:text-gray-300">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {preview.preview_rows.map((row) => (
-                        <tr key={row.row_number} className={row.is_valid ? 'bg-white dark:bg-gray-900' : 'bg-red-50 dark:bg-red-900/20'}>
-                          <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{row.row_number}</td>
-                          <td className="px-4 py-2 text-gray-900 dark:text-white truncate">{String(row.parsed_data.full_name ?? '-')}</td>
-                          <td className="px-4 py-2 text-gray-600 dark:text-gray-400 truncate">{String(row.parsed_data.email ?? '-')}</td>
-                          <td className="px-4 py-2">
-                            {row.is_valid ? (
-                              <Check className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <AlertTriangle className="w-4 h-4 text-red-500" />
-                                <span className="text-xs text-red-600 dark:text-red-400">{row.errors[0]}</span>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-</div>
-                </div>
-
-                <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <Button variant="outline" onClick={() => setStage('sheet-select')}>
-                    Back
-                  </Button>
-                  <Button onClick={handleImport} disabled={loading}>
-                    {loading ? 'Preparing...' : 'Import Candidates'}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* IMPORTING STAGE */}
-          {stage === 'importing' && (
-            <motion.div key="importing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="flex flex-col items-center justify-center py-10 space-y-4">
-                <div className="relative mb-2">
-                  {/* Rotating dashed outer orbit ring */}
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-[-10px] rounded-full border border-[#6c47ff]/40"
-                    style={{ borderStyle: 'dashed', borderWidth: '1.2px', borderDasharray: '2 5' } as any}
-                  >
-                    {/* Orbiting glowing dot */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
-                  </motion.div>
-
-                  {/* Pulsing Hybent Hiring Logo Box */}
-                  <motion.div
-                    animate={{ 
-                      scale: [1, 1.05, 1],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    className="relative z-10 w-[48px] h-[48px] flex items-center justify-center"
-                  >
-                    {/* Background Squircle with Gradient */}
-                    <div 
-                      className="absolute inset-0 rounded-[12px] shadow-md"
-                      style={{ 
-                        background: 'linear-gradient(135deg, #6c47ff, #ff6bc6)',
-                        boxShadow: '0 6px 16px rgba(108,71,255,0.25)'
-                      }}
-                    >
-                      <div className="absolute inset-0 rounded-[12px]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25), transparent 60%)' }} />
-                    </div>
-
-                    {/* Hybent Hiring 'H' SVG mark */}
-                    <svg className="relative z-10" width="24" height="24" viewBox="0 0 22 22" fill="none">
-                      <rect x="2" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                      <rect x="16" y="3" width="4" height="16" rx="2" fill="white" opacity="0.95" />
-                      <rect x="2" y="9" width="18" height="4" rx="2" fill="white" opacity="0.95" />
-                    </svg>
-                  </motion.div>
-                </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white text-md">Importing candidates...</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Please wait while we process your data</p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* COMPLETE STAGE */}
-          {stage === 'complete' && result && (
-            <motion.div key="complete" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="space-y-4">
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="w-6 h-6 text-green-500" />
-                    <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">Import Completed Successfully!</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Created {result.created_count} candidates, Skipped {result.skipped_count}, Errors {result.error_count}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Summary stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{result.created_count}</p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">Created</p>
-                  </div>
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{result.skipped_count}</p>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">Duplicates</p>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">{result.error_count}</p>
-                    <p className="text-xs text-red-700 dark:text-red-300 mt-1">Errors</p>
-                  </div>
-                </div>
-
-                {/* Preview data */}
-                {result.preview_data.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm">Sample Imported Candidates</h4>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {result.preview_data.map((candidate) => (
-                        <div key={candidate.id} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
-                          <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{candidate.email}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            {result.invalid_rows.length > 0 && (
+              <ResultDetails title={`Invalid Rows (${result.invalid_rows.length})`}>
+                {result.invalid_rows.slice(0, 5).map((row) => (
+                  <p key={row.row_number} className="text-hb-error">
+                    Row {row.row_number}: {row.errors.join(', ')}
+                  </p>
+                ))}
+                {result.invalid_rows.length > 5 && (
+                  <p className="text-hb-dim">…and {result.invalid_rows.length - 5} more</p>
                 )}
+              </ResultDetails>
+            )}
+          </motion.div>
+        )}
 
-                {/* Duplicates */}
-                {result.duplicates.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm">Skipped Duplicates ({result.duplicates.length})</h4>
-                    <details className="cursor-pointer">
-                      <summary className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">
-                        Show details
-                      </summary>
-                      <div className="mt-2 space-y-1 text-xs">
-                        {result.duplicates.slice(0, 5).map((dup) => (
-                          <p key={dup.existing_id} className="text-gray-600 dark:text-gray-400">
-                            Row {dup.row_number}: {dup.full_name} ({dup.email})
-                          </p>
-                        ))}
-                        {result.duplicates.length > 5 && <p className="text-gray-500 dark:text-gray-500">...and {result.duplicates.length - 5} more</p>}
-                      </div>
-                    </details>
-                  </div>
-                )}
-
-                {/* Invalid rows */}
-                {result.invalid_rows.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm">Invalid Rows ({result.invalid_rows.length})</h4>
-                    <details className="cursor-pointer">
-                      <summary className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">
-                        Show details
-                      </summary>
-                      <div className="mt-2 space-y-1 text-xs">
-                        {result.invalid_rows.slice(0, 5).map((row) => (
-                          <p key={row.row_number} className="text-red-600 dark:text-red-400">
-                            Row {row.row_number}: {row.errors.join(', ')}
-                          </p>
-                        ))}
-                        {result.invalid_rows.length > 5 && <p className="text-gray-500 dark:text-gray-500">...and {result.invalid_rows.length - 5} more</p>}
-                      </div>
-                    </details>
-                  </div>
-                )}
-
-                <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <Button onClick={handleClose}>Done</Button>
-                </div>
+        {/* ERROR STAGE */}
+        {stage === 'error' && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <div
+              role="alert"
+              className="flex items-start gap-hb-3 rounded-hb-md border border-hb-error/30 bg-hb-error/10 p-hb-4"
+            >
+              <AlertCircle size={22} aria-hidden className="mt-px shrink-0 text-hb-error" />
+              <div>
+                <p className="font-display text-hb-h3 text-hb-error">Import Failed</p>
+                <p className="mt-1 text-hb-sm text-hb-error">{error}</p>
               </div>
-            </motion.div>
-          )}
-
-          {/* ERROR STAGE */}
-          {stage === 'error' && (
-            <motion.div key="error" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="space-y-4">
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex gap-3">
-                  <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-red-900 dark:text-red-200">Import Failed</p>
-                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <Button variant="outline" onClick={() => setStage('sheet-select')}>
-                    Back
-                  </Button>
-                  <Button onClick={handleImport}>Retry</Button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </Modal>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Dialog>
   )
 }

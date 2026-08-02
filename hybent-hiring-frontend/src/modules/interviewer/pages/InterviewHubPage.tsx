@@ -1,101 +1,93 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { 
-  ClipboardCheck, 
-  BookOpen, 
-  Brain,
-  Video, 
-  User, 
-  Calendar, 
-  Clock, 
-  Link as LinkIcon, 
-  Lock, 
-  ChevronRight 
-} from 'lucide-react'
+import { Brain, CalendarDays, ClipboardCheck, Clock, Lock, Video } from 'lucide-react'
+
 import { interviewsApi } from '@/api/interviews'
-import type { Interview, InterviewStatus } from '@/types'
-import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { EmptyState } from '@/components/ui/EmptyState'
+import type { Interview } from '@/types'
 import { formatDateTime } from '@/utils/formatters'
 import { groupInterviewsByCandidate } from '@/utils/grouping'
 import { useInterviewStore } from '@/store/interviewStore'
 import { useAuthStore } from '@/store/authStore'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  IconTile,
+  PageHeader,
+  Skeleton,
+  StatusPill,
+} from '@/components/hb'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+/**
+ * "Pick an interview" — the landing page for all three interviewer tools.
+ *
+ * Rebuilt on the design system in phase 8. Each mode used to carry its own
+ * accent colour and CTA gradient (violet for scorecards, amber for prep kits,
+ * emerald for the live room), painted as an accent bar, a pill, a shadow tint
+ * and a button background. That is colour distinguishing three *pages*, not
+ * three meanings, which is exactly what the one-appearance-per-role rule
+ * exists to stop — the mode is already named in the heading and the button.
+ *
+ * All three modes were also unreachable until phase 8: the sidebar linked to
+ * `scorecard-hub` / `prep-kit-hub` / `live-room-hub` while the routes were
+ * registered under `hub/scorecard` and friends.
+ */
 
 export type HubMode = 'scorecard' | 'prepkit' | 'liveroom'
 
-function statusVariant(s: InterviewStatus): 'info' | 'success' | 'danger' | 'warning' {
-  return { scheduled: 'info', completed: 'success', cancelled: 'danger', no_show: 'warning' }[s] as 'info' | 'success' | 'danger' | 'warning'
-}
-
 interface ModeConfig {
-  icon: any
+  icon: React.ReactNode
   title: string
   subtitle: string
+  /** Which interviews this tool can act on. */
   filter: (i: Interview) => boolean
-  accentColor: string
-  accentBg: string
-  ctaLabel: (i: Interview) => React.ReactNode
+  scopeNote: string
+  ctaLabel: (i: Interview) => string
   ctaPath: (id: string) => string
-  ctaBg: string
   emptyTitle: string
   emptyDesc: string
 }
 
 const MODE: Record<HubMode, ModeConfig> = {
   scorecard: {
-    icon: <ClipboardCheck size={20} />,
+    icon: <ClipboardCheck />,
     title: 'Scoreboard',
-    subtitle: 'Select an interview to submit or review your evaluation',
+    subtitle: 'Pick an interview to submit or review your evaluation.',
     filter: () => true,
-    accentColor: '#6c47ff',
-    accentBg: 'rgba(108,71,255,0.09)',
-    ctaLabel: (i) => i.status === 'completed' 
-      ? 'View Scorecard' 
-      : <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ClipboardCheck size={14} /> Submit Scorecard</span>,
-    ctaPath: (id) => `/interviewer/scorecard/${id}`,
-    ctaBg: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
+    scopeNote: 'All statuses',
+    ctaLabel: (i) => (i.status === 'completed' ? 'View scorecard' : 'Submit scorecard'),
+    ctaPath: (id) => `/hiring/interviewer/scorecard/${id}`,
     emptyTitle: 'No interviews assigned yet',
-    emptyDesc: 'Interviews assigned to you will appear here',
+    emptyDesc: 'Interviews assigned to you will appear here.',
   },
   prepkit: {
-    icon: <Brain size={20} />,
-    title: 'Prep Kit',
-    subtitle: "Open AI-generated questions tailored to the candidate's resume",
+    icon: <Brain />,
+    title: 'Prep kit',
+    subtitle: "Open AI-generated questions tailored to the candidate's résumé.",
     filter: (i) => i.status === 'scheduled',
-    accentColor: '#f59e0b',
-    accentBg: 'rgba(245,158,11,0.09)',
-    ctaLabel: () => <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Brain size={14} /> Open Prep Kit</span>,
-    ctaPath: (id) => `/interviewer/prep-kit/${id}`,
-    ctaBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    scopeNote: 'Upcoming only',
+    ctaLabel: () => 'Open prep kit',
+    ctaPath: (id) => `/hiring/interviewer/prep-kit/${id}`,
     emptyTitle: 'No upcoming interviews',
-    emptyDesc: 'Scheduled interviews will show prep kits here',
+    emptyDesc: 'Scheduled interviews will show their prep kit here.',
   },
   liveroom: {
-    icon: <Video size={20} />,
-    title: 'Live Room',
-    subtitle: 'Enter the live interview room — track ratings, overall summary & meeting link',
+    icon: <Video />,
+    title: 'Live room',
+    subtitle: 'Enter the live room — ratings, running notes and the meeting link.',
     filter: (i) => i.status === 'scheduled',
-    accentColor: '#10b981',
-    accentBg: 'rgba(16,185,129,0.09)',
-    ctaLabel: () => <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Video size={14} /> Enter Live Room</span>,
-    ctaPath: (id) => `/interviewer/live-room/${id}`,
-    ctaBg: 'linear-gradient(135deg, #10b981, #059669)',
+    scopeNote: 'Upcoming only',
+    ctaLabel: () => 'Enter live room',
+    ctaPath: (id) => `/hiring/interviewer/live-room/${id}`,
     emptyTitle: 'No scheduled interviews',
-    emptyDesc: 'Scheduled interviews will appear here for live sessions',
+    emptyDesc: 'Scheduled interviews will appear here when it is time to run them.',
   },
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function InterviewHubPage({ mode }: { mode: HubMode }) {
-  const navigate = useNavigate()
   const { user } = useAuthStore()
-  const isUnlocked = useInterviewStore(s => s.isComplete)
+  const isUnlocked = useInterviewStore((s) => s.isComplete)
   const cfg = MODE[mode]
 
   const { data: interviews, isLoading, isError } = useQuery({
@@ -103,203 +95,141 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
     queryFn: () => interviewsApi.list().then((r) => r.data),
   })
 
-  const filtered = interviews?.filter(cfg.filter).sort(
-    (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-  ) ?? []
+  const filtered = (interviews ?? [])
+    .filter(cfg.filter)
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow={cfg.title}
+        title="Pick an interview"
+        description={cfg.subtitle}
+        actions={
+          !isLoading && !isError ? (
+            <>
+              <Badge tone="info">
+                {filtered.length} interview{filtered.length === 1 ? '' : 's'}
+              </Badge>
+              <Badge>{cfg.scopeNote}</Badge>
+            </>
+          ) : undefined
+        }
+      />
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        {/* Feature banner */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '6px 14px', borderRadius: 20,
-          background: cfg.accentBg,
-          border: `1px solid ${cfg.accentColor}22`,
-          marginBottom: 10,
-        }}>
-          <span style={{ color: cfg.accentColor, display: 'flex', alignItems: 'center' }}>{cfg.icon}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: cfg.accentColor, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-            {cfg.title}
-          </span>
-        </div>
-        <h1 style={{ fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 500, color: 'var(--text)', fontFamily: "'Poppins', sans-serif", lineHeight: 1.1 }}>
-          Pick an Interview
-        </h1>
-        <p style={{ fontSize: 13, color: 'var(--text-mid)', marginTop: 4 }}>
-          {cfg.subtitle}
-        </p>
-      </motion.div>
-
-      {/* ── Count pill ──────────────────────────────────────────────────── */}
-      {!isLoading && !isError && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-            background: cfg.accentBg, color: cfg.accentColor,
-            border: `1px solid ${cfg.accentColor}22`,
-          }}>
-            {filtered.length} interview{filtered.length !== 1 ? 's' : ''}
-          </span>
-          {mode === 'scorecard' && (
-            <span style={{ fontSize: 12, color: 'var(--text-lite)' }}>
-              · all statuses shown
-            </span>
-          )}
-          {(mode === 'prepkit' || mode === 'liveroom') && (
-            <span style={{ fontSize: 12, color: 'var(--text-lite)' }}>
-              · upcoming only
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* ── List ────────────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px',
-              borderRadius: 14, border: '1px solid var(--card-border)',
-            }}>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Skeleton className="h-5 w-56" />
-                <Skeleton className="h-3 w-40" />
-              </div>
-              <Skeleton className="h-9 w-32 rounded-lg" />
-            </div>
+        <div className="space-y-hb-3">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-20 w-full" rounded="md" />
           ))}
         </div>
       ) : isError ? (
-        <div style={{
-          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)',
-          borderRadius: 12, padding: '14px 18px', fontSize: 13,
-          color: '#ef4444', fontWeight: 600,
-        }}>
-          Failed to load interviews. Please refresh.
+        <div
+          role="alert"
+          className="rounded-hb-md border border-hb-error/25 bg-hb-error/8 p-4 text-hb-sm text-hb-error"
+        >
+          Could not load your interviews. Please refresh.
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={<Calendar size={48} strokeWidth={1.5} />}
-          title={cfg.emptyTitle}
-          description={cfg.emptyDesc}
-        />
+        <Card padding="none">
+          <EmptyState
+            icon={<CalendarDays />}
+            title={cfg.emptyTitle}
+            description={cfg.emptyDesc}
+            size="page"
+          />
+        </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {groupInterviewsByCandidate(filtered).map((group, gIdx) => (
-            <div key={group.candidate_id} style={{
-              display: 'flex', flexDirection: 'column', gap: 12,
-              background: 'var(--card-bg)', backdropFilter: 'blur(10px)',
-              padding: '24px', borderRadius: 24, border: '1px solid var(--card-border)'
-            }}>
-              {/* Candidate Info Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, paddingLeft: 4 }}>
-                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <User size={18} style={{ color: 'var(--violet)' }} /> {group.candidate_name}
-                </span>
-                <span style={{
-                   fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 12,
-                   background: 'var(--hover-row)', color: 'var(--text-mid)', opacity: 0.8
-                }}>
-                  {group.interviews.length} Round{group.interviews.length !== 1 ? 's' : ''}
-                </span>
-              </div>
+        <ul className="space-y-hb-4">
+          {groupInterviewsByCandidate(filtered).map((group) => (
+            <li key={group.candidate_id}>
+              <Card padding="default">
+                <div className="mb-hb-3 flex items-center gap-2.5">
+                  <Avatar name={group.candidate_name} size="sm" />
+                  <span className="font-display text-hb-h3 text-hb-text">
+                    {group.candidate_name}
+                  </span>
+                  <Badge>
+                    {group.interviews.length} round{group.interviews.length === 1 ? '' : 's'}
+                  </Badge>
+                </div>
 
-              {/* Rounds List inside Candidate Card */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {group.interviews.map((interview, i) => (
-                  <motion.div
-                    key={interview.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: (gIdx + i) * 0.045 }}
-                  >
-                    <Card
-                      hover
-                      style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '14px 20px' }}
-                    >
-                      {/* Accent bar */}
-                      <div style={{
-                        width: 4, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0,
-                        background: `linear-gradient(180deg, ${cfg.accentColor}, ${cfg.accentColor}55)`,
-                        minHeight: 38,
-                      }} />
+                <ul className="space-y-2">
+                  {group.interviews.map((interview) => {
+                    const linkOpen =
+                      isUnlocked(interview.id) || user?.role !== 'interviewer'
+                    const done = interview.status === 'completed'
 
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-                            {interview.title === group.candidate_name ? 'General Interview' : (interview.title || 'General Interview')}
-                          </span>
-                          <Badge variant={statusVariant(interview.status)}>
-                            {interview.status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                          </Badge>
-                          <Badge variant="default">
-                            {interview.interview_type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                          </Badge>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: 'var(--text-mid)', flexWrap: 'wrap' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> {formatDateTime(interview.scheduled_at)}</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> {interview.duration_minutes} min</span>
-                          {interview.meeting_link && (
-                            isUnlocked(interview.id) || user?.role !== 'interviewer' ? (
-                              <a 
-                                href={interview.meeting_link} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                style={{ 
-                                  color: '#10b981', 
-                                  fontWeight: 600, 
-                                  textDecoration: 'none',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 4
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-                              >
-                                <Video size={12} /> Link available
-                              </a>
-                            ) : (
-                              <span style={{ color: 'var(--text-lite)', fontWeight: 600, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Lock size={12} /> Prep required
+                    return (
+                      <li key={interview.id}>
+                        <Card
+                          variant="interactive"
+                          padding="compact"
+                          className="flex flex-wrap items-center gap-hb-4"
+                        >
+                          <IconTile size="sm">{cfg.icon}</IconTile>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-hb-sm font-semibold text-hb-text">
+                                {/* Some rows carry the candidate's name as the
+                                    title, which reads as a duplicate inside a
+                                    group already headed by that name. */}
+                                {!interview.title || interview.title === group.candidate_name
+                                  ? 'General interview'
+                                  : interview.title}
                               </span>
-                            )
-                          )}
-                        </div>
-                      </div>
+                              <StatusPill status={interview.status} />
+                              <Badge>{interview.interview_type.replace(/_/g, ' ')}</Badge>
+                            </div>
 
-                      {/* CTA */}
-                      <button
-                        onClick={() => navigate(cfg.ctaPath(interview.id))}
-                        style={{
-                          padding: '8px 16px', borderRadius: 10, border: 'none',
-                          background: interview.status === 'completed' && mode === 'scorecard'
-                            ? 'rgba(108,71,255,0.12)'
-                            : cfg.ctaBg,
-                          color: interview.status === 'completed' && mode === 'scorecard'
-                            ? '#6c47ff'
-                            : '#fff',
-                          fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                          fontFamily: "'Sora', sans-serif",
-                          boxShadow: interview.status !== 'completed' || mode !== 'scorecard'
-                            ? `0 4px 10px ${cfg.accentColor}22`
-                            : 'none',
-                          whiteSpace: 'nowrap', flexShrink: 0,
-                        }}
-                      >
-                        {cfg.ctaLabel(interview)}
-                      </button>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-hb-xs text-hb-muted">
+                              <span className="inline-flex items-center gap-1.5">
+                                <CalendarDays size={12} aria-hidden />
+                                {formatDateTime(interview.scheduled_at)}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5">
+                                <Clock size={12} aria-hidden />
+                                {interview.duration_minutes} min
+                              </span>
+                              {interview.meeting_link &&
+                                (linkOpen ? (
+                                  <a
+                                    href={interview.meeting_link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1.5 font-semibold text-hb-cyan transition-colors duration-hb hover:text-hb-text"
+                                  >
+                                    <Video size={12} aria-hidden />
+                                    Link available
+                                  </a>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <Lock size={12} aria-hidden />
+                                    Prep required
+                                  </span>
+                                ))}
+                            </div>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            variant={done && mode === 'scorecard' ? 'ghost' : 'primary'}
+                            to={cfg.ctaPath(interview.id)}
+                            className="shrink-0"
+                          >
+                            {cfg.ctaLabel(interview)}
+                          </Button>
+                        </Card>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </Card>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )

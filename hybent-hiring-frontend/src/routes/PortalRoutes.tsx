@@ -1,7 +1,8 @@
 import { Routes, Route } from 'react-router-dom'
-import React, { lazy } from 'react'
+import { lazy } from 'react'
 
-const PortalLayout = lazy(() => import('@/components/layout/PortalLayout').then(m => ({ default: m.PortalLayout })))
+/* Phase 10: the Hybent shell is the only shell. */
+const Shell = lazy(() => import('@/components/layout/shell/PortalShell').then(m => ({ default: m.PortalShell })))
 const PortalDashboard = lazy(() => import('@/modules/portal/pages/PortalDashboard'))
 const PortalApplicationsPage = lazy(() => import('@/modules/portal/pages/PortalApplicationsPage'))
 const PortalInterviewsPage = lazy(() => import('@/modules/portal/pages/PortalInterviewsPage'))
@@ -15,7 +16,7 @@ const PortalSettingsPage = lazy(() => import('@/modules/portal/pages/PortalSetti
 export default function PortalRoutes() {
   return (
     <Routes>
-      <Route element={<PortalLayout />}>
+      <Route element={<Shell />}>
         <Route index element={<PortalDashboard />} />
         <Route path="applications" element={<PortalApplicationsPage />} />
         <Route path="interviews" element={<PortalInterviewsPage />} />

@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { messagesApi, type Message } from '@/api/messages'
-import { Avatar } from '@/components/ui/Avatar'
-import { Button } from '@/components/ui/Button'
+import { Avatar } from '@/components/hb'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -138,26 +137,26 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-            className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-[420px] bg-white dark:bg-[var(--card-bg)] shadow-[-20px_0_50px_rgba(0,0,0,0.2)] flex flex-col border-l border-gray-100 dark:border-[var(--card-border)]"
+            className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-[420px] bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.2)] flex flex-col border-l border-gray-100"
           >
             {/* Header */}
-            <div className="p-5 border-b border-gray-100 dark:border-[var(--card-border)] flex items-center justify-between bg-gray-50 dark:bg-[var(--bg2)] sticky top-0 z-10">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50 sticky top-0 z-10">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <Avatar name={recipient.full_name} src={recipient.avatar_url || ''} size="md" className="border-2 border-white dark:border-[var(--card-border)] shadow-sm" />
-                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full animate-pulse" />
+                  <Avatar name={recipient.full_name} src={recipient.avatar_url || ''} size="md" className="shadow-hb-1" />
+                  <span className="absolute bottom-0 right-0 h-3 w-3 animate-pulse rounded-full border-2 border-hb-surface bg-hb-success" />
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-extrabold text-gray-900 dark:text-[var(--text)] tracking-tight">{recipient.full_name}</h3>
+                  <h3 className="text-hb-body font-semibold text-hb-text">{recipient.full_name}</h3>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    <p className="text-[10px] text-gray-500 dark:text-[var(--text-mid)] font-bold uppercase tracking-wider">Active Now</p>
+                    <span className="h-1.5 w-1.5 rounded-full bg-hb-success" />
+                    <p className="font-mono text-hb-micro font-bold uppercase text-hb-muted">Active Now</p>
                   </div>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-all active:scale-90"
+                className="rounded-full p-2.5 text-hb-dim transition-all duration-hb hover:bg-hb-surface-2 hover:text-hb-text active:scale-90"
               >
                 <X className="w-5 h-5" strokeWidth={2.5} />
               </button>
@@ -166,28 +165,24 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
             {/* Messages Area */}
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth scrollbar-none"
-              style={{
-                backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(108,71,255,0.03) 1px, transparent 0)',
-                backgroundSize: '24px 24px'
-              }}
+              className="flex-1 space-y-6 overflow-y-auto scroll-smooth bg-[radial-gradient(circle_at_2px_2px,rgb(var(--hb-blue)/0.04)_1px,transparent_0)] bg-[length:24px_24px] p-6 scrollbar-none"
             >
 
 
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
                   <div className="relative w-10 h-10">
-                    <div className="absolute inset-0 border-4 border-[var(--violet)]/20 rounded-full" />
-                    <div className="absolute inset-0 border-4 border-t-[var(--violet)] rounded-full animate-spin" />
+                    <div className="absolute inset-0 border-4 border-[rgb(var(--hb-blue))]/20 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-t-[rgb(var(--hb-blue))] rounded-full animate-spin" />
                   </div>
                   <p className="text-xs font-bold text-gray-400 animate-pulse">Loading conversation...</p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center px-10">
-                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--violet)]/5 to-indigo-50 dark:from-[var(--violet)]/10 dark:to-indigo-950/20 flex items-center justify-center mb-6 shadow-sm rotate-3">
-                    <MessageSquare className="w-10 h-10 text-[var(--violet)]/50" strokeWidth={1.5} />
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[rgb(var(--hb-blue))]/5 to-indigo-50 flex items-center justify-center mb-6 shadow-sm rotate-3">
+                    <MessageSquare className="w-10 h-10 text-[rgb(var(--hb-blue))]/50" strokeWidth={1.5} />
                   </div>
-                  <h4 className="text-base font-black text-gray-900 dark:text-[var(--text)]">Say hello!</h4>
+                  <h4 className="text-base font-black text-gray-900">Say hello!</h4>
                   <p className="text-xs text-gray-500 mt-2 leading-relaxed">
                     Start your conversation with <b>{recipient.full_name}</b>. Messages are private to your organization.
                   </p>
@@ -234,12 +229,12 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
                             return (
                               <div key={m.id} className={`px-4 py-2.5 text-[13px] leading-relaxed shadow-sm transition-all hover:shadow-md ${
                                 isMe 
-                                  ? `bg-gradient-to-br from-[var(--violet)] to-indigo-600 text-white font-medium text-right ${
+                                  ? `bg-hb-grad text-white font-medium text-right ${
                                       isFirst ? 'rounded-t-2xl rounded-bl-2xl' : ''
                                     } ${
                                       isLast ? 'rounded-b-2xl rounded-bl-2xl' : ''
                                     } ${!isFirst && !isLast ? 'rounded-l-2xl' : ''}`
-                                  : `bg-white dark:bg-[#25213d] text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-[#2e2855] ${
+                                  : `border border-hb-border bg-hb-surface text-hb-text ${
                                       isFirst ? 'rounded-t-2xl rounded-br-2xl' : ''
                                     } ${
                                       isLast ? 'rounded-b-2xl rounded-br-2xl' : ''
@@ -251,14 +246,14 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
                           })}
                           
                           <div className={`flex items-center gap-1.5 mt-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase">
+                            <span className="font-mono text-hb-micro font-bold uppercase text-hb-dim">
                               {format(new Date(group.timestamp), 'hh:mm a')}
                             </span>
                             {isMe && (
                               group.messages[group.messages.length - 1].is_read ? (
-                                <CheckCheck className="w-3.5 h-3.5 text-blue-400" strokeWidth={3} />
+                                <CheckCheck className="h-3.5 w-3.5 text-hb-cyan" strokeWidth={3} />
                               ) : (
-                                <Check className="w-3 h-3 text-gray-300" strokeWidth={3} />
+                                <Check className="h-3 w-3 text-hb-dim" strokeWidth={3} />
                               )
                             )}
                           </div>
@@ -271,32 +266,32 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 bg-gray-50 dark:bg-[var(--bg2)]">
+            <div className="bg-hb-surface-2 p-6">
               <form 
                 onSubmit={handleSendMessage} 
-                className="relative flex items-center bg-white dark:bg-[#1e1a35] rounded-2xl shadow-[0_10px_30px_rgba(108,71,255,0.08)] dark:shadow-none p-1.5 border border-gray-100 dark:border-[#2e2855] group focus-within:ring-2 focus-within:ring-[var(--violet)]/20 transition-all font-sans"
+                className="group relative flex items-center rounded-hb-md border border-hb-border bg-hb-surface p-1.5 shadow-hb-1 transition-all duration-hb focus-within:border-hb-blue/45"
               >
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Message..."
-                  className="flex-1 bg-transparent border-none px-4 py-3 text-[14px] outline-none dark:text-[var(--text)] placeholder:text-gray-400 font-medium"
+                  className="flex-1 border-none bg-transparent px-4 py-3 font-body text-hb-body text-hb-text outline-none placeholder:text-hb-dim"
                 />
                 
                  <button
                   type="submit"
                   disabled={!newMessage.trim() || sending}
-                  className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+                  className={`flex h-10 w-10 items-center justify-center rounded-hb-sm transition-all duration-hb ${
                     newMessage.trim() 
-                      ? 'bg-[var(--violet)] text-white shadow-lg shadow-violet-200 dark:shadow-none hover:scale-105 active:scale-95' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 opacity-50'
+                      ? 'bg-hb-grad text-white shadow-hb-2 hover:scale-105 active:scale-95'
+                      : 'bg-hb-muted/15 text-hb-dim opacity-60'
                   }`}
                 >
                   <SendHorizontal className="w-5 h-5" />
                 </button>
               </form>
-              <p className="text-[9px] text-center text-gray-400 mt-3 font-bold uppercase tracking-widest opacity-60">
+              <p className="mt-3 text-center font-mono text-hb-micro font-bold uppercase tracking-widest text-hb-dim">
                 Press Enter to Send
               </p>
             </div>

@@ -1,21 +1,82 @@
-import React from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { superAdminApi } from '@/api/superAdmin'
-import { GlassIcon } from '@/components/common/GlassIcon'
-import { Skeleton } from '@/components/ui/Skeleton'
 import { useNavigate } from 'react-router-dom'
-import { 
-  Building2, 
-  Users, 
-  Briefcase, 
-  CircleDollarSign, 
-  Activity, 
-  Clock, 
-  Plus, 
-  ArrowRight,
+import {
+  Activity,
+  Award,
+  Briefcase,
+  Building2,
+  CalendarDays,
+  CreditCard,
+  Plus,
   ShieldCheck,
-  AlertCircle
+  TriangleAlert,
+  UserCheck,
+  Users,
 } from 'lucide-react'
+
+import { superAdminApi } from '@/api/superAdmin'
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  type Column,
+  DataTable,
+  EmptyState,
+  Meter,
+  PageHeader,
+  Skeleton,
+  SkeletonStats,
+  StatCard,
+  StatGrid,
+} from '@/components/hb'
+
+/**
+ * The platform operator's landing page.
+ *
+ * Rebuilt on the design system in phase 9. Two defects fixed on the way:
+ *
+ * - The audit-log snippet rendered `log.action` through
+ *   `dangerouslySetInnerHTML`. That field is a plain string column on
+ *   `SuperAdminAuditLog` — no markup is intended — and the strings interpolate
+ *   client names and user emails, so any HTML a tenant could get into one of
+ *   those fields would execute in the highest-privilege console in the
+ *   product. It renders as text now.
+ * - Two of the six navigations dropped the `/hiring` prefix the workspace is
+ *   mounted under (`/super-admin/clients`, from the limit alert and from a
+ *   table row), so clicking either landed the operator on the marketing
+ *   homepage.
+ *
+ * The eight metric tiles used eight `GlassIcon` accent variants and the role
+ * chart gave each of the four roles its own bar colour. The role is named
+ * beside its bar and the metric beneath its figure; the colour was decoration
+ * that read as a legend.
+ */
+
+const formatCurrency = (val: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(val)
+
+interface ClientRow {
+  id: string
+  name: string
+  slug: string
+  plan: string
+  status: string
+  users_count: number
+  users_limit: number
+  jobs_count: number
+  jobs_limit: number
+}
+
+const STATUS_TONE: Record<string, 'success' | 'info' | 'error'> = {
+  active: 'success',
+  pending: 'info',
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -35,364 +96,296 @@ export default function DashboardPage() {
     queryFn: () => superAdminApi.getAuditLogs(),
   })
 
-  const { data: health, isLoading: healthLoading } = useQuery({
+  const { data: health } = useQuery({
     queryKey: ['super-admin', 'health'],
     queryFn: () => superAdminApi.getHealth(),
   })
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(val)
-  }
-
-  const clientLimitAlerts = React.useMemo(() => {
+  const clientLimitAlerts = useMemo(() => {
     if (!clients) return []
-    return clients.filter(c => {
+    return clients.filter((c) => {
       const userRatio = c.users_count / c.users_limit
       const jobRatio = c.jobs_count / c.jobs_limit
       return (userRatio >= 0.85 || jobRatio >= 0.85) && c.status === 'active'
     })
   }, [clients])
 
-  const roleDistribution = React.useMemo(() => {
+  const roleDistribution = useMemo(() => {
     if (!dashboard?.role_distribution) return []
     const dist = dashboard.role_distribution
     const total = Object.values(dist).reduce((acc: number, val) => acc + (val as number), 0) || 1
-    
-    return [
-      { name: 'Admin', count: dist.admin || 0, percentage: Math.round(((dist.admin || 0) / total) * 100), color: 'var(--violet)' },
-      { name: 'Recruiter', count: dist.recruiter || 0, percentage: Math.round(((dist.recruiter || 0) / total) * 100), color: '#3b82f6' },
-      { name: 'Interviewer', count: dist.interviewer || 0, percentage: Math.round(((dist.interviewer || 0) / total) * 100), color: '#ff6bc6' },
-      { name: 'Candidate', count: dist.candidate || 0, percentage: Math.round(((dist.candidate || 0) / total) * 100), color: '#10b981' },
-    ]
+
+    return (['admin', 'recruiter', 'interviewer', 'candidate'] as const).map((key) => ({
+      name: key.charAt(0).toUpperCase() + key.slice(1),
+      count: (dist as any)[key] || 0,
+      percentage: Math.round((((dist as any)[key] || 0) / total) * 100),
+    }))
   }, [dashboard])
 
+  /* Both call sites used to push `/super-admin/clients` — no `/hiring` prefix,
+     and carrying a `selectedClientId` in router state that `ClientsPage` never
+     reads. The tenant already has a detail route. */
+  const openClient = (id: string) => navigate(`/hiring/super-admin/clients/${id}`)
+
+  const clientColumns: Array<Column<ClientRow>> = [
+    {
+      key: 'name',
+      header: 'Client',
+      cardTitle: true,
+      cell: (c) => (
+        <span className="flex items-center gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-sm bg-hb-grad font-mono text-hb-micro font-bold text-white">
+            {c.name.substring(0, 2).toUpperCase()}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-hb-sm font-semibold text-hb-text">{c.name}</span>
+            <span className="block truncate text-hb-xs text-hb-muted">{c.slug}.hirreon.com</span>
+          </span>
+        </span>
+      ),
+    },
+    { key: 'plan', header: 'Plan', width: '110px', cell: (c) => <Badge>{c.plan}</Badge> },
+    {
+      key: 'users',
+      header: 'Users',
+      width: '90px',
+      align: 'center',
+      cell: (c) => <span className="font-mono tabular-nums text-hb-muted">{c.users_count}</span>,
+    },
+    {
+      key: 'jobs',
+      header: 'Jobs',
+      width: '90px',
+      align: 'center',
+      cell: (c) => <span className="font-mono tabular-nums text-hb-muted">{c.jobs_count}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '110px',
+      cell: (c) => (
+        <Badge tone={STATUS_TONE[c.status] ?? 'error'}>{c.status}</Badge>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-8 pb-10 pt-6">
-      {/* Header */}
-      <header className="page-header flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title text-[28px] font-black leading-tight text-[var(--text)]">Super Admin Dashboard</h1>
-          <p className="page-subtitle text-[13px] text-[var(--text-light)]">Manage Hybent Hiring SaaS platform configurations, tenants, operations, and system health.</p>
-        </div>
-        <button
-          onClick={() => navigate('/hiring/super-admin/clients', { state: { openWizard: true } })}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold text-white transition-all hover:scale-[1.02] active:scale-95 shadow-md self-start md:self-auto"
-          style={{
-            background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))',
-            boxShadow: '0 4px 14px rgba(108, 71, 255, 0.35)',
-          }}
-        >
-          <Plus size={16} />
-          Add Client
-        </button>
-      </header>
-
-      {/* Resource limit Alerts */}
-      {clientLimitAlerts.length > 0 && (
-        <div className="space-y-2">
-          {clientLimitAlerts.map(client => (
-            <div 
-              key={client.id}
-              className="flex items-center justify-between gap-4 p-4 rounded-xl border"
-              style={{
-                background: 'rgba(251, 191, 36, 0.08)',
-                borderColor: 'rgba(251, 191, 36, 0.25)',
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-amber-500 flex-shrink-0" size={18} />
-                <p className="text-[13px] font-medium text-[var(--text)]">
-                  Client <strong className="font-bold text-[var(--violet)]">{client.name}</strong> is approaching their resource limit (Users: {client.users_count}/{client.users_limit}, Jobs: {client.jobs_count}/{client.jobs_limit}).
-                </p>
-              </div>
-              <button 
-                onClick={() => navigate(`/super-admin/clients`, { state: { selectedClientId: client.id } })}
-                className="text-[12px] font-bold text-[var(--violet)] hover:underline flex-shrink-0"
-              >
-                Manage limits &rarr;
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {dashboardLoading ? (
-          Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-[130px] rounded-[20px]" />
-          ))
-        ) : (
-          <>
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="Building" variant="violet" size={42} iconSize={18} ghost />
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-emerald-500 bg-emerald-500/10">
-                  {dashboard?.growth_metrics?.clients_delta || '+1 this month'}
-                </span>
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_clients ?? 0}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total clients</p>
-            </div>
-
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="Users" variant="indigo" size={42} iconSize={18} ghost />
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-emerald-500 bg-emerald-500/10">
-                  {dashboard?.growth_metrics?.users_delta || '+24 this week'}
-                </span>
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_users ?? 0}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total users</p>
-            </div>
-
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="Briefcase" variant="blue" size={42} iconSize={18} ghost />
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-emerald-500 bg-emerald-500/10">
-                  {dashboard?.growth_metrics?.jobs_delta || '+12 this week'}
-                </span>
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_jobs ?? 0}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Active jobs</p>
-            </div>
-
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="CreditCard" variant="emerald" size={42} iconSize={18} ghost />
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-emerald-500 bg-emerald-500/10">
-                  {dashboard?.growth_metrics?.mrr_delta || '+5% vs last mo'}
-                </span>
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{formatCurrency(dashboard?.total_mrr ?? 0)}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Monthly Recurring Revenue (MRR)</p>
-            </div>
-
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="UserCheck" variant="pink" size={42} iconSize={18} ghost />
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_candidates ?? 0}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total candidates</p>
-            </div>
-
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="Calendar" variant="violet" size={42} iconSize={18} ghost />
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_interviews ?? 0}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total interviews</p>
-            </div>
-
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="Award" variant="emerald" size={42} iconSize={18} ghost />
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.total_offers ?? 0}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total offers</p>
-            </div>
-
-            <div className="rounded-[20px] p-6 border transition-all duration-300 hover:shadow-md" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <GlassIcon icon="Activity" variant="blue" size={42} iconSize={18} ghost />
-              </div>
-              <p className="text-[34px] font-black leading-none mb-1 text-[var(--text)]">{dashboard?.api_usage ?? 0}</p>
-              <p className="text-[11.5px] font-bold text-[var(--text-light)]">Total API / AI Usage</p>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Clients Snippet Card */}
-        <div className="lg:col-span-2 rounded-[24px] p-6 border flex flex-col" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-[16px] font-black text-[var(--text)] flex items-center gap-2">
-              <Building2 className="text-[var(--violet)]" size={18} />
-              Recent Clients
-            </h3>
-            <button 
-              onClick={() => navigate('/hiring/super-admin/clients')}
-              className="text-[12px] font-bold text-[var(--violet)] hover:underline flex items-center gap-1"
-            >
-              All Clients <ArrowRight size={14} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-x-auto">
-            {clientsLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : clients && clients.length > 0 ? (
-              <div className="table-responsive">
-<table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b" style={{ borderColor: 'rgba(108,71,255,0.06)' }}>
-                    <th className="pb-3 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Client</th>
-                    <th className="pb-3 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Plan</th>
-                    <th className="pb-3 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-center">Users</th>
-                    <th className="pb-3 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider text-center">Jobs</th>
-                    <th className="pb-3 text-[11px] font-black text-[var(--text-light)] uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clients.slice(0, 4).map(client => (
-                    <tr 
-                      key={client.id}
-                      onClick={() => navigate(`/super-admin/clients`, { state: { selectedClientId: client.id } })}
-                      className="border-b last:border-0 hover:bg-[var(--sb-hover)] cursor-pointer transition-colors duration-150"
-                      style={{ borderColor: 'rgba(108,71,255,0.04)' }}
-                    >
-                      <td className="py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-[11px]" style={{ background: 'linear-gradient(135deg, var(--violet), var(--brand2, #ff6bc6))' }}>
-                            {client.name.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-[var(--text)]">{client.name}</p>
-                            <p className="text-[11px] text-[var(--text-light)]">{client.slug}.hirreon.com</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3">
-                        <span className="text-[12.5px] font-semibold text-[var(--text)]">{client.plan}</span>
-                      </td>
-                      <td className="py-3 text-center">
-                        <span className="text-[12.5px] font-semibold text-[var(--text-mid)]">{client.users_count}</span>
-                      </td>
-                      <td className="py-3 text-center">
-                        <span className="text-[12.5px] font-semibold text-[var(--text-mid)]">{client.jobs_count}</span>
-                      </td>
-                      <td className="py-3">
-                        <span 
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                          style={{
-                            background: client.status === 'active' ? 'rgba(16,185,129,0.1)' : client.status === 'pending' ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)',
-                            color: client.status === 'active' ? '#10b981' : client.status === 'pending' ? '#3b82f6' : '#ef4444'
-                          }}
-                        >
-                          {client.status.toUpperCase()}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-</div>
-            ) : (
-              <div className="py-10 text-center text-[var(--text-light)] text-[12.5px]">No clients onboarded yet.</div>
-            )}
-          </div>
-        </div>
-
-        {/* Users by Role & Uptime Info */}
-        <div className="space-y-6">
-          {/* Role chart */}
-          <div className="rounded-[24px] p-6 border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-            <h3 className="text-[15px] font-black text-[var(--text)] mb-4 flex items-center gap-2">
-              <Users className="text-[var(--violet)]" size={17} />
-              Users by Role
-            </h3>
-            <div className="space-y-4.5">
-              {roleDistribution.map(role => (
-                <div key={role.name}>
-                  <div className="flex items-center justify-between text-[11.5px] font-semibold text-[var(--text-mid)] mb-1">
-                    <span>{role.name}</span>
-                    <span>{role.count} ({role.percentage}%)</span>
-                  </div>
-                  <div className="h-2 w-full bg-[var(--search-bg)] rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${role.percentage}%`, backgroundColor: role.color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* System status widget */}
-          <div className="rounded-[24px] p-6 border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-            <h3 className="text-[15px] font-black text-[var(--text)] mb-4 flex items-center gap-2">
-              <Activity className="text-[var(--violet)]" size={17} />
-              Platform Status
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3.5 rounded-xl text-emerald-500" style={{ background: 'rgba(16,185,129,0.06)' }}>
-                <p className="text-[10px] font-black uppercase tracking-wider opacity-85">API Uptime</p>
-                <p className="text-[20px] font-black mt-0.5 leading-none">{health?.api_uptime || '99.9%'}</p>
-              </div>
-              <div className="p-3.5 rounded-xl text-indigo-500" style={{ background: 'rgba(108,71,255,0.06)' }}>
-                <p className="text-[10px] font-black uppercase tracking-wider opacity-85">Avg Latency</p>
-                <p className="text-[20px] font-black mt-0.5 leading-none">{health?.avg_latency || '340ms'}</p>
-              </div>
-              <div className="p-3.5 rounded-xl text-amber-500" style={{ background: 'rgba(245,158,11,0.06)' }}>
-                <p className="text-[10px] font-black uppercase tracking-wider opacity-85">Errors (24h)</p>
-                <p className="text-[20px] font-black mt-0.5 leading-none">{health?.errors_24h ?? 0}</p>
-              </div>
-              <div className="p-3.5 rounded-xl text-slate-500" style={{ background: 'rgba(148,163,184,0.08)' }}>
-                <p className="text-[10px] font-black uppercase tracking-wider opacity-85">DB Queries/s</p>
-                <p className="text-[20px] font-black mt-0.5 leading-none">{health?.db_queries_sec ?? 0}</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => navigate('/hiring/super-admin/health')}
-              className="w-full text-center py-2.5 mt-4 text-[12px] font-bold border border-dashed rounded-xl text-[var(--violet)] hover:bg-[var(--sb-hover)] transition-colors"
-              style={{ borderColor: 'rgba(108,71,255,0.2)' }}
-            >
-              Monitor health &rarr;
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity / Audit Log snippet */}
-      <div className="rounded-[24px] p-6 border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[16px] font-black text-[var(--text)] flex items-center gap-2">
-            <ShieldCheck className="text-[var(--violet)]" size={18} />
-            Recent Administrative Actions
-          </h3>
-          <button 
-            onClick={() => navigate('/hiring/super-admin/audit')}
-            className="text-[12px] font-bold text-[var(--violet)] hover:underline flex items-center gap-1"
+    <div className="pb-hb-10">
+      <PageHeader
+        eyebrow="Platform"
+        title="Super admin"
+        description="Tenants, operations and system health across the whole Hybent platform."
+        actions={
+          <Button
+            icon={<Plus size={15} />}
+            onClick={() =>
+              navigate('/hiring/super-admin/clients', { state: { openWizard: true } })
+            }
           >
-            Audit Log <ArrowRight size={14} />
-          </button>
+            Add client
+          </Button>
+        }
+      />
+
+      <div className="space-y-hb-6">
+        {clientLimitAlerts.length > 0 && (
+          <ul className="space-y-2">
+            {clientLimitAlerts.map((client) => (
+              <li
+                key={client.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-hb-md border border-hb-warning/25 bg-hb-warning/8 p-4"
+              >
+                <p className="flex min-w-0 items-start gap-2.5 text-hb-sm text-hb-text">
+                  <TriangleAlert size={17} aria-hidden className="mt-0.5 shrink-0 text-hb-warning" />
+                  <span>
+                    <strong className="font-semibold">{client.name}</strong> is approaching their
+                    resource limit — users {client.users_count}/{client.users_limit}, jobs{' '}
+                    {client.jobs_count}/{client.jobs_limit}.
+                  </span>
+                </p>
+                <Button size="sm" variant="ghost" onClick={() => openClient(client.id)}>
+                  Manage limits
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {dashboardLoading ? (
+          <SkeletonStats />
+        ) : (
+          <StatGrid>
+            <StatCard
+              label="Total clients"
+              value={dashboard?.total_clients ?? 0}
+              icon={<Building2 />}
+            />
+            <StatCard label="Total users" value={dashboard?.total_users ?? 0} icon={<Users />} />
+            <StatCard label="Active jobs" value={dashboard?.total_jobs ?? 0} icon={<Briefcase />} />
+            <StatCard
+              label="Monthly recurring revenue"
+              value={formatCurrency(dashboard?.total_mrr ?? 0)}
+              icon={<CreditCard />}
+            />
+            <StatCard
+              label="Total candidates"
+              value={dashboard?.total_candidates ?? 0}
+              icon={<UserCheck />}
+            />
+            <StatCard
+              label="Total interviews"
+              value={dashboard?.total_interviews ?? 0}
+              icon={<CalendarDays />}
+            />
+            <StatCard label="Total offers" value={dashboard?.total_offers ?? 0} icon={<Award />} />
+            <StatCard
+              label="API / AI usage"
+              value={dashboard?.api_usage ?? 0}
+              icon={<Activity />}
+            />
+          </StatGrid>
+        )}
+
+        <div className="grid gap-hb-5 lg:grid-cols-3">
+          <Card padding="loose" className="lg:col-span-2">
+            <CardHeader
+              title="Recent clients"
+              subtitle="The four most recently onboarded tenants."
+              action={
+                <Button variant="ghost" size="sm" to="/hiring/super-admin/clients">
+                  All clients
+                </Button>
+              }
+            />
+            <DataTable
+              columns={clientColumns}
+              rows={((clients ?? []) as ClientRow[]).slice(0, 4)}
+              rowKey={(c) => c.id}
+              loading={clientsLoading}
+              onRowClick={(c) => openClient(c.id)}
+              caption="Recently onboarded clients"
+              empty={{
+                icon: <Building2 />,
+                title: 'No clients onboarded yet',
+                description: 'Add your first tenant to get started.',
+                action: {
+                  label: 'Add client',
+                  onClick: () =>
+                    navigate('/hiring/super-admin/clients', { state: { openWizard: true } }),
+                },
+              }}
+            />
+          </Card>
+
+          <div className="space-y-hb-5">
+            <Card padding="loose">
+              <CardHeader title="Users by role" />
+              <div className="space-y-hb-3">
+                {roleDistribution.map((role) => (
+                  <Meter
+                    key={role.name}
+                    value={role.percentage}
+                    label={role.name}
+                    valueLabel={`${role.count} (${role.percentage}%)`}
+                  />
+                ))}
+              </div>
+            </Card>
+
+            <Card padding="loose">
+              <CardHeader title="Platform status" />
+              <dl className="grid grid-cols-2 gap-2.5">
+                {[
+                  { label: 'API uptime', value: health?.api_uptime || '99.9%' },
+                  { label: 'Avg latency', value: health?.avg_latency || '340ms' },
+                  {
+                    label: 'Errors (24h)',
+                    value: health?.errors_24h ?? 0,
+                    /* The only figure here with a verdict attached: any error
+                       in the last day is worth an operator's attention. */
+                    alarming: (health?.errors_24h ?? 0) > 0,
+                  },
+                  { label: 'DB queries/s', value: health?.db_queries_sec ?? 0 },
+                ].map((tile) => (
+                  <div
+                    key={tile.label}
+                    className={`rounded-hb-md border p-3 ${
+                      tile.alarming
+                        ? 'border-hb-error/25 bg-hb-error/8'
+                        : 'border-hb-border bg-hb-surface-2'
+                    }`}
+                  >
+                    <dt className="font-mono text-hb-label uppercase text-hb-dim">{tile.label}</dt>
+                    <dd
+                      className={`mt-1 font-display text-hb-h3 ${
+                        tile.alarming ? 'text-hb-error' : 'text-hb-text'
+                      }`}
+                    >
+                      {tile.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <Button
+                variant="ghost"
+                size="sm"
+                to="/hiring/super-admin/health"
+                className="mt-hb-4 w-full"
+              >
+                Monitor health
+              </Button>
+            </Card>
+          </div>
         </div>
 
-        <div className="space-y-1">
+        <Card padding="loose">
+          <CardHeader
+            title="Recent administrative actions"
+            action={
+              <Button variant="ghost" size="sm" to="/hiring/super-admin/audit">
+                Audit log
+              </Button>
+            }
+          />
+
           {logsLoading ? (
             <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
+              {[1, 2, 3].map((n) => (
+                <Skeleton key={n} className="h-12 w-full" rounded="md" />
+              ))}
             </div>
-          ) : logs?.logs && logs.logs.length > 0 ? (
-            logs.logs.slice(0, 5).map((log: any, index: number) => (
-              <div 
-                key={index}
-                className="flex items-start gap-4 py-3 border-b last:border-b-0"
-                style={{ borderColor: 'rgba(108,71,255,0.04)' }}
-              >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: log.type === 'impersonation' ? 'rgba(108,71,255,0.08)' : 'rgba(16,185,129,0.08)' }}>
-                  <ShieldCheck size={14} className={log.type === 'impersonation' ? 'text-[var(--violet)]' : 'text-emerald-500'} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-[var(--text)]">
-                    <strong className="font-semibold">{log.actor}</strong>: <span dangerouslySetInnerHTML={{ __html: log.action }} />
-                  </p>
-                  <p className="text-[11px] text-[var(--text-light)] mt-0.5">{log.client} &middot; {log.time}</p>
-                </div>
-              </div>
-            ))
+          ) : logs?.logs?.length ? (
+            <ul>
+              {logs.logs.slice(0, 5).map((log: any, index: number) => (
+                <li
+                  key={index}
+                  className="flex items-start gap-3.5 border-b border-hb-border py-3 last:border-0"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-hb-border bg-hb-surface-2 text-hb-cyan">
+                    <ShieldCheck size={14} aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    {/* `log.action` is a plain string column. It used to be
+                        piped through `dangerouslySetInnerHTML`. */}
+                    <p className="text-hb-sm text-hb-text">
+                      <strong className="font-semibold">{log.actor}</strong>: {log.action}
+                    </p>
+                    <p className="mt-0.5 text-hb-xs text-hb-muted">
+                      {log.client} · {log.time}
+                    </p>
+                  </div>
+                  {log.type === 'impersonation' && <Badge tone="warning">Impersonation</Badge>}
+                </li>
+              ))}
+            </ul>
           ) : (
-            <div className="py-10 text-center text-[var(--text-light)] text-[12.5px]">No recent audit logs.</div>
+            <EmptyState
+              icon={<ShieldCheck />}
+              title="No recent audit logs"
+              description="Administrative actions will appear here as they happen."
+            />
           )}
-        </div>
+        </Card>
       </div>
     </div>
   )

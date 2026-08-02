@@ -1,155 +1,182 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'framer-motion'
-import { 
-  Settings, 
-  MessageSquare, 
-  Users, 
-  Puzzle, 
-  Check, 
-  CircleHelp, 
-  X, 
-  FileText, 
-  Target, 
-  ClipboardList, 
-  Video, 
-  Clock, 
-  Lock, 
-  ArrowLeft,
-  ChevronLeft,
-  Mic,
-  Monitor,
-  Play,
-  Pause,
-  Square,
+import toast from 'react-hot-toast'
+import {
   BarChart2,
-  Circle
+  Check,
+  ChevronLeft,
+  CircleHelp,
+  ClipboardList,
+  FileText,
+  Lock,
+  MessageSquare,
+  Pause,
+  Play,
+  Puzzle,
+  Settings,
+  Square,
+  Target,
+  Users,
+  Video,
+  X,
 } from 'lucide-react'
+
 import { interviewsApi } from '@/api/interviews'
 import { applicationsApi } from '@/api/applications'
-import { Card } from '@/components/ui/Card'
-import { Avatar } from '@/components/ui/Avatar'
-import { GlassIcon } from '@/components/common/GlassIcon'
 import { formatDateTime } from '@/utils/formatters'
 import { useInterviewStore } from '@/store/interviewStore'
 import { useAuthStore } from '@/store/authStore'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  IconTile,
+  Meter,
+  Skeleton,
+  Textarea,
+} from '@/components/hb'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+/**
+ * The live interview room.
+ *
+ * Rebuilt on the design system in phase 8. Three navigation targets here were
+ * missing the `/hiring` prefix — End interview, Full scorecard, and the
+ * prep-required fallback on the meeting link — so the two ways out of this page
+ * both dropped the interviewer on the marketing homepage mid-interview.
+ *
+ * The page also shipped its own `Toast`: a `position:fixed` violet card with a
+ * 2.8s timer, alongside `react-hot-toast` everywhere else in the product.
+ *
+ * Note on state: ratings and the verdict live in component state and are never
+ * submitted — this page is a scratchpad, and the scorecard is where an
+ * evaluation is actually recorded. Only the summary survives a refresh, via the
+ * localStorage key the original used.
+ */
 
 type Verdict = 'hire' | 'maybe' | 'no_hire' | null
 
 const CRITERIA = [
-  { key: 'technical' as const, label: 'Technical', icon: 'Settings' },
-  { key: 'communication' as const, label: 'Communication', icon: 'MessageSquare' },
-  { key: 'culture_fit' as const, label: 'Culture Fit', icon: 'Users' },
-  { key: 'problem_solving' as const, label: 'Problem Solving', icon: 'Puzzle' },
+  { key: 'technical', label: 'Technical', icon: <Settings /> },
+  { key: 'communication', label: 'Communication', icon: <MessageSquare /> },
+  { key: 'culture_fit', label: 'Culture fit', icon: <Users /> },
+  { key: 'problem_solving', label: 'Problem solving', icon: <Puzzle /> },
+] as const
+
+type CriterionKey = (typeof CRITERIA)[number]['key']
+
+const VERDICTS = [
+  { value: 'hire' as const, label: 'Hire', icon: <Check size={14} strokeWidth={3} />, tone: 'success' as const },
+  { value: 'maybe' as const, label: 'Maybe', icon: <CircleHelp size={14} />, tone: 'warning' as const },
+  { value: 'no_hire' as const, label: 'No hire', icon: <X size={14} strokeWidth={3} />, tone: 'error' as const },
 ]
 
-type CriterionKey = typeof CRITERIA[number]['key']
+const VERDICT_CLASS = {
+  success: 'border-hb-success bg-hb-success/10 text-hb-success',
+  warning: 'border-hb-warning bg-hb-warning/10 text-hb-warning',
+  error: 'border-hb-error bg-hb-error/10 text-hb-error',
+} as const
 
-// ─── Star Rating ──────────────────────────────────────────────────────────────
-
-function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hover, setHover] = useState(0)
+/** Interactive 1–5 rating. A radio group, so arrow keys work and it is announced. */
+function StarRating({
+  value,
+  onChange,
+  label,
+}: {
+  value: number
+  onChange: (v: number) => void
+  label: string
+}) {
   return (
-    <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
+    <div role="radiogroup" aria-label={`${label} rating`} className="flex justify-center gap-1">
       {[1, 2, 3, 4, 5].map((star) => (
-        <span
+        <button
           key={star}
+          type="button"
+          role="radio"
+          aria-checked={value === star}
+          aria-label={`${star} out of 5`}
           onClick={() => onChange(star)}
-          onMouseEnter={() => setHover(star)}
-          onMouseLeave={() => setHover(0)}
-          style={{
-            fontSize: 20, cursor: 'pointer',
-            color: star <= (hover || value) ? '#fbbf24' : 'rgba(108,71,255,0.18)',
-            transition: 'color 0.1s, transform 0.1s',
-            transform: hover === star ? 'scale(1.25)' : 'scale(1)',
-            display: 'inline-block', lineHeight: 1, userSelect: 'none',
-          }}
+          className={
+            'text-hb-h3 leading-none transition-transform duration-hb hover:scale-125 focus-visible:outline-none focus-visible:shadow-hb-ring ' +
+            (star <= value ? 'text-hb-warning' : 'text-hb-dim opacity-40')
+          }
         >
           ★
-        </span>
+        </button>
       ))}
     </div>
   )
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+const fmtClock = (secs: number) =>
+  `${Math.floor(secs / 60)
+    .toString()
+    .padStart(2, '0')}:${(secs % 60).toString().padStart(2, '0')}`
 
-function Toast({ message }: { message: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 80 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 80 }}
-      style={{
-        position: 'fixed', bottom: 24, right: 24,
-        background: '#6c47ff', color: '#fff',
-        borderRadius: 12, padding: '12px 18px',
-        fontSize: 13, fontWeight: 600, zIndex: 1000,
-        boxShadow: '0 8px 30px rgba(108,71,255,0.35)',
-      }}
-    >
-      {message}
-    </motion.div>
-  )
+/** Questions are seeded from the candidate's own skills where we have them. */
+function buildQuestions(skills: string[]) {
+  if (skills.length === 0) {
+    return [
+      'Walk me through the most technically complex project you have delivered.',
+      'How do you approach debugging a hard-to-reproduce production issue?',
+      'Describe a system you designed from scratch — what were the key decisions?',
+      'Tell me about a technical disagreement with a teammate and how you resolved it.',
+      'How do you mentor junior engineers or contribute to team growth?',
+      'What does "good engineering culture" mean to you, practically?',
+    ]
+  }
+  return [
+    `How did you first get into ${skills[0]}, and what is the most complex thing you have built with it?`,
+    'Walk me through a system you designed from scratch — what were the key architectural tradeoffs?',
+    'How do you approach debugging a hard-to-reproduce production issue under pressure?',
+    `Describe your experience with ${skills[1] ?? 'your secondary stack'} in a team setting.`,
+    'Tell me about a time you had a technical disagreement with a teammate. How did it resolve?',
+    'How do you balance technical debt against shipping on a tight deadline?',
+  ]
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LiveRoomPage() {
   const { interviewId } = useParams<{ interviewId: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const isUnlocked = useInterviewStore(s => s.isComplete(interviewId!)) || user?.role !== 'interviewer'
+  const unlocked =
+    useInterviewStore((s) => s.isComplete(interviewId!)) || user?.role !== 'interviewer'
 
-  // Timer
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Interview state
   const [ratings, setRatings] = useState<Record<CriterionKey, number>>({
-    technical: 0, communication: 0, culture_fit: 0, problem_solving: 0,
+    technical: 0,
+    communication: 0,
+    culture_fit: 0,
+    problem_solving: 0,
   })
-  const [overallSummary, setOverallSummary] = useState(() => {
-    return localStorage.getItem(`hybent_hiring_notes_${interviewId}`) || ''
-  })
-
-  // Auto-save notes to localStorage
-  useEffect(() => {
-    if (overallSummary) {
-      localStorage.setItem(`hybent_hiring_notes_${interviewId}`, overallSummary)
-    }
-  }, [overallSummary, interviewId])
+  const [summary, setSummary] = useState(
+    () => localStorage.getItem(`hybent_hiring_notes_${interviewId}`) || ''
+  )
   const [verdict, setVerdict] = useState<Verdict>(null)
-  const [askedSet, setAskedSet] = useState<Set<number>>(new Set())
-  const [toast, setToast] = useState<string | null>(null)
+  const [asked, setAsked] = useState<Set<number>>(new Set())
 
-  const showToast = useCallback((msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 2800)
-  }, [])
+  useEffect(() => {
+    if (summary) localStorage.setItem(`hybent_hiring_notes_${interviewId}`, summary)
+  }, [summary, interviewId])
 
-  // Timer effect
   useEffect(() => {
     if (running) {
       timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
-    } else {
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+    return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [running])
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0')
-    const s = (secs % 60).toString().padStart(2, '0')
-    return `${m}:${s}`
-  }
-
-  // Data fetching
-  const { data: interview, isLoading: intLoading } = useQuery({
+  const { data: interview, isLoading } = useQuery({
     queryKey: ['interview', interviewId],
     queryFn: () => interviewsApi.get(interviewId!).then((r) => r.data),
     enabled: !!interviewId,
@@ -163,372 +190,288 @@ export default function LiveRoomPage() {
 
   const candidate = application?.candidate
   const skills = candidate?.skills ?? []
+  const questions = buildQuestions(skills)
 
-  // Dynamic questions from candidate skills
-  const questions = skills.length > 0 ? [
-    `How did you first get into ${skills[0]} and what's the most complex thing you've built with it?`,
-    'Walk me through a system you designed from scratch — what were the key architectural tradeoffs?',
-    'How do you approach debugging a hard-to-reproduce production issue under pressure?',
-    `Describe your experience with ${skills[1] ?? 'your secondary stack'} in a team environment.`,
-    'Tell me about a time you had a technical disagreement with a teammate. How did it resolve?',
-    'How do you balance technical debt vs shipping features on tight deadlines?',
-  ] : [
-    'Walk me through the most technically complex project you\'ve delivered.',
-    'How do you approach debugging hard-to-reproduce production issues?',
-    'Describe a system you designed from scratch — key architectural decisions?',
-    'Tell me about a technical disagreement with a teammate and how you resolved it.',
-    'How do you mentor junior engineers or contribute to team growth?',
-    'What does "good engineering culture" mean to you practically?',
-  ]
-
-  const endInterview = () => {
+  const endInterview = useCallback(() => {
     setRunning(false)
-    showToast('Interview ended — going to scorecard')
-    setTimeout(() => navigate(`/interviewer/scorecard/${interviewId}`), 1600)
-  }
+    toast.success('Interview ended — opening the scorecard')
+    setTimeout(() => navigate(`/hiring/interviewer/scorecard/${interviewId}`), 1200)
+  }, [navigate, interviewId])
 
-  if (intLoading) {
+  const rated = Object.values(ratings).filter(Boolean).length
+
+  if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ height: 76, borderRadius: 16, background: 'rgba(108,71,255,0.06)', animation: 'pulse 1.5s ease infinite' }} />
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="md:col-span-2" style={{ height: 420, borderRadius: 16, background: 'rgba(108,71,255,0.04)', animation: 'pulse 1.5s ease infinite' }} />
-          <div style={{ height: 420, borderRadius: 16, background: 'rgba(108,71,255,0.04)', animation: 'pulse 1.5s ease infinite' }} />
+      <div className="space-y-hb-4">
+        <Skeleton className="h-20 w-full" rounded="md" />
+        <div className="grid gap-hb-4 md:grid-cols-3">
+          <Skeleton className="h-[420px] w-full md:col-span-2" rounded="md" />
+          <Skeleton className="h-[420px] w-full" rounded="md" />
         </div>
       </div>
     )
   }
 
   if (!interview) {
-    return <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-lite)' }}>Interview not found.</div>
+    return (
+      <Card padding="none">
+        <EmptyState
+          tone="error"
+          title="Interview not found"
+          description="This interview may have been cancelled or reassigned."
+          action={{ label: 'Back to my interviews', onClick: () => navigate('/hiring/interviewer/interviews') }}
+          size="page"
+        />
+      </Card>
+    )
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-      {/* ── Top Banner ──────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(108,71,255,0.10), rgba(0,212,200,0.05))',
-        border: '1px solid rgba(108,71,255,0.18)',
-        borderRadius: 16, padding: '14px 20px',
-        display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
-      }}>
-        {/* Back */}
-        <button
-          onClick={() => navigate('/hiring/interviewer/interviews')}
-          style={{
-            width: 34, height: 34, borderRadius: 9,
-            border: '1px solid rgba(108,71,255,0.25)',
-            background: 'rgba(108,71,255,0.07)', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#6c47ff', flexShrink: 0,
-          }}
+    <div className="space-y-hb-5 pb-hb-10">
+      {/* ── Control bar ── */}
+      <Card padding="default" className="flex flex-wrap items-center gap-hb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          to="/hiring/interviewer/interviews"
+          aria-label="Back to my interviews"
+          className="!px-2.5"
         >
-          <ChevronLeft size={18} strokeWidth={3} />
-        </button>
+          <ChevronLeft size={18} aria-hidden />
+        </Button>
 
-        {/* Live badge + title */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{
-              fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
-              background: running ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-              color: running ? '#ef4444' : '#059669',
-              border: `1px solid ${running ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
-              display: 'flex', alignItems: 'center', gap: 4
-            }}>
-              <Circle size={8} fill={running ? '#ef4444' : '#059669'} />
-              {running ? 'LIVE' : 'READY'}
-            </span>
-            <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', fontFamily: "'Fraunces', serif" }}>
-              {interview.title}
-            </h1>
-            <span style={{ fontSize: 12, color: 'var(--text-mid)' }}>
-              · {interview.interview_type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={running ? 'error' : 'success'} dot={running ? 'pulse' : true}>
+              {running ? 'Recording' : 'Ready'}
+            </Badge>
+            <h1 className="font-display text-hb-h3 text-hb-text">{interview.title}</h1>
+            <span className="text-hb-xs capitalize text-hb-muted">
+              {interview.interview_type.replace(/_/g, ' ')}
             </span>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>
+          <p className="mt-1 text-hb-xs text-hb-muted">
             {formatDateTime(interview.scheduled_at)} · {interview.duration_minutes} min
-            {interview.panelists?.length > 0 && ` · ${interview.panelists.map((p) => p.user_name).filter(Boolean).join(', ')}`}
+            {interview.panelists?.length > 0 &&
+              ` · ${interview.panelists.map((p) => p.user_name).filter(Boolean).join(', ')}`}
           </p>
         </div>
 
-        {/* Google Meet link */}
         {interview.meeting_link ? (
-          isUnlocked ? (
-            <a href={interview.meeting_link} target="_blank" rel="noreferrer">
-              <button
-                onClick={() => showToast('Opening Google Meet...')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px',
-                  borderRadius: 9, background: 'rgba(16,185,129,0.10)',
-                  border: '1.5px solid rgba(16,185,129,0.30)',
-                  color: '#059669', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Sora', sans-serif", maxWidth: 220, overflow: 'hidden',
-                }}
-              >
-                <Video size={14} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {interview.meeting_link.replace(/^https?:\/\//, '')}
-                </span>
-              </button>
-            </a>
-          ) : (
-            <button
-              onClick={() => navigate(`/interviewer/prep-kit/${interviewId}`)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px',
-                borderRadius: 9, background: 'var(--hover-row)',
-                border: '1.5px solid var(--card-border)',
-                color: 'var(--text-lite)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'Sora', sans-serif", maxWidth: 220, overflow: 'hidden',
-              }}
+          unlocked ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Video size={14} />}
+              href={interview.meeting_link}
+              target="_blank"
+              rel="noreferrer"
+              className="max-w-[220px]"
             >
-              <Lock size={14} />
-              <span>Prep Required to Unlock</span>
-            </button>
+              <span className="truncate">{interview.meeting_link.replace(/^https?:\/\//, '')}</span>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Lock size={14} />}
+              to={`/hiring/interviewer/prep-kit/${interviewId}`}
+            >
+              Prep required
+            </Button>
           )
         ) : (
-          <span style={{ fontSize: 12, color: 'var(--text-lite)' }}>No meeting link</span>
+          <span className="text-hb-xs text-hb-dim">No meeting link</span>
         )}
 
-        {/* Timer controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontSize: 20, fontWeight: 900, color: running ? '#6c47ff' : 'var(--text-mid)',
-            fontFamily: 'monospace', minWidth: 64, textAlign: 'center',
-            transition: 'color 0.2s',
-          }}>
-            {formatTime(elapsed)}
+        <div className="flex items-center gap-2">
+          <span
+            role="timer"
+            aria-label="Elapsed interview time"
+            className={`min-w-[68px] text-center font-mono text-hb-h3 tabular-nums ${
+              running ? 'text-hb-text' : 'text-hb-muted'
+            }`}
+          >
+            {fmtClock(elapsed)}
           </span>
-          <button
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={running ? <Pause size={13} /> : <Play size={13} />}
             onClick={() => {
-              if (!running && elapsed === 0) showToast('Interview started!')
+              if (!running && elapsed === 0) toast.success('Interview started')
               setRunning(!running)
             }}
-            style={{
-              padding: '6px 12px', borderRadius: 7,
-              background: running ? 'rgba(239,68,68,0.10)' : 'rgba(108,71,255,0.10)',
-              border: `1.5px solid ${running ? 'rgba(239,68,68,0.30)' : 'rgba(108,71,255,0.30)'}`,
-              color: running ? '#ef4444' : '#6c47ff',
-              fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif",
-              display: 'flex', alignItems: 'center', gap: 6
-            }}
           >
-            {running ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
             {running ? 'Pause' : 'Start'}
-          </button>
-          <button
-            onClick={endInterview}
-            style={{
-              padding: '6px 12px', borderRadius: 7,
-              background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.25)',
-              color: '#ef4444', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-              fontFamily: "'Sora', sans-serif",
-              display: 'flex', alignItems: 'center', gap: 6
-            }}
-          >
-            <Square size={12} fill="currentColor" /> End
-          </button>
+          </Button>
+          <Button size="sm" variant="danger" icon={<Square size={13} />} onClick={endInterview}>
+            End
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* ── Main Content ─────────────────────────────────────────────────── */}
-      <div className="grid md:grid-cols-3 gap-5">
-
-        {/* Left: Ratings + Notes + Verdict */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="md:col-span-2">
-
-          {/* Rating Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {CRITERIA.map((crit) => (
-              <div
-                key={crit.key}
-                style={{
-                  padding: '16px 12px', borderRadius: 12, textAlign: 'center',
-                  background: ratings[crit.key] > 0 ? 'rgba(108,71,255,0.08)' : 'var(--card-bg)',
-                  border: `1.5px solid ${ratings[crit.key] > 0 ? 'rgba(108,71,255,0.28)' : 'var(--card-border)'}`,
-                  transition: 'all 0.2s',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8
-                }}
+      <div className="grid gap-hb-5 md:grid-cols-3">
+        {/* ── Left: ratings, notes, verdict ── */}
+        <div className="space-y-hb-4 md:col-span-2">
+          <div className="grid grid-cols-2 gap-hb-3 sm:grid-cols-4">
+            {CRITERIA.map((c) => (
+              <Card
+                key={c.key}
+                padding="compact"
+                className={
+                  'flex flex-col items-center gap-2 text-center ' +
+                  (ratings[c.key] > 0 ? 'border-hb-blue/35 bg-hb-blue/5' : '')
+                }
               >
-                <GlassIcon icon={crit.icon as any} variant={ratings[crit.key] > 0 ? 'violet' : 'gray'} size={32} iconSize={16} glow={false} />
-                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mid)', marginBottom: 2 }}>{crit.label}</p>
+                <IconTile size="sm">{c.icon}</IconTile>
+                <p className="text-hb-xs font-semibold text-hb-muted">{c.label}</p>
                 <StarRating
-                  value={ratings[crit.key]}
-                  onChange={(v) => setRatings((prev) => ({ ...prev, [crit.key]: v }))}
+                  label={c.label}
+                  value={ratings[c.key]}
+                  onChange={(v) => setRatings((prev) => ({ ...prev, [c.key]: v }))}
                 />
-                {ratings[crit.key] > 0 && (
-                  <p style={{ fontSize: 10, color: '#6c47ff', fontWeight: 800, marginTop: 2 }}>
-                    {ratings[crit.key]}/5
-                  </p>
-                )}
-              </div>
+              </Card>
             ))}
           </div>
 
-          {/* Overall Summary */}
-          <Card>
-            <h3 style={{
-              fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 12,
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
-              <FileText size={16} className="text-[var(--violet)]" /> Overall Summary
+          <Card padding="default">
+            <div className="mb-hb-3 flex items-center justify-between gap-3">
+              <h2 className="inline-flex items-center gap-2 font-display text-hb-h3 text-hb-text">
+                <FileText size={16} aria-hidden className="text-hb-dim" />
+                Running notes
+              </h2>
               {running && (
-                <span style={{
-                  fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                  background: 'rgba(239,68,68,0.10)', color: '#ef4444',
-                  animation: 'pulse 1.5s ease infinite',
-                  display: 'flex', alignItems: 'center', gap: 4
-                }}>
-                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} /> REC
-                </span>
+                <Badge tone="error" dot="pulse">
+                  Recording
+                </Badge>
               )}
-            </h3>
-            <textarea
-              value={overallSummary}
-              onChange={(e) => setOverallSummary(e.target.value)}
-              placeholder="Capture key answers, observations, and overall summary as the interview progresses..."
+            </div>
+            <Textarea
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
               rows={8}
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10,
-                border: '1.5px solid var(--input-border)', fontFamily: "'Sora', sans-serif",
-                fontSize: 13, color: 'var(--text)', background: 'var(--kpi-bg, white)',
-                resize: 'vertical', outline: 'none', lineHeight: 1.7, boxSizing: 'border-box',
-              }}
+              placeholder="Capture key answers and observations as the interview progresses…"
+              description="Saved to this browser as you type. The scorecard is where the evaluation is recorded."
             />
           </Card>
 
-          {/* Quick Verdict */}
-          <Card>
-            <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Target size={16} className="text-[var(--violet)]" /> Quick Verdict
-            </h3>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[
-                { value: 'hire' as const, label: 'Hire', icon: <Check size={14} strokeWidth={3} />, color: '#059669', border: 'rgba(16,185,129,0.25)', selBg: 'rgba(16,185,129,0.12)' },
-                { value: 'maybe' as const, label: 'Maybe', icon: <CircleHelp size={14} />, color: '#d97706', border: 'rgba(251,191,36,0.25)', selBg: 'rgba(251,191,36,0.12)' },
-                { value: 'no_hire' as const, label: 'Rejected', icon: <X size={14} strokeWidth={3} />, color: '#ef4444', border: 'rgba(239,68,68,0.25)', selBg: 'rgba(239,68,68,0.12)' },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setVerdict(verdict === opt.value ? null : opt.value)}
-                  style={{
-                    flex: 1, padding: '10px 4px', borderRadius: 10,
-                    border: `2px solid ${verdict === opt.value ? opt.color : opt.border}`,
-                    background: verdict === opt.value ? opt.selBg : 'transparent',
-                    color: opt.color, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Sora', sans-serif", transition: 'all 0.18s',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                  }}
-                >
-                  {opt.icon} {opt.label}
-                </button>
-              ))}
+          <Card padding="default">
+            <h2 className="mb-hb-3 inline-flex items-center gap-2 font-display text-hb-h3 text-hb-text">
+              <Target size={16} aria-hidden className="text-hb-dim" />
+              Quick verdict
+            </h2>
+            <div role="radiogroup" aria-label="Quick verdict" className="flex gap-2">
+              {VERDICTS.map((opt) => {
+                const on = verdict === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setVerdict(on ? null : opt.value)}
+                    className={
+                      'flex flex-1 items-center justify-center gap-2 rounded-hb-sm border-2 py-2.5 text-hb-sm font-semibold transition-colors duration-hb focus-visible:outline-none focus-visible:shadow-hb-ring ' +
+                      (on
+                        ? VERDICT_CLASS[opt.tone]
+                        : 'border-hb-border text-hb-muted hover:border-hb-border-strong hover:text-hb-text')
+                    }
+                  >
+                    {opt.icon}
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </Card>
-
         </div>
 
-        {/* Right Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-          {/* Candidate Card */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        {/* ── Right: candidate and question checklist ── */}
+        <div className="space-y-hb-4">
+          <Card padding="default">
+            <div className="flex items-center gap-3">
               <Avatar
-                name={interview.candidate_name ?? candidate?.full_name ?? 'C'}
+                name={interview.candidate_name ?? candidate?.full_name ?? 'Candidate'}
                 src={candidate?.avatar_url}
-                size="sm"
+                size="md"
               />
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+              <div className="min-w-0">
+                <p className="truncate text-hb-sm font-semibold text-hb-text">
                   {interview.candidate_name ?? candidate?.full_name ?? 'Candidate'}
                 </p>
-                <p style={{ fontSize: 11, color: 'var(--text-mid)' }}>
+                <p className="truncate text-hb-xs capitalize text-hb-muted">
                   {candidate?.current_title ?? interview.interview_type.replace(/_/g, ' ')}
                 </p>
-                {(candidate?.years_experience != null || candidate?.relevant_experience) && (
-                  <p style={{ fontSize: 10, color: 'var(--text-lite)', marginTop: 1 }}>
-                    {candidate.years_experience != null ? `${candidate.years_experience} yrs exp` : candidate.relevant_experience}
-                  </p>
-                )}
               </div>
             </div>
             {skills.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              <ul className="mt-hb-3 flex flex-wrap gap-1.5">
                 {skills.slice(0, 7).map((skill) => (
-                  <span key={skill} style={{
-                    fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5,
-                    background: 'rgba(108,71,255,0.08)', color: '#6c47ff',
-                  }}>
-                    {skill}
-                  </span>
+                  <li key={skill}>
+                    <Badge>{skill}</Badge>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </Card>
 
-          {/* Questions Checklist */}
-          <Card style={{ flex: 1 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lite)', textTransform: 'uppercase', letterSpacing: '0.9px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ClipboardList size={14} className="text-[var(--violet)]" /> Questions ({askedSet.size}/{questions.length} asked)
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {questions.map((q, idx) => (
-                <label
-                  key={idx}
-                  style={{
-                    display: 'flex', gap: 8, cursor: 'pointer', padding: '8px 0',
-                    borderBottom: idx < questions.length - 1 ? '1px solid var(--table-border)' : 'none',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={askedSet.has(idx)}
-                    onChange={() => {
-                      setAskedSet((prev) => {
-                        const next = new Set(prev)
-                        if (next.has(idx)) next.delete(idx)
-                        else next.add(idx)
-                        return next
-                      })
-                    }}
-                    style={{ accentColor: '#6c47ff', marginTop: 2, flexShrink: 0, cursor: 'pointer' }}
-                  />
-                  <span style={{
-                    fontSize: 11, color: askedSet.has(idx) ? 'var(--text-lite)' : 'var(--text-mid)',
-                    textDecoration: askedSet.has(idx) ? 'line-through' : 'none',
-                    lineHeight: 1.5, transition: 'all 0.15s',
-                  }}>
-                    {q}
-                  </span>
-                </label>
-              ))}
-            </div>
+          <Card padding="default">
+            <h2 className="mb-2 inline-flex items-center gap-2 font-mono text-hb-label uppercase text-hb-dim">
+              <ClipboardList size={13} aria-hidden />
+              Questions
+            </h2>
+            <Meter
+              value={asked.size}
+              max={questions.length}
+              size="xs"
+              valueLabel={`${asked.size}/${questions.length}`}
+              label="Asked"
+              className="mb-hb-3"
+            />
+            <ul>
+              {questions.map((q, idx) => {
+                const done = asked.has(idx)
+                return (
+                  <li key={q} className="border-b border-hb-border py-2.5 last:border-0">
+                    <label className="flex cursor-pointer items-start gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={done}
+                        onChange={() =>
+                          setAsked((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(idx)) next.delete(idx)
+                            else next.add(idx)
+                            return next
+                          })
+                        }
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded-hb-xs border border-hb-border-strong accent-hb-blue focus-visible:outline-none focus-visible:shadow-hb-ring"
+                      />
+                      <span
+                        className={`text-hb-xs leading-relaxed ${
+                          done ? 'text-hb-dim line-through' : 'text-hb-muted'
+                        }`}
+                      >
+                        {q}
+                      </span>
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
           </Card>
 
-          {/* Full Scorecard CTA */}
-          <button
-            onClick={() => navigate(`/interviewer/scorecard/${interviewId}`)}
-            style={{
-              width: '100%', padding: '13px', borderRadius: 10, border: 'none',
-              background: 'linear-gradient(135deg, #6c47ff, #8b6bff)',
-              color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              fontFamily: "'Sora', sans-serif",
-              boxShadow: '0 4px 14px rgba(108,71,255,0.30)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-            }}
+          <Button
+            fullWidth
+            icon={<BarChart2 size={16} />}
+            to={`/hiring/interviewer/scorecard/${interviewId}`}
           >
-            <BarChart2 size={16} /> Full Scorecard
-          </button>
-
+            Full scorecard
+            {rated > 0 && ` (${rated}/4 rated)`}
+          </Button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {toast && <Toast message={toast} />}
-      </AnimatePresence>
     </div>
   )
 }

@@ -1,0 +1,445 @@
+﻿/* =============================================================================
+   HYBENT â€” design tokens
+   -----------------------------------------------------------------------------
+   The single source of truth for colour, type, geometry, elevation and motion
+   across every Hybent surface: the company site, Hybent Hiring, and whatever
+   ships next.
+
+   Values are lifted verbatim from the approved Hybent site design system in
+   `hybent-site.css`. Nothing here is invented. When the brand moves, it moves
+   here first and everything downstream follows.
+
+     :root                  the `--hb-*` primitives â€” raw brand values, themed
+     .hb-app                the product semantic layer â€” app density
+     .hb-site               the marketing layer â€” owns its own scope, untouched
+
+   â”€â”€ Why the `hb-` prefix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   The product currently carries two older token sets (`--violet`/`--card-bg` in
+   index.css, `--brand`/`--surface` in portal.css). Prefixing means this file can
+   land without touching a single rendered pixel: legacy pages keep reading their
+   legacy names, new work reads `--hb-*`, and the old sets are deleted once the
+   last page has migrated.
+
+   â”€â”€ Why colours are RGB channel triplets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Stored as `59 91 219` rather than `#3B5BDB` so Tailwind can compose alpha:
+   `bg-hb-blue/10` resolves to `rgb(59 91 219 / 0.1)`. Hex vars cannot do that â€”
+   attempting it is what produced the silently-dead `var(--violet)/10` style in
+   the recruiter overview. Read them back with `rgb(var(--hb-blue))`.
+   ============================================================================= */
+
+/* `[data-theme="classic"]` is listed alongside `:root` so a *region* can be
+   light inside a dark document, mirroring the dark block below. That symmetry
+   is what lets the kitchen sink render both themes side by side. */
+:root,
+[data-theme="classic"] {
+  /* ---------------------------------------------------------------------------
+     BRAND â€” the four gradient stops, at full saturation.
+     These never shift between themes: they are the identity. The UI accents
+     below are the contrast-corrected forms used for text, icons and borders.
+     --------------------------------------------------------------------------- */
+  --hb-brand-cyan:    34 207 255;   /* #22CFFF */
+  --hb-brand-blue:    76 111 255;   /* #4C6FFF */
+  --hb-brand-violet:  168 85 247;   /* #A855F7 */
+  --hb-brand-magenta: 232 92 255;   /* #E85CFF */
+
+  --hb-grad:      linear-gradient(90deg, #22CFFF 0%, #4C6FFF 38%, #A855F7 72%, #E85CFF 100%);
+  --hb-grad-diag: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF);
+  --hb-grad-soft: linear-gradient(150deg, rgb(34 207 255 / .14), rgb(168 85 247 / .14));
+
+  /* Ink that sits *on* the gradient. Constant across themes: the gradient is
+     bright in both, so it always takes dark text. The site hardcodes this same
+     value in `.btn-primary`. */
+  --hb-on-brand: 5 6 11;
+
+  /* ---------------------------------------------------------------------------
+     LIGHT â€” the `classic` view. Paper ground, ink text.
+     Accents are darkened for contrast on white; the gradient above is not.
+     --------------------------------------------------------------------------- */
+  --hb-cyan:    11 143 199;   /* #0B8FC7 */
+  --hb-blue:    59 91 219;    /* #3B5BDB */
+  --hb-violet:  124 58 237;   /* #7C3AED */
+  --hb-magenta: 192 38 211;   /* #C026D3 */
+
+  --hb-bg:        251 252 254;  /* #FBFCFE â€” the site's page ground */
+  --hb-bg-2:      244 247 251;  /* #F4F7FB */
+  --hb-surface:   255 255 255;  /* #FFFFFF */
+
+  /* The ground the *product* sits on.
+     Deliberately a step darker than `--hb-bg`: the site can put a near-white
+     page under a glass card because the card is translucent over an ambient
+     gradient, but a dashboard stacks dozens of solid white cards, and #FBFCFE
+     against #FFFFFF is under 1% apart â€” every card edge disappears. */
+  --hb-ground:    240 243 249;  /* #F0F3F9 */
+  --hb-surface-2: 247 249 252;  /* #F7F9FC */
+  --hb-elevated:  255 255 255;  /* #FFFFFF */
+
+  --hb-text:  11 18 32;    /* #0B1220 */
+  --hb-muted: 84 96 122;   /* #54607A */
+  --hb-dim:   136 146 166; /* #8892A6 */
+
+  /* Lines are the one family stored pre-composed rather than as channels: they
+     are always ink-on-paper or white-on-dark at a fixed alpha, so the triplet
+     bought nothing and cost a second variable to read them back. */
+  --hb-border:        rgb(11 18 32 / .10);
+  --hb-border-strong: rgb(11 18 32 / .18);
+
+  --hb-success: 15 122 86;   /* #0F7A56 */
+  --hb-warning: 180 116 10;  /* #B4740A */
+  --hb-error:   214 59 84;   /* #D63B54 */
+
+  /* Elevation. Neutral ink, never brand-tinted â€” a violet drop shadow under
+     every card is what made the old product read as a different system.
+
+     `--hb-sh-card` and its hover are lifted verbatim from the site's own
+     `[data-theme="classic"] .hb-site .card`. A card is the surface a reader
+     compares most directly between the marketing pages and the product, so it
+     gets the site's exact two-layer drop â€” a 1px contact shadow plus a wide,
+     heavily-negative-spread halo â€” rather than an approximation. The generic
+     `sh-1`/`sh-2` steps stay tighter, because they also sit under buttons and
+     toolbars where the site uses no shadow at all. */
+  --hb-sh-1: 0 1px 2px rgb(11 18 32 / .06);
+  --hb-sh-2: 0 8px 24px -18px rgb(11 18 32 / .35);
+  --hb-sh-3: 0 26px 60px -32px rgb(11 18 32 / .34);
+  --hb-sh-card:       0 1px 2px rgb(11 18 32 / .04), 0 10px 30px -26px rgb(11 18 32 / .5);
+  --hb-sh-card-hover: 0 20px 46px -28px rgb(11 18 32 / .42);
+  --hb-ring: 0 0 0 4px rgb(76 111 255 / .12);
+
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------------------
+     GEOMETRY â€” shared by both themes.
+     --------------------------------------------------------------------------- */
+  --hb-r-xs:    6px;   /* checkboxes and other sub-20px controls */
+  --hb-r-sm:   10px;
+  --hb-r-md:   16px;
+  --hb-r-lg:   22px;
+  --hb-r-xl:   30px;
+  --hb-r-full: 999px;
+
+  --hb-maxw:  1240px;
+  --hb-nav-h: 72px;
+
+  /* 4px base step. The 17 arbitrary paddings in the product all round to one
+     of these. */
+  --hb-s-1:  4px;
+  --hb-s-2:  8px;
+  --hb-s-3:  12px;
+  --hb-s-4:  16px;
+  --hb-s-5:  20px;
+  --hb-s-6:  24px;
+  --hb-s-8:  32px;
+  --hb-s-10: 40px;
+  --hb-s-12: 48px;
+
+  /* ---------------------------------------------------------------------------
+     TYPE â€” Sora displays, Manrope reads, IBM Plex Mono labels.
+     The mono uppercase label is the site's signature; it is what carries the
+     brand into forms and table headers where nothing else can.
+     --------------------------------------------------------------------------- */
+  --hb-f-display: "Sora", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --hb-f-body:    "Manrope", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --hb-f-mono:    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --hb-tracking-display: -.028em;
+  --hb-tracking-num:     -.02em;
+  --hb-tracking-label:   .16em;
+
+  /* ---------------------------------------------------------------------------
+     MOTION — one curve, and the site's tempo.
+
+     These used to run at roughly a third of the site's timings, on the theory
+     that a product wants snappy interface feedback where a marketing page wants
+     editorial pacing. That theory is wrong, and it is the single biggest reason
+     the workspace read as a generic admin panel next to hybent.com. The site's
+     own stylesheet says so out loud: "only the durations are longer, so the
+     motion reads as smoother and more deliberate."
+
+     Speed is what cheap software feels like. A 180ms hover is a state flip; a
+     500ms hover is a considered response. Matched to the site's four bands:
+
+       fast    focus rings and sub-pixel state — must stay immediate
+       base    colour, background and border fades      (site --hov-dur)
+       lift    transforms, elevation, shadow            (site --hov-dur-lg)
+       reveal  entrance of a section on scroll          (site [data-rv])
+     --------------------------------------------------------------------------- */
+  --hb-ease:      cubic-bezier(.2, .8, .3, 1);
+  --hb-dur-fast:  140ms;
+  --hb-dur:       300ms;
+  --hb-dur-slow:  500ms;
+  --hb-dur-lift:  620ms;
+  --hb-dur-reveal: 850ms;
+}
+
+/* -----------------------------------------------------------------------------
+   There is no dark theme.
+
+   Hybent is light-only, everywhere: the company site, the auth pages, the
+   emailed candidate flows and every workspace. A `[data-theme="dark"]` block
+   lived here through phases 1-6 and has been removed along with the theme
+   provider, its toggle and the pre-paint script in index.html.
+
+   Nothing sets `data-theme="dark"` or the `.dark` class any more, so any
+   surviving `dark:` Tailwind variant or `.dark` CSS block in an unmigrated file
+   is inert. Those are deleted file-by-file as each workspace migrates.
+   ----------------------------------------------------------------------------- */
+
+
+/* =============================================================================
+   .hb-app â€” the product semantic layer
+   -----------------------------------------------------------------------------
+   Primitives above say what the colours *are*. These say what they are *for*,
+   at product density. Components read only from this layer, so a density or
+   palette decision is made once here rather than in 77 page files.
+
+   Density is the whole point of a separate layer. The site's card is a 22px
+   radius glass panel on an ambient gradient with 30px padding and a 6px hover
+   lift â€” correct for a hero, wrong for the eighth row of a candidate table.
+   Same tokens, tighter expression.
+   ============================================================================= */
+.hb-app {
+  /* Ground */
+  --app-bg:        rgb(var(--hb-ground));
+  --app-surface:   rgb(var(--hb-surface));
+  --app-surface-2: rgb(var(--hb-surface-2));
+  --app-elevated:  rgb(var(--hb-elevated));
+
+  /* Ink */
+  --app-text:  rgb(var(--hb-text));
+  --app-muted: rgb(var(--hb-muted));
+  --app-dim:   rgb(var(--hb-dim));
+
+  /* Lines */
+  --app-border:        var(--hb-border);
+  --app-border-strong: var(--hb-border-strong);
+
+  /* Interaction â€” brand blue is the product's primary; cyan is reserved for
+     focus and the icon-tile glyph, exactly as on the site. */
+  --app-accent:       rgb(var(--hb-blue));
+  --app-accent-soft:  rgb(var(--hb-blue) / .10);
+  --app-accent-hover: rgb(var(--hb-blue) / .16);
+  --app-focus:        rgb(var(--hb-cyan));
+
+  /* Status. Semantic only â€” no page should ever reach for a raw green again. */
+  --app-success:      rgb(var(--hb-success));
+  --app-success-soft: rgb(var(--hb-success) / .12);
+  --app-warning:      rgb(var(--hb-warning));
+  --app-warning-soft: rgb(var(--hb-warning) / .12);
+  --app-error:        rgb(var(--hb-error));
+  --app-error-soft:   rgb(var(--hb-error) / .12);
+  --app-info:         rgb(var(--hb-blue));
+  --app-info-soft:    rgb(var(--hb-blue) / .10);
+
+  /* Geometry at product density: cards step down a notch from the site's
+     22px, controls keep the full pill because it is the loudest brand cue. */
+  --app-r-control: var(--hb-r-full);
+  --app-r-card:    var(--hb-r-md);
+  --app-r-input:   var(--hb-r-sm);
+  --app-r-tile:    13px;
+
+  --app-pad-card:         var(--hb-s-5);
+  --app-pad-card-compact: 14px;
+  --app-gap:              var(--hb-s-4);
+  --app-gutter:           var(--hb-s-6);
+
+  /* Controls */
+  --app-h-sm: 32px;
+  --app-h-md: 40px;
+  --app-h-lg: 46px;
+  --app-h-input: 42px;
+
+  /* Elevation â€” data surfaces sit flat on a border and lift only on hover. */
+  --app-sh:       var(--hb-sh-1);
+  --app-sh-hover: var(--hb-sh-2);
+  --app-sh-pop:   var(--hb-sh-3);
+  --app-ring:     var(--hb-ring);
+
+  /* Chrome */
+  --app-sidebar-w: 248px;
+  --app-topbar-h:  64px;
+
+  /* Motion â€” the site's curve, interface tempo. */
+  --app-ease: var(--hb-ease);
+  --app-dur:  var(--hb-dur);
+
+  color: var(--app-text);
+  font-family: var(--hb-f-body);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+
+  /* The ambient wash, from the site's `[data-theme="classic"] .hb-surface::before`.
+     Without it the product reads as flat white — the site's ground is nearly the
+     same near-white, and what stops it looking bare there is these three
+     brand-tinted radials, not the base colour.
+
+     These are the site's exact opacities. An earlier version ran them at about
+     two-thirds strength, reasoning that a screen someone reads for eight hours
+     should carry less tint than a marketing hero. That was wrong in practice:
+     the product stopped looking like Hybent and started looking like a generic
+     white admin panel, which is a worse outcome than a slightly warm ground.
+
+     Painted as a background-image rather than a `::before`, so it sits behind
+     every child without needing a stacking context on each one. `fixed`
+     attachment keeps it still while the main column scrolls, which is what
+     makes it read as atmosphere rather than as content. */
+  position: relative;
+  background-color: rgb(var(--hb-ground));
+  background-image:
+    radial-gradient(900px 600px at 12% -8%, rgb(var(--hb-brand-cyan) / .10), transparent 62%),
+    radial-gradient(1000px 700px at 88% 4%, rgb(var(--hb-brand-violet) / .09), transparent 64%),
+    radial-gradient(1200px 900px at 50% 108%, rgb(var(--hb-brand-blue) / .07), transparent 62%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* The site's grid, from `.hb-surface::after`. 72px cells, faded out below the
+   top by the same elliptical mask, so it reads as texture near the header and
+   disappears behind dense content further down. The product had none of this,
+   which is a large part of why its ground looked bare next to the site's. */
+.hb-app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(11 18 32 / .038) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(11 18 32 / .038) 1px, transparent 1px);
+  background-size: 72px 72px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+}
+
+/* Lift the shell above the grid. Mirrors the site's own
+   `.hb-site main, footer, header { position: relative; z-index: 2 }`. */
+.hb-app > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hb-app h1,
+.hb-app h2,
+.hb-app h3,
+.hb-app h4 {
+  font-family: var(--hb-f-display);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: var(--hb-tracking-display);
+  margin: 0;
+}
+
+/* The focus ring the product has never had. `hybent-site.css` carries this for
+   the marketing surface; index.css and portal.css define zero focus-visible
+   rules between them. */
+.hb-app :focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.hb-app ::selection {
+  background: rgb(var(--hb-brand-blue) / .20);
+  color: rgb(var(--hb-text));
+}
+
+/* -----------------------------------------------------------------------------
+   Gradient-filled text — the site's `.grad-text`.
+
+   The site paints its hero keyword and every stat figure with the four-stop
+   brand gradient clipped to the glyphs. It is the loudest colour on a light
+   Hybent page, and the product had none of it: a dashboard of four large black
+   numerals is the single biggest reason the workspace read as a generic admin
+   panel rather than as Hybent.
+
+   Reserved for figures and for at most one word of a heading. Applied to body
+   copy it is unreadable, and applied to everything it stops meaning anything.
+   ----------------------------------------------------------------------------- */
+.hb-grad-text {
+  /* `inline-block` is load-bearing, not layout preference. `background-clip:
+     text` clips the element's *background box* to the glyphs — so on a
+     block-level element the gradient spans the whole column and a short value
+     like "0" sits in its leftmost 3%, rendering flat cyan. Shrinking the box to
+     the glyphs makes the full cyan→magenta sweep land inside the number however
+     short it is. The site never hit this because its stat values are long. */
+  display: inline-block;
+  background: var(--hb-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* -----------------------------------------------------------------------------
+   The gradient hairline.
+
+   A 1px brand-gradient edge drawn *inside* the border radius. The site uses it
+   on `.card:hover` and it is the single detail that most makes a surface read
+   as Hybent â€” a plain border cannot carry the four-stop gradient.
+
+   Two layers composited with mask-composite: the padding box is punched out of
+   the border box, leaving only the 1px ring. Put it on a positioned ancestor.
+   ----------------------------------------------------------------------------- */
+.hb-edge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--hb-grad-diag);
+  opacity: 0;
+  transition: opacity var(--hb-dur-slow) var(--hb-ease);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.hb-edge:hover::before,
+.hb-edge[data-edge="on"]::before { opacity: .75; }
+
+/* -----------------------------------------------------------------------------
+   The card glow — the site's `.card__glow`.
+
+   A soft blue radial that lights behind the card on hover. Together with the
+   gradient hairline it is what makes a Hybent surface feel lit rather than
+   drawn, and the product had neither.
+
+   Two differences from the site, both forced by the surface being solid rather
+   than glass:
+
+   · The site's glow sits at `z-index:-1`, behind a translucent card, and is
+     moved to the pointer by script. A solid white card would hide that
+     entirely, so this one is painted *inside* the card and anchored to the top
+     left, where a reader's eye enters the surface.
+   · `.55` peak opacity is the site's own light-theme value, not its dark one
+     (`.9`) — on paper the same glow at .9 reads as a smudge.
+   ----------------------------------------------------------------------------- */
+.hb-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    340px 240px at 12% -10%,
+    rgb(var(--hb-brand-blue) / .22),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity .5s var(--hb-ease);
+  pointer-events: none;
+}
+.hb-glow:hover::after { opacity: .55; }
+
+/* Content above the glow. Same lift the site applies to its own sections. */
+.hb-glow > * { position: relative; z-index: 1; }
+
+/* Motion is decoration. Anyone who has asked for less gets none. */
+@media (prefers-reduced-motion: reduce) {
+  .hb-app *,
+  .hb-app *::before,
+  .hb-app *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

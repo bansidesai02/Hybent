@@ -1,19 +1,40 @@
+import type { ReactNode } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
-import { activitiesApi } from '@/api/activities'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { useAuthStore } from '@/store/authStore'
-import { GlassIcon } from '@/components/common/GlassIcon'
+import {
+  Bell,
+  Calendar,
+  Eye,
+  Handshake,
+  Inbox,
+  Mail,
+  Plus,
+  RefreshCw,
+  Send,
+} from 'lucide-react'
 
-const ACTIVITY_CONFIG: Record<string, { icon: React.ReactNode; bg: string }> = {
-  CREATE:          { icon: <GlassIcon icon="Plus" variant="emerald" size={32} iconSize={14} glow={false} />, bg: 'rgba(16, 185, 129, 0.1)' },
-  UPDATE_STAGE:    { icon: <GlassIcon icon="RefreshCw" variant="violet" size={32} iconSize={14} glow={false} />, bg: 'rgba(108, 71, 255, 0.1)' },
-  SCHEDULE:        { icon: <GlassIcon icon="Calendar" variant="violet" size={32} iconSize={14} glow={false} />, bg: 'rgba(108, 71, 255, 0.1)' },
-  OFFER_SENT:      { icon: <GlassIcon icon="Send" variant="amber" size={32} iconSize={14} glow={false} />, bg: 'rgba(251, 191, 36, 0.1)' },
-  OFFER_RESPONDED: { icon: <GlassIcon icon="Handshake" variant="blue" size={32} iconSize={14} glow={false} />, bg: 'rgba(59, 130, 246, 0.1)' },
-  INVITE:          { icon: <GlassIcon icon="Mail" variant="pink" size={32} iconSize={14} glow={false} />, bg: 'rgba(255, 107, 198, 0.1)' },
-  VIEW:            { icon: <GlassIcon icon="Eye" variant="indigo" size={32} iconSize={14} glow={false} />, bg: 'rgba(124, 58, 237, 0.1)' },
-  default:         { icon: <GlassIcon icon="Bell" variant="violet" size={32} iconSize={14} glow={false} />, bg: 'rgba(108, 71, 255, 0.1)' },
+import { activitiesApi } from '@/api/activities'
+import { useAuthStore } from '@/store/authStore'
+import { EmptyState, IconTile, Skeleton } from '@/components/hb'
+
+/**
+ * The live activity feed, shared by the recruiter overview, the admin dashboard
+ * and the candidate portal.
+ *
+ * The glyph identifies the kind of event; it is not colour-coded. The previous
+ * version tinted each action a different hue — emerald, violet, amber, blue,
+ * pink, indigo — which made a feed of eight rows read as eight severities.
+ */
+
+const ACTIVITY_ICON: Record<string, ReactNode> = {
+  CREATE: <Plus />,
+  UPDATE_STAGE: <RefreshCw />,
+  SCHEDULE: <Calendar />,
+  OFFER_SENT: <Send />,
+  OFFER_RESPONDED: <Handshake />,
+  INVITE: <Mail />,
+  VIEW: <Eye />,
+  default: <Bell />,
 }
 
 function buildLabel(
@@ -83,13 +104,13 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex gap-4 py-4 border-b border-[rgba(108,71,255,0.05)]">
-            <Skeleton className="w-10 h-10 rounded-[12px]" />
+      <div>
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="flex items-center gap-3 border-b border-hb-border py-3 last:border-0">
+            <Skeleton className="h-10 w-10" rounded="md" />
             <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-2.5 w-1/2" />
             </div>
           </div>
         ))}
@@ -97,43 +118,60 @@ export function RecentActivityFeed({ limit = 10 }: { limit?: number }) {
     )
   }
 
-  if (isError || activities.length === 0) {
+  if (isError) {
     return (
-      <div className="py-10 text-center">
-        <div className="flex justify-center mb-4">
-          <GlassIcon icon="Inbox" variant="violet" size={48} iconSize={20} glow={false} />
-        </div>
-        <p className="text-[13px] font-medium text-[var(--text-light)]">
-          {isError ? 'Could not load activity.' : 'No recent activity to show.'}
-        </p>
-      </div>
+      <EmptyState
+        tone="error"
+        title="Could not load activity"
+        description="The activity feed is unavailable right now. It will reappear on the next refresh."
+      />
+    )
+  }
+
+  const rows = activities
+    // Candidates do not see "Someone viewed your profile" in the Live Activity feed.
+    // Recruiters continue to see "Profile Viewed" entries for internal audit.
+    .filter((act) => !(isCandidate && act.action === 'VIEW' && act.resource_type === 'candidate'))
+
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={<Inbox />}
+        title="Nothing yet"
+        description={
+          isCandidate
+            ? 'Updates on your applications will show up here.'
+            : 'Activity across your jobs and candidates will show up here.'
+        }
+      />
     )
   }
 
   return (
-    <div className="space-y-1">
-      {activities
-        // Candidates do not see "Someone viewed your profile" in the Live Activity feed.
-        // Recruiters continue to see "Profile Viewed" entries for internal audit.
-        .filter((act) => !(isCandidate && act.action === 'VIEW' && act.resource_type === 'candidate'))
-        .map((act) => {
-        const config = ACTIVITY_CONFIG[act.action] ?? ACTIVITY_CONFIG.default
+    <ul className="-my-1">
+      {rows.map((act) => {
         const { title, sub } = buildLabel(act, isCandidate)
         return (
-          <div key={act.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 border-b last:border-0" style={{ borderColor: 'rgba(108, 71, 255, 0.05)' }}>
-            <div className="w-10 h-10 rounded-[12px] flex items-center justify-center text-[16px] flex-shrink-0" style={{ background: config.bg }}>
-              {config.icon}
+          <li
+            key={act.id}
+            className="flex items-center gap-3 border-b border-hb-border py-3 last:border-0"
+          >
+            <IconTile>{ACTIVITY_ICON[act.action] ?? ACTIVITY_ICON.default}</IconTile>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-hb-sm font-semibold text-hb-text">{title}</p>
+              {sub && <p className="truncate text-hb-xs text-hb-muted">{sub}</p>}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold truncate text-[var(--text)]">{title}</p>
-              {sub && <p className="text-[11px] font-medium truncate text-[var(--text-light)]">{sub}</p>}
-            </div>
-            <span className="text-[10px] font-semibold flex-shrink-0" style={{ color: '#c4b9de' }}>
+
+            <time
+              dateTime={act.created_at}
+              className="shrink-0 font-mono text-hb-micro uppercase text-hb-dim"
+            >
               {formatDistanceToNow(new Date(act.created_at), { addSuffix: true }).replace('about ', '')}
-            </span>
-          </div>
+            </time>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }

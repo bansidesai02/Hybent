@@ -1,9 +1,19 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts'
+
 import type { FunnelData } from '@/types'
+import { axisProps, ChartTooltip, useChartTheme } from '@/components/hb'
 
-const COLORS = ['#94a3b8', '#60a5fa', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444']
-
+/**
+ * The hiring funnel, stage by stage.
+ *
+ * Rebuilt on the design system in phase 10. The six bar colours were a
+ * hardcoded `COLORS` array; they now come from `theme.series`, which reads the
+ * live `--hb-*` tokens. One colour per stage stays, because the funnel is read
+ * left to right as a sequence — the palette's own progression is the cue.
+ */
 export function FunnelChart({ data }: { data: FunnelData }) {
+  const theme = useChartTheme()
+
   const chartData = data.stages.map((s) => ({
     name: s.stage.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
     count: s.count,
@@ -13,16 +23,13 @@ export function FunnelChart({ data }: { data: FunnelData }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-        <YAxis tick={{ fontSize: 12 }} />
-        <Tooltip
-          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-          formatter={(value: number, name: string) => [value, 'Candidates']}
-        />
-        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+        <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} vertical={false} />
+        <XAxis dataKey="name" {...axisProps(theme)} />
+        <YAxis {...axisProps(theme)} />
+        <ChartTooltip formatter={(value: number) => [value, 'Candidates']} />
+        <Bar dataKey="count" name="Candidates" radius={[6, 6, 0, 0]}>
           {chartData.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            <Cell key={i} fill={theme.series[i % theme.series.length]} />
           ))}
         </Bar>
       </BarChart>

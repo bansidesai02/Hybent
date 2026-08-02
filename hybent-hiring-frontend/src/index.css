@@ -1,12 +1,13 @@
 /* ============================================
    GOOGLE FONTS
 ============================================ */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 /* ============================================
    TAILWIND DIRECTIVES
 ============================================ */
-@import './portal.css';
+/* The Hybent token layer. Prefixed `--hb-*`, so it coexists with the legacy
+   product tokens below until the last page has migrated off them. */
+@import './styles/tokens.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -72,101 +73,6 @@
     --blob-op: 0.5;
   }
 
-  .dark {
-    --bg: #16132a;
-    --bg2: #0a0818;
-    --text: #ffffff;
-    --text-mid: #94a3b8;
-    --text-light: #cbd5e1;
-    --violet: #a78bfa;
-    --violet-mid: #a78bfa;
-    /* Removed transparency to avoid "Gray" look */
-    --glass: #1f1b36;
-    --glass-border: #2e2855;
-    --topbar-bg: #16132a;
-    --topbar-border: #2e2855;
-    --sidebar-bg: #0a0818;
-    --sidebar-border: #2e2855;
-    --card-bg: #1f1b36;
-    --card-border: #2e2855;
-    --input-bg: #1f1b36;
-    --input-border: #2e2855;
-    --hover-row: #0a0818;
-    --table-head: #0a0818;
-    --table-border: #2e2855;
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --shadow-h: 0 8px 24px rgba(0, 0, 0, 0.8);
-    --kpi-bg: #1f1b36;
-    --activity-bg: #1f1b36;
-    --modal-bg: #1f1b36;
-    --sb-active: #1f1b36;
-    --sb-hover: #16132a;
-    --search-bg: #16132a;
-    --blob-op: 0.12;
-    --upload-zone: #1f1b36;
-
-    /* High-contrast brand colors for Dark Mode */
-    --violet: #a78bfa;
-    --pink:   #ff7eb6;
-    --teal:   #2dd4bf;
-    --amber:  #fbbf24;
-    --indigo: #818cf8;
-    --cyan:   #22d3ee;
-    --rose:   #fb7185;
-
-    /* Sharp Solid Status Tokens (No Transparency) */
-    --brand1-10: #1d1b3e; /* Solid equivalent of 10% blue on #16132a */
-    --brand1-25: #25234d;
-    --teal-10: #182a35;   /* Solid equivalent of 10% teal on #16132a */
-    --teal-25: #1c3d42;
-    --amber-10: #2d2625;  /* Solid equivalent of 10% amber on #16132a */
-    --amber-25: #473a2a;
-    --danger-10: #2c1a2e; /* Solid equivalent of 10% red on #16132a */
-    --danger-25: #451f2d;
-    --violet-25: #2d285a;
-
-    --pink-10: #2d1a2a;
-    --pink-25: #451f38;
-    --teal-10: #182a2a;
-    --teal-25: #1c3d3d;
-    --amber-10: #2a251a;
-    --amber-25: #423a1c;
-  }
-
-  /* --- Profile Dark Mode Overrides --- */
-  .dark .profile-page-title { color: var(--text); }
-  .dark .profile-page-subtitle { color: var(--text-mid); }
-  .dark .profile-card { 
-    background: var(--card-bg); 
-    border: 1px solid var(--card-border);
-    box-shadow: var(--shadow);
-  }
-  .dark .profile-avatar-name { color: var(--text); }
-  .dark .profile-avatar-email { color: var(--text-mid); }
-  .dark .profile-avatar-org { color: var(--text-light); }
-  .dark .profile-field-label { color: var(--text-mid); }
-  .dark .profile-field-input { 
-    background: var(--input-bg); 
-    border-color: var(--input-border); 
-    color: var(--text);
-  }
-  .dark .profile-field-input:focus { border-color: var(--violet); }
-  .dark .profile-field-readonly { 
-    background: var(--bg2); 
-    border-color: var(--card-border);
-    color: var(--text-light);
-  }
-  .dark .profile-role-badge { 
-    background: var(--brand1-10); 
-    color: var(--text-mid);
-    border: 1px solid var(--brand1-25);
-  }
-  .dark .avatar-delete-link { color: #f87171; }
-  .dark .profile-section-label { color: var(--text-light); }
-  .dark .profile-avatar { border: 2px solid var(--card-border); }
-  .dark .skeleton-avatar, .dark .skeleton-line { background: var(--bg2); }
-
-
   *,
   *::before,
   *::after {
@@ -230,11 +136,6 @@
     box-shadow: 0 8px 40px rgba(108, 71, 255, 0.10);
   }
 
-  .dark .glass-nav {
-    background: var(--topbar-bg);
-    border-color: var(--border);
-  }
-
   /* Gradient text violet → pink */
   .grad-text {
     background: linear-gradient(135deg, var(--violet), var(--pink));
@@ -281,57 +182,6 @@
   }
 
   /* Animated background blobs */
-  .blob-bg {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .blob-bg .blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(90px);
-    opacity: var(--blob-op, 0.5);
-    will-change: transform;
-  }
-
-  .blob-bg .blob-1 {
-    width: 700px;
-    height: 700px;
-    background: radial-gradient(circle, rgba(139, 107, 255, 0.5), rgba(108, 71, 255, 0.2));
-    top: -250px;
-    right: -200px;
-    animation: driftA 12s ease-in-out infinite alternate;
-  }
-
-  .blob-bg .blob-2 {
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(255, 107, 198, 0.4), rgba(255, 157, 215, 0.1));
-    bottom: -150px;
-    left: -200px;
-    animation: driftB 15s ease-in-out infinite alternate;
-  }
-
-  .blob-bg .blob-3 {
-    width: 450px;
-    height: 450px;
-    background: radial-gradient(circle, rgba(0, 212, 200, 0.35), rgba(94, 234, 212, 0.1));
-    top: 35%;
-    left: 25%;
-    animation: driftC 10s ease-in-out infinite alternate;
-  }
-
-  .blob-bg .blob-4 {
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(251, 191, 36, 0.2), transparent);
-    top: 60%;
-    right: 15%;
-    animation: driftA 18s ease-in-out infinite alternate-reverse;
-  }
 
   /* Primary gradient button */
   .btn-primary-gradient {
@@ -340,7 +190,7 @@
     color: white;
     border: none;
     border-radius: var(--radius-sm);
-    font-family: 'Poppins', sans-serif;
+    font-family: var(--hb-f-body);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -363,7 +213,7 @@
     color: var(--text);
     border: 1px solid var(--glass-border-soft);
     border-radius: var(--radius-sm);
-    font-family: 'Poppins', sans-serif;
+    font-family: var(--hb-f-body);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -406,12 +256,6 @@
     box-shadow: 0 4px 20px rgba(108, 71, 255, 0.12);
   }
 
-  .dark .nav-item.active {
-    background: var(--sb-active);
-    color: var(--violet);
-    border: 1px solid var(--border);
-  }
-
   .app-modal-root {
     position: fixed;
     inset: 0;
@@ -435,10 +279,6 @@
     -webkit-backdrop-filter: blur(6px) saturate(120%);
   }
 
-  .dark .app-modal-backdrop {
-    background: rgba(0, 0, 0, 0.58);
-  }
-
   @media (min-width: 1024px) {
     .app-modal-pane {
       left: 15rem;
@@ -451,7 +291,7 @@
     padding: 10px 14px;
     border-radius: 10px;
     border: 1.5px solid var(--input-border);
-    font-family: 'Poppins', sans-serif;
+    font-family: var(--hb-f-body);
     font-size: 13px;
     color: var(--text);
     background: var(--kpi-bg);
@@ -750,10 +590,6 @@
   animation: orbit-spin 5s linear infinite;
 }
 
-.dark .logo-orbit-ring {
-  border-color: rgba(167, 139, 250, 0.3);
-}
-
 .logo-orbit-ring::after {
   content: '';
   position: absolute;
@@ -788,7 +624,7 @@
 }
 
 .logo-wordmark {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--hb-f-display);
   font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.6px;
@@ -807,27 +643,15 @@
   display: block;
 }
 
+/* Two wordmark files ship, one drawn for a light ground and one for a dark one.
+   Hybent is light-only, so only the dark-ink mark is ever shown and the ten
+   `[data-theme="dark"]` selectors that used to swap them are gone. Both classes
+   are kept so the markup that emits them does not have to change. */
 .wordmark-image.wordmark-light {
   display: none !important;
 }
 .wordmark-image.wordmark-dark {
   display: block !important;
-}
-
-:root[data-theme="dark"] .wordmark-image.wordmark-light,
-.dark .wordmark-image.wordmark-light,
-.dark-theme .wordmark-image.wordmark-light,
-.portal-root.dark .wordmark-image.wordmark-light,
-[data-theme="dark"] .wordmark-image.wordmark-light {
-  display: block !important;
-}
-
-:root[data-theme="dark"] .wordmark-image.wordmark-dark,
-.dark .wordmark-image.wordmark-dark,
-.dark-theme .wordmark-image.wordmark-dark,
-.portal-root.dark .wordmark-image.wordmark-dark,
-[data-theme="dark"] .wordmark-image.wordmark-dark {
-  display: none !important;
 }
 
 .sb-header {
@@ -1149,18 +973,11 @@
 .profile-avatar-readonly:hover { opacity: 1 !important; }
 .profile-avatar-readonly .profile-avatar-overlay { display: none !important; }
 
-/* Enforce Poppins 400/700 for all portal routes */
-.recruiter-root,
-.interviewer-root,
-.portal-root {
-  font-family: 'Poppins', sans-serif !important;
-}
-
-.recruiter-root *,
-.interviewer-root *,
-.portal-root * {
-  font-family: 'Poppins', sans-serif !important;
-}
+/* The `.recruiter-root` / `.interviewer-root` / `.portal-root` wrappers went
+   with the legacy shells in phase 10, so the `font-family: Poppins !important`
+   block that used to sit here applied to nothing. It is gone: the product now
+   inherits the Hybent ramp (Sora display, Manrope body, IBM Plex Mono) from
+   `.hb-app`, which is what made the workspace type finally match the site. */
 
 /* Ensure strong/b tags are 700 and normal text is 400 */
 .recruiter-root strong, .recruiter-root b,
