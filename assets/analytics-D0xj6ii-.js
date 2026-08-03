@@ -1,0 +1,1 @@
+import e from"./axios-nVEBJLxC.js";const r={overview:()=>e.get("/v1/analytics/overview"),funnel:i=>e.get("/v1/analytics/funnel",{params:i?{job_id:i}:{}}),scoreDistribution:()=>e.get("/v1/analytics/score-distribution"),interviewerPerformance:()=>e.get("/v1/analytics/interviewer-performance"),fairness:()=>e.get("/v1/analytics/fairness")};export{r as a};
