@@ -1,0 +1,5 @@
+import{j as r}from"./vendor-utils-nviLaDDJ.js";import{r as n}from"./vendor-react-DrKgErkG.js";import{u as m,g as t,b as g,S as h}from"./index-CFSIeOPH.js";function j({as:a="h2",children:c,className:l="",id:p,style:u,...d}){const s=n.useRef(null);return m(()=>{const e=s.current;if(!e)return;const o=t.matchMedia();o.add("(prefers-reduced-motion: reduce)",()=>{t.set(e,{opacity:1})}),o.add("(prefers-reduced-motion: no-preference)",()=>{t.set(e,{opacity:1});const f=g.create(e,{type:"lines",mask:"lines",autoSplit:!0,onSplit:i=>{if(!(!i.lines||i.lines.length===0))return t.from(i.lines,{yPercent:100,opacity:0,duration:.9,stagger:.12,ease:"power3.out",scrollTrigger:{trigger:e,start:"top 85%",once:!0}})}});return()=>{f.revert()}})},{scope:s}),n.useEffect(()=>{"fonts"in document&&document.fonts.ready.then(()=>{h.refresh()})},[]),r.jsxs(r.Fragment,{children:[r.jsx("noscript",{children:r.jsx("style",{children:`
+          .split-heading-flash-guard {
+            opacity: 1 !important;
+          }
+        `})}),r.jsx(a,{ref:s,id:p,className:`split-heading-flash-guard ${l}`.trim(),style:{opacity:0,...u},...d,children:c})]})}export{j as S};
