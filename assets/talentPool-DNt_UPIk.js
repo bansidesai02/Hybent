@@ -1,1 +1,0 @@
-import t from"./axios-D7h2Vp3d.js";const l={list:e=>t.get("/v1/talent-pool",{params:e}),addTag:(e,a)=>t.post(`/v1/talent-pool/${e}/tag`,null,{params:{tag:a}}),getStats:()=>t.get("/v1/talent-pool/stats"),getSuggestedMatches:()=>t.get("/v1/talent-pool/suggested-matches")};export{l as t};
