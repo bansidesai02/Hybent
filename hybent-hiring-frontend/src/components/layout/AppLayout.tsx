@@ -5,6 +5,8 @@ import { GlobalNav } from './GlobalNav'
 import { GlobalFooter } from './GlobalFooter'
 import { SiteSvgDefs } from './SiteSvgDefs'
 
+import { CookieBanner } from './CookieBanner'
+
 import { HybentChatbot } from '@/components/chatbot/HybentChatbot'
 import { ROUTE_META } from '@/app/routeMeta'
 import '@/styles/hybent-site.css'
@@ -104,6 +106,7 @@ export default function AppLayout() {
       </main>
       <GlobalFooter />
       <HybentChatbot />
+      <CookieBanner />
     </div>
   )
 }

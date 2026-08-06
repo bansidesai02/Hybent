@@ -80,4 +80,9 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     description:
       'Learn how Hybent collects, uses, protects, and handles personal information across our AI-powered products, website, and IT services.',
   },
+  cookies: {
+    title: 'Cookie Policy | HYBENT — Transparency & Cookie Governance',
+    description:
+      'Learn how HYBENT uses cookies and tracking technologies to enhance user experience, deliver AI features, and analyze site performance.',
+  },
 }

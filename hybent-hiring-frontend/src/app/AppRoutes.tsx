@@ -23,6 +23,7 @@ const FaqPage = lazy(() => import('@/modules/site/pages/FaqPage'))
 const CareersPage = lazy(() => import('@/modules/site/pages/CareersPage'))
 const ContactPage = lazy(() => import('@/modules/site/pages/ContactPage'))
 const PrivacyPage = lazy(() => import('@/modules/site/pages/PrivacyPage'))
+const CookiesPage = lazy(() => import('@/modules/site/pages/CookiesPage'))
 
 /* ── Products living inside the company site ──────────────────────────────── */
 const HiringHomePage = lazy(() => import('@/modules/hiring/pages/HiringHomePage'))
@@ -106,6 +107,7 @@ export default function AppRoutes() {
         <Route path="/privacy/:section?" element={<PrivacyPage />} />
         <Route path="/terms/:section?" element={<PrivacyPage />} />
         <Route path="/privacy-terms/:section?" element={<PrivacyPage />} />
+        <Route path="/cookies/:section?" element={<CookiesPage />} />
       </Route>
 
       {/* ── Authentication: full-bleed, no marketing chrome ── */}
