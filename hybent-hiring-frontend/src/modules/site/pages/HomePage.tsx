@@ -174,60 +174,96 @@ export default function HomePage() {
             <p className="lead">From the second a resume lands to the moment an offer is signed, the work that used to take weeks happens automatically with AI precision.</p>
           </div>
 
-          <div className="grid g2">
-            <article className="card" data-rv="up" data-delay="0">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* ── Card 1 ── */}
+            <article className="card stack-card" style={{ position: 'sticky', top: '108px', zIndex: 2, background: '#ffffff', padding: '32px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', border: '1px solid rgba(108,71,255,0.1)' }} data-rv="up">
               <div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
-              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-ai" /></svg></span>
-              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 01 — Intake</p>
-              <h3 className="h-sm">AI Resume Intelligence &amp; Parsing</h3>
-              <p className="small" style={{ marginTop: '10px' }}>The moment a candidate uploads a CV, our AI parses the document in under 10 seconds. It extracts explicit skills, infers hidden competencies from context, calculates experience years, and determines seniority level.</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className="icon-tile"><svg aria-hidden="true"><use href="#i-ai" /></svg></span>
+                  <div>
+                    <p className="mono" style={{ color: 'var(--cyan)', margin: 0, fontSize: '0.85rem' }}>Phase 01 — Intake</p>
+                    <h3 className="h-sm" style={{ margin: '4px 0 0' }}>AI Resume Intelligence &amp; Parsing</h3>
+                  </div>
+                </div>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)', fontWeight: 600 }}>~10 seconds parse</span>
+              </div>
+              <p className="small" style={{ marginTop: '16px', fontSize: '0.98rem', lineHeight: '1.6' }}>The moment a candidate uploads a CV, our AI parses the document in under 10 seconds. It extracts explicit skills, infers hidden competencies from context, calculates experience years, and determines seniority level automatically.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '20px' }}>
                 <span className="chip">Skill extraction</span>
                 <span className="chip">Experience calc</span>
                 <span className="chip">Seniority detection</span>
-                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>~10 seconds</span>
+                <span className="chip">PDF &amp; DOCX Support</span>
+                <span className="chip">Contextual Skill Inference</span>
               </div>
             </article>
 
-            <article className="card" data-rv="up" data-delay="80">
+            {/* ── Card 2 ── */}
+            <article className="card stack-card" style={{ position: 'sticky', top: '108px', zIndex: 3, background: '#ffffff', padding: '32px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', border: '1px solid rgba(108,71,255,0.1)' }} data-rv="up">
               <div className="card__glow" style={{ top: "-40px", right: "-40px" }}></div>
-              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-target" /></svg></span>
-              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 02 — Scoring</p>
-              <h3 className="h-sm">Smart Auto-Shortlisting</h3>
-              <p className="small" style={{ marginTop: '10px' }}>Candidate profiles are scored against job rubrics. When an applicant passes the threshold, they are automatically shortlisted, status is updated, HR is notified, and status emails trigger — with zero human lag.</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className="icon-tile"><svg aria-hidden="true"><use href="#i-target" /></svg></span>
+                  <div>
+                    <p className="mono" style={{ color: 'var(--cyan)', margin: 0, fontSize: '0.85rem' }}>Phase 02 — Scoring</p>
+                    <h3 className="h-sm" style={{ margin: '4px 0 0' }}>Smart Auto-Shortlisting</h3>
+                  </div>
+                </div>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)', fontWeight: 600 }}>Fully Automated</span>
+              </div>
+              <p className="small" style={{ marginTop: '16px', fontSize: '0.98rem', lineHeight: '1.6' }}>Candidate profiles are scored against job rubrics. When an applicant passes the threshold, they are automatically shortlisted, status is updated, HR is notified, and status emails trigger — with zero human lag.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '20px' }}>
                 <span className="chip">Match scoring</span>
                 <span className="chip">Auto-shortlist</span>
                 <span className="chip">HR notification</span>
-                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>Fully automated</span>
+                <span className="chip">Rubric Matching</span>
+                <span className="chip">Instant Candidate Email</span>
               </div>
             </article>
 
-            <article className="card" data-rv="up" data-delay="160">
+            {/* ── Card 3 ── */}
+            <article className="card stack-card" style={{ position: 'sticky', top: '108px', zIndex: 4, background: '#ffffff', padding: '32px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', border: '1px solid rgba(108,71,255,0.1)' }} data-rv="up">
               <div className="card__glow" style={{ bottom: "-40px", left: "-40px" }}></div>
-              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-zap" /></svg></span>
-              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 03 — Scheduling</p>
-              <h3 className="h-sm">Conflict-Free Scheduling</h3>
-              <p className="small" style={{ marginTop: '10px' }}>One click cross-references candidate availability and interviewer calendars. It selects optimal slots, generates Google Meet links, and dispatches invites without endless back-and-forth emails.</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className="icon-tile"><svg aria-hidden="true"><use href="#i-zap" /></svg></span>
+                  <div>
+                    <p className="mono" style={{ color: 'var(--cyan)', margin: 0, fontSize: '0.85rem' }}>Phase 03 — Scheduling</p>
+                    <h3 className="h-sm" style={{ margin: '4px 0 0' }}>Conflict-Free Scheduling</h3>
+                  </div>
+                </div>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)', fontWeight: 600 }}>30 seconds</span>
+              </div>
+              <p className="small" style={{ marginTop: '16px', fontSize: '0.98rem', lineHeight: '1.6' }}>One click cross-references candidate availability and interviewer calendars. It selects optimal slots, generates Google Meet links, and dispatches invites without endless back-and-forth emails.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '20px' }}>
                 <span className="chip">Slot matching</span>
                 <span className="chip">Conflict detection</span>
                 <span className="chip">Google Meet link</span>
-                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>30 seconds</span>
+                <span className="chip">Calendar Sync</span>
+                <span className="chip">Auto-Reschedule</span>
               </div>
             </article>
 
-            <article className="card" data-rv="up" data-delay="240">
+            {/* ── Card 4 ── */}
+            <article className="card stack-card" style={{ position: 'sticky', top: '108px', zIndex: 5, background: '#ffffff', padding: '32px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', border: '1px solid rgba(108,71,255,0.1)' }} data-rv="up">
               <div className="card__glow" style={{ bottom: "-40px", right: "-40px" }}></div>
-              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-build" /></svg></span>
-              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 04 — Decision</p>
-              <h3 className="h-sm">Interview Intelligence &amp; Hiring</h3>
-              <p className="small" style={{ marginTop: '10px' }}>Post-interview feedback is analyzed by AI to surface hiring recommendations and update win probabilities. Profiles are index-saved into your permanent, searchable talent database.</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className="icon-tile"><svg aria-hidden="true"><use href="#i-build" /></svg></span>
+                  <div>
+                    <p className="mono" style={{ color: 'var(--cyan)', margin: 0, fontSize: '0.85rem' }}>Phase 04 — Decision</p>
+                    <h3 className="h-sm" style={{ margin: '4px 0 0' }}>Interview Intelligence &amp; Hiring</h3>
+                  </div>
+                </div>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)', fontWeight: 600 }}>AI recommendation</span>
+              </div>
+              <p className="small" style={{ marginTop: '16px', fontSize: '0.98rem', lineHeight: '1.6' }}>Post-interview feedback is analyzed by AI to surface hiring recommendations and update win probabilities. Profiles are index-saved into your permanent, searchable talent database.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '20px' }}>
                 <span className="chip">Feedback analysis</span>
                 <span className="chip">Hire probability</span>
                 <span className="chip">Talent database</span>
-                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>AI recommendation</span>
+                <span className="chip">Bias Detection</span>
+                <span className="chip">Score Aggregation</span>
               </div>
             </article>
           </div>
