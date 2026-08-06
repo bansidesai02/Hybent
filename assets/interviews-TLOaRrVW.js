@@ -1,1 +1,0 @@
-import i from"./axios-DUqrRoFL.js";const s={list:()=>i.get("/v1/interviews"),create:e=>i.post("/v1/interviews",e),get:e=>i.get(`/v1/interviews/${e}`),update:(e,t)=>i.put(`/v1/interviews/${e}`,t),cancel:(e,t)=>i.delete(`/v1/interviews/${e}`,{params:{reason:t}}),confirm:e=>i.post(`/v1/interviews/${e}/confirm`)};export{s as i};
