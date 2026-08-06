@@ -235,7 +235,7 @@ export function CookieBanner() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 marginBottom: '16px',
                 paddingBottom: '14px',
                 borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
@@ -279,7 +279,7 @@ export function CookieBanner() {
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   gap: '16px',
                   padding: '14px 18px',
                   borderRadius: '14px',
@@ -316,7 +316,7 @@ export function CookieBanner() {
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   gap: '16px',
                   padding: '14px 18px',
                   borderRadius: '14px',
@@ -371,7 +371,7 @@ export function CookieBanner() {
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   gap: '16px',
                   padding: '14px 18px',
                   borderRadius: '14px',
