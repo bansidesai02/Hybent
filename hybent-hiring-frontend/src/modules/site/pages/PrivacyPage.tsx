@@ -1,9 +1,21 @@
 import { useState, useEffect } from 'react'
 import { SiteView } from '../components/SiteView'
 
+/* ─── sticky-stacking helper ─────────────────────────────────── */
+const stickyCard = (index: number): React.CSSProperties => ({
+  position: 'sticky',
+  top: `${108 + index * 10}px`,
+  zIndex: index + 2,
+  marginBottom: '12px',
+  transition: 'transform 0.45s cubic-bezier(0.22,1,0.36,1), filter 0.45s ease',
+  transformOrigin: 'top center',
+  willChange: 'transform, filter',
+})
+
 export default function PrivacyPage() {
   const [activeSection, setActiveSection] = useState('introduction')
 
+  /* ── Table-of-contents scroll tracker ──────────────────────── */
   useEffect(() => {
     const handleScroll = () => {
       const sections = [
@@ -40,6 +52,38 @@ export default function PrivacyPage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  /* ── Stacking-cards scroll animation ───────────────────────── */
+  useEffect(() => {
+    const update = () => {
+      const cards = document.querySelectorAll<HTMLElement>('.stack-card')
+      cards.forEach((card, i) => {
+        const rect = card.getBoundingClientRect()
+        const stickyTop = 108 + i * 10
+
+        if (rect.top <= stickyTop + 2) {
+          // Count how many cards below this one are ALSO stuck
+          let coveredBy = 0
+          for (let j = i + 1; j < cards.length; j++) {
+            const jr = cards[j].getBoundingClientRect()
+            const jTop = 108 + j * 10
+            if (jr.top <= jTop + 2) coveredBy++
+          }
+          const scale  = Math.max(0.88, 1 - coveredBy * 0.025)
+          const bright = Math.max(0.65, 1 - coveredBy * 0.09)
+          card.style.transform = `scale(${scale})`
+          card.style.filter    = `brightness(${bright})`
+        } else {
+          card.style.transform = ''
+          card.style.filter    = ''
+        }
+      })
+    }
+
+    window.addEventListener('scroll', update, { passive: true })
+    update() // run once on mount
+    return () => window.removeEventListener('scroll', update)
+  }, [])
+
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)
     if (el) {
@@ -50,19 +94,19 @@ export default function PrivacyPage() {
   }
 
   const tocItems = [
-    { id: 'introduction', label: '1. Introduction' },
+    { id: 'introduction',           label: '1. Introduction' },
     { id: 'information-we-collect', label: '2. Information We Collect' },
     { id: 'how-we-use-information', label: '3. How We Use Information' },
-    { id: 'cookies', label: '4. Cookies & Tracking' },
-    { id: 'information-sharing', label: '5. Information Sharing' },
-    { id: 'data-security', label: '6. Data Security' },
-    { id: 'data-retention', label: '7. Data Retention' },
-    { id: 'your-privacy-rights', label: '8. Your Privacy Rights' },
-    { id: 'third-party-services', label: '9. Third-Party Services' },
-    { id: 'ai-recruitment-data', label: '10. AI & Recruitment Data' },
-    { id: 'childrens-privacy', label: '11. Children\'s Privacy' },
-    { id: 'policy-updates', label: '12. Updates to Policy' },
-    { id: 'contact-us', label: '13. Contact Us' },
+    { id: 'cookies',                label: '4. Cookies & Tracking' },
+    { id: 'information-sharing',    label: '5. Information Sharing' },
+    { id: 'data-security',          label: '6. Data Security' },
+    { id: 'data-retention',         label: '7. Data Retention' },
+    { id: 'your-privacy-rights',    label: '8. Your Privacy Rights' },
+    { id: 'third-party-services',   label: '9. Third-Party Services' },
+    { id: 'ai-recruitment-data',    label: '10. AI & Recruitment Data' },
+    { id: 'childrens-privacy',      label: "11. Children's Privacy" },
+    { id: 'policy-updates',         label: '12. Updates to Policy' },
+    { id: 'contact-us',             label: '13. Contact Us' },
   ]
 
   return (
@@ -113,12 +157,13 @@ export default function PrivacyPage() {
       <section className="section" style={{ paddingTop: '1rem', paddingBottom: '5rem' }}>
         <div className="wrap" style={{ maxWidth: '1140px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 260px) minmax(0, 1fr)', gap: '48px', alignItems: 'start' }}>
-            
+
             {/* Table of Contents - Sticky sidebar */}
             <aside
               style={{
                 position: 'sticky',
                 top: '100px',
+                zIndex: 1,
                 background: '#ffffff',
                 border: '1px solid var(--border, #e5e7eb)',
                 borderRadius: '16px',
@@ -157,18 +202,20 @@ export default function PrivacyPage() {
               </nav>
             </aside>
 
-            {/* Document Content */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {/* Document Content — cards stack as you scroll */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
 
               {/* Section 1: Introduction */}
               <article
                 id="introduction"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(0),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -192,12 +239,14 @@ export default function PrivacyPage() {
               {/* Section 2: Information We Collect */}
               <article
                 id="information-we-collect"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(1),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -250,12 +299,14 @@ export default function PrivacyPage() {
               {/* Section 3: How We Use Your Information */}
               <article
                 id="how-we-use-information"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(2),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -289,12 +340,14 @@ export default function PrivacyPage() {
               {/* Section 4: Cookies */}
               <article
                 id="cookies"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(3),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -328,12 +381,14 @@ export default function PrivacyPage() {
               {/* Section 5: Information Sharing */}
               <article
                 id="information-sharing"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(4),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -372,12 +427,14 @@ export default function PrivacyPage() {
               {/* Section 6: Data Security */}
               <article
                 id="data-security"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(5),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -425,12 +482,14 @@ export default function PrivacyPage() {
               {/* Section 7: Data Retention */}
               <article
                 id="data-retention"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(6),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -451,12 +510,14 @@ export default function PrivacyPage() {
               {/* Section 8: Your Privacy Rights */}
               <article
                 id="your-privacy-rights"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(7),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -497,12 +558,14 @@ export default function PrivacyPage() {
               {/* Section 9: Third-Party Services */}
               <article
                 id="third-party-services"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(8),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -528,12 +591,14 @@ export default function PrivacyPage() {
               {/* Section 10: AI & Recruitment Data */}
               <article
                 id="ai-recruitment-data"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(9),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -553,7 +618,7 @@ export default function PrivacyPage() {
                   </h4>
                   <ul style={{ margin: 0, paddingLeft: '20px', color: '#374151', lineHeight: 1.6, fontSize: '0.92rem' }}>
                     <li style={{ marginBottom: '8px' }}>
-                      <strong>No Unauthorized AI Model Training:</strong> Your organization’s data, candidate resumes, and evaluation notes are <strong>never used to train public or unauthorized AI models</strong> shared across customers.
+                      <strong>No Unauthorized AI Model Training:</strong> Your organization's data, candidate resumes, and evaluation notes are <strong>never used to train public or unauthorized AI models</strong> shared across customers.
                     </li>
                     <li style={{ marginBottom: '8px' }}>
                       <strong>Explainable AI Assistance:</strong> AI screening scores, resume parsing summaries, and matching recommendations always expose their underlying evidence and rationale.
@@ -568,12 +633,14 @@ export default function PrivacyPage() {
               {/* Section 11: Children's Privacy */}
               <article
                 id="childrens-privacy"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(10),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -591,12 +658,14 @@ export default function PrivacyPage() {
               {/* Section 12: Updates to Policy */}
               <article
                 id="policy-updates"
+                className="stack-card"
                 style={{
                   background: '#ffffff',
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: '16px',
                   padding: '36px',
                   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.02)',
+                  ...stickyCard(11),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -614,12 +683,14 @@ export default function PrivacyPage() {
               {/* Section 13: Contact Us */}
               <article
                 id="contact-us"
+                className="stack-card"
                 style={{
                   background: 'linear-gradient(135deg, #1a1040 0%, #0f0926 100%)',
                   borderRadius: '20px',
                   padding: '40px',
                   color: '#ffffff',
                   boxShadow: '0 12px 40px rgba(26, 16, 64, 0.2)',
+                  ...stickyCard(12),
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
