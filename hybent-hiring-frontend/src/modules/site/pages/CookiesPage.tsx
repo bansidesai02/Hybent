@@ -68,17 +68,6 @@ export default function CookiesPage() {
               <span className="bars"><i /><i /><i /></span>
               <span>Cookie Policy</span>
             </p>
-            <span
-              className="chip"
-              style={{
-                background: 'rgba(108, 71, 255, 0.1)',
-                color: 'var(--violet, #6c47ff)',
-                fontWeight: 600,
-                fontSize: '0.78rem',
-              }}
-            >
-              Last Updated: August 6, 2026
-            </span>
           </div>
 
           <h1
