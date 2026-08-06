@@ -1,1 +1,0 @@
-import{e,r as n}from"./vendor-react-Dq7nlNew.js";const s={hiring:"Hybent Hiring"};function c(){const[r]=e(),t=r.get("product");return n.useMemo(()=>{const o=(t==null?void 0:t.toLowerCase().trim())||null;return{key:o,label:o?s[o]:void 0}},[t])}function a(r,t){return t?`${r}?product=${encodeURIComponent(t)}`:r}export{c as u,a as w};
