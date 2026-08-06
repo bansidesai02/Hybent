@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react'
 import { SiteView } from '../components/SiteView'
 
 /* ─── sticky-stacking helper ─────────────────────────────────── */
+// All cards share the same top so each new card fully covers the previous one.
+// zIndex increases so later cards always sit on top.
 const stickyCard = (index: number): React.CSSProperties => ({
   position: 'sticky',
-  top: `${108 + index * 10}px`,
+  top: '108px',
   zIndex: index + 2,
   marginBottom: '12px',
-  transition: 'transform 0.45s cubic-bezier(0.22,1,0.36,1), filter 0.45s ease',
-  transformOrigin: 'top center',
-  willChange: 'transform, filter',
 })
 
 export default function PrivacyPage() {
@@ -52,37 +51,6 @@ export default function PrivacyPage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  /* ── Stacking-cards scroll animation ───────────────────────── */
-  useEffect(() => {
-    const update = () => {
-      const cards = document.querySelectorAll<HTMLElement>('.stack-card')
-      cards.forEach((card, i) => {
-        const rect = card.getBoundingClientRect()
-        const stickyTop = 108 + i * 10
-
-        if (rect.top <= stickyTop + 2) {
-          // Count how many cards below this one are ALSO stuck
-          let coveredBy = 0
-          for (let j = i + 1; j < cards.length; j++) {
-            const jr = cards[j].getBoundingClientRect()
-            const jTop = 108 + j * 10
-            if (jr.top <= jTop + 2) coveredBy++
-          }
-          const scale  = Math.max(0.88, 1 - coveredBy * 0.025)
-          const bright = Math.max(0.65, 1 - coveredBy * 0.09)
-          card.style.transform = `scale(${scale})`
-          card.style.filter    = `brightness(${bright})`
-        } else {
-          card.style.transform = ''
-          card.style.filter    = ''
-        }
-      })
-    }
-
-    window.addEventListener('scroll', update, { passive: true })
-    update() // run once on mount
-    return () => window.removeEventListener('scroll', update)
-  }, [])
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)
