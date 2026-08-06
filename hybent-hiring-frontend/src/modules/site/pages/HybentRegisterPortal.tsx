@@ -33,12 +33,16 @@ export type HybentRegisterPortalProps = {
   onSubmit?: (values: HybentRegisterValues) => Promise<void> | void
   onGoogleSignUp?: () => Promise<void> | void
   onSignIn?: () => void
+  externalError?: string | null
+  externalGoogleLoading?: boolean
 }
 
 export default function HybentRegisterPortal({
   onSubmit,
   onGoogleSignUp,
   onSignIn,
+  externalError,
+  externalGoogleLoading = false,
 }: HybentRegisterPortalProps) {
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -52,6 +56,9 @@ export default function HybentRegisterPortal({
   const [googleLoading, setGoogleLoading] = useState(false)
   const [formError, setFormError] = useState('')
   const [done, setDone] = useState(false)
+
+  const activeGoogleLoading = googleLoading || externalGoogleLoading
+  const activeError = externalError || formError
 
   const nameError = fullName.trim().length < 2 ? 'Enter your full name.' : ''
   const emailError = !email.trim()
@@ -95,7 +102,7 @@ export default function HybentRegisterPortal({
     }
   }
 
-  const busy = loading || googleLoading
+  const busy = loading || activeGoogleLoading
   const product = useAuthProduct()
 
   if (done) {
@@ -129,10 +136,10 @@ export default function HybentRegisterPortal({
       subtitle={product.label ? `Get started with ${product.label}` : 'Start building on Hybent'}
       wide
     >
-      {formError && (
+      {activeError && (
         <p className="hlp-alert" role="alert">
           <span className="hlp-alert__icon"><AlertIcon /></span>
-          {formError}
+          {activeError}
         </p>
       )}
 

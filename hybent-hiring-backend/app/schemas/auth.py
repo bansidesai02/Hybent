@@ -32,6 +32,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    id_token: str | None = None
+    token: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -52,6 +57,8 @@ class UserOut(OrmSchema):
     avatar_url: str | None = None
     phone: str | None = None
     recovery_email: str | None = None
+    provider: str = "email"
+    google_id: str | None = None
     is_active: bool
     is_calendar_connected: bool = False
     candidate_id: str | None = None

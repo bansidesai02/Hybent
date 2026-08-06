@@ -74,10 +74,10 @@ async def seed():
 
         # 2. Users (Ensure they exist)
         users_data = [
-            {"email": "admin@brainerhub.com", "name": "Admin", "role": UserRole.ADMIN},
-            {"email": "recruiter@brainerhub.com", "name": "Bob Recruiter", "role": UserRole.RECRUITER},
-            {"email": "interviewer@brainerhub.com", "name": "Carol Interviewer", "role": UserRole.INTERVIEWER},
-            {"email": "interviewer2@brainerhub.com", "name": "Dan Techie", "role": UserRole.INTERVIEWER},
+            {"email": "admin@hybent.com", "name": "Admin", "role": UserRole.ADMIN},
+            {"email": "recruiter@hybent.com", "name": "Bob Recruiter", "role": UserRole.RECRUITER},
+            {"email": "interviewer@hybent.com", "name": "Carol Interviewer", "role": UserRole.INTERVIEWER},
+            {"email": "interviewer2@hybent.com", "name": "Dan Techie", "role": UserRole.INTERVIEWER},
         ]
         
         users = {}
@@ -128,7 +128,7 @@ async def seed():
         for jd in jobs_data:
             j = Job(
                 organization_id=org_id,
-                created_by_id=users["recruiter@brainerhub.com"],
+                created_by_id=users["recruiter@hybent.com"],
                 title=jd["title"],
                 job_type=jd["type"],
                 experience_level=jd["exp"],
@@ -247,54 +247,54 @@ async def seed():
             if cd["name"] == "Aditya Rola":
                 intv = Interview(
                     organization_id=org_id, candidate_id=c.id, application_id=app.id,
-                    scheduled_by_id=users["recruiter@brainerhub.com"],
+                    scheduled_by_id=users["recruiter@hybent.com"],
                     title="Technical Round 1", interview_type=InterviewType.VIDEO,
                     status=InterviewStatus.SCHEDULED, scheduled_at=future(hours=2),
                     duration_minutes=60, meeting_link="https://meet.google.com/abc-defg-hij"
                 )
                 db.add(intv)
                 await db.flush()
-                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@brainerhub.com"], role="Primary Interviewer"))
+                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@hybent.com"], role="Primary Interviewer"))
                 
             if cd["name"] == "Akash Patil":
                 intv = Interview(
                     organization_id=org_id, candidate_id=c.id, application_id=app.id,
-                    scheduled_by_id=users["recruiter@brainerhub.com"],
+                    scheduled_by_id=users["recruiter@hybent.com"],
                     title="Code Review Session", interview_type=InterviewType.VIDEO,
                     status=InterviewStatus.SCHEDULED, scheduled_at=future(hours=5),
                     duration_minutes=45, meeting_link="https://meet.google.com/xyz-pqrs-tuv"
                 )
                 db.add(intv)
                 await db.flush()
-                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@brainerhub.com"], role="Interviewer"))
+                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@hybent.com"], role="Interviewer"))
 
             if cd["name"] == "Dimpal Hadiyal":
                 intv = Interview(
                     organization_id=org_id, candidate_id=c.id, application_id=app.id,
-                    scheduled_by_id=users["recruiter@brainerhub.com"],
+                    scheduled_by_id=users["recruiter@hybent.com"],
                     title="Culture Fit Interview", interview_type=InterviewType.VIDEO,
                     status=InterviewStatus.SCHEDULED, scheduled_at=future(days=1, hours=2),
                     duration_minutes=30
                 )
                 db.add(intv)
                 await db.flush()
-                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@brainerhub.com"], role="HR & Culture"))
+                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@hybent.com"], role="HR & Culture"))
             
             if cd["name"] == "Chintan Patel":
                 intv = Interview(
                     organization_id=org_id, candidate_id=c.id, application_id=app.id,
-                    scheduled_by_id=users["recruiter@brainerhub.com"],
+                    scheduled_by_id=users["recruiter@hybent.com"],
                     title="Python Deep Dive", interview_type=InterviewType.VIDEO,
                     status=InterviewStatus.COMPLETED, scheduled_at=ago(days=1, hours=4),
                     duration_minutes=90, notes="Strong GILe and async proficiency."
                 )
                 db.add(intv)
                 await db.flush()
-                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@brainerhub.com"], role="Lead Interviewer"))
+                db.add(InterviewPanelist(interview_id=intv.id, user_id=users["interviewer@hybent.com"], role="Lead Interviewer"))
                 
                 sc = Scorecard(
                     organization_id=org_id, application_id=app.id, interview_id=intv.id,
-                    submitted_by_id=users["interviewer@brainerhub.com"],
+                    submitted_by_id=users["interviewer@hybent.com"],
                     overall_rating=5, recommendation="strong_yes",
                     summary="Excellent technical skills. Very clear communicator."
                 )
@@ -302,7 +302,7 @@ async def seed():
 
         await db.commit()
         print(f"  ✓ Seeding Complete!")
-        print("\n🔐 Login as Interviewer: interviewer@brainerhub.com / password123\n")
+        print("\n🔐 Login as Interviewer: interviewer@hybent.com / password123\n")
 
 if __name__ == "__main__":
     asyncio.run(seed())

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -172,7 +172,7 @@ function JobDetailDialog({ job, onClose }: { job: Job; onClose: () => void }) {
       description={
         <span className="inline-flex flex-wrap items-center gap-2">
           <StatusPill status={job.status} />
-          <span>{job.is_remote ? 'Remote' : job.location || 'â€”'}</span>
+          <span>{job.is_remote ? 'Remote' : job.location || '—'}</span>
         </span>
       }
       footer={
@@ -215,7 +215,7 @@ function JobDetailDialog({ job, onClose }: { job: Job; onClose: () => void }) {
   )
 }
 
-/* â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* —— Page ——————————————————————————————————————————————————————————————————— */
 
 export default function JobsListPage() {
   const { basePath, user } = useAuth()
@@ -297,7 +297,7 @@ export default function JobsListPage() {
       header: 'Location',
       cell: (job) => (
         <span className="text-hb-muted">
-          {job.is_remote ? 'Remote' : job.location || 'â€”'}
+          {job.is_remote ? 'Remote' : job.location || '—'}
         </span>
       ),
     },
@@ -412,7 +412,7 @@ export default function JobsListPage() {
             setSearch(v)
             setPage(1)
           }}
-          placeholder="Search by title or locationâ€¦"
+          placeholder="Search by title or location..."
           aria-label="Search positions"
         />
         <FilterChips

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { GlobalNav } from './GlobalNav'
 import { GlobalFooter } from './GlobalFooter'
 import { SiteSvgDefs } from './SiteSvgDefs'
+
+import { HybentChatbot } from '@/components/chatbot/HybentChatbot'
 import { ROUTE_META } from '@/app/routeMeta'
 import '@/styles/hybent-site.css'
 
@@ -101,6 +103,7 @@ export default function AppLayout() {
         <Outlet />
       </main>
       <GlobalFooter />
+      <HybentChatbot />
     </div>
   )
 }

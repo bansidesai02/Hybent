@@ -1,4 +1,4 @@
-﻿import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useMessageStore } from '@/store/messageStore'
@@ -68,18 +68,18 @@ const s: Record<string, React.CSSProperties> = {
   loadingRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', color: 'rgb(var(--hb-muted))', fontSize: '14px' },
   micBtn: { background: 'rgb(var(--hb-surface-2))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-muted))', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0 },
   micBtnActive: { background: 'rgb(var(--hb-error) / .1)', border: '1px solid rgb(var(--hb-error))', color: 'rgb(var(--hb-error))', animation: 'micPulse 1.5s infinite ease-in-out' },
-  // Skill chips container â€” needs maxWidth to prevent overflow
+  // Skill chips container — needs maxWidth to prevent overflow
   skillsContainer: { display: 'flex', flexWrap: 'wrap' as const, gap: '4px', borderTop: '1px solid var(--hb-border)', paddingTop: '8px', maxWidth: '100%', overflow: 'hidden' },
 }
 
 const EXAMPLE_PROMPTS = [
-  { icon: 'ðŸ”', title: 'Search Talent', prompt: 'Show React developers with 3+ years experience' },
-  { icon: 'ðŸ“Š', title: 'Analytics', prompt: 'Give me a hiring overview' },
-  { icon: 'ðŸ“…', title: 'Interviews', prompt: "What interviews are scheduled today?" },
-  { icon: 'âš¡', title: 'Pipeline', prompt: 'Show candidates in technical round' },
+  { icon: '🔍', title: 'Search Talent', prompt: 'Show React developers with 3+ years experience' },
+  { icon: '📊', title: 'Analytics', prompt: 'Give me a hiring overview' },
+  { icon: '📅', title: 'Interviews', prompt: "What interviews are scheduled today?" },
+  { icon: '⚡', title: 'Pipeline', prompt: 'Show candidates in technical round' },
 ]
 
-// Stopwords for candidate name suggestions â€” intentionally EXCLUDES tech skill names
+// Stopwords for candidate name suggestions — intentionally EXCLUDES tech skill names
 // (react, python, etc.) so that "schedule interview for React developer Amit" suggests "Amit"
 const COPILOT_STOPWORDS = [
   // English common words
@@ -94,7 +94,7 @@ const COPILOT_STOPWORDS = [
   'you', 'your', 'yours', 'yourself', 'yourselves',
   // Conversational / Greetings
   'hello', 'hi', 'hey', 'please', 'thanks', 'thank', 'ok', 'okay', 'yes', 'no', 'yeah', 'yep',
-  // Recruiter filler words (NOT tech skills â€” those are search terms)
+  // Recruiter filler words (NOT tech skills — those are search terms)
   'candidate', 'candidates', 'profile', 'profiles', 'resume', 'resumes', 'cv',
   'job', 'jobs', 'vacancy', 'open', 'role', 'roles',
   'experience', 'exp', 'year', 'years', 'month', 'months',
@@ -117,7 +117,7 @@ const COPILOT_STOPWORDS = [
   'thaa', 'dhundo', 'nikalo', 'dikhao', 'db', 'show', 'find', 'list', 'search'
 ]
 
-// â”€â”€ SVG Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— SVG Icons —————————————————————————————————————————————————————————————
 const SendIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
 const TrashIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
 const CloseIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -128,7 +128,7 @@ const MaximizeIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill=
 const PlusIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 const MicIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
 
-// â”€â”€ Date grouping helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Date grouping helper —————————————————————————————————————————————————
 function groupConversationsByDate(convs: ConversationSummary[]) {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -169,7 +169,7 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
     .slice(0, 2)
     .toUpperCase()
 
-  /* The copilot's own statusâ†’colour map, the last of the fifty-six the audit
+  /* The copilot's own status→colour map, the last of the fifty-six the audit
      found. It now reads the same tokens `StatusPill` does, so a stage in a chat
      bubble matches the same stage in the candidates table. Kept local rather
      than swapped for `StatusPill` itself because the value arriving here is
@@ -199,7 +199,7 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
 
   /* Facts arrive from the model as pre-formatted strings, so they are listed
      rather than mapped to fields. The emoji they used to be prefixed with are
-     gone â€” lucide glyphs match the rest of the product and, unlike emoji, are
+     gone — lucide glyphs match the rest of the product and, unlike emoji, are
      not read aloud as "envelope" before every address. */
   const facts: Array<{ icon: React.ReactNode; value: string; truncate?: boolean }> = [
     candidate.email && { icon: <Mail size={12} aria-hidden />, value: candidate.email, truncate: true },
@@ -282,7 +282,7 @@ function fmtTime(iso: string) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-// â”€â”€ Main Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Main Widget ——————————————————————————————————————————————————————————
 export function CopilotWidget() {
   const {
     isOpen, toggle, close, isThinking, setThinking,
@@ -660,7 +660,7 @@ export function CopilotWidget() {
     try {
       const res = await copilotApi.getConversations()
       setConversations(res.data)
-    } catch { /* silent â€” history is non-critical */ }
+    } catch { /* silent — history is non-critical */ }
     finally { setHistoryLoading(false) }
   }, [])
 
@@ -760,7 +760,7 @@ export function CopilotWidget() {
     const historySnapshot = useCopilotStore.getState().messages
     const activeConvId = useCopilotStore.getState().conversationId
 
-    addMessage({ role: 'user', content: isApproval ? 'ðŸ‘ Action Approved' : msg })
+    addMessage({ role: 'user', content: isApproval ? '👍 Action Approved' : msg })
 
     if (!isApproval) {
       setInput('')
@@ -830,9 +830,9 @@ export function CopilotWidget() {
             if (!messageAdded) {
               messageAdded = true
               setThinking(false)
-              addMessage({ role: 'assistant', content: `âš ï¸ ${errMsg}` })
+              addMessage({ role: 'assistant', content: `⚠️ ${errMsg}` })
             } else {
-              useCopilotStore.getState().updateLastMessageContent(`\n\nâš ï¸ ${errMsg}`)
+              useCopilotStore.getState().updateLastMessageContent(`\n\n⚠️ ${errMsg}`)
             }
           }
         }
@@ -845,7 +845,7 @@ export function CopilotWidget() {
     }
   }, [isThinking, pageContext, addMessage, setThinking, setConversationId, queryClient])
 
-  // â”€â”€ Focus management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——— Focus management —————————————————————————————————————————————————
   // Auto-focus textarea when STT finishes and transcript is ready to send
   useEffect(() => {
     if (sttStatus === 'ready') {
@@ -917,9 +917,9 @@ export function CopilotWidget() {
         const y = centerY - barHeight / 2
         
         /* The brand gradient's own stops. Canvas cannot read a CSS custom
-           property, so these are the literal values behind `--hb-grad` â€” the
+           property, so these are the literal values behind `--hb-grad` — the
            one place in the product where a hex is unavoidable. Previously
-           pinkâ†’violetâ†’pink, neither of which is a Hybent colour. */
+           pink→violet→pink, neither of which is a Hybent colour. */
         const grad = ctx.createLinearGradient(x, y, x, y + barHeight)
         grad.addColorStop(0, '#22CFFF')   // cyan
         grad.addColorStop(0.5, '#4C6FFF') // blue
@@ -1398,41 +1398,41 @@ export function CopilotWidget() {
   }
 
   const parseCandidateCard = (text: string): CandidateCardData | null => {
-    if (!text.includes('ðŸ‘¤')) return null
+    if (!text.includes('👤')) return null
     const lines = text.split('\n')
     const card: CandidateCardData = { name: '' }
     
     for (const line of lines) {
       const trimmed = line.trim()
       
-      if (trimmed.includes('ðŸ‘¤')) {
-        const match = trimmed.match(/ðŸ‘¤\s*(.*)/)
+      if (trimmed.includes('👤')) {
+        const match = trimmed.match(/👤\s*(.*)/)
         if (match) {
           card.name = match[1].replace(/\*\*/g, '').trim()
         }
-      } else if (trimmed.includes('ðŸ“§')) {
-        const match = trimmed.match(/ðŸ“§\s*(.*)/)
+      } else if (trimmed.includes('✉️')) {
+        const match = trimmed.match(/✉️\s*(.*)/)
         if (match) card.email = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('ðŸ’¼')) {
-        const match = trimmed.match(/ðŸ’¼\s*(.*)/)
+      } else if (trimmed.includes('💼')) {
+        const match = trimmed.match(/💼\s*(.*)/)
         if (match) card.title = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('ðŸ“')) {
-        const match = trimmed.match(/ðŸ“\s*(.*)/)
+      } else if (trimmed.includes('📍')) {
+        const match = trimmed.match(/📍\s*(.*)/)
         if (match) card.location = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('â­')) {
-        const match = trimmed.match(/â­\s*(.*)/)
+      } else if (trimmed.includes('⭐')) {
+        const match = trimmed.match(/⭐\s*(.*)/)
         if (match) card.experience = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('ðŸ› ï¸')) {
-        const match = trimmed.match(/ðŸ› ï¸\s*(.*)/)
+      } else if (trimmed.includes('🛠️')) {
+        const match = trimmed.match(/🛠️\s*(.*)/)
         if (match) card.skills = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('â³')) {
-        const match = trimmed.match(/â³\s*(.*)/)
+      } else if (trimmed.includes('⏳')) {
+        const match = trimmed.match(/⏳\s*(.*)/)
         if (match) card.notice = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('ðŸ“Œ')) {
-        const match = trimmed.match(/ðŸ“Œ\s*(.*)/)
+      } else if (trimmed.includes('🔖')) {
+        const match = trimmed.match(/🔖\s*(.*)/)
         if (match) card.stage = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('ðŸ’°')) {
-        const match = trimmed.match(/ðŸ’°\s*(.*)/)
+      } else if (trimmed.includes('💰')) {
+        const match = trimmed.match(/💰\s*(.*)/)
         if (match) card.salary = match[1].replace(/\*\*/g, '').trim()
       }
     }
@@ -1511,7 +1511,7 @@ export function CopilotWidget() {
           onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)' }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}
         >
-          <span>âœ¨</span> {ctaButtonText} <span>â†’</span>
+          <span>✨</span> {ctaButtonText} <span>→</span>
         </button>
       )
     }
@@ -1635,7 +1635,7 @@ export function CopilotWidget() {
         onTouchStart={handleFabTouchStart}
         aria-label="Open AI Copilot"
       >
-        {isOpen ? <CloseIcon /> : 'âœ¦'}
+        {isOpen ? <CloseIcon /> : '✦'}
       </button>
 
       {/* Panel */}
@@ -1677,7 +1677,7 @@ export function CopilotWidget() {
             ) : (
               <>
                 <div style={s.headerTitle}>
-                  <span className="hb-grad-text text-[18px]">âœ¦</span>
+                  <span className="hb-grad-text text-[18px]">✦</span>
                   <span>Recruiter Copilot</span>
                   {isThinking && <span className="text-hb-xs font-normal text-hb-blue/40">thinking...</span>}
                 </div>
@@ -1711,7 +1711,7 @@ export function CopilotWidget() {
                           padding: '4px 8px', borderRadius: '6px', transition: 'all 0.2s ease'
                         }}
                       >
-                        ðŸ—‘ï¸ Clear All History
+                        🗑️ Clear All History
                       </button>
                     </div>
                   )}
@@ -1721,7 +1721,7 @@ export function CopilotWidget() {
                     </div>
                   ) : conversations.length === 0 ? (
                     <div style={s.historyEmpty}>
-                      <span className="text-[36px]">ðŸ•</span>
+                      <span className="text-[36px]">🕒</span>
                       <div>No past conversations yet.</div>
                       <div className="text-hb-xs opacity-70">Your chats will appear here.</div>
                     </div>
@@ -1817,9 +1817,9 @@ export function CopilotWidget() {
                       </div>
                     ) : messages.length === 0 ? (
                       <div style={s.emptyState}>
-                        <div style={s.emptyIcon}>âœ¦</div>
+                        <div style={s.emptyIcon}>✦</div>
                         <div style={s.emptyTitle}>Your Recruiter AI Copilot</div>
-                        <div style={s.emptySubtitle}>Ask me anything â€” candidates, jobs, interviews, offers, or pipeline stats.</div>
+                        <div style={s.emptySubtitle}>Ask me anything — candidates, jobs, interviews, offers, or pipeline stats.</div>
                         <div style={s.promptGrid}>
                           {EXAMPLE_PROMPTS.map((item) => (
                             <button key={item.title} className="c-card" style={s.promptCard} onClick={() => handleSend(item.prompt)}>
@@ -1877,7 +1877,7 @@ export function CopilotWidget() {
                                 fontSize: '14px', 
                                 flexShrink: 0 
                               }}>
-                                âœ¦
+                                ✦
                               </div>
                             )}
                             
@@ -1905,7 +1905,7 @@ export function CopilotWidget() {
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              âœ¦
+                              ✦
                             </div>
                             <div style={s.thinkingBubble}>
                               <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
@@ -1926,7 +1926,7 @@ export function CopilotWidget() {
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              âœ¦
+                              ✦
                             </div>
                             <div style={{ ...s.thinkingBubble, background: 'rgb(var(--hb-blue) / .05)', borderColor: 'rgb(var(--hb-blue) / .35)' }}>
                               <span className="c-dot" style={{ animationDelay: '0s' }} /><span className="c-dot" style={{ animationDelay: '0.2s' }} /><span className="c-dot" style={{ animationDelay: '0.4s' }} />
@@ -1937,7 +1937,7 @@ export function CopilotWidget() {
                         {pendingApproval && (
                           <div className="my-1 rounded-hb-md border border-hb-blue/35 bg-hb-blue/[0.04] p-3.5">
                             <div className="mb-2 flex items-center gap-1.5 text-hb-sm font-bold text-hb-text">
-                              <span>âš ï¸</span>
+                              <span>⚠️</span>
                               <span>Approval Required: {(pendingApproval.name as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</span>
                             </div>
                             <div className="mb-3 text-hb-xs text-hb-muted">
@@ -1970,7 +1970,7 @@ export function CopilotWidget() {
                                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88' }}
                                 onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                               >
-                                âœ“ Approve
+                                ✓ Approve
                               </button>
                               <button
                                 onClick={() => setPendingApproval(null)}
@@ -1981,7 +1981,7 @@ export function CopilotWidget() {
                                 }}
                                 disabled={isThinking}
                               >
-                                âœ• Cancel
+                                ✕ Cancel
                               </button>
                             </div>
                           </div>
@@ -2004,7 +2004,7 @@ export function CopilotWidget() {
                       gap: '12px'
                     }}>
                       <span style={{ fontSize: '13px', color: 'rgb(var(--hb-error))', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500 }}>
-                        âš ï¸ {audioError}
+                        ⚠️ {audioError}
                       </span>
                       <button 
                         onClick={() => setAudioError(null)}
@@ -2053,7 +2053,7 @@ export function CopilotWidget() {
                             e.currentTarget.style.background = 'rgb(var(--hb-surface-2))'
                           }}
                         >
-                          ðŸ‘¤ {item.candidate.full_name}
+                          👤 {item.candidate.full_name}
                         </button>
                       ))}
                     </div>

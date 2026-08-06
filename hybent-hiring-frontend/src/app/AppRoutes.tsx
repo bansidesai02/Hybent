@@ -104,6 +104,8 @@ export default function AppRoutes() {
         <Route path="/careers/:section?" element={<CareersPage />} />
         <Route path="/contact/:section?" element={<ContactPage />} />
         <Route path="/privacy/:section?" element={<PrivacyPage />} />
+        <Route path="/terms/:section?" element={<PrivacyPage />} />
+        <Route path="/privacy-terms/:section?" element={<PrivacyPage />} />
       </Route>
 
       {/* ── Authentication: full-bleed, no marketing chrome ── */}

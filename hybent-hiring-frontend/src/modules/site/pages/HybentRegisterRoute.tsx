@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useGoogleLogin } from '@react-oauth/google'
 
 import HybentRegisterPortal from './HybentRegisterPortal'
 import type { HybentRegisterValues } from './HybentRegisterPortal'
-import { AUTH } from '@/app/paths'
+import { authApi } from '@/api/auth'
+import { AUTH, workspaceForRole } from '@/app/paths'
+import { useAuthStore } from '@/store/authStore'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 /**
@@ -19,6 +23,9 @@ export default function HybentRegisterRoute() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { setTokens } = useAuthStore()
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
 
   const handleSubmit = async ({ fullName, email, organization }: HybentRegisterValues) => {
     const apiBase = import.meta.env.VITE_API_BASE_URL || ''
@@ -43,9 +50,46 @@ export default function HybentRegisterRoute() {
     }
   }
 
+  const triggerGoogleSignUp = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setGoogleLoading(true)
+      setGoogleError(null)
+      try {
+        const token = tokenResponse.access_token
+        const { data } = await authApi.googleLogin(token)
+        setTokens(data.access_token, data.refresh_token, data.user, true)
+        navigate(workspaceForRole(data.user?.role), { replace: true })
+      } catch (err: any) {
+        setGoogleError(
+          err?.response?.data?.message ||
+            err?.response?.data?.detail ||
+            err?.message ||
+            'Google sign-up failed. Please try again.'
+        )
+      } finally {
+        setGoogleLoading(false)
+      }
+    },
+    onError: (errorResponse) => {
+      setGoogleLoading(false)
+      if ((errorResponse as any)?.error !== 'popup_closed_by_user') {
+        setGoogleError('Google sign-up failed or was cancelled.')
+      }
+    },
+  })
+
+  const handleGoogleSignUp = () => {
+    setGoogleError(null)
+    setGoogleLoading(true)
+    triggerGoogleSignUp()
+  }
+
   return (
     <HybentRegisterPortal
       onSubmit={handleSubmit}
+      onGoogleSignUp={handleGoogleSignUp}
+      externalError={googleError}
+      externalGoogleLoading={googleLoading}
       onSignIn={() => navigate(AUTH.login)}
     />
   )

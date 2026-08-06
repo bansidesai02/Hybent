@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useGoogleLogin } from '@react-oauth/google'
 
 import HybentLoginPortal from './HybentLoginPortal'
 import type { HybentLoginValues } from './HybentLoginPortal'
@@ -26,6 +27,8 @@ export default function HybentLoginRoute() {
   const location = useLocation()
   const { setTokens, isAuthenticated, user } = useAuthStore()
   const product = useAuthProduct()
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
 
   /* RequireAuth parks the page the visitor wanted here, same as the product form. */
   const intended = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
@@ -51,9 +54,46 @@ export default function HybentLoginRoute() {
     }
   }
 
+  const triggerGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setGoogleLoading(true)
+      setGoogleError(null)
+      try {
+        const token = tokenResponse.access_token
+        const { data } = await authApi.googleLogin(token)
+        setTokens(data.access_token, data.refresh_token, data.user, true)
+        navigate(intended || workspaceForRole(data.user?.role), { replace: true })
+      } catch (err: any) {
+        setGoogleError(
+          err?.response?.data?.message ||
+            err?.response?.data?.detail ||
+            err?.message ||
+            'Google sign-in failed. Please try again.'
+        )
+      } finally {
+        setGoogleLoading(false)
+      }
+    },
+    onError: (errorResponse) => {
+      setGoogleLoading(false)
+      if ((errorResponse as any)?.error !== 'popup_closed_by_user') {
+        setGoogleError('Google sign-in failed or was cancelled.')
+      }
+    },
+  })
+
+  const handleGoogleSignIn = () => {
+    setGoogleError(null)
+    setGoogleLoading(true)
+    triggerGoogleLogin()
+  }
+
   return (
     <HybentLoginPortal
       onSubmit={handleSubmit}
+      onGoogleSignIn={handleGoogleSignIn}
+      externalError={googleError}
+      externalGoogleLoading={googleLoading}
       /* `?product=` rides along, or the "Hybent Hiring" kicker disappears the
          moment someone clicks through to reset or sign-up — which is exactly
          the hand-off the deleted product-branded pages existed to prevent. */

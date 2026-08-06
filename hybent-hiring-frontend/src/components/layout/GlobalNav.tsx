@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { AUTH, PRODUCTS } from '@/app/paths'
+import SolutionsMegaMenu from '@/components/SolutionsMegaMenu'
 
 type GlobalNavProps = {
   drawerOpen: boolean
@@ -180,28 +181,8 @@ export function GlobalNav({
                   </div>
                 </div>
               </li>
-              <li className="has-mega">
-                <a className="navlink" href="/solutions" aria-haspopup="true" aria-expanded="false" data-nav="solutions services industries hire-talent">Solutions <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
-                <div className="mega mega--sm">
-                  <div className="mega__grid">
-                    <a className="mega__item" href="/services">
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
-                      <span><h5>Services</h5><p>Enterprise IT services, custom software development, web &amp; mobile engineering.</p></span>
-                    </a>
-                    <a className="mega__item" href="/industries">
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-brief" /></svg></span>
-                      <span><h5>Industries</h5><p>Role templates, screening criteria, and scoring rubrics configured by sector.</p></span>
-                    </a>
-                    <a className="mega__item mega__item--full" href="/hire-talent">
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
-                      <span><h5>Hire Talent</h5><p>On-demand dedicated software engineering talent and flexible tech staffing.</p></span>
-                    </a>
-                  </div>
-                  <div className="mega__foot">
-                    <p className="small">Transforming business operations with intelligent software and top-tier talent.</p>
-                    <a className="link-arrow" href="/solutions">Explore solutions <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                  </div>
-                </div>
+              <li>
+                <SolutionsMegaMenu />
               </li>
               <li><a className="navlink" href="/customers" data-nav="customers">Customers</a></li>
               <li className="has-mega">

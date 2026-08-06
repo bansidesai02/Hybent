@@ -51,7 +51,7 @@ export function GlobalFooter() {
         <div className="footer__bottom">
           <p>© 2026 HYBENT. All rights reserved.</p>
           <p style={{ display: "flex", gap: "18px", flexWrap: "wrap" }}>
-            <a href="/privacy">Privacy</a><a href="/">Terms</a><a href="/">Cookies</a>
+            <a href="/privacy">Privacy &amp; Terms</a><a href="/">Cookies</a>
           </p>
         </div>
       </div>

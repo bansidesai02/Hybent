@@ -147,6 +147,23 @@ function HbSidebarComponent({
   const itemActive = (item: NavItem, routerActive: boolean) =>
     item.customActivePath ? location.pathname.startsWith(item.customActivePath) : routerActive
 
+  const overviewPath = useMemo(() => {
+    switch (role) {
+      case 'admin':
+        return '/hiring/admin'
+      case 'recruiter':
+        return '/hiring/recruiter'
+      case 'super_admin':
+        return '/hiring/super-admin'
+      case 'interviewer':
+        return '/hiring/interviewer'
+      case 'candidate':
+        return '/hiring/portal'
+      default:
+        return '/hiring/admin'
+    }
+  }, [role])
+
   return (
     <>
       {/* Scrim. Only below lg, where the sidebar is a drawer. */}
@@ -173,9 +190,9 @@ function HbSidebarComponent({
         {/* ── Brand ─────────────────────────────────────────────────────── */}
         <div className="flex h-hb-topbar flex-none items-center px-hb-5">
           <Link
-            to="/"
+            to={overviewPath}
             className="flex items-center gap-2.5 rounded-hb-sm focus-visible:outline-none focus-visible:shadow-hb-ring"
-            aria-label="Hybent home"
+            aria-label="Hybent Overview"
           >
             <img src="/hybent/hybent-mark.png" alt="" className="h-7 w-7 object-contain" />
             {/* One wordmark: the product is light-only since phase 10, so the

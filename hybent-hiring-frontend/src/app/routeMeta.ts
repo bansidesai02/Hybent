@@ -76,7 +76,7 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
       'Tell us what you are trying to fix. Someone from the team replies within one business day.',
   },
   privacy: {
-    title: 'Privacy Policy | HYBENT — Protection & Data Trust',
+    title: 'Privacy & Terms Policy | HYBENT — Protection & Data Trust',
     description:
       'Learn how Hybent collects, uses, protects, and handles personal information across our AI-powered products, website, and IT services.',
   },

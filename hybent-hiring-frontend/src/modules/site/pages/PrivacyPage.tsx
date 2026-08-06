@@ -78,7 +78,7 @@ export default function PrivacyPage() {
             <span>Legal &amp; Trust</span>
           </p>
           <h1 style={{ fontSize: 'clamp(2.35rem, 4.6vw, 3.6rem)', marginTop: '14px' }} data-rv="up" data-delay="80">
-            Hybent Privacy Policy
+            Hybent Privacy &amp; Terms Policy
           </h1>
           <p className="hero__sub" data-rv="up" data-delay="160" style={{ maxWidth: '680px' }}>
             Transparent, enterprise-grade protection for your data across all Hybent products, custom software, and IT services.

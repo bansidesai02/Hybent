@@ -13,6 +13,9 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post<AuthResponse>('/v1/auth/login', { email, password }),
 
+  googleLogin: (token: string) =>
+    api.post<AuthResponse>('/v1/auth/google', { id_token: token }),
+
   logout: (refresh_token?: string) =>
     api.post('/v1/auth/logout', refresh_token ? { refresh_token } : {}),
 

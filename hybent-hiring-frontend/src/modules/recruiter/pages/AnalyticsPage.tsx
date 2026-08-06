@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Sparkles } from 'lucide-react'
@@ -204,7 +204,7 @@ export default function AnalyticsPage() {
               </ul>
             ) : (
               <p className="py-6 text-center text-hb-sm text-hb-muted">
-                Analysing your candidate database for skill trendsâ€¦
+                Analysing your candidate database for skill trends...
               </p>
             )}
           </Card>
@@ -233,7 +233,7 @@ export default function AnalyticsPage() {
           <Card padding="loose">
             <CardHeader title="Average time to hire" />
             <p className="font-display text-hb-num text-hb-text">
-              {overview?.time_to_hire_days ? `${Math.round(overview.time_to_hire_days)} days` : 'â€”'}
+              {overview?.time_to_hire_days ? `${Math.round(overview.time_to_hire_days)} days` : '—'}
             </p>
             <p className="mt-2 text-hb-body text-hb-muted">
               {overview?.time_to_hire_days

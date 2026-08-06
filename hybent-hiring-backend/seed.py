@@ -84,24 +84,24 @@ async def seed():
         force_seed = os.getenv("FORCE_SEED", "false").lower() == "true"
         
         # Check if admin already exists
-        result = await db.execute(select(User).where(User.email == "yashdesai494@gmail.com"))
+        result = await db.execute(select(User).where(User.email == "yashdesai494@hybent.com"))
         existing_admin = result.scalar_one_or_none()
         
         if existing_admin and not force_seed:
             print("\n⏩  Database already seeded. Skipping truncation and seeding. (Set FORCE_SEED=true to override)\n")
             return
 
-        print("\n🌱 HireOn — Seeding full demo data...\n")
+        print("\n🌱 Hybent — Seeding full demo data...\n")
         await clear_all(db)
 
         # ── Organization ──────────────────────────────────────────────────────
         org = Organization(
-            name="Brainerhub",
-            slug="brainerhub",
+            name="Hybent",
+            slug="hybent",
             industry="Technology",
             size="51-200",
-            website="https://brainerhub.com",
-            description="Brainerhub builds next-generation developer tooling used by 10,000+ engineers worldwide.",
+            website="https://hybent.com",
+            description="Hybent builds next-generation enterprise AI & developer tooling used by 10,000+ engineers worldwide.",
             is_active=True,
         )
         db.add(org)
@@ -111,7 +111,7 @@ async def seed():
         # ── Users ─────────────────────────────────────────────────────────────
         admin = User(
             organization_id=org.id,
-            email="yashdesai494@gmail.com",
+            email="yashdesai494@hybent.com",
             full_name="Yash Desai",
             hashed_password=hash_password("password123"),
             role=UserRole.SUPER_ADMIN.value,
@@ -119,10 +119,22 @@ async def seed():
             is_verified=True,
             last_login=ago(hours=1),
         )
+
+        user_gmail = User(
+            organization_id=org.id,
+            email="yashdesai494@gmail.com",
+            full_name="Yash Desai",
+            hashed_password=hash_password("password123"),
+            role=UserRole.ADMIN.value,
+            is_active=True,
+            is_verified=True,
+            last_login=ago(hours=1),
+        )
+        db.add(user_gmail)
         
         admin2 = User(
             organization_id=org.id,
-            email="yp192006@gmail.com",
+            email="yp192006@hybent.com",
             full_name="Yash P",
             hashed_password=hash_password("password123"),
             role=UserRole.SUPER_ADMIN.value,
@@ -133,7 +145,7 @@ async def seed():
         
         org_admin = User(
             organization_id=org.id,
-            email="admin@brainerhub.com",
+            email="admin@hybent.com",
             full_name="Admin User",
             hashed_password=hash_password("password123"),
             role=UserRole.ADMIN.value,
@@ -143,7 +155,7 @@ async def seed():
 
         recruiter = User(
             organization_id=org.id,
-            email="recruiter@brainerhub.com",
+            email="recruiter@hybent.com",
             full_name="HR Recruiter",
             hashed_password=hash_password("password123"),
             role=UserRole.RECRUITER.value,
@@ -153,7 +165,7 @@ async def seed():
 
         recruiter2 = User(
             organization_id=org.id,
-            email="recruiter2@brainerhub.com",
+            email="recruiter2@hybent.com",
             full_name="HR Recruiter 2",
             hashed_password=hash_password("password123"),
             role=UserRole.RECRUITER.value,
@@ -163,7 +175,7 @@ async def seed():
 
         interviewer = User(
             organization_id=org.id,
-            email="interviewer@brainerhub.com",
+            email="interviewer@hybent.com",
             full_name="Tech Interviewer",
             hashed_password=hash_password("password123"),
             role=UserRole.INTERVIEWER.value,
@@ -173,7 +185,7 @@ async def seed():
 
         interviewer2 = User(
             organization_id=org.id,
-            email="interviewer2@brainerhub.com",
+            email="interviewer2@hybent.com",
             full_name="Product Interviewer",
             hashed_password=hash_password("password123"),
             role=UserRole.INTERVIEWER.value,
@@ -183,7 +195,7 @@ async def seed():
 
         candidate_user = User(
             organization_id=org.id,
-            email="sarah.chen@gmail.com",
+            email="sarah.chen@hybent.com",
             full_name="Sarah Chen",
             hashed_password=hash_password("password123"),
             role=UserRole.CANDIDATE.value,
@@ -349,13 +361,14 @@ async def seed():
         print("✅  Seed complete! Users loaded.")
         print("=" * 55)
         print("\n🔐 Login Credentials:")
-        print("  Super Admin:  admin@hirreon.com       / admin")
-        print("  Admin:        admin@brainerhub.com    / password123")
-        print("  HR Recruiter: recruiter@brainerhub.com   / password123")
-        print("  HR Recruiter: recruiter2@brainerhub.com     / password123")
-        print("  Interviewer:  interviewer@brainerhub.com  / password123")
-        print("  Interviewer2: interviewer2@brainerhub.com   / password123")
-        print("  Candidate:    sarah.chen@gmail.com    / password123")
+        print("  Super Admin:  yashdesai494@hybent.com / password123")
+        print("  Super Admin:  yp192006@hybent.com     / password123")
+        print("  Admin:        admin@hybent.com        / password123")
+        print("  HR Recruiter: recruiter@hybent.com    / password123")
+        print("  HR Recruiter: recruiter2@hybent.com   / password123")
+        print("  Interviewer:  interviewer@hybent.com  / password123")
+        print("  Interviewer2: interviewer2@hybent.com / password123")
+        print("  Candidate:    sarah.chen@hybent.com   / password123")
         print("=" * 55 + "\n")
 
 

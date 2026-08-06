@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -478,7 +478,7 @@ export default function AddJobPage() {
                     {...field}
                     value={field.value || ''}
                     label="Experience level"
-                    placeholder="Select a levelâ€¦"
+                    placeholder="Select a level..."
                     options={EXPERIENCE_LEVELS}
                   />
                 )}
@@ -488,7 +488,7 @@ export default function AddJobPage() {
             <Textarea
               label="Key responsibilities"
               rows={4}
-              placeholder={'â€¢ Build and ship new features\nâ€¢ Own the front-end architecture'}
+              placeholder={'• Build and ship new features\n• Own the front-end architecture'}
               {...register('responsibilities')}
             />
 
@@ -509,7 +509,7 @@ export default function AddJobPage() {
               label="Description"
               required
               rows={6}
-              placeholder="We're looking for a Senior React Developer with 5+ years of experience building scalable web applicationsâ€¦"
+              placeholder="We're looking for a Senior React Developer with 5+ years of experience building scalable web applications..."
               error={errors.description?.message}
               {...register('description')}
             />
@@ -519,7 +519,7 @@ export default function AddJobPage() {
             </Button>
           </Card>
 
-          {/* â”€â”€ Assist panel â”€â”€ */}
+          {/* —— Assist panel —— */}
           <div className="space-y-hb-6">
             <Card padding="loose">
               <h2 className="flex items-center gap-2 font-display text-hb-h3 text-hb-text">
@@ -587,7 +587,7 @@ export default function AddJobPage() {
                 formats={['PDF', 'DOCX', 'TXT']}
                 accept=".pdf,.doc,.docx,.txt"
                 busy={isParsing}
-                busyLabel="Extracting detailsâ€¦"
+                busyLabel="Extracting details..."
                 onFiles={([file]) => parseFile(file)}
               />
             </Card>

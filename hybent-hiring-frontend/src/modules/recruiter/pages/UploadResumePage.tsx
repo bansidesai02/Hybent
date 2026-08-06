@@ -1,4 +1,4 @@
-﻿import { Component, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Component, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -462,12 +462,12 @@ function UploadResume() {
     <div className="pb-hb-10">
       <PageHeader
         eyebrow="Upload"
-        title="Upload a rÃ©sumÃ©"
+        title="Upload a Resume"
         description="Drop a CV and Hybent AI scores it against your requirements before it reaches your pipeline."
       />
 
       <div className="grid items-start gap-hb-6 lg:grid-cols-2">
-        {/* â”€â”€ Requirements + drop â”€â”€ */}
+        {/* —— Requirements + drop —— */}
         <div className="space-y-hb-4">
           <Card padding="loose" className="space-y-hb-4">
             <h2 className="font-display text-hb-h3 text-hb-text">Job requirement</h2>
@@ -478,7 +478,7 @@ function UploadResume() {
               value={jobReq.job_id || ''}
               onChange={(e) => selectJob(e.target.value)}
               options={[
-                { value: '', label: 'Custom requirementâ€¦' },
+                { value: '', label: 'Custom requirement...' },
                 ...(Array.isArray(jobs) ? jobs.map((j: Job) => ({ value: j.id, label: j.title })) : []),
               ]}
             />
@@ -519,12 +519,12 @@ function UploadResume() {
 
           <Dropzone
             icon={<FileText />}
-            title={isAnalysing ? 'Analysingâ€¦' : 'Drop a rÃ©sumÃ© here'}
+            title={isAnalysing ? 'Analysing...' : 'Drop a resume here'}
             description="PDF, DOC or DOCX, up to 10 MB."
             formats={['PDF', 'DOCX', 'DOC']}
             accept=".pdf,.doc,.docx"
             busy={isAnalysing}
-            busyLabel="Analysing the rÃ©sumÃ©â€¦"
+            busyLabel="Analysing the resume..."
             onFiles={([file]) => handleFile(file)}
           />
 
@@ -538,7 +538,7 @@ function UploadResume() {
           )}
         </div>
 
-        {/* â”€â”€ Result â”€â”€ */}
+        {/* —— Result —— */}
         <div>
           {(stage === 'idle' || stage === 'error') && (
             <Card padding="none">
@@ -554,7 +554,7 @@ function UploadResume() {
                 <EmptyState
                   icon={<Brain />}
                   title="AI analysis ready"
-                  description="Set the requirements on the left, then drop a rÃ©sumÃ© for a match score, a skill breakdown and a shortlist decision."
+                  description="Set the requirements on the left, then drop a resume for a match score, a skill breakdown and a shortlist decision."
                   size="page"
                 />
               )}
@@ -572,7 +572,7 @@ function UploadResume() {
                   label: 'View the existing profile',
                   onClick: () => navigate(`${basePath}/candidates?openId=${duplicate.candidate_id}`),
                 }}
-                secondaryAction={{ label: 'Upload a different rÃ©sumÃ©', onClick: reset }}
+                secondaryAction={{ label: 'Upload a different resume', onClick: reset }}
                 size="page"
               />
             </Card>
@@ -587,14 +587,14 @@ function UploadResume() {
                 <div className="min-w-0">
                   <h2 className="font-display text-hb-h3 text-hb-text">Role mismatch</h2>
                   <p className="mt-1 text-hb-sm text-hb-muted">
-                    This rÃ©sumÃ© cannot be uploaded against the selected role.
+                    This resume cannot be uploaded against the selected role.
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-hb-3 sm:grid-cols-2">
                 <div className="rounded-hb-sm border border-hb-border bg-hb-surface-2 px-3.5 py-3">
-                  <p className="font-mono text-hb-label uppercase text-hb-dim">RÃ©sumÃ© reads as</p>
+                  <p className="font-mono text-hb-label uppercase text-hb-dim">Resume reads as</p>
                   <p className="mt-1.5 text-hb-body font-semibold text-hb-text">
                     {rejection?.candidate_category || 'Unknown'}
                   </p>
@@ -636,7 +636,7 @@ function UploadResume() {
               ) : null}
 
               <Button fullWidth icon={<Upload size={15} />} onClick={reset}>
-                Upload a different rÃ©sumÃ©
+                Upload a different resume
               </Button>
             </Card>
           )}
@@ -647,7 +647,7 @@ function UploadResume() {
                 <div className="flex items-center gap-3 border-b border-hb-border bg-hb-surface-2 px-5 py-3.5">
                   <Sparkles size={16} aria-hidden className="text-hb-cyan" />
                   <h2 className="font-display text-hb-h3 text-hb-text">
-                    {stage === 'done' ? 'Analysis complete' : 'Analysingâ€¦'}
+                    {stage === 'done' ? 'Analysis complete' : 'Analysing...'}
                   </h2>
                   <span className="ml-auto font-mono text-hb-micro tabular-nums text-hb-muted">
                     {stage === 'done' ? ANALYSIS_STEPS.length : completedSteps} /{' '}
@@ -695,11 +695,11 @@ function UploadResume() {
                     <div className="min-w-0">
                       <h2 className="font-display text-hb-h2 text-hb-text">{result.full_name}</h2>
                       <p className="mt-0.5 text-hb-sm text-hb-muted">
-                        {result.current_title || jobReq.role_title || 'Candidate'} Â·{' '}
+                        {result.current_title || jobReq.role_title || 'Candidate'} •{' '}
                         {result.experience_years ||
                           (result.years_experience != null
                             ? `${result.years_experience} yrs`
-                            : result.relevant_experience || 'â€”')}
+                            : result.relevant_experience || '—')}
                       </p>
 
                       {result.skills?.length > 0 && (
@@ -750,7 +750,7 @@ function UploadResume() {
                   />
 
                   <Button variant="quiet" size="sm" fullWidth onClick={reset}>
-                    Upload another rÃ©sumÃ©
+                    Upload another resume
                   </Button>
                 </Card>
               )}

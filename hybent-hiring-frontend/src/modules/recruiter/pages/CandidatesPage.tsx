@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -80,7 +80,7 @@ const DATE_OPTIONS = [
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'Last 7 days' },
   { value: 'month', label: 'Last 30 days' },
-  { value: 'custom', label: 'Custom rangeâ€¦' },
+  { value: 'custom', label: 'Custom range...' },
 ]
 
 /** Translates the date filter into the API's `date_from` / `date_to`. */
@@ -426,7 +426,7 @@ export default function CandidatesPage() {
       key: 'role',
       header: 'Role',
       cell: (c) => (
-        <span className="text-hb-muted">{c.applied_job_title || c.current_title || 'â€”'}</span>
+        <span className="text-hb-muted">{c.applied_job_title || c.current_title || '—'}</span>
       ),
     },
     {
@@ -434,7 +434,7 @@ export default function CandidatesPage() {
       header: 'Skills',
       hideOnCard: true,
       cell: (c) => (
-        <span className="text-hb-muted">{c.skills?.slice(0, 3).join(', ') || 'â€”'}</span>
+        <span className="text-hb-muted">{c.skills?.slice(0, 3).join(', ') || '—'}</span>
       ),
     },
     {
@@ -444,7 +444,7 @@ export default function CandidatesPage() {
       cell: (c) => (
         <span className="whitespace-nowrap text-hb-muted">
           {c.experience_years ||
-            (c.years_experience != null ? `${c.years_experience}y` : c.relevant_experience || 'â€”')}
+            (c.years_experience != null ? `${c.years_experience}y` : c.relevant_experience || '—')}
         </span>
       ),
     },
@@ -453,7 +453,7 @@ export default function CandidatesPage() {
       header: 'Match',
       align: 'center',
       cell: (c) =>
-        c.match_score != null ? <MatchScore score={c.match_score} /> : <span className="text-hb-dim">â€”</span>,
+        c.match_score != null ? <MatchScore score={c.match_score} /> : <span className="text-hb-dim">—</span>,
     },
     {
       key: 'stage',
@@ -577,7 +577,7 @@ export default function CandidatesPage() {
             setSearch(v)
             setPage(1)
           }}
-          placeholder="Search candidatesâ€¦"
+          placeholder="Search candidates..."
           aria-label="Search candidates"
         />
 
@@ -778,14 +778,14 @@ export default function CandidatesPage() {
         title="Change designation"
         description={
           designationTarget
-            ? `${designationTarget.full_name} â€” currently ${currentDesignationTitle || 'unassigned'}`
+            ? `${designationTarget.full_name} — currently ${currentDesignationTitle || 'unassigned'}`
             : undefined
         }
         size="md"
       >
         <div className="space-y-hb-4 pb-2">
           <Input
-            placeholder="Search designationsâ€¦"
+            placeholder="Search designations..."
             aria-label="Search designations"
             value={designationSearch}
             onChange={(e) => setDesignationSearch(e.target.value)}

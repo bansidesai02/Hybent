@@ -36,6 +36,8 @@ export type HybentLoginPortalProps = {
   onGoogleSignIn?: () => Promise<void> | void
   onForgotPassword?: () => void
   onCreateAccount?: () => void
+  externalError?: string | null
+  externalGoogleLoading?: boolean
 }
 
 export default function HybentLoginPortal({
@@ -43,6 +45,8 @@ export default function HybentLoginPortal({
   onGoogleSignIn,
   onForgotPassword,
   onCreateAccount,
+  externalError,
+  externalGoogleLoading = false,
 }: HybentLoginPortalProps) {
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
@@ -55,6 +59,9 @@ export default function HybentLoginPortal({
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [formError, setFormError] = useState('')
+
+  const activeGoogleLoading = googleLoading || externalGoogleLoading
+  const activeError = externalError || formError
 
   const emailError = !email.trim()
     ? 'Enter your email address.'
@@ -95,7 +102,7 @@ export default function HybentLoginPortal({
     }
   }
 
-  const busy = loading || googleLoading
+  const busy = loading || activeGoogleLoading
   const showEmailError = touched.email && Boolean(emailError)
   const showPasswordError = touched.password && Boolean(passwordError)
   /* `?product=hiring` puts "Hybent Hiring" above the title, so someone arriving
@@ -112,10 +119,10 @@ export default function HybentLoginPortal({
           : 'Sign in to continue to Hybent'
       }
     >
-      {formError && (
+      {activeError && (
         <p className="hlp-alert" role="alert">
           <span className="hlp-alert__icon"><AlertIcon /></span>
-          {formError}
+          {activeError}
         </p>
       )}
 

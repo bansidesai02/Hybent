@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Response, Cookie
 from sqlalchemy import select, update
 from app.dependencies import DB, CurrentUser
-from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest, RefreshRequest, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.schemas.response import APIResponse
 from app.services import auth_service, invitation_service
 from app.utils.security import hash_password, verify_password
@@ -39,6 +39,33 @@ async def login(data: LoginRequest, response: Response, db: DB):
     )
     return APIResponse.success(
         message="Login successful.",
+        data={
+            "access_token": result["access_token"],
+            "refresh_token": result["refresh_token"],
+            "token_type": "bearer",
+            "user": result.get("user"),
+        },
+    )
+
+
+@router.post("/google")
+async def google_login(data: GoogleAuthRequest, response: Response, db: DB):
+    token = data.id_token or data.token
+    if not token:
+        raise HTTPException(status_code=400, detail="Google authentication token is required.")
+    result = await auth_service.google_authenticate(token, db)
+    # Set refresh token in HttpOnly cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=result["refresh_token"],
+        httponly=True,
+        secure=_COOKIE_SECURE,
+        samesite="lax",
+        max_age=30 * 24 * 3600,
+        path="/v1/auth/refresh",
+    )
+    return APIResponse.success(
+        message="Google authentication successful.",
         data={
             "access_token": result["access_token"],
             "refresh_token": result["refresh_token"],
