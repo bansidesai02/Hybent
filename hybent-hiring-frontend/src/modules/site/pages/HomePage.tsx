@@ -165,6 +165,85 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── How it works: 4-Card Resume Parsing & Pipeline Section ── */}
+      <section className="section" id="how-it-works">
+        <div className="wrap">
+          <div className="section-head" data-rv="up">
+            <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>How Resume Parsing & AI Hiring Works</span></p>
+            <h2 className="h-lg">Four phases, zero manual resume filtering</h2>
+            <p className="lead">From the second a resume lands to the moment an offer is signed, the work that used to take weeks happens automatically with AI precision.</p>
+          </div>
+
+          <div className="grid g2">
+            <article className="card" data-rv="up" data-delay="0">
+              <div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
+              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-ai" /></svg></span>
+              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 01 — Intake</p>
+              <h3 className="h-sm">AI Resume Intelligence &amp; Parsing</h3>
+              <p className="small" style={{ marginTop: '10px' }}>The moment a candidate uploads a CV, our AI parses the document in under 10 seconds. It extracts explicit skills, infers hidden competencies from context, calculates experience years, and determines seniority level.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+                <span className="chip">Skill extraction</span>
+                <span className="chip">Experience calc</span>
+                <span className="chip">Seniority detection</span>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>~10 seconds</span>
+              </div>
+            </article>
+
+            <article className="card" data-rv="up" data-delay="80">
+              <div className="card__glow" style={{ top: "-40px", right: "-40px" }}></div>
+              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-target" /></svg></span>
+              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 02 — Scoring</p>
+              <h3 className="h-sm">Smart Auto-Shortlisting</h3>
+              <p className="small" style={{ marginTop: '10px' }}>Candidate profiles are scored against job rubrics. When an applicant passes the threshold, they are automatically shortlisted, status is updated, HR is notified, and status emails trigger — with zero human lag.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+                <span className="chip">Match scoring</span>
+                <span className="chip">Auto-shortlist</span>
+                <span className="chip">HR notification</span>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>Fully automated</span>
+              </div>
+            </article>
+
+            <article className="card" data-rv="up" data-delay="160">
+              <div className="card__glow" style={{ bottom: "-40px", left: "-40px" }}></div>
+              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-zap" /></svg></span>
+              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 03 — Scheduling</p>
+              <h3 className="h-sm">Conflict-Free Scheduling</h3>
+              <p className="small" style={{ marginTop: '10px' }}>One click cross-references candidate availability and interviewer calendars. It selects optimal slots, generates Google Meet links, and dispatches invites without endless back-and-forth emails.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+                <span className="chip">Slot matching</span>
+                <span className="chip">Conflict detection</span>
+                <span className="chip">Google Meet link</span>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>30 seconds</span>
+              </div>
+            </article>
+
+            <article className="card" data-rv="up" data-delay="240">
+              <div className="card__glow" style={{ bottom: "-40px", right: "-40px" }}></div>
+              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-build" /></svg></span>
+              <p className="mono" style={{ margin: '16px 0 6px', color: 'var(--cyan)' }}>Phase 04 — Decision</p>
+              <h3 className="h-sm">Interview Intelligence &amp; Hiring</h3>
+              <p className="small" style={{ marginTop: '10px' }}>Post-interview feedback is analyzed by AI to surface hiring recommendations and update win probabilities. Profiles are index-saved into your permanent, searchable talent database.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '18px' }}>
+                <span className="chip">Feedback analysis</span>
+                <span className="chip">Hire probability</span>
+                <span className="chip">Talent database</span>
+                <span className="chip" style={{ background: 'rgba(34,207,255,0.12)', color: 'var(--cyan)' }}>AI recommendation</span>
+              </div>
+            </article>
+          </div>
+
+          <div className="mock" id="mock" style={{ marginTop: '40px' }} data-rv="up">
+            <div className="mock__bar"><i></i><i></i><i></i><span>hybent hiring / pipeline / senior backend engineer simulator</span></div>
+            <div className="mock__body">
+              <div className="mock__row"><span className="mock__ava"></span><span className="mock__meta"><b>A. Raman</b><span>Screened · 4 competencies matched (React, Node, Postgres, Docker)</span><span className="mock__meter" style={{ "--w": "94%" } as React.CSSProperties}><i></i></span></span><span className="score">94</span></div>
+              <div className="mock__row"><span className="mock__ava" style={{ background: "linear-gradient(140deg,#4C6FFF,#E85CFF)" }}></span><span className="mock__meta"><b>J. Okafor</b><span>Interview scheduled · Thu 14:00</span><span className="mock__meter" style={{ "--w": "88%" } as React.CSSProperties}><i></i></span></span><span className="score">88</span></div>
+              <div className="mock__row"><span className="mock__ava" style={{ background: "linear-gradient(140deg,#22CFFF,#4C6FFF)" }}></span><span className="mock__meta"><b>M. Alvarez</b><span>Screened · needs system design review</span><span className="mock__meter" style={{ "--w": "71%" } as React.CSSProperties}><i></i></span></span><span className="score score--mid">71</span></div>
+              <div className="mock__row"><span className="mock__ava" style={{ background: "linear-gradient(140deg,#A855F7,#22CFFF)" }}></span><span className="mock__meta"><b>S. Beck</b><span>Offer drafted · awaiting approval</span><span className="mock__meter" style={{ "--w": "91%" } as React.CSSProperties}><i></i></span></span><span className="score">91</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="section section--tight">
         <div className="wrap">
           <div className="section-head center" data-rv="up">
