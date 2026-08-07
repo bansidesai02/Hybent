@@ -1,15 +1,21 @@
 import logging
+import re
+import os
 from groq import Groq, RateLimitError, APIStatusError
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-import os
 PRIMARY_KEY = settings.groq_api_key
 FALLBACK_KEY = os.getenv("GROQ_FALLBACK_API_KEY", settings.groq_api_key)
 
 # Global state to track fallback status
 _use_fallback = False
+
+def sanitize_error_msg(err_obj) -> str:
+    msg = str(err_obj)
+    # Mask any Groq API keys matching gsk_ pattern
+    return re.sub(r'gsk_[A-Za-z0-9_-]+', '[REDACTED_API_KEY]', msg)
 
 def get_current_key() -> str:
     global _use_fallback
@@ -33,7 +39,7 @@ class SafeCompletions:
         except (RateLimitError, APIStatusError) as e:
             status_code = getattr(e, "status_code", None)
             if status_code in (429, 401, 403) or isinstance(e, RateLimitError):
-                logger.warning(f"Groq API primary key failed (status={status_code}, error={e}). Switching to fallback key...")
+                logger.warning(f"Groq API primary key failed (status={status_code}, error={sanitize_error_msg(e)}). Switching to fallback key...")
                 mark_primary_failed()
                 client = self.client_factory()
                 return client.chat.completions.create(*args, **kwargs)
@@ -41,7 +47,7 @@ class SafeCompletions:
         except Exception as e:
             err_str = str(e).lower()
             if "rate limit" in err_str or "429" in err_str or "limit exceeded" in err_str or "authentication" in err_str or "api_key" in err_str:
-                logger.warning(f"Groq API limit or auth error detected via message: {e}. Switching to fallback key...")
+                logger.warning(f"Groq API limit or auth error detected via message: {sanitize_error_msg(e)}. Switching to fallback key...")
                 mark_primary_failed()
                 client = self.client_factory()
                 return client.chat.completions.create(*args, **kwargs)
@@ -62,7 +68,7 @@ class SafeTranscriptions:
         except (RateLimitError, APIStatusError) as e:
             status_code = getattr(e, "status_code", None)
             if status_code in (429, 401, 403) or isinstance(e, RateLimitError):
-                logger.warning(f"Groq API primary key failed (status={status_code}, error={e}) on audio transcription. Switching to fallback key...")
+                logger.warning(f"Groq API primary key failed (status={status_code}, error={sanitize_error_msg(e)}) on audio transcription. Switching to fallback key...")
                 mark_primary_failed()
                 client = self.client_factory()
                 return client.audio.transcriptions.create(*args, **kwargs)
@@ -70,7 +76,7 @@ class SafeTranscriptions:
         except Exception as e:
             err_str = str(e).lower()
             if "rate limit" in err_str or "429" in err_str or "limit exceeded" in err_str or "authentication" in err_str or "api_key" in err_str:
-                logger.warning(f"Groq API limit or auth error detected via message: {e} on audio transcription. Switching to fallback key...")
+                logger.warning(f"Groq API limit or auth error detected via message: {sanitize_error_msg(e)} on audio transcription. Switching to fallback key...")
                 mark_primary_failed()
                 client = self.client_factory()
                 return client.audio.transcriptions.create(*args, **kwargs)

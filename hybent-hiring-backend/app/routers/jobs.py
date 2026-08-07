@@ -41,11 +41,12 @@ async def list_jobs(
         query = query.where(Job.status != JobStatus.POOL)
         
     if search:
+        safe_search = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         query = query.where(
-            Job.title.ilike(f"%{search}%")
-            | Job.description.ilike(f"%{search}%")
-            | Job.location.ilike(f"%{search}%")
-            | cast(Job.skills_required, SAString).ilike(f"%{search}%")
+            Job.title.ilike(f"%{safe_search}%")
+            | Job.description.ilike(f"%{safe_search}%")
+            | Job.location.ilike(f"%{safe_search}%")
+            | cast(Job.skills_required, SAString).ilike(f"%{safe_search}%")
         )
 
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()

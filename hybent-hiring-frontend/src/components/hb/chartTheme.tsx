@@ -121,7 +121,7 @@ export function ChartLegend({
           <span className="whitespace-nowrap text-hb-xs text-hb-muted">
             {item.name}
             {item.value !== undefined && (
-              <span className="ml-1 font-mono tabular-nums text-hb-dim">({item.value})</span>
+              <span className="ml-1 font-mono tabular-nums text-hb-text font-medium">({item.value})</span>
             )}
           </span>
         </li>

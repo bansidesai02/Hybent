@@ -114,12 +114,13 @@ async def list_candidates(
 
     if search:
         from sqlalchemy import cast, String as SAString
+        safe_search = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         query = query.where(
-            Candidate.full_name.ilike(f"%{search}%")
-            | Candidate.email.ilike(f"%{search}%")
-            | Candidate.current_title.ilike(f"%{search}%")
-            | Candidate.current_company.ilike(f"%{search}%")
-            | cast(Candidate.skills, SAString).ilike(f"%{search}%")
+            Candidate.full_name.ilike(f"%{safe_search}%")
+            | Candidate.email.ilike(f"%{safe_search}%")
+            | Candidate.current_title.ilike(f"%{safe_search}%")
+            | Candidate.current_company.ilike(f"%{safe_search}%")
+            | cast(Candidate.skills, SAString).ilike(f"%{safe_search}%")
         )
     if tag:
         query = query.where(Candidate.tags.contains([tag]))

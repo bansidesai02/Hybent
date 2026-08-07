@@ -58,7 +58,7 @@ export async function requestNotificationPermission(vapidKey: string): Promise<s
       vapidKey,
       serviceWorkerRegistration: swRegistration,
     })
-    console.log('[FCM] Token:', token)
+    console.log('[FCM] Push token obtained successfully.')
     return token
   } catch (error) {
     console.error('[FCM] Error getting token:', error)

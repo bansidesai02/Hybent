@@ -219,7 +219,12 @@ async def root():
 
 @app.get("/health", tags=["health"])
 async def health():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "app": settings.app_name,
+        "version": "1.0.0",
+        "env": settings.app_env
+    }
 
 
 @app.get("/health/db", tags=["health"])

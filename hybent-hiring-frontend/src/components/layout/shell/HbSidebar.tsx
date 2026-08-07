@@ -194,7 +194,7 @@ function HbSidebarComponent({
             className="flex items-center gap-2.5 rounded-hb-sm focus-visible:outline-none focus-visible:shadow-hb-ring"
             aria-label="Hybent Overview"
           >
-            <img src="/hybent/hybent-mark.png" alt="" className="h-7 w-7 object-contain" />
+            <img src="/hybent/hybent-mark.png" alt="Hybent logo mark" className="h-7 w-7 object-contain" />
             {/* One wordmark: the product is light-only since phase 10, so the
                 `dark:hidden` / `dark:block` pair swapped between an image that
                 always showed and one that never did. */}
@@ -368,7 +368,7 @@ function HbSidebarComponent({
           <div className="flex items-center gap-3 px-hb-5 py-hb-4">
             <span className="grid h-9 w-9 flex-none place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-xs font-bold text-hb-on-brand">
               {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+                <img src={user.avatar_url} alt={user?.full_name ? `${user.full_name}'s avatar` : 'User profile avatar'} className="h-full w-full object-cover" />
               ) : (
                 initials
               )}

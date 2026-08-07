@@ -1,5 +1,5 @@
 """
-HireOn — Full Demo Seed (v2)
+Hybent — Full Demo Seed (v2)
 Run: python seed.py
 
 Covers:
@@ -44,7 +44,11 @@ from app.utils.permissions import (
 from app.utils.security import hash_password
 import app.models  # noqa — register all models
 
-engine = create_async_engine(settings.database_url)
+_db_url = os.environ.get("DATABASE_URL", settings.database_url)
+engine = create_async_engine(
+    _db_url,
+    connect_args={"statement_cache_size": 0},  # required for Supabase pgbouncer
+)
 Session = async_sessionmaker(engine, expire_on_commit=False)
 
 NOW = datetime.now(timezone.utc)

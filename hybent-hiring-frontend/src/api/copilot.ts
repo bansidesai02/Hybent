@@ -123,7 +123,7 @@ export const copilotApi = {
               else if (data.type === 'approval' && callbacks?.onApproval) callbacks.onApproval(data)
               else if (data.type === 'done' && callbacks?.onDone) callbacks.onDone()
             } catch (e) {
-              console.error("Failed to parse SSE chunk", line)
+              console.error("Failed to parse SSE chunk", e)
             }
           }
         }
