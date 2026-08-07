@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Response, Cookie
+from fastapi import APIRouter, HTTPException, Response, Cookie, Body, Depends
 from sqlalchemy import select, update
 from app.dependencies import DB, CurrentUser
 from app.schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest, RefreshRequest, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
@@ -243,3 +243,85 @@ async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
         raise HTTPException(status_code=500, detail=f"Failed to send magic link: {str(e)}")
 
     return APIResponse.success(message="Magic link sent successfully. Please check your inbox.")
+
+
+@router.post("/2fa/send")
+async def send_2fa_otp(data: ForgotPasswordRequest, db: DB):
+    """Send a 6-digit 2FA OTP code to user's email for login verification."""
+    import random, secrets
+    from datetime import timedelta
+    user_result = await db.execute(select(User).where(User.email == data.email))
+    user = user_result.scalar_one_or_none()
+    if not user or not user.is_active:
+        return APIResponse.success(message="If that email exists, a 2FA OTP has been sent.")
+    
+    otp = f"{random.randint(100000, 999999)}"
+    # Store OTP in PasswordResetToken table with 10 min expiration
+    token = f"2fa_{otp}_{secrets.token_hex(8)}"
+    db.add(PasswordResetToken(
+        user_id=user.id,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
+    ))
+    # Send email (using existing email service or log in dev)
+    from app.services.email_service import _send_resend
+    try:
+        _send_resend(
+            to=user.email,
+            subject="Your Hybent 2FA Security Code",
+            html_body=f"<p>Your 2FA verification code is: <strong>{otp}</strong>. It expires in 10 minutes.</p>"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to dispatch 2FA email to {user.email}: {e}")
+
+    return APIResponse.success(message="2FA security code sent to your email.")
+
+
+@router.post("/2fa/verify")
+async def verify_2fa_otp(
+    db: DB,
+    body: dict = Body(...)
+):
+    """Verify 2FA OTP code and return auth token if valid."""
+    email = body.get("email")
+    otp = body.get("otp")
+    if not email or not otp:
+        raise HTTPException(status_code=400, detail="Email and OTP are required.")
+    
+    user_result = await db.execute(select(User).where(User.email == email))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid email or OTP.")
+    
+    # Check valid 2FA token
+    tokens_res = await db.execute(
+        select(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.is_used == False,
+            PasswordResetToken.expires_at > datetime.now(timezone.utc)
+        )
+    )
+    tokens = tokens_res.scalars().all()
+    valid_token = None
+    for t in tokens:
+        if t.token.startswith(f"2fa_{otp}_"):
+            valid_token = t
+            break
+            
+    if not valid_token:
+        raise HTTPException(status_code=400, detail="Invalid or expired 2FA code.")
+    
+    valid_token.is_used = True
+    access_token = auth_service.create_access_token(user)
+    refresh_token = auth_service.create_refresh_token(user)
+    return APIResponse.success(
+        message="2FA authentication successful.",
+        data={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": UserOut.model_validate(user).model_dump()
+        }
+    )
+

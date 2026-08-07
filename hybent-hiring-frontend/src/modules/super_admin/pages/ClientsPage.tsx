@@ -228,7 +228,7 @@ export default function ClientsPage() {
           </span>
           <span className="min-w-0">
             <span className="block truncate text-hb-sm font-semibold text-hb-text">{c.name}</span>
-            <span className="block truncate text-hb-xs text-hb-muted">{c.slug}.hirreon.com</span>
+            <span className="block truncate text-hb-xs text-hb-muted">{c.slug}.hybent.com</span>
           </span>
         </span>
       ),
@@ -424,7 +424,7 @@ export default function ClientsPage() {
               onChange={(e) => setWizardData((p) => ({ ...p, slug: e.target.value }))}
               placeholder="slug"
               description="Their team signs in at this address."
-              trailingSlot={<span className="text-hb-xs text-hb-muted">.hirreon.com</span>}
+              trailingSlot={<span className="text-hb-xs text-hb-muted">.hybent.com</span>}
             />
             <div className="grid gap-hb-4 sm:grid-cols-2">
               <Input

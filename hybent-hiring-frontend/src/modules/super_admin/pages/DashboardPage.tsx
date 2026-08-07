@@ -139,7 +139,7 @@ export default function DashboardPage() {
           </span>
           <span className="min-w-0">
             <span className="block truncate text-hb-sm font-semibold text-hb-text">{c.name}</span>
-            <span className="block truncate text-hb-xs text-hb-muted">{c.slug}.hirreon.com</span>
+            <span className="block truncate text-hb-xs text-hb-muted">{c.slug}.hybent.com</span>
           </span>
         </span>
       ),

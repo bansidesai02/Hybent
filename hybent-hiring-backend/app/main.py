@@ -23,6 +23,7 @@ from app.core.database import engine
 from app.websocket.manager import ws_manager
 from app.middleware.audit import AuditMiddleware
 from app.middleware.tenant import TenantMiddleware
+from app.middleware.rate_limiter import RateLimiterMiddleware
 from app.services import elasticsearch_service as es_service
 import app.models  # noqa: F401 — register all models with Base
 from app.routers.api import api_router
@@ -166,19 +167,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         settings.frontend_url,          # Pulled from FRONTEND_URL env var (production domain)
-        "https://hybent_hiring.com",           # Production domain
-        "https://www.hybent_hiring.com",       # Production domain with www
-        "https://hirreon.com",          # Actual production domain (double 'rr')
-        "https://www.hirreon.com",      # Actual production domain with www (double 'rr')
-        "https://gethybent_hiring.netlify.app", # No trailing slash — browsers send exact origin
+        "https://hybent.com",           # Production domain
+        "https://www.hybent.com",       # Production domain with www
+        "https://app.hybent.com",       # App portal domain
+        "https://gethybent_hiring.netlify.app", # Netlify deployment domain
         "http://localhost:5173",         # Vite dev server
         "http://localhost:3000",         # Docker local frontend
         "http://localhost",
         "http://127.0.0.1:3000",
         "http://127.0.0.1"
     ],
-    # NOTE: allow_origin_regex removed — "https?://.*" matched any origin (security risk)
-    # and caused credential-mode CORS failures in some browsers.
+    allow_origin_regex=r"https://.*\.hybent\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -186,6 +185,23 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(AuditMiddleware)
+app.add_middleware(RateLimiterMiddleware, auth_limit=10, api_limit=120, window_seconds=60)
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    # Enforce HTTPS redirect in production if request is HTTP
+    if settings.is_production and request.headers.get("x-forwarded-proto") == "http":
+        url = request.url.replace(scheme="https")
+        return JSONResponse(status_code=307, headers={"Location": str(url)}, content=None)
+    
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if settings.is_production:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 # ── Static files (local uploads) ───────────────────────────────────────────────
 uploads_path = Path(settings.upload_dir)

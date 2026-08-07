@@ -29,7 +29,7 @@ class Job(Base):
     responsibilities: Mapped[str | None] = mapped_column(Text)
     benefits: Mapped[str | None] = mapped_column(Text)
     skills_required: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
-    status: Mapped[str] = mapped_column(String(50), default=JobStatus.ACTIVE)
+    status: Mapped[str] = mapped_column(String(50), default=JobStatus.ACTIVE, index=True)
     is_remote: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Job Description File
@@ -40,13 +40,15 @@ class Job(Base):
     openings: Mapped[int] = mapped_column(Integer, default=1)
     display_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", index=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="jobs", lazy="noload")

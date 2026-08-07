@@ -99,7 +99,7 @@ export default function BillingPage() {
               {client.name}
             </span>
             <span className="block truncate text-hb-xs text-hb-muted">
-              {client.slug}.hirreon.com
+              {client.slug}.hybent.com
             </span>
           </span>
         </span>

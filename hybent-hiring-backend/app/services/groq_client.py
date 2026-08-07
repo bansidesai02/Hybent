@@ -4,8 +4,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+import os
 PRIMARY_KEY = settings.groq_api_key
-FALLBACK_KEY = "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"
+FALLBACK_KEY = os.getenv("GROQ_FALLBACK_API_KEY", settings.groq_api_key)
 
 # Global state to track fallback status
 _use_fallback = False

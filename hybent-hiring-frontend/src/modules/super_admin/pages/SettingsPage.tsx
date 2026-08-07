@@ -54,12 +54,12 @@ const SECURITY = [
 
 const DEFAULTS = {
   smtp_provider: 'SendGrid',
-  smtp_sender_name: 'Hirreon',
-  smtp_sender_email: 'no-reply@hirreon.com',
+  smtp_sender_name: 'Hybent',
+  smtp_sender_email: 'no-reply@hybent.com',
   require_2fa: false,
   session_timeout: true,
   ip_whitelist: false,
-  platform_name: 'Hirreon',
+  platform_name: 'Hybent',
   logo_url: '',
   /* Not styling — this is the stored white-label value tenants configure.
      A hex is the data format the API expects. */
@@ -144,14 +144,14 @@ export default function SettingsPage() {
                 label="Sender name"
                 value={settings.smtp_sender_name}
                 onChange={(e) => set('smtp_sender_name', e.target.value)}
-                placeholder="Hirreon"
+                placeholder="Hybent"
               />
               <Input
                 label="Sender email"
                 type="email"
                 value={settings.smtp_sender_email}
                 onChange={(e) => set('smtp_sender_email', e.target.value)}
-                placeholder="no-reply@hirreon.com"
+                placeholder="no-reply@hybent.com"
               />
             </div>
           </div>
@@ -196,7 +196,7 @@ export default function SettingsPage() {
               label="Platform name"
               value={settings.platform_name}
               onChange={(e) => set('platform_name', e.target.value)}
-              placeholder="Hirreon"
+              placeholder="Hybent"
             />
             <Input
               label="Primary colour"

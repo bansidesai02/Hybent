@@ -279,7 +279,7 @@ export default function ClientDetailPage() {
           { label: 'Clients', to: '/hiring/super-admin/clients' },
           { label: client.name },
         ]}
-        eyebrow={`${client.slug}.hirreon.com`}
+        eyebrow={`${client.slug}.hybent.com`}
         title={client.name}
         description={[client.industry, client.size && `${client.size} employees`, client.location]
           .filter(Boolean)

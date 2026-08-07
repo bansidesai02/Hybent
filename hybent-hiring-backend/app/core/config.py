@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     max_file_size_mb: int = 10
 
     # ── CORS ───────────────────────────────────────────────────────────────────
-    frontend_url: str = "https://hirreon.com"
+    frontend_url: str = "https://hybent.com"
 
     # ── Logging ────────────────────────────────────────────────────────────────
     log_level: str = "INFO"

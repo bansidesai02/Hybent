@@ -712,12 +712,12 @@ async def get_platform_settings(db: DB, current_user: SuperAdminUser):
     if not setting:
         defaults = {
             "smtp_provider": "SendGrid",
-            "smtp_sender_name": "Hirreon Support",
-            "smtp_sender_email": "no-reply@hirreon.com",
+            "smtp_sender_name": "Hybent Support",
+            "smtp_sender_email": "no-reply@hybent.com",
             "require_2fa": True,
             "session_timeout": True,
             "ip_whitelist": False,
-            "platform_name": "Hirreon",
+            "platform_name": "Hybent",
             "logo_url": "",
             "primary_color": "#534AB7"
         }

@@ -37,7 +37,7 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": "BrainerHub Solutions <info@hirreon.com>",
+        "from": "BrainerHub Solutions <info@hybent.com>",
 
         "to": to,
         "subject": subject,
@@ -157,7 +157,7 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                     {content_html}
                 </div>
                 <div class="footer">
-                    <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com">info@hirreon.com</a></p>
+                    <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hybent.com">info@hybent.com</a></p>
                     <p style="margin: 0 0 16px 0;">&copy; 2026 Hybent Hiring AI Platform. All rights reserved.</p>
                     
                     <!-- Powered by Section -->
@@ -302,7 +302,7 @@ def _get_calendar_invite_template(
                 <div style="clear: both;"></div>
             </div>
             <div class="footer">
-                <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hirreon.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hirreon.com</a></p>
+                <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hybent.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hybent.com</a></p>
                 <p style="margin: 0 0 12px 0;">&copy; {date_year} Hybent Hiring AI Platform. All rights reserved.</p>
                 <div style="margin-top: 8px;">
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
@@ -688,7 +688,7 @@ def send_demo_request_email(
 ) -> None:
     """Send demo request notification to Hybent Hiring admin."""
     subject = f"New Demo Request: {first_name} {last_name} from {company_name}"
-    recipient = "info@hirreon.com"
+    recipient = "info@hybent.com"
     
     content = f"""
         <h1 style="font-size: 20px; font-weight: 500; color: #3c4043; margin: 0 0 24px 0; border-bottom: 1px solid #dadce0; padding-bottom: 20px;">

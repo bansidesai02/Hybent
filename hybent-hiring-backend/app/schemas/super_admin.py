@@ -125,12 +125,12 @@ class HealthStatus(BaseModel):
 
 class SMTPBrandingSecuritySettings(BaseModel):
     smtp_provider: str = "SMTP relay"
-    smtp_sender_name: str = "Hirreon"
-    smtp_sender_email: str = "no-reply@hirreon.com"
+    smtp_sender_name: str = "Hybent"
+    smtp_sender_email: str = "no-reply@hybent.com"
     require_2fa: bool = False
     session_timeout: bool = True
     ip_whitelist: bool = False
-    platform_name: str = "Hirreon"
+    platform_name: str = "Hybent"
     logo_url: str | None = None
     primary_color: str = "#534AB7"
 

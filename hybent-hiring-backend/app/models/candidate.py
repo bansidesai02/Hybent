@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, ForeignKey, String, Text, ARRAY, Float, desc
+from sqlalchemy import DateTime, ForeignKey, String, Text, ARRAY, Float, desc, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -105,13 +105,15 @@ class Candidate(Base):
     import_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
