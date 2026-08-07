@@ -12,10 +12,30 @@ from app.models.password_reset import PasswordResetToken
 from app.models.organization import Organization
 from app.core.config import settings as cfg
 
+import re
+
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 # NOTE: Flip to True in production (HTTPS). Currently False for local HTTP dev.
 _COOKIE_SECURE = cfg.is_production
+
+def validate_password_strength(password: str):
+    if len(password) < 12:
+        raise HTTPException(status_code=400, detail="Password must be at least 12 characters long.")
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter.")
+    if not re.search(r"[a-z]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter.")
+    if not re.search(r"\d", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one digit.")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character.")
+
+async def enforce_mfa(user: User):
+    from app.utils.permissions import UserRole
+    if user.role in [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value] and getattr(user, "mfa_enabled", False) is False:
+        if cfg.is_production:
+            raise HTTPException(status_code=403, detail="MFA is required for administrative roles.")
 
 
 @router.post("/register", status_code=201)

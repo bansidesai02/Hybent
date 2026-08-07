@@ -37,6 +37,7 @@ function ChatMessageComponent({
   const isAi = message.sender === 'ai'
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(message.text)
+  const [imgError, setImgError] = useState(false)
 
   const handleCopy = async () => {
     try {
@@ -70,23 +71,20 @@ function ChatMessageComponent({
         {isAi ? (
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 via-violet-500 to-pink-500 p-[1.5px] shadow-sm flex items-center justify-center">
             <div className="w-full h-full bg-[#1e143b] rounded-[10px] flex items-center justify-center overflow-hidden">
-              <img
-                src="/hybent/hybent-mark.png"
-                alt="Hybent AI"
-                width={20}
-                height={20}
-                loading="lazy"
-                decoding="async"
-                className="w-5 h-5 object-contain"
-                onError={(e) => {
-                  const target = e.currentTarget
-                  target.style.display = 'none'
-                  if (target.parentElement) {
-                    target.parentElement.innerHTML =
-                      '<span class="text-white text-xs font-bold">H</span>'
-                  }
-                }}
-              />
+              {imgError ? (
+                <span className="text-white text-xs font-bold">H</span>
+              ) : (
+                <img
+                  src="/hybent/hybent-mark.png"
+                  alt="Hybent AI"
+                  width={20}
+                  height={20}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-5 h-5 object-contain"
+                  onError={() => setImgError(true)}
+                />
+              )}
             </div>
           </div>
         ) : (

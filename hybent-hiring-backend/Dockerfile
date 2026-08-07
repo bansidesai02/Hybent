@@ -46,6 +46,12 @@ RUN mkdir -p uploads/resumes uploads/jds uploads/offers uploads/avatars
 COPY entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
+# Run as non-root user for security hardening
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
 EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]

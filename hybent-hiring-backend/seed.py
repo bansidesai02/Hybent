@@ -37,12 +37,18 @@ from app.models.super_admin import (
 from app.models.organization_ai_credits import OrganizationAICredits
 from app.models.ai_credit_rule import AICreditRule
 from app.models.ai_usage import AIUsage
+import secrets
+import string
 from app.utils.permissions import (
     UserRole, JobStatus, ApplicationStage,
     InterviewType, InterviewStatus, OfferStatus,
 )
 from app.utils.security import hash_password
 import app.models  # noqa — register all models
+
+def generate_demo_password(length: int = 14) -> str:
+    chars = string.ascii_letters + string.digits + "!@#$%^&*"
+    return "".join(secrets.choice(chars) for _ in range(length))
 
 _db_url = os.environ.get("DATABASE_URL", settings.database_url)
 engine = create_async_engine(
