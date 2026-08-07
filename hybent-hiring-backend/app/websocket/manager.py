@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 WebSocket connection manager.
 Maps user_id → list of active WebSocket connections.

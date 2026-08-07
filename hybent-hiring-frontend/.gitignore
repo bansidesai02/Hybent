@@ -28,5 +28,5 @@ dist-ssr
 .env.*
 !.env.example
 
-# Docker
-.env.docker
+# Tools
+.tools/

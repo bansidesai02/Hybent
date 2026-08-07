@@ -8,5 +8,6 @@ dist/
 # Vite writes these while resolving a TS config
 vite.config.ts.timestamp-*.mjs
 
-# Design mockup that the company site was built from
-/hybent final.html
+# Tools
+.tools/
+
