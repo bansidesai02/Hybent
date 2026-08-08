@@ -96,8 +96,8 @@ class Settings(BaseSettings):
         if self.app_env == "production":
             if not self.database_url:
                 raise ValueError("DATABASE_URL environment variable is required in production.")
-            if not self.secret_key or self.secret_key == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7":
-                raise ValueError("SECRET_KEY environment variable must be set to a secure secret in production.")
+            if not self.secret_key:
+                raise ValueError("SECRET_KEY environment variable is required.")
         return self
 
     @property

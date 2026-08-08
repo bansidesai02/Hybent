@@ -335,9 +335,9 @@ def _regex_fallback(text: str) -> dict:
         "skills": [],
     }
 
-    email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+    email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text, re.IGNORECASE)
     if email_match:
-        parsed["email"] = email_match.group(0)
+        parsed["email"] = email_match.group(0).lower().strip()
 
     phone_match = re.search(r'(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}', text)
     if phone_match:
@@ -346,6 +346,21 @@ def _regex_fallback(text: str) -> dict:
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     if lines and len(lines[0]) < 50:
         parsed["full_name"] = lines[0].title()
+
+    # Extract common technical skill keywords from raw text
+    common_skills = [
+        "Python", "JavaScript", "TypeScript", "React", "Node.js", "Java", "C++", "C#",
+        "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "AWS", "Docker", "Kubernetes",
+        "HTML", "CSS", "Git", "FastAPI", "Django", "Flask", "Express", "Next.js",
+        "Tailwind", "REST API", "GraphQL", "Go", "Rust", "PHP", "Ruby", "Angular", "Vue"
+    ]
+    text_lower = text.lower()
+    extracted_skills = []
+    for skill in common_skills:
+        pattern = r'\b' + re.escape(skill.lower()) + r'\b'
+        if re.search(pattern, text_lower):
+            extracted_skills.append(skill)
+    parsed["skills"] = extracted_skills
 
     return parsed
 

@@ -444,7 +444,9 @@ function UploadResume() {
 
         const message =
           resp?.data?.message ||
+          (typeof detail === 'object' && detail?.message ? detail.message : null) ||
           (typeof detail === 'string' ? detail : null) ||
+          err?.message ||
           'Upload failed. Please try again.'
 
         setError(message)

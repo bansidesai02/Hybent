@@ -1,14 +1,19 @@
 """
 AI match scoring: compare candidate skills/experience against job requirements.
-Uses a unified LLM prompt approach (Groq Llama-3) to perform exact logical scoring
-and reasoning in one execution, enforcing strict matching rules.
+Uses a 3-tier evaluation pipeline:
+  1. Groq (Llama-3.3-70b-versatile)
+  2. Google Gemini (gemini-1.5-flash) failover
+  3. Offline Deterministic Heuristic Fallback Scorer
 """
+import asyncio
 import json
 import logging
+import re
 import time
 import uuid
 from typing import Optional
 
+import google.generativeai as genai
 from app.services.groq_client import SafeGroq as Groq
 from fastapi import BackgroundTasks
 from app.core.config import settings
@@ -17,6 +22,12 @@ from app.services.ai_usage_tracker import log_ai_usage
 logger = logging.getLogger(__name__)
 
 groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+
+if settings.gemini_api_key:
+    try:
+        genai.configure(api_key=settings.gemini_api_key)
+    except Exception as exc:
+        logger.warning(f"Gemini configuration error: {exc}")
 
 SYSTEM_PROMPT = """
 You are an expert technical recruiter AI with 10+ years of hiring experience.
@@ -137,6 +148,128 @@ RULES FOR OUTPUT:
 """
 
 
+def compute_heuristic_match_score(
+    candidate_skills: list[str],
+    candidate_title: Optional[str],
+    years_experience: Optional[float],
+    candidate_education: list[dict],
+    job,
+    match_threshold: float = 70.0,
+    note: str = ""
+) -> tuple[float, dict]:
+    """
+    Deterministic offline heuristic scorer used when AI services fail or are unconfigured.
+    Calculates actual match metrics instead of returning dummy 50% flat defaults.
+    """
+    req_skills_raw = getattr(job, "skills_required", []) or []
+    req_skills = [s.strip() for s in req_skills_raw if isinstance(s, str) and s.strip()]
+    cand_skills = [s.strip() for s in (candidate_skills or []) if isinstance(s, str) and s.strip()]
+    cand_skills_lower = [s.lower() for s in cand_skills]
+
+    matched_skills = []
+    missing_skills = []
+
+    if req_skills:
+        for rs in req_skills:
+            rs_lower = rs.lower()
+            if any(rs_lower in cs or cs in rs_lower for cs in cand_skills_lower):
+                matched_skills.append(rs)
+            else:
+                missing_skills.append(rs)
+        skills_score = round((len(matched_skills) / len(req_skills)) * 100.0, 1)
+    else:
+        matched_skills = cand_skills[:5]
+        missing_skills = []
+        skills_score = 80.0
+
+    # Title score
+    job_title = (getattr(job, "title", "") or "").strip().lower()
+    cand_title = (candidate_title or "").strip().lower()
+    
+    if not cand_title:
+        title_score = 50.0
+    elif job_title == cand_title:
+        title_score = 100.0
+    else:
+        job_words = set(re.findall(r'\w+', job_title))
+        cand_words = set(re.findall(r'\w+', cand_title))
+        overlap = job_words.intersection(cand_words)
+        if overlap:
+            title_score = 75.0
+        else:
+            title_score = 40.0
+
+    # Experience score
+    req_years = float(getattr(job, "min_experience_years", 0) or 0)
+    cand_years = float(years_experience) if years_experience is not None else 0.0
+
+    if cand_years >= req_years:
+        experience_score = 100.0
+    else:
+        diff = req_years - cand_years
+        experience_score = max(0.0, round(100.0 - (diff * 15.0), 1))
+
+    # Education score
+    education_score = 70.0
+    if candidate_education and len(candidate_education) > 0:
+        education_score = 85.0
+
+    # Critical penalty rule if missing core skills
+    if req_skills and len(matched_skills) == 0:
+        skills_score = 0.0
+        title_score = min(title_score, 40.0)
+
+    final_score = round(
+        (skills_score * 0.50) +
+        (title_score * 0.20) +
+        (experience_score * 0.20) +
+        (education_score * 0.10),
+        1
+    )
+
+    shortlisted = final_score >= match_threshold
+    
+    reasoning_str = (
+        f"OVERALL ALIGNMENT: Candidate matched {len(matched_skills)} of {len(req_skills)} required skills ({skills_score}% skills match).\n"
+        f"STRENGTHS: Skills matched: {', '.join(matched_skills) if matched_skills else 'General background'}. Experience: {cand_years} yrs vs required {req_years} yrs.\n"
+        f"GAPS: Missing skills: {', '.join(missing_skills) if missing_skills else 'None'}.\n"
+        f"VERDICT: {'Recommended for shortlist' if shortlisted else 'Does not meet match threshold'}. {note}".strip()
+    )
+
+    return final_score, {
+        "final_score": final_score,
+        "skills_score": int(skills_score),
+        "title_score": int(title_score),
+        "experience_score": int(experience_score),
+        "education_score": int(education_score),
+        "matched_skills": matched_skills,
+        "missing_skills": missing_skills,
+        "shortlisted": shortlisted,
+        "reasoning": reasoning_str
+    }
+
+
+async def _evaluate_candidate_match_gemini(prompt: str) -> Optional[dict]:
+    """Secondary LLM failover using Gemini 1.5 Flash."""
+    if not settings.gemini_api_key:
+        return None
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = await asyncio.to_thread(
+            model.generate_content,
+            f"{SYSTEM_PROMPT.strip()}\n\n{prompt.strip()}",
+            generation_config={"response_mime_type": "application/json", "temperature": 0.1}
+        )
+        if response and response.text:
+            cleaned = response.text.strip()
+            if cleaned.startswith("```json"):
+                cleaned = cleaned.replace("```json", "").replace("```", "").strip()
+            return json.loads(cleaned)
+    except Exception as e:
+        logger.warning(f"Gemini candidate match evaluation failover error: {e}")
+    return None
+
+
 async def evaluate_candidate_match(
     candidate_data: dict,
     candidate_skills: list[str],
@@ -148,26 +281,14 @@ async def evaluate_candidate_match(
     organization_id: Optional[uuid.UUID] = None
 ) -> tuple[float, dict]:
     """
-    Evaluates candidate purely using the strictly formatted LLM prompt logic.
-    Returns: (final_score: float, score_breakdown: dict)
+    3-Tier Candidate Match Evaluation:
+      1. Primary LLM: Groq (Llama-3.3-70b)
+      2. Secondary LLM Failover: Gemini 1.5 Flash
+      3. Deterministic Algorithmic Heuristic Scorer
     """
     if organization_id:
         from app.services.ai_credit_service import AICreditsService
         await AICreditsService.check_credits_available(None, organization_id, "candidate_matching")
-
-    if not groq_client:
-        logger.warning("Groq API key not configured, returning neutral breakdown.")
-        return 50.0, {
-            "final_score": 50.0,
-            "skills_score": 50,
-            "title_score": 50,
-            "experience_score": 50,
-            "education_score": 50,
-            "matched_skills": candidate_skills[:5],
-            "missing_skills": [],
-            "shortlisted": False,
-            "reasoning": "AI scoring is disabled. Please review manually."
-        }
 
     # Extract clean string values for prompt injection
     try:
@@ -184,7 +305,7 @@ async def evaluate_candidate_match(
         job_title=getattr(job, "title", "Role"),
         required_years=getattr(job, "min_experience_years", 0) or 0,
         required_skills=req_skills_str,
-        required_education="Not specified",  # Mapped neutral due to lack of DB field
+        required_education="Not specified",
         
         candidate_name=candidate_data.get("full_name", "Candidate"),
         candidate_title=candidate_data.get("current_title", "None"),
@@ -199,66 +320,77 @@ async def evaluate_candidate_match(
     status = "success"
     error_msg = None
 
-    try:
-        response = groq_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT.strip()},
-                {"role": "user", "content": prompt.strip()},
-            ],
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-            temperature=0.1,  # Keep low for strict consistency
-        )
-        
-        if hasattr(response, 'usage'):
-            p_tokens = response.usage.prompt_tokens
-            c_tokens = response.usage.completion_tokens
-            t_tokens = response.usage.total_tokens
-
-        content = response.choices[0].message.content
-        if not content:
-            raise ValueError("Empty response from AI")
-            
-        result = json.loads(content)
-        
-        # Guarantee fallbacks for UI safety
-        final_score = float(result.get("final_score", 50.0))
-        result["matched_skills"] = result.get("matched_skills", [])
-        result["missing_skills"] = result.get("missing_skills", [])
-        result["reasoning"] = result.get("reasoning", "Score could not be properly summarized.")
-        result["shortlisted"] = bool(result.get("shortlisted", final_score >= match_threshold))
-        
-        return final_score, result
-
-    except Exception as e:
-        status = "failure"
-        error_msg = str(e)
-        logger.error(f"Error evaluating candidate match via LLM: {e}")
-        return 50.0, {
-            "final_score": 50.0,
-            "skills_score": 50,
-            "title_score": 50,
-            "experience_score": 50,
-            "education_score": 50,
-            "matched_skills": [],
-            "missing_skills": [],
-            "shortlisted": False,
-            "reasoning": f"Scoring engine error: {str(e)}"
-        }
-    finally:
-        duration_ms = (time.time() - start_time) * 1000
-        if background_tasks:
-            background_tasks.add_task(
-                log_ai_usage,
-                provider="Groq",
+    # Tier 1: Groq LLM
+    if groq_client:
+        try:
+            response = groq_client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT.strip()},
+                    {"role": "user", "content": prompt.strip()},
+                ],
                 model="llama-3.3-70b-versatile",
-                feature="candidate_match",
-                prompt_tokens=p_tokens,
-                completion_tokens=c_tokens,
-                total_tokens=t_tokens,
-                duration_ms=duration_ms,
-                status=status,
-                error_detail=error_msg,
-                user_id=user_id,
-                organization_id=organization_id
+                response_format={"type": "json_object"},
+                temperature=0.1,
             )
+            
+            if hasattr(response, 'usage'):
+                p_tokens = response.usage.prompt_tokens
+                c_tokens = response.usage.completion_tokens
+                t_tokens = response.usage.total_tokens
+
+            content = response.choices[0].message.content
+            if content:
+                result = json.loads(content)
+                final_score = float(result.get("final_score", 50.0))
+                result["matched_skills"] = result.get("matched_skills", [])
+                result["missing_skills"] = result.get("missing_skills", [])
+                result["reasoning"] = result.get("reasoning", "Score evaluated via AI engine.")
+                result["shortlisted"] = bool(result.get("shortlisted", final_score >= match_threshold))
+                
+                return final_score, result
+        except Exception as e:
+            logger.warning(f"Groq match scoring failed ({e}). Escalating to Gemini failover...")
+
+    # Tier 2: Gemini LLM Failover
+    gemini_result = await _evaluate_candidate_match_gemini(prompt)
+    if gemini_result:
+        final_score = float(gemini_result.get("final_score", 50.0))
+        gemini_result["matched_skills"] = gemini_result.get("matched_skills", [])
+        gemini_result["missing_skills"] = gemini_result.get("missing_skills", [])
+        gemini_result["reasoning"] = gemini_result.get("reasoning", "Score evaluated via Gemini AI engine.")
+        gemini_result["shortlisted"] = bool(gemini_result.get("shortlisted", final_score >= match_threshold))
+        return final_score, gemini_result
+
+    # Tier 3: Deterministic Heuristic Fallback Scorer (Guarantees non-50% real match score)
+    status = "failure"
+    error_msg = "LLM API keys unavailable or failed. Used deterministic heuristic scorer."
+    logger.info("Executing deterministic heuristic candidate match calculation...")
+
+    final_score, breakdown = compute_heuristic_match_score(
+        candidate_skills=candidate_skills,
+        candidate_title=candidate_data.get("current_title"),
+        years_experience=years_experience,
+        candidate_education=cand_edu_list if isinstance(cand_edu_list, list) else [],
+        job=job,
+        match_threshold=match_threshold,
+        note="(Evaluated via deterministic heuristic fallback engine)."
+    )
+
+    duration_ms = (time.time() - start_time) * 1000
+    if background_tasks:
+        background_tasks.add_task(
+            log_ai_usage,
+            provider="HeuristicFallback",
+            model="DeterministicScorer",
+            feature="candidate_match",
+            prompt_tokens=p_tokens,
+            completion_tokens=c_tokens,
+            total_tokens=t_tokens,
+            duration_ms=duration_ms,
+            status=status,
+            error_detail=error_msg,
+            user_id=user_id,
+            organization_id=organization_id
+        )
+
+    return final_score, breakdown

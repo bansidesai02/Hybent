@@ -1,5 +1,6 @@
 import uuid
 import logging
+import re
 from dataclasses import dataclass, field
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Form
 from sqlalchemy import select
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/v1/resumes", tags=["resumes"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/upload/{candidate_id}", response_model=CandidateOut)
+@router.post("/upload/{candidate_id}")
 async def upload_resume(
     candidate_id: uuid.UUID,
     background_tasks: BackgroundTasks,
@@ -107,7 +108,7 @@ async def upload_resume(
     return APIResponse.success(message="Resume uploaded successfully.", data=CandidateOut.model_validate(candidate))
 
 
-@router.post("/upload-and-create", response_model=CandidateOut, status_code=201)
+@router.post("/upload-and-create", status_code=201)
 async def upload_and_create(
     background_tasks: BackgroundTasks,
     current_user: RecruiterUser,
@@ -133,14 +134,13 @@ async def upload_and_create(
     )
     logger.info(f"Upload-and-create parsed resume: {parsed}")
 
-    # Priority 4: fail fast if no email — don't create ghost candidates
+    full_name = parsed.get("full_name") or "Unknown Candidate"
     email = parsed.get("email")
     if not email:
-        raise HTTPException(
-            status_code=400,
-            detail="Could not extract email from resume. Please enter it manually."
-        )
-    full_name = parsed.get("full_name") or "Unknown Candidate"
+        clean_name = re.sub(r'[^a-zA-Z0-9]', '', full_name.lower()) or "applicant"
+        email = f"{clean_name}.{uuid.uuid4().hex[:6]}@hybent.temp"
+        parsed["email"] = email
+        logger.info(f"No email found in resume text. Generated fallback email: {email}")
 
     # Check for duplicate
     from sqlalchemy.orm import selectinload

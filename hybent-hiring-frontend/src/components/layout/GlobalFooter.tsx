@@ -28,16 +28,14 @@ export function GlobalFooter() {
               <a href="/" aria-label="YouTube"><svg aria-hidden="true"><use href="#i-yt" /></svg></a>
             </div>
           </div>
-          <div><h5>Products &amp; Services</h5><ul>
+          <div><h5>Products</h5><ul>
             <li><a href="/products/hiring">Hybent Hiring</a></li>
-            <li><a href="/solutions">IT Services</a></li>
-            <li><a href="/solutions">Custom Software</a></li>
-            <li><a href="/solutions">Hire Talent</a></li>
-            <li><a href="/solutions">Web &amp; Mobile Apps</a></li>
           </ul></div>
           <div><h5>Solutions</h5><ul>
-            <li><a href="/solutions">Talent acquisition</a></li><li><a href="/solutions">People operations</a></li>
-            <li><a href="/solutions">Hiring managers</a></li><li><a href="/solutions">IT &amp; security</a></li><li><a href="/industries">Industries</a></li></ul></div>
+            <li><a href="/solutions">Services</a></li>
+            <li><a href="/industries">Industries</a></li>
+            <li><a href="/solutions">Hire Talent</a></li>
+          </ul></div>
           <div><h5>Company</h5><ul>
             <li><a href="/about">About</a></li><li><a href="/about/timeline">Our story</a></li><li><a href="/careers">Careers</a></li>
             <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
