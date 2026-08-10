@@ -790,69 +790,88 @@ export default function AllTalentListPage() {
         <ul className="grid gap-hb-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {items.map((candidate: any) => (
             <li key={candidate.id}>
-              <Card variant="interactive" as="article" className="flex h-full flex-col">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Avatar name={candidate.full_name} src={candidate.avatar_url} size="md" />
-                    <div className="min-w-0">
-                      <p className="truncate text-hb-body font-semibold text-hb-text" title={candidate.full_name}>
-                        {candidate.full_name}
-                      </p>
-                      <p className="truncate text-hb-xs text-hb-muted" title={candidate.email}>
-                        {candidate.email}
-                      </p>
+              <Card
+                variant="interactive"
+                as="article"
+                className="group relative flex h-full flex-col overflow-hidden border border-hb-border/80 bg-hb-surface transition-all duration-300 hover:border-hb-blue/40 hover:shadow-md hover:shadow-hb-blue/5 hover:-translate-y-0.5"
+              >
+                {/* Top accent bar */}
+                <div className="h-1 w-full bg-gradient-to-r from-hb-blue via-indigo-500 to-violet-500 opacity-80 group-hover:opacity-100 transition-opacity" />
+
+                <div className="p-4 flex h-full flex-col justify-between space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar
+                        name={candidate.full_name}
+                        src={candidate.avatar_url}
+                        size="md"
+                        className="ring-2 ring-hb-blue/15 shadow-sm shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p
+                          className="truncate text-hb-body font-bold text-hb-text group-hover:text-hb-blue transition-colors"
+                          title={candidate.full_name}
+                        >
+                          {candidate.full_name}
+                        </p>
+                        <p className="truncate text-hb-xs text-hb-muted" title={candidate.email}>
+                          {candidate.email}
+                        </p>
+                      </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActionsTarget(candidate)}
+                      aria-label={`More actions for ${candidate.full_name}`}
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-full border border-hb-border bg-hb-surface-2/80 text-hb-muted transition-all duration-hb hover:border-hb-blue/40 hover:bg-hb-blue/10 hover:text-hb-blue focus-visible:outline-none focus-visible:shadow-hb-ring"
+                    >
+                      <MoreHorizontal size={15} aria-hidden />
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setActionsTarget(candidate)}
-                    aria-label={`More actions for ${candidate.full_name}`}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-sm border border-hb-border bg-hb-surface-2 text-hb-muted transition-colors duration-hb hover:border-hb-border-strong hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  <div className="space-y-2.5 rounded-hb bg-hb-surface-2/40 p-3 border border-hb-border/40">
+                    <Fact label="Role" value={candidate.applied_job_title || candidate.current_title || '—'} />
+                    <Fact
+                      label="Experience"
+                      value={
+                        candidate.experience_years ||
+                        (candidate.years_experience != null
+                          ? `${candidate.years_experience}y`
+                          : candidate.relevant_experience || '—')
+                      }
+                    />
+                    <Fact label="Applied" value={formatCandidateDate(candidate, 'dd MMM yyyy')} />
+                    <Fact
+                      label="Stage"
+                      value={
+                        candidate.pipeline_stage ? (
+                          <StatusPill status={candidate.pipeline_stage} />
+                        ) : (
+                          <span className="inline-flex items-center rounded-hb-full border border-dashed border-hb-border-strong px-2.5 py-0.5 font-mono text-hb-micro uppercase text-hb-dim">
+                            {candidate.match_score != null ? 'New' : 'Unprocessed'}
+                          </span>
+                        )
+                      }
+                    />
+                    <Fact
+                      label="Status"
+                      value={<StatusPill status={statusFromStage(candidate.pipeline_stage)} />}
+                    />
+                    <Fact label="Added by" value={candidate.created_by_name || 'Admin'} />
+                    {candidate.hr_name && <Fact label="Recruiter" value={candidate.hr_name} />}
+                  </div>
+
+                  <Button
+                    fullWidth
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setViewTarget(candidate)}
+                    className="shadow-sm shadow-hb-blue/20"
                   >
-                    <MoreHorizontal size={15} aria-hidden />
-                  </button>
+                    View full profile
+                  </Button>
                 </div>
-
-                <hr className="my-hb-4 h-px border-0 bg-hb-border" />
-
-                <div className="flex-1 space-y-2.5">
-                  <Fact label="Role" value={candidate.applied_job_title || candidate.current_title || '—'} />
-                  <Fact
-                    label="Experience"
-                    value={
-                      candidate.experience_years ||
-                      (candidate.years_experience != null
-                        ? `${candidate.years_experience}y`
-                        : candidate.relevant_experience || '—')
-                    }
-                  />
-                  <Fact label="Applied" value={formatCandidateDate(candidate, 'dd MMM yyyy')} />
-                  <Fact
-                    label="Stage"
-                    value={
-                      candidate.pipeline_stage ? (
-                        <StatusPill status={candidate.pipeline_stage} />
-                      ) : (
-                        <span className="inline-flex items-center rounded-hb-full border border-dashed border-hb-border-strong px-2.5 py-0.5 font-mono text-hb-micro uppercase text-hb-dim">
-                          {candidate.match_score != null ? 'New' : 'Unprocessed'}
-                        </span>
-                      )
-                    }
-                  />
-                  <Fact
-                    label="Status"
-                    value={<StatusPill status={statusFromStage(candidate.pipeline_stage)} />}
-                  />
-                  <Fact label="Added by" value={candidate.created_by_name || 'Admin'} />
-                  {candidate.hr_name && <Fact label="Recruiter" value={candidate.hr_name} />}
-                </div>
-
-                <hr className="my-hb-4 h-px border-0 bg-hb-border" />
-
-                <Button fullWidth size="sm" onClick={() => setViewTarget(candidate)}>
-                  View full profile
-                </Button>
               </Card>
             </li>
           ))}
