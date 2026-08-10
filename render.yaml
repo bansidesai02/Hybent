@@ -4,7 +4,7 @@ services:
     name: hybent-hiring-backend
     env: docker
     dockerContext: ./hybent-hiring-backend
-    dockerfilePath: Dockerfile
+    dockerfilePath: ./hybent-hiring-backend/Dockerfile
     plan: free
     healthCheckPath: /health
     envVars:
@@ -41,7 +41,7 @@ services:
     name: hybent-hiring-frontend
     env: docker
     dockerContext: ./hybent-hiring-frontend
-    dockerfilePath: Dockerfile
+    dockerfilePath: ./hybent-hiring-frontend/Dockerfile
     plan: free
     envVars:
       # Empty means the bundle uses relative paths, which nginx then proxies —
