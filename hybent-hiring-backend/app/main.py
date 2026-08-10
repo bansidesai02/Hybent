@@ -40,20 +40,6 @@ async def lifespan(app: FastAPI):
     """Startup/shutdown events."""
     logger.info(f"🚀 Hybent Hiring API starting in {settings.app_env} mode")
 
-    # Always run Alembic migrations on startup to ensure Render DB is up to date
-    # This fixes issues where Render Native environments don't run entrypoint.sh
-    try:
-        from alembic import command
-        from alembic.config import Config
-        def run_migrations():
-            alembic_cfg = Config("alembic.ini")
-            command.upgrade(alembic_cfg, "head")
-            
-        await asyncio.to_thread(run_migrations)
-        logger.info("Successfully applied Alembic migrations.")
-    except Exception as e:
-        logger.warning(f"Alembic migration skipped or failed (likely concurrent): {e}")
-
     # Ensure upload directories exist
     Path(settings.upload_dir).mkdir(exist_ok=True)
     for sub in ["resumes", "jds", "offers", "avatars", "pre-screening"]:
