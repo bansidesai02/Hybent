@@ -20,7 +20,7 @@ services:
           name: hybent-hiring-redis
           property: connectionString
       - key: FRONTEND_URL
-        value: https://hybent-hiring-frontend.onrender.com # Update this after first deployment!
+        value: https://hybent.com
       - key: SECRET_KEY
         generateValue: true
       - key: GROQ_API_KEY
@@ -35,25 +35,6 @@ services:
         sync: false
       - key: LINKEDIN_REDIRECT_URI
         sync: false
-
-  # ── React Frontend (Nginx) ────────────────────────────────────────────────
-  - type: web
-    name: hybent-hiring-frontend
-    env: docker
-    dockerContext: ./hybent-hiring-frontend
-    dockerfilePath: ./hybent-hiring-frontend/Dockerfile
-    plan: free
-    envVars:
-      # Empty means the bundle uses relative paths, which nginx then proxies —
-      # so the browser only ever talks to one origin and CORS never enters it.
-      - key: VITE_API_BASE_URL
-        value: ""
-      # Where that proxy points. The compose service name baked in as the image
-      # default does not resolve here, so both must be set to the backend's URL.
-      - key: BACKEND_ORIGIN
-        value: http://hybent-hiring-backend:8000
-      - key: BACKEND_HOST
-        value: hybent-hiring-backend:8000
 
   # ── Redis ─────────────────────────────────────────────────────────────────
   - type: redis
