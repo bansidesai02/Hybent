@@ -190,8 +190,10 @@ app.add_middleware(RateLimiterMiddleware, auth_limit=10, api_limit=120, window_s
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    # Enforce HTTPS redirect in production if request is HTTP
-    if settings.is_production and request.headers.get("x-forwarded-proto") == "http":
+    # Enforce HTTPS redirect in production if request is HTTP, but skip for local hostnames
+    host = request.headers.get("host", "")
+    is_local = "localhost" in host or "127.0.0.1" in host or "backend" in host
+    if settings.is_production and request.headers.get("x-forwarded-proto") == "http" and not is_local:
         url = request.url.replace(scheme="https")
         return JSONResponse(status_code=307, headers={"Location": str(url)}, content=None)
     

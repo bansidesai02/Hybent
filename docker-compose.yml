@@ -42,7 +42,7 @@ services:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       UPLOAD_DIR: /app/uploads
-      APP_ENV: production
+      APP_ENV: development
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
       RUN_SEED: ${RUN_SEED:-false}
       PYTHONUNBUFFERED: "1"
@@ -91,7 +91,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hybent_hiring}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hybent_hiring_db}
       REDIS_URL: redis://redis:6379/0
-      APP_ENV: production
+      APP_ENV: development
       SKIP_PRESTART: "true"
       PYTHONUNBUFFERED: "1"
     volumes:
@@ -117,7 +117,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hybent_hiring}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hybent_hiring_db}
       REDIS_URL: redis://redis:6379/0
-      APP_ENV: production
+      APP_ENV: development
       SKIP_PRESTART: "true"
       PYTHONUNBUFFERED: "1"
     volumes:
