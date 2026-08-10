@@ -23,6 +23,18 @@ class Settings(BaseSettings):
             return v.strip()
         return v
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def convert_database_url(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif v.startswith("postgresql://") and not v.startswith("postgresql+asyncpg://"):
+                v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
+
     # ── App ────────────────────────────────────────────────────────────────────
     app_name: str = "Hybent Hiring"
     app_env: str = "development"

@@ -51,15 +51,9 @@ services:
       # Where that proxy points. The compose service name baked in as the image
       # default does not resolve here, so both must be set to the backend's URL.
       - key: BACKEND_ORIGIN
-        fromService:
-          type: web
-          name: hybent-hiring-backend
-          property: host
+        value: http://hybent-hiring-backend:8000
       - key: BACKEND_HOST
-        fromService:
-          type: web
-          name: hybent-hiring-backend
-          property: host
+        value: hybent-hiring-backend:8000
 
   # ── Redis ─────────────────────────────────────────────────────────────────
   - type: redis
