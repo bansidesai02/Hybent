@@ -1,0 +1,1 @@
+import e from"./axios-D3lrtMbz.js";const t={getConversations:()=>e.get("/v1/messages/conversations"),getMessages:(s,a)=>e.get(`/v1/messages/${s}`,{params:a}),sendMessage:s=>e.post("/v1/messages",s),markAsRead:s=>e.post(`/v1/messages/${s}/read`)};export{t as m};
