@@ -127,7 +127,14 @@ async def log_requests(request: Request, call_next):
         response.headers["Expires"] = "0"
 
     # Production security headers
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data: https://cdn.jsdelivr.net; "
+        "connect-src 'self' https:;"
+    )
     response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
