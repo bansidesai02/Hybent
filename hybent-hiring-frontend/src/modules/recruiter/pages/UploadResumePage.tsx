@@ -393,6 +393,13 @@ function UploadResume() {
         return
       }
 
+      const nameLower = file.name.toLowerCase()
+      const blockedKeywords = ['aadhaar', 'pan card', 'pancard', 'passport', 'id card', 'idcard', 'certificate', 'marksheet', 'invoice', 'receipt']
+      if (blockedKeywords.some(keyword => nameLower.includes(keyword))) {
+        setError('Invalid document. Please upload a valid professional resume/CV.')
+        return
+      }
+
       setError('')
       setCompletedSteps(0)
       setStage('uploading')

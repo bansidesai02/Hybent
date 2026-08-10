@@ -16,7 +16,7 @@ import time
 import uuid
 from app.services.groq_client import SafeGroq as Groq
 from pydantic import BaseModel, Field
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException
 
 from app.core.config import settings
 from app.services.ai_usage_tracker import log_ai_usage
@@ -458,6 +458,80 @@ def _call_groq_with_retry(
     return None
 
 
+def _verify_is_resume_with_keywords(text: str) -> bool:
+    text_lower = text.lower()
+    
+    # Exclude government IDs and unrelated documents by checking for specific words
+    blacklist_patterns = [
+        r"government of india", r"permanent account number", r"aadhaar", r"income tax department",
+        r"republic of india", r"passport", r"driving license", r"invoice", r"bill of entry",
+        r"marksheet", r"certificate of completion", r"academic transcript", r"receipt",
+        r"purchase order", r"pan card", r"unique identification authority", r"tax invoice"
+    ]
+    for pattern in blacklist_patterns:
+        if re.search(pattern, text_lower):
+            logger.info(f"Document validation failed: matched blacklist pattern '{pattern}'")
+            return False
+
+    # Resumes typically contain a combination of keywords from different sections
+    resume_keywords = [
+        "experience", "education", "skills", "projects", "employment", 
+        "summary", "work history", "academic", "qualifications", "curriculum vitae", "resume"
+    ]
+    matches = sum(1 for kw in resume_keywords if kw in text_lower)
+    # If it has at least 2 common resume section keywords, consider it a resume
+    is_res = matches >= 2
+    logger.info(f"Document keyword validation result: matches={matches}, is_resume={is_res}")
+    return is_res
+
+
+def _verify_is_resume_with_llm(text: str) -> bool:
+    if not groq_client:
+        return _verify_is_resume_with_keywords(text)
+    
+    prompt = """
+    You are an expert AI document classifier. Analyze the text below and determine if it is a genuine professional resume or curriculum vitae (CV).
+
+    A genuine resume/CV MUST contain details about a person's professional history, such as their work experience, professional skills, education, or project history.
+
+    You MUST reject documents that are NOT resumes, including:
+    - Identity cards / government documents (e.g. Aadhaar, PAN, Passports, Driving Licenses, SSNs)
+    - Certificates (e.g. course completion, degree certificates)
+    - Academic transcripts / Marksheets
+    - Business documents (e.g. Invoices, receipts, purchase orders, offer letters, employment contracts)
+    - Random letters, articles, essays, or unrelated text.
+
+    Return ONLY a valid JSON object with the following structure:
+    {
+      "is_resume": true or false,
+      "reason": "a brief explanation of your decision"
+    }
+
+    Text to analyze:
+    """
+    try:
+        completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that outputs ONLY valid JSON."},
+                {"role": "user", "content": prompt + text[:4000]},
+            ],
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=100,
+        )
+        content = completion.choices[0].message.content
+        if content:
+            res = json.loads(content)
+            is_res = res.get("is_resume", False)
+            logger.info(f"Document validation result: is_resume={is_res}, reason={res.get('reason')}")
+            return is_res
+    except Exception as e:
+        logger.error(f"Error during document validation: {e}")
+    
+    return _verify_is_resume_with_keywords(text)
+
+
 # ─── Public API ──────────────────────────────────────────────────────────────────
 
 async def parse_resume(
@@ -479,11 +553,29 @@ async def parse_resume(
         text = extract_text_from_doc(file_content)
     else:
         logger.warning(f"Unsupported resume format or content type: {content_type}")
-        return {}
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid document. Please upload a valid professional resume/CV."
+        )
 
-    if not text:
-        logger.warning("Could not extract text from resume")
-        return {}
+    if not text or len(text.strip()) < 150:
+        logger.warning("Could not extract text or text too short from resume")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid document. Please upload a valid professional resume/CV."
+        )
+
+    # Perform strict document validation
+    if groq_client:
+        is_resume = _verify_is_resume_with_llm(text)
+    else:
+        is_resume = _verify_is_resume_with_keywords(text)
+
+    if not is_resume:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid document. Please upload a valid professional resume/CV."
+        )
 
     if organization_id:
         from app.services.ai_credit_service import AICreditsService
