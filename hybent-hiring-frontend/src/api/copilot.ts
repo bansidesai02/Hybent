@@ -1,6 +1,7 @@
 import axios from './axios'
 import type { ChatMessage, PageContext } from '@/store/useCopilotStore'
 import { tokenStorage } from '@/utils/tokenStorage'
+import { getApiBaseUrl } from '@/config/api'
 
 // ── Response Types ────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ export const copilotApi = {
   ) => {
     const apiHistory: ApiMessage[] = history.map(({ role, content }) => ({ role, content }))
     const token = tokenStorage.getAccessToken()
-    const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+    const BASE_URL = getApiBaseUrl()
     
     try {
       const response = await fetch(`${BASE_URL}/v1/copilot/chat`, {

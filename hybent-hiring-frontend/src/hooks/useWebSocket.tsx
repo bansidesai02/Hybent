@@ -7,14 +7,20 @@ import { useMessageStore } from '@/store/messageStore'
 import toast from 'react-hot-toast'
 import { ActivityToast } from '@/components/notifications/ActivityToast'
 
+import { getApiBaseUrl } from '@/config/api'
+
 const getWsBase = () => {
   const { protocol, host } = window.location
   const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || `${wsProtocol}//${host}`
-  return baseUrl.startsWith('http') ? baseUrl.replace('http', 'ws') : baseUrl
+  const apiBase = getApiBaseUrl()
+  if (apiBase && apiBase.startsWith('http')) {
+    return apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws')
+  }
+  return `${wsProtocol}//${host}`
 }
 
 const WS_BASE = getWsBase()
+
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)

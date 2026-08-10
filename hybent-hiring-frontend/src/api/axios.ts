@@ -14,13 +14,16 @@ declare module 'axios' {
   }
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+import { getApiBaseUrl } from '@/config/api'
+
+const BASE_URL = getApiBaseUrl()
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true, // for HttpOnly refresh token cookie
 })
+
 
 // ── Request interceptor: inject access token & start loading ─────────────────
 api.interceptors.request.use((config) => {
