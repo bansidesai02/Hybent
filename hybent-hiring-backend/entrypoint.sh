@@ -23,6 +23,17 @@ async def check():
         conn = await asyncpg.connect(url)
         await conn.close()
     except Exception as e:
+        try:
+            import urllib.parse, socket
+            parsed = urllib.parse.urlparse(url)
+            host = parsed.hostname
+            port = parsed.port or 5432
+            print(f'DIAGNOSTIC: Attempting lookup for {host}:{port}...', file=sys.stderr)
+            ips = socket.getaddrinfo(host, port)
+            print(f'DIAGNOSTIC: Resolved IPs: {ips}', file=sys.stderr)
+        except Exception as dns_err:
+            print(f'DIAGNOSTIC: DNS lookup failed: {dns_err}', file=sys.stderr)
+
         print(f'Postgres connection check failed: {e}', file=sys.stderr)
         sys.exit(1)
 
