@@ -43,6 +43,7 @@ import {
  */
 
 const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Admin',
   admin: 'Admin',
   recruiter: 'HR / Recruiter',
   interviewer: 'Interviewer',
@@ -159,7 +160,7 @@ export default function TeamManagementPage() {
     queryFn: () => adminApi.listUsers().then((r) => r.data),
   })
 
-  const teamMembers = (users ?? []).filter(u => u.role !== 'candidate')
+  const teamMembers = (users ?? []).filter(u => u.role !== 'candidate' && u.role !== 'super_admin')
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>

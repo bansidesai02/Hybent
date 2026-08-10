@@ -50,7 +50,7 @@ def generate_demo_password(length: int = 14) -> str:
     chars = string.ascii_letters + string.digits + "!@#$%^&*"
     return "".join(secrets.choice(chars) for _ in range(length))
 
-_db_url = os.environ.get("DATABASE_URL", settings.database_url)
+_db_url = settings.database_url
 engine = create_async_engine(
     _db_url,
     connect_args={"statement_cache_size": 0},  # required for Supabase pgbouncer
