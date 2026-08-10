@@ -1,1 +1,0 @@
-import{x as a,I as i,X as s,Y as t,M as e}from"./chartTheme-Cd1YcP0A.js";var x=a({chartName:"BarChart",GraphicalChild:i,defaultTooltipEventType:"axis",validateTooltipEventTypes:["axis","item"],axisComponents:[{axisType:"xAxis",AxisComp:s},{axisType:"yAxis",AxisComp:t}],formatAxisMap:e});export{x as B};
