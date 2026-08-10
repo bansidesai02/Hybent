@@ -30,7 +30,7 @@ jobs:
       - name: Build Optimized Bundle
         working-directory: ./hybent-hiring-frontend
         env:
-          VITE_API_BASE_URL: https://hybent-hiring-ai.onrender.com
+          VITE_API_BASE_URL: https://hybent-hiring-backend.onrender.com
         run: npm run build
 
       - name: Upload Build Artifact
