@@ -81,7 +81,7 @@ export default function PortalProfilePage() {
     mutationFn: (file: File) => portalApi.uploadResume(file),
     onSuccess: () => {
       setUploadError(null)
-      toast.success('Résumé uploaded and parsed')
+      toast.success('Resume uploaded and parsed')
       queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
     },
     onError: (err: any) => {
@@ -185,9 +185,9 @@ export default function PortalProfilePage() {
         const res = await portalApi.getResumeUrl()
         const data = (res.data as any)?.data ?? res.data
         if (data?.url) window.open(data.url, '_blank', 'noreferrer')
-        else toast.error('Could not load the résumé. Please try again.')
+        else toast.error('Could not load the resume. Please try again.')
       } catch {
-        toast.error('Could not load the résumé. Please try again.')
+        toast.error('Could not load the resume. Please try again.')
       }
     } else if (profile?.resume_url) {
       window.open(profile.resume_url, '_blank', 'noreferrer')
@@ -217,7 +217,7 @@ export default function PortalProfilePage() {
     <div className="pb-hb-10">
       <PageHeader
         eyebrow="Candidate portal"
-        title="My profile & résumé"
+        title="My profile & resume"
         description="Keep your profile up to date to help interviewers understand you better."
       />
 
@@ -449,7 +449,7 @@ export default function PortalProfilePage() {
           </Card>
 
           <Card padding="loose">
-            <CardHeader title="Résumé" action={<Badge tone="brand">Required</Badge>} />
+            <CardHeader title="Resume" action={<Badge tone="brand">Required</Badge>} />
 
             {(profile?.resume_storage_path || profile?.resume_url) && (
               <button

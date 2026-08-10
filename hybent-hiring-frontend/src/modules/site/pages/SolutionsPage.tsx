@@ -43,7 +43,7 @@ export default function SolutionsPage() {
               <text x="206" y="34">1284</text><text x="176" y="70">312</text><text x="176" y="120">96</text></g>
           </svg>
                 <div className="card card--flat stat"><b>One</b><span>Rubric, applied to every applicant</span><em>Consistent, evidenced scoring</em></div>
-                <div className="card card--flat stat"><b>Zero</b><span>Résumés keyed in by hand</span><em>Parsing on upload</em></div>
+                <div className="card card--flat stat"><b>Zero</b><span>Resumes keyed in by hand</span><em>Parsing on upload</em></div>
               </div>
             </div>
           </div>

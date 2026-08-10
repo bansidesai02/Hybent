@@ -188,9 +188,9 @@ function InterviewCard({
             variant="ghost"
             icon={<FileText size={13} />}
             onClick={onViewResume}
-            title="Review the candidate's résumé"
+            title="Review the candidate's resume"
           >
-            Résumé
+            Resume
           </Button>
           <Button
             size="sm"
@@ -231,7 +231,7 @@ function Section({
   )
 }
 
-/* ── Résumé dialog ──────────────────────────────────────────────────────── */
+/* ── Resume dialog ──────────────────────────────────────────────────────── */
 
 function ResumeDialog({
   interview,
@@ -304,7 +304,7 @@ function ResumeDialog({
                 ? candidate.resume_url
                 : `${import.meta.env.VITE_API_BASE_URL || window.location.origin}${candidate.resume_url}`
             }#toolbar=1&navpanes=0`}
-            title={`Résumé for ${candidate.full_name}`}
+            title={`Resume for ${candidate.full_name}`}
             className="h-[64vh] w-full rounded-hb-sm border border-hb-border"
           />
         ) : (

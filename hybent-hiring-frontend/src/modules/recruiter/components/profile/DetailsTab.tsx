@@ -183,6 +183,7 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    queryClient.invalidateQueries({ queryKey: ['candidate-detail', candidate.id] })
     queryClient.invalidateQueries({ queryKey: ['talent-pool'] })
     queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
   }

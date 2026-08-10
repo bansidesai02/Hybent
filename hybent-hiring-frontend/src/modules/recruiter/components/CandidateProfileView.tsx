@@ -76,9 +76,12 @@ export function CandidateProfileView({
   initialTab,
 }: CandidateProfileViewProps) {
   const { data: candidate = initialCandidate } = useQuery({
-    queryKey: ['candidates', initialCandidate.id],
+    queryKey: ['candidate-detail', initialCandidate.id],
     queryFn: () => candidatesApi.get(initialCandidate.id).then((r: any) => r.data),
-    initialData: initialCandidate,
+    // Use initialCandidate as a placeholder but always fetch fresh detail data
+    // (the list endpoint defers some fields; the detail endpoint returns everything)
+    placeholderData: initialCandidate,
+    staleTime: 0,
   })
 
   const setPageContext = useCopilotStore((s) => s.setPageContext)
@@ -128,7 +131,7 @@ export function CandidateProfileView({
                 icon={<FileText size={13} />}
                 onClick={() => openResume(candidate)}
               >
-                Résumé
+                Resume
               </Button>
             )}
 

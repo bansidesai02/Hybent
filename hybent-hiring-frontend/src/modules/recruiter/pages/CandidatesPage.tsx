@@ -404,12 +404,12 @@ export default function CandidatesPage() {
       key: 'candidate',
       header: 'Candidate',
       cardTitle: true,
-      width: 'minmax(0, 2.2fr)',
+      width: 'minmax(0, 2fr)',
       cell: (c) => (
         <CellStack
           leading={<Avatar name={c.full_name} src={c.avatar_url} size="md" />}
           primary={c.full_name}
-          secondary={c.email}
+          secondary={`${c.email} • Added by ${c.created_by_name || 'Admin'}`}
         />
       ),
     },
@@ -501,22 +501,10 @@ export default function CandidatesPage() {
       },
     },
     {
-      key: 'status',
-      header: 'Status',
-      align: 'center',
-      cell: (c) => <StatusPill status={statusFromStage(c.pipeline_stage)} />,
-    },
-    {
-      key: 'added_by',
-      header: 'Added by',
-      hideOnCard: true,
-      cell: (c) => <span className="text-hb-muted">{c.created_by_name || 'Admin'}</span>,
-    },
-    {
       key: 'actions',
       header: <span className="sr-only">Actions</span>,
       align: 'right',
-      width: '210px',
+      width: '120px',
       cell: (c) => (
         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
           <Button
@@ -524,16 +512,14 @@ export default function CandidatesPage() {
             variant="ghost"
             icon={<Mail size={13} />}
             onClick={() => inviteMutation.mutate({ email: c.email, full_name: c.full_name })}
-          >
-            Invite
-          </Button>
+            aria-label={`Invite ${c.full_name}`}
+          />
           <Button
             size="sm"
             icon={<CalendarPlus size={13} />}
             to={`${basePath}/interviews?candidateId=${c.id}`}
-          >
-            Schedule
-          </Button>
+            aria-label={`Schedule interview for ${c.full_name}`}
+          />
           <button
             type="button"
             onClick={() => setActionsTarget(c)}

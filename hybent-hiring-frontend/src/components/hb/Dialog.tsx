@@ -82,7 +82,7 @@ export function Dialog({
             className={clsx(
               'relative w-full max-h-[calc(100vh-3rem)] flex flex-col',
               'rounded-hb-lg border border-hb-border bg-hb-elevated shadow-hb-3',
-              'focus:outline-none',
+              'focus:outline-none overflow-hidden',
               SIZE[size],
               className
             )}
