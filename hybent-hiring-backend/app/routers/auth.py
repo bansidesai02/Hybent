@@ -16,8 +16,8 @@ import re
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
-# NOTE: Flip to True in production (HTTPS). Currently False for local HTTP dev.
 _COOKIE_SECURE = cfg.is_production
+_COOKIE_SAMESITE = "none" if _COOKIE_SECURE else "lax"
 
 def validate_password_strength(password: str):
     if len(password) < 12:
@@ -53,7 +53,7 @@ async def login(data: LoginRequest, response: Response, db: DB):
         value=result["refresh_token"],
         httponly=True,
         secure=_COOKIE_SECURE,
-        samesite="lax",
+        samesite=_COOKIE_SAMESITE,
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
     )
@@ -80,7 +80,7 @@ async def google_login(data: GoogleAuthRequest, response: Response, db: DB):
         value=result["refresh_token"],
         httponly=True,
         secure=_COOKIE_SECURE,
-        samesite="lax",
+        samesite=_COOKIE_SAMESITE,
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
     )
@@ -113,7 +113,7 @@ async def refresh(
         value=result["refresh_token"],
         httponly=True,
         secure=_COOKIE_SECURE,
-        samesite="lax",
+        samesite=_COOKIE_SAMESITE,
         max_age=30 * 24 * 3600,
         path="/v1/auth/refresh",
     )

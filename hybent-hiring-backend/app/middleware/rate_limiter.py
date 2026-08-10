@@ -26,9 +26,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         self._requests[ip] = [ts for ts in self._requests[ip] if ts > cutoff]
 
     async def dispatch(self, request: Request, call_next):
-        # Skip health check endpoints and static assets
+        # Skip health check endpoints, OPTIONS preflight, and static assets
         path = request.url.path
-        if path in ["/", "/health", "/docs", "/openapi.json", "/redoc"] or path.startswith("/static/"):
+        if request.method == "OPTIONS" or path in ["/", "/health", "/docs", "/openapi.json", "/redoc"] or path.startswith("/static/"):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else "127.0.0.1"
@@ -47,6 +47,11 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         current_count = len(self._requests[client_ip])
         if current_count >= limit:
             logger.warning(f"Rate limit exceeded for IP {client_ip} on path {path} ({current_count}/{limit} reqs)")
+            headers = {"Retry-After": str(self.window_seconds)}
+            origin = request.headers.get("origin")
+            if origin:
+                headers["Access-Control-Allow-Origin"] = origin
+                headers["Access-Control-Allow-Credentials"] = "true"
             return JSONResponse(
                 status_code=429,
                 content={
@@ -55,7 +60,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                     "data": None,
                     "error": "Rate limit exceeded"
                 },
-                headers={"Retry-After": str(self.window_seconds)}
+                headers=headers
             )
 
         self._requests[client_ip].append(now)
@@ -63,3 +68,4 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         response.headers["X-RateLimit-Limit"] = str(limit)
         response.headers["X-RateLimit-Remaining"] = str(limit - len(self._requests[client_ip]))
         return response
+

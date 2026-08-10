@@ -164,39 +164,36 @@ async def general_exception_handler(request: Request, exc: Exception):
     return APIResponse.error(message="An unexpected system error occurred. Please try again later.", status_code=500, details={"error": str(exc)})
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.add_middleware(TenantMiddleware)
+app.add_middleware(AuditMiddleware)
+app.add_middleware(RateLimiterMiddleware, auth_limit=30, api_limit=120, window_seconds=60)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        settings.frontend_url,          # Pulled from FRONTEND_URL env var (production domain)
-        "https://hybent.com",           # Production domain
-        "https://www.hybent.com",       # Production domain with www
-        "https://app.hybent.com",       # App portal domain
-        "https://gethybent_hiring.netlify.app", # Netlify deployment domain
-        "http://localhost:5173",         # Vite dev server
-        "http://localhost:3000",         # Docker local frontend
+        settings.frontend_url,
+        "https://hybent.com",
+        "http://hybent.com",
+        "https://www.hybent.com",
+        "http://www.hybent.com",
+        "https://app.hybent.com",
+        "http://app.hybent.com",
+        "https://hybent-hiring-backend.onrender.com",
+        "https://gethybent_hiring.netlify.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
         "http://localhost",
         "http://127.0.0.1:3000",
         "http://127.0.0.1"
     ],
-    allow_origin_regex=r"https://.*\.hybent\.com",
+    allow_origin_regex=r"https?://.*\.hybent\.com|https?://hybent\.com|https?://.*\.onrender\.com|https?://.*\.netlify\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=1024)
-app.add_middleware(TenantMiddleware)
-app.add_middleware(AuditMiddleware)
-app.add_middleware(RateLimiterMiddleware, auth_limit=10, api_limit=120, window_seconds=60)
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    # Enforce HTTPS redirect in production if request is HTTP, but skip for local hostnames
-    host = request.headers.get("host", "")
-    is_local = "localhost" in host or "127.0.0.1" in host or "backend" in host
-    if settings.is_production and request.headers.get("x-forwarded-proto") == "http" and not is_local:
-        url = request.url.replace(scheme="https")
-        return JSONResponse(status_code=307, headers={"Location": str(url)}, content=None)
-    
     response = await call_next(request)
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -205,6 +202,7 @@ async def add_security_headers(request: Request, call_next):
     if settings.is_production:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
+
 
 # ── Static files (local uploads) ───────────────────────────────────────────────
 uploads_path = Path(settings.upload_dir)
