@@ -67,13 +67,16 @@ _MAPPINGS: dict[str, dict] = {
 
 def _get_client():
     """Return a lazily-created AsyncElasticsearch client, or None if ES is disabled."""
+    if settings.is_production and ("localhost" in settings.elasticsearch_url or "127.0.0.1" in settings.elasticsearch_url):
+        logger.info("[ES] Elasticsearch disabled in production (no external host configured).")
+        return None
     try:
         from elasticsearch import AsyncElasticsearch
         client = AsyncElasticsearch(
             hosts=[settings.elasticsearch_url],
-            retry_on_timeout=True,
-            max_retries=2,
-            request_timeout=5,
+            retry_on_timeout=False,
+            max_retries=0,
+            request_timeout=2,
         )
         return client
     except Exception as exc:
@@ -108,15 +111,24 @@ async def close():
 
 async def setup_indices() -> None:
     """
-    Create all four indices with correct mappings if they do not already exist.
+    Create indices with correct mappings if they do not already exist.
     Called once during FastAPI lifespan startup.
     """
     es = get_es_client()
     if es is None:
-        logger.warning("[ES] setup_indices skipped — no ES client.")
+        logger.info("[ES] setup_indices skipped — no active ES client.")
+        return
+
+    try:
+        if not await es.ping():
+            logger.info("[ES] Elasticsearch host unreachable — skipping index creation.")
+            return
+    except Exception as exc:
+        logger.info(f"[ES] Could not reach Elasticsearch ({exc}) — skipping index creation.")
         return
 
     for index_name, body in _MAPPINGS.items():
+
         try:
             exists = await es.indices.exists(index=index_name)
             if not exists:

@@ -19,6 +19,7 @@ celery_app.conf.update(
     # Worker configuration
     worker_concurrency=2,
     worker_prefetch_multiplier=1,
+    broker_connection_retry_on_startup=True,
 )
 
 # Configure periodic tasks (Beat Schedule)
