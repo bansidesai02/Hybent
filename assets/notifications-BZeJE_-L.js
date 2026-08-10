@@ -1,1 +1,0 @@
-import i from"./axios-APJvxRAg.js";const a={list:t=>i.get("/v1/notifications",{params:t?{unread_only:!0}:void 0}),unreadCount:()=>i.get("/v1/notifications/unread-count"),markRead:t=>i.post(`/v1/notifications/${t}/read`),markAllRead:()=>i.post("/v1/notifications/read-all"),delete:t=>i.delete(`/v1/notifications/${t}`)};export{a as n};
