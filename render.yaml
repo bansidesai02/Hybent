@@ -5,7 +5,7 @@ services:
     env: docker
     dockerContext: ./hybent-hiring-backend
     dockerfilePath: Dockerfile
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: APP_ENV
@@ -42,7 +42,7 @@ services:
     env: docker
     dockerContext: ./hybent-hiring-frontend
     dockerfilePath: Dockerfile
-    plan: starter
+    plan: free
     envVars:
       # Empty means the bundle uses relative paths, which nginx then proxies —
       # so the browser only ever talks to one origin and CORS never enters it.
@@ -61,55 +61,15 @@ services:
           name: hybent-hiring-backend
           property: host
 
-  # ── Celery Worker ─────────────────────────────────────────────────────────
-  - type: worker
-    name: hybent-hiring-worker
-    env: docker
-    dockerContext: ./hybent-hiring-backend
-    dockerfilePath: Dockerfile
-    dockerCommand: celery -A app.core.celery_app worker --loglevel=info
-    envVars:
-      - key: SKIP_PRESTART
-        value: "true"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: hybent-hiring-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: hybent-hiring-redis
-          property: connectionString
-
-  # ── Celery Beat ───────────────────────────────────────────────────────────
-  - type: worker
-    name: hybent-hiring-beat
-    env: docker
-    dockerContext: ./hybent-hiring-backend
-    dockerfilePath: Dockerfile
-    dockerCommand: celery -A app.core.celery_app beat --loglevel=info
-    envVars:
-      - key: SKIP_PRESTART
-        value: "true"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: hybent-hiring-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: hybent-hiring-redis
-          property: connectionString
-
   # ── Redis ─────────────────────────────────────────────────────────────────
   - type: redis
     name: hybent-hiring-redis
-    plan: starter
+    plan: free
     ipAllowList: [] # Only allow internal traffic
 
 # ── Databases ───────────────────────────────────────────────────────────────
 databases:
   - name: hybent-hiring-db
-    plan: starter
+    plan: free
     postgresMajorVersion: 16
 

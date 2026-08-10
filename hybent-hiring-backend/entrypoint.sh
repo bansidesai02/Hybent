@@ -74,6 +74,14 @@ if [ $# -gt 0 ]; then
     echo "==> [entrypoint] Executing custom command: $@"
     exec "$@"
 else
+    # In the Render Free tier, we cannot deploy separate background workers.
+    # We run the Celery worker and beat in the background of this web container.
+    echo "==> [entrypoint] Starting Celery worker in background..."
+    celery -A app.core.celery_app worker --loglevel=info &
+    
+    echo "==> [entrypoint] Starting Celery beat in background..."
+    celery -A app.core.celery_app beat --loglevel=info &
+
     echo "==> [entrypoint] Starting Uvicorn..."
     exec uvicorn app.main:app \
         --host 0.0.0.0 \
