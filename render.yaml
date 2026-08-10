@@ -101,14 +101,15 @@ services:
           name: hybent-hiring-redis
           property: connectionString
 
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  - type: redis
+    name: hybent-hiring-redis
+    plan: starter
+    ipAllowList: [] # Only allow internal traffic
+
 # ── Databases ───────────────────────────────────────────────────────────────
 databases:
   - name: hybent-hiring-db
     plan: starter
     postgresMajorVersion: 16
 
-# ── Redis ───────────────────────────────────────────────────────────────────
-redis:
-  - name: hybent-hiring-redis
-    plan: starter
-    ipAllowList: [] # Only allow internal traffic
