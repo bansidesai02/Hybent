@@ -722,33 +722,35 @@ async def generate_jd_from_prompt(
 
     try:
         if settings.gemini_api_key:
-            genai.configure(api_key=settings.gemini_api_key)
             provider = "Gemini"
-            
-            # Dynamic Model Selection
-            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            
-            if "models/gemini-1.5-flash" in available_models:
-                model_name = "models/gemini-1.5-flash"
-            elif "models/gemini-1.5-pro" in available_models:
-                model_name = "models/gemini-1.5-pro"
-            elif "models/gemini-2.0-flash" in available_models:
-                model_name = "models/gemini-2.0-flash"
-            elif available_models:
-                # Pick the first one that looks like a gemini model
-                gemini_models = [m for m in available_models if "gemini" in m.lower()]
-                model_name = gemini_models[0] if gemini_models else available_models[0]
-            else:
-                model_name = "models/gemini-1.5-flash" # Last resort fallback
-            
-            logger.debug("Using Gemini Model: %s", model_name)
-            
-            # Diagnostic check for the key format
             key_status = "Loaded"
             if not settings.gemini_api_key.startswith("AIza"):
                 key_status = "Invalid Prefix (Should start with AIza)"
                 
             try:
+                genai.configure(api_key=settings.gemini_api_key)
+                
+                # Dynamic Model Selection
+                available_models = []
+                try:
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                except Exception as list_err:
+                    logger.warning(f"Could not list Gemini models: {list_err}")
+
+                if "models/gemini-1.5-flash" in available_models:
+                    model_name = "models/gemini-1.5-flash"
+                elif "models/gemini-1.5-pro" in available_models:
+                    model_name = "models/gemini-1.5-pro"
+                elif "models/gemini-2.0-flash" in available_models:
+                    model_name = "models/gemini-2.0-flash"
+                elif available_models:
+                    gemini_models = [m for m in available_models if "gemini" in m.lower()]
+                    model_name = gemini_models[0] if gemini_models else available_models[0]
+                else:
+                    model_name = "models/gemini-1.5-flash"
+                
+                logger.debug("Using Gemini Model: %s", model_name)
+
                 model = genai.GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
                 
