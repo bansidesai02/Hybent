@@ -1,1 +1,0 @@
-import{a}from"./axios-CwCbue4Q.js";const s={list:t=>a.get("/v1/applications",{params:t}),create:t=>a.post("/v1/applications",t),get:t=>a.get(`/v1/applications/${t}`),updateStage:(t,p,i)=>a.patch(`/v1/applications/${t}/stage`,{stage:p,rejection_reason:i}),updateNotes:(t,p)=>a.patch(`/v1/applications/${t}/notes`,{recruiter_notes:p})};export{s as a};
