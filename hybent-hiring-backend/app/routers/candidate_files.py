@@ -22,6 +22,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import ORJSONResponse
 from sqlalchemy import select
 
 from app.dependencies import DB, get_current_user
@@ -102,7 +103,8 @@ async def get_candidate_resume_url(
     candidate_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     db: DB,
-):
+    fallback: bool = True,
+) -> ORJSONResponse:
     """
     Generate a fresh, time-limited signed URL for a candidate's resume.
 
@@ -122,14 +124,20 @@ async def get_candidate_resume_url(
 
     # Check if this candidate has a Supabase-stored resume
     if not candidate.resume_storage_path:
-        # Provide a helpful error distinguishing "no resume" from "legacy URL"
+        # No Supabase storage path – handle based on fallback flag
         if candidate.resume_url:
-            # Resume exists but is a legacy Cloudinary/local URL
+            if fallback:
+                # Return the legacy URL directly (frontend can use it)
+                return APIResponse.success(
+                    message="Legacy resume URL provided.",
+                    data={"url": candidate.resume_url},
+                )
+            # Otherwise, instruct client to re‑upload for secure access
             raise HTTPException(
                 status_code=400,
                 detail=(
                     "This candidate's resume was uploaded using the legacy storage system. "
-                    "Please re-upload the resume to enable secure signed URL access."
+                    "Please re‑upload the resume to enable secure signed URL access."
                 ),
             )
         raise HTTPException(
