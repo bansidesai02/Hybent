@@ -250,7 +250,8 @@ def _detect_file_type(file_content: bytes, content_type: str, filename: str = ""
 def calculate_years_from_experience(experience_list: list) -> tuple[Optional[float], Optional[str]]:
     """
     Calculate total years of experience from experience entries.
-    Never trust the LLM's years_experience — compute it from dates.
+    Never trust the LLM's years_experience — compute it accurately from dates.
+    Handles short internships (e.g. 1 month / exact dates) correctly.
     Returns: (years_float, experience_years_str)
     """
     total_months = 0
@@ -265,7 +266,7 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
         if not duration:
             continue
 
-        # Pattern: "X years Y months" explicitly stated
+        # Pattern: "X years Y months" or "X months" explicitly stated
         years_match = re.search(r'(\d+)\s*(?:yr|year|years?)', duration, re.IGNORECASE)
         months_match = re.search(r'(\d+)\s*(?:mo|month|months?)', duration, re.IGNORECASE)
         if years_match or months_match:
@@ -283,38 +284,33 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
             flags=re.IGNORECASE,
         )
         years_found = re.findall(r'\b((?:19|20)\d{2})\b', norm)
-        
-        # Simple extraction of month names if present
         months_found = re.findall(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b', norm.lower())
         
+        m_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+
         if len(years_found) >= 2:
             try:
                 y1, y2 = int(years_found[0]), int(years_found[-1])
                 if y2 >= y1:
-                    months_diff = (y2 - y1) * 12
-                    # Rough month adjustment if months are mentioned
-                    if len(months_found) >= 2:
-                        m_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
-                        m1 = m_map.get(months_found[0], 1)
-                        m2 = m_map.get(months_found[-1], 12)
-                        months_diff += (m2 - m1)
+                    m1 = m_map.get(months_found[0], 1) if len(months_found) >= 1 else 1
+                    m2 = m_map.get(months_found[-1], 12) if len(months_found) >= 2 else (m1 if len(months_found) == 1 else 12)
                     
-                    if months_diff > 0:
-                        total_months += months_diff
-                    else:
-                        total_months += 12 # minimum 1 year
+                    months_diff = (y2 - y1) * 12 + (m2 - m1) + 1  # Inclusive month count
+                    total_months += max(1, months_diff)
             except Exception:
                 pass
         elif len(years_found) == 1:
-            total_months += 12  # single year → assume ~1 year tenure
+            total_months += 1  # Single year/date reference → ~1 month
 
     if total_months == 0:
         return None, None
 
-    years = total_months // 12
-    months = total_months % 12
-    years_float = float(f"{years}.{months}")
-    experience_years_str = f"{years_float} {'Year' if years_float == 1.0 else 'Years'}"
+    years_float = round(total_months / 12.0, 1)
+    
+    if total_months < 12:
+        experience_years_str = f"{total_months} {'Month' if total_months == 1 else 'Months'}"
+    else:
+        experience_years_str = f"{years_float} {'Year' if years_float == 1.0 else 'Years'}"
     
     return years_float, experience_years_str
 

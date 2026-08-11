@@ -323,18 +323,24 @@ async def upload_and_create(
         candidate.pipeline_stage = initial_stage
 
     # ── Upload to Supabase Storage (if configured) or fall back to Cloudinary/local ──
+    uploaded_to_supabase = False
     if settings.supabase_url and settings.supabase_service_role_key:
-        storage_path = await supabase_storage_service.upload_resume(
-            file_content=file_content,
-            organization_id=str(current_user.organization_id),
-            candidate_id=str(candidate.id),
-            original_filename=file.filename or "resume",
-            content_type=file.content_type or "application/octet-stream",
-        )
-        candidate.resume_storage_path = storage_path
-        candidate.resume_url = None  # Signed URLs are generated on-demand
-        candidate.resume_filename = file.filename or original_name
-    else:
+        try:
+            storage_path = await supabase_storage_service.upload_resume(
+                file_content=file_content,
+                organization_id=str(current_user.organization_id),
+                candidate_id=str(candidate.id),
+                original_filename=file.filename or "resume",
+                content_type=file.content_type or "application/octet-stream",
+            )
+            candidate.resume_storage_path = storage_path
+            candidate.resume_url = None  # Signed URLs are generated on-demand
+            candidate.resume_filename = file.filename or original_name
+            uploaded_to_supabase = True
+        except Exception as e:
+            logger.warning(f"Supabase resume upload failed ({e}), falling back to local/Cloudinary storage.")
+
+    if not uploaded_to_supabase:
         # Legacy fallback: Cloudinary or local disk
         url, original_name = await save_resume(file, str(current_user.organization_id))
         candidate.resume_url = url
@@ -343,8 +349,18 @@ async def upload_and_create(
     candidate.skills = parsed.get("skills", [])[:30]
     candidate.years_experience = parsed.get("years_experience")
     candidate.experience_years = parsed.get("experience_years")
-    candidate.current_title = parsed.get("current_title") or role_title or candidate.current_title
-    candidate.current_company = parsed.get("current_company")
+    cand_title = parsed.get("current_title")
+    cand_company = parsed.get("current_company")
+    if parsed.get("experience") and isinstance(parsed["experience"], list) and len(parsed["experience"]) > 0:
+        first_exp = parsed["experience"][0]
+        if isinstance(first_exp, dict):
+            if not cand_title and first_exp.get("title"):
+                cand_title = first_exp.get("title")
+            if not cand_company and first_exp.get("company"):
+                cand_company = first_exp.get("company")
+
+    candidate.current_title = cand_title or role_title or candidate.current_title
+    candidate.current_company = cand_company or candidate.current_company
     candidate.summary = parsed.get("summary")
     candidate.phone = candidate.phone or parsed.get("phone")
     candidate.location = candidate.location or parsed.get("location")

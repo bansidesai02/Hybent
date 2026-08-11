@@ -96,6 +96,14 @@ async def upload_resume(
             loop = asyncio.get_event_loop()
 
             def _upload():
+                try:
+                    client.storage.get_bucket(RESUME_BUCKET)
+                except Exception:
+                    try:
+                        client.storage.create_bucket(RESUME_BUCKET, options={"public": False})
+                    except Exception:
+                        pass
+
                 return client.storage.from_(RESUME_BUCKET).upload(
                     path=storage_path,
                     file=file_content,

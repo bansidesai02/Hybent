@@ -5,10 +5,22 @@ export function getApiBaseUrl(): string {
   if (envUrl && envUrl.trim() !== '') {
     return envUrl.trim().replace(/\/$/, '')
   }
-  // Fallback for production builds or when hosted on hybent.com domain
-  if (import.meta.env.PROD || (typeof window !== 'undefined' && (window.location.hostname.includes('hybent.com') || window.location.hostname.includes('netlify.app')))) {
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    // If on localhost or local network IP, return empty string so local Nginx / Vite proxy handles requests locally
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.') || host.endsWith('.local')) {
+      return ''
+    }
+    if (host.includes('hybent.com') || host.includes('netlify.app') || host.includes('onrender.com')) {
+      return PROD_BACKEND_URL
+    }
+  }
+
+  if (import.meta.env.PROD) {
     return PROD_BACKEND_URL
   }
+
   return ''
 }
 
