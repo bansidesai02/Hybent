@@ -159,10 +159,42 @@ def compute_heuristic_match_score(
 ) -> tuple[float, dict]:
     """
     Deterministic offline heuristic scorer used when AI services fail or are unconfigured.
-    Calculates actual match metrics instead of returning dummy 50% flat defaults.
+    Calculates actual candidate-to-job match metrics based on resume vs JD.
     """
+    if not job:
+        return 0.0, {
+            "final_score": 0.0,
+            "skills_score": 0,
+            "title_score": 0,
+            "experience_score": 0,
+            "education_score": 0,
+            "matched_skills": [],
+            "missing_skills": [],
+            "shortlisted": False,
+            "reasoning": "No Job Description associated for scoring."
+        }
+
     req_skills_raw = getattr(job, "skills_required", []) or []
     req_skills = [s.strip() for s in req_skills_raw if isinstance(s, str) and s.strip()]
+    
+    # If skills_required is empty on job, infer skill keywords from job description
+    if not req_skills:
+        job_desc = (getattr(job, "description", "") or "").lower()
+        job_title_text = (getattr(job, "title", "") or "").lower()
+        full_jd_text = f"{job_title_text} {job_desc}"
+        
+        # Common skill keywords bank
+        tech_bank = [
+            "python", "javascript", "typescript", "react", "node.js", "java", "c++", "c#",
+            "sql", "postgresql", "mysql", "mongodb", "redis", "aws", "docker", "kubernetes",
+            "html", "css", "git", "fastapi", "django", "flask", "express", "next.js",
+            "tailwind", "rest api", "graphql", "go", "rust", "php", "ruby", "angular", "vue",
+            "sales", "b2b", "crm", "excel", "devops", "cloud", "scrum", "agile"
+        ]
+        for kw in tech_bank:
+            if re.search(r'\b' + re.escape(kw) + r'\b', full_jd_text):
+                req_skills.append(kw.title())
+
     cand_skills = [s.strip() for s in (candidate_skills or []) if isinstance(s, str) and s.strip()]
     cand_skills_lower = [s.lower() for s in cand_skills]
 
@@ -178,16 +210,17 @@ def compute_heuristic_match_score(
                 missing_skills.append(rs)
         skills_score = round((len(matched_skills) / len(req_skills)) * 100.0, 1)
     else:
+        # If no skills specified anywhere in JD, skills match is based on whether candidate has relevant skills
         matched_skills = cand_skills[:5]
         missing_skills = []
-        skills_score = 80.0
+        skills_score = 50.0 if cand_skills else 0.0
 
     # Title score
     job_title = (getattr(job, "title", "") or "").strip().lower()
     cand_title = (candidate_title or "").strip().lower()
     
     if not cand_title:
-        title_score = 50.0
+        title_score = 30.0
     elif job_title == cand_title:
         title_score = 100.0
     else:
@@ -195,9 +228,9 @@ def compute_heuristic_match_score(
         cand_words = set(re.findall(r'\w+', cand_title))
         overlap = job_words.intersection(cand_words)
         if overlap:
-            title_score = 75.0
+            title_score = 70.0
         else:
-            title_score = 40.0
+            title_score = 20.0
 
     # Experience score
     req_years = float(getattr(job, "min_experience_years", 0) or 0)
@@ -205,19 +238,21 @@ def compute_heuristic_match_score(
 
     if cand_years >= req_years:
         experience_score = 100.0
-    else:
+    elif req_years > 0:
         diff = req_years - cand_years
-        experience_score = max(0.0, round(100.0 - (diff * 15.0), 1))
+        experience_score = max(0.0, round(100.0 - (diff * 20.0), 1))
+    else:
+        experience_score = 80.0 if cand_years > 0 else 50.0
 
     # Education score
-    education_score = 70.0
+    education_score = 50.0
     if candidate_education and len(candidate_education) > 0:
-        education_score = 85.0
+        education_score = 80.0
 
     # Critical penalty rule if missing core skills
     if req_skills and len(matched_skills) == 0:
         skills_score = 0.0
-        title_score = min(title_score, 40.0)
+        title_score = min(title_score, 30.0)
 
     final_score = round(
         (skills_score * 0.50) +
@@ -231,7 +266,7 @@ def compute_heuristic_match_score(
     
     reasoning_str = (
         f"OVERALL ALIGNMENT: Candidate matched {len(matched_skills)} of {len(req_skills)} required skills ({skills_score}% skills match).\n"
-        f"STRENGTHS: Skills matched: {', '.join(matched_skills) if matched_skills else 'General background'}. Experience: {cand_years} yrs vs required {req_years} yrs.\n"
+        f"STRENGTHS: Skills matched: {', '.join(matched_skills) if matched_skills else 'None'}. Experience: {cand_years} yrs vs required {req_years} yrs.\n"
         f"GAPS: Missing skills: {', '.join(missing_skills) if missing_skills else 'None'}.\n"
         f"VERDICT: {'Recommended for shortlist' if shortlisted else 'Does not meet match threshold'}. {note}".strip()
     )
@@ -286,6 +321,19 @@ async def evaluate_candidate_match(
       2. Secondary LLM Failover: Gemini 1.5 Flash
       3. Deterministic Algorithmic Heuristic Scorer
     """
+    if not job:
+        return None, {
+            "final_score": None,
+            "skills_score": None,
+            "title_score": None,
+            "experience_score": None,
+            "education_score": None,
+            "matched_skills": [],
+            "missing_skills": [],
+            "shortlisted": False,
+            "reasoning": "No Job Description associated for scoring."
+        }
+
     if organization_id:
         from app.services.ai_credit_service import AICreditsService
         await AICreditsService.check_credits_available(None, organization_id, "candidate_matching")

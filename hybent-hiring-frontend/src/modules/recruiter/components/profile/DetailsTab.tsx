@@ -24,7 +24,7 @@ function isEmpty(v: unknown): boolean {
   if (v === null || v === undefined) return true
   if (typeof v !== 'string') return false
   const t = v.trim().toLowerCase()
-  return t === '' || t === 'n/a' || t === 'undefined' || t === 'null'
+  return t === '' || t === 'n/a' || t === 'undefined' || t === 'null' || t === 'unknown' || t === 'unknown location'
 }
 
 type FormKey =

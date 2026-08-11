@@ -324,14 +324,14 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
 def _regex_fallback(text: str) -> dict:
     parsed = {
         "raw_text": text[:500],
-        "full_name": "Applicant (Auto-Parsed)",
+        "full_name": None,
         "email": None,
         "phone": None,
-        "location": "Unknown Location",
-        "current_title": "Software Professional",
-        "current_company": "Unknown",
+        "location": None,
+        "current_title": None,
+        "current_company": None,
         "years_experience": None,
-        "summary": "This candidate was parsed using local regex heuristics.",
+        "summary": None,
         "skills": [],
     }
 
