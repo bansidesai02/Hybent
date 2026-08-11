@@ -143,6 +143,7 @@ async def confirm_interview(interview_id: uuid.UUID, current_user: CurrentUser, 
     result = await db.execute(
         select(Interview).where(
             Interview.id == interview_id,
+            Interview.organization_id == current_user.organization_id,
         )
     )
     interview = result.scalar_one_or_none()
@@ -355,6 +356,7 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
     result = await db.execute(
         select(Interview).where(
             Interview.id == interview_id,
+            Interview.organization_id == current_user.organization_id,
         )
     )
     interview = result.scalar_one_or_none()

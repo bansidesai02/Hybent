@@ -2039,7 +2039,9 @@ async def _save_conversation_to_db(
         try:
             res = await db.execute(
                 select(CopilotConversation).where(
-                    CopilotConversation.id == uuid.UUID(conversation_id)
+                    CopilotConversation.id == uuid.UUID(conversation_id),
+                    CopilotConversation.organization_id == organization_id,
+                    CopilotConversation.user_id == user_id,
                 )
             )
             conversation = res.scalar_one_or_none()

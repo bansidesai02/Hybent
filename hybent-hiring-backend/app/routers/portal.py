@@ -208,8 +208,16 @@ async def portal_respond_offer(offer_id: uuid.UUID, data: OfferRespondRequest, c
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
 
+    candidate = (await db.execute(
+        select(Candidate).where(Candidate.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
     result = await db.execute(
-        select(Offer).where(Offer.id == offer_id)
+        select(Offer)
+        .join(Application, Offer.application_id == Application.id)
+        .where(Offer.id == offer_id, Application.candidate_id == candidate.id)
     )
     offer = result.scalar_one_or_none()
     if not offer:
@@ -221,9 +229,6 @@ async def portal_respond_offer(offer_id: uuid.UUID, data: OfferRespondRequest, c
         offer.decline_reason = data.decline_reason
     await db.commit()
     await db.refresh(offer)
-
-    # Notify the hiring team about the candidate's response
-    candidate = (await db.execute(select(Candidate).where(Candidate.user_id == current_user.id))).scalar_one_or_none()
     candidate_name = candidate.full_name if candidate else "The candidate"
     action_word = "accepted" if data.accept else "declined"
     notif_type = NotificationType.OFFER_ACCEPTED if data.accept else NotificationType.OFFER_DECLINED
