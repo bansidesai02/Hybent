@@ -176,24 +176,45 @@ def compute_heuristic_match_score(
 
     req_skills_raw = getattr(job, "skills_required", []) or []
     req_skills = [s.strip() for s in req_skills_raw if isinstance(s, str) and s.strip()]
-    
-    # If skills_required is empty on job, infer skill keywords from job description
-    if not req_skills:
+    job_title = (getattr(job, "title", "") or "").strip()
+    job_title_lower = job_title.lower()
+
+    # Standard skill blueprints for common role titles when req_skills is sparse (< 3)
+    domain_blueprints = {
+        "python": ["Python", "FastAPI", "Django", "SQL", "PostgreSQL", "Git", "REST API", "Docker"],
+        "react": ["React", "JavaScript", "TypeScript", "HTML", "CSS", "Tailwind", "Redux", "Git"],
+        "javascript": ["JavaScript", "React", "Node.js", "TypeScript", "HTML", "CSS", "Express", "Git"],
+        "java": ["Java", "Spring Boot", "MySQL", "Hibernate", "Microservices", "Git", "REST API"],
+        "node": ["Node.js", "Express", "JavaScript", "TypeScript", "MongoDB", "SQL", "REST API"],
+        "devops": ["Docker", "Kubernetes", "AWS", "CI/CD", "Linux", "Terraform", "Git"],
+        "data": ["Python", "SQL", "Pandas", "NumPy", "Machine Learning", "Scikit-Learn", "Tableau"],
+        "sales": ["Sales", "B2B", "CRM", "Lead Generation", "Communication", "Negotiation", "Excel"],
+        "business development": ["Business Development", "B2B", "Sales", "Lead Generation", "Client Acquisition", "CRM"]
+    }
+
+    if len(req_skills) < 3:
         job_desc = (getattr(job, "description", "") or "").lower()
-        job_title_text = (getattr(job, "title", "") or "").lower()
-        full_jd_text = f"{job_title_text} {job_desc}"
+        full_jd_text = f"{job_title_lower} {job_desc}"
         
-        # Common skill keywords bank
+        # 1. Expand from domain blueprints if role matches
+        for domain_key, blueprint in domain_blueprints.items():
+            if domain_key in job_title_lower:
+                for bp_skill in blueprint:
+                    if bp_skill not in req_skills:
+                        req_skills.append(bp_skill)
+                break
+
+        # 2. Extract additional tech keywords from JD description
         tech_bank = [
             "python", "javascript", "typescript", "react", "node.js", "java", "c++", "c#",
             "sql", "postgresql", "mysql", "mongodb", "redis", "aws", "docker", "kubernetes",
             "html", "css", "git", "fastapi", "django", "flask", "express", "next.js",
-            "tailwind", "rest api", "graphql", "go", "rust", "php", "ruby", "angular", "vue",
-            "sales", "b2b", "crm", "excel", "devops", "cloud", "scrum", "agile"
+            "tailwind", "rest api", "graphql", "go", "rust", "php", "ruby", "angular", "vue"
         ]
         for kw in tech_bank:
             if re.search(r'\b' + re.escape(kw) + r'\b', full_jd_text):
-                req_skills.append(kw.title())
+                if kw.title() not in req_skills:
+                    req_skills.append(kw.title())
 
     cand_skills = [s.strip() for s in (candidate_skills or []) if isinstance(s, str) and s.strip()]
     cand_skills_lower = [s.lower() for s in cand_skills]
@@ -208,41 +229,56 @@ def compute_heuristic_match_score(
                 matched_skills.append(rs)
             else:
                 missing_skills.append(rs)
-        skills_score = round((len(matched_skills) / len(req_skills)) * 100.0, 1)
+        raw_skills_score = (len(matched_skills) / len(req_skills)) * 100.0
+        breadth_bonus = min(10.0, len(cand_skills) * 0.5)
+        skills_score = min(100.0, round(raw_skills_score + breadth_bonus, 1))
     else:
-        # If no skills specified anywhere in JD, skills match is based on whether candidate has relevant skills
         matched_skills = cand_skills[:5]
         missing_skills = []
         skills_score = 50.0 if cand_skills else 0.0
 
-    # Title score
-    job_title = (getattr(job, "title", "") or "").strip().lower()
-    cand_title = (candidate_title or "").strip().lower()
+    # Title score with granular seniority evaluation
+    cand_title = (candidate_title or "").strip()
+    cand_title_lower = cand_title.lower()
     
-    if not cand_title:
+    if not cand_title_lower:
         title_score = 30.0
-    elif job_title == cand_title:
+    elif job_title_lower == cand_title_lower:
         title_score = 100.0
     else:
-        job_words = set(re.findall(r'\w+', job_title))
-        cand_words = set(re.findall(r'\w+', cand_title))
+        job_words = set(re.findall(r'\w+', job_title_lower))
+        cand_words = set(re.findall(r'\w+', cand_title_lower))
         overlap = job_words.intersection(cand_words)
         if overlap:
             title_score = 70.0
+            if "intern" in cand_title_lower and "intern" not in job_title_lower:
+                title_score = 45.0
+            elif "senior" in cand_title_lower and "senior" in job_title_lower:
+                title_score = 95.0
         else:
-            title_score = 20.0
+            title_score = 25.0
 
-    # Experience score
+    # Experience score smooth scaling
     req_years = float(getattr(job, "min_experience_years", 0) or 0)
     cand_years = float(years_experience) if years_experience is not None else 0.0
 
-    if cand_years >= req_years:
-        experience_score = 100.0
-    elif req_years > 0:
-        diff = req_years - cand_years
-        experience_score = max(0.0, round(100.0 - (diff * 20.0), 1))
+    if req_years > 0:
+        if cand_years >= req_years:
+            experience_score = 100.0
+        else:
+            diff = req_years - cand_years
+            experience_score = max(0.0, round(100.0 - (diff * 20.0), 1))
     else:
-        experience_score = 80.0 if cand_years > 0 else 50.0
+        if cand_years >= 5.0:
+            experience_score = 100.0
+        elif cand_years >= 2.0:
+            experience_score = 85.0
+        elif cand_years >= 1.0:
+            experience_score = 70.0
+        elif cand_years >= 0.5:
+            experience_score = 55.0
+        else:
+            experience_score = 40.0
 
     # Education score
     education_score = 50.0
