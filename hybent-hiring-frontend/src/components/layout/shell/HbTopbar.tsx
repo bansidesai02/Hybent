@@ -202,7 +202,7 @@ function HbTopbarComponent({
   }
 
   return (
-    <header className="flex h-hb-topbar flex-none items-center gap-3 border-b border-hb-border bg-hb-surface px-hb-4 md:px-hb-6">
+    <header className="flex h-hb-topbar flex-none items-center gap-2 sm:gap-3 border-b border-hb-border bg-hb-surface px-3 sm:px-hb-4 md:px-hb-6">
       {/* Drawer toggle, below lg */}
       <button
         type="button"
@@ -215,7 +215,7 @@ function HbTopbarComponent({
 
       {/* ── Search ───────────────────────────────────────────────────────── */}
       {search && (
-      <div ref={searchRef} className="relative min-w-0 flex-1 max-w-[440px]">
+      <div ref={searchRef} className="relative min-w-0 flex-1 max-w-[180px] xs:max-w-[240px] sm:max-w-[340px] md:max-w-[440px]">
         <label htmlFor="workspace-search" className="sr-only">
           Search candidates, roles and interviews
         </label>

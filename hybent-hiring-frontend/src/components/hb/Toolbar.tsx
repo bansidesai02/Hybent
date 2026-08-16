@@ -46,7 +46,7 @@ export function ToolbarSearch({
   'aria-label'?: string
 }) {
   return (
-    <div className={clsx('relative flex-1 min-w-[200px] max-w-md', className)}>
+    <div className={clsx('relative flex-1 min-w-[140px] sm:min-w-[200px] max-w-md', className)}>
       <Search
         size={15}
         aria-hidden
@@ -143,7 +143,7 @@ export function FilterChips<T extends string>({
 }) {
   const chip = (active: boolean) =>
     clsx(
-      'inline-flex items-center gap-1.5 h-8 px-3.5 rounded-hb-full border',
+      'inline-flex items-center gap-1.5 h-8 px-3.5 rounded-hb-full border shrink-0',
       'font-body text-hb-sm font-semibold whitespace-nowrap',
       'transition-all duration-hb ease-hb',
       active
@@ -152,7 +152,7 @@ export function FilterChips<T extends string>({
     )
 
   return (
-    <div className={clsx('flex flex-wrap items-center gap-1.5', className)}>
+    <div className={clsx('flex items-center gap-1.5 overflow-x-auto max-w-full scrollbar-hide py-0.5', className)}>
       <button
         type="button"
         onClick={() => onChange(null)}

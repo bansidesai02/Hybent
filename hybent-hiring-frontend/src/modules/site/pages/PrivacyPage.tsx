@@ -101,8 +101,9 @@ export default function PrivacyPage() {
             data-delay="220"
             style={{
               display: 'inline-flex',
+              flexWrap: 'wrap',
               alignItems: 'center',
-              gap: '16px',
+              gap: '12px 16px',
               marginTop: '24px',
               padding: '8px 18px',
               background: 'var(--surface-2, rgba(255, 255, 255, 0.7))',
@@ -124,7 +125,7 @@ export default function PrivacyPage() {
       {/* ── Main Content Area ── */}
       <section className="section" style={{ paddingTop: '1rem', paddingBottom: '5rem' }}>
         <div className="wrap" style={{ maxWidth: '1140px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 260px) minmax(0, 1fr)', gap: '48px', alignItems: 'start' }}>
+          <div className="privacy-layout" style={{ alignItems: 'start' }}>
 
             {/* Table of Contents - Sticky sidebar */}
             <aside

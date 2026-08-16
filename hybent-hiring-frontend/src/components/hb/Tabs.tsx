@@ -74,7 +74,7 @@ export function Tabs<T extends string>({
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
       className={clsx(
-        'flex flex-wrap items-center gap-2 overflow-x-auto',
+        'flex items-center gap-2 overflow-x-auto max-w-full py-1',
         '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className
       )}

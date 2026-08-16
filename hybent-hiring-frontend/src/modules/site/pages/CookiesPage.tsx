@@ -104,7 +104,7 @@ export default function CookiesPage() {
       {/* ── Main Policy Content ────────────────────────────────────── */}
       <section className="section" style={{ paddingTop: '20px' }}>
         <div className="wrap">
-          <div className="privacy-layout" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '40px' }}>
+          <div className="privacy-layout">
             
             {/* ── Table of Contents Sidebar ── */}
             <aside style={{ position: 'sticky', top: '108px', alignSelf: 'start', height: 'fit-content' }}>

@@ -181,7 +181,7 @@ function HbSidebarComponent({
         {...(mobileOpen ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
         className={clsx(
           'fixed lg:static inset-y-0 left-0 z-[70] lg:z-auto',
-          'flex h-screen w-[248px] flex-none flex-col',
+          'flex h-dvh h-screen w-[248px] flex-none flex-col',
           'border-r border-hb-border bg-hb-surface',
           'transition-transform duration-hb-slow ease-hb focus:outline-none',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'

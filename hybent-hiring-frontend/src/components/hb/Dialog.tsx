@@ -80,14 +80,14 @@ export function Dialog({
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.18, ease: [0.2, 0.8, 0.3, 1] }}
             className={clsx(
-              'relative w-full max-h-[calc(100vh-3rem)] flex flex-col',
+              'relative w-full max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] flex flex-col',
               'rounded-hb-lg border border-hb-border bg-hb-elevated shadow-hb-3',
               'focus:outline-none overflow-hidden',
               SIZE[size],
               className
             )}
           >
-            <header className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
+            <header className="flex items-start justify-between gap-3 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4">
               <div className="min-w-0">
                 <h2 id={titleId} className="font-display text-hb-h2 text-hb-text">
                   {title}
@@ -109,13 +109,13 @@ export function Dialog({
             </header>
 
             {children && (
-              <div className="px-6 pb-2 overflow-y-auto flex-1 text-hb-body text-hb-text">
+              <div className="px-4 sm:px-6 pb-2 overflow-y-auto flex-1 text-hb-body text-hb-text">
                 {children}
               </div>
             )}
 
             {footer && (
-              <footer className="flex flex-wrap items-center justify-end gap-2 px-6 py-4 mt-2 border-t border-hb-border">
+              <footer className="flex flex-wrap items-center justify-end gap-2 px-4 sm:px-6 py-3 sm:py-4 mt-2 border-t border-hb-border">
                 {footer}
               </footer>
             )}
