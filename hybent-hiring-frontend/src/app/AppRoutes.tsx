@@ -14,6 +14,7 @@ const PlatformPage = lazy(() => import('@/modules/site/pages/PlatformPage'))
 const AiCapabilitiesPage = lazy(() => import('@/modules/site/pages/AiCapabilitiesPage'))
 const SolutionsPage = lazy(() => import('@/modules/site/pages/SolutionsPage'))
 const ServicesPage = lazy(() => import('@/modules/site/pages/ServicesPage'))
+const ServiceDetailPage = lazy(() => import('@/modules/site/pages/ServiceDetailPage'))
 const IndustriesPage = lazy(() => import('@/modules/site/pages/IndustriesPage'))
 const HireTalentPage = lazy(() => import('@/modules/site/pages/HireTalentPage'))
 const SecurityPage = lazy(() => import('@/modules/site/pages/SecurityPage'))
@@ -95,7 +96,8 @@ export default function AppRoutes() {
         <Route path="/platform/:section?" element={<PlatformPage />} />
         <Route path="/ai/:section?" element={<AiCapabilitiesPage />} />
         <Route path="/solutions/:section?" element={<SolutionsPage />} />
-        <Route path="/services/:section?" element={<ServicesPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/services/:slug" element={<ServiceDetailPage />} />
         <Route path="/industries/:section?" element={<IndustriesPage />} />
         <Route path="/hire-talent/:section?" element={<HireTalentPage />} />
         <Route path="/security/:section?" element={<SecurityPage />} />

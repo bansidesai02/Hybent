@@ -318,7 +318,7 @@ main,footer,header{position:relative;z-index:2}
 .hero__meta span{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
 
 /* Hero signature: the platform lattice */
-.lattice{position:relative;aspect-ratio:1/1;width:100%;max-width:520px;margin-inline:auto}
+.lattice{position:relative;top:-60px;aspect-ratio:1/1;width:100%;max-width:520px;margin-inline:auto}
 .lattice__ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(255,255,255,.07)}
 .lattice__ring:nth-child(2){inset:13%}
 .lattice__ring:nth-child(3){inset:26%}
@@ -619,7 +619,7 @@ main,footer,header{position:relative;z-index:2}
   .nav__links{display:none}
   .burger{display:flex}
   .hero__grid{grid-template-columns:1fr;gap:52px}
-  .lattice{max-width:460px}
+  .lattice{max-width:460px;top:0}
   .split,.flagship__in{grid-template-columns:1fr;gap:36px}
   .g4,.soon-grid{grid-template-columns:repeat(3,1fr)}
   .footer__top{grid-template-columns:1fr 1fr 1fr}

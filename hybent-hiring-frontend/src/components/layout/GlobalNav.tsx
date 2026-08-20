@@ -149,10 +149,10 @@ export function GlobalNav({
           <nav aria-label="Primary">
             <ul className="nav__links">
               <li className="has-mega">
-                <a className="navlink" href="/products" aria-haspopup="true" aria-expanded="false" data-nav="products hiring platform ai">Products <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
-                <div className="mega">
-                  <div className="mega__grid">
-                    <div className="mega__item mega__item--linked">
+                <a className="navlink" href="/products" aria-haspopup="true" aria-expanded="false" data-nav="products hiring">Products <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
+                <div className="mega mega--sm">
+                  <div className="mega__grid" style={{ gridTemplateColumns: '1fr' }}>
+                    <div className="mega__item mega__item--linked mega__item--full">
                       {/* Stretched hit area: the whole card opens the product, while
                           the action links below stay individually clickable. Hidden
                           from assistive tech so the card announces one link, not two. */}
@@ -162,28 +162,14 @@ export function GlobalNav({
                         <span className="mega__acts"><a href="/products/hiring">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/products/hiring">Open product <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
                       </span>
                     </div>
-                    <div className="mega__item">
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
-                      <span><h5>Platform</h5><p>The shared identity, data and automation layer every Hybent product is built on.</p>
-                        <span className="mega__acts"><a href="/platform">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/platform/ecosystem">See the layers <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
-                      </span>
-                    </div>
-                    <div className="mega__item">
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-bot" /></svg></span>
-                      <span><h5>AI Capabilities</h5><p>Screening models, recruiter copilot and the evaluation harness that gates every release.</p>
-                        <span className="mega__acts"><a href="/ai">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/products/hiring">Inside Hybent Hiring <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
-                      </span>
-                    </div>
                   </div>
                   <div className="mega__foot">
                     <p className="small">Hybent Hiring is our flagship AI recruitment platform.</p>
-                    <a className="link-arrow" href="/platform">See the platform <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                    <a className="link-arrow" href="/products/hiring">Explore product <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
                   </div>
                 </div>
               </li>
-              <li>
-                <SolutionsMegaMenu />
-              </li>
+              <SolutionsMegaMenu />
               <li><a className="navlink" href="/customers" data-nav="customers">Customers</a></li>
               <li className="has-mega">
                 <a className="navlink" href="/about" aria-haspopup="true" aria-expanded="false" data-nav="about careers contact security faq">Company <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
@@ -245,8 +231,6 @@ export function GlobalNav({
       >
         <p className="mono" style={{ margin: '6px 0 4px', color: 'var(--dim)' }}>Products</p>
         <a href="/products/hiring">Hybent Hiring</a>
-        <a href="/platform">Platform</a>
-        <a href="/ai">AI Capabilities</a>
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Solutions</p>
         <a href="/services">Services</a>
         <a href="/industries">Industries</a>

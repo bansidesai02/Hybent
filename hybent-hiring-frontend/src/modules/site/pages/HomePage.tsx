@@ -112,7 +112,7 @@ export default function HomePage() {
             <h2 className="h-lg">Hybent Hiring. AI-Powered Recruitment Platform.</h2>
             <p className="lead">Hybent Hiring holds your entire recruitment pipeline in one place — resume parsing, AI screening, interview management, recruiter copilot, and candidate portal.</p>
           </div>
-          <div className="grid g2">
+          <div className="grid g1" style={{ maxWidth: '880px', margin: '0 auto' }}>
             <article className="card" data-rv="up"><div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
               <svg className="fig fig--thumb" role="img" aria-label="Candidate list with AI screening scores" viewBox="0 0 300 140" width="300" height="140">
             <rect x="1" y="1" width="298" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
@@ -138,27 +138,8 @@ export default function HomePage() {
               <p className="small">Our AI recruitment platform. Resume parsing, AI screening, interview management, recruiter copilot and a candidate portal in one pipeline.</p>
               <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/products/hiring">Explore Hybent Hiring <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
             </article>
-            <article className="card" data-rv="up" data-delay="90"><div className="card__glow" style={{ top: "-40px", right: "-40px" }}></div>
-              <svg className="fig fig--thumb" role="img" aria-label="Platform layer stack: products, intelligence, services, data" viewBox="0 0 300 140" width="300" height="140">
-            <rect x="1" y="1" width="298" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
-            <g>
-              <rect x="30" y="20" width="240" height="24" rx="7" fill="url(#hbgh)" opacity=".85" />
-              <text x="42" y="36" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="#fff">PRODUCT LAYER</text>
-              <rect x="30" y="50" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-              <text x="42" y="66" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">INTELLIGENCE</text>
-              <rect x="30" y="80" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-              <text x="42" y="96" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">PLATFORM SERVICES</text>
-              <rect x="30" y="110" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-              <text x="42" y="126" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">DATA FOUNDATION</text>
-            </g>
-          </svg>
-                <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
-              <h3 className="h-sm" style={{ margin: "16px 0 8px" }}>The Platform</h3>
-              <p className="small">Identity, permissions, workflow, audit and a shared data model powering secure enterprise operations.</p>
-              <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/platform">See the platform <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
-            </article>
           </div>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "32px" }} data-rv="up">
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "32px", justifyContent: "center" }} data-rv="up">
             <a className="btn btn-primary" href="/products/hiring">Explore Hybent Hiring <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             <a className="btn btn-ghost" href="/contact">Book a demo</a>
           </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { SiteView } from '@/modules/site/components/SiteView'
 import { AUTH, SITE } from '@/app/paths'
+import { HiringSimulator } from '../components/HiringSimulator'
 
 /**
  * Hybent Hiring — the product's page inside the company site.
@@ -193,18 +194,21 @@ export default function HiringHomePage() {
             Hire on <span className="grad-text">autopilot</span>.
           </h1>
 
-          <p className="hero__sub" data-rv="up" data-delay="160">
+          <p className="hero__sub" data-rv="up" data-delay="160" style={{ marginInline: 'auto', textAlign: 'center' }}>
             Hybent Hiring uses AI to parse resumes, score candidates, manage your pipeline and
             close the best talent — in a fraction of the time.
           </p>
 
-          <div className="hero__actions" data-rv="up" data-delay="240">
+          <div className="hero__actions" data-rv="up" data-delay="240" style={{ justifyContent: 'center', marginInline: 'auto' }}>
             <a className="btn btn-primary btn-lg" href={AUTH.register}>
               Start for free
               <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
             </a>
             <a className="btn btn-ghost btn-lg" href={SITE.contact}>Book a demo</a>
           </div>
+
+          {/* Interactive AI Autopilot Hiring Simulator Widget */}
+          <HiringSimulator />
         </div>
       </section>
 
