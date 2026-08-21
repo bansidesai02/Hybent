@@ -70,12 +70,16 @@ async def create_invitation(
     if background_tasks is not None:
         background_tasks.add_task(send_candidate_invite, **invite_kwargs)
     else:
-        success = send_candidate_invite(**invite_kwargs)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send invitation email. Please check SMTP configuration."
-            )
+        try:
+            success = send_candidate_invite(**invite_kwargs)
+            if not success:
+                logger.warning(
+                    f"Invitation created for {email} but email could not be sent. "
+                    "Check SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY environment variables."
+                )
+        except Exception as e:
+            logger.error(f"Email send failed for invitation to {email}: {e}", exc_info=True)
+            # Non-fatal: invitation token is still valid, recruiter can share link manually
 
     return invitation
 
