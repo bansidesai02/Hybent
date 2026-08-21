@@ -15,7 +15,7 @@ import uuid
 from typing import Optional
 
 import google.generativeai as genai
-from app.services.groq_client import SafeGroq as Groq
+from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
 from fastapi import BackgroundTasks
 from app.core.config import settings
 from app.services.ai_usage_tracker import log_ai_usage
@@ -649,7 +649,7 @@ async def evaluate_candidate_match(
                     {"role": "system", "content": SYSTEM_PROMPT.strip()},
                     {"role": "user", "content": prompt.strip()},
                 ],
-                model="llama-3.3-70b-versatile",
+                model=get_best_groq_model(groq_client),
                 response_format={"type": "json_object"},
                 temperature=0.1,
             )

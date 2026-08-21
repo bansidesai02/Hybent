@@ -58,3 +58,30 @@ def test_compute_heuristic_match_score_partial_match():
     assert breakdown["skills_score"] == 51
     assert breakdown["shortlisted"] is False
     assert "Docker" in breakdown["missing_skills"]
+
+def test_compute_heuristic_match_score_missing_core_skill():
+    job = MockJob(
+        title="React Developer",
+        skills_required=["React", "TypeScript", "Redux"],
+        min_experience_years=3.0
+    )
+    # Candidate has Python and Django, completely missing React/TypeScript/Redux
+    candidate_skills = ["Python", "Django", "PostgreSQL", "Flask"]
+    candidate_title = "Backend Developer"
+    years_experience = 3.2
+    candidate_education = [{"degree": "Bachelor of Technology", "institution": "GTU"}]
+
+    score, breakdown = compute_heuristic_match_score(
+        candidate_skills=candidate_skills,
+        candidate_title=candidate_title,
+        years_experience=years_experience,
+        candidate_education=candidate_education,
+        job=job,
+        match_threshold=70.0
+    )
+
+    assert score <= 40.0
+    assert breakdown["skills_score"] == 0.0
+    assert breakdown["title_score"] <= 30.0
+    assert breakdown["shortlisted"] is False
+

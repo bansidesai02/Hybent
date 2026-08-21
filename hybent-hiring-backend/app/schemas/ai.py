@@ -6,7 +6,7 @@ class EvaluateNotesRequest(BaseModel):
     raw_notes: str = Field(..., min_length=10, max_length=20000, description="Raw interview notes text")
 
 class GenerateJDRequest(BaseModel):
-    prompt: str = Field(..., min_length=5, max_length=5000, description="Prompt for JD generation")
+    prompt: str = Field(..., min_length=2, max_length=5000, description="Prompt for JD generation")
 
 class AICreditRuleCreate(BaseModel):
     feature_name: str = Field(..., min_length=2, max_length=100)

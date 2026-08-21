@@ -111,3 +111,42 @@ class SafeGroq:
     def __getattr__(self, name):
         client = self._get_client()
         return getattr(client, name)
+
+cached_best_model = None
+
+def get_best_groq_model(groq_client=None) -> str:
+    global cached_best_model
+    if cached_best_model:
+        return cached_best_model
+
+    preferred_models = [
+        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3.6-27b",
+        "llama-3.3-70b-specdec",
+        "llama3-70b-8192"
+    ]
+    
+    temp_client = groq_client
+    if not temp_client:
+        try:
+            temp_client = SafeGroq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+        except Exception:
+            temp_client = None
+
+    if not temp_client:
+        return preferred_models[0]
+
+    try:
+        models_res = temp_client.models.list()
+        available_ids = [m.id for m in models_res.data]
+        for pm in preferred_models:
+            if pm in available_ids:
+                cached_best_model = pm
+                logger.info(f"Dynamically selected Groq model: {pm}")
+                return pm
+    except Exception as e:
+        logger.warning(f"Failed to fetch Groq models list dynamically ({e}). Using default fallback.")
+
+    return preferred_models[0]

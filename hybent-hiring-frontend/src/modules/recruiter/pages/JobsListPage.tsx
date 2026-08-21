@@ -83,7 +83,7 @@ function experienceDisplay(job: Job) {
     const key = job.experience_level.toLowerCase().trim()
     parts.push(EXPERIENCE_LABEL[key] || job.experience_level)
   }
-  return parts.join(' Â· ') || 'Not specified'
+  return parts.join(' · ') || 'Not specified'
 }
 
 /* â”€â”€ Detail dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

@@ -87,7 +87,7 @@ const ANALYSIS_STEPS = [
     icon: <Target />,
     label: 'Scoring the match',
     detail: (_: Candidate, s?: ScoringResult) =>
-      `${s?.final_score ?? 'â€”'}% Â· ${s?.shortlisted ? 'above threshold' : 'below threshold'}`,
+      `${s?.final_score ?? '\u2014'}% \u00B7 ${s?.shortlisted ? 'above threshold' : 'below threshold'}`,
   },
   {
     id: 'decide',

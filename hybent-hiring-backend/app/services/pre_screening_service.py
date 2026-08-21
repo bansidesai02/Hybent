@@ -14,7 +14,7 @@ from typing import Optional
 from fastapi import BackgroundTasks
 
 from app.core.config import settings
-from app.services.groq_client import SafeGroq as Groq
+from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
 from app.services.ai_usage_tracker import log_ai_usage
 
 logger = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ async def generate_questions(
                 {"role": "system", "content": QUESTION_SYSTEM_PROMPT.strip()},
                 {"role": "user", "content": prompt.strip()},
             ],
-            model="llama-3.3-70b-versatile",
+            model=get_best_groq_model(groq_client),
             response_format={"type": "json_object"},
             temperature=0.5,
         )
@@ -203,7 +203,7 @@ async def generate_questions(
             background_tasks.add_task(
                 log_ai_usage,
                 provider="Groq",
-                model="llama-3.3-70b-versatile",
+                model=get_best_groq_model(groq_client),
                 feature="pre_screening_questions",
                 prompt_tokens=p_tokens,
                 completion_tokens=c_tokens,
@@ -256,7 +256,7 @@ async def generate_session_summary(
                 {"role": "system", "content": SUMMARY_SYSTEM_PROMPT.strip()},
                 {"role": "user", "content": prompt.strip()},
             ],
-            model="llama-3.3-70b-versatile",
+            model=get_best_groq_model(groq_client),
             response_format={"type": "json_object"},
             temperature=0.3,
         )
@@ -280,7 +280,7 @@ async def generate_session_summary(
             background_tasks.add_task(
                 log_ai_usage,
                 provider="Groq",
-                model="llama-3.3-70b-versatile",
+                model=get_best_groq_model(groq_client),
                 feature="pre_screening_summary",
                 prompt_tokens=p_tokens,
                 completion_tokens=c_tokens,
@@ -377,7 +377,7 @@ async def translate_questions(
                 {"role": "system", "content": TRANSLATION_SYSTEM_PROMPT.strip()},
                 {"role": "user", "content": prompt.strip()},
             ],
-            model="llama-3.3-70b-versatile",
+            model=get_best_groq_model(groq_client),
             response_format={"type": "json_object"},
             temperature=0.2,
         )
@@ -418,7 +418,7 @@ async def translate_questions(
             background_tasks.add_task(
                 log_ai_usage,
                 provider="Groq",
-                model="llama-3.3-70b-versatile",
+                model=get_best_groq_model(groq_client),
                 feature="pre_screening_translation",
                 prompt_tokens=p_tokens,
                 completion_tokens=c_tokens,

@@ -48,8 +48,8 @@ async def generate_jd(
     """
     Generate a full Job Description from a short user prompt.
     """
-    if not prompt or len(prompt.strip()) < 5:
-        raise HTTPException(status_code=400, detail="Prompt is too short to generate a JD.")
+    if not prompt or len(prompt.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Prompt is too short to generate a JD. Must be at least 2 characters.")
 
     # Pre-check credits
     await AICreditsService.check_credits_available(db, current_user.organization_id, "jd_generation")

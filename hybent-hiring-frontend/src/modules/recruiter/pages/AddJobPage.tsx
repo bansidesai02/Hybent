@@ -77,7 +77,7 @@ function experienceDisplay(job: Job) {
     const key = job.experience_level.toLowerCase().trim()
     parts.push(LEVEL_LABEL[key] || job.experience_level)
   }
-  return parts.join(' Â· ') || 'Not specified'
+  return parts.join(' · ') || 'Not specified'
 }
 
 /**
@@ -620,7 +620,7 @@ export default function AddJobPage() {
                             {job.title}
                           </span>
                           <span className="block truncate text-hb-xs text-hb-muted">
-                            {[job.location, experienceDisplay(job)].filter(Boolean).join(' Â· ')}
+                            {[job.location, experienceDisplay(job)].filter(Boolean).join(' · ')}
                           </span>
                         </span>
                         <StatusPill status={job.status} />

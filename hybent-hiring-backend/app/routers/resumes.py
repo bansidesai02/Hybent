@@ -277,10 +277,13 @@ async def upload_and_create(
     breakdown: dict | None = None
 
     
-    if job or req_skills_list or min_experience > 0:
-        if not job:
+    is_real_job = job and getattr(job, "status", None) != "pool"
+    has_custom_requirements = bool(req_skills_list) or min_experience > 0 or bool(role_title)
+
+    if is_real_job or has_custom_requirements:
+        if not job or getattr(job, "status", None) == "pool":
             job = _JobReq(
-                title=role_title,
+                title=role_title or (job.title if job else "Role"),
                 skills_required=req_skills_list,
                 min_experience_years=min_experience,
             )

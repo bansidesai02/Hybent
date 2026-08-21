@@ -414,32 +414,22 @@ export default function CandidatesPage() {
       ),
     },
     {
-      key: 'applied',
-      header: 'Applied',
-      cell: (c) => (
-        <span className="whitespace-nowrap text-hb-muted">
-          {formatCandidateDate(c, 'MMM dd, yyyy')}
-        </span>
-      ),
-    },
-    {
       key: 'role',
       header: 'Role',
+      width: 'minmax(0, 1.2fr)',
       cell: (c) => (
-        <span className="text-hb-muted">{c.applied_job_title || c.current_title || '—'}</span>
-      ),
-    },
-    {
-      key: 'skills',
-      header: 'Skills',
-      hideOnCard: true,
-      cell: (c) => (
-        <span className="text-hb-muted">{c.skills?.slice(0, 3).join(', ') || '—'}</span>
+        <span
+          className="block w-full truncate text-hb-muted"
+          title={c.applied_job_title || c.current_title || ''}
+        >
+          {c.applied_job_title || c.current_title || '—'}
+        </span>
       ),
     },
     {
       key: 'experience',
       header: 'Exp',
+      width: '56px',
       align: 'center',
       cell: (c) => (
         <span className="whitespace-nowrap text-hb-muted">
@@ -451,6 +441,7 @@ export default function CandidatesPage() {
     {
       key: 'match_score',
       header: 'Match',
+      width: '72px',
       align: 'center',
       cell: (c) =>
         c.match_score != null ? <MatchScore score={c.match_score} /> : <span className="text-hb-dim">—</span>,

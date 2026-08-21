@@ -14,7 +14,7 @@ import docx
 import subprocess
 import time
 import uuid
-from app.services.groq_client import SafeGroq as Groq
+from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
 from pydantic import BaseModel, Field
 from fastapi import BackgroundTasks, HTTPException
 
@@ -266,14 +266,14 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
         if not duration:
             continue
 
-        # Pattern: "X years Y months" or "X months" explicitly stated
-        years_match = re.search(r'(\d+)\s*(?:yr|year|years?)', duration, re.IGNORECASE)
-        months_match = re.search(r'(\d+)\s*(?:mo|month|months?)', duration, re.IGNORECASE)
+        # Pattern: "X years Y months" or "X months" explicitly stated (supporting decimals like 2.5)
+        years_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:yr|year|years?)', duration, re.IGNORECASE)
+        months_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:mo|month|months?)', duration, re.IGNORECASE)
         if years_match or months_match:
             if years_match:
-                total_months += int(years_match.group(1)) * 12
+                total_months += float(years_match.group(1)) * 12
             if months_match:
-                total_months += int(months_match.group(1))
+                total_months += float(months_match.group(1))
             continue
 
         # Pattern: date range — normalize "Present/Current/Now" to current month/year
@@ -308,9 +308,11 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
     years_float = round(total_months / 12.0, 1)
     
     if total_months < 12:
-        experience_years_str = f"{total_months} {'Month' if total_months == 1 else 'Months'}"
+        display_months = int(total_months) if float(total_months).is_integer() else total_months
+        experience_years_str = f"{display_months} {'Month' if display_months == 1 else 'Months'}"
     else:
-        experience_years_str = f"{years_float} {'Year' if years_float == 1.0 else 'Years'}"
+        display_years = int(years_float) if float(years_float).is_integer() else years_float
+        experience_years_str = f"{display_years} {'Year' if display_years == 1 else 'Years'}"
     
     return years_float, experience_years_str
 
@@ -389,7 +391,7 @@ def _call_groq_with_retry(
 
             completion = groq_client.chat.completions.create(
                 messages=messages,
-                model="llama-3.3-70b-versatile",
+                model=get_best_groq_model(groq_client),
                 response_format={"type": "json_object"},
                 temperature=0.1,
             )
@@ -460,9 +462,9 @@ def _verify_is_resume_with_keywords(text: str) -> bool:
     # Exclude government IDs and unrelated documents by checking for specific words
     blacklist_patterns = [
         r"government of india", r"permanent account number", r"aadhaar", r"income tax department",
-        r"republic of india", r"passport", r"driving license", r"invoice", r"bill of entry",
-        r"marksheet", r"certificate of completion", r"academic transcript", r"receipt",
-        r"purchase order", r"pan card", r"unique identification authority", r"tax invoice"
+        r"republic of india", r"\bpassport\b", r"\bdriving license\b", r"\bbill of entry\b",
+        r"\bmarksheet\b", r"certificate of completion", r"academic transcript",
+        r"\bpurchase order\b", r"\bpan card\b", r"unique identification authority", r"tax invoice"
     ]
     for pattern in blacklist_patterns:
         if re.search(pattern, text_lower):
@@ -511,7 +513,7 @@ def _verify_is_resume_with_llm(text: str) -> bool:
                 {"role": "system", "content": "You are a helpful assistant that outputs ONLY valid JSON."},
                 {"role": "user", "content": prompt + text[:4000]},
             ],
-            model="llama-3.3-70b-versatile",
+            model=get_best_groq_model(groq_client),
             response_format={"type": "json_object"},
             temperature=0.1,
             max_tokens=100,
@@ -595,7 +597,6 @@ async def parse_resume(
         error_msg = str(e).lower()
         if "rate balance" in error_msg or "429" in error_msg:
             logger.error(f"Groq API Quota Exceeded: {e}")
-            from fastapi import HTTPException
             raise HTTPException(
                 status_code=429,
                 detail="Groq AI service is currently rate limited. Please try again soon."
@@ -646,7 +647,7 @@ async def parse_jd(
                 {"role": "system", "content": "You are a helpful assistant that outputs ONLY valid JSON. " + JD_PARSE_PROMPT},
                 {"role": "user", "content": text[:15000]},
             ],
-            model="llama-3.3-70b-versatile",
+            model=get_best_groq_model(groq_client),
             response_format={"type": "json_object"},
             temperature=0.1,
         )
@@ -738,7 +739,7 @@ async def generate_match_summary(
                 {"role": "system", "content": "You are an expert technical recruiter. Output only the requested summary paragraph."},
                 {"role": "user", "content": prompt},
             ],
-            model="llama-3.3-70b-versatile",
+            model=get_best_groq_model(groq_client),
             temperature=0.3,
             max_tokens=150,
         )

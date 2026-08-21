@@ -5,7 +5,7 @@ import logging
 import json
 import io
 import google.generativeai as genai
-from app.services.groq_client import SafeGroq as Groq
+from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
 # pyrefly: ignore [missing-import]
 from huggingface_hub import InferenceClient
 import time
@@ -174,7 +174,7 @@ async def evaluate_interview_notes(
         # Try Groq fallback
         if settings.groq_api_key:
             provider = "Groq"
-            model_name = "llama-3.3-70b-versatile"
+            model_name = get_best_groq_model(groq_client)
             prompt = f"{SYSTEM_PROMPT}\n\nInterviewer Raw Notes:\n{raw_notes}"
             completion = groq_client.chat.completions.create(
                 model=model_name,
@@ -540,7 +540,7 @@ async def generate_combined_feedback_summary(
 
         if settings.groq_api_key:
             provider = "Groq"
-            model_name = "llama-3.3-70b-versatile"
+            model_name = get_best_groq_model(groq_client)
             completion = groq_client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -596,6 +596,12 @@ Return strictly valid JSON:
 
 JD_GENERATE_PROMPT = """
 You are an expert technical recruiter and AI assistant. Based on the user's short prompt, generate a professional and structured Job Description.
+
+CRITICAL for required_qualifications_skills and good_to_have: 
+- Extract/generate ONLY actual short skill keywords, tool names, technologies, domain competencies (1-3 words max).
+- Do NOT include full sentences, requirements text, degrees (e.g. "Bachelor's degree..."), or soft skills/phrases (e.g. "Excellent communication...", "Ability to work...").
+- Good examples: ["Sales", "B2B", "CRM", "Lead Generation", "React", "TypeScript", "Node.js"]
+- Bad examples: ["Bachelor's degree in Business", "Proven experience (2-5 years) in sales", "Excellent communication and presentation skills", "Ability to work independently"]
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -658,7 +664,7 @@ async def generate_prep_materials(
 
         if settings.groq_api_key:
             provider = "Groq"
-            model_name = "llama-3.3-70b-versatile"
+            model_name = get_best_groq_model(groq_client)
             completion = groq_client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -771,7 +777,7 @@ async def generate_jd_from_prompt(
 
         if settings.groq_api_key:
             provider = "Groq"
-            model_name = "llama-3.3-70b-versatile"
+            model_name = get_best_groq_model(groq_client)
             completion = groq_client.chat.completions.create(
                 model=model_name,
                 messages=[
