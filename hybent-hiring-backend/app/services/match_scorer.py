@@ -6,6 +6,7 @@ Uses a 3-tier evaluation pipeline:
   3. Offline Deterministic Heuristic Fallback Scorer
 """
 import asyncio
+from datetime import datetime
 import json
 import logging
 import re
@@ -31,14 +32,35 @@ if settings.gemini_api_key:
 
 SYSTEM_PROMPT = """
 You are an expert technical recruiter AI with 10+ years of hiring experience.
-Your only job is to evaluate how well a candidate's resume matches a job description
-and return a structured match score. Be consistent — the same inputs must always
-produce the same score. Never assume skills not explicitly mentioned in the resume.
+Your only job is to evaluate how well a candidate's resume matches a job description and return a structured match score.
+Be consistent — the same inputs must always produce the same score.
+Return only a valid JSON object matching the requested schema.
 """
 
 USER_PROMPT_TEMPLATE = """
 You will be given a candidate's resume data and a job description.
 Analyze them and return ONLY a valid JSON object — no explanation, no markdown.
+
+════════════════════════════════════════
+EVALUATION GUIDELINES
+════════════════════════════════════════
+Evaluate the candidate across these areas: Core Skills, Relevant Experience, Projects, Education, Certifications, and Overall Role Fit.
+
+1. CORE SKILLS & TECH ALIASES:
+   - Normalize technology aliases and equivalent names (e.g. React/ReactJS/React.js, AWS/Amazon Web Services, Postgres/PostgreSQL).
+   - Distinguish related but different technologies (e.g. Java vs JavaScript, Docker vs Kubernetes, HTML vs CSS).
+   - Treat required JD skills more importantly than preferred/nice-to-have skills.
+   - Consider semantic matches (e.g., "FastAPI" and "building REST APIs"), but never claim a skill match without reasonable evidence.
+   - Give more weight to skills demonstrated in Experience/Projects than skills appearing only in the list of Skills.
+   - Do not reward keyword stuffing or repeated mentions. Do not invent missing skills.
+
+2. EXPERIENCE & TIMELINES:
+   - Calculate technology-specific experience from actual timelines of the jobs. Do not assume total career experience equals experience with every technology.
+   - Use Projects as valid supporting evidence, especially for junior/fresher candidates, but distinguish projects from professional experience.
+   - Do not invent missing experience or dates.
+
+3. EDUCATION & CERTIFICATIONS:
+   - Consider Education and Certifications only according to their relevance to the Job Description. Do not invent missing certifications or degrees.
 
 ════════════════════════════════════════
 SCORING WEIGHTS (must always sum to 100%)
@@ -51,14 +73,12 @@ SCORING WEIGHTS (must always sum to 100%)
 ════════════════════════════════════════
 SCORING RULES — READ CAREFULLY
 ════════════════════════════════════════
-
 1. SKILLS SCORE (0–100):
-   - Exact skill match → full credit
-   - Synonym match (e.g. JS = JavaScript, Postgres = PostgreSQL) → full credit
+   - Exact/Synonym match → full credit
    - Related/partial skill → half credit
    - Missing required skill → no credit
    - Formula: (credits earned ÷ total required skills) × 100
-
+   
 2. TITLE SCORE (0–100):
    - Exact title match → 100
    - Same domain, different seniority (e.g. Junior vs Senior Dev) → 75
@@ -79,9 +99,6 @@ SCORING RULES — READ CAREFULLY
    - Two levels below → 20
    - No education data → 50 (neutral)
 
-   Education levels for reference:
-   High School < Diploma < Bachelor's < Master's < PhD
-
 ════════════════════════════════════════
 CRITICAL PENALTY RULE FOR MISSING CORE SKILLS
 ════════════════════════════════════════
@@ -89,6 +106,8 @@ If the candidate is COMPLETELY MISSING the primary core technical skill required
 - Skills Score MUST be exactly 0.
 - Title Score MUST be exactly 10.
 - The overall final_score MUST NEVER exceed 40.0, regardless of experience or education.
+
+100/100 should only be given when the candidate strongly satisfies essentially all important JD requirements.
 
 ════════════════════════════════════════
 FINAL SCORE FORMULA
@@ -115,6 +134,12 @@ CANDIDATE RESUME:
 - Current Title:         {candidate_title}
 - Years of Experience:   {candidate_years}
 - Skills:                {candidate_skills}
+- Experience Details:
+{candidate_experience_details}
+- Projects:
+{candidate_projects}
+- Certifications:
+{candidate_certifications}
 - Education:             {candidate_education}
 
 ════════════════════════════════════════
@@ -148,6 +173,96 @@ RULES FOR OUTPUT:
 """
 
 
+aliases = {
+    "react": ["react", "reactjs", "react.js"],
+    "javascript": ["javascript", "js", "ecmascript"],
+    "typescript": ["typescript", "ts"],
+    "postgresql": ["postgresql", "postgres"],
+    "mongodb": ["mongodb", "mongo"],
+    "aws": ["aws", "amazon web services"],
+    "gcp": ["gcp", "google cloud", "google cloud platform"],
+    "kubernetes": ["kubernetes", "k8s"],
+    "node": ["node", "node.js", "nodejs"],
+    "html": ["html", "html5"],
+    "css": ["css", "css3"],
+}
+
+def normalize_skill(skill: str) -> str:
+    s_clean = skill.strip().lower()
+    for norm_name, alias_list in aliases.items():
+        if s_clean in alias_list:
+            return norm_name
+    return s_clean
+
+def skill_matches(cand_skill: str, req_skill: str) -> bool:
+    cand_norm = normalize_skill(cand_skill)
+    req_norm = normalize_skill(req_skill)
+    if cand_norm == req_norm:
+        return True
+    if (cand_norm == "java" and req_norm == "javascript") or (cand_norm == "javascript" and req_norm == "java"):
+        return False
+    if (cand_norm == "docker" and req_norm == "kubernetes") or (cand_norm == "kubernetes" and req_norm == "docker"):
+        return False
+    if len(cand_norm) > 2 and len(req_norm) > 2:
+        if cand_norm in req_norm or req_norm in cand_norm:
+            return True
+    return False
+
+def get_experience_years_for_skill(rs_lower: str, candidate_experience: list) -> float:
+    if not candidate_experience:
+        return 0.0
+    total_months = 0
+    now = datetime.now()
+    current_year = now.year
+    current_month_name = now.strftime("%b")
+    m_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+    
+    for exp in candidate_experience:
+        if hasattr(exp, 'model_dump'):
+            exp = exp.model_dump()
+        elif hasattr(exp, 'dict'):
+            exp = exp.dict()
+        desc = (exp.get("description", "") or "").lower()
+        title = (exp.get("title", "") or "").lower()
+        
+        if rs_lower in desc or rs_lower in title or skill_matches(rs_lower, desc) or skill_matches(rs_lower, title):
+            duration = str(exp.get('duration', '') or '').strip()
+            if not duration:
+                continue
+            
+            years_match = re.search(r'(\d+)\s*(?:yr|year|years?)', duration, re.IGNORECASE)
+            months_match = re.search(r'(\d+)\s*(?:mo|month|months?)', duration, re.IGNORECASE)
+            if years_match or months_match:
+                if years_match:
+                    total_months += int(years_match.group(1)) * 12
+                if months_match:
+                    total_months += int(months_match.group(1))
+                continue
+                
+            norm = re.sub(
+                r'\b(present|current|now|today)\b',
+                f'{current_month_name} {current_year}',
+                duration,
+                flags=re.IGNORECASE,
+            )
+            years_found = re.findall(r'\b((?:19|20)\d{2})\b', norm)
+            months_found = re.findall(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b', norm.lower())
+            
+            if len(years_found) >= 2:
+                try:
+                    y1, y2 = int(years_found[0]), int(years_found[-1])
+                    if y2 >= y1:
+                        m1 = m_map.get(months_found[0], 1) if len(months_found) >= 1 else 1
+                        m2 = m_map.get(months_found[-1], 12) if len(months_found) >= 2 else (m1 if len(months_found) == 1 else 12)
+                        months_diff = (y2 - y1) * 12 + (m2 - m1) + 1
+                        total_months += max(1, months_diff)
+                except Exception:
+                    pass
+            elif len(years_found) == 1:
+                total_months += 1
+                
+    return round(total_months / 12.0, 1)
+
 def compute_heuristic_match_score(
     candidate_skills: list[str],
     candidate_title: Optional[str],
@@ -155,7 +270,10 @@ def compute_heuristic_match_score(
     candidate_education: list[dict],
     job,
     match_threshold: float = 70.0,
-    note: str = ""
+    note: str = "",
+    candidate_experience: list[dict] = None,
+    candidate_projects: list[dict] = None,
+    candidate_certifications: list[str] = None
 ) -> tuple[float, dict]:
     """
     Deterministic offline heuristic scorer used when AI services fail or are unconfigured.
@@ -221,15 +339,70 @@ def compute_heuristic_match_score(
 
     matched_skills = []
     missing_skills = []
+    has_relevant_certification = False
+    
+    # Check if we have rich experience or projects details
+    has_details = False
+    if (candidate_experience and len(candidate_experience) > 0) or (candidate_projects and len(candidate_projects) > 0):
+        has_details = True
 
+    earned_credits = 0.0
     if req_skills:
         for rs in req_skills:
             rs_lower = rs.lower()
-            if any(rs_lower in cs or cs in rs_lower for cs in cand_skills_lower):
+            
+            # Check experience descriptions/titles
+            in_experience = False
+            if candidate_experience:
+                for exp in candidate_experience:
+                    if hasattr(exp, 'model_dump'):
+                        exp = exp.model_dump()
+                    elif hasattr(exp, 'dict'):
+                        exp = exp.dict()
+                    desc = (exp.get("description", "") or "").lower()
+                    title = (exp.get("title", "") or "").lower()
+                    if rs_lower in desc or rs_lower in title or skill_matches(rs_lower, desc) or skill_matches(rs_lower, title):
+                        in_experience = True
+                        break
+
+            # Check projects
+            in_projects = False
+            if candidate_projects:
+                for proj in candidate_projects:
+                    p_desc = (proj.get("description", "") or "").lower()
+                    p_name = (proj.get("name", "") or "").lower()
+                    p_techs = [str(t).lower() for t in proj.get("technologies", [])]
+                    if (any(t == rs_lower or skill_matches(rs_lower, t) for t in p_techs) or 
+                        rs_lower in p_desc or rs_lower in p_name):
+                        in_projects = True
+                        break
+
+            # Check certifications
+            in_certifications = False
+            if candidate_certifications:
+                for cert in candidate_certifications:
+                    if rs_lower in cert.lower() or skill_matches(rs_lower, cert):
+                        in_certifications = True
+                        has_relevant_certification = True
+                        break
+
+            # Check skills list
+            in_skills = any(cs == rs_lower or skill_matches(cs, rs_lower) for cs in cand_skills_lower)
+
+            if in_skills or in_experience or in_projects or in_certifications:
                 matched_skills.append(rs)
+                # If we have details, give more weight to skills in experience/projects
+                if has_details:
+                    if in_experience or in_projects:
+                        earned_credits += 1.0
+                    else:
+                        earned_credits += 0.7
+                else:
+                    earned_credits += 1.0
             else:
                 missing_skills.append(rs)
-        raw_skills_score = (len(matched_skills) / len(req_skills)) * 100.0
+                
+        raw_skills_score = (earned_credits / len(req_skills)) * 100.0
         breadth_bonus = min(10.0, len(cand_skills) * 0.5)
         skills_score = min(100.0, round(raw_skills_score + breadth_bonus, 1))
     else:
@@ -284,11 +457,40 @@ def compute_heuristic_match_score(
     education_score = 50.0
     if candidate_education and len(candidate_education) > 0:
         education_score = 80.0
+    if has_relevant_certification:
+        education_score = min(100.0, education_score + 20.0)
 
     # Critical penalty rule if missing core skills
     if req_skills and len(matched_skills) == 0:
         skills_score = 0.0
         title_score = min(title_score, 30.0)
+
+    primary_skills = ["python", "react", "java", "javascript", "node", "devops", "sales"]
+    primary_skill_required = None
+    for p_skill in primary_skills:
+        if p_skill in job_title_lower:
+            primary_skill_required = p_skill
+            break
+            
+    has_primary_skill = True
+    if primary_skill_required:
+        has_primary_skill = any(
+            skill_matches(cs, primary_skill_required) for cs in cand_skills
+        ) or any(
+            primary_skill_required in (exp.get("description", "") or "").lower() or 
+            primary_skill_required in (exp.get("title", "") or "").lower()
+            for exp in (candidate_experience or [])
+        )
+        if not has_primary_skill:
+            skills_score = 0.0
+            title_score = 10.0
+
+    # Calculate technology-specific experience for primary core skill
+    if primary_skill_required and req_years > 0 and has_primary_skill:
+        primary_years = get_experience_years_for_skill(primary_skill_required, candidate_experience)
+        if primary_years > 0.0 and primary_years < req_years:
+            diff = req_years - primary_years
+            experience_score = min(experience_score, max(0.0, round(100.0 - (diff * 20.0), 1)))
 
     final_score = round(
         (skills_score * 0.50) +
@@ -297,6 +499,9 @@ def compute_heuristic_match_score(
         (education_score * 0.10),
         1
     )
+
+    if primary_skill_required and not has_primary_skill:
+        final_score = min(40.0, final_score)
 
     shortlisted = final_score >= match_threshold
     
@@ -385,6 +590,35 @@ async def evaluate_candidate_match(
     if cand_edu_list:
         cand_edu_str = ", ".join([f"{e.get('degree','')} at {e.get('institution','')}" for e in cand_edu_list if isinstance(e, dict)])
 
+    # Format experience entries
+    exp_list = candidate_data.get("experience", [])
+    exp_formatted = []
+    for exp in exp_list:
+        if hasattr(exp, 'model_dump'):
+            exp = exp.model_dump()
+        elif hasattr(exp, 'dict'):
+            exp = exp.dict()
+        title = exp.get("title", "")
+        company = exp.get("company", "")
+        duration = exp.get("duration", "")
+        desc = exp.get("description", "")
+        exp_formatted.append(f"- Role: {title} at {company} ({duration})\n  Description: {desc}")
+    exp_str = "\n".join(exp_formatted) if exp_formatted else "None specified"
+
+    # Format projects
+    proj_list = candidate_data.get("projects", [])
+    proj_formatted = []
+    for proj in proj_list:
+        name = proj.get("name", "")
+        desc = proj.get("description", "")
+        tech = ", ".join(proj.get("technologies", []))
+        proj_formatted.append(f"- Project: {name}\n  Technologies: {tech}\n  Description: {desc}")
+    proj_str = "\n".join(proj_formatted) if proj_formatted else "None specified"
+
+    # Format certifications
+    cert_list = candidate_data.get("certifications", [])
+    cert_str = ", ".join(cert_list) if cert_list else "None specified"
+
     prompt = USER_PROMPT_TEMPLATE.format(
         job_title=getattr(job, "title", "Role"),
         required_years=getattr(job, "min_experience_years", 0) or 0,
@@ -395,6 +629,9 @@ async def evaluate_candidate_match(
         candidate_title=candidate_data.get("current_title", "None"),
         candidate_years=years_experience if years_experience is not None else "Not specified",
         candidate_skills=", ".join(candidate_skills) if candidate_skills else "None",
+        candidate_experience_details=exp_str,
+        candidate_projects=proj_str,
+        candidate_certifications=cert_str,
         candidate_education=cand_edu_str,
         match_threshold=match_threshold
     )
@@ -457,7 +694,10 @@ async def evaluate_candidate_match(
         candidate_education=cand_edu_list if isinstance(cand_edu_list, list) else [],
         job=job,
         match_threshold=match_threshold,
-        note="(Evaluated via deterministic heuristic fallback engine)."
+        note="(Evaluated via deterministic heuristic fallback engine).",
+        candidate_experience=exp_list if isinstance(exp_list, list) else [],
+        candidate_projects=proj_list if isinstance(proj_list, list) else [],
+        candidate_certifications=cert_list if isinstance(cert_list, list) else []
     )
 
     duration_ms = (time.time() - start_time) * 1000

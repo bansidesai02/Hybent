@@ -55,6 +55,6 @@ def test_compute_heuristic_match_score_partial_match():
     )
 
     assert score < 70.0
-    assert breakdown["skills_score"] == 50
+    assert breakdown["skills_score"] == 51
     assert breakdown["shortlisted"] is False
     assert "Docker" in breakdown["missing_skills"]
