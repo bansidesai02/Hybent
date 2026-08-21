@@ -1,3 +1,5 @@
+import { AiRecruitmentWorkflowAnimation } from '../components/ui/AiRecruitmentWorkflowAnimation'
+
 export default function HomePage() {
   return (
     <div className="route route--on" data-route="index">
@@ -108,26 +110,10 @@ export default function HomePage() {
           </div>
           <div className="grid g3">
             <article className="card" data-rv="up"><div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
-              <svg className="fig fig--thumb" role="img" aria-label="Candidate list with AI screening scores" viewBox="0 0 300 140" width="300" height="140">
-            <rect x="1" y="1" width="298" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
-            <g>
-              <rect x="18" y="20" width="264" height="32" rx="8" fill="var(--surface-2)" />
-              <circle cx="38" cy="36" r="9" fill="url(#hbg)" />
-              <rect x="56" y="28" width="70" height="6" rx="3" fill="var(--border-strong)" />
-              <rect x="56" y="40" width="120" height="4" rx="2" fill="var(--border)" />
-              <text x="258" y="40" fontFamily="Sora" fontSize="11" fontWeight="600" fill="var(--success)">94</text>
-              <rect x="18" y="58" width="264" height="32" rx="8" fill="var(--surface-2)" />
-              <circle cx="38" cy="74" r="9" fill="url(#hbg)" opacity=".8" />
-              <rect x="56" y="66" width="58" height="6" rx="3" fill="var(--border-strong)" />
-              <rect x="56" y="78" width="98" height="4" rx="2" fill="var(--border)" />
-              <text x="258" y="78" fontFamily="Sora" fontSize="11" fontWeight="600" fill="var(--muted)">88</text>
-              <rect x="18" y="96" width="264" height="32" rx="8" fill="var(--surface-2)" opacity=".6" />
-              <circle cx="38" cy="112" r="9" fill="url(#hbg)" opacity=".45" />
-              <rect x="56" y="104" width="64" height="6" rx="3" fill="var(--border)" />
-              <rect x="56" y="116" width="86" height="4" rx="2" fill="var(--border)" />
-            </g>
-          </svg>
-                <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
+              <div style={{ marginBottom: '20px' }}>
+                <AiRecruitmentWorkflowAnimation />
+              </div>
+              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
               <h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Hybent Hiring <span className="badge badge--live"><i className="dot dot--pulse"></i>Live</span></h3>
               <p className="small">Our AI recruitment platform. Resume parsing, AI screening, interview management, recruiter copilot and a candidate portal in one pipeline.</p>
               <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/products">Explore Hybent Hiring <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
