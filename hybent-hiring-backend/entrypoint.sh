@@ -78,17 +78,25 @@ if [ $# -gt 0 ]; then
 else
     # In the Render Free tier, we cannot deploy separate background workers.
     # We run the Celery worker and beat in the background of this web container.
-    echo "==> [entrypoint] Starting Celery worker in background..."
-    celery -A app.core.celery_app worker --loglevel=info &
+    echo "==> [entrypoint] Starting Celery worker in background (pool=solo, concurrency=1)..."
+    celery -A app.core.celery_app worker --loglevel=info --pool=solo --concurrency=1 &
     
     echo "==> [entrypoint] Starting Celery beat in background..."
     celery -A app.core.celery_app beat --loglevel=info &
-
+ 
     echo "==> [entrypoint] Starting Uvicorn..."
-    exec uvicorn app.main:app \
-        --host 0.0.0.0 \
-        --port "${PORT:-8000}" \
-        --workers "${WEB_CONCURRENCY:-2}" \
-        --loop uvloop \
-        --http httptools
+    if [ "${WEB_CONCURRENCY:-1}" -gt 1 ]; then
+        exec uvicorn app.main:app \
+            --host 0.0.0.0 \
+            --port "${PORT:-8000}" \
+            --workers "${WEB_CONCURRENCY}" \
+            --loop uvloop \
+            --http httptools
+    else
+        exec uvicorn app.main:app \
+            --host 0.0.0.0 \
+            --port "${PORT:-8000}" \
+            --loop uvloop \
+            --http httptools
+    fi
 fi
