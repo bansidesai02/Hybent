@@ -42,12 +42,10 @@ jobs:
           include-hidden-files: true
 
   deploy:
-    name: Deploy to Hostinger
+    name: Deploy to Hostinger via FTP
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -57,45 +55,12 @@ jobs:
           name: frontend-dist
           path: dist/
 
-      - name: Push built files to hostinger-deploy branch
-        run: |
-          # Configure Git to prevent HTTP 408 / connection resets on large uploads
-          git config --global http.postBuffer 524288000
-          git config --global http.version HTTP/1.1
-          git config --global http.lowSpeedLimit 0
-          git config --global http.lowSpeedTime 999999
-
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git fetch origin
-
-          # Checkout existing branch or create fresh orphan
-          if git rev-parse --verify origin/hostinger-deploy > /dev/null 2>&1; then
-            git checkout hostinger-deploy
-            git rm -rf . --quiet || true
-          else
-            git checkout --orphan hostinger-deploy
-            git rm -rf . --quiet || true
-          fi
-
-          # Explicitly copy all files including hidden ones
-          cp -a dist/. .
-          # Verify .htaccess exists
-          ls -la .htaccess || echo ".htaccess NOT FOUND"
-          rm -rf dist
-          echo "Deployed: $(date)" > DEPLOY_INFO.txt
-          git add -A
-          git add .htaccess -f || true
-          git commit -m "Deploy: $(date)"
-          git push origin hostinger-deploy
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Trigger Hostinger Auto Deployment
-        run: |
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -H "X-GitHub-Event: push" \
-            -d '{"ref": "refs/heads/hostinger-deploy"}' \
-            "https://webhooks.hostinger.com/deploy/d612e0359bf8b5e3d348434e936ea113"
-          echo "Hostinger deployment triggered!"
+      - name: Deploy to Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: /public_html/
+          dangerous-clean-slate: true
