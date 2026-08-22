@@ -140,11 +140,11 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
             .section-title {{ font-size: 14px; font-weight: 700; color: #3c4043; margin-bottom: 4px; text-transform: capitalize; }}
             .section-value {{ font-size: 15px; color: #3c4043; margin-bottom: 24px; }}
             .button-wrap {{ margin: 32px 0 16px; text-align: left; }}
-            .button {{ display: inline-block; background: linear-gradient(135deg, #6c47ff, #ff6bc6); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
+            .button {{ display: inline-block; background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
 
 
             .footer {{ background-color: #f8f9fa; padding: 24px; border-top: 1px solid #dadce0; text-align: center; color: #70757a; font-size: 12px; }}
-            .footer a {{ color: #6c47ff; text-decoration: none; font-weight: 600; }}
+            .footer a {{ color: #4C6FFF; text-decoration: none; font-weight: 600; }}
         </style>
     </head>
     <body>
@@ -170,7 +170,7 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                                 <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                                     <tr>
                                         <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
-                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
+                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #4C6FFF; background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
                                                 <tr>
                                                     <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
                                                         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
@@ -192,7 +192,7 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                                         </td>
                                         <td style="vertical-align: middle; padding-left: 2px;">
                                             <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
-                                                <span style="color: #6c47ff;">H</span><span style="color: #894ef3;">i</span><span style="color: #a655e8;">r</span><span style="color: #c45cdc;">e</span><span style="color: #e163d1;">o</span><span style="color: #ff6bc6;">n</span>
+                                                <span style="color: #22CFFF;">H</span><span style="color: #4C6FFF;">y</span><span style="color: #A855F7;">b</span><span style="color: #E85CFF;">e</span><span style="color: #4C6FFF;">n</span><span style="color: #22CFFF;">t</span>
                                             </span>
                                         </td>
                                     </tr>
@@ -245,7 +245,7 @@ def _get_calendar_invite_template(
             body {{ margin: 0; padding: 0; background-color: #f8f9fa; }}
             .container {{ max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #dadce0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
             .branding {{ padding: 24px 24px 0; text-align: left; }}
-            .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 16px; height: 16px; border-radius: 4px; display: inline-block; vertical-align: middle; }}
+            .logo-square {{ background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); width: 16px; height: 16px; border-radius: 4px; display: inline-block; vertical-align: middle; }}
             .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 14px; font-weight: 800; letter-spacing: -0.5px; display: inline-block; vertical-align: middle; }}
             .header {{ padding: 20px 24px; border-bottom: 1px solid #dadce0; display: table; width: 100%; box-sizing: border-box; }}
             .date-box {{ width: 52px; height: 64px; border: 1px solid #dadce0; border-radius: 8px; text-align: center; float: left; margin-right: 20px; overflow: hidden; background: #ffffff; }}
@@ -302,7 +302,7 @@ def _get_calendar_invite_template(
                 <div style="clear: both;"></div>
             </div>
             <div class="footer">
-                <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hybent.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hybent.com</a></p>
+                <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hybent.com" style="color: #4C6FFF; text-decoration: none; font-weight: 600;">info@hybent.com</a></p>
                 <p style="margin: 0 0 12px 0;">&copy; {date_year} Hybent Hiring AI Platform. All rights reserved.</p>
                 <div style="margin-top: 8px;">
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
@@ -314,7 +314,7 @@ def _get_calendar_invite_template(
                                 <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                                     <tr>
                                         <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
-                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
+                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #4C6FFF; background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
                                                 <tr>
                                                     <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
                                                         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
@@ -336,7 +336,7 @@ def _get_calendar_invite_template(
                                         </td>
                                         <td style="vertical-align: middle; padding-left: 2px;">
                                             <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
-                                                <span style="color: #6c47ff;">H</span><span style="color: #894ef3;">i</span><span style="color: #a655e8;">r</span><span style="color: #c45cdc;">e</span><span style="color: #e163d1;">o</span><span style="color: #ff6bc6;">n</span>
+                                                <span style="color: #22CFFF;">H</span><span style="color: #4C6FFF;">y</span><span style="color: #A855F7;">b</span><span style="color: #E85CFF;">e</span><span style="color: #4C6FFF;">n</span><span style="color: #22CFFF;">t</span>
                                             </span>
                                         </td>
                                     </tr>
@@ -521,7 +521,7 @@ def send_team_invite(
         <div class="info-box">
             <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Access Credentials</p>
             <div class="info-label">Email</div>
-            <div class="info-value" style="color: #6c47ff;">{to_email}</div>
+            <div class="info-value" style="color: #4C6FFF;">{to_email}</div>
             <div class="info-label">Temporary Password</div>
             <div class="info-value" style="font-size: 22px;">{password}</div>
         </div>
@@ -552,7 +552,7 @@ def send_rejection_email(
         <div style="margin-top: 32px; text-align: left; border-top: 1px solid #f1f0ff; padding-top: 24px;">
             <p style="font-size: 14px; color: #1e293b; font-weight: 700; margin-bottom: 4px;">Best regards,</p>
             <p style="font-size: 14px; color: #64748b; margin: 0;">HR & TA</p>
-            <p style="font-size: 14px; color: #6c47ff; font-weight: 700; margin: 4px 0 0 0;">{company_name}</p>
+            <p style="font-size: 14px; color: #4C6FFF; font-weight: 700; margin: 4px 0 0 0;">{company_name}</p>
         </div>
     """
     send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
@@ -617,7 +617,7 @@ def send_interview_reschedule(
             </div>
             <div>
                 <div class="info-label">Meeting URL</div>
-                <div style="font-size: 14px; font-weight: 600; word-break: break-all; color: #6c47ff;">{meeting_link}</div>
+                <div style="font-size: 14px; font-weight: 600; word-break: break-all; color: #4C6FFF;">{meeting_link}</div>
             </div>
         </div>
  
@@ -698,7 +698,7 @@ def send_demo_request_email(
         <div class="section-title">Organization Details</div>
         <div class="section-value">
             <b>{first_name} {last_name}</b><br/>
-            <a href="mailto:{work_email}" style="color: #6c47ff; text-decoration: none;">{work_email}</a>
+            <a href="mailto:{work_email}" style="color: #4C6FFF; text-decoration: none;">{work_email}</a>
         </div>
         
         <div class="section-title">Organization</div>
