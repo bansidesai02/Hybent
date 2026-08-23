@@ -1442,8 +1442,9 @@ export function CopilotWidget() {
 
   const handleViewProfile = useCallback((email: string) => {
     try {
-      // Use hash navigation to avoid full page reload and preserve React state
-      const path = `/candidates?search=${encodeURIComponent(email)}`
+      const role = useAuthStore.getState().user?.role
+      const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
+      const path = `${basePath}/candidates?search=${encodeURIComponent(email)}`
       // Use history API to navigate without reload
       if (window.history && window.history.pushState) {
         window.history.pushState({}, '', path)
@@ -1474,7 +1475,7 @@ export function CopilotWidget() {
     const handleCtaClick = () => {
       try {
         const role = useAuthStore.getState().user?.role
-        const basePath = role === 'admin' ? '/admin' : '/recruiter'
+        const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
         const path = `${basePath}/jobs/new`
         if (window.history && window.history.pushState) {
           window.history.pushState({}, '', path)
@@ -1682,9 +1683,6 @@ export function CopilotWidget() {
                   {isThinking && <span className="text-hb-xs font-normal text-hb-blue/40">thinking...</span>}
                 </div>
                 <div style={s.headerActions}>
-                  <button className="c-icon-btn" style={s.iconBtn} onClick={() => setIsMinimized(!isMinimized)} title={isMinimized ? "Maximize" : "Minimize"}>
-                    {isMinimized ? <MaximizeIcon /> : <MinimizeIcon />}
-                  </button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={openHistory} title="Chat history"><HistoryIcon /></button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={handleNewChat} title="New chat"><PlusIcon /></button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={close} title="Close"><CloseIcon /></button>
@@ -2094,12 +2092,12 @@ export function CopilotWidget() {
                             isTranscribing
                               ? 'Transcribing voice...'
                               : sttStatus === 'listening'
-                                ? 'Listeningâ€¦ speak now'
+                                ? 'Listening… speak now'
                                 : sttStatus === 'refining'
-                                  ? 'Refining transcriptâ€¦'
+                                  ? 'Refining transcript…'
                                   : sttStatus === 'ready'
                                     ? 'Review & press Enter to send'
-                                    : 'Ask me anything about candidates, jobs, interviewsâ€¦'
+                                    : 'How can I help you?'
                           }
                           value={input}
                           rows={1}

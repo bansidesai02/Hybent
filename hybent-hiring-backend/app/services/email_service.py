@@ -37,7 +37,7 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": "BrainerHub Solutions <info@hybent.com>",
+        "from": f"{settings.smtp_from_name} <info@hybent.com>",
 
         "to": to,
         "subject": subject,
@@ -110,17 +110,43 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
 
 def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None, is_centered: bool = True) -> str:
     """Consistently renders the brand logo across all templates."""
-    "center" if is_centered else "left"
+    align = "center" if is_centered else "left"
     margin = "0 auto" if is_centered else "0"
     
-    # Use BrainerHub logo as default fallback (or use provided URL if any)
-    logo_url = org_logo_url or "https://www.brainerhub.com/wp-content/uploads/2022/10/brainerhub_logo.png"
-    return f'<img src="{logo_url}" alt="{org_name or "BrainerHub Solutions"}" style="max-height: 35px; max-width: 180px; display: block; margin: {margin};">'
+    # If the organization has a custom logo, render that.
+    if org_logo_url:
+        return f'<img src="{org_logo_url}" alt="{org_name or "Organization"}" style="max-height: 35px; max-width: 180px; display: block; margin: {margin};">'
+    
+    # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
+    base_url = settings.frontend_url
+    if "localhost" in base_url or "127.0.0.1" in base_url or not base_url.startswith("http"):
+        base_url = "https://hybent.com"
+        
+    # Otherwise, render the original Hybent brand wordmark & tagline (without the H logo mark)
+    return f"""
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: {margin}; text-align: {align};">
+        <tr>
+            <td align="{align}">
+                <img src="{base_url}/hybent/hybent-wordmark-light.png" alt="HYBENT" style="height: 22px; width: auto; display: block; margin: {margin};">
+            </td>
+        </tr>
+        <tr>
+            <td style="font-size: 11px; font-family: 'Plus Jakarta Sans', 'Roboto', Arial, sans-serif; color: #70757a; text-transform: uppercase; letter-spacing: 1.5px; padding-top: 8px; font-weight: 600;">
+                Where vision meets innovation
+            </td>
+        </tr>
+    </table>
+    """
 
 
 def _get_base_template(content_html: str, org_logo_url: str | None = None, org_name: str | None = None) -> str:
     """Provides a consistent, premium wrapper for all emails."""
     branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
+    
+    # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
+    base_url = settings.frontend_url
+    if "localhost" in base_url or "127.0.0.1" in base_url or not base_url.startswith("http"):
+        base_url = "https://hybent.com"
 
     return f"""
     <!DOCTYPE html>
@@ -167,36 +193,7 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                                 Powered by
                             </td>
                             <td style="vertical-align: middle;">
-                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
-                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #4C6FFF; background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
-                                                <tr>
-                                                    <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                            <tr>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                <td width="5" height="12" valign="middle" align="center" style="width: 5px; min-width: 5px; max-width: 5px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="5" height="3" style="width: 5px; min-width: 5px; max-width: 5px; height: 3px; min-height: 3px; max-height: 3px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                                        <tr>
-                                                                            <td width="5" height="3" valign="top" align="center" style="background-color: #ffffff; border-radius: 0.5px; width: 5px; min-width: 5px; max-width: 5px; height: 3px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                        </tr>
-                                                                    </table>
-                                                                </td>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                        <td style="vertical-align: middle; padding-left: 2px;">
-                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
-                                                <span style="color: #22CFFF;">H</span><span style="color: #4C6FFF;">y</span><span style="color: #A855F7;">b</span><span style="color: #E85CFF;">e</span><span style="color: #4C6FFF;">n</span><span style="color: #22CFFF;">t</span>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </table>
+                                <img src="{base_url}/hybent/hybent-wordmark-light.png" alt="Hybent" style="height: 12px; width: auto; display: block;">
                             </td>
                         </tr>
                     </table>
@@ -231,6 +228,10 @@ def _get_calendar_invite_template(
     
     branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
 
+    # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
+    base_url = settings.frontend_url
+    if "localhost" in base_url or "127.0.0.1" in base_url or not base_url.startswith("http"):
+        base_url = "https://hybent.com"
 
     return f"""
     <!DOCTYPE html>
@@ -305,42 +306,14 @@ def _get_calendar_invite_template(
                 <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hybent.com" style="color: #4C6FFF; text-decoration: none; font-weight: 600;">info@hybent.com</a></p>
                 <p style="margin: 0 0 12px 0;">&copy; {date_year} Hybent Hiring AI Platform. All rights reserved.</p>
                 <div style="margin-top: 8px;">
+                    <!-- Powered by Section -->
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                         <tr>
-                            <td style="font-size: 10px; color: #70757a; text-transform: uppercase; letter-spacing: 0.5px; padding-right: 6px; vertical-align: middle;">
+                            <td style="font-size: 11px; color: #70757a; text-transform: uppercase; letter-spacing: 0.5px; padding-right: 6px; vertical-align: middle;">
                                 Powered by
                             </td>
                             <td style="vertical-align: middle;">
-                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
-                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #4C6FFF; background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
-                                                <tr>
-                                                    <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                            <tr>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                <td width="5" height="12" valign="middle" align="center" style="width: 5px; min-width: 5px; max-width: 5px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="5" height="3" style="width: 5px; min-width: 5px; max-width: 5px; height: 3px; min-height: 3px; max-height: 3px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                                        <tr>
-                                                                            <td width="5" height="3" valign="top" align="center" style="background-color: #ffffff; border-radius: 0.5px; width: 5px; min-width: 5px; max-width: 5px; height: 3px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                        </tr>
-                                                                    </table>
-                                                                </td>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                        <td style="vertical-align: middle; padding-left: 2px;">
-                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
-                                                <span style="color: #22CFFF;">H</span><span style="color: #4C6FFF;">y</span><span style="color: #A855F7;">b</span><span style="color: #E85CFF;">e</span><span style="color: #4C6FFF;">n</span><span style="color: #22CFFF;">t</span>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </table>
+                                <img src="{base_url}/hybent/hybent-wordmark-light.png" alt="Hybent" style="height: 12px; width: auto; display: block;">
                             </td>
                         </tr>
                     </table>
