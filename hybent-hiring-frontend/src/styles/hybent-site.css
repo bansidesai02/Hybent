@@ -1681,6 +1681,42 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
   }
 }
 
+.hb-site .policy-contact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.hb-site .policy-contact__item {
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+}
+.hb-site .policy-contact__item .mono {
+  display: block;
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.hb-site .policy-contact__item strong,
+.hb-site .policy-contact__item a {
+  font-family: var(--f-body);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+  color: #111827;
+  text-decoration: none;
+}
+.hb-site .policy-contact__item a {
+  color: var(--blue);
+}
+.hb-site .policy-contact__item a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @keyframes scanline {
   0% { top: 0%; opacity: 0.8; }
   50% { opacity: 1; }
