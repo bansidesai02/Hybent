@@ -11,11 +11,11 @@ export default function HomePage() {
 
         <div className="wrap hero__grid">
           <div>
-            <p className="hero__pill" data-rv="up">
+            <a className="hero__pill" href="/products/hiring" data-rv="up">
               <b>Live</b>
               <span>Hybent Hiring, our AI recruitment platform, is live</span>
               <svg aria-hidden="true"><use href="#i-arrow" /></svg>
-            </p>
+            </a>
 
             {/* Each rotating item is a whole line, so the heading is exactly
                 one line tall whichever word is on screen. Words stay short on

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 const PLACEHOLDERS = [
   'Ask Hybent AI anything...',
   'Need AI software?',
-  'Looking for pricing?',
+  'Hire software engineers...',
   'Book a meeting...',
   'Want to build a SaaS?',
   'Ask about Hybent products...',

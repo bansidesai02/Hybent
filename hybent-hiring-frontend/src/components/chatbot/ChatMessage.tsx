@@ -102,8 +102,8 @@ function ChatMessageComponent({
       >
         {/* Header Metadata */}
         {showTimestamps && (
-          <div className="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-slate-400 dark:text-slate-400">
-            <span className="font-semibold text-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-slate-400">
+            <span className="font-semibold text-slate-600">
               {isAi ? 'Hybent AI' : 'You'}
             </span>
             <span>•</span>

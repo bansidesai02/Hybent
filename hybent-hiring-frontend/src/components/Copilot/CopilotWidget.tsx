@@ -2110,7 +2110,7 @@ export function CopilotWidget() {
                             position: 'absolute', bottom: '-18px', left: '4px',
                             fontSize: '10px', color: 'rgb(var(--hb-blue))', fontWeight: 600, opacity: 0.85
                           }}>
-                            â†µ Press Enter to send
+                            Press Enter to send
                           </div>
                         )}
                       </div>

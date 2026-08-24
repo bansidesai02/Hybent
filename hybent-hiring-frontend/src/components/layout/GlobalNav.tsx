@@ -43,6 +43,7 @@ export function GlobalNav({
 
     const closeMega = (item: HTMLElement) => {
       item.classList.remove('is-open')
+      item.classList.remove('force-closed')
       item.querySelector('.navlink')?.setAttribute('aria-expanded', 'false')
     }
 
@@ -52,6 +53,7 @@ export function GlobalNav({
 
       const open = () => {
         window.clearTimeout(timer)
+        item.classList.remove('force-closed')
         items.forEach((other) => other !== item && closeMega(other))
         item.classList.add('is-open')
         trigger?.setAttribute('aria-expanded', 'true')
@@ -69,12 +71,20 @@ export function GlobalNav({
           trigger?.focus()
         }
       }
+      const onClick = (e: MouseEvent) => {
+        const link = (e.target as Element)?.closest?.('.mega a')
+        if (link) {
+          closeMega(item)
+          item.classList.add('force-closed')
+        }
+      }
 
       item.addEventListener('mouseenter', open)
       item.addEventListener('mouseleave', closeSoon)
       item.addEventListener('focusin', open)
       item.addEventListener('focusout', onFocusOut)
       item.addEventListener('keydown', onKeyDown)
+      item.addEventListener('click', onClick)
       cleanups.push(() => {
         window.clearTimeout(timer)
         item.removeEventListener('mouseenter', open)
@@ -82,6 +92,7 @@ export function GlobalNav({
         item.removeEventListener('focusin', open)
         item.removeEventListener('focusout', onFocusOut)
         item.removeEventListener('keydown', onKeyDown)
+        item.removeEventListener('click', onClick)
       })
     })
 
@@ -131,6 +142,45 @@ export function GlobalNav({
     /* `hb-site` scopes the company design tokens to the chrome; `hb-chrome`
        stops it from painting a page background over product views. */
     <div className="hb-site hb-chrome" data-route={route}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Disable pure CSS hover/focus-within display so JS is the single source of truth */
+        .hb-site .has-mega:hover .mega,
+        .hb-site .has-mega:focus-within .mega {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transform: translate(-50%, 12px) scale(.985);
+        }
+        .hb-site .has-mega:hover .chev,
+        .hb-site .has-mega:focus-within .chev {
+          transform: none;
+          opacity: 0.6;
+        }
+
+        /* Show mega menu ONLY when is-open class is applied by JavaScript */
+        .hb-site .has-mega.is-open .mega {
+          opacity: 1 !important;
+          visibility: visible !important;
+          pointer-events: auto !important;
+          transform: translate(-50%, 0) scale(1) !important;
+        }
+        .hb-site .has-mega.is-open .chev {
+          transform: rotate(180deg) !important;
+          opacity: 1 !important;
+        }
+
+        /* Force-closed override on click */
+        .hb-site .has-mega.force-closed .mega {
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          transform: translate(-50%, 12px) scale(.985) !important;
+        }
+        .hb-site .has-mega.force-closed .chev {
+          transform: none !important;
+          opacity: 0.6 !important;
+        }
+      `}} />
       {/* `data-drawer` rather than a class: the sticky-nav effect owns the
           `stuck` class through classList, and a className change here would
           wipe it. */}
@@ -226,7 +276,7 @@ export function GlobalNav({
         className={drawerOpen ? 'drawer open' : 'drawer'}
         id="drawer"
         onClick={(e) => {
-          if ((e.target as HTMLElement).tagName === 'A') onCloseDrawer()
+          if ((e.target as HTMLElement).closest('a')) onCloseDrawer()
         }}
       >
         <p className="mono" style={{ margin: '6px 0 4px', color: 'var(--dim)' }}>Products</p>

@@ -8,12 +8,12 @@ const INITIAL_WELCOME_MESSAGE: ChatMessageItem = {
 
 I am your **AI Business Copilot**. 
 
-I can help you explore software engineering services, estimate project costs, calculate development timelines, compare pricing plans, and book a consultation call with our leadership team.`,
+I can help you explore software engineering services, estimate project costs, calculate development timelines, and book a consultation call with our leadership team.`,
   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   followups: [
     'How much does a custom app cost?',
     'Show software development timeline',
-    'Compare Starter vs Enterprise plans',
+    'Read our FAQs',
     'Book a free technical consultation',
   ],
 }
@@ -70,7 +70,7 @@ const RICH_CARDS: Record<string, RichCardData> = {
     description: 'Common questions regarding Hybent services.',
     items: [
       { label: 'How long does a typical project take?', value: 'Custom web/mobile apps take 4 to 8 weeks depending on scope.' },
-      { label: 'What is your trial policy?', value: 'We offer a 14-day risk-free trial for our Hybent Hiring platform.' },
+      { label: 'How do you guarantee quality?', value: 'All our custom software delivery includes a dedicated project manager, continuous QA testing, and post-deployment maintenance.' },
       { label: 'Can we hire dedicated developers?', value: 'Yes, we provide senior full-stack, backend, and AI engineers on demand.' },
     ],
   },
@@ -92,10 +92,10 @@ const FOLLOWUP_MAP: Record<string, string[]> = {
   hybent: ['What services do you offer?', 'Estimate project cost', 'Book a call'],
   services: ['Custom app cost & timeline', 'Hire dedicated engineers', 'Request proposal'],
   products: ['Try Hybent Hiring', 'Explore Recruiter Copilot', 'Book live demo'],
-  pricing: ['Compare plans', 'Custom enterprise quote', 'Start 14-day free trial'],
+  pricing: ['Request a quote', 'Contact our team', 'Book a consultation'],
   estimate: ['Summarize my requirements', 'Book a consultation call', 'See case studies'],
   meeting: ['Book demo now', 'Email contact@hybent.com', 'Explore services'],
-  default: ['Estimate project cost', 'Compare pricing plans', 'Book a meeting'],
+  default: ['Estimate project cost', 'Read our FAQs', 'Book a meeting'],
 }
 
 /* Response text repository */
@@ -133,13 +133,11 @@ const FAKE_RESPONSES: Record<string, { text: string; richCardKey?: string; follo
   },
 
   pricing: {
-    text: `We offer transparent pricing models tailored for startups and enterprise organizations:
+    text: `We offer custom pricing models tailored to your specific project scope and engineering requirements.
 
-- **Starter ($299/mo)**: Ideal for fast-growing teams needing core AI recruitment.
-- **Pro ($799/mo)**: Advanced copilot workflows, multi-seat access, and priority support.
-- **Enterprise (Custom)**: Dedicated cloud infrastructure, custom SLA, and tailored AI models.`,
-    richCardKey: 'pricing',
-    followupKey: 'pricing',
+To get an accurate cost estimate or custom quote, please contact our team or schedule a technical consultation call.`,
+    richCardKey: 'booking',
+    followupKey: 'meeting',
   },
 
   estimate: {
