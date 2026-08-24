@@ -173,8 +173,22 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
   white-space:nowrap;text-align:center;
 }
 .hb-site .btn:active{transform:translateY(1px) scale(.99)}
-.hb-site .btn-primary{background:var(--grad);color:#05060B;font-weight:700;background-size:180% 100%;background-position:0% 50%;box-shadow:0 10px 34px -14px rgba(76,111,255,.9)}
-.hb-site .btn-primary:hover{background-position:100% 50%;transform:translateY(-2px);box-shadow:0 18px 44px -14px rgba(168,85,247,.85)}
+.hb-site .btn-primary{
+  position:relative;isolation:isolate;overflow:hidden;
+  border:none;color:#05060B;font-weight:700;background:transparent;
+  box-shadow:0 10px 34px -14px rgba(76,111,255,.9);
+}
+/* Gradient lives on a clipped pseudo-layer so the sweep can animate on
+   hover without the magenta/cyan ends bleeding at the pill edge. */
+.hb-site .btn-primary::before{
+  content:"";position:absolute;left:0;top:0;height:100%;width:180%;
+  z-index:-1;border-radius:inherit;pointer-events:none;
+  background:var(--grad);
+  transform:translateX(0);
+  transition:transform 1.15s var(--hov-ease);
+}
+.hb-site .btn-primary:hover::before{transform:translateX(-44.444%)}
+.hb-site .btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 44px -14px rgba(168,85,247,.85)}
 .hb-site .btn-ghost{background:rgba(255,255,255,.04);border-color:var(--border-strong);color:var(--text);backdrop-filter:blur(10px)}
 .hb-site .btn-ghost:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.28);transform:translateY(-2px)}
 .hb-site .btn-quiet{background:transparent;color:var(--muted);padding-inline:12px}
@@ -1106,8 +1120,6 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 .hb-site .btn{
   transition:transform var(--hov-dur-lg) var(--hov-ease),
              box-shadow var(--hov-dur-lg) ease,
-             background var(--hov-dur) ease,
-             background-position 1.15s var(--hov-ease),
              border-color var(--hov-dur) ease,
              color var(--hov-dur) ease;
 }
@@ -1343,8 +1355,6 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 
 .hb-site .nav__cta .btn-primary,
 .hb-site .drawer__cta .btn-primary{
-  position:relative;overflow:hidden;isolation:isolate;
-  background-size:220% 100%;
   transform:translateZ(0);
 }
 /* glow lives in box-shadow so overflow:hidden can clip the ripple
@@ -1354,29 +1364,28 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
     0 2px 6px -2px rgba(76,111,255,.45),
     0 10px 26px -12px rgba(76,111,255,.65);
 }
+.hb-site .nav__cta .btn-primary::before,
+.hb-site .drawer__cta .btn-primary::before{width:220%}
+.hb-site .drawer__cta .btn-primary:hover::before{transform:translateX(-54.545%)}
 .hb-site .nav__cta .btn-primary:hover{
   transform:translateY(-2px) scale(1.02);
   box-shadow:
     0 3px 8px -2px rgba(120,90,250,.5),
     0 16px 38px -12px rgba(168,85,247,.75),
     0 0 34px -10px rgba(76,111,255,.55);
-  animation:navGradShift 4.4s linear infinite alternate;
 }
+.hb-site .nav__cta .btn-primary:hover::before{transform:translateX(-54.545%)}
 .hb-site .nav__cta .btn-primary:active{transform:translateY(0) scale(.99)}
-@keyframes navGradShift{
-  from{background-position:0% 50%}
-  to{background-position:100% 50%}
-}
 
-/* travelling sheen over the gradient */
-.hb-site .nav__cta .btn-primary::before{
-  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+/* travelling sheen over the gradient (nav CTA only — ::before is the gradient) */
+.hb-site .nav__cta .btn-primary::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;border-radius:inherit;
   background:linear-gradient(105deg,
     transparent 25%,rgba(255,255,255,.45) 50%,transparent 75%);
   transform:translateX(-150%);
   transition:transform var(--hov-sheen) cubic-bezier(.25,.7,.3,1);
 }
-.hb-site .nav__cta .btn-primary:hover::before{transform:translateX(150%)}
+.hb-site .nav__cta .btn-primary:hover::after{transform:translateX(150%)}
 
 /* click ripple (injected by JS) */
 .hb-site .nav__cta .btn-primary .rip,
@@ -1558,9 +1567,8 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
    durations; this removes the transforms outright.) */
 @media (prefers-reduced-motion:reduce){
   .hb-site .navlink::before,
-.hb-site .nav__cta .btn-primary::before{display:none}
+.hb-site .nav__cta .btn-primary::after{display:none}
   .hb-site .drawer > *{opacity:1;transform:none}
-  .hb-site .nav__cta .btn-primary:hover{animation:none}
 }
 
 /* =============================================================================
@@ -1671,6 +1679,42 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
     grid-template-columns: 1fr !important;
     gap: 24px;
   }
+}
+
+.hb-site .policy-contact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.hb-site .policy-contact__item {
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+}
+.hb-site .policy-contact__item .mono {
+  display: block;
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.hb-site .policy-contact__item strong,
+.hb-site .policy-contact__item a {
+  font-family: var(--f-body);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+  color: #111827;
+  text-decoration: none;
+}
+.hb-site .policy-contact__item a {
+  color: var(--blue);
+}
+.hb-site .policy-contact__item a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 @keyframes scanline {

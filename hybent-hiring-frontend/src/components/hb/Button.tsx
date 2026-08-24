@@ -44,12 +44,16 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT: Record<Variant, string> = {
-  /* The identity. Gradient pans on hover exactly as `.btn-primary` does. */
+  /* Gradient pans on a clipped ::before layer — same motion as `.btn-primary`. */
   primary: clsx(
-    'bg-hb-grad text-hb-on-brand font-bold border-transparent',
-    '[background-size:180%_100%] [background-position:0%_50%]',
+    'relative isolate overflow-hidden bg-transparent',
+    'text-hb-on-brand font-bold border-transparent',
+    'before:content-[""] before:absolute before:left-0 before:top-0 before:h-full before:w-[180%]',
+    'before:-z-10 before:rounded-[inherit] before:bg-hb-grad',
+    'before:translate-x-0 before:transition-transform before:duration-[1150ms] before:ease-hb',
+    'hover:before:-translate-x-[44.444%]',
     'shadow-[0_10px_34px_-14px_rgb(76_111_255_/_0.9)]',
-    'hover:[background-position:100%_50%] hover:-translate-y-[2px]',
+    'hover:-translate-y-[2px]',
     'hover:shadow-[0_18px_44px_-14px_rgb(168_85_247_/_0.85)]'
   ),
   ghost: clsx(

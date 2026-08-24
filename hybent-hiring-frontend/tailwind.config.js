@@ -16,6 +16,12 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      /* `xs` sits between the default base and `sm` (640px) — used by the topbar
+         search input's progressive width chain (HbTopbar.tsx), which otherwise
+         silently skips a step since Tailwind drops undefined breakpoint variants. */
+      screens: {
+        xs: '480px',
+      },
       colors: {
         /* ── Hybent design system ────────────────────────────────────────────
            The canonical palette. Theme-aware: every one of these resolves

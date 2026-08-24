@@ -1,43 +1,85 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SiteView } from '../components/SiteView'
 
 /* ─── sticky-stacking helper ─────────────────────────────────── */
 // All cards share the same top so each new card fully covers the previous one.
-// zIndex increases so later cards always sit on top.
+// zIndex increases so later cards always sit on top. The card entering from
+// below only reaches its own pinned `top` after scrolling roughly one
+// viewport height, so a short card leaves a gap below its own bottom edge for
+// that entire stretch — showing the incoming (or, depending on scroll
+// history, an even earlier) card peeking through underneath. Sizing every
+// card to (near) the full viewport means whichever one is pinned always
+// fills the screen, so nothing behind it can ever show through.
 const stickyCard = (index: number): React.CSSProperties => ({
   position: 'sticky',
   top: '108px',
   zIndex: index + 2,
   marginBottom: '12px',
+  minHeight: 'calc(100vh - 160px)',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
 })
+
+// Header height + breathing room. Keeps the TOC scroll target and the
+// active-section tracker in agreement.
+const NAV_OFFSET = 96
+
+// Neither getBoundingClientRect() NOR offsetTop can be trusted on one of
+// these `position: sticky` cards: once a card has ever been "stuck", Chromium
+// keeps its own offsetTop (and rect.top) reporting the live, scroll-adjusted
+// pinned position instead of its static flow position — so measuring a card
+// via itself gives a value that silently drifts with scroll history. A
+// card's rendered SIZE is never affected by being stuck though, only its
+// position is — so we compute each card's true document top by walking the
+// (non-sticky) container and summing preceding siblings' stable offsetHeight,
+// never reading position off a sticky element itself.
+function getSectionTops(ids: string[]): Record<string, number> {
+  const tops: Record<string, number> = {}
+  const container = document.getElementById(ids[0])?.parentElement
+  if (!container) return tops
+  let top = container.getBoundingClientRect().top + window.scrollY
+  for (const id of ids) {
+    tops[id] = top
+    const el = document.getElementById(id)
+    if (!el) continue
+    const cs = window.getComputedStyle(el)
+    top += el.offsetHeight + parseFloat(cs.marginTop || '0') + parseFloat(cs.marginBottom || '0')
+  }
+  return tops
+}
+
+const SECTION_IDS = [
+  'introduction',
+  'information-we-collect',
+  'how-we-use-information',
+  'cookies',
+  'information-sharing',
+  'data-security',
+  'data-retention',
+  'your-privacy-rights',
+  'third-party-services',
+  'ai-recruitment-data',
+  'childrens-privacy',
+  'contact-us',
+]
 
 export default function PrivacyPage() {
   const [activeSection, setActiveSection] = useState('introduction')
+  const isProgrammaticScroll = useRef(false)
+  const programmaticTimer = useRef<number>()
 
   /* ── Table-of-contents scroll tracker ──────────────────────── */
   useEffect(() => {
     const handleScroll = () => {
-      const sections = [
-        'introduction',
-        'information-we-collect',
-        'how-we-use-information',
-        'cookies',
-        'information-sharing',
-        'data-security',
-        'data-retention',
-        'your-privacy-rights',
-        'third-party-services',
-        'ai-recruitment-data',
-        'childrens-privacy',
-        'policy-updates',
-        'contact-us',
-      ]
-      const scrollPosition = window.scrollY + 140
+      if (isProgrammaticScroll.current) return
+      const tops = getSectionTops(SECTION_IDS)
+      const scrollPosition = window.scrollY + NAV_OFFSET
 
-      for (const sectionId of sections) {
+      for (const sectionId of SECTION_IDS) {
         const el = document.getElementById(sectionId)
-        if (el) {
-          const top = el.offsetTop
+        const top = tops[sectionId]
+        if (el && top !== undefined) {
           const height = el.offsetHeight
           if (scrollPosition >= top && scrollPosition < top + height) {
             setActiveSection(sectionId)
@@ -53,12 +95,16 @@ export default function PrivacyPage() {
 
 
   const scrollTo = (id: string) => {
-    const el = document.getElementById(id)
-    if (el) {
-      const y = el.getBoundingClientRect().top + window.pageYOffset - 90
-      window.scrollTo({ top: y, behavior: 'smooth' })
-      setActiveSection(id)
-    }
+    const tops = getSectionTops(SECTION_IDS)
+    const top = tops[id]
+    if (top === undefined) return
+    isProgrammaticScroll.current = true
+    window.clearTimeout(programmaticTimer.current)
+    setActiveSection(id)
+    window.scrollTo({ top: top - NAV_OFFSET, behavior: 'smooth' })
+    programmaticTimer.current = window.setTimeout(() => {
+      isProgrammaticScroll.current = false
+    }, 700)
   }
 
   const tocItems = [
@@ -72,9 +118,8 @@ export default function PrivacyPage() {
     { id: 'your-privacy-rights',    label: '8. Your Privacy Rights' },
     { id: 'third-party-services',   label: '9. Third-Party Services' },
     { id: 'ai-recruitment-data',    label: '10. AI & Recruitment Data' },
-    { id: 'childrens-privacy',      label: "11. Children's Privacy" },
-    { id: 'policy-updates',         label: '12. Updates to Policy' },
-    { id: 'contact-us',             label: '13. Contact Us' },
+    { id: 'childrens-privacy',      label: "11. Children's Privacy & Policy Updates" },
+    { id: 'contact-us',             label: '12. Contact Us' },
   ]
 
   return (
@@ -599,7 +644,7 @@ export default function PrivacyPage() {
                 </div>
               </article>
 
-              {/* Section 11: Children's Privacy */}
+              {/* Section 11: Children's Privacy & Policy Updates */}
               <article
                 id="childrens-privacy"
                 className="stack-card"
@@ -612,21 +657,33 @@ export default function PrivacyPage() {
                   ...stickyCard(10),
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                   <span className="icon-tile" style={{ width: '40px', height: '40px', borderRadius: '10px' }}>
                     <svg aria-hidden="true" style={{ width: '20px', height: '20px' }}><use href="#i-heart" /></svg>
                   </span>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>11. Children's Privacy</h2>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>11. Children's Privacy &amp; Policy Updates</h2>
                 </div>
 
-                <p style={{ color: 'var(--text, #374151)', lineHeight: 1.7, margin: 0 }}>
-                  Hybent services, software products, and website are intended exclusively for business enterprises, working professionals, and individuals aged 18 and older. We do not knowingly collect, solicit, or maintain personal information from individuals under the age of 18. If we become aware that a child under 18 has submitted personal data, we will take immediate steps to delete such records from our servers.
-                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+                  <div style={{ padding: '22px', borderRadius: '12px', background: '#f9fafb', border: '1px solid #f3f4f6' }}>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 600, margin: '0 0 10px', color: '#111827' }}>Children's Privacy</h3>
+                    <p style={{ color: 'var(--text, #374151)', lineHeight: 1.7, margin: 0, fontSize: '0.92rem' }}>
+                      Hybent services, software products, and website are intended exclusively for business enterprises, working professionals, and individuals aged 18 and older. We do not knowingly collect, solicit, or maintain personal information from individuals under the age of 18. If we become aware that a child under 18 has submitted personal data, we will take immediate steps to delete such records from our servers.
+                    </p>
+                  </div>
+
+                  <div style={{ padding: '22px', borderRadius: '12px', background: '#f9fafb', border: '1px solid #f3f4f6' }}>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 600, margin: '0 0 10px', color: '#111827' }}>Updates to this Privacy Policy</h3>
+                    <p style={{ color: 'var(--text, #374151)', lineHeight: 1.7, margin: 0, fontSize: '0.92rem' }}>
+                      We may update this Privacy Policy periodically to reflect enhancements to our products, technological advancements, or updates in global privacy legislation. When changes are published, we will revise the "Last Updated" date at the top of this page. We encourage users to review this page periodically to remain informed about how Hybent protects personal data.
+                    </p>
+                  </div>
+                </div>
               </article>
 
-              {/* Section 12: Updates to Policy */}
+              {/* Section 12: Contact Us */}
               <article
-                id="policy-updates"
+                id="contact-us"
                 className="stack-card"
                 style={{
                   background: '#ffffff',
@@ -639,93 +696,57 @@ export default function PrivacyPage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                   <span className="icon-tile" style={{ width: '40px', height: '40px', borderRadius: '10px' }}>
-                    <svg aria-hidden="true" style={{ width: '20px', height: '20px' }}><use href="#i-build" /></svg>
+                    <svg aria-hidden="true" style={{ width: '20px', height: '20px' }}><use href="#i-mail" /></svg>
                   </span>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>12. Updates to this Privacy Policy</h2>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>12. Contact Us</h2>
                 </div>
 
-                <p style={{ color: 'var(--text, #374151)', lineHeight: 1.7, margin: 0 }}>
-                  We may update this Privacy Policy periodically to reflect enhancements to our products, technological advancements, or updates in global privacy legislation. When changes are published, we will revise the "Last Updated" date at the top of this page. We encourage users to review this page periodically to remain informed about how Hybent protects personal data.
+                <p style={{ color: '#374151', lineHeight: 1.7, margin: '0 0 24px', fontSize: '0.98rem' }}>
+                  Have questions or privacy concerns? Reach our team directly. Requests are verified and fulfilled promptly, without charge.
                 </p>
-              </article>
 
-              {/* Section 13: Contact Us */}
-              <article
-                id="contact-us"
-                className="stack-card"
-                style={{
-                  background: 'linear-gradient(135deg, #1a1040 0%, #0f0926 100%)',
-                  borderRadius: '20px',
-                  padding: '40px',
-                  color: '#ffffff',
-                  boxShadow: '0 12px 40px rgba(26, 16, 64, 0.2)',
-                  ...stickyCard(12),
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                  <span
-                    className="icon-tile"
-                    style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '12px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: '#22CFFF',
-                    }}
-                  >
-                    <svg aria-hidden="true" style={{ width: '22px', height: '22px' }}><use href="#i-mail" /></svg>
-                  </span>
-                  <div>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>13. Contact Us</h2>
-                    <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem' }}>
-                      Have questions or privacy concerns? Reach out directly to our team.
-                    </p>
+                <div className="policy-contact">
+                  <div className="policy-contact__item">
+                    <span className="mono">Entity</span>
+                    <strong>Hybent</strong>
+                  </div>
+                  <div className="policy-contact__item">
+                    <span className="mono">Headquarters</span>
+                    <strong>Ahmedabad, Gujarat, India</strong>
+                  </div>
+                  <div className="policy-contact__item">
+                    <span className="mono">Privacy email</span>
+                    <a href="mailto:privacy@hybent.com">privacy@hybent.com</a>
+                  </div>
+                  <div className="policy-contact__item">
+                    <span className="mono">Website</span>
+                    <a href="https://www.hybent.com">www.hybent.com</a>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '24px',
-                    marginTop: '28px',
-                    paddingTop: '24px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.15)',
-                  }}
-                >
-                  <div>
-                    <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>
-                      Entity Name
-                    </span>
-                    <strong style={{ fontSize: '1.1rem', color: '#ffffff' }}>Hybent</strong>
-                  </div>
-
-                  <div>
-                    <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>
-                      Headquarters Location
-                    </span>
-                    <strong style={{ fontSize: '1.05rem', color: '#ffffff' }}>Ahmedabad, Gujarat, India</strong>
-                  </div>
-
-                  <div>
-                    <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>
-                      Official Email
-                    </span>
-                    <a href="mailto:privacy@hybent.com" style={{ color: '#22CFFF', fontWeight: 600, textDecoration: 'none' }}>
-                      privacy@hybent.com
-                    </a>
-                  </div>
-
-                  <div>
-                    <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>
-                      Official Website
-                    </span>
-                    <a href="https://www.hybent.com" style={{ color: '#22CFFF', fontWeight: 600, textDecoration: 'none' }}>
-                      www.hybent.com
-                    </a>
-                  </div>
+                <div style={{ marginTop: '24px' }}>
+                  <a className="btn btn-primary" href="mailto:privacy@hybent.com">
+                    Email the privacy team
+                    <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
+                  </a>
                 </div>
               </article>
+
+              {/*
+                Scroll-runway spacer, not a visible section.
+                The stacking cards above share one containing block (this flex
+                column), so a sticky card can only stay pinned at `top` for as
+                long as doing so keeps it inside that shared containing block.
+                Being the very last child, "13. Contact Us" IS the bottom edge
+                of that containing block — no amount of margin on itself can
+                buy it room, since its own margin defines the boundary it's
+                measured against. Without a real trailing sibling here, it has
+                no hang time at all: it flies straight past `top` instead of
+                staying pinned, uncovering the previous card behind it. This
+                spacer becomes that trailing sibling, giving the last card (and
+                the release threshold every earlier card shares) real room.
+              */}
+              <div aria-hidden="true" style={{ height: 'calc(100vh + 200px)' }} />
 
             </div>
           </div>

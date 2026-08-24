@@ -13,7 +13,7 @@ export function ChatbotLauncher({
   onClick,
 }: ChatbotLauncherProps) {
   return (
-    <div className="relative">
+    <div className="relative inline-flex overflow-visible pt-0.5 pr-0.5">
       {/* Outer Pulse Animation Ring */}
       {!isOpen && (
         <span className="absolute -inset-2 rounded-full bg-gradient-to-r from-violet-600 via-pink-500 to-teal-400 opacity-60 blur-md animate-pulse pointer-events-none" />
@@ -54,17 +54,25 @@ export function ChatbotLauncher({
             </div>
           )}
         </motion.div>
-
-        {/* Unread Notification Pulse Badge */}
-        {!isOpen && hasUnread && (
-          <span className="absolute top-0 right-0 flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-pink-500 border-2 border-white text-[9px] font-bold text-white items-center justify-center">
-              1
-            </span>
-          </span>
-        )}
       </motion.button>
+
+      {/* Outside button — overflow-hidden on the button was clipping the badge */}
+      {!isOpen && hasUnread && (
+        <>
+          <span
+            className="pointer-events-none absolute top-1.5 right-1.5 z-10 h-5 w-5"
+            aria-hidden="true"
+          >
+            <span className="absolute inset-0 animate-ping rounded-full bg-pink-400 opacity-75" />
+          </span>
+          <span
+            className="pointer-events-none absolute top-1.5 right-1.5 z-20 box-border flex h-5 min-w-[20px] items-center justify-center rounded-full border-2 border-white bg-pink-500 px-1 text-[11px] font-bold leading-none tabular-nums text-white shadow-sm"
+            aria-hidden="true"
+          >
+            1
+          </span>
+        </>
+      )}
     </div>
   )
 }

@@ -139,8 +139,20 @@ main,footer,header{position:relative;z-index:2}
   white-space:nowrap;text-align:center;
 }
 .btn:active{transform:translateY(1px) scale(.99)}
-.btn-primary{background:var(--grad);color:#05060B;font-weight:700;background-size:180% 100%;background-position:0% 50%;box-shadow:0 10px 34px -14px rgba(76,111,255,.9)}
-.btn-primary:hover{background-position:100% 50%;transform:translateY(-2px);box-shadow:0 18px 44px -14px rgba(168,85,247,.85)}
+.btn-primary{
+  position:relative;isolation:isolate;overflow:hidden;
+  border:none;color:#05060B;font-weight:700;background:transparent;
+  box-shadow:0 10px 34px -14px rgba(76,111,255,.9);
+}
+.btn-primary::before{
+  content:"";position:absolute;left:0;top:0;height:100%;width:180%;
+  z-index:-1;border-radius:inherit;pointer-events:none;
+  background:var(--grad);
+  transform:translateX(0);
+  transition:transform 1.15s var(--hov-ease);
+}
+.btn-primary:hover::before{transform:translateX(-44.444%)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 44px -14px rgba(168,85,247,.85)}
 .btn-ghost{background:rgba(255,255,255,.04);border-color:var(--border-strong);color:var(--text);backdrop-filter:blur(10px)}
 .btn-ghost:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.28);transform:translateY(-2px)}
 .btn-quiet{background:transparent;color:var(--muted);padding-inline:12px}
@@ -1021,8 +1033,6 @@ section > .figrow{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--
 .btn{
   transition:transform var(--hov-dur-lg) var(--hov-ease),
              box-shadow var(--hov-dur-lg) ease,
-             background var(--hov-dur) ease,
-             background-position 1.15s var(--hov-ease),
              border-color var(--hov-dur) ease,
              color var(--hov-dur) ease;
 }
@@ -1242,8 +1252,6 @@ section > .figrow{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--
 
 .nav__cta .btn-primary,
 .drawer__cta .btn-primary{
-  position:relative;overflow:hidden;isolation:isolate;
-  background-size:220% 100%;
   transform:translateZ(0);
 }
 /* glow lives in box-shadow so overflow:hidden can clip the ripple
@@ -1253,29 +1261,28 @@ section > .figrow{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--
     0 2px 6px -2px rgba(76,111,255,.45),
     0 10px 26px -12px rgba(76,111,255,.65);
 }
+.nav__cta .btn-primary::before,
+.drawer__cta .btn-primary::before{width:220%}
+.drawer__cta .btn-primary:hover::before{transform:translateX(-54.545%)}
 .nav__cta .btn-primary:hover{
   transform:translateY(-2px) scale(1.02);
   box-shadow:
     0 3px 8px -2px rgba(120,90,250,.5),
     0 16px 38px -12px rgba(168,85,247,.75),
     0 0 34px -10px rgba(76,111,255,.55);
-  animation:navGradShift 4.4s linear infinite alternate;
 }
+.nav__cta .btn-primary:hover::before{transform:translateX(-54.545%)}
 .nav__cta .btn-primary:active{transform:translateY(0) scale(.99)}
-@keyframes navGradShift{
-  from{background-position:0% 50%}
-  to{background-position:100% 50%}
-}
 
-/* travelling sheen over the gradient */
-.nav__cta .btn-primary::before{
-  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+/* travelling sheen over the gradient (nav CTA only — ::before is the gradient) */
+.nav__cta .btn-primary::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;border-radius:inherit;
   background:linear-gradient(105deg,
     transparent 25%,rgba(255,255,255,.45) 50%,transparent 75%);
   transform:translateX(-150%);
   transition:transform var(--hov-sheen) cubic-bezier(.25,.7,.3,1);
 }
-.nav__cta .btn-primary:hover::before{transform:translateX(150%)}
+.nav__cta .btn-primary:hover::after{transform:translateX(150%)}
 
 /* click ripple (injected by JS) */
 .nav__cta .btn-primary .rip,
@@ -1455,7 +1462,6 @@ section > .figrow{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--
    (The global prefers-reduced-motion block already zeroes
    durations; this removes the transforms outright.) */
 @media (prefers-reduced-motion:reduce){
-  .navlink::before,.nav__cta .btn-primary::before{display:none}
+  .navlink::before,.nav__cta .btn-primary::after{display:none}
   .drawer > *{opacity:1;transform:none}
-  .nav__cta .btn-primary:hover{animation:none}
 }
