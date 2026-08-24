@@ -64,3 +64,11 @@ jobs:
           local-dir: ./dist/
           server-dir: /public_html/
           dangerous-clean-slate: true
+          # --- Timeout & Connection Fixes ---
+          # 1. Increased timeout to 2 minutes (in ms) to prevent control socket timeout
+          timeout: 120000
+          # 2. Force default FTP port 21
+          port: 21
+          # 3. Explicitly set protocol (options: ftp, ftps, ftps-legacy)
+          protocol: ftp
+
