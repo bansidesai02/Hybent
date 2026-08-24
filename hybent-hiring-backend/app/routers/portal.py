@@ -25,11 +25,11 @@ from app.schemas.job_referral import JobReferralOut
 from app.schemas.other_offer import OtherOfferCreate, OtherOfferOut
 from app.schemas.candidate_document import CandidateDocumentCreate, CandidateDocumentOut
 from app.utils.permissions import UserRole, OfferStatus, NotificationType
-from app.services.ai_evaluator import generate_prep_materials
+from app.services.ai.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
 from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
-from app.services.resume_parser import parse_resume
+from app.services.ai.resume_parser import parse_resume
 from app.schemas.response import APIResponse
 from app.tasks.notifications import notify_organization_roles
 from app.core.config import settings

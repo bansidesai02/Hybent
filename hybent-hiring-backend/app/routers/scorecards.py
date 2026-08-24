@@ -209,7 +209,7 @@ async def get_or_generate_ai_summary(
     If it hasn't been generated yet (or `?regenerate=true`), call the AI
     to synthesize all interviewers' scorecards and persist the result.
     """
-    from app.services.ai_evaluator import generate_combined_feedback_summary
+    from app.services.ai.ai_evaluator import generate_combined_feedback_summary
 
     # Fetch the interview
     result = await db.execute(

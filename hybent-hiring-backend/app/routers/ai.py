@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Response, BackgroundTasks
 import logging
 from app.dependencies import DB, require_recruiter, require_interviewer_or_above
-from app.services import ai_evaluator, jd_pdf_generator
+from app.services.ai import ai_evaluator
+from app.services import jd_pdf_generator
 from app.services.ai_credit_service import AICreditsService
 from app.schemas.response import APIResponse
 from app.models.user import User

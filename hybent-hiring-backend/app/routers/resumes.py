@@ -9,7 +9,7 @@ from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut
 from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
-from app.services.resume_parser import parse_resume
+from app.services.ai.resume_parser import parse_resume
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 from app.core.config import settings
@@ -291,7 +291,7 @@ async def upload_and_create(
         list(job.skills_required or []) if not isinstance(job, _JobReq) else req_skills_list
         job.title
         
-        from app.services.match_scorer import evaluate_candidate_match
+        from app.services.ai.match_scorer import evaluate_candidate_match
         score, breakdown = await evaluate_candidate_match(
             candidate_data=parsed,
             candidate_skills=parsed.get("skills", []),

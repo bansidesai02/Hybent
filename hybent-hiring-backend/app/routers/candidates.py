@@ -16,7 +16,7 @@ from app.tasks.notifications import notify_organization_roles, notify_candidate_
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
-from app.services.match_scorer import evaluate_candidate_match
+from app.services.ai.match_scorer import evaluate_candidate_match
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
 

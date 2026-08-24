@@ -127,7 +127,7 @@ async def create_application(data: ApplicationCreate, current_user: RecruiterUse
 
     # Automatically calculate match score
     try:
-        from app.services.match_scorer import evaluate_candidate_match
+        from app.services.ai.match_scorer import evaluate_candidate_match
         import logging
         logger = logging.getLogger(__name__)
         score, breakdown = await evaluate_candidate_match(

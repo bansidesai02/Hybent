@@ -13,7 +13,7 @@ from fastapi import BackgroundTasks
 import zoneinfo
 
 from app.core.config import settings
-from app.services.copilot_intelligence import (
+from app.services.ai.copilot_intelligence import (
     preprocess_query,
     is_jd_creation_intent,
     extract_role_from_jd_query,
@@ -1721,7 +1721,7 @@ async def stream_copilot_chat(
         error_msg = str(e)
         raise e
     finally:
-        from app.services.copilot_intelligence import is_jd_creation_intent
+        from app.services.ai.copilot_intelligence import is_jd_creation_intent
         is_jd = is_jd_creation_intent(user_message)
         if not is_jd and not approved_tool_call:
             duration_ms = (time.time() - start_time) * 1000

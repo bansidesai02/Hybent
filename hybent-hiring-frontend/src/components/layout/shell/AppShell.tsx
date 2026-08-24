@@ -15,7 +15,7 @@ const GlobalChatOverlay = lazy(() =>
   import('@/components/messaging/GlobalChatOverlay').then((m) => ({ default: m.GlobalChatOverlay }))
 )
 const CopilotWidget = lazy(() =>
-  import('@/components/Copilot/CopilotWidget').then((m) => ({ default: m.CopilotWidget }))
+  import('@/modules/recruiter/components/Copilot/CopilotWidget').then((m) => ({ default: m.CopilotWidget }))
 )
 
 /**

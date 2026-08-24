@@ -36,7 +36,7 @@ from app.schemas.pre_screening import (
     UpdateStatusRequest,
 )
 from app.services import pre_screening_service as svc
-from app.services.ai_evaluator import transcribe_audio
+from app.services.ai.ai_evaluator import transcribe_audio
 from app.services.email_service import send_pre_screening_invite
 from app.services.storage_service import save_audio
 

@@ -32,7 +32,7 @@ def test_evaluate_notes_request_validation():
         EvaluateNotesRequest(raw_notes="too short")
 
 def test_calculate_years_from_experience():
-    from app.services.resume_parser import calculate_years_from_experience
+    from app.services.ai.resume_parser import calculate_years_from_experience
     
     exp1 = [{"duration": "2.5 Years"}, {"duration": "Not specified"}]
     years, text = calculate_years_from_experience(exp1)
