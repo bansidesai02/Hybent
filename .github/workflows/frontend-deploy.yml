@@ -46,6 +46,9 @@ jobs:
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
     runs-on: ubuntu-latest
+    env:
+      SSH_KEY_SET: ${{ secrets.HOSTINGER_SSH_KEY }}
+      PASSWORD_SET: ${{ secrets.HOSTINGER_PASSWORD || secrets.FTP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -72,7 +75,7 @@ jobs:
 
       # Option A: Deploy using SSH Private Key (Recommended)
       - name: Deploy via SFTP (SSH Key)
-        if: ${{ secrets.HOSTINGER_SSH_KEY != '' }}
+        if: ${{ env.SSH_KEY_SET != '' }}
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           server: ${{ secrets.HOSTINGER_HOST || secrets.FTP_SERVER }}
@@ -85,7 +88,7 @@ jobs:
 
       # Option B: Deploy using Password (Fallback)
       - name: Deploy via SFTP (Password)
-        if: ${{ secrets.HOSTINGER_SSH_KEY == '' && (secrets.HOSTINGER_PASSWORD != '' || secrets.FTP_PASSWORD != '') }}
+        if: ${{ env.SSH_KEY_SET == '' && env.PASSWORD_SET != '' }}
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           server: ${{ secrets.HOSTINGER_HOST || secrets.FTP_SERVER }}
