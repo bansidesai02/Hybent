@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.celery_app import celery_app
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, run_async
 from app.models.interview import Interview, InterviewPanelist
 from app.models.scorecard import Scorecard
 from app.models.notification import Notification
@@ -72,7 +72,7 @@ async def _check_pending_feedback_async():
 def check_pending_feedback():
     """Periodic task executed by Celery Beat every 5 minutes."""
     logger.info("Running periodic check for missing interview feedback...")
-    asyncio.run(_check_pending_feedback_async())
+    run_async(_check_pending_feedback_async())
 
 async def _send_feedback_reminder_async(interview_id: str, user_id: str, org_id: str, interview_title: str):
     async with AsyncSessionLocal() as db:
@@ -108,7 +108,7 @@ async def _send_feedback_reminder_async(interview_id: str, user_id: str, org_id:
 @celery_app.task
 def send_feedback_reminder(interview_id: str, user_id: str, organization_id: str, interview_title: str):
     """Worker task to insert the notification into the database asynchronously."""
-    asyncio.run(_send_feedback_reminder_async(interview_id, user_id, organization_id, interview_title))
+    run_async(_send_feedback_reminder_async(interview_id, user_id, organization_id, interview_title))
 
 
 async def _send_system_notification_async(user_id: str, org_id: str, type: str, title: str, message: str, data: dict | None = None, persist: bool = True):
@@ -179,7 +179,7 @@ async def _send_system_notification_async(user_id: str, org_id: str, type: str, 
 
 @celery_app.task
 def send_system_notification(user_id: str, org_id: str, type: str, title: str, message: str, data: dict | None = None, persist: bool = True):
-    asyncio.run(_send_system_notification_async(user_id, org_id, type, title, message, data, persist))
+    run_async(_send_system_notification_async(user_id, org_id, type, title, message, data, persist))
 
 
 
@@ -198,7 +198,7 @@ async def _notify_organization_roles_async(org_id: str, roles: list[str], type: 
 
 @celery_app.task
 def notify_organization_roles(org_id: str, roles: list[str], type: str, title: str, message: str, data: dict | None = None):
-    asyncio.run(_notify_organization_roles_async(org_id, roles, type, title, message, data))
+    run_async(_notify_organization_roles_async(org_id, roles, type, title, message, data))
 
 
 async def _notify_interview_team_async(interview_id: str, type: str, title: str, message: str, data: dict | None = None):
@@ -233,7 +233,7 @@ async def _notify_interview_team_async(interview_id: str, type: str, title: str,
 
 @celery_app.task
 def notify_interview_team(interview_id: str, type: str, title: str, message: str, data: dict | None = None):
-    asyncio.run(_notify_interview_team_async(interview_id, type, title, message, data))
+    run_async(_notify_interview_team_async(interview_id, type, title, message, data))
 
 
 _STAGE_TO_CANDIDATE_NOTIF = {
@@ -400,5 +400,5 @@ def reset_expired_organization_credits():
     """
     Periodic task to reset expired organization credits and update warning flags.
     """
-    asyncio.run(_reset_expired_credits_async())
+    run_async(_reset_expired_credits_async())
 

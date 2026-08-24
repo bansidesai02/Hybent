@@ -116,7 +116,7 @@ async def log_requests(request: Request, call_next):
     # Production security headers
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data: https:; "
         "font-src 'self' data: https://cdn.jsdelivr.net; "
@@ -162,7 +162,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     logger.exception(f"Unhandled exception on {request.method} {request.url}: {exc}")
-    return APIResponse.error(message="An unexpected system error occurred. Please try again later.", status_code=500, details={"error": str(exc)})
+    return APIResponse.error(message="An unexpected system error occurred. Please try again later.", status_code=500)
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
 app.add_middleware(GZipMiddleware, minimum_size=1024)
@@ -187,7 +187,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1"
     ],
-    allow_origin_regex=r"https?://.*\.hybent\.com|https?://hybent\.com|https?://.*\.onrender\.com|https?://.*\.netlify\.app",
+    allow_origin_regex=r"^https?://([a-zA-Z0-9-]+\.)*hybent\.com$|^https?://localhost(:[0-9]+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -250,13 +250,27 @@ RESUME_FALLBACK_HTML = """
 @app.get("/static/uploads/resumes/{filename}")
 async def serve_or_fallback_resume(filename: str, org_id: str = ""):
     """Serve uploaded resume file from disk if present, or generate a fallback candidate PDF if missing on ephemeral cloud instances."""
-    if org_id:
-        file_path = uploads_path / "resumes" / org_id / filename
+    from fastapi import HTTPException
+    
+    # Sanitize path variables to prevent path traversal
+    clean_filename = Path(filename).name
+    clean_org_id = Path(org_id).name if org_id else ""
+    
+    if clean_org_id:
+        file_path = (uploads_path / "resumes" / clean_org_id / clean_filename).resolve()
     else:
-        file_path = uploads_path / "resumes" / filename
-
+        file_path = (uploads_path / "resumes" / clean_filename).resolve()
+        
+    # Ensure resolved path is under the base uploads path
+    if not file_path.is_relative_to(uploads_path.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+        
     if file_path.exists():
-        return FileResponse(file_path, media_type="application/pdf")
+        return FileResponse(
+            file_path, 
+            media_type="application/pdf", 
+            headers={"Content-Disposition": f"attachment; filename={clean_filename}"}
+        )
 
     candidate = None
     try:
@@ -269,13 +283,14 @@ async def serve_or_fallback_resume(filename: str, org_id: str = ""):
     except Exception as exc:
         logger.warning(f"Failed to lookup candidate for resume fallback: {exc}")
 
-    full_name = candidate.full_name if candidate else "Candidate Profile"
-    email = candidate.email if candidate else "applicant@hybent.com"
-    title = candidate.current_title or "Software Professional" if candidate else "Professional"
-    location = candidate.location or "Remote / Office" if candidate else "N/A"
-    exp = f"{candidate.years_experience} years" if (candidate and candidate.years_experience) else "3+ years"
-    summary = candidate.summary if (candidate and candidate.summary) else "Experienced professional skilled in software engineering, technical architecture, and collaboration."
-    skills = candidate.skills if (candidate and candidate.skills) else ["Python", "FastAPI", "React", "TypeScript", "SQL"]
+    import html
+    full_name = html.escape(candidate.full_name) if candidate else "Candidate Profile"
+    email = html.escape(candidate.email) if candidate else "applicant@hybent.com"
+    title = html.escape(candidate.current_title or "Software Professional") if candidate else "Professional"
+    location = html.escape(candidate.location or "Remote / Office") if candidate else "N/A"
+    exp = html.escape(f"{candidate.years_experience} years") if (candidate and candidate.years_experience) else "3+ years"
+    summary = html.escape(candidate.summary) if (candidate and candidate.summary) else "Experienced professional skilled in software engineering, technical architecture, and collaboration."
+    skills = [html.escape(s) for s in candidate.skills] if (candidate and candidate.skills) else ["Python", "FastAPI", "React", "TypeScript", "SQL"]
 
     skills_html = "".join([f'<span class="skill-tag">{s}</span>' for s in skills])
     summary_html = f'<div class="section"><h3>Professional Summary</h3><div class="paragraph">{summary}</div></div>' if summary else ''

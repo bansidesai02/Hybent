@@ -273,15 +273,27 @@ async def save_audio(audio_data: bytes, session_id: str, question_index: int, ex
 
 
 def get_file_path(url: str) -> Path:
-    """Convert a /static/uploads/... URL to a local filesystem path."""
+    """Convert a /static/uploads/... URL to a local filesystem path with path traversal checks."""
     relative = url.replace("/static/uploads/", "", 1)
-    return UPLOAD_BASE / relative
+    relative = relative.lstrip("/")
+    # Resolve paths to absolute to prevent traversal using ..
+    base_resolved = UPLOAD_BASE.resolve()
+    filepath = (base_resolved / relative).resolve()
+    
+    if not filepath.is_relative_to(base_resolved):
+        raise HTTPException(status_code=400, detail="Invalid file path (path traversal attempt)")
+    return filepath
 
 
 async def read_file_bytes(url: str) -> bytes:
-    """Read raw bytes from a stored file (for AI parsing etc.)."""
+    """Read raw bytes from a stored file (for AI parsing etc.) with file size bounds check."""
     path = get_file_path(url)
-    if not path.exists():
+    if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
+        
+    # Prevent DoS from reading huge files into memory
+    if path.stat().st_size > settings.max_file_size_bytes:
+        raise HTTPException(status_code=400, detail="File too large to read into memory")
+        
     async with aiofiles.open(path, "rb") as f:
         return await f.read()

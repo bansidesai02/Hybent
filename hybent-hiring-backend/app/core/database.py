@@ -154,3 +154,17 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.rollback()
             raise
 
+_worker_loop = None
+
+def run_async(coro):
+    """
+    Executes an async coroutine inside a single, persistent event loop.
+    Reuses the loop across tasks to prevent connection pool churn.
+    """
+    global _worker_loop
+    if _worker_loop is None or _worker_loop.is_closed():
+        _worker_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_worker_loop)
+    return _worker_loop.run_until_complete(coro)
+
+

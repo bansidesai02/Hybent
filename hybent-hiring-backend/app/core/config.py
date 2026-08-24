@@ -3,6 +3,7 @@ Application configuration using pydantic-settings.
 All values read from environment variables / .env file.
 """
 from functools import lru_cache
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,7 +15,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    from pydantic import field_validator
 
     @field_validator("gemini_api_key", "groq_api_key", "huggingface_api_key", "openai_api_key", mode="before")
     @classmethod
@@ -96,7 +96,6 @@ class Settings(BaseSettings):
     # Signed URL expiry in seconds (configurable per file type)
     resume_signed_url_expiry: int = 3600   # 1 hour
 
-    from pydantic import model_validator
 
     @model_validator(mode='after')
     def _strip_cloudinary_credentials(self):
