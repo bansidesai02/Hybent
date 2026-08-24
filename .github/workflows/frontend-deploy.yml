@@ -42,7 +42,7 @@ jobs:
           include-hidden-files: true
 
   deploy:
-    name: Deploy to Hostinger via FTP
+    name: Deploy to Hostinger via SFTP
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
     runs-on: ubuntu-latest
@@ -55,20 +55,14 @@ jobs:
           name: frontend-dist
           path: dist/
 
-      - name: Deploy to Hostinger via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy to Hostinger via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          server-dir: /public_html/
-          dangerous-clean-slate: true
-          # --- Timeout & Connection Fixes ---
-          # 1. Increased timeout to 2 minutes (in ms) to prevent control socket timeout
-          timeout: 120000
-          # 2. Force default FTP port 21
-          port: 21
-          # 3. Explicitly set protocol (options: ftp, ftps, ftps-legacy)
-          protocol: ftp
+          port: 65002 # Hostinger's standard SFTP port for web/cloud hosting (use 22 if on VPS)
+          local_path: './dist/*'
+          remote_path: '/public_html'
+
 
