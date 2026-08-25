@@ -14,18 +14,34 @@ logger = logging.getLogger(__name__)
 
 
 def _send_smtp(to: str, subject: str, html_body: str) -> None:
-    """Send email via Gmail SMTP."""
+    """Send email via Gmail SMTP with anti-spam best practices."""
+    import email.utils
+    import re
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_user}>"
     msg["To"] = to
-    msg.attach(MIMEText(html_body, "html"))
+    msg["Reply-To"] = settings.smtp_user
+    msg["Message-ID"] = email.utils.make_msgid(domain=settings.smtp_user.split("@")[-1])
+    msg["Date"] = email.utils.formatdate(localtime=True)
+    msg["MIME-Version"] = "1.0"
+    msg["X-Mailer"] = "Hybent Hiring Platform"
+    msg["List-Unsubscribe"] = f"<mailto:{settings.smtp_user}?subject=unsubscribe>"
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=3) as server:
+    # Plain text fallback — Gmail penalizes HTML-only emails
+    plain_text = re.sub(r"<[^>]+>", "", html_body)
+    plain_text = re.sub(r"\s+", " ", plain_text).strip()
+    msg.attach(MIMEText(plain_text, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
         server.ehlo()
         server.starttls()
+        server.ehlo()
         server.login(settings.smtp_user, settings.smtp_password)
         server.sendmail(settings.smtp_user, to, msg.as_string())
+
 
 
 def _send_resend(to: str, subject: str, html_body: str) -> None:
@@ -38,7 +54,7 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
     }
     payload = {
         "from": f"{settings.smtp_from_name} <info@hybent.com>",
-
+        "reply_to": "info@hybent.com",
         "to": to,
         "subject": subject,
         "html": html_body

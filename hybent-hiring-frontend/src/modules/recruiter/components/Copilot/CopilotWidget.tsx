@@ -1,14 +1,16 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
+import toast from 'react-hot-toast'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useMessageStore } from '@/store/messageStore'
 import { useAuthStore } from '@/store/authStore'
 import { copilotApi } from '@/api/copilot'
+import { aiApi } from '@/api/ai'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
 import { candidatesApi } from '@/api/candidates'
 import type { Candidate } from '@/types'
-import { ArrowRight, Banknote, Clock, Mail, MapPin, Star } from 'lucide-react'
+import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { Avatar, Badge, Button, Card } from '@/components/hb'
 
 /* â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -274,6 +276,253 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
         </div>
       )}
     </Card>
+  )
+}
+
+function parseMarkdownJD(content: string) {
+  // Title
+  let title = ''
+  const titleMatch =
+    content.match(/##\s+([^\n]+)/) ||
+    content.match(/#\s+([^\n]+)/) ||
+    content.match(/\*\*Position:\*\*\s*([^\n]+)/i) ||
+    content.match(/Job Title:\s*([^\n]+)/i)
+  if (titleMatch) {
+    title = titleMatch[1].replace(/[*#]/g, '').trim()
+  }
+
+  // Location
+  let location = 'Hybrid / Remote'
+  const locMatch = content.match(/\*\*Location(?:\s*\/\s*Work\s*Mode)?:\*\*\s*([^\n]+)/i)
+  if (locMatch) {
+    location = locMatch[1].replace(/[*]/g, '').trim()
+  }
+
+  // Experience
+  let experience = '2-4 Years'
+  const expMatch = content.match(/\*\*Experience(?:\s*Level)?:\*\*\s*([^\n]+)/i)
+  if (expMatch) {
+    experience = expMatch[1].replace(/[*]/g, '').trim()
+  }
+
+  // Role Overview / Description
+  let description = ''
+  const descMatch = content.match(/###\s*📌?\s*Role Overview\s*\n+([\s\S]*?)(?=\n+###|\n+---|$)/i)
+  if (descMatch) {
+    description = descMatch[1].trim()
+  } else {
+    description = content.replace(/^#+.*$/gm, '').replace(/\[CTA_BUTTON:.*?\]/g, '').trim()
+  }
+
+  // Key Responsibilities
+  const respMatch = content.match(/###\s*🎯?\s*Key Responsibilities\s*\n+([\s\S]*?)(?=\n+###|\n+---|$)/i)
+  let key_responsibilities: string[] = []
+  if (respMatch) {
+    key_responsibilities = respMatch[1]
+      .split('\n')
+      .map((l) => l.replace(/^[-*•\d.]+\s*/, '').trim())
+      .filter((l) => l.length > 2)
+  }
+
+  // 🔑 Core Skills — short comma-separated keywords (preferred, new section)
+  let required_qualifications_skills: string[] = []
+  const coreSkillsMatch = content.match(/###\s*🔑?\s*Core Skills\s*\n+([\s\S]*?)(?=\n+###|\n+---|$)/i)
+  if (coreSkillsMatch) {
+    // The section has comma-separated keywords on one or more lines
+    const rawSkills = coreSkillsMatch[1].replace(/^[-*•]+\s*/gm, '').trim()
+    required_qualifications_skills = rawSkills
+      .split(/[,\n]/)
+      .map((s) => s.replace(/[*_`]/g, '').trim())
+      .filter((s) => s.length > 0 && s.length < 50) // only short keywords
+  } else {
+    // Fallback: old "Required Qualifications & Core Skills" section — filter to short items only
+    const qualMatch =
+      content.match(/###\s*🛠️?\s*Required Qualifications[^\n]*\n+([\s\S]*?)(?=\n+###|\n+---|$)/i) ||
+      content.match(/###\s*Required Skills[^\n]*\n+([\s\S]*?)(?=\n+###|\n+---|$)/i)
+    if (qualMatch) {
+      required_qualifications_skills = qualMatch[1]
+        .split('\n')
+        .map((l) => l.replace(/^[-*•\d.]+\s*/, '').trim())
+        .filter((l) => l.length > 1 && l.length < 50) // only short phrases, skip full sentences
+    }
+  }
+
+  // Preferred / Good to Have
+  const prefMatch = content.match(/###\s*⭐?\s*Preferred[^\n]*\n+([\s\S]*?)(?=\n+###|\n+---|$)/i)
+  let good_to_have: string[] = []
+  if (prefMatch) {
+    good_to_have = prefMatch[1]
+      .split('\n')
+      .map((l) => l.replace(/^[-*•\d.]+\s*/, '').trim())
+      .filter((l) => l.length > 1)
+  }
+
+  return {
+    title,
+    location,
+    experience,
+    description,
+    key_responsibilities,
+    required_qualifications_skills,
+    good_to_have,
+  }
+}
+
+function JDActionBar({ content, ctaText }: { content: string; ctaText?: string }) {
+  const [copied, setCopied] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopied(true)
+      toast.success('Job Description copied to clipboard!')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Could not copy to clipboard')
+    }
+  }
+
+  const handleApplyToForm = () => {
+    try {
+      const parsedJD = parseMarkdownJD(content)
+      sessionStorage.setItem('copilot_prefilled_jd', JSON.stringify(parsedJD))
+      window.dispatchEvent(new CustomEvent('copilot-apply-jd', { detail: parsedJD }))
+
+      const role = useAuthStore.getState().user?.role
+      const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
+      const targetPath = `${basePath}/jobs/new`
+
+      if (window.location.pathname.includes('/jobs/new')) {
+        toast.success('✨ Job Description applied to form!')
+      } else {
+        toast.success('✨ Opening Job Form with prefilled JD...')
+        if (window.history && window.history.pushState) {
+          window.history.pushState({}, '', targetPath)
+          window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
+        } else {
+          window.location.href = targetPath
+        }
+      }
+    } catch (err) {
+      console.error('Apply JD error:', err)
+      toast.error('Failed to apply JD to form')
+    }
+  }
+
+  const handleDownloadPdf = async () => {
+    setIsExporting(true)
+    try {
+      const parsedJD = parseMarkdownJD(content)
+      const res = await aiApi.exportJDPDF({
+        title: parsedJD.title || 'Job Description',
+        location: parsedJD.location || 'Remote',
+        experience: parsedJD.experience || '2-4 Years',
+        key_responsibilities: parsedJD.key_responsibilities || [],
+        required_qualifications_skills: parsedJD.required_qualifications_skills || [],
+        good_to_have: parsedJD.good_to_have || [],
+        description: parsedJD.description || content.slice(0, 400),
+      })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `JD_${(parsedJD.title || 'Job_Description').replace(/\s+/g, '_')}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success('JD PDF downloaded!')
+    } catch (err) {
+      console.error('PDF export error:', err)
+      toast.error('Failed to download JD PDF')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const buttonLabel = ctaText || 'Save & Apply to Form'
+
+  return (
+    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+        <button
+          onClick={handleApplyToForm}
+          style={{
+            background: 'var(--hb-grad-diag)',
+            border: 'none',
+            borderRadius: '10px',
+            color: 'rgb(var(--hb-on-brand))',
+            cursor: 'pointer',
+            padding: '10px 18px',
+            fontSize: '13px',
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '7px',
+            boxShadow: 'var(--hb-sh-1)',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.92'
+            e.currentTarget.style.transform = 'translateY(-1px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1'
+            e.currentTarget.style.transform = 'none'
+          }}
+        >
+          <Sparkles size={15} />
+          <span>{buttonLabel}</span>
+          <ArrowRight size={14} />
+        </button>
+
+        <button
+          onClick={handleCopy}
+          style={{
+            background: 'rgb(var(--hb-surface))',
+            border: '1px solid var(--hb-border)',
+            borderRadius: '10px',
+            color: 'rgb(var(--hb-text))',
+            cursor: 'pointer',
+            padding: '9px 14px',
+            fontSize: '12px',
+            fontWeight: 500,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s ease',
+          }}
+          title="Copy full Job Description"
+        >
+          {copied ? <Check size={14} color="rgb(var(--hb-success))" /> : <Copy size={14} />}
+          <span>{copied ? 'Copied!' : 'Copy JD'}</span>
+        </button>
+
+        <button
+          onClick={handleDownloadPdf}
+          disabled={isExporting}
+          style={{
+            background: 'rgb(var(--hb-surface))',
+            border: '1px solid var(--hb-border)',
+            borderRadius: '10px',
+            color: 'rgb(var(--hb-text))',
+            cursor: isExporting ? 'wait' : 'pointer',
+            padding: '9px 14px',
+            fontSize: '12px',
+            fontWeight: 500,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s ease',
+            opacity: isExporting ? 0.6 : 1,
+          }}
+          title="Download formatted PDF"
+        >
+          <FileDown size={14} />
+          <span>{isExporting ? 'Exporting...' : 'PDF'}</span>
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -1459,18 +1708,26 @@ export function CopilotWidget() {
   }, [])
 
   const renderBotMessageContent = (content: string) => {
-    // Split on horizontal rule dividers (between candidate cards)
-    // Use a precise pattern that won't split markdown tables (which use --- inside cells)
-    const parts = content.split(/\n\n---\n\n|\n---\n/)
-
     // Check for CTA_BUTTON
     const ctaMatch = content.match(/\[CTA_BUTTON:(.*?)\]/)
     let ctaButtonText = ''
     let cleanContent = content
     if (ctaMatch) {
       ctaButtonText = ctaMatch[1]
-      cleanContent = content.replace(ctaMatch[0], '').trim()
+      cleanContent = content.replace(/\[CTA_BUTTON:.*?\]/g, '').trim()
     }
+
+    const isJD =
+      cleanContent.includes('Role Overview') ||
+      cleanContent.includes('Key Responsibilities') ||
+      cleanContent.includes('Required Qualifications') ||
+      cleanContent.includes('**Position:**') ||
+      (ctaButtonText && ctaButtonText.toLowerCase().includes('job')) ||
+      (ctaButtonText && ctaButtonText.toLowerCase().includes('jd'))
+
+    // Split on horizontal rule dividers between candidate cards ONLY if candidate cards exist
+    const hasCandidateCards = cleanContent.includes('👤')
+    const parts = hasCandidateCards ? cleanContent.split(/\n\n---\n\n|\n---\n/) : [cleanContent]
 
     const handleCtaClick = () => {
       try {
@@ -1488,7 +1745,7 @@ export function CopilotWidget() {
       }
     }
 
-    const renderCta = () => {
+    const renderGenericCta = () => {
       if (!ctaButtonText) return null
       return (
         <button
@@ -1518,21 +1775,16 @@ export function CopilotWidget() {
     }
 
     if (parts.length <= 1) {
-      try {
-        return (
-          <div className="flex w-full flex-col items-start">
-            <ReactMarkdown>{cleanContent}</ReactMarkdown>
-            {renderCta()}
-          </div>
-        )
-      } catch {
-        return (
-          <div className="flex w-full flex-col items-start">
-            <span className="whitespace-pre-wrap">{cleanContent}</span>
-            {renderCta()}
-          </div>
-        )
-      }
+      return (
+        <div className="flex w-full flex-col items-start">
+          <ReactMarkdown>{cleanContent}</ReactMarkdown>
+          {isJD ? (
+            <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
+          ) : (
+            renderGenericCta()
+          )}
+        </div>
+      )
     }
 
     return (
@@ -1544,12 +1796,13 @@ export function CopilotWidget() {
           }
           const trimmedPart = part.trim()
           if (!trimmedPart) return null
-          try {
-            return <ReactMarkdown key={idx}>{trimmedPart}</ReactMarkdown>
-          } catch {
-            return <span key={idx} className="whitespace-pre-wrap">{trimmedPart}</span>
-          }
+          return <ReactMarkdown key={idx}>{trimmedPart}</ReactMarkdown>
         })}
+        {isJD ? (
+          <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
+        ) : (
+          renderGenericCta()
+        )}
       </div>
     )
   }

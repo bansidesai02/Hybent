@@ -338,33 +338,59 @@ export default function AddJobPage() {
 
   const applyAIJD = (approved: any) => {
     if (approved) {
-      if (approved.title) setValue('title', approved.title)
-      if (approved.location) setValue('location', approved.location)
-      if (approved.description) setValue('description', approved.description)
+      if (approved.title) setValue('title', approved.title, { shouldDirty: true, shouldValidate: true })
+      if (approved.location) setValue('location', approved.location, { shouldDirty: true })
+      if (approved.description) setValue('description', approved.description, { shouldDirty: true, shouldValidate: true })
 
-      const skills = [
-        ...(approved.required_qualifications_skills ?? []),
-        ...(approved.good_to_have ?? []),
-      ]
-      if (skills.length) setValue('skills_required', skills)
+      // Only use short keywords (Core Skills) — not full qualification sentences
+      const skills = (approved.required_qualifications_skills ?? []).filter(
+        (s: string) => s.length > 0 && s.length <= 50
+      )
+      if (skills.length) setValue('skills_required', skills, { shouldDirty: true })
 
       if (approved.key_responsibilities?.length) {
         setValue(
           'responsibilities',
           Array.isArray(approved.key_responsibilities)
-            ? approved.key_responsibilities.join('\nâ€¢ ')
-            : approved.key_responsibilities
+            ? approved.key_responsibilities.join('\n• ')
+            : approved.key_responsibilities,
+          { shouldDirty: true }
         )
       }
 
       if (approved.experience) {
         const parsed = parseExperience(approved.experience)
-        setValue('min_experience_years', parsed.min_experience_years)
-        setValue('experience_level', parsed.experience_level)
+        setValue('min_experience_years', parsed.min_experience_years, { shouldDirty: true })
+        setValue('experience_level', parsed.experience_level, { shouldDirty: true })
       }
     }
     setShowAIReview(false)
   }
+
+  useEffect(() => {
+    // Check if there is a prefilled JD from Copilot
+    const saved = sessionStorage.getItem('copilot_prefilled_jd')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        applyAIJD(parsed)
+        sessionStorage.removeItem('copilot_prefilled_jd')
+      } catch (e) {
+        console.error('Error applying prefilled JD from storage:', e)
+      }
+    }
+
+    const handleCopilotApply = (e: any) => {
+      if (e?.detail) {
+        applyAIJD(e.detail)
+      }
+    }
+
+    window.addEventListener('copilot-apply-jd', handleCopilotApply)
+    return () => {
+      window.removeEventListener('copilot-apply-jd', handleCopilotApply)
+    }
+  }, [])
 
   const viewUploadedJd = async () => {
     const url = watch('jd_url')

@@ -17,6 +17,7 @@ from app.services.ai.copilot_intelligence import (
     preprocess_query,
     is_jd_creation_intent,
     extract_role_from_jd_query,
+    validate_job_role,
 )
 
 logger = logging.getLogger(__name__)
@@ -118,6 +119,13 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 - **Offer Flow**: Candidate must be in 'HR Round Selected' before offer. Hired cannot be rejected.
 - **Language**: ALWAYS respond in English or Hinglish (Roman script only).
 - **No hallucination**: ONLY report what the database returns.
+
+### 10. JOB DESCRIPTION (JD) GENERATION & REFINEMENT
+- You can directly generate and refine comprehensive, industry-standard Job Descriptions (JDs).
+- When generating or customizing a JD, structure it cleanly in Markdown with Role Overview, Key Responsibilities, Required Skills, and Preferred Qualifications.
+- If the recruiter asks to refine or modify an existing JD (e.g., changing experience level, adding skills, tweaking responsibilities), make the changes directly in the chat with a complete updated description.
+- If the job title requested is invalid or gibberish, decline politely and ask for a valid job title.
+- If the title is vague or incomplete, ask clarifying questions to get the specific domain or requirements.
 """
 
 # ── Tool Definitions for Groq SDK ───────────────────────────────────────────
@@ -1771,29 +1779,109 @@ async def _stream_copilot_chat_impl(
         d.update(data)
         return json.dumps(d) + "\n\n"
 
-    # ── Intercept JD Creation Intent ──────────────────────────────────────
+    # ── Intercept JD Creation Intent & Generate Directly ─────────────────
     if is_jd_creation_intent(user_message):
-        role_name = extract_role_from_jd_query(user_message)
-        if role_name:
-            reply_text = (
-                f"Looks like you want to create a Job Description for **{role_name}**. "
-                f"For the best AI-powered JD generation experience, please use the **AI JD Generator** module. "
-                f"Click below to continue.\n\n"
-                f"[CTA_BUTTON:Go to AI JD Generator]"
+        raw_role = extract_role_from_jd_query(user_message)
+        status, role_name, validation_msg = validate_job_role(raw_role)
+
+        # If empty, invalid, or incomplete, return helpful guidance or error
+        if status in ("EMPTY", "INVALID", "INCOMPLETE"):
+            saved_conv_id = await _save_conversation_to_db(
+                db, organization_id, user_id, conversation_id, user_message, validation_msg
             )
-        else:
-            reply_text = (
-                f"Looks like you want to create a Job Description. "
-                f"For the best AI-powered JD generation experience, please use the **AI JD Generator** module. "
-                f"Click below to continue.\n\n"
-                f"[CTA_BUTTON:Go to AI JD Generator]"
-            )
-            
-        saved_conv_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, reply_text
+            yield sse("meta", {"conversation_id": saved_conv_id})
+            yield sse("chunk", {"content": validation_msg})
+            yield sse("done", {})
+            return
+
+        # Status is VALID -> Stream complete professional Job Description directly
+        jd_system_prompt = (
+            "You are Hybent Hiring Copilot — an expert AI technical recruiter and Talent Acquisition specialist at Hybent.\n"
+            "Your task is to generate a comprehensive, modern, highly-professional Job Description (JD) "
+            "tailored to the user's prompt.\n\n"
+            "CRITICAL FORMATTING GUIDELINES:\n"
+            "- Output MUST be clean, structured Markdown (never wrap the entire response in a code block).\n"
+            "- Use this exact structure:\n\n"
+            "## [Job Title]\n\n"
+            "**Position:** [Job Title]  \n"
+            "**Experience Level:** [e.g. 2-4 Years / Entry Level / 5+ Years as requested or industry standard]  \n"
+            "**Location / Work Mode:** [Remote / Hybrid / On-site as requested or 'Hybrid / Remote']  \n"
+            "**Employment Type:** Full-time  \n\n"
+            "---\n\n"
+            "### 📌 Role Overview\n"
+            "[2-3 compelling sentences describing the core purpose, mission, and impact of this role]\n\n"
+            "### 🎯 Key Responsibilities\n"
+            "- [5-7 concise, actionable, high-impact bullet points — each should be a short phrase, max 15 words]\n\n"
+            "### 🛠️ Required Qualifications\n"
+            "- [5-7 bullet points covering must-have qualifications, experience, and domain expertise — full sentences okay here]\n\n"
+            "### 🔑 Core Skills\n"
+            "[List ONLY short skill/tool/technology keywords, comma-separated on ONE line. Examples: React, Node.js, Python, AWS, Agile, Salesforce, SQL, REST APIs]\n\n"
+            "### ⭐ Preferred / Good to Have\n"
+            "- [3-4 bullet points covering nice-to-have skills, certifications, or modern tools]\n\n"
+            "### 💡 What We Offer\n"
+            "- Competitive compensation & performance-driven incentives\n"
+            "- Comprehensive health & wellness coverage\n"
+            "- Collaborative team culture & rapid career advancement\n\n"
+            "---\n"
+            "💬 *Need any changes? You can ask me to adjust the experience, add specific tools/skills, or modify any section.*\n\n"
+            "IMPORTANT: The '### 🔑 Core Skills' section MUST contain ONLY short comma-separated keywords (not sentences). "
+            "This is used to auto-fill the skills field in a form."
         )
-        yield sse("meta", {"conversation_id": saved_conv_id})
-        yield sse("chunk", {"content": reply_text})
+
+        jd_messages = [
+            {"role": "system", "content": jd_system_prompt},
+        ]
+        for h in history[-4:]:
+            jd_messages.append({"role": h["role"], "content": h["content"]})
+        jd_messages.append({
+            "role": "user",
+            "content": f"Generate a complete Job Description for the role: '{role_name}'. User request: '{user_message}'"
+        })
+
+        yield sse("meta", {"conversation_id": conversation_id})
+
+        full_jd_text = ""
+        try:
+            jd_stream = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=jd_messages,
+                stream=True,
+                temperature=0.3,
+            )
+            for chunk in jd_stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    delta_text = chunk.choices[0].delta.content
+                    full_jd_text += delta_text
+                    yield sse("chunk", {"content": delta_text})
+        except Exception as jd_err:
+            logger.error(f"Error during AI JD streaming: {jd_err}")
+            fallback_text = (
+                f"## {role_name}\n\n"
+                f"**Position:** {role_name}  \n"
+                f"**Employment Type:** Full-time  \n"
+                f"**Work Mode:** Hybrid / Remote  \n\n"
+                f"---\n\n"
+                f"### 📌 Role Overview\n"
+                f"We are looking for an exceptional **{role_name}** to join our growing team.\n\n"
+                f"### 🎯 Key Responsibilities\n"
+                f"- Drive key initiatives and deliver high-quality outcomes for the team\n"
+                f"- Collaborate cross-functionally with internal and external stakeholders\n"
+                f"- Stay updated with industry best practices and contribute to continuous improvement\n\n"
+                f"### 🛠️ Required Qualifications & Core Skills\n"
+                f"- Relevant experience and proven track record as a {role_name}\n"
+                f"- Strong problem-solving, communication, and collaboration skills\n"
+                f"- Proficiency with standard industry tools and methodologies\n"
+            )
+            full_jd_text = fallback_text
+            yield sse("chunk", {"content": fallback_text})
+
+        cta_button = "\n\n[CTA_BUTTON:Create Job with this JD]"
+        full_jd_text += cta_button
+        yield sse("chunk", {"content": cta_button})
+
+        saved_conv_id = await _save_conversation_to_db(
+            db, organization_id, user_id, conversation_id, user_message, full_jd_text
+        )
         yield sse("done", {})
         return
 

@@ -652,6 +652,7 @@ export default function AllTalentListPage() {
             <Input
               label="From"
               type="date"
+              aria-label="From date"
               value={customDateRange[0]}
               onChange={(e) => {
                 setCustomDateRange([e.target.value, customDateRange[1]])
@@ -662,6 +663,7 @@ export default function AllTalentListPage() {
             <Input
               label="To"
               type="date"
+              aria-label="To date"
               value={customDateRange[1]}
               min={customDateRange[0] || undefined}
               onChange={(e) => {
