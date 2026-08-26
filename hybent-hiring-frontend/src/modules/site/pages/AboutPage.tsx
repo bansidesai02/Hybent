@@ -75,6 +75,46 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* ── Founder's Note ─────────────────────────────────────────────────── */}
+      <section className="section" id="founder">
+        <div className="wrap">
+          <div className="split" style={{ alignItems: "center" }}>
+            <div data-rv="left">
+              <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Founder&rsquo;s Note</span></p>
+              <h2 className="h-lg">Built with empathy for the recruiter&rsquo;s craft</h2>
+              <p className="lead" style={{ marginTop: "20px" }}>
+                Technology should amplify human intuition, not bury it in administrative noise.
+              </p>
+              <p className="small" style={{ marginTop: "14px" }}>
+                Every hiring decision shapes an organization&rsquo;s destiny. Yet recruiters spend up to 70% of their day sorting resumes, coordinating schedules, and updating spreadsheets instead of having meaningful conversations with exceptional talent.
+              </p>
+              <p className="small" style={{ marginTop: "14px" }}>
+                Hybent was born from that exact frustration. We set out to build an AI-first co-pilot that handles the repetitive, heavy lifting with surgical precision &mdash; giving recruiters back their time to build authentic connections and make confident hiring decisions.
+              </p>
+            </div>
+
+            <div data-rv="right">
+              <div className="card card--flat quote" style={{ padding: "clamp(28px, 3.4vw, 44px)", position: "relative" }}>
+                <div className="card__glow" style={{ top: "-50px", right: "-30px" }}></div>
+                <span className="quote__mark" aria-hidden="true">&ldquo;</span>
+                <p style={{ fontSize: "1.05rem", lineHeight: "1.75" }}>
+                  I didn&rsquo;t want to build just another HR tool. I wanted to build the thing I
+                  wish existed &mdash; a recruiter&rsquo;s co-pilot that handles the boring parts so
+                  humans can focus on the human parts.
+                </p>
+                <footer>
+                  <span className="avatar" aria-hidden="true" style={{ background: "linear-gradient(135deg, var(--cyan), var(--violet))", width: "42px", height: "42px", borderRadius: "50%", display: "grid", placeItems: "center", fontWeight: 700, fontSize: "0.95rem", color: "#fff" }}>HH</span>
+                  <div>
+                    <b>Founder &amp; CEO</b>
+                    <span>Hybent Technologies</span>
+                  </div>
+                </footer>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="section" id="timeline">
         <div className="wrap split" style={{ alignItems: "start" }}>
           <div data-rv="left">

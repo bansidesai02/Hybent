@@ -292,55 +292,32 @@ export default function HiringHomePage() {
 
       {/* ── About ─────────────────────────────────────────────────────────── */}
       <section className="section" id="about">
-        <div className="wrap">
-          <div className="split">
-            <div data-rv="left">
-              <Eyebrow>About Hybent Hiring</Eyebrow>
-              <h2 className="h-lg">Reimagining the Future of Hiring</h2>
-              <p className="lead" style={{ marginTop: '22px' }}>
-                Hiring shouldn&rsquo;t feel complicated.
-              </p>
-              <p className="small" style={{ marginTop: '16px' }}>
-                Yet recruiters continue to work across disconnected tools, endless emails, spreadsheets,
-                and repetitive administrative tasks that slow down every hiring decision.
-              </p>
-              <p className="small" style={{ marginTop: '14px' }}>
-                We created Hybent Hiring to change that.
-              </p>
-              <p className="small" style={{ marginTop: '14px' }}>
-                Our platform combines artificial intelligence with thoughtful product design to create a
-                faster, smarter, and more collaborative hiring experience. From sourcing candidates to final offers,
-                every workflow is designed to eliminate friction and help teams make confident hiring decisions.
-              </p>
-              <p className="small" style={{ marginTop: '14px' }}>
-                We&rsquo;re building more than recruitment software.
-              </p>
-              <p className="small" style={{ marginTop: '14px' }}>
-                We&rsquo;re building the technology that helps organizations discover exceptional
-                talent&mdash;faster, smarter, and with greater confidence.
-              </p>
-            </div>
+        <div className="wrap" style={{ maxWidth: '860px' }}>
+          <div className="section-head center" data-rv="up">
+            <Eyebrow>About Hybent Hiring</Eyebrow>
+            <h2 className="h-lg">Reimagining the Future of Hiring</h2>
+            <p className="lead" style={{ marginTop: '22px' }}>
+              Hiring shouldn&rsquo;t feel complicated.
+            </p>
+          </div>
 
-            <div data-rv="right">
-              {/* Markup mirrors the site's own `.quote` — mark, paragraph,
-                  footer with avatar — so it inherits the card styling rather
-                  than approximating it. */}
-              <div className="card card--flat quote">
-                <span className="quote__mark" aria-hidden="true">&ldquo;</span>
-                <p>
-                  I didn&rsquo;t want to build just another HR tool. I wanted to build the thing I
-                  wish existed — a recruiter&rsquo;s co-pilot that handles the boring parts so
-                  humans can focus on the human parts.
-                </p>
-                <footer>
-                  <span className="avatar" aria-hidden="true">HH</span>
-                  <div>
-                    <b>Founder</b>
-                    <span>Hybent Hiring</span>
-                  </div>
-                </footer>
-              </div>
-            </div>
+          <div data-rv="up" data-delay="80" style={{ maxWidth: '760px', marginInline: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75' }}>
+              Yet recruiters continue to work across disconnected tools, endless emails, spreadsheets,
+              and repetitive administrative tasks that slow down every hiring decision.
+            </p>
+            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75', fontWeight: 600, color: 'var(--text)' }}>
+              We created Hybent Hiring to change that.
+            </p>
+            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75' }}>
+              Our platform combines artificial intelligence with thoughtful product design to create a
+              faster, smarter, and more collaborative hiring experience. From sourcing candidates to final offers,
+              every workflow is designed to eliminate friction and help teams make confident hiring decisions.
+            </p>
+            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75' }}>
+              We&rsquo;re building the technology that helps organizations discover exceptional
+              talent&mdash;faster, smarter, and with greater confidence.
+            </p>
           </div>
         </div>
       </section>
