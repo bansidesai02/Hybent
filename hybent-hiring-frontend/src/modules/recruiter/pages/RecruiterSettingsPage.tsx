@@ -255,8 +255,9 @@ export default function RecruiterSettingsPage() {
           </Card>
         )}
 
-        {/* Admin Section: Connected Email Accounts */}
-        {isAdmin && <EmailAccountsSection />}
+        {/* Connected Email Accounts — visible to recruiters too (read-only for
+            them; the component itself gates connect/disconnect/etc to admins). */}
+        <EmailAccountsSection />
 
         {/* Common Section: Account Security */}
         <Card as="section">

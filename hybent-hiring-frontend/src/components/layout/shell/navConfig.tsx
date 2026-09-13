@@ -153,11 +153,13 @@ export function getNavSections(
     { to: '/hiring/admin/teams', label: 'Team', icon: UsersRound },
     { to: '/hiring/admin/audit', label: 'Audit Logs', icon: ClipboardList },
     { to: '/hiring/admin/ai-credits', label: 'AI Credits', icon: Coins },
+    { to: '/hiring/admin/settings', label: 'Settings', icon: Settings },
   ]
 
   const recruiterSettings: NavItem[] = [
     { to: `${basePath}/teams`, label: 'Team', icon: UsersRound },
     { to: `${basePath}/ai-credits`, label: 'AI Credits', icon: Coins },
+    { to: `${basePath}/settings`, label: 'Settings', icon: Settings },
   ]
 
   return [

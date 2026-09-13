@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 
 import { emailAccountsApi, type ConnectSmtpPayload } from '@/api/emailAccounts'
+import { useAuth } from '@/hooks/useAuth'
 import type { EmailAccount } from '@/types'
 import {
   Badge,
@@ -81,6 +82,9 @@ function providerLabel(provider: EmailAccount['provider']) {
 export function EmailAccountsSection() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const { isAdmin, isSuperAdmin } = useAuth()
+  const canManage = isAdmin || isSuperAdmin
 
   const [connectDialogOpen, setConnectDialogOpen] = useState(false)
   const [reconnectMode, setReconnectMode] = useState(false)
@@ -239,24 +243,34 @@ export function EmailAccountsSection() {
     <Card as="section">
       <CardHeader
         title="Email accounts"
-        subtitle="Connect mailboxes to send candidate and recruiter email from your own address instead of the platform default."
+        subtitle={
+          canManage
+            ? 'Connect mailboxes to send candidate and recruiter email from your own address instead of the platform default.'
+            : "Your organization's connected sender mailboxes. Ask an admin to add or manage one."
+        }
         icon={
           <IconTile size="sm">
             <Mail />
           </IconTile>
         }
         action={
-          <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => setConnectDialogOpen(true)}>
-            Connect account
-          </Button>
+          canManage ? (
+            <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => setConnectDialogOpen(true)}>
+              Connect account
+            </Button>
+          ) : undefined
         }
       />
 
       {isLoading ? null : !accounts || accounts.length === 0 ? (
         <EmptyState
           title="No mailboxes connected"
-          description="Emails currently send from the platform's default address. Connect Gmail or a custom SMTP mailbox to send as your own team instead."
-          action={{ label: 'Connect account', onClick: () => setConnectDialogOpen(true) }}
+          description={
+            canManage
+              ? "Emails currently send from the platform's default address. Connect Gmail or a custom SMTP mailbox to send as your own team instead."
+              : "Emails currently send from the platform's default address. No organization mailbox has been connected yet."
+          }
+          action={canManage ? { label: 'Connect account', onClick: () => setConnectDialogOpen(true) } : undefined}
         />
       ) : (
         <ul className="space-y-3">
@@ -284,19 +298,21 @@ export function EmailAccountsSection() {
                     <p className="mt-0.5 truncate text-hb-xs text-hb-error">{account.last_error}</p>
                   )}
                 </div>
-                {needsReconnect(account) && (
+                {canManage && needsReconnect(account) && (
                   <Button size="sm" variant="ghost" icon={<Plug size={14} />} onClick={() => handleReconnect(account)}>
                     Reconnect
                   </Button>
                 )}
-                <button
-                  type="button"
-                  onClick={(e) => setContextMenu({ x: e.clientX, y: e.clientY, account })}
-                  aria-label={`More actions for ${account.email_address}`}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-full border border-hb-border bg-hb-surface-2/80 text-hb-muted transition-all duration-hb hover:border-hb-blue/40 hover:bg-hb-blue/10 hover:text-hb-blue focus-visible:outline-none focus-visible:shadow-hb-ring"
-                >
-                  <MoreHorizontal size={15} aria-hidden />
-                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={(e) => setContextMenu({ x: e.clientX, y: e.clientY, account })}
+                    aria-label={`More actions for ${account.email_address}`}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-full border border-hb-border bg-hb-surface-2/80 text-hb-muted transition-all duration-hb hover:border-hb-blue/40 hover:bg-hb-blue/10 hover:text-hb-blue focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  >
+                    <MoreHorizontal size={15} aria-hidden />
+                  </button>
+                )}
               </div>
             </li>
           ))}

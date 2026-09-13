@@ -45,6 +45,11 @@ def get_engine():
         (current_loop is not None and _loop is not current_loop)):
         
         connect_args = {"statement_cache_size": 0}
+        if settings.is_production:
+            # Supabase (and most hosted Postgres) requires TLS on its direct
+            # connection; asyncpg doesn't request it unless told to. Local
+            # Docker Postgres has no SSL configured, so this stays dev-safe.
+            connect_args["ssl"] = "require"
 
         _engine = create_async_engine(
             settings.database_url,
