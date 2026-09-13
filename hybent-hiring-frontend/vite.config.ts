@@ -70,28 +70,20 @@ export default defineConfig({
     port: 5173,
     // Allow tunnelled hosts (cloudflared / ngrok) to reach the dev server
     allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.io'],
-    // Proxy API calls to backend during development — this is the frontend↔backend connection
-    proxy: {
-      '/v1': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/static': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/ws': {
-        target: 'ws://localhost:8000',
-        ws: true,
-        changeOrigin: true,
-      },
-    },
+    // Proxy API calls to backend during development — this is the frontend↔backend connection.
+    // Defaults to localhost:8000 for `npm run dev` on the host; when the frontend
+    // itself runs in its own Docker container, "localhost" there is the frontend
+    // container, not the backend one — docker-compose.yml overrides this via
+    // VITE_DEV_PROXY_TARGET to the backend's Compose service name instead.
+    proxy: (() => {
+      const target = process.env.VITE_DEV_PROXY_TARGET || 'http://localhost:8000'
+      const wsTarget = target.replace(/^http/, 'ws')
+      return {
+        '/v1': { target, changeOrigin: true, secure: false },
+        '/api': { target, changeOrigin: true, secure: false },
+        '/static': { target, changeOrigin: true, secure: false },
+        '/ws': { target: wsTarget, ws: true, changeOrigin: true },
+      }
+    })(),
   },
 })
