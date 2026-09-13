@@ -140,7 +140,7 @@ export default function PreScreeningPage() {
         setPageState(s.status === 'in_progress' ? 'question' : 'intro')
       })
       .catch((err) => {
-        setErrorMsg(err?.response?.data?.detail || 'Could not load the pre-screening session.')
+        setErrorMsg(err?.response?.data?.message || 'Could not load the pre-screening session.')
         setPageState('error')
       })
   }, [token])

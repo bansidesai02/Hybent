@@ -221,7 +221,7 @@ function InviteDialog({
       toast.success(`Pre-screening invite sent to ${candidate.email}`)
       onCreated(res.data.id)
     } catch (err: any) {
-      const detail: string = err?.response?.data?.detail || ''
+      const detail: string = err?.response?.data?.message || ''
       /* 409 means a finished session already exists â€” opening it is more useful
          than telling the recruiter they cannot create another. */
       if (err?.response?.status === 409 && detail.startsWith('completed_session:')) {

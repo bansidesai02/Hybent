@@ -17,8 +17,30 @@ async def test_list_requires_auth(client):
     assert response.status_code == 401
 
 
-async def test_recruiter_cannot_connect_smtp_account(client, recruiter_headers):
-    response = await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=recruiter_headers)
+async def test_recruiter_can_connect_own_personal_smtp_account(client, recruiter_headers):
+    with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
+        response = await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=recruiter_headers)
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["scope"] == "personal"
+    assert body["is_default"] is False  # "default" is an org-shared-account concept only
+
+
+async def test_recruiter_cannot_connect_a_second_personal_account(client, recruiter_headers):
+    with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
+        await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=recruiter_headers)
+        second_payload = {**SMTP_PAYLOAD, "email_address": "second@acme.com"}
+        response = await client.post("/v1/email-accounts/smtp", json=second_payload, headers=recruiter_headers)
+    assert response.status_code == 400
+    assert "already have a personal mailbox" in response.json()["message"]
+
+
+async def test_recruiter_cannot_manage_an_org_shared_account(client, admin_headers, recruiter_headers):
+    with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
+        create_response = await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=admin_headers)
+    account_id = create_response.json()["data"]["id"]
+
+    response = await client.delete(f"/v1/email-accounts/{account_id}", headers=recruiter_headers)
     assert response.status_code == 403
 
 
@@ -139,15 +161,13 @@ async def test_super_admin_can_set_default_and_disconnect(client, super_admin_he
     assert disconnect_response.status_code == 200
 
 
-async def test_gmail_authorize_requires_admin_or_super_admin(client, recruiter_headers, admin_headers, super_admin_headers):
-    recruiter_response = await client.get("/v1/email-accounts/gmail/authorize", headers=recruiter_headers)
-    assert recruiter_response.status_code == 403
-
-    # Neither is configured with real Google OAuth creds in tests, so both
-    # correctly fail with "not configured" rather than a 403 — proving the
-    # role check itself passes for both personas.
-    admin_response = await client.get("/v1/email-accounts/gmail/authorize", headers=admin_headers)
-    assert admin_response.status_code in (200, 400)
-
-    super_admin_response = await client.get("/v1/email-accounts/gmail/authorize", headers=super_admin_headers)
-    assert super_admin_response.status_code in (200, 400)
+async def test_gmail_authorize_allows_admin_super_admin_and_recruiter(
+    client, recruiter_headers, admin_headers, super_admin_headers
+):
+    # None of the three should ever 403 here — Gmail is one of the ways a
+    # recruiter connects their own single personal mailbox too. Google OAuth
+    # isn't configured in tests, so a well-formed request lands on 400
+    # ("not configured"), not 403 — that's what proves the role check passes.
+    for headers in (recruiter_headers, admin_headers, super_admin_headers):
+        response = await client.get("/v1/email-accounts/gmail/authorize", headers=headers)
+        assert response.status_code in (200, 400)

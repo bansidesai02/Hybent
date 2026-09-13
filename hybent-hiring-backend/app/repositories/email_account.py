@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models.email_account import EmailAccount, EmailAccountStatus
+from app.models.email_account import EmailAccount, EmailAccountScope, EmailAccountStatus
 from app.repositories.base import BaseRepository
 
 
@@ -46,6 +46,21 @@ class EmailAccountRepository(BaseRepository[EmailAccount]):
             )
         )
         return result.scalar_one_or_none()
+
+    async def get_personal_account(self, organization_id: uuid.UUID, user_id: uuid.UUID) -> EmailAccount | None:
+        """A recruiter's own mailbox — at most one ever exists per (org, user)."""
+        result = await self.db.execute(
+            select(EmailAccount).where(
+                EmailAccount.organization_id == organization_id,
+                EmailAccount.connected_by_user_id == user_id,
+                EmailAccount.scope == EmailAccountScope.PERSONAL,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def count_organization_scoped(self, organization_id: uuid.UUID) -> int:
+        accounts = await self.get_all_for_org(organization_id)
+        return sum(1 for a in accounts if a.scope == EmailAccountScope.ORGANIZATION)
 
     async def get_for_health_check(self) -> list[EmailAccount]:
         """Every non-disconnected, implemented-provider account across all orgs —

@@ -244,7 +244,7 @@ export default function AddJobPage() {
     },
     onError: (err: any) =>
       setServerError(
-        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
           `Failed to ${isEdit ? 'update' : 'save'} the job. Please try again.`
       ),
   })
@@ -295,7 +295,7 @@ export default function AddJobPage() {
       setShowAIReview(true)
       setAiPrompt('')
     } catch (err: any) {
-      const detail = err.response?.data?.detail
+      const detail = err.response?.data?.message
       setServerError(
         typeof detail === 'string' ? detail : err.message || 'Could not generate a job description.'
       )

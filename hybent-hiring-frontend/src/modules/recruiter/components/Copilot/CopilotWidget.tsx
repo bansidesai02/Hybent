@@ -1272,7 +1272,7 @@ export function CopilotWidget() {
             setAudioError('No speech detected. Please speak clearly.')
           }
         } catch (err: any) {
-          const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
+          const detail = err?.response?.data?.message || err?.message || 'Unknown error'
           console.error('Transcription error:', err?.response?.data || err)
           setAudioError(`Transcription failed: ${detail}`)
         } finally {

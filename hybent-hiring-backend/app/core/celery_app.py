@@ -7,7 +7,7 @@ celery_app = Celery(
     "hybent_hiring_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.notifications", "app.tasks.email_accounts"]
+    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox"]
 )
 
 celery_app.conf.update(
@@ -39,5 +39,10 @@ celery_app.conf.beat_schedule = {
     "check-email-accounts-health": {
         "task": "app.tasks.email_accounts.check_email_accounts_health",
         "schedule": crontab(minute=0, hour="*/6"),
+    },
+    # Keep each user's inbox reasonably fresh without syncing live on page load.
+    "sync-all-inboxes": {
+        "task": "app.tasks.email_inbox.sync_all_inboxes",
+        "schedule": crontab(minute="*/5"),
     },
 }

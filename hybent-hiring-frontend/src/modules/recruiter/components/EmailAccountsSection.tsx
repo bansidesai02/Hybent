@@ -95,10 +95,15 @@ export function EmailAccountsSection() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['email-accounts'] })
 
-  const { data: accounts, isLoading } = useQuery({
+  // Shared, unfiltered query — PersonalMailboxCard reads the same cache key
+  // and filters for its own scope, so filtering happens per-consumer, not here.
+  const { data: allAccounts, isLoading } = useQuery({
     queryKey: ['email-accounts'],
     queryFn: () => emailAccountsApi.list().then((r) => r.data),
   })
+  // Personal (recruiter-owned) mailboxes get their own card — this section is
+  // the organization's shared senders only.
+  const accounts = allAccounts?.filter((a) => a.scope === 'organization')
 
   // Gmail OAuth lands back here via `${FRONTEND_URL}/hiring/admin/settings?...`
   useEffect(() => {
@@ -126,7 +131,7 @@ export function EmailAccountsSection() {
       invalidate()
     },
     onError: (err: any) => {
-      setSmtpError(err?.response?.data?.detail || 'Could not verify these SMTP credentials.')
+      setSmtpError(err?.response?.data?.message || 'Could not verify these SMTP credentials.')
     },
   })
 

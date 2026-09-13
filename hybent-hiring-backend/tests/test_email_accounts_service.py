@@ -43,7 +43,7 @@ async def test_connect_smtp_does_not_persist_when_test_send_fails(db_session, or
         with pytest.raises(ValueError, match="Could not verify SMTP credentials"):
             await service.connect_smtp(organization.id, admin_user.id, _smtp_payload())
 
-    accounts = await service.list_for_org(organization.id)
+    accounts = await service.list_for_org(organization.id, admin_user.id, "admin")
     assert accounts == []
 
 
@@ -59,7 +59,7 @@ async def test_connect_smtp_allows_reconnecting_a_disconnected_account(db_sessio
 
     assert reconnected.id == original.id  # updated in place, not duplicated
     assert reconnected.status == "connected"
-    accounts = await service.list_for_org(organization.id)
+    accounts = await service.list_for_org(organization.id, admin_user.id, "admin")
     assert len(accounts) == 1
 
 

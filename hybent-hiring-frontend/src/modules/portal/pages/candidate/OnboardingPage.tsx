@@ -42,7 +42,7 @@ export default function OnboardingPage() {
         setLoading(false)
       })
       .catch((err: any) => {
-        setError(err.response?.data?.detail || 'Invalid or expired invitation link')
+        setError(err.response?.data?.message || 'Invalid or expired invitation link')
         setLoading(false)
       })
   }, [token])
@@ -71,7 +71,7 @@ export default function OnboardingPage() {
         navigate('/login')
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to activate account')
+      toast.error(err.response?.data?.message || 'Failed to activate account')
     } finally {
       setIsSubmitting(false)
     }

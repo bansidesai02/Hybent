@@ -148,7 +148,7 @@ export default function ClientsPage() {
       }
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.detail || err.message || 'Failed to onboard client.')
+      toast.error(err.response?.data?.message || err.message || 'Failed to onboard client.')
     },
   })
 

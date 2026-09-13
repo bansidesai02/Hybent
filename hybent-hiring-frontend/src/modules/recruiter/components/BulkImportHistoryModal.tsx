@@ -83,7 +83,7 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
       })
       setItems(res.data)
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to load import history')
+      toast.error(err?.response?.data?.message || 'Failed to load import history')
     } finally {
       setLoading(false)
     }
@@ -101,7 +101,7 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
       const res = await bulkImportApi.getHistoryDetail(batchId)
       setDetail(res.data)
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to load batch details')
+      toast.error(err?.response?.data?.message || 'Failed to load batch details')
     }
   }
 
@@ -119,7 +119,7 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
       await load()
       onRollbackSuccess?.()
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Rollback failed')
+      toast.error(err?.response?.data?.message || 'Rollback failed')
     } finally {
       setRollbackLoading(false)
     }
@@ -134,7 +134,7 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
       a.click()
       window.URL.revokeObjectURL(url)
     }).catch((err: any) => {
-      toast.error(err?.response?.data?.detail || 'Failed to download failed rows')
+      toast.error(err?.response?.data?.message || 'Failed to download failed rows')
     })
   }
 
@@ -147,7 +147,7 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
       a.click()
       window.URL.revokeObjectURL(url)
     }).catch((err: any) => {
-      toast.error(err?.response?.data?.detail || 'Failed to download original file')
+      toast.error(err?.response?.data?.message || 'Failed to download original file')
     })
   }
 

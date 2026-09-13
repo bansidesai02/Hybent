@@ -262,7 +262,7 @@ export default function CandidatesPage() {
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to send invite'),
   })
 
   const stageMutation = useMutation({
@@ -275,7 +275,7 @@ export default function CandidatesPage() {
       toast.success('Stage updated')
       setActionsTarget(null)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update stage'),
   })
 
   const deleteMutation = useMutation({
@@ -287,7 +287,7 @@ export default function CandidatesPage() {
       toast.success('Candidate deleted')
       setActionsTarget(null)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to delete candidate'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to delete candidate'),
   })
 
   const transferMutation = useMutation({
@@ -336,7 +336,7 @@ export default function CandidatesPage() {
         queryClient.setQueryData(['candidates', queryParams], context.previousCandidates)
         queryClient.setQueryData(['designations'], context.previousDesignations)
       }
-      toast.error(err.response?.data?.detail || 'Failed to move candidate')
+      toast.error(err.response?.data?.message || 'Failed to move candidate')
     },
   })
 

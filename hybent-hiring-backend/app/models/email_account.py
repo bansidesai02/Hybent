@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,14 @@ class EmailAccountStatus:
     DISCONNECTED = "disconnected"
 
 
+class EmailAccountScope:
+    """organization: admin-connected, shared, org can have many, one is_default
+    (the "primary"). personal: recruiter-connected, exactly one per recruiter,
+    never has is_default set (there's only ever one)."""
+    ORGANIZATION = "organization"
+    PERSONAL = "personal"
+
+
 class EmailAccount(Base):
     """A mailbox connected to an organization for sending recruiting email.
 
@@ -31,6 +39,15 @@ class EmailAccount(Base):
     __tablename__ = "email_accounts"
     __table_args__ = (
         UniqueConstraint("organization_id", "email_address", name="uq_email_accounts_org_address"),
+        # A recruiter has at most one personal mailbox, ever — enforced at the
+        # DB level, not just in the service layer. Must match the migration's
+        # partial index exactly (name, columns, where-clause).
+        Index(
+            "uq_email_accounts_one_personal_per_user",
+            "organization_id", "connected_by_user_id",
+            unique=True,
+            postgresql_where=text("scope = 'personal'"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -42,6 +59,7 @@ class EmailAccount(Base):
     display_name: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=EmailAccountStatus.CONNECTED)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    scope: Mapped[str] = mapped_column(String(20), nullable=False, default=EmailAccountScope.ORGANIZATION)
 
     connected_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True

@@ -94,6 +94,9 @@ export interface Organization {
 
 export type EmailAccountProvider = 'gmail' | 'outlook' | 'smtp'
 export type EmailAccountStatus = 'connected' | 'error' | 'reauth_required' | 'disconnected'
+/** organization: admin-connected, shared, org can have several with one is_default
+ *  ("primary"). personal: a recruiter's own single mailbox — never has is_default. */
+export type EmailAccountScope = 'organization' | 'personal'
 
 export interface EmailAccount {
   id: string
@@ -103,12 +106,30 @@ export interface EmailAccount {
   display_name: string | null
   status: EmailAccountStatus
   is_default: boolean
+  scope: EmailAccountScope
   last_synced_at: string | null
   last_error: string | null
   created_at: string
   smtp_host: string | null
   smtp_port: number | null
   smtp_username: string | null
+}
+
+export interface EmailMessage {
+  id: string
+  email_account_id: string
+  thread_id: string | null
+  from_address: string | null
+  from_name: string | null
+  subject: string | null
+  snippet: string | null
+  received_at: string | null
+  is_read: boolean
+}
+
+export interface EmailMessageDetail extends EmailMessage {
+  body_html: string | null
+  body_text: string | null
 }
 
 export interface Job {

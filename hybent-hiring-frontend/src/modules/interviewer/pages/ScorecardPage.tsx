@@ -365,7 +365,7 @@ export default function ScorecardPage() {
       localStorage.removeItem(`hybent_hiring_notes_${interviewId}`)
     },
     onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       toast.error(msg ?? 'Failed to submit the scorecard')
     },
   })

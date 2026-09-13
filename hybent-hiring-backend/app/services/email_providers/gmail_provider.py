@@ -4,6 +4,7 @@ reusing the same Google OAuth client, scoped to gmail.send) + send via Gmail API
 """
 import base64
 import logging
+import re
 from email.mime.text import MIMEText
 from urllib.parse import urlencode
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 SCOPES = " ".join([
     "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/userinfo.email",
 ])
 
@@ -114,3 +116,109 @@ class GmailProvider(EmailProvider):
             raise ValueError("Gmail account has no refresh token — reconnect required")
         refresh_token = crypto.decrypt(account.refresh_token_encrypted)
         _refresh_access_token_sync(refresh_token)
+
+
+def _get_access_token(account: EmailAccount) -> str:
+    if not account.refresh_token_encrypted:
+        raise ValueError("Gmail account has no refresh token — reconnect required")
+    return _refresh_access_token_sync(crypto.decrypt(account.refresh_token_encrypted))
+
+
+def _header(headers: list[dict], name: str) -> str | None:
+    for h in headers:
+        if h.get("name", "").lower() == name.lower():
+            return h.get("value")
+    return None
+
+
+def _parse_from_header(value: str | None) -> tuple[str | None, str | None]:
+    """'Jane Doe <jane@acme.com>' -> ('Jane Doe', 'jane@acme.com'); a bare
+    address returns (None, address)."""
+    if not value:
+        return None, None
+    match = re.match(r'^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$', value)
+    if match:
+        name = match.group(1).strip() or None
+        return name, match.group(2).strip()
+    return None, value.strip()
+
+
+def list_recent_messages(account: EmailAccount, max_results: int = 30) -> list[dict]:
+    """Inbox message metadata (id, threadId, from, subject, snippet, received_at) —
+    no bodies, kept cheap for periodic syncing."""
+    access_token = _get_access_token(account)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    list_response = httpx.get(
+        f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages",
+        headers=headers,
+        params={"maxResults": max_results, "labelIds": "INBOX"},
+        timeout=10,
+    )
+    if list_response.status_code >= 400:
+        raise ValueError(f"Gmail API list failed: {list_response.text}")
+
+    message_ids = [m["id"] for m in list_response.json().get("messages", [])]
+    results = []
+    for message_id in message_ids:
+        detail_response = httpx.get(
+            f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages/{message_id}",
+            headers=headers,
+            params={"format": "metadata", "metadataHeaders": ["From", "Subject", "To"]},
+            timeout=10,
+        )
+        if detail_response.status_code >= 400:
+            continue  # skip a single bad message rather than failing the whole sync
+        detail = detail_response.json()
+        msg_headers = detail.get("payload", {}).get("headers", [])
+        from_name, from_address = _parse_from_header(_header(msg_headers, "From"))
+        internal_date_ms = int(detail.get("internalDate", "0"))
+        results.append({
+            "provider_message_id": detail["id"],
+            "thread_id": detail.get("threadId"),
+            "from_name": from_name,
+            "from_address": from_address,
+            "to_address": _header(msg_headers, "To"),
+            "subject": _header(msg_headers, "Subject"),
+            "snippet": detail.get("snippet"),
+            "received_at_ms": internal_date_ms,
+        })
+    return results
+
+
+def _extract_body(payload: dict) -> tuple[str | None, str | None]:
+    """Walk a (possibly nested multipart) Gmail message payload for the first
+    text/plain and text/html parts, base64url-decoded."""
+    text_body, html_body = None, None
+
+    def walk(part: dict):
+        nonlocal text_body, html_body
+        mime_type = part.get("mimeType", "")
+        body_data = part.get("body", {}).get("data")
+        if body_data:
+            decoded = base64.urlsafe_b64decode(body_data + "=" * (-len(body_data) % 4)).decode("utf-8", errors="replace")
+            if mime_type == "text/plain" and text_body is None:
+                text_body = decoded
+            elif mime_type == "text/html" and html_body is None:
+                html_body = decoded
+        for sub_part in part.get("parts", []):
+            walk(sub_part)
+
+    walk(payload)
+    return text_body, html_body
+
+
+def get_message_full(account: EmailAccount, provider_message_id: str) -> dict:
+    """Fetch a single message's full body live — never stored at rest."""
+    access_token = _get_access_token(account)
+    response = httpx.get(
+        f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages/{provider_message_id}",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={"format": "full"},
+        timeout=10,
+    )
+    if response.status_code >= 400:
+        raise ValueError(f"Gmail API get message failed: {response.text}")
+    detail = response.json()
+    text_body, html_body = _extract_body(detail.get("payload", {}))
+    return {"body_text": text_body, "body_html": html_body}

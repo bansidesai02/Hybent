@@ -633,7 +633,7 @@ function ScheduleFormCard({
       })
     },
     onError: (err: any) =>
-      toast.error(err?.response?.data?.detail || 'Failed to schedule the interview'),
+      toast.error(err?.response?.data?.message || 'Failed to schedule the interview'),
   })
 
   return (

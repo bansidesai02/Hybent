@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountStatus
+from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountScope, EmailAccountStatus
 from app.repositories.email_account import EmailAccountRepository
 from app.schemas.email_account import EmailAccountCreateSMTP
 from app.services.email_providers.base import EmailProvider
@@ -17,6 +17,9 @@ from app.services.email_providers.gmail_provider import GmailProvider
 from app.services.email_providers.outlook_provider import OutlookProvider
 from app.services.email_providers.smtp_provider import SMTPProvider
 from app.utils import crypto
+from app.utils.permissions import UserRole
+
+_MANAGER_ROLES = {UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value}
 
 logger = logging.getLogger(__name__)
 
@@ -39,37 +42,76 @@ class EmailAccountsService:
         self.db = db
         self.repo = EmailAccountRepository(db)
 
-    async def list_for_org(self, organization_id: uuid.UUID) -> list[EmailAccount]:
-        return await self.repo.get_all_for_org(organization_id)
+    async def list_for_org(self, organization_id: uuid.UUID, user_id: uuid.UUID, role: str) -> list[EmailAccount]:
+        """Every organization-shared account, plus the caller's own personal
+        one if they have it — never another user's personal mailbox."""
+        accounts = await self.repo.get_all_for_org(organization_id)
+        return [
+            a for a in accounts
+            if a.scope == EmailAccountScope.ORGANIZATION or a.connected_by_user_id == user_id
+        ]
 
     async def get_for_org(self, account_id: uuid.UUID, organization_id: uuid.UUID) -> EmailAccount | None:
         return await self.repo.get_by_id_and_org(account_id, organization_id)
+
+    async def _find_existing_for_connect(
+        self, organization_id: uuid.UUID, connected_by_user_id: uuid.UUID, email_address: str, scope: str
+    ) -> EmailAccount | None:
+        """A personal account is identified by (org, owner) — a recruiter has at
+        most one, ever, and may swap its address on reconnect. An organization
+        account is identified by its address, same as before."""
+        if scope == EmailAccountScope.PERSONAL:
+            existing = await self.repo.get_personal_account(organization_id, connected_by_user_id)
+            if existing is not None and existing.status != EmailAccountStatus.DISCONNECTED:
+                raise ValueError("You already have a personal mailbox connected — disconnect it first.")
+        else:
+            existing = await self.repo.get_by_org_and_address(organization_id, email_address)
+            if existing is not None and existing.status != EmailAccountStatus.DISCONNECTED:
+                raise ValueError(f"An account for {email_address} is already connected")
+
+        # Regardless of scope, the address itself must not belong to a *different*,
+        # still-active row (DB also enforces this — this just gives a clean error).
+        address_owner = await self.repo.get_by_org_and_address(organization_id, email_address)
+        if (
+            address_owner is not None
+            and (existing is None or address_owner.id != existing.id)
+            and address_owner.status != EmailAccountStatus.DISCONNECTED
+        ):
+            raise ValueError(f"An account for {email_address} is already connected")
+
+        return existing
 
     async def connect_smtp(
         self,
         organization_id: uuid.UUID,
         connected_by_user_id: uuid.UUID,
         payload: EmailAccountCreateSMTP,
+        scope: str = EmailAccountScope.ORGANIZATION,
     ) -> EmailAccount:
-        existing = await self.repo.get_by_org_and_address(organization_id, payload.email_address)
-        # A disconnected row for this address is a reconnect (update in place),
-        # not a conflict — only an already-active account blocks a new connect.
-        if existing is not None and existing.status != EmailAccountStatus.DISCONNECTED:
-            raise ValueError(f"An account for {payload.email_address} is already connected")
-
+        existing = await self._find_existing_for_connect(
+            organization_id, connected_by_user_id, payload.email_address, scope
+        )
+        is_new = existing is None
         account = existing or EmailAccount(
             organization_id=organization_id,
             provider=EmailAccountProvider.SMTP,
-            email_address=payload.email_address,
-            is_default=len(await self.repo.get_all_for_org(organization_id)) == 0,
+            scope=scope,
         )
+        account.email_address = payload.email_address
         account.connected_by_user_id = connected_by_user_id
+        account.scope = scope
         account.display_name = payload.display_name
         account.smtp_host = payload.smtp_host
         account.smtp_port = payload.smtp_port
         account.smtp_username = payload.smtp_username
         account.smtp_password_encrypted = crypto.encrypt(payload.smtp_password)
         account.use_tls = payload.use_tls
+
+        if is_new:
+            account.is_default = (
+                scope == EmailAccountScope.ORGANIZATION
+                and await self.repo.count_organization_scoped(organization_id) == 0
+            )
 
         # Verify the credentials actually work before persisting anything.
         try:
@@ -87,7 +129,7 @@ class EmailAccountsService:
         account.last_error = None
         account.last_synced_at = datetime.now(timezone.utc)
 
-        if existing is not None:
+        if not is_new:
             return await self.repo.update(account, {})
         return await self.repo.create(account)
 
@@ -98,15 +140,24 @@ class EmailAccountsService:
         email_address: str,
         refresh_token: str | None,
         access_token: str | None,
+        scope: str = EmailAccountScope.ORGANIZATION,
     ) -> EmailAccount:
-        account = await self.repo.get_by_org_and_address(organization_id, email_address)
-        if account is None:
-            account = EmailAccount(
-                organization_id=organization_id,
-                connected_by_user_id=connected_by_user_id,
-                provider=EmailAccountProvider.GMAIL,
-                email_address=email_address,
-                is_default=len(await self.repo.get_all_for_org(organization_id)) == 0,
+        existing = await self._find_existing_for_connect(organization_id, connected_by_user_id, email_address, scope)
+        is_new = existing is None
+        account = existing or EmailAccount(
+            organization_id=organization_id,
+            connected_by_user_id=connected_by_user_id,
+            provider=EmailAccountProvider.GMAIL,
+            scope=scope,
+        )
+        account.email_address = email_address
+        account.connected_by_user_id = connected_by_user_id
+        account.scope = scope
+
+        if is_new:
+            account.is_default = (
+                scope == EmailAccountScope.ORGANIZATION
+                and await self.repo.count_organization_scoped(organization_id) == 0
             )
 
         if refresh_token:
@@ -114,15 +165,34 @@ class EmailAccountsService:
         account.status = EmailAccountStatus.CONNECTED
         account.last_error = None
         account.last_synced_at = datetime.now(timezone.utc)
+
+        if not is_new:
+            return await self.repo.update(account, {})
         return await self.repo.create(account)
 
     async def set_default(self, account_id: uuid.UUID, organization_id: uuid.UUID) -> EmailAccount:
         account = await self.repo.get_by_id_and_org(account_id, organization_id)
         if account is None:
             raise ValueError("Email account not found")
+        if account.scope != EmailAccountScope.ORGANIZATION:
+            raise ValueError("Only organization-shared accounts can be set as default")
         await self.repo.unset_other_defaults(organization_id, except_id=account_id)
         account.is_default = True
         return await self.repo.update(account, {"is_default": True})
+
+    def can_manage(self, account: EmailAccount, user_id: uuid.UUID, role: str) -> bool:
+        """Admins/super admins manage any org-scoped account; a recruiter may
+        only ever manage their own personal one."""
+        if role in _MANAGER_ROLES:
+            return True
+        return account.scope == EmailAccountScope.PERSONAL and account.connected_by_user_id == user_id
+
+    async def get_inbox_account(self, organization_id: uuid.UUID, user_id: uuid.UUID, role: str) -> EmailAccount | None:
+        """Which account's inbox this user sees: admins/super admins get the
+        org's primary (shared) mailbox; a recruiter gets their own personal one."""
+        if role in _MANAGER_ROLES:
+            return await self.repo.get_default_for_org(organization_id)
+        return await self.repo.get_personal_account(organization_id, user_id)
 
     async def update(
         self, account_id: uuid.UUID, organization_id: uuid.UUID, display_name: str | None, is_default: bool | None

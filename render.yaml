@@ -10,8 +10,13 @@ services:
     envVars:
       - key: APP_ENV
         value: production
-      # Supabase Postgres (direct connection, port 5432 — NOT the 6543 pgbouncer
-      # pooler port, since this service keeps its own long-lived SQLAlchemy pool).
+      # Supabase Postgres via the SESSION POOLER (port 5432 on
+      # aws-<n>-<region>.pooler.supabase.com, username `postgres.<project-ref>`)
+      # — NOT the "Direct connection" host (db.<ref>.supabase.co), which
+      # resolves IPv6-only on many projects and Render has no IPv6 egress
+      # (this is what caused "Network is unreachable" on first deploy).
+      # Also NOT the Transaction pooler (port 6543) — this service keeps its
+      # own long-lived SQLAlchemy pool, which the Session pooler matches.
       # Set the actual value in the Render dashboard → Environment tab.
       - key: DATABASE_URL
         sync: false

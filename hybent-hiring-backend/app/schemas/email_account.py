@@ -14,6 +14,7 @@ class EmailAccountRead(OrmSchema):
     display_name: str | None = None
     status: str
     is_default: bool
+    scope: str
     last_synced_at: datetime | None = None
     last_error: str | None = None
     created_at: datetime

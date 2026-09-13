@@ -14,6 +14,7 @@ const SuperAdminAudit = lazy(() => import('@/modules/super_admin/pages/AuditLogs
 const SuperAdminHealth = lazy(() => import('@/modules/super_admin/pages/HealthPage'))
 const SuperAdminSettings = lazy(() => import('@/modules/super_admin/pages/SettingsPage'))
 const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePage'))
+const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
 
 export default function SuperAdminRoutes() {
   return (
@@ -30,6 +31,7 @@ export default function SuperAdminRoutes() {
         <Route path="health" element={<SuperAdminHealth />} />
         <Route path="settings" element={<SuperAdminSettings />} />
         <Route path="profile" element={<AdminProfilePage />} />
+        <Route path="inbox" element={<InboxPage />} />
       </Route>
     </Routes>
   )

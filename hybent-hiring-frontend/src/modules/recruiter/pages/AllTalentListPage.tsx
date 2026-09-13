@@ -334,7 +334,7 @@ export default function AllTalentListPage() {
       toast.success('Stage updated')
       setActionsTarget(null)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update stage'),
   })
 
   const inviteMutation = useMutation({
@@ -343,7 +343,7 @@ export default function AllTalentListPage() {
       toast.success(`Invitation sent to ${v.full_name}`)
       invalidateAll()
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to send invite'),
   })
 
   const deleteMutation = useMutation({
@@ -400,7 +400,7 @@ export default function AllTalentListPage() {
         queryClient.setQueryData(['all-talent-full'], context.previousCandidates)
         queryClient.setQueryData(['designations'], context.previousDesignations)
       }
-      toast.error(err.response?.data?.detail || 'Failed to move candidate')
+      toast.error(err.response?.data?.message || 'Failed to move candidate')
     },
   })
 
@@ -425,7 +425,7 @@ export default function AllTalentListPage() {
       const created = (res as any).data
       if (created?.id) setSelectedJobId(created.id)
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to create the designation')
+      toast.error(err.response?.data?.message || 'Failed to create the designation')
     } finally {
       setIsCreatingJob(false)
     }
@@ -441,7 +441,7 @@ export default function AllTalentListPage() {
       invalidateAll()
       setRenameTarget(null)
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to rename')
+      toast.error(err.response?.data?.message || 'Failed to rename')
     } finally {
       setIsRenamingJob(false)
     }
@@ -457,7 +457,7 @@ export default function AllTalentListPage() {
       queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
       invalidateAll()
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to delete')
+      toast.error(err.response?.data?.message || 'Failed to delete')
     } finally {
       setIsDeletingJob(false)
       setContextMenu(null)
@@ -490,7 +490,7 @@ export default function AllTalentListPage() {
       toast.success('Designation order saved')
     } catch (err: any) {
       queryClient.setQueryData(['designations'], previous)
-      toast.error(err.response?.data?.detail || 'Failed to reorder designations')
+      toast.error(err.response?.data?.message || 'Failed to reorder designations')
     }
   }
 
