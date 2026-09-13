@@ -7,7 +7,7 @@ celery_app = Celery(
     "hybent_hiring_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.notifications"]
+    include=["app.tasks.notifications", "app.tasks.email_accounts"]
 )
 
 celery_app.conf.update(
@@ -33,5 +33,11 @@ celery_app.conf.beat_schedule = {
     "reset-organization-credits": {
         "task": "app.tasks.notifications.reset_expired_organization_credits",
         "schedule": crontab(minute=0, hour=0),
+    },
+    # Proactively refresh Gmail tokens / re-verify SMTP logins before a real
+    # send would otherwise be the first thing to discover a broken connection.
+    "check-email-accounts-health": {
+        "task": "app.tasks.email_accounts.check_email_accounts_health",
+        "schedule": crontab(minute=0, hour="*/6"),
     },
 }

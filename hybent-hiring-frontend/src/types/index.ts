@@ -92,6 +92,25 @@ export interface Organization {
   created_at: string
 }
 
+export type EmailAccountProvider = 'gmail' | 'outlook' | 'smtp'
+export type EmailAccountStatus = 'connected' | 'error' | 'reauth_required' | 'disconnected'
+
+export interface EmailAccount {
+  id: string
+  organization_id: string
+  provider: EmailAccountProvider
+  email_address: string
+  display_name: string | null
+  status: EmailAccountStatus
+  is_default: boolean
+  last_synced_at: string | null
+  last_error: string | null
+  created_at: string
+  smtp_host: string | null
+  smtp_port: number | null
+  smtp_username: string | null
+}
+
 export interface Job {
   id: string
   organization_id: string

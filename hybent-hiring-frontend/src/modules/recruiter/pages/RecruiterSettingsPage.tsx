@@ -9,6 +9,7 @@ import { organizationsApi } from '@/api/organizations'
 import { authApi, profileApi } from '@/api/auth'
 import getCroppedImg from '@/utils/cropImage'
 import type { Organization } from '@/types'
+import { EmailAccountsSection } from '@/modules/recruiter/components/EmailAccountsSection'
 import {
   Badge,
   Button,
@@ -253,6 +254,9 @@ export default function RecruiterSettingsPage() {
             </div>
           </Card>
         )}
+
+        {/* Admin Section: Connected Email Accounts */}
+        {isAdmin && <EmailAccountsSection />}
 
         {/* Common Section: Account Security */}
         <Card as="section">

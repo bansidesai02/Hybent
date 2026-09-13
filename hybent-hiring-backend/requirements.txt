@@ -9,6 +9,7 @@ sqlalchemy==2.0.38
 asyncpg>=0.29.0
 alembic==1.13.1
 psycopg2-binary==2.9.10
+greenlet>=3.0.0  # required by SQLAlchemy's async ORM bridge (session.commit/flush)
 
 # Auth & Security
 python-jose[cryptography]==3.4.0
@@ -74,3 +75,7 @@ elasticsearch[async]>=8.0.0
 orjson>=3.10.3
 async-lru>=2.0.4
 psutil>=5.9.8
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0

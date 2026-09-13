@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast'
 import { Mail, Palette, Save, Shield } from 'lucide-react'
 
 import { superAdminApi } from '@/api/superAdmin'
+import { EmailAccountsSection } from '@/modules/recruiter/components/EmailAccountsSection'
 import {
   Button,
   Card,
@@ -180,6 +181,13 @@ export default function SettingsPage() {
             ))}
           </div>
         </Card>
+
+        {/* Lets a super admin connect/manage mailboxes for their own organization —
+            e.g. for support/debugging a client-facing sender directly, without
+            impersonating an org admin just to reach this same panel. */}
+        <div className="lg:col-span-2">
+          <EmailAccountsSection />
+        </div>
 
         <Card padding="loose" className="lg:col-span-2">
           <CardHeader

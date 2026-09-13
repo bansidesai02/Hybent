@@ -6,9 +6,13 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import TYPE_CHECKING
 from dateutil import parser as date_parser
 
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from app.models.email_account import EmailAccount
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +75,29 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
             raise Exception(f"Resend API error: {response.text}")
 
 
-def send_email(to: str, subject: str, html_body: str) -> bool:
+def send_email(to: str, subject: str, html_body: str, email_account: "EmailAccount | None" = None) -> bool:
     """Send email via SMTP or print to console if SMTP not configured.
     Returns True if sent successfully (or fallback used), False otherwise.
+
+    `email_account` is optional and additive: when omitted (every existing call
+    site), behavior is unchanged — the platform's single global SMTP/Resend
+    account is used exactly as before. When a caller resolves and passes a
+    connected organization EmailAccount, the send is routed through that
+    account's own provider instead.
     """
+    if email_account is not None:
+        from app.services.email_accounts_service import get_provider
+
+        try:
+            get_provider(email_account.provider).send(email_account, to, subject, html_body)
+            logger.info(f"✅ Email sent via org account {email_account.email_address} → {to} | {subject}")
+            return True
+        except Exception as e:
+            logger.error(
+                f"❌ Failed to send via org account {email_account.email_address}: {e}", exc_info=True
+            )
+            return False
+
     if not settings.resend_api_key and (not settings.smtp_user or not settings.smtp_password):
         # Console fallback — active when neither Resend nor SMTP is configured
         logger.warning(

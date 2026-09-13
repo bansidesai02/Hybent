@@ -68,6 +68,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/v1/calendar/callback"
 
+    # ── Email Accounts (per-organization integrations) ─────────────────────────
+    # Encrypts OAuth tokens / SMTP passwords for organization-connected mailboxes.
+    # MUST be set to a strong random value via env in real deployments.
+    email_accounts_encryption_key: str = "dev-only-insecure-default-change-me"
+    # Reuses the same Google OAuth client as Calendar (google_client_id/secret above) —
+    # just register this additional redirect URI on that same OAuth client.
+    gmail_redirect_uri: str = "http://localhost:8000/v1/email-accounts/gmail/callback"
+
     # ── Storage ────────────────────────────────────────────────────────────────
     upload_dir: str = "uploads"
     max_file_size_mb: int = 10
