@@ -59,9 +59,19 @@ const customPersistStorage = {
   }
 }
 
+// Captured from inside the creator below, so onRehydrateStorage can call
+// back into the store without referencing `useAuthStore` itself — that
+// binding doesn't exist yet while `create()` is still running, and this
+// storage's reads are synchronous, so rehydration can fire before `create()`
+// returns. Referencing `useAuthStore` there throws "Cannot access
+// 'useAuthStore' before initialization" and crashes the whole app at load.
+let authStoreSet: ((partial: Partial<AuthState>) => void) | null = null
+
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      authStoreSet = set
+      return {
       user: null,
       accessToken: null,
       refreshToken: null,
@@ -92,7 +102,8 @@ export const useAuthStore = create<AuthState>()(
         tokenStorage.clear()
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, rememberMe: false, forcedLogoutReason: null })
       },
-    }),
+      }
+    },
     {
       name: 'hybent_hiring_auth',
       storage: createJSONStorage(() => customPersistStorage),
@@ -101,7 +112,7 @@ export const useAuthStore = create<AuthState>()(
         // anonymous visitor still needs hasHydrated flipped, or RequireAuth
         // would wait forever for a login that was never there.
         if (state?.user) state.setUser(state.user)
-        useAuthStore.setState({ hasHydrated: true })
+        authStoreSet?.({ hasHydrated: true })
       },
       partialize: (state) => ({
         user: state.user,
