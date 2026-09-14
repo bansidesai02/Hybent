@@ -31,6 +31,20 @@ export function RequireAuth({ children, roles }: RequireAuthProps) {
   }
 
   if (!isAuthenticated) {
+    // `state` only survives a client-side <Navigate> — it's gone on a full
+    // page load (a browser refresh, or landing back here after the Gmail
+    // OAuth redirect, which is a real top-level navigation through Google
+    // and the backend). Stash the same target in sessionStorage too, so
+    // HybentLoginRoute can still recover it after a cold reload.
+    try {
+      sessionStorage.setItem(
+        'hybent_intended_path',
+        location.pathname + location.search
+      )
+    } catch {
+      // Storage can throw in a locked-down browsing context — losing the
+      // "return to" target isn't worth failing the redirect over.
+    }
     return <Navigate to={AUTH.login} state={{ from: location }} replace />
   }
 
