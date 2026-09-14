@@ -8,7 +8,11 @@ import { AUTH, workspaceForRole } from './paths'
  * person's workspace, or to sign-in if there is nobody signed in.
  */
 export function DashboardRedirect() {
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated, user, hasHydrated } = useAuthStore()
+
+  // Same async-rehydration race as RequireAuth — this component exists
+  // specifically for cold-load entry points, so it's the most exposed to it.
+  if (!hasHydrated) return null
 
   if (!isAuthenticated) return <Navigate to={AUTH.login} replace />
   return <Navigate to={workspaceForRole(user?.role)} replace />

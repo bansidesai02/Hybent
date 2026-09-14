@@ -18,8 +18,17 @@ type RequireAuthProps = {
  * own — never bounced back to the login screen.
  */
 export function RequireAuth({ children, roles }: RequireAuthProps) {
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated, user, hasHydrated } = useAuthStore()
   const location = useLocation()
+
+  // zustand's persist rehydration is async — on a cold page load (a browser
+  // refresh, or landing back here after the Gmail OAuth redirect) this
+  // renders once before the saved session is read back in. Deciding
+  // "logged out" during that one tick would bounce an actually-signed-in
+  // user to /login every time, so wait for hydration to actually finish.
+  if (!hasHydrated) {
+    return null
+  }
 
   if (!isAuthenticated) {
     return <Navigate to={AUTH.login} state={{ from: location }} replace />
