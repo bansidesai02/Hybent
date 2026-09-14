@@ -51,15 +51,18 @@ services:
         value: Hybent Hiring
       # Google OAuth client is shared by Calendar and Gmail (email accounts) —
       # register BOTH redirect URIs below on that same client in Google Cloud
-      # Console. Client ID/secret are secrets set manually in the dashboard.
+      # Console. All four are set manually in the Render dashboard — sync:false
+      # so this file can never auto-overwrite whatever you've set there:
+      #   GOOGLE_REDIRECT_URI = https://hybent-hiring-backend.onrender.com/v1/calendar/callback
+      #   GMAIL_REDIRECT_URI  = https://hybent-hiring-backend.onrender.com/v1/email-accounts/gmail/callback
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
-        value: https://hybent-hiring-backend.onrender.com/v1/calendar/callback
+        sync: false
       - key: GMAIL_REDIRECT_URI
-        value: https://hybent-hiring-backend.onrender.com/v1/email-accounts/gmail/callback
+        sync: false
 
   # ── Redis ─────────────────────────────────────────────────────────────────
   - type: redis
