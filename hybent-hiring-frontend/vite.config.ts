@@ -14,6 +14,13 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'firebase-messaging-sw.ts',
       injectRegister: 'auto',
+      // Without this, a deployed update sits waiting in the background until
+      // every open tab is fully closed — the old service worker (and its
+      // stale cached bundle) keeps controlling any tab left open from before
+      // the deploy, indefinitely. autoUpdate + skipWaiting/clientsClaim in
+      // the service worker itself (below) makes a new deploy take over on
+      // the very next load instead.
+      registerType: 'autoUpdate',
       manifestFilename: 'manifest.json',
       manifest: {
         name: 'Hybent Hiring',

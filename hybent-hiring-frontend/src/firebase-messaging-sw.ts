@@ -1,9 +1,20 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
+import { clientsClaim } from 'workbox-core'
 import { initializeApp } from 'firebase/app'
 import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw'
 
 declare const self: any
+
+// injectManifest (a custom service worker, unlike the auto-wired generateSW
+// strategy) needs this pair spelled out explicitly, or a newly deployed
+// worker installs but sits waiting in the background — potentially
+// indefinitely — while any tab left open from before the deploy keeps being
+// served by the OLD worker's stale precached bundle. skipWaiting activates
+// the new worker as soon as it finishes installing; clientsClaim then hands
+// it control of already-open tabs immediately, instead of only new ones.
+self.skipWaiting()
+clientsClaim()
 
 cleanupOutdatedCaches()
 

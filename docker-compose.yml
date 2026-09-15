@@ -83,7 +83,11 @@ services:
     container_name: hybent_hiring_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Host port only — the backend/celery talk to this over the internal
+      # Docker network (redis:6379) regardless. Remapped off 6379 since
+      # another, unrelated project's Redis container already holds that port
+      # on this machine.
+      - "6380:6379"
     networks:
       - hybent-hiring-network
 
