@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Annotated
 
@@ -18,6 +19,8 @@ from app.schemas.response import APIResponse
 from app.services.email_accounts_service import EmailAccountsService
 from app.services.email_providers import gmail_provider
 from app.utils.permissions import UserRole
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/email-accounts", tags=["email-accounts"])
 
@@ -106,6 +109,7 @@ async def gmail_callback(
         )
         return RedirectResponse(url=f"{settings.frontend_url}{settings_path}?success=email_account_connected")
     except Exception:
+        logger.exception("Gmail OAuth callback failed for state=%r", state)
         return RedirectResponse(url=f"{settings.frontend_url}{settings_path}?error=email_account_auth_failed")
 
 
