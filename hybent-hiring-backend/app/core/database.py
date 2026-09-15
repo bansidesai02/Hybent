@@ -54,8 +54,14 @@ def get_engine():
         _engine = create_async_engine(
             settings.database_url,
             echo=False,
-            pool_size=20,
-            max_overflow=40,
+            # Small on purpose: the API process and the Celery worker each get
+            # their own engine (get_engine() is keyed by pid), so this pool
+            # size is doubled in practice. 20+40 per process (up to 120 total
+            # connections from one deployment) was exhausting Supabase's
+            # free-tier pooler connection ceiling, which made every DB-backed
+            # request — including login — queue for a connection.
+            pool_size=5,
+            max_overflow=5,
             pool_recycle=1800,
             pool_timeout=30,
             pool_pre_ping=True,
