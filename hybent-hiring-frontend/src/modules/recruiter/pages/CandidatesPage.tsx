@@ -361,7 +361,19 @@ export default function CandidatesPage() {
     return partial?.id ?? activeJobs[0]?.id ?? null
   }
 
-  const addToPipeline = async (candidate: any) => {
+  const addToPipelineMutation = useMutation({
+    mutationFn: ({ candidate, jobId }: { candidate: any; jobId: string }) =>
+      candidatesApi.updateStage(candidate.id, 'applied', false, jobId),
+    onSuccess: () => {
+      toast.success('Added to pipeline')
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+    },
+    onError: () => toast.error('Failed to add to pipeline'),
+  })
+
+  const addToPipeline = (candidate: any) => {
+    if (addToPipelineMutation.isPending) return
     if (candidate.pipeline_stage === 'inactive') {
       setInactivePipelineBlock({ id: candidate.id, name: candidate.full_name })
       return
@@ -371,14 +383,7 @@ export default function CandidatesPage() {
       toast.error('No active jobs found. Create a job first.')
       return
     }
-    try {
-      await candidatesApi.updateStage(candidate.id, 'applied', false, jobId)
-      toast.success('Added to pipeline')
-      queryClient.invalidateQueries({ queryKey: ['candidates'] })
-      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
-    } catch {
-      toast.error('Failed to add to pipeline')
-    }
+    addToPipelineMutation.mutate({ candidate, jobId })
   }
 
   const openProfile = (candidate: Candidate) => {
@@ -462,7 +467,13 @@ export default function CandidatesPage() {
           <div className="flex flex-col items-start gap-1.5" onClick={(e) => e.stopPropagation()}>
             {needsTriage &&
               (c.match_score >= 70 ? (
-                <Button size="sm" icon={<Plus size={13} />} onClick={() => addToPipeline(c)}>
+                <Button
+                  size="sm"
+                  icon={<Plus size={13} />}
+                  loading={addToPipelineMutation.isPending && addToPipelineMutation.variables?.candidate?.id === c.id}
+                  disabled={addToPipelineMutation.isPending}
+                  onClick={() => addToPipeline(c)}
+                >
                   Add to pipeline
                 </Button>
               ) : (
@@ -470,7 +481,11 @@ export default function CandidatesPage() {
                   <Button
                     size="sm"
                     variant="danger"
-                    onClick={() => stageMutation.mutate({ id: c.id, stage: 'rejected' })}
+                    loading={stageMutation.isPending && stageMutation.variables?.id === c.id}
+                    disabled={stageMutation.isPending}
+                    onClick={() => {
+                      if (!stageMutation.isPending) stageMutation.mutate({ id: c.id, stage: 'rejected' })
+                    }}
                   >
                     Reject
                   </Button>
@@ -692,7 +707,16 @@ export default function CandidatesPage() {
             candidate={actionsTarget}
             isAdmin={user?.role === 'admin'}
             hasActiveJobs={!!activeJobs?.length}
-            onStage={(stage) => stageMutation.mutate({ id: actionsTarget.id, stage })}
+            busy={
+              stageMutation.isPending
+                ? stageMutation.variables?.stage ?? 'stage'
+                : addToPipelineMutation.isPending
+                  ? 'addToPipeline'
+                  : null
+            }
+            onStage={(stage) => {
+              if (!stageMutation.isPending) stageMutation.mutate({ id: actionsTarget.id, stage })
+            }}
             onAddToPipeline={() => {
               addToPipeline(actionsTarget)
               setActionsTarget(null)

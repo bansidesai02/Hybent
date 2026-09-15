@@ -943,15 +943,19 @@ export function CopilotWidget() {
   }, [conversationId, messages.length, loadConversation])
 
   // Delete a conversation
+  const [deletingConvId, setDeletingConvId] = useState<string | null>(null)
   const deleteConversation = useCallback(async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
+    if (deletingConvId) return
+    setDeletingConvId(id)
     try {
       await copilotApi.deleteConversation(id)
       setConversations((prev) => prev.filter((c) => c.id !== id))
       // If active conversation is deleted, start fresh
       if (conversationId === id) startNewConversation()
     } catch { /* silent */ }
-  }, [conversationId, startNewConversation])
+    finally { setDeletingConvId(null) }
+  }, [conversationId, startNewConversation, deletingConvId])
 
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
@@ -961,7 +965,10 @@ export function CopilotWidget() {
     setShowClearConfirm(true)
   }, [])
 
+  const [clearingAll, setClearingAll] = useState(false)
   const confirmClearAll = useCallback(async () => {
+    if (clearingAll) return
+    setClearingAll(true)
     try {
       await copilotApi.deleteAllConversations()
       setConversations([])
@@ -969,9 +976,10 @@ export function CopilotWidget() {
     } catch (err) {
       console.error('Error clearing chat history:', err)
     } finally {
+      setClearingAll(false)
       setShowClearConfirm(false)
     }
-  }, [startNewConversation])
+  }, [startNewConversation, clearingAll])
 
   const [pendingApproval, setPendingApproval] = useState<any>(null)
 
@@ -2022,11 +2030,12 @@ export function CopilotWidget() {
                                 <div style={s.historyItemDate}>{fmtTime(conv.updated_at)}</div>
                                 <button
                                   className="c-hist-del"
-                                  style={s.historyDeleteBtn}
+                                  style={{ ...s.historyDeleteBtn, opacity: deletingConvId ? 0.6 : 1 }}
+                                  disabled={!!deletingConvId}
                                   onClick={(e) => deleteConversation(e, conv.id)}
                                   title="Delete"
                                 >
-                                  <TrashIcon />
+                                  {deletingConvId === conv.id ? <span className="c-dot" /> : <TrashIcon />}
                                 </button>
                               </div>
                             ))}
@@ -2049,8 +2058,20 @@ export function CopilotWidget() {
                             <h4 className="mb-2.5 text-hb-body text-hb-text">Delete All History?</h4>
                             <p className="mb-5 text-hb-sm text-hb-muted">This action cannot be undone and will permanently delete all chat history.</p>
                             <div className="flex gap-2.5">
-                              <button onClick={() => setShowClearConfirm(false)} style={{ flex: 1, padding: '8px', background: 'rgb(var(--hb-surface-2))', color: 'rgb(var(--hb-text))', border: '1px solid var(--hb-border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-                              <button onClick={confirmClearAll} style={{ flex: 1, padding: '8px', background: 'rgb(var(--hb-error))', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Delete All</button>
+                              <button
+                                onClick={() => setShowClearConfirm(false)}
+                                disabled={clearingAll}
+                                style={{ flex: 1, padding: '8px', background: 'rgb(var(--hb-surface-2))', color: 'rgb(var(--hb-text))', border: '1px solid var(--hb-border)', borderRadius: '6px', cursor: clearingAll ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: clearingAll ? 0.6 : 1 }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={confirmClearAll}
+                                disabled={clearingAll}
+                                style={{ flex: 1, padding: '8px', background: 'rgb(var(--hb-error))', color: 'white', border: 'none', borderRadius: '6px', cursor: clearingAll ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: clearingAll ? 0.7 : 1 }}
+                              >
+                                {clearingAll ? 'Deleting…' : 'Delete All'}
+                              </button>
                             </div>
                           </div>
                         </div>

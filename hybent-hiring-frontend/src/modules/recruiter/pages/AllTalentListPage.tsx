@@ -519,19 +519,24 @@ export default function AllTalentListPage() {
     return partial?.id ?? null
   }
 
-  const addToPipeline = async (candidate: any) => {
+  const addToPipelineMutation = useMutation({
+    mutationFn: ({ candidate, jobId }: { candidate: any; jobId: string }) =>
+      candidatesApi.updateStage(candidate.id, 'applied', false, jobId),
+    onSuccess: () => {
+      toast.success('Added to pipeline')
+      invalidateAll()
+    },
+    onError: () => toast.error('Failed to add to pipeline'),
+  })
+
+  const addToPipeline = (candidate: any) => {
+    if (addToPipelineMutation.isPending) return
     const jobId = resolveJobForCandidate(candidate)
     if (!jobId) {
       toast.error('No active job matches this candidate’s role. Pick a designation first.')
       return
     }
-    try {
-      await candidatesApi.updateStage(candidate.id, 'applied', false, jobId)
-      toast.success('Added to pipeline')
-      invalidateAll()
-    } catch {
-      toast.error('Failed to add to pipeline')
-    }
+    addToPipelineMutation.mutate({ candidate, jobId })
   }
 
   const currentDesignationTitle =
@@ -924,7 +929,16 @@ export default function AllTalentListPage() {
             candidate={actionsTarget}
             isAdmin={isAdmin}
             hasActiveJobs={activeJobs.length > 0}
-            onStage={(stage) => stageMutation.mutate({ id: actionsTarget.id, stage })}
+            busy={
+              stageMutation.isPending
+                ? stageMutation.variables?.stage ?? 'stage'
+                : addToPipelineMutation.isPending
+                  ? 'addToPipeline'
+                  : null
+            }
+            onStage={(stage) => {
+              if (!stageMutation.isPending) stageMutation.mutate({ id: actionsTarget.id, stage })
+            }}
             onAddToPipeline={() => {
               addToPipeline(actionsTarget)
               setActionsTarget(null)

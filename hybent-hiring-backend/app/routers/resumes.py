@@ -241,34 +241,15 @@ async def upload_and_create(
                 }
             )
     else:
-        # Determine designation title from candidate's resume
-        new_title = parsed.get("current_title") or parsed_category or "Software Engineer"
-        new_title = new_title.strip()
-        
-        # Check if designation already exists in the organization
-        stmt = select(Job).where(
-            Job.title.ilike(new_title),
-            Job.organization_id == current_user.organization_id
+        # No job explicitly chosen — find/create a designation pool by title,
+        # via the same helper the email-ingestion pipeline uses.
+        from app.utils.job_matching import resolve_or_create_pool_job
+        job = await resolve_or_create_pool_job(
+            db,
+            current_user.organization_id,
+            title_hint=parsed.get("current_title"),
+            category_hint=parsed_category,
         )
-        existing_job_res = await db.execute(stmt)
-        matched_job = existing_job_res.scalar_one_or_none()
-        
-        if not matched_job:
-            # Create a new designation pool
-            matched_job = Job(
-                organization_id=current_user.organization_id,
-                title=new_title,
-                status="pool",
-                description=f"Designation pool for {new_title}",
-                openings=0,
-                job_type="full_time"
-            )
-            db.add(matched_job)
-            await db.flush()
-            logger.info(f"Automatically created new designation pool: '{new_title}' (ID: {matched_job.id}) for candidate {full_name}")
-            
-        # Override target parameters to match the new/found designation
-        job = matched_job
         target_title = job.title
 
     # Priority 1: compute score using the real ML scorer

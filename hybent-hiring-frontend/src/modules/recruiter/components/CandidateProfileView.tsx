@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, CalendarPlus, FileText, Mail, Mic, Sparkles, User, Zap } from 'lucide-react'
 
 import { useCopilotStore } from '@/store/useCopilotStore'
+import { useAsyncAction } from '@/hooks/useAsyncAction'
 import { candidatesApi } from '@/api/candidates'
 import type { Candidate } from '@/types'
 import { Avatar, Badge, Button, StatusPill, Tabs, TabPanel } from '@/components/hb'
@@ -86,6 +87,7 @@ export function CandidateProfileView({
 
   const setPageContext = useCopilotStore((s) => s.setPageContext)
   const [tab, setTab] = useState<TabKey>(initialTab ?? 'details')
+  const [openCandidateResume, openingResume] = useAsyncAction(openResume)
 
   useEffect(() => {
     setPageContext({ candidate_id: candidate.id, candidate_name: candidate.full_name })
@@ -129,7 +131,8 @@ export function CandidateProfileView({
                 variant="ghost"
                 size="sm"
                 icon={<FileText size={13} />}
-                onClick={() => openResume(candidate)}
+                loading={openingResume}
+                onClick={() => openCandidateResume(candidate)}
               >
                 Resume
               </Button>

@@ -73,6 +73,11 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
   const [detail, setDetail] = useState<ImportBatchDetail | null>(null)
   const [rollbackTarget, setRollbackTarget] = useState<string | null>(null)
   const [rollbackLoading, setRollbackLoading] = useState(false)
+  /** The row action currently in flight — every row action is disabled while
+   * set, so a fast click can't fire the same download/detail fetch twice. */
+  const [busyAction, setBusyAction] = useState<{ id: string; kind: 'detail' | 'failed' | 'original' } | null>(
+    null
+  )
 
   const load = async () => {
     setLoading(true)
@@ -97,11 +102,15 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
   }, [open])
 
   const handleDetail = async (batchId: string) => {
+    if (busyAction) return
+    setBusyAction({ id: batchId, kind: 'detail' })
     try {
       const res = await bulkImportApi.getHistoryDetail(batchId)
       setDetail(res.data)
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to load batch details')
+    } finally {
+      setBusyAction(null)
     }
   }
 
@@ -126,29 +135,41 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
   }
 
   const downloadFailed = (batchId: string) => {
-    bulkImportApi.downloadFailedRows(batchId).then((res) => {
-      const url = window.URL.createObjectURL(res.data)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `import_${batchId}_failed_rows.csv`
-      a.click()
-      window.URL.revokeObjectURL(url)
-    }).catch((err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to download failed rows')
-    })
+    if (busyAction) return
+    setBusyAction({ id: batchId, kind: 'failed' })
+    bulkImportApi
+      .downloadFailedRows(batchId)
+      .then((res) => {
+        const url = window.URL.createObjectURL(res.data)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `import_${batchId}_failed_rows.csv`
+        a.click()
+        window.URL.revokeObjectURL(url)
+      })
+      .catch((err: any) => {
+        toast.error(err?.response?.data?.message || 'Failed to download failed rows')
+      })
+      .finally(() => setBusyAction(null))
   }
 
   const downloadOriginal = (batchId: string) => {
-    bulkImportApi.downloadOriginalFile(batchId).then((res) => {
-      const url = window.URL.createObjectURL(res.data)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `import_${batchId}_original.xlsx`
-      a.click()
-      window.URL.revokeObjectURL(url)
-    }).catch((err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to download original file')
-    })
+    if (busyAction) return
+    setBusyAction({ id: batchId, kind: 'original' })
+    bulkImportApi
+      .downloadOriginalFile(batchId)
+      .then((res) => {
+        const url = window.URL.createObjectURL(res.data)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `import_${batchId}_original.xlsx`
+        a.click()
+        window.URL.revokeObjectURL(url)
+      })
+      .catch((err: any) => {
+        toast.error(err?.response?.data?.message || 'Failed to download original file')
+      })
+      .finally(() => setBusyAction(null))
   }
 
   const columns: Array<Column<ImportBatchSummary>> = [
@@ -196,48 +217,59 @@ export function BulkImportHistoryModal({ open, onClose, onRollbackSuccess }: Pro
     {
       key: 'actions',
       header: 'Actions',
-      cell: (row) => (
-        <div className="flex flex-wrap gap-hb-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<Eye size={14} />}
-            onClick={() => handleDetail(row.id)}
-            aria-label={`Details for ${row.file_name}`}
-          >
-            Details
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<Download size={14} />}
-            onClick={() => downloadFailed(row.id)}
-            aria-label={`Failed CSV for ${row.file_name}`}
-          >
-            Failed CSV
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<Download size={14} />}
-            onClick={() => downloadOriginal(row.id)}
-            aria-label={`Original file for ${row.file_name}`}
-          >
-            Original
-          </Button>
-          {row.status !== 'rolled_back' && (
+      cell: (row) => {
+        const rowBusy = busyAction?.id === row.id ? busyAction.kind : null
+        const otherRowBusy = !!busyAction && busyAction.id !== row.id
+        return (
+          <div className="flex flex-wrap gap-hb-2">
             <Button
-              variant="danger"
+              variant="ghost"
               size="sm"
-              icon={<RotateCcw size={14} />}
-              onClick={() => handleRollback(row.id)}
-              aria-label={`Rollback the import of ${row.file_name}`}
+              icon={<Eye size={14} />}
+              loading={rowBusy === 'detail'}
+              disabled={otherRowBusy || (!!rowBusy && rowBusy !== 'detail')}
+              onClick={() => handleDetail(row.id)}
+              aria-label={`Details for ${row.file_name}`}
             >
-              Rollback
+              Details
             </Button>
-          )}
-        </div>
-      ),
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Download size={14} />}
+              loading={rowBusy === 'failed'}
+              disabled={otherRowBusy || (!!rowBusy && rowBusy !== 'failed')}
+              onClick={() => downloadFailed(row.id)}
+              aria-label={`Failed CSV for ${row.file_name}`}
+            >
+              Failed CSV
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Download size={14} />}
+              loading={rowBusy === 'original'}
+              disabled={otherRowBusy || (!!rowBusy && rowBusy !== 'original')}
+              onClick={() => downloadOriginal(row.id)}
+              aria-label={`Original file for ${row.file_name}`}
+            >
+              Original
+            </Button>
+            {row.status !== 'rolled_back' && (
+              <Button
+                variant="danger"
+                size="sm"
+                icon={<RotateCcw size={14} />}
+                disabled={!!busyAction}
+                onClick={() => handleRollback(row.id)}
+                aria-label={`Rollback the import of ${row.file_name}`}
+              >
+                Rollback
+              </Button>
+            )}
+          </div>
+        )
+      },
     },
   ]
 

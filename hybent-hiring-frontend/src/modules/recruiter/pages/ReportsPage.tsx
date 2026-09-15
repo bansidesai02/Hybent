@@ -15,6 +15,7 @@ import {
 } from 'recharts'
 
 import { useAuth } from '@/hooks/useAuth'
+import { useAsyncAction } from '@/hooks/useAsyncAction'
 import { reportsApi } from '@/api/reports'
 import { adminApi } from '@/api/admin'
 import { superAdminApi } from '@/api/superAdmin'
@@ -98,7 +99,7 @@ export default function ReportsPage() {
 
   const exportEnabled = !!globalFlags?.analytics
 
-  const download = async () => {
+  const [download, downloading] = useAsyncAction(async () => {
     if (!exportEnabled) {
       toast.error('Advanced export is disabled for your organisation. Contact your administrator.')
       return
@@ -118,7 +119,7 @@ export default function ReportsPage() {
       console.error('Download failed', error)
       toast.error('Failed to download the report')
     }
-  }
+  })
 
   const funnelData = [
     { name: 'Applied', value: summary?.applied ?? 0 },
@@ -152,8 +153,9 @@ export default function ReportsPage() {
           <Button
             icon={exportEnabled ? <Download size={16} /> : <Lock size={16} />}
             disabled={!exportEnabled}
+            loading={downloading}
             title={exportEnabled ? 'Download Excel report' : 'Export is disabled for your organisation'}
-            onClick={download}
+            onClick={() => download()}
           >
             Download Excel report
           </Button>

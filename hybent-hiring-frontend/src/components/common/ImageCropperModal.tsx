@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react'
 import Cropper from 'react-easy-crop'
+import { Loader2 } from 'lucide-react'
 import getCroppedImg from '@/utils/cropImage'
+import { useAsyncAction } from '@/hooks/useAsyncAction'
 
 interface ImageCropperModalProps {
   image: string | null
@@ -30,7 +32,10 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
     setCroppedAreaPixels(croppedAreaPixels)
   }, [])
 
-  const handleSave = async () => {
+  // `onCropComplete` triggers the caller's upload mutation, so a fast
+  // double-click on "Apply & Save" could fire it twice before this component
+  // unmounts — guarded with the shared async-action hook.
+  const [handleSave, isSaving] = useAsyncAction(async () => {
     try {
       if (!image) return
       const croppedBlob = await getCroppedImg(image, croppedAreaPixels, rotation)
@@ -41,7 +46,7 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
     } catch (e) {
       console.error(e)
     }
-  }
+  })
 
   const zoomIn = () => setZoom(prev => Math.min(prev + 0.2, 3))
   const zoomOut = () => setZoom(prev => Math.max(prev - 0.2, 1))
@@ -52,7 +57,7 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
       <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
           <h3 className="text-xl font-bold text-gray-800">Adjust Your Photo</h3>
-          <button 
+          <button
             onClick={onCancel}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
@@ -93,7 +98,7 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
             </div>
 
             <div className="flex items-center justify-center gap-4 pt-2">
-              <button 
+              <button
                 onClick={rotateClockwise}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-semibold hover:bg-gray-50 transition-all"
               >
@@ -111,8 +116,10 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
+              disabled={isSaving}
+              className="flex-1 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 inline-flex items-center justify-center gap-2"
             >
+              {isSaving && <Loader2 size={16} className="animate-spin" aria-hidden />}
               Apply & Save
             </button>
           </div>

@@ -32,6 +32,7 @@ import {
 } from '@/api/preScreening'
 import { AudioRecorder } from '@/modules/interviewer/components/PreScreening/AudioRecorder'
 import { Badge, Button, Card, Meter, Skeleton } from '@/components/hb'
+import { useAsyncAction } from '@/hooks/useAsyncAction'
 
 type PageState = 'loading' | 'intro' | 'question' | 'completed' | 'error'
 
@@ -102,7 +103,6 @@ export default function PreScreeningPage() {
   // Language state
   const [selectedLanguage, setSelectedLanguage] = useState<ScreeningLanguage>('english')
   const [translatedQuestions, setTranslatedQuestions] = useState<ScreeningQuestion[]>([])
-  const [langLoading, setLangLoading] = useState(false)
 
   // Load session on mount
   useEffect(() => {
@@ -156,19 +156,17 @@ export default function PreScreeningPage() {
         return
       }
 
-      setLangLoading(true)
       try {
         const res = await preScreeningApi.updateLanguage(session.id, lang)
         setTranslatedQuestions(res.data.translated_questions)
       } catch {
         // Fall back to original English questions silently
         setTranslatedQuestions([])
-      } finally {
-        setLangLoading(false)
       }
     },
     [session, selectedLanguage]
   )
+  const [runSelectLanguage, langLoading] = useAsyncAction(handleSelectLanguage)
 
   // Active questions (translated if applicable)
   const activeQuestions: ScreeningQuestion[] =
@@ -188,6 +186,7 @@ export default function PreScreeningPage() {
     }
     setPageState('question')
   }, [session])
+  const [runStart, startLoading] = useAsyncAction(handleStart)
 
   const handleUpload = useCallback(
     async (blob: Blob, durationSeconds: number) => {
@@ -212,6 +211,7 @@ export default function PreScreeningPage() {
       setCurrentIndex(nextIndex)
     }
   }, [session, currentIndex])
+  const [runNext, nextLoading] = useAsyncAction(handleNext)
 
   // ── Render: loading ─────────────────────────────────────────────────────────
   if (pageState === 'loading') {
@@ -299,7 +299,7 @@ export default function PreScreeningPage() {
                     role="radio"
                     aria-checked={active}
                     disabled={langLoading}
-                    onClick={() => handleSelectLanguage(opt.key)}
+                    onClick={() => runSelectLanguage(opt.key)}
                     className={`flex flex-col items-center gap-0.5 rounded-hb-md border px-3 py-3 transition-all duration-hb ease-hb focus-visible:outline-none focus-visible:shadow-hb-ring disabled:opacity-60 ${
                       active
                         ? 'border-hb-blue/45 bg-hb-blue/8'
@@ -369,8 +369,9 @@ export default function PreScreeningPage() {
           <Button
             size="lg"
             className="w-full"
-            onClick={handleStart}
-            disabled={langLoading}
+            onClick={() => runStart()}
+            disabled={langLoading || startLoading}
+            loading={startLoading}
             icon={<ChevronRight size={17} />}
           >
             Start pre-screening
@@ -449,7 +450,9 @@ export default function PreScreeningPage() {
             <Button
               size="lg"
               className="w-full"
-              onClick={handleNext}
+              onClick={() => runNext()}
+              loading={nextLoading}
+              disabled={nextLoading}
               icon={
                 currentIndex + 1 < session.questions.length ? (
                   <ChevronRight size={16} />

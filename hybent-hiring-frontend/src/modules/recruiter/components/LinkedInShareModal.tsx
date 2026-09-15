@@ -230,6 +230,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
   const [isConnected, setIsConnected] = useState<boolean | null>(null)
   const [isCheckingConn, setIsCheckingConn] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
 
   // ── Compose state ───────────────────────────────────────────────────────────
   const [isGenerating, setIsGenerating] = useState(false)
@@ -308,12 +309,16 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
   }
 
   const handleDisconnect = async () => {
+    if (isDisconnecting) return
+    setIsDisconnecting(true)
     try {
       await linkedinApi.disconnect()
       setIsConnected(false)
       toast.success('LinkedIn disconnected.')
     } catch {
       toast.error('Failed to disconnect.')
+    } finally {
+      setIsDisconnecting(false)
     }
   }
 
@@ -507,7 +512,13 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
         ) : isConnected ? (
           <>
             <Badge tone="success" dot>LinkedIn connected</Badge>
-            <Button variant="quiet" size="sm" icon={<Unlink size={13} />} onClick={handleDisconnect}>
+            <Button
+              variant="quiet"
+              size="sm"
+              icon={<Unlink size={13} />}
+              loading={isDisconnecting}
+              onClick={handleDisconnect}
+            >
               Disconnect
             </Button>
           </>
@@ -603,7 +614,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                     aria-pressed={imageType === t.value}
                     onClick={() => {
                       setImageType(t.value)
-                      if (t.value === 'ai' && !aiImageUrl) handleGenerateImagePrompt()
+                      if (t.value === 'ai' && !aiImageUrl && !isGeneratingImage) handleGenerateImagePrompt()
                     }}
                     className={segChip(imageType === t.value)}
                   >
@@ -636,7 +647,8 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    disabled={!imagePrompt}
+                    disabled={!imagePrompt || isGeneratingImage}
+                    loading={isGeneratingImage}
                     onClick={handleRefreshImage}
                   >
                     Generate new visual

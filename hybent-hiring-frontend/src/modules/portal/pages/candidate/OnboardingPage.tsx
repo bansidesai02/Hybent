@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { invitationsApi } from '@/api/invitations'
 import { Button, Card, Input } from '@/components/hb'
+import { useAsyncAction } from '@/hooks/useAsyncAction'
 
 /**
  * The invitation landing page: verify the token, set a password, drop the
@@ -50,15 +51,13 @@ export default function OnboardingPage() {
   const { isAuthenticated, user, logout, setTokens } = useAuthStore()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleApply = async () => {
+  const [handleApply, isSubmitting] = useAsyncAction(async () => {
     if (!token) return
     if (!password) return toast.error('Please set a password')
     if (password !== confirmPassword) return toast.error('Passwords do not match')
     if (password.length < 6) return toast.error('Password must be at least 6 characters')
 
-    setIsSubmitting(true)
     try {
       const res = await invitationsApi.use(token, { password })
       toast.success('Account activated!')
@@ -72,10 +71,8 @@ export default function OnboardingPage() {
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to activate account')
-    } finally {
-      setIsSubmitting(false)
     }
-  }
+  })
 
   if (isAuthenticated && user?.role !== 'candidate') {
     return (
@@ -187,7 +184,7 @@ export default function OnboardingPage() {
             </p>
           </div>
 
-          <Button onClick={handleApply} loading={isSubmitting} size="lg" className="w-full">
+          <Button onClick={() => handleApply()} loading={isSubmitting} size="lg" className="w-full">
             Create account & join portal
           </Button>
 

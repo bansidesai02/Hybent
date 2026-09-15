@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Eye,
   FileText,
+  Loader2,
   MessageCircle,
   RefreshCw,
   Target,
@@ -54,6 +55,40 @@ function NotificationBellComponent() {
   const bellRef = useRef<HTMLDivElement>(null)
   const { markRead, markAllRead } = useNotifications({ enablePush: open })
   const { notifications } = useNotificationStore()
+
+  // `markRead`/`markAllRead` are bare `mutation.mutate` functions (the hook
+  // exposes no `isPending`), so the re-entry guard is hand-rolled here: a ref
+  // checked synchronously before the mutation fires, reset via the mutate
+  // call's own per-call `onSettled` option, plus local state to drive the
+  // spinner/disabled visuals.
+  const markingAllRef = useRef(false)
+  const [markingAllRead, setMarkingAllRead] = useState(false)
+  const markingIdsRef = useRef<Set<string>>(new Set())
+  const [markingIds, setMarkingIds] = useState<Set<string>>(new Set())
+
+  const handleMarkAllRead = () => {
+    if (markingAllRef.current) return
+    markingAllRef.current = true
+    setMarkingAllRead(true)
+    markAllRead(undefined, {
+      onSettled: () => {
+        markingAllRef.current = false
+        setMarkingAllRead(false)
+      },
+    })
+  }
+
+  const handleMarkRead = (id: string) => {
+    if (markingIdsRef.current.has(id)) return
+    markingIdsRef.current.add(id)
+    setMarkingIds(new Set(markingIdsRef.current))
+    markRead(id, {
+      onSettled: () => {
+        markingIdsRef.current.delete(id)
+        setMarkingIds(new Set(markingIdsRef.current))
+      },
+    })
+  }
 
   // Only show the latest 5 notifications and count unread among them
   const displayNotifications = notifications.slice(0, 5)
@@ -117,9 +152,11 @@ function NotificationBellComponent() {
               </div>
               {displayUnreadCount > 0 && (
                 <button
-                  onClick={() => markAllRead()}
-                  className="text-hb-xs font-semibold text-hb-cyan transition-colors duration-hb hover:text-hb-text"
+                  onClick={handleMarkAllRead}
+                  disabled={markingAllRead}
+                  className="flex items-center gap-1 text-hb-xs font-semibold text-hb-cyan transition-colors duration-hb hover:text-hb-text disabled:cursor-not-allowed disabled:opacity-60"
                 >
+                  {markingAllRead && <Loader2 size={11} className="animate-spin" aria-hidden />}
                   Mark all read
                 </button>
               )}
@@ -136,13 +173,20 @@ function NotificationBellComponent() {
                 displayNotifications.map((n) => (
                   <button
                     key={n.id}
-                    onClick={() => { if (!n.is_read) markRead(n.id) }}
-                    className={`w-full px-4 py-3 text-left transition-colors duration-hb hover:bg-hb-surface-2 ${
+                    onClick={() => { if (!n.is_read) handleMarkRead(n.id) }}
+                    disabled={markingIds.has(n.id)}
+                    className={`w-full px-4 py-3 text-left transition-colors duration-hb hover:bg-hb-surface-2 disabled:cursor-not-allowed disabled:opacity-70 ${
                       !n.is_read ? 'bg-hb-blue/[0.05]' : ''
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <span className="mt-0.5 shrink-0 text-hb-cyan">{notifIcon(n.type)}</span>
+                      <span className="mt-0.5 shrink-0 text-hb-cyan">
+                        {markingIds.has(n.id) ? (
+                          <Loader2 size={15} className="animate-spin" aria-hidden />
+                        ) : (
+                          notifIcon(n.type)
+                        )}
+                      </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start gap-1.5">
                           {!n.is_read && (

@@ -208,8 +208,64 @@ def _extract_body(payload: dict) -> tuple[str | None, str | None]:
     return text_body, html_body
 
 
+def _extract_attachment_parts(payload: dict) -> list[dict]:
+    """Walk a (possibly nested multipart) Gmail message payload for parts that
+    carry a filename (i.e. attachments, as opposed to the text/html body
+    parts handled by _extract_body). A part's bytes are either inline
+    (body.data, small attachments) or must be fetched separately via
+    body.attachmentId (large attachments)."""
+    attachments: list[dict] = []
+
+    def walk(part: dict):
+        filename = part.get("filename")
+        if filename:
+            body = part.get("body", {})
+            attachments.append({
+                "filename": filename,
+                "mime_type": part.get("mimeType", "application/octet-stream"),
+                "size": body.get("size", 0),
+                "attachment_id": body.get("attachmentId"),
+                "inline_data": body.get("data"),
+            })
+        for sub_part in part.get("parts", []):
+            walk(sub_part)
+
+    walk(payload)
+    return attachments
+
+
+def get_attachment_content(account: EmailAccount, provider_message_id: str, attachment: dict) -> bytes:
+    """Resolve an attachment dict from _extract_attachment_parts to its raw
+    bytes — inline data is decoded directly, otherwise it's fetched via the
+    attachments endpoint (large attachments Gmail didn't inline)."""
+    inline_data = attachment.get("inline_data")
+    if inline_data:
+        return base64.urlsafe_b64decode(inline_data + "=" * (-len(inline_data) % 4))
+    attachment_id = attachment.get("attachment_id")
+    if not attachment_id:
+        raise ValueError("Attachment has neither inline data nor an attachment_id")
+    return get_attachment_bytes(account, provider_message_id, attachment_id)
+
+
+def get_attachment_bytes(account: EmailAccount, provider_message_id: str, attachment_id: str) -> bytes:
+    """Fetch one attachment's raw bytes for a message whose data wasn't
+    inlined in the full-message payload (large attachments)."""
+    access_token = _get_access_token(account)
+    response = httpx.get(
+        f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}"
+        f"/messages/{provider_message_id}/attachments/{attachment_id}",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=15,
+    )
+    if response.status_code >= 400:
+        raise ValueError(f"Gmail API get attachment failed: {response.text}")
+    data = response.json().get("data", "")
+    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+
+
 def get_message_full(account: EmailAccount, provider_message_id: str) -> dict:
-    """Fetch a single message's full body live — never stored at rest."""
+    """Fetch a single message's full body + attachment metadata live — bodies
+    are never stored at rest."""
     access_token = _get_access_token(account)
     response = httpx.get(
         f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages/{provider_message_id}",
@@ -220,5 +276,15 @@ def get_message_full(account: EmailAccount, provider_message_id: str) -> dict:
     if response.status_code >= 400:
         raise ValueError(f"Gmail API get message failed: {response.text}")
     detail = response.json()
-    text_body, html_body = _extract_body(detail.get("payload", {}))
-    return {"body_text": text_body, "body_html": html_body}
+    payload = detail.get("payload", {})
+    text_body, html_body = _extract_body(payload)
+    msg_headers = payload.get("headers", [])
+    from_name, from_address = _parse_from_header(_header(msg_headers, "From"))
+    return {
+        "body_text": text_body,
+        "body_html": html_body,
+        "attachments": _extract_attachment_parts(payload),
+        "from_name": from_name,
+        "from_address": from_address,
+        "subject": _header(msg_headers, "Subject"),
+    }

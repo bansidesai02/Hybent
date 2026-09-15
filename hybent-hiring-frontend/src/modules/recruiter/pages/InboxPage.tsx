@@ -100,7 +100,12 @@ export default function InboxPage() {
           <EmptyState
             title="No messages yet"
             description="Click Sync now to pull in recent mail, or wait — this inbox syncs automatically every few minutes."
-            action={{ label: 'Sync now', onClick: () => syncMutation.mutate() }}
+            action={{
+              label: 'Sync now',
+              onClick: () => {
+                if (!syncMutation.isPending) syncMutation.mutate()
+              },
+            }}
           />
         </Card>
       ) : (

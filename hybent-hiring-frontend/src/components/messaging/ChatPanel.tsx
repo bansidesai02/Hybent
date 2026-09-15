@@ -5,7 +5,7 @@ import { Avatar } from '@/components/hb'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
-import { X, MessageSquare, Check, CheckCheck, SendHorizontal } from 'lucide-react'
+import { X, MessageSquare, Check, CheckCheck, SendHorizontal, Loader2 } from 'lucide-react'
 
 interface ChatPanelProps {
   open: boolean
@@ -282,13 +282,18 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
                  <button
                   type="submit"
                   disabled={!newMessage.trim() || sending}
-                  className={`flex h-10 w-10 items-center justify-center rounded-hb-sm transition-all duration-hb ${
-                    newMessage.trim() 
+                  aria-busy={sending || undefined}
+                  className={`flex h-10 w-10 items-center justify-center rounded-hb-sm transition-all duration-hb disabled:cursor-not-allowed ${
+                    newMessage.trim()
                       ? 'bg-hb-grad text-white shadow-hb-2 hover:scale-105 active:scale-95'
                       : 'bg-hb-muted/15 text-hb-dim opacity-60'
                   }`}
                 >
-                  <SendHorizontal className="w-5 h-5" />
+                  {sending ? (
+                    <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
+                  ) : (
+                    <SendHorizontal className="w-5 h-5" />
+                  )}
                 </button>
               </form>
               <p className="mt-3 text-center font-mono text-hb-micro font-bold uppercase tracking-widest text-hb-dim">

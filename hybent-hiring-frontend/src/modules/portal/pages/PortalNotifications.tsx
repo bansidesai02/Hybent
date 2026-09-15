@@ -11,6 +11,7 @@ import {
   Eye,
   FileText,
   Inbox,
+  Loader2,
   MessageSquare,
   RefreshCw,
   Target,
@@ -180,8 +181,11 @@ export default function PortalNotifications() {
                 variant="ghost"
                 size="sm"
                 icon={<Check size={14} />}
-                onClick={() => markAllReadMutation.mutate()}
+                onClick={() => {
+                  if (!markAllReadMutation.isPending) markAllReadMutation.mutate()
+                }}
                 loading={markAllReadMutation.isPending}
+                disabled={markAllReadMutation.isPending}
               >
                 Mark all read
               </Button>
@@ -227,6 +231,8 @@ export default function PortalNotifications() {
           <AnimatePresence initial={false}>
             {filtered.map((n, idx) => {
               const meta = notifMeta(n.type)
+              const isMarkingRead = markReadMutation.isPending && markReadMutation.variables === n.id
+              const isDeleting = deleteMutation.isPending && deleteMutation.variables === n.id
               return (
                 <motion.div
                   key={n.id}
@@ -238,10 +244,12 @@ export default function PortalNotifications() {
                 >
                   <button
                     type="button"
+                    disabled={isMarkingRead}
+                    aria-busy={isMarkingRead || undefined}
                     onClick={() => {
-                      if (!n.is_read) markReadMutation.mutate(n.id)
+                      if (!n.is_read && !isMarkingRead) markReadMutation.mutate(n.id)
                     }}
-                    className={`group relative flex w-full items-start gap-3.5 rounded-hb-md border p-4 text-left transition-all duration-hb ease-hb hover:-translate-y-px hover:shadow-hb-card-hover focus-visible:outline-none focus-visible:shadow-hb-ring ${
+                    className={`group relative flex w-full items-start gap-3.5 rounded-hb-md border p-4 text-left transition-all duration-hb ease-hb hover:-translate-y-px hover:shadow-hb-card-hover focus-visible:outline-none focus-visible:shadow-hb-ring disabled:cursor-wait ${
                       n.is_read
                         ? 'border-hb-border bg-hb-surface'
                         : 'border-hb-blue/35 bg-hb-blue/[0.05]'
@@ -278,25 +286,31 @@ export default function PortalNotifications() {
 
                     <span
                       role="button"
-                      tabIndex={0}
+                      tabIndex={isDeleting ? -1 : 0}
                       aria-label="Dismiss notification"
+                      aria-disabled={isDeleting || undefined}
+                      aria-busy={isDeleting || undefined}
                       title="Dismiss"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteMutation.mutate(n.id)
+                        if (!isDeleting) deleteMutation.mutate(n.id)
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
                           e.stopPropagation()
-                          deleteMutation.mutate(n.id)
+                          if (!isDeleting) deleteMutation.mutate(n.id)
                         }
                       }}
                       className={`grid h-7 w-7 shrink-0 place-items-center rounded-hb-sm border border-hb-border text-hb-dim opacity-60 transition-all duration-hb hover:border-hb-error/30 hover:bg-hb-error/8 hover:text-hb-error hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-hb-ring ${
-                        !n.is_read ? 'mr-4' : ''
-                      }`}
+                        isDeleting ? 'cursor-wait opacity-100' : ''
+                      } ${!n.is_read ? 'mr-4' : ''}`}
                     >
-                      <X size={13} aria-hidden />
+                      {isDeleting ? (
+                        <Loader2 size={13} className="animate-spin" aria-hidden />
+                      ) : (
+                        <X size={13} aria-hidden />
+                      )}
                     </span>
                   </button>
                 </motion.div>

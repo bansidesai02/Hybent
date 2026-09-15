@@ -85,7 +85,18 @@ class Candidate(Base):
         UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
-    source: Mapped[str | None] = mapped_column(String(100))  # linkedin, referral, job_board, etc.
+    source: Mapped[str | None] = mapped_column(String(100))  # linkedin, referral, job_board, email, etc.
+
+    # Provenance for candidates auto-created from an inbound email attachment
+    # (source="email"). created_by_id stays NULL for these — no human acted —
+    # and this pair of FKs is how the UI reconstructs "auto-added from
+    # <mailbox>, connected by <user>" instead of crediting a person.
+    source_email_message_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("email_messages.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    source_email_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("email_accounts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     
     # Bulk import specific fields
     sr_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
