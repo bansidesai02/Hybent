@@ -44,6 +44,8 @@ interface CandidateProfileViewProps {
   hideInvite?: boolean
   hideSchedule?: boolean
   initialTab?: TabKey
+  /** Whether the caller's invite mutation is currently in flight. */
+  isInviting?: boolean
 }
 
 /** Opens the résumé, refreshing the signed URL when the file lives in storage. */
@@ -75,6 +77,7 @@ export function CandidateProfileView({
   hideInvite,
   hideSchedule,
   initialTab,
+  isInviting = false,
 }: CandidateProfileViewProps) {
   const { data: candidate = initialCandidate } = useQuery({
     queryKey: ['candidate-detail', initialCandidate.id],
@@ -139,7 +142,14 @@ export function CandidateProfileView({
             )}
 
             {onInvite && !hideInvite && (
-              <Button variant="ghost" size="sm" icon={<Mail size={13} />} onClick={onInvite}>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Mail size={13} />}
+                loading={isInviting}
+                disabled={isInviting}
+                onClick={() => { if (!isInviting) onInvite() }}
+              >
                 {hasInvitation ? 'Resend invite' : 'Invite'}
               </Button>
             )}

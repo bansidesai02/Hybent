@@ -967,9 +967,10 @@ export default function AllTalentListPage() {
         {viewTarget && (
           <CandidateProfileView
             candidate={viewTarget}
-            onInvite={() =>
-              inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
-            }
+            onInvite={() => {
+              if (!inviteMutation.isPending) inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
+            }}
+            isInviting={inviteMutation.isPending}
             onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
             hasInvitation={Boolean(viewTarget.invitations?.length)}
           />

@@ -517,7 +517,11 @@ export default function CandidatesPage() {
             size="sm"
             variant="ghost"
             icon={<Mail size={13} />}
-            onClick={() => inviteMutation.mutate({ email: c.email, full_name: c.full_name })}
+            loading={inviteMutation.isPending && inviteMutation.variables?.email === c.email}
+            disabled={inviteMutation.isPending}
+            onClick={() => {
+              if (!inviteMutation.isPending) inviteMutation.mutate({ email: c.email, full_name: c.full_name })
+            }}
             aria-label={`Invite ${c.full_name}`}
           />
           <Button
@@ -749,9 +753,10 @@ export default function CandidatesPage() {
         {viewTarget && (
           <CandidateProfileView
             candidate={viewTarget}
-            onInvite={() =>
-              inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
-            }
+            onInvite={() => {
+              if (!inviteMutation.isPending) inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
+            }}
+            isInviting={inviteMutation.isPending}
             onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
             hasInvitation={Boolean(viewTarget.invitations?.length)}
             hideInvite
