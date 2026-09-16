@@ -463,7 +463,8 @@ async def invite_candidate(data: CandidateInvite, current_user: Annotated[User, 
         candidate_id=candidate.id,
         organization_id=current_user.organization_id,
         email=candidate.email,
-        full_name=candidate.full_name
+        full_name=candidate.full_name,
+        background_tasks=background_tasks,
     )
     
     await log_activity(
