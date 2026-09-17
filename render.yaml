@@ -10,10 +10,16 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      # Supabase Postgres via the SESSION POOLER (port 5432 on
+      # aws-<n>-<region>.pooler.supabase.com, username `postgres.<project-ref>`)
+      # — NOT the "Direct connection" host (db.<ref>.supabase.co), which
+      # resolves IPv6-only on many projects and Render has no IPv6 egress
+      # (this is what caused "Network is unreachable" on first deploy).
+      # Also NOT the Transaction pooler (port 6543) — this service keeps its
+      # own long-lived SQLAlchemy pool, which the Session pooler matches.
+      # Set the actual value in the Render dashboard → Environment tab.
       - key: DATABASE_URL
-        fromDatabase:
-          name: hybent-hiring-db
-          property: connectionString
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
@@ -43,6 +49,20 @@ services:
         sync: false
       - key: SMTP_FROM_NAME
         value: Hybent Hiring
+      # Google OAuth client is shared by Calendar and Gmail (email accounts) —
+      # register BOTH redirect URIs below on that same client in Google Cloud
+      # Console. All four are set manually in the Render dashboard — sync:false
+      # so this file can never auto-overwrite whatever you've set there:
+      #   GOOGLE_REDIRECT_URI = https://hybent-hiring-backend.onrender.com/v1/calendar/callback
+      #   GMAIL_REDIRECT_URI  = https://hybent-hiring-backend.onrender.com/v1/email-accounts/gmail/callback
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: GMAIL_REDIRECT_URI
+        sync: false
 
   # ── Redis ─────────────────────────────────────────────────────────────────
   - type: redis
@@ -50,9 +70,6 @@ services:
     plan: free
     ipAllowList: [] # Only allow internal traffic
 
-# ── Databases ───────────────────────────────────────────────────────────────
-databases:
-  - name: hybent-hiring-db
-    plan: free
-    postgresMajorVersion: 16
-
+# Postgres is hosted on Supabase (not a Render-managed database) — see
+# DATABASE_URL above. Render's free Postgres plan expires and is deleted after
+# a fixed lifetime, which is what caused the earlier DNS/connectivity failure.
