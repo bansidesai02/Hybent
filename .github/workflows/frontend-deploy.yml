@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [ yash ]
+    branches: [ main ]
   pull_request:
     branches: [ main, yash ]
 
@@ -29,8 +29,6 @@ jobs:
 
       - name: Build Optimized Bundle
         working-directory: ./hybent-hiring-frontend
-        env:
-          VITE_API_BASE_URL: https://hybent-hiring-backend.onrender.com
         run: npm run build
 
       - name: Upload Build Artifact
@@ -44,7 +42,7 @@ jobs:
   deploy:
     name: Deploy to Hostinger via SFTP
     needs: build-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       SSH_KEY_SET: ${{ secrets.HOSTINGER_SSH_KEY }}
