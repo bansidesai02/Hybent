@@ -175,7 +175,9 @@ async def upload_and_create(
     job = None
     if job_id and job_id.lower() not in ("null", "undefined", ""):
         try:
-            job_res = await db.execute(select(Job).where(Job.id == uuid.UUID(job_id)))
+            job_res = await db.execute(
+                select(Job).where(Job.id == uuid.UUID(job_id), Job.organization_id == current_user.organization_id)
+            )
             job = job_res.scalar_one_or_none()
         except ValueError:
             pass

@@ -156,15 +156,16 @@ export default function PreScreeningPage() {
         return
       }
 
+      if (!token) return
       try {
-        const res = await preScreeningApi.updateLanguage(session.id, lang)
+        const res = await preScreeningApi.updateLanguage(session.id, lang, token)
         setTranslatedQuestions(res.data.translated_questions)
       } catch {
         // Fall back to original English questions silently
         setTranslatedQuestions([])
       }
     },
-    [session, selectedLanguage]
+    [session, selectedLanguage, token]
   )
   const [runSelectLanguage, langLoading] = useAsyncAction(handleSelectLanguage)
 
@@ -178,31 +179,31 @@ export default function PreScreeningPage() {
   const categoryLabels = CATEGORY_LABELS_I18N[selectedLanguage]
 
   const handleStart = useCallback(async () => {
-    if (!session) return
+    if (!session || !token) return
     try {
-      await preScreeningApi.updateStatus(session.id, 'in_progress')
+      await preScreeningApi.updateStatus(session.id, 'in_progress', token)
     } catch {
       // best effort
     }
     setPageState('question')
-  }, [session])
+  }, [session, token])
   const [runStart, startLoading] = useAsyncAction(handleStart)
 
   const handleUpload = useCallback(
     async (blob: Blob, durationSeconds: number) => {
-      if (!session) throw new Error('No session')
-      await preScreeningApi.uploadResponse(session.id, currentIndex, blob, durationSeconds)
+      if (!session || !token) throw new Error('No session')
+      await preScreeningApi.uploadResponse(session.id, currentIndex, blob, token, durationSeconds)
       setAnsweredIndices((prev) => new Set([...prev, currentIndex]))
     },
-    [session, currentIndex]
+    [session, currentIndex, token]
   )
 
   const handleNext = useCallback(async () => {
-    if (!session) return
+    if (!session || !token) return
     const nextIndex = currentIndex + 1
     if (nextIndex >= session.questions.length) {
       try {
-        await preScreeningApi.updateStatus(session.id, 'completed')
+        await preScreeningApi.updateStatus(session.id, 'completed', token)
       } catch {
         // best effort
       }
@@ -210,7 +211,7 @@ export default function PreScreeningPage() {
     } else {
       setCurrentIndex(nextIndex)
     }
-  }, [session, currentIndex])
+  }, [session, currentIndex, token])
   const [runNext, nextLoading] = useAsyncAction(handleNext)
 
   // ── Render: loading ─────────────────────────────────────────────────────────

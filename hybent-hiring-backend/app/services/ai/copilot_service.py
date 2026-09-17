@@ -1554,6 +1554,32 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
             if table_name not in allowed_tables:
                 return f"❌ Updates to table '{table_name}' are not allowed."
 
+            # Columns the AI is never allowed to touch, even though the caller's
+            # own row is already org-scoped by the WHERE clause below. Without
+            # this, the LLM (or a prompt-injected message) could re-parent a row
+            # to another organization_id, grant itself/another user role="admin",
+            # or overwrite hashed_password/tokens — none of which "update this
+            # candidate's phone number" style requests ever need.
+            UNIVERSALLY_FORBIDDEN_COLUMNS = {
+                "id", "organization_id", "created_at", "updated_at", "is_deleted", "deleted_at",
+            }
+            TABLE_FORBIDDEN_COLUMNS = {
+                "users": {
+                    "hashed_password", "role", "is_active", "is_verified", "mfa_enabled",
+                    "provider", "google_id", "google_refresh_token", "linkedin_access_token",
+                    "email", "fcm_token",
+                },
+                "candidates": {
+                    "user_id", "created_by_id", "import_batch_id", "imported_by_id", "imported_at",
+                    "resume_url", "resume_storage_path", "parsed_data", "match_score", "score_breakdown",
+                    "source_email_message_id", "source_email_account_id",
+                },
+                "jobs": {"created_by_id"},
+                "interviews": {"scheduled_by_id", "calendar_event_id"},
+                "applications": {"job_id", "candidate_id"},
+            }
+            forbidden_columns = UNIVERSALLY_FORBIDDEN_COLUMNS | TABLE_FORBIDDEN_COLUMNS.get(table_name, set())
+
             set_clauses = []
             params = {
                 "rid": uuid.UUID(record_id) if isinstance(record_id, str) else record_id,
@@ -1563,6 +1589,8 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
             for k, v in update_data.items():
                 if not re.match(r"^[a-zA-Z0-9_]+$", k):
                     return f"❌ Invalid column name: {k}"
+                if k in forbidden_columns:
+                    return f"❌ Updating column '{k}' is not allowed."
                 if isinstance(v, str):
                     try:
                         v = uuid.UUID(v)

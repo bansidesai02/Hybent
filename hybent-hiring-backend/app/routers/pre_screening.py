@@ -73,6 +73,27 @@ async def _load_responses(session_id: uuid.UUID, db: AsyncSession) -> list[PreSc
     return list(res.scalars().all())
 
 
+async def _get_session_by_token_or_404(
+    session_id: uuid.UUID,
+    token: str,
+    db: AsyncSession,
+) -> PreScreeningSession:
+    """
+    Candidate-facing endpoints are unauthenticated by design — the invite
+    token is the only credential. session_id alone isn't secret (it's
+    returned to recruiters in list/detail views), so every mutation here
+    must also check it against the session's invite_token, not just look
+    the row up by id.
+    """
+    res = await db.execute(
+        select(PreScreeningSession).where(PreScreeningSession.id == session_id)
+    )
+    session = res.scalar_one_or_none()
+    if not session or session.invite_token != token:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
 def _enrich_session(session: PreScreeningSession, candidate: Optional[Candidate], job: Optional[Job]) -> dict:
     responses_out = [
         PreScreeningResponseOut.model_validate(r).model_dump()
@@ -352,14 +373,10 @@ async def update_session_status(
     session_id: uuid.UUID,
     body: UpdateStatusRequest,
     db: DB,
+    token: str = Query(...),
 ):
-    """Public — candidate updates session status (in_progress or completed)."""
-    res = await db.execute(
-        select(PreScreeningSession).where(PreScreeningSession.id == session_id)
-    )
-    session = res.scalar_one_or_none()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    """Public — candidate updates session status (in_progress or completed). Requires the invite token."""
+    session = await _get_session_by_token_or_404(session_id, token, db)
 
     allowed = {"in_progress", "completed"}
     if body.status not in allowed:
@@ -380,21 +397,17 @@ async def set_language(
     body: SetLanguageRequest,
     db: DB,
     background_tasks: BackgroundTasks,
+    token: str = Query(...),
 ):
     """
-    Public — candidate sets language preference.
+    Public — candidate sets language preference. Requires the invite token.
     If non-English, translates questions and returns them.
     """
     allowed_languages = {"english", "hindi", "gujarati"}
     if body.language not in allowed_languages:
         raise HTTPException(status_code=400, detail=f"Language must be one of: {allowed_languages}")
 
-    res = await db.execute(
-        select(PreScreeningSession).where(PreScreeningSession.id == session_id)
-    )
-    session = res.scalar_one_or_none()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = await _get_session_by_token_or_404(session_id, token, db)
 
     session.language = body.language
     await db.flush()
@@ -427,18 +440,15 @@ async def upload_response(
     audio: UploadFile = File(...),
     question_index: int = Query(..., ge=0, le=9),
     duration_seconds: Optional[float] = Query(None),
+    token: str = Query(...),
 ):
     """
     Public endpoint — candidate uploads audio for one question.
     Saves the file and triggers async transcription.
     """
-    # This endpoint is intentionally unauthenticated (token-based session auth)
-    res = await db.execute(
-        select(PreScreeningSession).where(PreScreeningSession.id == session_id)
-    )
-    session = res.scalar_one_or_none()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    # Intentionally unauthenticated (no login) but requires the invite token —
+    # session_id alone is not a secret, it's exposed to recruiters in list views.
+    session = await _get_session_by_token_or_404(session_id, token, db)
 
     audio_data = await audio.read()
     if not audio_data:
