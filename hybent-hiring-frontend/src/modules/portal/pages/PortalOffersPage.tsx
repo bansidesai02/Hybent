@@ -63,7 +63,15 @@ function DeclineDialog({
           <Button variant="quiet" size="sm" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="danger" size="sm" loading={loading} onClick={() => onConfirm(reason)}>
+          <Button
+            variant="danger"
+            size="sm"
+            loading={loading}
+            disabled={loading}
+            onClick={() => {
+              if (!loading) onConfirm(reason)
+            }}
+          >
             Decline offer
           </Button>
         </>
@@ -374,9 +382,11 @@ export default function PortalOffersPage() {
       <ConfirmDialog
         open={!!acceptTarget}
         onClose={() => setAcceptTarget(null)}
-        onConfirm={() =>
-          acceptTarget && respondMutation.mutate({ id: acceptTarget.id, accept: true })
-        }
+        onConfirm={() => {
+          if (!respondMutation.isPending && acceptTarget) {
+            respondMutation.mutate({ id: acceptTarget.id, accept: true })
+          }
+        }}
         title="Accept offer"
         description={`Accept the offer for "${acceptTarget?.position_title}"? The recruiter is notified immediately.`}
         confirmLabel="Accept offer"

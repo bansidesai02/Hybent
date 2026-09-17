@@ -20,21 +20,12 @@ export function ChatbotHeader({
     <div className="relative px-4 sm:px-4.5 py-3 flex items-center justify-between border-b border-slate-200/80 bg-white/95 backdrop-blur-md rounded-t-[20px]">
       {/* Brand & Logo */}
       <div className="flex items-center gap-3">
-        <div className="relative flex items-center justify-center">
-          {/* Glowing ring */}
-          <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-violet-600 via-pink-500 to-teal-400 opacity-60 blur-[3px] animate-pulse" />
-
-          <div className="relative w-9 h-9 rounded-xl bg-[#1a1040] p-1.5 flex items-center justify-center shadow-md border border-white/20">
-            <img
-              src="/hybent/hybent-mark.png"
-              alt="Hybent"
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                const target = e.currentTarget
-                target.style.display = 'none'
-              }}
-            />
-          </div>
+        <div className="relative w-6 h-6 flex items-center justify-center overflow-hidden">
+          <img
+            src="/hybent/hybent-mark.png"
+            alt="Hybent"
+            className="w-full h-full object-contain"
+          />
         </div>
 
         <div className="flex flex-col justify-center">

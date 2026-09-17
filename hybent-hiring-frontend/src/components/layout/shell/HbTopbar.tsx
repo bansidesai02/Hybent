@@ -83,6 +83,10 @@ function HbTopbarComponent({
 
   const searchRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  // `logout()` awaits an API call before navigating away — a synchronous ref
+  // guard (not state, since the component unmounts on navigation) stops a
+  // fast double-click on "Sign out" from firing it twice.
+  const loggingOutRef = useRef(false)
 
   /* ── Search ─────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -360,6 +364,8 @@ function HbTopbarComponent({
                   type="button"
                   role="menuitem"
                   onClick={() => {
+                    if (loggingOutRef.current) return
+                    loggingOutRef.current = true
                     setMenuOpen(false)
                     logout()
                   }}

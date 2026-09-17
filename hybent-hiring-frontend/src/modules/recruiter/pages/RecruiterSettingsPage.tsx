@@ -9,6 +9,8 @@ import { organizationsApi } from '@/api/organizations'
 import { authApi, profileApi } from '@/api/auth'
 import getCroppedImg from '@/utils/cropImage'
 import type { Organization } from '@/types'
+import { EmailAccountsSection } from '@/modules/recruiter/components/EmailAccountsSection'
+import { PersonalMailboxCard } from '@/modules/recruiter/components/PersonalMailboxCard'
 import {
   Badge,
   Button,
@@ -253,6 +255,15 @@ export default function RecruiterSettingsPage() {
             </div>
           </Card>
         )}
+
+        {/* Organization's shared mailboxes — visible to everyone, manageable by
+            admins only (the component gates connect/disconnect/etc itself). */}
+        <EmailAccountsSection />
+
+        {/* A recruiter's own single mailbox — this page only ever renders for
+            exactly 'admin' or 'recruiter' (route-guarded), so !isAdmin here
+            unambiguously means recruiter. */}
+        {!isAdmin && <PersonalMailboxCard />}
 
         {/* Common Section: Account Security */}
         <Card as="section">

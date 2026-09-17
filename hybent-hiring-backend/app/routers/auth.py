@@ -5,7 +5,7 @@ from app.dependencies import DB, CurrentUser
 from app.schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest, RefreshRequest, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.schemas.response import APIResponse
 from app.services import auth_service, invitation_service
-from app.utils.security import hash_password, verify_password
+from app.utils.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.models.user import User
 from app.models.candidate import Candidate
 from app.models.password_reset import PasswordResetToken
@@ -13,23 +13,14 @@ from app.models.organization import Organization
 from app.core.config import settings as cfg
 
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 _COOKIE_SECURE = cfg.is_production
 _COOKIE_SAMESITE = "none" if _COOKIE_SECURE else "lax"
-
-def validate_password_strength(password: str):
-    if len(password) < 12:
-        raise HTTPException(status_code=400, detail="Password must be at least 12 characters long.")
-    if not re.search(r"[A-Z]", password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter.")
-    if not re.search(r"[a-z]", password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter.")
-    if not re.search(r"\d", password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one digit.")
-    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one special character.")
 
 async def enforce_mfa(user: User):
     from app.utils.permissions import UserRole
@@ -151,6 +142,7 @@ async def change_password(data: ChangePasswordRequest, current_user: CurrentUser
     if not verify_password(data.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     current_user.hashed_password = hash_password(data.new_password)
+    await db.commit()
     return APIResponse.success(message="Password updated successfully.")
 
 
@@ -214,6 +206,7 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
 
     user.hashed_password = hash_password(data.new_password)
     token_obj.is_used = True
+    await db.commit()
     return APIResponse.success(message="Password reset successfully. You can now log in.")
 
 
@@ -275,7 +268,7 @@ async def send_2fa_otp(data: ForgotPasswordRequest, db: DB):
     if not user or not user.is_active:
         return APIResponse.success(message="If that email exists, a 2FA OTP has been sent.")
     
-    otp = f"{random.randint(100000, 999999)}"
+    otp = f"{100000 + secrets.randbelow(900000)}"
     # Store OTP in PasswordResetToken table with 10 min expiration
     token = f"2fa_{otp}_{secrets.token_hex(8)}"
     db.add(PasswordResetToken(
@@ -333,13 +326,25 @@ async def verify_2fa_otp(
         raise HTTPException(status_code=400, detail="Invalid or expired 2FA code.")
     
     valid_token.is_used = True
-    access_token = auth_service.create_access_token(user)
-    refresh_token = auth_service.create_refresh_token(user)
+    
+    # Correctly create tokens using security helpers
+    access_token = create_access_token({"sub": str(user.id), "org": str(user.organization_id), "role": user.role})
+    refresh_tok = create_refresh_token()
+    
+    # Save the refresh token to the database
+    from app.models.user import RefreshToken
+    from datetime import timedelta
+    db.add(RefreshToken(
+        user_id=user.id,
+        token=refresh_tok,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days),
+    ))
+    
     return APIResponse.success(
         message="2FA authentication successful.",
         data={
             "access_token": access_token,
-            "refresh_token": refresh_token,
+            "refresh_token": refresh_tok,
             "token_type": "bearer",
             "user": UserOut.model_validate(user).model_dump()
         }

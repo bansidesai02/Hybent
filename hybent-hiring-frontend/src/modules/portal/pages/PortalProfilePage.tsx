@@ -146,6 +146,7 @@ export default function PortalProfilePage() {
 
   const handleSave = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (saveMutation.isPending) return
     const formData = new FormData(e.currentTarget)
     const data: Record<string, any> = Object.fromEntries(formData.entries())
 
@@ -161,7 +162,7 @@ export default function PortalProfilePage() {
   }
 
   const handleResumeFile = (file: File | undefined) => {
-    if (!file) return
+    if (!file || uploadMutation.isPending) return
     const allowed = [
       'application/pdf',
       'application/msword',
@@ -405,7 +406,12 @@ export default function PortalProfilePage() {
             </div>
 
             <div className="flex justify-end border-t border-hb-border pt-hb-4">
-              <Button type="submit" icon={<Save size={15} />} loading={saveMutation.isPending}>
+              <Button
+                type="submit"
+                icon={<Save size={15} />}
+                loading={saveMutation.isPending}
+                disabled={saveMutation.isPending}
+              >
                 Save profile
               </Button>
             </div>
@@ -496,7 +502,9 @@ export default function PortalProfilePage() {
       <ConfirmDialog
         open={confirmRemovePhoto}
         onClose={() => setConfirmRemovePhoto(false)}
-        onConfirm={() => deleteAvatarMutation.mutate()}
+        onConfirm={() => {
+          if (!deleteAvatarMutation.isPending) deleteAvatarMutation.mutate()
+        }}
         title="Remove profile photo?"
         description="Your initials will be shown instead."
         confirmLabel="Remove photo"
@@ -508,6 +516,7 @@ export default function PortalProfilePage() {
         <ImageCropperModal
           image={imageToCrop}
           onCropComplete={(croppedFile: File) => {
+            if (avatarMutation.isPending) return
             avatarMutation.mutate(croppedFile)
             setImageToCrop(null)
           }}

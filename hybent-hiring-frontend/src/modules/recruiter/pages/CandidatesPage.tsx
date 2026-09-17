@@ -262,7 +262,7 @@ export default function CandidatesPage() {
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
       queryClient.invalidateQueries({ queryKey: ['recent-activities'] })
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to send invite'),
   })
 
   const stageMutation = useMutation({
@@ -275,7 +275,7 @@ export default function CandidatesPage() {
       toast.success('Stage updated')
       setActionsTarget(null)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update stage'),
   })
 
   const deleteMutation = useMutation({
@@ -287,7 +287,7 @@ export default function CandidatesPage() {
       toast.success('Candidate deleted')
       setActionsTarget(null)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to delete candidate'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to delete candidate'),
   })
 
   const transferMutation = useMutation({
@@ -336,7 +336,7 @@ export default function CandidatesPage() {
         queryClient.setQueryData(['candidates', queryParams], context.previousCandidates)
         queryClient.setQueryData(['designations'], context.previousDesignations)
       }
-      toast.error(err.response?.data?.detail || 'Failed to move candidate')
+      toast.error(err.response?.data?.message || 'Failed to move candidate')
     },
   })
 
@@ -361,7 +361,19 @@ export default function CandidatesPage() {
     return partial?.id ?? activeJobs[0]?.id ?? null
   }
 
-  const addToPipeline = async (candidate: any) => {
+  const addToPipelineMutation = useMutation({
+    mutationFn: ({ candidate, jobId }: { candidate: any; jobId: string }) =>
+      candidatesApi.updateStage(candidate.id, 'applied', false, jobId),
+    onSuccess: () => {
+      toast.success('Added to pipeline')
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+    },
+    onError: () => toast.error('Failed to add to pipeline'),
+  })
+
+  const addToPipeline = (candidate: any) => {
+    if (addToPipelineMutation.isPending) return
     if (candidate.pipeline_stage === 'inactive') {
       setInactivePipelineBlock({ id: candidate.id, name: candidate.full_name })
       return
@@ -371,14 +383,7 @@ export default function CandidatesPage() {
       toast.error('No active jobs found. Create a job first.')
       return
     }
-    try {
-      await candidatesApi.updateStage(candidate.id, 'applied', false, jobId)
-      toast.success('Added to pipeline')
-      queryClient.invalidateQueries({ queryKey: ['candidates'] })
-      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
-    } catch {
-      toast.error('Failed to add to pipeline')
-    }
+    addToPipelineMutation.mutate({ candidate, jobId })
   }
 
   const openProfile = (candidate: Candidate) => {
@@ -462,7 +467,13 @@ export default function CandidatesPage() {
           <div className="flex flex-col items-start gap-1.5" onClick={(e) => e.stopPropagation()}>
             {needsTriage &&
               (c.match_score >= 70 ? (
-                <Button size="sm" icon={<Plus size={13} />} onClick={() => addToPipeline(c)}>
+                <Button
+                  size="sm"
+                  icon={<Plus size={13} />}
+                  loading={addToPipelineMutation.isPending && addToPipelineMutation.variables?.candidate?.id === c.id}
+                  disabled={addToPipelineMutation.isPending}
+                  onClick={() => addToPipeline(c)}
+                >
                   Add to pipeline
                 </Button>
               ) : (
@@ -470,7 +481,11 @@ export default function CandidatesPage() {
                   <Button
                     size="sm"
                     variant="danger"
-                    onClick={() => stageMutation.mutate({ id: c.id, stage: 'rejected' })}
+                    loading={stageMutation.isPending && stageMutation.variables?.id === c.id}
+                    disabled={stageMutation.isPending}
+                    onClick={() => {
+                      if (!stageMutation.isPending) stageMutation.mutate({ id: c.id, stage: 'rejected' })
+                    }}
                   >
                     Reject
                   </Button>
@@ -502,7 +517,11 @@ export default function CandidatesPage() {
             size="sm"
             variant="ghost"
             icon={<Mail size={13} />}
-            onClick={() => inviteMutation.mutate({ email: c.email, full_name: c.full_name })}
+            loading={inviteMutation.isPending && inviteMutation.variables?.email === c.email}
+            disabled={inviteMutation.isPending}
+            onClick={() => {
+              if (!inviteMutation.isPending) inviteMutation.mutate({ email: c.email, full_name: c.full_name })
+            }}
             aria-label={`Invite ${c.full_name}`}
           />
           <Button
@@ -692,7 +711,16 @@ export default function CandidatesPage() {
             candidate={actionsTarget}
             isAdmin={user?.role === 'admin'}
             hasActiveJobs={!!activeJobs?.length}
-            onStage={(stage) => stageMutation.mutate({ id: actionsTarget.id, stage })}
+            busy={
+              stageMutation.isPending
+                ? stageMutation.variables?.stage ?? 'stage'
+                : addToPipelineMutation.isPending
+                  ? 'addToPipeline'
+                  : null
+            }
+            onStage={(stage) => {
+              if (!stageMutation.isPending) stageMutation.mutate({ id: actionsTarget.id, stage })
+            }}
             onAddToPipeline={() => {
               addToPipeline(actionsTarget)
               setActionsTarget(null)
@@ -725,9 +753,10 @@ export default function CandidatesPage() {
         {viewTarget && (
           <CandidateProfileView
             candidate={viewTarget}
-            onInvite={() =>
-              inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
-            }
+            onInvite={() => {
+              if (!inviteMutation.isPending) inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
+            }}
+            isInviting={inviteMutation.isPending}
             onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
             hasInvitation={Boolean(viewTarget.invitations?.length)}
             hideInvite

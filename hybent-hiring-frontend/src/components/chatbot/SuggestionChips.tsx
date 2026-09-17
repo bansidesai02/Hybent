@@ -13,7 +13,6 @@ export const DEFAULT_SUGGESTION_CHIPS: SuggestionChip[] = [
   { id: '1', label: 'Tell me about Hybent', query: 'Tell me about Hybent', iconName: 'Sparkles' },
   { id: '2', label: 'Services', query: 'What services does Hybent offer?', iconName: 'Layers' },
   { id: '3', label: 'Products', query: 'Tell me about Hybent products like Hybent Hiring', iconName: 'Briefcase' },
-  { id: '4', label: 'Pricing', query: 'How does Hybent pricing work?', iconName: 'DollarSign' },
   { id: '5', label: 'Book a Meeting', query: 'How can I book a meeting or schedule a demo?', iconName: 'Calendar' },
   { id: '6', label: 'Careers', query: 'What career opportunities are available at Hybent?', iconName: 'UserPlus' },
 ]

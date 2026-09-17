@@ -30,11 +30,30 @@ export default function HybentLoginRoute() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState<string | null>(null)
 
-  /* RequireAuth parks the page the visitor wanted here, same as the product form. */
-  const intended = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
+  /* RequireAuth parks the page the visitor wanted here. `location.state` only
+     survives a client-side redirect — it's empty after a full page load (a
+     browser refresh, or landing back here after the Gmail OAuth round trip
+     through Google and the backend), so sessionStorage is the fallback that
+     actually survives that. */
+  const stateIntended = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from
+  const intended =
+    stateIntended ? stateIntended.pathname! + (stateIntended.search ?? '') : sessionStorageIntended()
+
+  function sessionStorageIntended(): string | undefined {
+    try {
+      return sessionStorage.getItem('hybent_intended_path') ?? undefined
+    } catch {
+      return undefined
+    }
+  }
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      try {
+        sessionStorage.removeItem('hybent_intended_path')
+      } catch {
+        // best-effort cleanup only
+      }
       navigate(intended || workspaceForRole(user.role), { replace: true })
     }
   }, [isAuthenticated, user, intended, navigate])

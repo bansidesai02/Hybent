@@ -15,6 +15,8 @@ from app.models.other_offer import OtherOffer
 from app.models.job_referral import JobReferral
 from app.models.candidate_document import CandidateDocument
 from app.models.message import Message
+from app.models.email_account import EmailAccount
+from app.models.email_message import EmailMessage
 from app.models.ai_usage import AIUsage
 from app.models.organization_ai_credits import OrganizationAICredits
 from app.models.ai_credit_rule import AICreditRule
@@ -33,7 +35,7 @@ __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
     "Application", "Interview", "InterviewPanelist", "Scorecard",
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
-    "OtherOffer", "JobReferral", "CandidateDocument", "Message",
+    "OtherOffer", "JobReferral", "CandidateDocument", "Message", "EmailAccount", "EmailMessage",
     "AIUsage", "OrganizationAICredits", "AICreditRule", "CopilotConversation", "CopilotMessage", "ImportBatch",
     "UserPreference", "DesignationChangeLog",
     "PreScreeningSession", "PreScreeningResponse",

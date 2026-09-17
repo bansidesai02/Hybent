@@ -15,8 +15,8 @@ from pydantic import BaseModel
 from app.dependencies import DB, get_current_user
 from app.models.user import User
 from app.utils.permissions import RECRUITER_ROLES
-from app.services.copilot_service import stream_copilot_chat
-from app.services.ai_evaluator import transcribe_audio, clean_speech_transcript
+from app.services.ai.copilot_service import stream_copilot_chat
+from app.services.ai.ai_evaluator import transcribe_audio, clean_speech_transcript
 
 logger = logging.getLogger(__name__)
 

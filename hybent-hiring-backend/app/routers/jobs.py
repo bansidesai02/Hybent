@@ -10,7 +10,7 @@ from app.models.candidate import Candidate
 from app.schemas.job import JobCreate, JobUpdate, JobOut
 from app.utils.pagination import paginate
 from app.utils.permissions import JobStatus
-from app.services.resume_parser import parse_jd
+from app.services.ai.resume_parser import parse_jd
 from app.services.storage_service import save_jd
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse

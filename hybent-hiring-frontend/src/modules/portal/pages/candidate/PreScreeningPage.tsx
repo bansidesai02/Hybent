@@ -32,6 +32,7 @@ import {
 } from '@/api/preScreening'
 import { AudioRecorder } from '@/modules/interviewer/components/PreScreening/AudioRecorder'
 import { Badge, Button, Card, Meter, Skeleton } from '@/components/hb'
+import { useAsyncAction } from '@/hooks/useAsyncAction'
 
 type PageState = 'loading' | 'intro' | 'question' | 'completed' | 'error'
 
@@ -102,7 +103,6 @@ export default function PreScreeningPage() {
   // Language state
   const [selectedLanguage, setSelectedLanguage] = useState<ScreeningLanguage>('english')
   const [translatedQuestions, setTranslatedQuestions] = useState<ScreeningQuestion[]>([])
-  const [langLoading, setLangLoading] = useState(false)
 
   // Load session on mount
   useEffect(() => {
@@ -140,7 +140,7 @@ export default function PreScreeningPage() {
         setPageState(s.status === 'in_progress' ? 'question' : 'intro')
       })
       .catch((err) => {
-        setErrorMsg(err?.response?.data?.detail || 'Could not load the pre-screening session.')
+        setErrorMsg(err?.response?.data?.message || 'Could not load the pre-screening session.')
         setPageState('error')
       })
   }, [token])
@@ -156,19 +156,18 @@ export default function PreScreeningPage() {
         return
       }
 
-      setLangLoading(true)
+      if (!token) return
       try {
-        const res = await preScreeningApi.updateLanguage(session.id, lang)
+        const res = await preScreeningApi.updateLanguage(session.id, lang, token)
         setTranslatedQuestions(res.data.translated_questions)
       } catch {
         // Fall back to original English questions silently
         setTranslatedQuestions([])
-      } finally {
-        setLangLoading(false)
       }
     },
-    [session, selectedLanguage]
+    [session, selectedLanguage, token]
   )
+  const [runSelectLanguage, langLoading] = useAsyncAction(handleSelectLanguage)
 
   // Active questions (translated if applicable)
   const activeQuestions: ScreeningQuestion[] =
@@ -180,30 +179,31 @@ export default function PreScreeningPage() {
   const categoryLabels = CATEGORY_LABELS_I18N[selectedLanguage]
 
   const handleStart = useCallback(async () => {
-    if (!session) return
+    if (!session || !token) return
     try {
-      await preScreeningApi.updateStatus(session.id, 'in_progress')
+      await preScreeningApi.updateStatus(session.id, 'in_progress', token)
     } catch {
       // best effort
     }
     setPageState('question')
-  }, [session])
+  }, [session, token])
+  const [runStart, startLoading] = useAsyncAction(handleStart)
 
   const handleUpload = useCallback(
     async (blob: Blob, durationSeconds: number) => {
-      if (!session) throw new Error('No session')
-      await preScreeningApi.uploadResponse(session.id, currentIndex, blob, durationSeconds)
+      if (!session || !token) throw new Error('No session')
+      await preScreeningApi.uploadResponse(session.id, currentIndex, blob, token, durationSeconds)
       setAnsweredIndices((prev) => new Set([...prev, currentIndex]))
     },
-    [session, currentIndex]
+    [session, currentIndex, token]
   )
 
   const handleNext = useCallback(async () => {
-    if (!session) return
+    if (!session || !token) return
     const nextIndex = currentIndex + 1
     if (nextIndex >= session.questions.length) {
       try {
-        await preScreeningApi.updateStatus(session.id, 'completed')
+        await preScreeningApi.updateStatus(session.id, 'completed', token)
       } catch {
         // best effort
       }
@@ -211,7 +211,8 @@ export default function PreScreeningPage() {
     } else {
       setCurrentIndex(nextIndex)
     }
-  }, [session, currentIndex])
+  }, [session, currentIndex, token])
+  const [runNext, nextLoading] = useAsyncAction(handleNext)
 
   // ── Render: loading ─────────────────────────────────────────────────────────
   if (pageState === 'loading') {
@@ -299,7 +300,7 @@ export default function PreScreeningPage() {
                     role="radio"
                     aria-checked={active}
                     disabled={langLoading}
-                    onClick={() => handleSelectLanguage(opt.key)}
+                    onClick={() => runSelectLanguage(opt.key)}
                     className={`flex flex-col items-center gap-0.5 rounded-hb-md border px-3 py-3 transition-all duration-hb ease-hb focus-visible:outline-none focus-visible:shadow-hb-ring disabled:opacity-60 ${
                       active
                         ? 'border-hb-blue/45 bg-hb-blue/8'
@@ -369,8 +370,9 @@ export default function PreScreeningPage() {
           <Button
             size="lg"
             className="w-full"
-            onClick={handleStart}
-            disabled={langLoading}
+            onClick={() => runStart()}
+            disabled={langLoading || startLoading}
+            loading={startLoading}
             icon={<ChevronRight size={17} />}
           >
             Start pre-screening
@@ -449,7 +451,9 @@ export default function PreScreeningPage() {
             <Button
               size="lg"
               className="w-full"
-              onClick={handleNext}
+              onClick={() => runNext()}
+              loading={nextLoading}
+              disabled={nextLoading}
               icon={
                 currentIndex + 1 < session.questions.length ? (
                   <ChevronRight size={16} />

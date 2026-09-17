@@ -49,7 +49,8 @@ ALLOWED_IMAGE_TYPES = {
 
 async def save_resume(file: UploadFile, organization_id: str) -> tuple[str, str]:
     """
-    Save resume file to disk.
+    Save resume file to disk. Restricted to PDF/DOC/DOCX — this is the
+    human-facing upload path and keeps its existing validation.
     Returns (file_url, original_filename).
     """
     ct = file.content_type or ""
@@ -67,6 +68,31 @@ async def save_resume(file: UploadFile, organization_id: str) -> tuple[str, str]
     if len(content) > settings.max_file_size_bytes:
         raise HTTPException(status_code=400, detail=f"File too large (max {settings.max_file_size_mb}MB)")
 
+    return await save_resume_bytes(content, file.filename or f"resume{ext}", ct, organization_id, ext=ext)
+
+
+async def save_resume_bytes(
+    file_bytes: bytes,
+    filename: str,
+    content_type: str,
+    organization_id: str,
+    ext: str | None = None,
+) -> tuple[str, str]:
+    """
+    Save arbitrary file bytes as a candidate's resume — deliberately
+    permissive (no PDF/DOC/DOCX gate), for the automated email-ingestion
+    path where "any file" the sender attached should still be registered
+    even if it can't be AI-parsed. Callers that need the strict human-upload
+    validation should go through save_resume() instead.
+    Returns (file_url, original_filename).
+    """
+    if len(file_bytes) > settings.max_file_size_bytes:
+        raise HTTPException(status_code=400, detail=f"File too large (max {settings.max_file_size_mb}MB)")
+
+    if ext is None:
+        fname_ext = Path(filename or "").suffix.lower()
+        ext = _EXT_MAP.get(fname_ext, fname_ext or ".bin")
+
     # 1. Cloudinary Upload Flow
     if settings.cloudinary_cloud_name:
         import asyncio
@@ -75,27 +101,27 @@ async def save_resume(file: UploadFile, organization_id: str) -> tuple[str, str]
             response = await loop.run_in_executor(
                 None,
                 lambda: cloudinary.uploader.upload(
-                    content,
+                    file_bytes,
                     folder=f"hybent_hiring_resumes/{organization_id}",
                     public_id=f"resume_{uuid.uuid4().hex[:8]}{ext}",
                     resource_type="raw"
                 )
             )
-            return response.get("secure_url"), file.filename
+            return response.get("secure_url"), filename
         except Exception as e:
             logger.error("Cloudinary resume upload failed: %s", e)
             raise HTTPException(status_code=500, detail=f"Resume upload to Cloudinary failed: {str(e)}")
 
     # 2. Fallback Local Storage Flow
-    filename = f"{uuid.uuid4()}{ext}"
+    stored_filename = f"{uuid.uuid4()}{ext}"
     folder = UPLOAD_BASE / "resumes" / organization_id
     folder.mkdir(parents=True, exist_ok=True)
 
-    filepath = folder / filename
+    filepath = folder / stored_filename
     async with aiofiles.open(filepath, "wb") as f:
-        await f.write(content)
+        await f.write(file_bytes)
 
-    return f"/static/uploads/resumes/{organization_id}/{filename}", file.filename
+    return f"/static/uploads/resumes/{organization_id}/{stored_filename}", filename
 
 
 async def save_jd(file: UploadFile, organization_id: str) -> tuple[str, str]:
@@ -273,15 +299,27 @@ async def save_audio(audio_data: bytes, session_id: str, question_index: int, ex
 
 
 def get_file_path(url: str) -> Path:
-    """Convert a /static/uploads/... URL to a local filesystem path."""
+    """Convert a /static/uploads/... URL to a local filesystem path with path traversal checks."""
     relative = url.replace("/static/uploads/", "", 1)
-    return UPLOAD_BASE / relative
+    relative = relative.lstrip("/")
+    # Resolve paths to absolute to prevent traversal using ..
+    base_resolved = UPLOAD_BASE.resolve()
+    filepath = (base_resolved / relative).resolve()
+    
+    if not filepath.is_relative_to(base_resolved):
+        raise HTTPException(status_code=400, detail="Invalid file path (path traversal attempt)")
+    return filepath
 
 
 async def read_file_bytes(url: str) -> bytes:
-    """Read raw bytes from a stored file (for AI parsing etc.)."""
+    """Read raw bytes from a stored file (for AI parsing etc.) with file size bounds check."""
     path = get_file_path(url)
-    if not path.exists():
+    if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
+        
+    # Prevent DoS from reading huge files into memory
+    if path.stat().st_size > settings.max_file_size_bytes:
+        raise HTTPException(status_code=400, detail="File too large to read into memory")
+        
     async with aiofiles.open(path, "rb") as f:
         return await f.read()

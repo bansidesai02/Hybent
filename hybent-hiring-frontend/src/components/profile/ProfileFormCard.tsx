@@ -9,7 +9,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useProfile } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
 import ImageCropperModal from '@/components/common/ImageCropperModal'
-import { Camera } from 'lucide-react'
+import { Camera, Loader2 } from 'lucide-react'
 import { Avatar } from '@/components/hb'
 
 interface ProfileFormCardProps {
@@ -40,6 +40,7 @@ export default function ProfileFormCard({
     uploadAvatar,
     isUploadingAvatar,
     deleteAvatar,
+    isDeletingAvatar,
     refetch,
   } = useProfile()
 
@@ -92,6 +93,11 @@ export default function ProfileFormCard({
     : 'U'
 
   const handleSave = () => {
+    // Guard against a same-tick double-click firing `updateProfile` twice —
+    // `isUpdating` only re-renders the button as disabled on the *next*
+    // render, it doesn't stop a second synchronous invocation before that.
+    if (isUpdating || isUploadingAvatar) return
+
     const payload: any = {
       full_name: form.full_name.trim(),
       phone: form.phone.trim(),
@@ -140,8 +146,14 @@ export default function ProfileFormCard({
   }
 
   const handleCropComplete = (croppedFile: File) => {
+    if (isUploadingAvatar) return
     uploadAvatar(croppedFile)
     setImageToCrop(null)
+  }
+
+  const handleDeleteAvatar = () => {
+    if (isDeletingAvatar) return
+    deleteAvatar()
   }
 
   if (isLoading) {
@@ -206,11 +218,16 @@ export default function ProfileFormCard({
                     className="avatar-delete-link"
                     onClick={(e) => {
                       e.stopPropagation()
-                      deleteAvatar()
+                      handleDeleteAvatar()
                     }}
+                    disabled={isDeletingAvatar}
                     title="Remove profile picture"
                   >
-                    Remove Photo
+                    {isDeletingAvatar ? (
+                      <Loader2 size={12} className="inline animate-spin" aria-hidden />
+                    ) : (
+                      'Remove Photo'
+                    )}
                   </button>
                 )}
               </div>

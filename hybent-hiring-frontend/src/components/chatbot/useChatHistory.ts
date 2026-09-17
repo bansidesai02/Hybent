@@ -10,7 +10,7 @@ const INITIAL_WELCOME_MESSAGE: ChatMessageItem = {
 
 I'm Hybent AI.
 
-I can help you explore our products, services, pricing, hiring solutions, and answer any questions.`,
+I can help you explore our products, services, hiring solutions, and answer any questions.`,
   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
 }
 

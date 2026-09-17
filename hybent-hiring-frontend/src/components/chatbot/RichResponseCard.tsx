@@ -25,27 +25,27 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
   const getCardIcon = () => {
     switch (card.type) {
       case 'product':
-        return <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+        return <Users className="w-5 h-5 text-violet-600" />
       case 'service':
-        return <Layers className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+        return <Layers className="w-5 h-5 text-teal-600" />
       case 'pricing':
-        return <DollarSign className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+        return <DollarSign className="w-5 h-5 text-amber-600" />
       case 'timeline':
-        return <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+        return <Clock className="w-5 h-5 text-indigo-600" />
       case 'comparison_table':
-        return <Table className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+        return <Table className="w-5 h-5 text-purple-600" />
       case 'cta_actions':
-        return <Calendar className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        return <Calendar className="w-5 h-5 text-emerald-600" />
       default:
-        return <Zap className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+        return <Zap className="w-5 h-5 text-pink-600" />
     }
   }
 
   // FAQ Accordion Card
   if (card.type === 'faq_accordion' && card.items) {
     return (
-      <div className="my-3 p-4 rounded-2xl bg-white dark:bg-[#181135] border border-violet-200/80 dark:border-violet-800/50 shadow-md">
-        <h4 className="text-sm font-bold text-[#1a1040] dark:text-white mb-3 flex items-center gap-2">
+      <div className="my-3 p-4 rounded-2xl bg-white border border-violet-200/80 shadow-md">
+        <h4 className="text-sm font-bold text-[#1a1040] mb-3 flex items-center gap-2">
           {getCardIcon()}
           <span>{card.title}</span>
         </h4>
@@ -55,11 +55,11 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
             return (
               <div
                 key={idx}
-                className="rounded-xl border border-violet-100 dark:border-violet-900/40 overflow-hidden"
+                className="rounded-xl border border-violet-100 overflow-hidden"
               >
                 <button
                   onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                  className="w-full px-3 py-2.5 bg-violet-50/50 dark:bg-violet-950/30 flex items-center justify-between text-left text-xs font-semibold text-slate-800 dark:text-slate-200"
+                  className="w-full px-3 py-2.5 bg-violet-50/50 flex items-center justify-between text-left text-xs font-semibold text-slate-800"
                 >
                   <span>{item.label}</span>
                   <ChevronDown
@@ -74,7 +74,7 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-[#1a1236]"
+                      className="px-3 py-2 text-xs text-slate-600 bg-white"
                     >
                       {item.value}
                     </motion.div>
@@ -91,19 +91,19 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
   // Development Timeline Card
   if (card.type === 'timeline' && card.items) {
     return (
-      <div className="my-3 p-4 rounded-2xl bg-white dark:bg-[#181135] border border-violet-200/80 dark:border-violet-800/50 shadow-md">
-        <h4 className="text-sm font-bold text-[#1a1040] dark:text-white mb-3 flex items-center gap-2">
+      <div className="my-3 p-4 rounded-2xl bg-white border border-violet-200/80 shadow-md">
+        <h4 className="text-sm font-bold text-[#1a1040] mb-3 flex items-center gap-2">
           {getCardIcon()}
           <span>{card.title}</span>
         </h4>
-        <div className="relative pl-4 space-y-3 border-l-2 border-violet-300 dark:border-violet-700">
+        <div className="relative pl-4 space-y-3 border-l-2 border-violet-300">
           {card.items.map((step, idx) => (
             <div key={idx} className="relative">
-              <div className="absolute -left-[21px] top-1 w-3.5 h-3.5 rounded-full bg-violet-600 border-2 border-white dark:border-[#181135]" />
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              <div className="absolute -left-[21px] top-1 w-3.5 h-3.5 rounded-full bg-violet-600 border-2 border-white" />
+              <div className="text-xs font-bold text-slate-800">
                 {step.label}
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="text-[11px] text-slate-500">
                 {step.value}
               </div>
             </div>
@@ -116,16 +116,16 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
   // Comparison Table Card
   if (card.type === 'comparison_table' && card.tableHeaders && card.tableRows) {
     return (
-      <div className="my-3 p-4 rounded-2xl bg-white dark:bg-[#181135] border border-violet-200/80 dark:border-violet-800/50 shadow-md overflow-x-auto">
-        <h4 className="text-sm font-bold text-[#1a1040] dark:text-white mb-3 flex items-center gap-2">
+      <div className="my-3 p-4 rounded-2xl bg-white border border-violet-200/80 shadow-md overflow-x-auto">
+        <h4 className="text-sm font-bold text-[#1a1040] mb-3 flex items-center gap-2">
           {getCardIcon()}
           <span>{card.title}</span>
         </h4>
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-violet-100 dark:border-violet-800">
+            <tr className="border-b border-violet-100">
               {card.tableHeaders.map((h, idx) => (
-                <th key={idx} className="pb-2 font-bold text-violet-700 dark:text-violet-300">
+                <th key={idx} className="pb-2 font-bold text-violet-700">
                   {h}
                 </th>
               ))}
@@ -133,9 +133,9 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
           </thead>
           <tbody>
             {card.tableRows.map((row, rIdx) => (
-              <tr key={rIdx} className="border-b border-slate-100 dark:border-slate-800/50">
+              <tr key={rIdx} className="border-b border-slate-100">
                 {row.map((cell, cIdx) => (
-                  <td key={cIdx} className="py-2 text-slate-600 dark:text-slate-300">
+                  <td key={cIdx} className="py-2 text-slate-600">
                     {cell}
                   </td>
                 ))}
@@ -179,10 +179,10 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
   return (
     <motion.div
       whileHover={{ y: -3, scale: 1.01 }}
-      className="my-3 p-4 rounded-2xl bg-gradient-to-br from-white via-violet-50/40 to-white dark:from-[#181135] dark:via-[#1e1540] dark:to-[#160f30] border border-violet-200/80 dark:border-violet-800/50 shadow-[0_8px_24px_rgba(108,71,255,0.10)] relative overflow-hidden group"
+      className="my-3 p-4 rounded-2xl bg-gradient-to-br from-white via-violet-50/40 to-white border border-violet-200/80 shadow-[0_8px_24px_rgba(108,71,255,0.10)] relative overflow-hidden group"
     >
       <div className="flex items-center justify-between mb-3">
-        <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-950/80 border border-violet-200/60 dark:border-violet-800/60 flex items-center justify-center shadow-xs">
+        <div className="w-9 h-9 rounded-xl bg-violet-100 border border-violet-200/60 flex items-center justify-center shadow-xs">
           {getCardIcon()}
         </div>
 
@@ -193,10 +193,10 @@ export function RichResponseCard({ card }: RichResponseCardProps) {
         )}
       </div>
 
-      <h4 className="text-sm font-bold text-[#1a1040] dark:text-white mb-1 leading-snug">
+      <h4 className="text-sm font-bold text-[#1a1040] mb-1 leading-snug">
         {card.title}
       </h4>
-      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+      <p className="text-xs text-slate-600 leading-relaxed mb-4">
         {card.description}
       </p>
 

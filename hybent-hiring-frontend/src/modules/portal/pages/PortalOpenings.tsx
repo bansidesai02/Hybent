@@ -161,8 +161,11 @@ export default function PortalOpenings() {
             </Button>
             <Button
               size="sm"
-              onClick={() => applyTarget && applyMutation.mutate(applyTarget.id)}
+              onClick={() => {
+                if (!applyMutation.isPending && applyTarget) applyMutation.mutate(applyTarget.id)
+              }}
               loading={applyMutation.isPending}
+              disabled={applyMutation.isPending}
             >
               Submit application
             </Button>
@@ -186,7 +189,13 @@ export default function PortalOpenings() {
             <Button variant="quiet" size="sm" type="button" onClick={() => setReferTarget(null)}>
               Cancel
             </Button>
-            <Button size="sm" type="submit" form="refer-friend" loading={referMutation.isPending}>
+            <Button
+              size="sm"
+              type="submit"
+              form="refer-friend"
+              loading={referMutation.isPending}
+              disabled={referMutation.isPending}
+            >
               Submit referral
             </Button>
           </>
@@ -197,6 +206,7 @@ export default function PortalOpenings() {
           className="space-y-hb-4"
           onSubmit={(e) => {
             e.preventDefault()
+            if (referMutation.isPending) return
             const formData = new FormData(e.currentTarget)
 
             // Split the single name input into the first/last the API expects.

@@ -2,6 +2,7 @@ import {
   Ban,
   Check,
   FileSignature,
+  Loader2,
   Pause,
   Play,
   Plus,
@@ -23,6 +24,7 @@ export function CandidateActionsPanel({
   candidate,
   isAdmin,
   hasActiveJobs,
+  busy = null,
   onStage,
   onAddToPipeline,
   onChangeDesignation,
@@ -32,6 +34,11 @@ export function CandidateActionsPanel({
   candidate: any
   isAdmin: boolean
   hasActiveJobs: boolean
+  /** Key of whatever action is currently in flight (a stage id, or
+   * 'addToPipeline') — while set, every action in the panel is disabled and
+   * the matching one shows a spinner, so a fast click can't fire the same
+   * (or a conflicting) action twice before the request resolves. */
+  busy?: string | null
   onStage: (stage: string) => void
   onAddToPipeline: () => void
   onChangeDesignation: () => void
@@ -86,6 +93,8 @@ export function CandidateActionsPanel({
               fullWidth
               variant="primary"
               icon={<Plus size={15} />}
+              loading={busy === 'addToPipeline'}
+              disabled={!!busy}
               onClick={onAddToPipeline}
               className="shadow-sm shadow-hb-blue/20"
             >
@@ -97,6 +106,7 @@ export function CandidateActionsPanel({
           fullWidth
           variant="ghost"
           icon={<Briefcase size={15} />}
+          disabled={!!busy}
           onClick={onChangeDesignation}
         >
           Change designation
@@ -117,21 +127,28 @@ export function CandidateActionsPanel({
             <div className="grid gap-1">
               {group.stages.map((key) => {
                 const active = stage === key
+                const pending = busy === key
                 return (
                   <button
                     key={key}
                     type="button"
                     aria-current={active ? 'true' : undefined}
+                    aria-busy={pending || undefined}
+                    disabled={!!busy}
                     onClick={() => onStage(key)}
                     className={
-                      'group relative flex w-full items-center justify-between gap-3 rounded-hb px-3.5 py-2.5 text-left text-hb-sm transition-all duration-hb focus-visible:outline-none focus-visible:shadow-hb-ring ' +
+                      'group relative flex w-full items-center justify-between gap-3 rounded-hb px-3.5 py-2.5 text-left text-hb-sm transition-all duration-hb focus-visible:outline-none focus-visible:shadow-hb-ring disabled:opacity-50 disabled:cursor-not-allowed ' +
                       (active
                         ? 'border-l-4 border-hb-blue bg-hb-blue/10 font-semibold text-hb-text shadow-sm'
                         : 'border border-transparent bg-hb-surface-2/60 text-hb-muted hover:border-hb-border-strong hover:bg-hb-surface-2 hover:text-hb-text hover:translate-x-0.5')
                     }
                   >
                     <span className="flex items-center gap-2 truncate">
-                      {active && <Sparkles size={14} className="shrink-0 text-hb-blue" />}
+                      {pending ? (
+                        <Loader2 size={14} className="shrink-0 animate-spin text-hb-blue" aria-hidden />
+                      ) : (
+                        active && <Sparkles size={14} className="shrink-0 text-hb-blue" />
+                      )}
                       <span className="truncate">{statusDef(key).label}</span>
                     </span>
                     {active ? (
@@ -164,8 +181,9 @@ export function CandidateActionsPanel({
           {onGenerateOffer && (
             <button
               type="button"
+              disabled={!!busy}
               onClick={onGenerateOffer}
-              className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm text-hb-text transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none"
+              className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm text-hb-text transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileSignature size={15} className="text-hb-blue" />
               <span>Generate offer letter</span>
@@ -174,10 +192,14 @@ export function CandidateActionsPanel({
 
           <button
             type="button"
+            disabled={!!busy}
+            aria-busy={busy === (isInactive ? 'applied' : 'inactive') || undefined}
             onClick={() => onStage(isInactive ? 'applied' : 'inactive')}
-            className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none"
+            className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isInactive ? (
+            {busy === (isInactive ? 'applied' : 'inactive') ? (
+              <Loader2 size={15} className="animate-spin text-hb-muted" aria-hidden />
+            ) : isInactive ? (
               <Play size={15} className="text-emerald-500" />
             ) : (
               <Pause size={15} className="text-amber-500" />
@@ -188,10 +210,12 @@ export function CandidateActionsPanel({
           {!isInactive && !inPipeline && (
             <button
               type="button"
+              disabled={!!busy}
+              aria-busy={busy === 'rejected' || undefined}
               onClick={() => onStage('rejected')}
-              className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm text-amber-600 dark:text-amber-400 transition-colors duration-hb hover:bg-amber-500/10 focus-visible:outline-none"
+              className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm text-amber-600 dark:text-amber-400 transition-colors duration-hb hover:bg-amber-500/10 focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Ban size={15} />
+              {busy === 'rejected' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Ban size={15} />}
               <span>Reject candidate</span>
             </button>
           )}
@@ -199,8 +223,9 @@ export function CandidateActionsPanel({
           {isAdmin && (
             <button
               type="button"
+              disabled={!!busy}
               onClick={onDelete}
-              className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm font-medium text-hb-error transition-colors duration-hb hover:bg-hb-error/10 focus-visible:outline-none"
+              className="flex w-full items-center gap-2.5 rounded-hb px-3.5 py-2.5 text-left text-hb-sm font-medium text-hb-error transition-colors duration-hb hover:bg-hb-error/10 focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 size={15} />
               <span>Delete candidate</span>

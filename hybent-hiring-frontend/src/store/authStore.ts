@@ -18,6 +18,12 @@ interface AuthState {
   refreshToken: string | null
   isAuthenticated: boolean
   rememberMe: boolean
+  /** False until zustand's async storage rehydration completes. A cold page
+   *  load (e.g. landing back on a deep route after the Gmail OAuth redirect)
+   *  renders with `isAuthenticated: false` for one tick before persisted
+   *  session state is read back in — RequireAuth must wait for this instead
+   *  of treating that gap as "logged out". */
+  hasHydrated: boolean
 
   setTokens: (accessToken: string, refreshToken: string | undefined, user?: User, rememberMe?: boolean) => void
   setUser: (user: User) => void
@@ -53,14 +59,25 @@ const customPersistStorage = {
   }
 }
 
+// Captured from inside the creator below, so onRehydrateStorage can call
+// back into the store without referencing `useAuthStore` itself — that
+// binding doesn't exist yet while `create()` is still running, and this
+// storage's reads are synchronous, so rehydration can fire before `create()`
+// returns. Referencing `useAuthStore` there throws "Cannot access
+// 'useAuthStore' before initialization" and crashes the whole app at load.
+let authStoreSet: ((partial: Partial<AuthState>) => void) | null = null
+
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      authStoreSet = set
+      return {
       user: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
       rememberMe: false,
+      hasHydrated: false,
       forcedLogoutReason: null,
 
       setForcedLogout: (reason) => set({ forcedLogoutReason: reason }),
@@ -85,13 +102,17 @@ export const useAuthStore = create<AuthState>()(
         tokenStorage.clear()
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, rememberMe: false, forcedLogoutReason: null })
       },
-    }),
+      }
+    },
     {
       name: 'hybent_hiring_auth',
       storage: createJSONStorage(() => customPersistStorage),
       onRehydrateStorage: () => (state) => {
-        if (!state?.user) return
-        state.setUser(state.user)
+        // Runs regardless of whether a session was actually persisted — an
+        // anonymous visitor still needs hasHydrated flipped, or RequireAuth
+        // would wait forever for a login that was never there.
+        if (state?.user) state.setUser(state.user)
+        authStoreSet?.({ hasHydrated: true })
       },
       partialize: (state) => ({
         user: state.user,

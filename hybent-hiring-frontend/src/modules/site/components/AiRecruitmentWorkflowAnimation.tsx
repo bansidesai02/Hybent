@@ -1,823 +1,690 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 
-export interface CandidateProfile {
-  id: number
-  name: string
+interface CandidateProfile {
+  id: string
   role: string
+  name: string
+  title: string
+  avatar: string
   experience: string
-  topSkills: string[]
-  fileName: string
-  fileSize: string
-  overallScore: number
-  categoryScores: {
-    skills: number
-    experience: number
-    relevance: number
-    roleFit: number
-  }
-  scoreLabel: string
-  scoreTier: 'excellent' | 'strong' | 'good' | 'potential' | 'low'
-  extractedHighlights: { label: string; text: string }[]
-  summary: string
-  strengths: string[]
-  missing: string[]
-  decision: 'shortlisted' | 'review' | 'talent_pool'
-  decisionLabel: string
-  interview?: {
-    type: string
-    time: string
-    interviewer: string
-  }
-  reviewNote?: string
+  matchScore: number
+  threshold: number
+  verdict: string
+  verdictType: 'strong' | 'pass'
+  skills: { name: string; match: boolean }[]
+  criteriaScores: { label: string; score: number }[]
+  aiSummary: string
+  suggestedSlot: string
 }
 
 const CANDIDATES: CandidateProfile[] = [
   {
-    id: 1,
-    name: 'John Anderson',
-    role: 'Senior Frontend Developer',
-    experience: '6 yrs exp',
-    topSkills: ['React', 'TypeScript', 'Next.js'],
-    fileName: 'john-anderson-resume.pdf',
-    fileSize: '142 KB',
-    overallScore: 91,
-    categoryScores: {
-      skills: 94,
-      experience: 92,
-      relevance: 90,
-      roleFit: 88,
-    },
-    scoreLabel: 'Strong Match',
-    scoreTier: 'strong',
-    extractedHighlights: [
-      { label: 'Experience', text: '6.2 yrs · Lead Frontend' },
-      { label: 'Core Skills', text: 'React, Next.js, TS, Tailwind' },
-      { label: 'Education', text: 'B.S. Computer Science' },
-      { label: 'Certifications', text: 'AWS Solutions Architect' },
+    id: 'fullstack',
+    role: 'Senior Full-Stack',
+    name: 'Alex Rivera',
+    title: 'Lead Full-Stack Architect',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    experience: '8.5 Yrs Exp · Ex-Stripe',
+    matchScore: 96,
+    threshold: 85,
+    verdict: 'Strong Auto-Shortlist',
+    verdictType: 'strong',
+    skills: [
+      { name: 'React / Next.js', match: true },
+      { name: 'TypeScript', match: true },
+      { name: 'Node.js / Go', match: true },
+      { name: 'PostgreSQL & Redis', match: true },
+      { name: 'System Design', match: true },
     ],
-    summary: 'Strong React & Next.js background with solid frontend architecture experience.',
-    strengths: ['React & Next.js', 'TypeScript', 'Frontend Arch'],
-    missing: ['Limited Go / Backend'],
-    decision: 'shortlisted',
-    decisionLabel: 'Move to Shortlist',
-    interview: {
-      type: 'Technical Interview',
-      time: 'Tuesday · 11:00 AM',
-      interviewer: 'with Engineering Lead',
-    },
+    criteriaScores: [
+      { label: 'Core Stack Fit', score: 98 },
+      { label: 'System Design', score: 95 },
+      { label: 'Seniority & Scale', score: 96 },
+    ],
+    aiSummary: 'Exceeds threshold (96% vs 85%). 8+ yrs scaling high-concurrency apps. Dispatched technical interview invite.',
+    suggestedSlot: 'Tomorrow at 2:00 PM EST',
   },
   {
-    id: 2,
-    name: 'Sarah Mitchell',
-    role: 'Senior Product Designer',
-    experience: '5 yrs exp',
-    topSkills: ['Figma', 'Design Systems', 'User Research'],
-    fileName: 'sarah-mitchell-cv.pdf',
-    fileSize: '2.1 MB',
-    overallScore: 78,
-    categoryScores: {
-      skills: 84,
-      experience: 76,
-      relevance: 81,
-      roleFit: 70,
-    },
-    scoreLabel: 'Good Match',
-    scoreTier: 'good',
-    extractedHighlights: [
-      { label: 'Experience', text: '5.1 yrs · Product Design' },
-      { label: 'Core Skills', text: 'Design Systems, Tokens, Figma' },
-      { label: 'Education', text: 'B.Des Interaction Design' },
-      { label: 'Certifications', text: 'Nielsen Norman UX Certified' },
+    id: 'ai-ml',
+    role: 'AI / ML Engineer',
+    name: 'Dr. Sophia Chen',
+    title: 'Senior Applied AI Researcher',
+    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80',
+    experience: '6.0 Yrs Exp · PhD Machine Learning',
+    matchScore: 94,
+    threshold: 85,
+    verdict: 'Strong Auto-Shortlist',
+    verdictType: 'strong',
+    skills: [
+      { name: 'PyTorch / LLMs', match: true },
+      { name: 'RAG Pipelines', match: true },
+      { name: 'Python / FastAPI', match: true },
+      { name: 'Vector DBs', match: true },
+      { name: 'GPU Clusters', match: true },
     ],
-    summary: 'Extensive design system expertise with deep user testing background.',
-    strengths: ['Design Systems', 'Figma Tokens', 'User Research'],
-    missing: ['Basic HTML/CSS knowledge'],
-    decision: 'shortlisted',
-    decisionLabel: 'Move to Shortlist',
-    interview: {
-      type: 'Portfolio Review',
-      time: 'Thursday · 2:30 PM',
-      interviewer: 'with Head of Design',
-    },
+    criteriaScores: [
+      { label: 'Modeling & Math', score: 97 },
+      { label: 'Agent Architecture', score: 95 },
+      { label: 'Inference Speed', score: 91 },
+    ],
+    aiSummary: 'Top tier candidate. Published research in semantic vector search and low-latency inference pipelines.',
+    suggestedSlot: 'Thursday at 11:00 AM EST',
   },
   {
-    id: 3,
-    name: 'Michael Chen',
-    role: 'Full Stack Engineer',
-    experience: '3 yrs exp',
-    topSkills: ['Node.js', 'Python', 'PostgreSQL'],
-    fileName: 'michael-chen-resume.pdf',
-    fileSize: '98 KB',
-    overallScore: 67,
-    categoryScores: {
-      skills: 72,
-      experience: 61,
-      relevance: 70,
-      roleFit: 65,
-    },
-    scoreLabel: 'Potential Match',
-    scoreTier: 'potential',
-    extractedHighlights: [
-      { label: 'Experience', text: '3.0 yrs · Full Stack Dev' },
-      { label: 'Core Skills', text: 'Node.js, Python, PostgreSQL' },
-      { label: 'Education', text: 'B.E. Information Tech' },
-      { label: 'Certifications', text: 'PostgreSQL Specialist' },
+    id: 'devops-cloud',
+    role: 'DevOps & Cloud',
+    name: 'James Miller',
+    title: 'Staff Site Reliability Engineer',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+    experience: '7.0 Yrs Exp · AWS Certified',
+    matchScore: 91,
+    threshold: 85,
+    verdict: 'Auto-Shortlisted',
+    verdictType: 'pass',
+    skills: [
+      { name: 'Kubernetes (EKS)', match: true },
+      { name: 'Terraform IaC', match: true },
+      { name: 'CI/CD Pipelines', match: true },
+      { name: 'Zero-Trust IAM', match: true },
+      { name: 'Observability', match: true },
     ],
-    summary: 'Solid backend capabilities, but less direct experience in target framework.',
-    strengths: ['Node.js / Python', 'Database Schema', 'API Design'],
-    missing: ['React experience', 'Senior leadership'],
-    decision: 'review',
-    decisionLabel: 'Needs Review',
-    reviewNote: 'Routed to Hiring Manager review queue',
+    criteriaScores: [
+      { label: 'Kubernetes & IaC', score: 94 },
+      { label: 'Security & Auth', score: 90 },
+      { label: 'Cloud Architecture', score: 89 },
+    ],
+    aiSummary: 'Strong match for enterprise platform infrastructure. Solid track record in multi-region failover design.',
+    suggestedSlot: 'Wednesday at 4:00 PM EST',
   },
   {
-    id: 4,
-    name: 'Emma Wilson',
-    role: 'Junior Frontend Developer',
-    experience: '1 yr exp',
-    topSkills: ['HTML5', 'CSS3', 'JavaScript'],
-    fileName: 'emma-wilson-resume.pdf',
-    fileSize: '115 KB',
-    overallScore: 48,
-    categoryScores: {
-      skills: 52,
-      experience: 44,
-      relevance: 51,
-      roleFit: 45,
-    },
-    scoreLabel: 'Low Match',
-    scoreTier: 'low',
-    extractedHighlights: [
-      { label: 'Experience', text: '1.2 yrs · Junior Frontend' },
-      { label: 'Core Skills', text: 'HTML5, CSS3, JavaScript' },
-      { label: 'Education', text: 'Bootcamp Graduate (2024)' },
-      { label: 'Certifications', text: 'Frontend Foundations' },
+    id: 'product-design',
+    role: 'Product Designer',
+    name: 'Marcus Vance',
+    title: 'Staff UI/UX Designer',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+    experience: '7.5 Yrs Exp · B2B SaaS',
+    matchScore: 88,
+    threshold: 80,
+    verdict: 'Shortlisted for Review',
+    verdictType: 'pass',
+    skills: [
+      { name: 'Design Systems', match: true },
+      { name: 'Figma Auto-Layout', match: true },
+      { name: 'WCAG 2.1 AA', match: true },
+      { name: 'Design Tokens', match: true },
+      { name: 'Prototyping', match: true },
     ],
-    summary: 'Strong foundational fundamentals, but lacks required 5+ years seniority.',
-    strengths: ['Quick Learner', 'Modern JavaScript'],
-    missing: ['TypeScript', 'System Design', 'Cloud Infra'],
-    decision: 'talent_pool',
-    decisionLabel: 'Saved to Talent Pool',
-    reviewNote: 'Indexed in permanent talent pool for junior openings',
-  },
-  {
-    id: 5,
-    name: 'David Carter',
-    role: 'Principal Systems Architect',
-    experience: '10 yrs exp',
-    topSkills: ['Distributed Systems', 'Kubernetes', 'Go'],
-    fileName: 'david-carter-cv.pdf',
-    fileSize: '180 KB',
-    overallScore: 96,
-    categoryScores: {
-      skills: 98,
-      experience: 94,
-      relevance: 97,
-      roleFit: 91,
-    },
-    scoreLabel: 'Excellent Match',
-    scoreTier: 'excellent',
-    extractedHighlights: [
-      { label: 'Experience', text: '10.5 yrs · Principal Architect' },
-      { label: 'Core Skills', text: 'Kubernetes, Go, Microservices' },
-      { label: 'Education', text: 'M.S. Computer Engineering' },
-      { label: 'Certifications', text: 'CKA Certified Kubernetes' },
+    criteriaScores: [
+      { label: 'Component Kits', score: 94 },
+      { label: 'SaaS UX Polish', score: 87 },
+      { label: 'Accessibility', score: 86 },
     ],
-    summary: 'Exceptional distributed systems background; exceeds technical requirements.',
-    strengths: ['Kubernetes / Go', 'High Scale Systems', 'Tech Leadership'],
-    missing: ['None identified'],
-    decision: 'shortlisted',
-    decisionLabel: 'Fast-track Shortlist',
-    interview: {
-      type: 'Exec & Arch Deep Dive',
-      time: 'Monday · 10:00 AM',
-      interviewer: 'with VP of Engineering',
-    },
+    aiSummary: 'Solid portfolio in complex data dashboards and multi-brand tokenized Figma design systems.',
+    suggestedSlot: 'Friday at 3:30 PM EST',
   },
 ]
 
-type Stage = 0 | 1 | 2 | 3
-// 0: Resume Intake & Scanning
-// 1: AI Screening & Evaluation Metrics
-// 2: Match Score & Recommendation
-// 3: Decision & Interview / Pool Routing (Completed)
-
 export function AiRecruitmentWorkflowAnimation() {
-  const [candidateIndex, setCandidateIndex] = useState(0)
-  const [stage, setStage] = useState<Stage>(0)
-  const [displayScore, setDisplayScore] = useState(0)
-  const [parseProgress, setParseProgress] = useState(0)
-  const [isScanning, setIsScanning] = useState(true)
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const [scanKey, setScanKey] = useState(0) // increment to re-trigger scan
-  const [hasScrolledAway, setHasScrolledAway] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [scanState, setScanState] = useState<'p1_parsing' | 'p2_scoring' | 'p3_dispatching' | 'complete'>('p1_parsing')
+  const [animatedScore, setAnimatedScore] = useState(0)
+  const [visibleSkillsCount, setVisibleSkillsCount] = useState(0)
+  const [visibleChecklistCount, setVisibleChecklistCount] = useState(0)
+  const [scheduledState, setScheduledState] = useState<Record<string, boolean>>({})
+  const [isPaused, setIsPaused] = useState(false)
+  const [scanKey, setScanKey] = useState(0)
 
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const candidate = CANDIDATES[candidateIndex]
+  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const candidate = CANDIDATES[selectedIndex]
+  const isScheduled = Boolean(scheduledState[candidate.id])
 
-  // Viewport visibility detection
+  // Run the sequential scanning animation sequence
+  const startScanSequence = (targetCandidate: CandidateProfile) => {
+    setScanState('p1_parsing')
+    setAnimatedScore(0)
+    setVisibleSkillsCount(0)
+    setVisibleChecklistCount(0)
+    setScheduledState((prev) => ({ ...prev, [targetCandidate.id]: false }))
+
+    const activeTimers: NodeJS.Timeout[] = []
+
+    // --- PHASE 1: Resume Intake / Skills Reveal (0ms to 2000ms) ---
+    targetCandidate.skills.forEach((_, idx) => {
+      const timer = setTimeout(() => {
+        setVisibleSkillsCount(idx + 1)
+      }, 400 * (idx + 1))
+      activeTimers.push(timer)
+    })
+
+    // --- PHASE 2: Transition to Scoring (Starts at 2400ms) ---
+    const scoringTimer = setTimeout(() => {
+      setScanState('p2_scoring')
+      let current = 0
+      const target = targetCandidate.matchScore
+      const duration = 1600
+      const step = 25
+      const increment = target / (duration / step)
+
+      const counter = setInterval(() => {
+        current += increment
+        if (current >= target) {
+          setAnimatedScore(target)
+          clearInterval(counter)
+        } else {
+          setAnimatedScore(Math.floor(current))
+        }
+      }, step)
+
+      const intervalCleanup = setTimeout(() => clearInterval(counter), duration + 100)
+      activeTimers.push(intervalCleanup)
+    }, 2400)
+    activeTimers.push(scoringTimer)
+
+    // --- PHASE 3: Transition to Autopilot Actions (Starts at 4200ms) ---
+    const dispatchTimer = setTimeout(() => {
+      setScanState('p3_dispatching')
+
+      // Tick off checklist items one-by-one
+      const t1 = setTimeout(() => setVisibleChecklistCount(1), 400)
+      const t2 = setTimeout(() => setVisibleChecklistCount(2), 800)
+      const t3 = setTimeout(() => setVisibleChecklistCount(3), 1200)
+      activeTimers.push(t1, t2, t3)
+
+      // Auto-dispatch Google Meet invite
+      const t4 = setTimeout(() => {
+        setScheduledState((prev) => ({ ...prev, [targetCandidate.id]: true }))
+        setScanState('complete')
+      }, 1800)
+      activeTimers.push(t4)
+    }, 4200)
+    activeTimers.push(dispatchTimer)
+
+    return () => {
+      activeTimers.forEach(clearTimeout)
+    }
+  }
+
+  // Handle manual tab select
+  const handleSelectCandidate = (index: number) => {
+    setSelectedIndex(index)
+    setScanKey((k) => k + 1)
+  }
+
+  // Handle manual re-scan click
+  const handleReScan = () => {
+    setIsPaused(true) // Pause autoplay on user interaction
+    setScanKey((k) => k + 1)
+  }
+
+  // Trigger scan sequence on key or candidate change
+  useEffect(() => {
+    const cleanup = startScanSequence(CANDIDATES[selectedIndex])
+    return cleanup
+  }, [selectedIndex, scanKey])
+
+  // Auto-play loop runner
+  useEffect(() => {
+    if (isPaused || scanState !== 'complete') return
+
+    const timer = setTimeout(() => {
+      const nextIdx = (selectedIndex + 1) % CANDIDATES.length
+      setSelectedIndex(nextIdx)
+      setScanKey((k) => k + 1)
+    }, 7000) // Stay on completed candidate for 7s, then advance
+
+    return () => clearTimeout(timer)
+  }, [selectedIndex, scanState, isPaused])
+
+  // Viewport visibility detection (re-trigger scan when user arrives on section)
   useEffect(() => {
     const el = containerRef.current
     if (!el || typeof IntersectionObserver === 'undefined') return
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) {
-          // User scrolled away
-          setHasScrolledAway(true)
+        if (entry.isIntersecting) {
+          // Restart scan from candidate 0
+          setSelectedIndex(0)
+          setScanKey((k) => k + 1)
+          setIsPaused(false)
         }
       },
-      { threshold: 0.2 }
+      { threshold: 0.15 }
     )
 
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
 
-  // Scan workflow runner
-  useEffect(() => {
-    let cancelled = false
-    setIsScanning(true)
-    setIsTransitioning(false)
-    setStage(0)
-    setDisplayScore(0)
-    setParseProgress(18)
-
-    // Stage 0: Resume Intake & Parsing
-    const p1 = setTimeout(() => {
-      if (!cancelled) setParseProgress(68)
-    }, 600)
-
-    const p2 = setTimeout(() => {
-      if (!cancelled) setParseProgress(100)
-    }, 1600)
-
-    // Stage 1: AI Screening Breakdown
-    const s1 = setTimeout(() => {
-      if (!cancelled) {
-        setStage(1)
-      }
-    }, 2400)
-
-    // Stage 2: Overall Score & AI Insights
-    const s2 = setTimeout(() => {
-      if (!cancelled) {
-        setStage(2)
-        const target = candidate.overallScore
-        let current = 0
-        const stepTime = 25
-        const totalSteps = 24
-        const increment = target / totalSteps
-        const scoreInterval = setInterval(() => {
-          if (cancelled) {
-            clearInterval(scoreInterval)
-            return
-          }
-          current += increment
-          if (current >= target) {
-            setDisplayScore(target)
-            clearInterval(scoreInterval)
-          } else {
-            setDisplayScore(Math.round(current))
-          }
-        }, stepTime)
-      }
-    }, 4800)
-
-    // Stage 3: Decision & Interview / Action (Completed resting state)
-    const s3 = setTimeout(() => {
-      if (!cancelled) {
-        setStage(3)
-        setIsScanning(false)
-      }
-    }, 7200)
-
-    return () => {
-      cancelled = true
-      clearTimeout(p1)
-      clearTimeout(p2)
-      clearTimeout(s1)
-      clearTimeout(s2)
-      clearTimeout(s3)
-    }
-  }, [candidateIndex, scanKey, candidate.overallScore])
-
-  // Trigger Re-scan on current candidate
-  const handleReScan = (idx?: number) => {
-    setIsTransitioning(true)
-    setTimeout(() => {
-      if (typeof idx === 'number') {
-        setCandidateIndex(idx)
-      }
-      setScanKey((k) => k + 1)
-      setIsTransitioning(false)
-    }, 180)
-  }
-
-  const handleNextCandidate = () => {
-    const nextIdx = (candidateIndex + 1) % CANDIDATES.length
-    handleReScan(nextIdx)
-  }
-
-  // Tier color styling tokens
-  const getTierColors = (tier: CandidateProfile['scoreTier']) => {
-    switch (tier) {
-      case 'excellent':
-        return {
-          bg: 'rgba(34,207,255,0.12)',
-          border: 'rgba(34,207,255,0.3)',
-          text: '#06B6D4',
-          accent: '#22CFFF',
-          ring: '#06B6D4',
-        }
-      case 'strong':
-        return {
-          bg: 'rgba(76,111,255,0.12)',
-          border: 'rgba(76,111,255,0.3)',
-          text: '#4C6FFF',
-          accent: '#6366F1',
-          ring: '#4C6FFF',
-        }
-      case 'good':
-        return {
-          bg: 'rgba(16,185,129,0.12)',
-          border: 'rgba(16,185,129,0.3)',
-          text: '#10B981',
-          accent: '#059669',
-          ring: '#10B981',
-        }
-      case 'potential':
-        return {
-          bg: 'rgba(245,158,11,0.12)',
-          border: 'rgba(245,158,11,0.3)',
-          text: '#D97706',
-          accent: '#F59E0B',
-          ring: '#F59E0B',
-        }
-      case 'low':
-      default:
-        return {
-          bg: 'rgba(100,116,139,0.12)',
-          border: 'rgba(100,116,139,0.25)',
-          text: '#64748B',
-          accent: '#94A3B8',
-          ring: '#94A3B8',
-        }
-    }
-  }
-
-  const tierColors = getTierColors(candidate.scoreTier)
-
-  // Calculate SVG circular ring parameters
-  const radius = 26
-  const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference - (displayScore / 100) * circumference
+  // Fallback styling tokens
+  const blue = '#4C6FFF'
+  const cyan = '#22CFFF'
+  const success = '#10B981'
+  const border = 'rgba(11, 18, 32, 0.08)'
+  const dim = '#64748B'
 
   return (
     <div
       ref={containerRef}
-      className="hybent-live-wf"
       style={{
         width: '100%',
-        maxWidth: '100%',
-        borderRadius: '16px',
-        background: '#FFFFFF',
-        border: '1px solid rgba(11, 18, 32, 0.08)',
-        boxShadow: '0 4px 24px -6px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04)',
+        maxWidth: '920px',
+        marginInline: 'auto',
+        borderRadius: '12px',
+        background: 'linear-gradient(160deg, #FFFFFF 0%, rgba(248, 250, 253, 0.96) 100%)',
+        border: '1px solid rgba(203, 213, 225, 0.9)',
+        boxShadow: '0 20px 48px -10px rgba(76, 111, 255, 0.12), 0 4px 12px -4px rgba(0, 0, 0, 0.03)',
         overflow: 'hidden',
         position: 'relative',
-        userSelect: 'none',
-        fontFamily: 'var(--f-body, "Manrope", system-ui, sans-serif)',
+        textAlign: 'left',
         color: '#1E293B',
+        fontFamily: 'var(--f-body, "Manrope", system-ui, sans-serif)',
       }}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
     >
-      {/* ── Dashboard Header ── */}
+      {/* Styled Inline Keyframes */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes scanline-anim {
+          0% { top: 0%; }
+          100% { top: 100%; }
+        }
+        @keyframes pulse-anim {
+          0% { opacity: 0.5; }
+          50% { opacity: 1; }
+          100% { opacity: 0.5; }
+        }
+      `}} />
+
+      {/* Top Window Header */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 18px',
-          background: '#FFFFFF',
-          borderBottom: '1px solid rgba(11, 18, 32, 0.06)',
-          fontSize: '0.82rem',
-          flexWrap: 'wrap',
-          gap: '8px',
+          padding: '10px 16px',
+          borderBottom: `1px solid ${border}`,
+          background: 'rgba(241, 245, 249, 0.75)',
+          backdropFilter: 'blur(10px)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: isScanning ? '#22CFFF' : '#10B981',
-              boxShadow: isScanning
-                ? '0 0 0 3px rgba(34, 207, 255, 0.3)'
-                : '0 0 0 3px rgba(16, 185, 129, 0.2)',
-              animation: isScanning ? 'hbPulse 1.2s infinite' : 'none',
-            }}
-          />
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF5F56', display: 'inline-block' }} />
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFBD2E', display: 'inline-block' }} />
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#27C93F', display: 'inline-block' }} />
+          </div>
           <span
             style={{
-              fontWeight: 600,
-              fontSize: '0.78rem',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: '#475569',
               fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
-            }}
-          >
-            AI Hiring Pipeline
-          </span>
-          <span
-            style={{
-              fontSize: '0.7rem',
-              padding: '2px 7px',
-              borderRadius: '999px',
-              background: isScanning ? 'rgba(34,207,255,0.12)' : 'rgba(16,185,129,0.12)',
-              color: isScanning ? '#0284C7' : '#059669',
+              fontSize: '10.5px',
+              color: '#475569',
               fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
+              marginLeft: '6px',
             }}
           >
-            {isScanning ? 'Scanning...' : 'Scan Complete'}
+            hybent-hiring://autopilot.simulator
           </span>
         </div>
 
-        {/* Action Controls & Candidate Switcher */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Re-scan Button */}
-          <button
-            onClick={() => handleReScan()}
-            title="Re-run AI Resume Scan"
-            aria-label="Re-scan Resume"
+          <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '4px 10px',
-              borderRadius: '8px',
-              border: '1px solid rgba(76, 111, 255, 0.25)',
-              background: isScanning ? '#F8FAFC' : 'rgba(76, 111, 255, 0.08)',
-              color: '#4C6FFF',
-              fontSize: '0.74rem',
+              fontSize: '10px',
+              fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+              color: scanState !== 'complete' ? '#0284C7' : success,
+              background: scanState !== 'complete' ? 'rgba(34, 207, 255, 0.12)' : 'rgba(16, 185, 129, 0.1)',
+              border: scanState !== 'complete' ? '1px solid rgba(34, 207, 255, 0.3)' : '1px solid rgba(16, 185, 129, 0.25)',
+              padding: '2px 8px',
+              borderRadius: '20px',
               fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
             }}
           >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
+            <span
               style={{
-                transform: isScanning ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.4s ease',
+                width: '5px',
+                height: '5px',
+                borderRadius: '50%',
+                background: scanState !== 'complete' ? cyan : success,
+                animation: scanState !== 'complete' ? 'pulse-anim 0.6s infinite' : 'none',
               }}
-            >
-              <polyline points="23 4 23 10 17 10"></polyline>
-              <polyline points="1 20 1 14 7 14"></polyline>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-            </svg>
-            <span>Re-scan</span>
-          </button>
+            />
+            {scanState === 'p1_parsing'
+              ? 'AI PARSING RESUME...'
+              : scanState === 'p2_scoring'
+              ? 'EVALUATING MATCH SCORE...'
+              : scanState === 'p3_dispatching'
+              ? 'AUTOPILOT SCHEDULING...'
+              : 'AI ENGINE VERIFIED'}
+          </span>
 
-          {/* Candidate Switcher Dots */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: '4px' }}>
-            {CANDIDATES.map((c, i) => (
-              <button
-                key={c.id}
-                onClick={() => handleReScan(i)}
-                title={`${c.name} (${c.overallScore}%)`}
-                aria-label={`View Candidate ${c.name}`}
-                style={{
-                  width: candidateIndex === i ? '20px' : '7px',
-                  height: '7px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  background:
-                    candidateIndex === i
-                      ? 'linear-gradient(90deg, #4C6FFF, #22CFFF)'
-                      : 'rgba(148, 163, 184, 0.35)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.3, 1)',
-                  padding: 0,
-                }}
-              />
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={handleReScan}
+            style={{
+              background: 'linear-gradient(135deg, rgba(76, 111, 255, 0.1), rgba(34, 207, 255, 0.1))',
+              border: '1px solid rgba(76, 111, 255, 0.3)',
+              borderRadius: '6px',
+              padding: '3px 10px',
+              fontSize: '10.5px',
+              fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+              color: blue,
+              cursor: 'pointer',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease',
+            }}
+            title="Click to trigger live resume scanning animation"
+          >
+            <span>⚡</span> Re-Scan
+          </button>
         </div>
       </div>
 
-      {/* ── Main Dynamic Stage Area ── */}
+      {/* Role Switcher Tabs */}
       <div
         style={{
-          padding: '18px 20px',
-          minHeight: '230px',
+          padding: '8px 16px',
+          background: '#FFFFFF',
+          borderBottom: `1px solid ${border}`,
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          position: 'relative',
-          opacity: isTransitioning ? 0 : 1,
-          transform: isTransitioning ? 'translateY(4px)' : 'translateY(0)',
-          transition: 'opacity 0.2s ease, transform 0.2s ease',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '8px',
         }}
       >
-        {/* ════ STAGE 0: Resume Intake & Scanning ════ */}
-        {stage === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '10.5px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: dim, textTransform: 'uppercase', marginRight: '4px' }}>
+            Candidates:
+          </span>
+          {CANDIDATES.map((c, i) => {
+            const isActive = selectedIndex === i
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setIsPaused(true)
+                  handleSelectCandidate(i)
+                }}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '16px',
+                  border: isActive ? `1px solid ${blue}` : `1px solid ${border}`,
+                  background: isActive
+                    ? 'linear-gradient(135deg, rgba(76, 111, 255, 0.12), rgba(34, 207, 255, 0.12))'
+                    : 'rgba(248, 250, 253, 0.8)',
+                  color: isActive ? blue : '#64748B',
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: '0.76rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>{c.role}</span>
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    background: isActive ? blue : 'rgba(100, 116, 139, 0.12)',
+                    color: isActive ? '#FFFFFF' : '#475569',
+                    fontWeight: 700,
+                  }}
+                >
+                  {c.matchScore}%
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        <div style={{ fontSize: '0.72rem', color: dim, fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)' }}>
+          ⚡ 0.6s AI Vector Search
+        </div>
+      </div>
+
+      {/* Simulator 3-Column Compact Grid */}
+      <div
+        style={{
+          padding: '16px 18px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '14px',
+          alignItems: 'stretch',
+        }}
+      >
+        {/* ── STAGE 01: Resume Intelligence ── */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: scanState === 'p1_parsing' ? `1px solid ${cyan}` : `1px solid ${border}`,
+            borderRadius: '8px',
+            padding: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxShadow: scanState === 'p1_parsing' ? `0 0 16px rgba(34, 207, 255, 0.15)` : 'none',
+            transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Laser Scanning Line */}
+          {scanState === 'p1_parsing' && (
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 14px',
-                background: '#FFFFFF',
-                borderRadius: '12px',
-                border: '1px solid rgba(99, 102, 241, 0.15)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
-                position: 'relative',
-                overflow: 'hidden',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: `linear-gradient(90deg, transparent, ${cyan}, ${blue}, transparent)`,
+                boxShadow: `0 0 12px ${cyan}`,
+                animation: 'scanline-anim 1s ease-in-out infinite alternate',
+                zIndex: 10,
               }}
-            >
-              {/* Animated AI Scanning Laser Line */}
-              <div
+            />
+          )}
+
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                01 · RESUME INTELLIGENCE
+              </span>
+              <span
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: '2px',
-                  background: 'linear-gradient(90deg, transparent, #22CFFF, #4C6FFF, transparent)',
-                  boxShadow: '0 0 10px #22CFFF',
-                  animation: 'hbScanLine 1.4s ease-in-out infinite',
+                  fontSize: '9px',
+                  fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                  color: scanState === 'p1_parsing' ? '#0284C7' : success,
+                  fontWeight: 600,
                 }}
+              >
+                {scanState === 'p1_parsing' ? 'PARSING PDF...' : 'PARSED & INDEXED'}
+              </span>
+            </div>
+
+            {/* Candidate Identity */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+              <img
+                src={candidate.avatar}
+                alt={candidate.name}
+                style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: `2px solid rgba(76, 111, 255, 0.25)` }}
               />
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '9px',
-                    background: 'linear-gradient(135deg, rgba(76,111,255,0.12), rgba(34,207,255,0.12))',
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: '#4C6FFF',
-                    fontSize: '18px',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                  </svg>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.96rem', color: '#0F172A' }}>
-                      {candidate.name}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        fontWeight: 600,
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        background: '#F1F5F9',
-                        color: '#64748B',
-                      }}
-                    >
-                      {candidate.experience}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '2px' }}>
-                    {candidate.role}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <div
-                  style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    color: '#4C6FFF',
-                    fontFamily: 'var(--f-mono, monospace)',
-                  }}
-                >
-                  {candidate.fileName}
-                </div>
-                <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>{candidate.fileSize}</div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 700, color: '#0F172A' }}>{candidate.name}</h4>
+                <div style={{ fontSize: '0.74rem', color: blue, fontWeight: 600 }}>{candidate.title}</div>
+                <div style={{ fontSize: '0.68rem', color: dim, fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)' }}>{candidate.experience}</div>
               </div>
             </div>
 
-            {/* Parsing Progress Bar & Extracted tags */}
-            <div
-              style={{
-                background: '#FFFFFF',
-                padding: '12px 14px',
-                borderRadius: '12px',
-                border: '1px solid rgba(11, 18, 32, 0.05)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '0.76rem',
-                  marginBottom: '8px',
-                }}
-              >
-                <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* Extracted Skills animated list */}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.68rem', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: '#64748B', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>
+                Verified Skills ({visibleSkillsCount}/{candidate.skills.length}):
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '44px' }}>
+                {candidate.skills.slice(0, visibleSkillsCount).map((s, i) => (
                   <span
+                    key={i}
                     style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: parseProgress === 100 ? '#10B981' : '#4C6FFF',
-                    }}
-                  />
-                  {parseProgress === 100 ? 'Resume parsed successfully' : `Parsing resume structure... ${parseProgress}%`}
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--f-mono, monospace)',
-                    fontWeight: 600,
-                    color: parseProgress === 100 ? '#10B981' : '#4C6FFF',
-                  }}
-                >
-                  {parseProgress === 100 ? '✓ Complete' : `${parseProgress}%`}
-                </span>
-              </div>
-
-              {/* Progress track */}
-              <div
-                style={{
-                  height: '4px',
-                  background: '#E2E8F0',
-                  borderRadius: '999px',
-                  overflow: 'hidden',
-                  marginBottom: '10px',
-                }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${parseProgress}%`,
-                    background: 'linear-gradient(90deg, #4C6FFF, #22CFFF)',
-                    borderRadius: '999px',
-                    transition: 'width 0.6s cubic-bezier(0.2, 0.8, 0.3, 1)',
-                  }}
-                />
-              </div>
-
-              {/* Extraction criteria chips */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-                {candidate.extractedHighlights.map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      fontSize: '0.72rem',
-                      color: parseProgress >= 50 ? '#334155' : '#94A3B8',
-                      background: '#F8FAFC',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      transition: 'all 0.3s ease',
-                      opacity: parseProgress >= (idx + 1) * 25 ? 1 : 0.4,
+                      fontSize: '0.68rem',
+                      fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: 'rgba(76, 111, 255, 0.08)',
+                      border: '1px solid rgba(76, 111, 255, 0.2)',
+                      color: blue,
+                      fontWeight: 600,
                     }}
                   >
-                    <span style={{ color: '#10B981', fontWeight: 700 }}>✓</span>
-                    <strong style={{ fontWeight: 600 }}>{item.label}:</strong>
-                    <span
-                      style={{
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        color: '#64748B',
-                      }}
-                    >
-                      {item.text}
-                    </span>
-                  </div>
+                    ✓ {s.name}
+                  </span>
                 ))}
               </div>
             </div>
           </div>
-        )}
 
-        {/* ════ STAGE 1: AI Screening & Criteria Breakdown ════ */}
-        {stage === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <span
-                  style={{
-                    fontSize: '0.72rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: '#64748B',
-                    fontFamily: 'var(--f-mono, monospace)',
-                  }}
-                >
-                  Phase 02 · AI Screening
-                </span>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0F172A', marginTop: '1px' }}>
-                  Evaluating {candidate.name} against rubric
-                </div>
-              </div>
+          <div
+            style={{
+              padding: '6px 10px',
+              background: 'rgba(241, 245, 249, 0.8)',
+              borderRadius: '6px',
+              fontSize: '0.68rem',
+              color: '#475569',
+              fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>Format: PDF Resume</span>
+            <span style={{ color: success, fontWeight: 700 }}>100% Vectorized</span>
+          </div>
+        </div>
+
+        {/* ── STAGE 02: AI Match Scoring ── */}
+        <div
+          style={{
+            background: 'linear-gradient(160deg, #FFFFFF, rgba(248, 250, 253, 0.9))',
+            border: scanState === 'p2_scoring' ? `1px solid ${blue}` : '1px solid rgba(76, 111, 255, 0.22)',
+            borderRadius: '8px',
+            padding: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxShadow: scanState === 'p2_scoring' ? `0 0 16px rgba(76, 111, 255, 0.15)` : '0 6px 16px -8px rgba(76, 111, 255, 0.12)',
+            transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Laser Scanning Line */}
+          {scanState === 'p2_scoring' && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: `linear-gradient(90deg, transparent, ${cyan}, ${blue}, transparent)`,
+                boxShadow: `0 0 12px ${blue}`,
+                animation: 'scanline-anim 1s ease-in-out infinite alternate',
+                zIndex: 10,
+              }}
+            />
+          )}
+
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                02 · AI MATCH SCORE
+              </span>
               <span
                 style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  padding: '3px 8px',
-                  borderRadius: '999px',
-                  background: 'rgba(34,207,255,0.12)',
-                  color: '#0284C7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
+                  fontSize: '9px',
+                  fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                  color: scanState === 'p1_parsing' ? dim : candidate.verdictType === 'strong' ? '#059669' : blue,
+                  background: scanState === 'p1_parsing' ? 'rgba(100, 116, 139, 0.08)' : candidate.verdictType === 'strong' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(76, 111, 255, 0.1)',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontWeight: 700,
                 }}
               >
-                <span
-                  style={{
-                    width: '5px',
-                    height: '5px',
-                    borderRadius: '50%',
-                    background: '#0284C7',
-                    animation: 'hbPulse 1.5s infinite',
-                  }}
-                />
-                Analyzing Competencies
+                {scanState === 'p1_parsing' ? 'AWAITING PARSE' : `THRESHOLD (${candidate.threshold}%)`}
               </span>
             </div>
 
-            {/* Evaluation Bars */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                background: '#FFFFFF',
-                padding: '12px 14px',
-                borderRadius: '12px',
-                border: '1px solid rgba(11, 18, 32, 0.06)',
-              }}
-            >
-              {[
-                { label: 'Skills Match', score: candidate.categoryScores.skills },
-                { label: 'Experience Match', score: candidate.categoryScores.experience },
-                { label: 'Role Relevance', score: candidate.categoryScores.relevance },
-                { label: 'Culture / Role Fit', score: candidate.categoryScores.roleFit },
-              ].map((metric, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '0.74rem',
-                      fontWeight: 500,
-                      color: '#475569',
-                    }}
-                  >
-                    <span>{metric.label}</span>
-                    <span style={{ fontWeight: 700, color: '#0F172A', fontFamily: 'var(--f-mono, monospace)' }}>
-                      {metric.score}%
+            {/* Match Circle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  background: scanState === 'p1_parsing' ? '#E2E8F0' : `linear-gradient(135deg, ${blue}, ${cyan})`,
+                  display: 'grid',
+                  placeItems: 'center',
+                  boxShadow: scanState === 'p1_parsing' ? 'none' : '0 6px 16px rgba(76, 111, 255, 0.25)',
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    background: '#FFFFFF',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontWeight: 800,
+                    fontSize: '0.98rem',
+                    color: scanState === 'p1_parsing' ? '#94A3B8' : '#0F172A',
+                  }}
+                >
+                  {animatedScore}%
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.96rem', fontWeight: 800, color: scanState === 'p1_parsing' ? '#94A3B8' : '#0F172A' }}>
+                  {scanState === 'p1_parsing' ? 'Waiting...' : candidate.verdict}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: dim, lineHeight: 1.3 }}>
+                  {scanState === 'p1_parsing' ? 'Awaiting resume extraction' : 'Precision match verified'}
+                </div>
+              </div>
+            </div>
+
+            {/* Criteria Bars */}
+            <div style={{ display: 'grid', gap: '6px', marginBottom: '10px' }}>
+              {candidate.criteriaScores.map((cr, i) => (
+                <div key={i}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', marginBottom: '2px' }}>
+                    <span style={{ fontWeight: 600, color: scanState === 'p1_parsing' ? '#94A3B8' : '#334155' }}>{cr.label}</span>
+                    <span style={{ fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', fontWeight: 700, color: scanState === 'p1_parsing' ? '#94A3B8' : blue }}>
+                      {scanState === 'p1_parsing' ? '0%' : `${cr.score}%`}
                     </span>
                   </div>
-                  <div
-                    style={{
-                      height: '5px',
-                      background: '#F1F5F9',
-                      borderRadius: '999px',
-                      overflow: 'hidden',
-                    }}
-                  >
+                  <div style={{ height: '3px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
                     <div
                       style={{
                         height: '100%',
-                        width: `${metric.score}%`,
-                        background:
-                          metric.score >= 80
-                            ? 'linear-gradient(90deg, #4C6FFF, #22CFFF)'
-                            : metric.score >= 65
-                            ? 'linear-gradient(90deg, #3B82F6, #60A5FA)'
-                            : 'linear-gradient(90deg, #94A3B8, #CBD5E1)',
-                        borderRadius: '999px',
-                        animation: `hbFillBar 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards`,
+                        width: scanState === 'p1_parsing' ? '0%' : `${cr.score}%`,
+                        background: `linear-gradient(90deg, ${cyan}, ${blue})`,
+                        borderRadius: '3px',
+                        transition: 'width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)',
                       }}
                     />
                   </div>
@@ -825,552 +692,207 @@ export function AiRecruitmentWorkflowAnimation() {
               ))}
             </div>
           </div>
-        )}
 
-        {/* ════ STAGE 2: Overall Match Score & AI Recommendation ════ */}
-        {stage === 2 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '120px 1fr',
-                gap: '14px',
-                alignItems: 'center',
-                background: '#FFFFFF',
-                padding: '12px 14px',
-                borderRadius: '12px',
-                border: `1px solid ${tierColors.border}`,
-                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
-              }}
-            >
-              {/* Left: Circular Progress Gauge */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                }}
-              >
-                <svg width="68" height="68" viewBox="0 0 68 68">
-                  <circle
-                    cx="34"
-                    cy="34"
-                    r={radius}
-                    fill="none"
-                    stroke="#F1F5F9"
-                    strokeWidth="5"
-                  />
-                  <circle
-                    cx="34"
-                    cy="34"
-                    r={radius}
-                    fill="none"
-                    stroke={tierColors.ring}
-                    strokeWidth="5"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    transform="rotate(-90 34 34)"
-                    style={{ transition: 'stroke-dashoffset 0.4s ease-out' }}
-                  />
-                </svg>
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: '1.1rem',
-                      fontWeight: 800,
-                      lineHeight: 1,
-                      fontFamily: 'var(--f-display, "Sora", sans-serif)',
-                      color: '#0F172A',
-                    }}
-                  >
-                    {displayScore}%
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.55rem',
-                      color: '#64748B',
-                      textTransform: 'uppercase',
-                      fontWeight: 600,
-                      marginTop: '2px',
-                    }}
-                  >
-                    Match
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Score Tier & AI Insight */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '999px',
-                      background: tierColors.bg,
-                      color: tierColors.text,
-                      border: `1px solid ${tierColors.border}`,
-                    }}
-                  >
-                    {candidate.scoreLabel}
-                  </span>
-                  <span style={{ fontSize: '0.7rem', color: '#64748B' }}>AI Evaluation</span>
-                </div>
-                <p
-                  style={{
-                    fontSize: '0.78rem',
-                    lineHeight: '1.45',
-                    color: '#334155',
-                    margin: 0,
-                    fontWeight: 500,
-                  }}
-                >
-                  “{candidate.summary}”
-                </p>
-              </div>
-            </div>
-
-            {/* Key Strengths & Missing Criteria */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '8px',
-                fontSize: '0.72rem',
-              }}
-            >
-              <div
-                style={{
-                  background: '#FFFFFF',
-                  padding: '8px 10px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(16, 185, 129, 0.15)',
-                }}
-              >
-                <div style={{ fontWeight: 700, color: '#059669', marginBottom: '4px' }}>
-                  ✓ Key Strengths
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {candidate.strengths.map((s, idx) => (
-                    <span
-                      key={idx}
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.08)',
-                        color: '#065F46',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        fontSize: '0.68rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: '#FFFFFF',
-                  padding: '8px 10px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(100, 116, 139, 0.15)',
-                }}
-              >
-                <div style={{ fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>
-                  ⚠ Gaps / Considerations
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {candidate.missing.map((m, idx) => (
-                    <span
-                      key={idx}
-                      style={{
-                        background: '#F1F5F9',
-                        color: '#475569',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        fontSize: '0.68rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div
+            style={{
+              padding: '6px 10px',
+              background: scanState === 'p1_parsing' ? 'rgba(241, 245, 249, 0.4)' : 'rgba(76, 111, 255, 0.05)',
+              borderLeft: `2px solid ${scanState === 'p1_parsing' ? '#CBD5E1' : blue}`,
+              borderRadius: '0 4px 4px 0',
+              fontSize: '0.7rem',
+              color: scanState === 'p1_parsing' ? '#94A3B8' : '#334155',
+              lineHeight: 1.4,
+            }}
+          >
+            <strong>AI Note:</strong> {scanState === 'p1_parsing' ? 'Analysis queued' : candidate.aiSummary}
           </div>
-        )}
+        </div>
 
-        {/* ════ STAGE 3: Decision & Interview Scheduling / Routing (COMPLETED STATE) ════ */}
-        {stage === 3 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Candidate Summary Row */}
+        {/* ── STAGE 03: Autopilot Scheduling ── */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: scanState === 'p3_dispatching' ? '1px solid #F59E0B' : isScheduled ? `1px solid rgba(16, 185, 129, 0.4)` : `1px solid ${border}`,
+            borderRadius: '8px',
+            padding: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: scanState === 'p3_dispatching' ? '0 0 16px rgba(245, 158, 11, 0.15)' : 'none',
+            transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+          }}
+        >
+          {/* Laser Scanning Line */}
+          {scanState === 'p3_dispatching' && (
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                background: '#FFFFFF',
-                borderRadius: '10px',
-                border: '1px solid rgba(11, 18, 32, 0.06)',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, transparent, #F59E0B, #EF4444, transparent)',
+                boxShadow: '0 0 12px #F59E0B',
+                animation: 'scanline-anim 1s ease-in-out infinite alternate',
+                zIndex: 10,
               }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    background: tierColors.bg,
-                    color: tierColors.text,
-                    fontWeight: 700,
-                    fontSize: '0.75rem',
-                    display: 'grid',
-                    placeItems: 'center',
-                  }}
-                >
-                  {candidate.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F172A' }}>
-                    {candidate.name}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>{candidate.role}</div>
-                </div>
-              </div>
+            />
+          )}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  style={{
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    color: tierColors.text,
-                    fontFamily: 'var(--f-mono, monospace)',
-                  }}
-                >
-                  {candidate.overallScore}% Match
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 600,
-                    padding: '2px 7px',
-                    borderRadius: '999px',
-                    background: tierColors.bg,
-                    color: tierColors.text,
-                    border: `1px solid ${tierColors.border}`,
-                  }}
-                >
-                  {candidate.decisionLabel}
-                </span>
-              </div>
-            </div>
-
-            {/* Shortlisted Flow: Interview Scheduled Card */}
-            {candidate.decision === 'shortlisted' && candidate.interview && (
-              <div
-                style={{
-                  background: 'linear-gradient(135deg, rgba(76,111,255,0.05), rgba(34,207,255,0.05))',
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(76,111,255,0.18)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  animation: 'hbSlideUp 0.35s cubic-bezier(0.2, 0.8, 0.3, 1)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      background: '#FFFFFF',
-                      border: '1px solid rgba(76,111,255,0.2)',
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: '#4C6FFF',
-                      fontSize: '16px',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#0F172A' }}>
-                      {candidate.interview.type}
-                    </div>
-                    <div style={{ fontSize: '0.74rem', color: '#4C6FFF', fontWeight: 600 }}>
-                      {candidate.interview.time}
-                    </div>
-                    <div style={{ fontSize: '0.68rem', color: '#64748B' }}>
-                      {candidate.interview.interviewer}
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    color: '#059669',
-                    background: '#FFFFFF',
-                    padding: '5px 10px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                  }}
-                >
-                  <span style={{ fontSize: '0.9rem' }}>✓</span> Interview Scheduled
-                </div>
-              </div>
-            )}
-
-            {/* Non-shortlisted Flow: Review / Pool Routing */}
-            {candidate.decision !== 'shortlisted' && (
-              <div
-                style={{
-                  background: '#FFFFFF',
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(100, 116, 139, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  animation: 'hbSlideUp 0.35s cubic-bezier(0.2, 0.8, 0.3, 1)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      background: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: '#64748B',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="9" cy="7" r="4"></circle>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#334155' }}>
-                      {candidate.decision === 'review' ? 'Manual Review Queued' : 'Talent Pool Indexed'}
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '1px' }}>
-                      {candidate.reviewNote}
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    color: '#64748B',
-                    background: '#F1F5F9',
-                    padding: '5px 9px',
-                    borderRadius: '8px',
-                  }}
-                >
-                  {candidate.decision === 'review' ? 'Needs Review' : 'Talent DB'}
-                </div>
-              </div>
-            )}
-
-            {/* Resting State Interactive Action Banner */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                background: '#F8FAFC',
-                borderRadius: '8px',
-                border: '1px dashed rgba(11, 18, 32, 0.12)',
-                fontSize: '0.74rem',
-              }}
-            >
-              <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ color: '#10B981', fontWeight: 700 }}>✓</span>
-                Workflow finished for {candidate.name}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                03 · AUTOPILOT ACTIONS
               </span>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  onClick={() => handleReScan()}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(76, 111, 255, 0.3)',
-                    background: '#FFFFFF',
-                    color: '#4C6FFF',
-                    fontWeight: 600,
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  ↻ Re-scan This Resume
-                </button>
-                <button
-                  onClick={handleNextCandidate}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'linear-gradient(90deg, #4C6FFF, #22CFFF)',
-                    color: '#FFFFFF',
-                    fontWeight: 600,
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Scan Next Profile →
-                </button>
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                  color: isScheduled ? success : scanState === 'p3_dispatching' ? '#F59E0B' : dim,
+                  fontWeight: 700,
+                }}
+              >
+                {isScheduled ? 'INVITE DISPATCHED' : scanState === 'p3_dispatching' ? 'DISPATCHING...' : 'AWAITING SCORE'}
+              </span>
+            </div>
+
+            {/* Checklist */}
+            <div style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#1E293B', opacity: visibleChecklistCount >= 1 ? 1 : 0.4 }}>
+                <span style={{ 
+                  width: '14px', 
+                  height: '14px', 
+                  borderRadius: '50%', 
+                  background: visibleChecklistCount >= 1 ? 'rgba(16, 185, 129, 0.15)' : '#F1F5F9', 
+                  color: visibleChecklistCount >= 1 ? success : dim, 
+                  display: 'grid', 
+                  placeItems: 'center', 
+                  fontSize: '9px', 
+                  fontWeight: 800 
+                }}>
+                  {visibleChecklistCount >= 1 ? '✓' : '○'}
+                </span>
+                <span>Auto-updated to <strong>Shortlisted</strong></span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#1E293B', opacity: visibleChecklistCount >= 2 ? 1 : 0.4 }}>
+                <span style={{ 
+                  width: '14px', 
+                  height: '14px', 
+                  borderRadius: '50%', 
+                  background: visibleChecklistCount >= 2 ? 'rgba(16, 185, 129, 0.15)' : '#F1F5F9', 
+                  color: visibleChecklistCount >= 2 ? success : dim, 
+                  display: 'grid', 
+                  placeItems: 'center', 
+                  fontSize: '9px', 
+                  fontWeight: 800 
+                }}>
+                  {visibleChecklistCount >= 2 ? '✓' : '○'}
+                </span>
+                <span>Hiring Team notified via Slack</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#1E293B', opacity: visibleChecklistCount >= 3 ? 1 : 0.4 }}>
+                <span style={{ 
+                  width: '14px', 
+                  height: '14px', 
+                  borderRadius: '50%', 
+                  background: visibleChecklistCount >= 3 ? 'rgba(16, 185, 129, 0.15)' : '#F1F5F9', 
+                  color: visibleChecklistCount >= 3 ? success : dim, 
+                  display: 'grid', 
+                  placeItems: 'center', 
+                  fontSize: '9px', 
+                  fontWeight: 800 
+                }}>
+                  {visibleChecklistCount >= 3 ? '✓' : '○'}
+                </span>
+                <span>Profile indexed in database</span>
+              </div>
+            </div>
+
+            {/* Slot Box */}
+            <div
+              style={{
+                background: scanState === 'p1_parsing' || scanState === 'p2_scoring' ? 'rgba(241, 245, 249, 0.4)' : 'rgba(241, 245, 249, 0.8)',
+                border: scanState === 'p1_parsing' || scanState === 'p2_scoring' ? '1px solid rgba(203, 213, 225, 0.4)' : '1px solid rgba(203, 213, 225, 0.8)',
+                borderRadius: '6px',
+                padding: '8px 10px',
+                marginBottom: '10px',
+              }}
+            >
+              <div style={{ fontSize: '0.66rem', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: dim, textTransform: 'uppercase', marginBottom: '2px', fontWeight: 600 }}>
+                Optimal Conflict-Free Slot:
+              </div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: scanState === 'p1_parsing' || scanState === 'p2_scoring' ? '#94A3B8' : '#0F172A', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>📅</span> {scanState === 'p1_parsing' || scanState === 'p2_scoring' ? 'Calculating...' : candidate.suggestedSlot}
               </div>
             </div>
           </div>
-        )}
+
+          <div>
+            {!isScheduled ? (
+              <button
+                type="button"
+                disabled={scanState !== 'p3_dispatching'}
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  background: scanState !== 'p3_dispatching' ? '#E2E8F0' : `linear-gradient(135deg, ${blue}, ${cyan})`,
+                  color: scanState !== 'p3_dispatching' ? '#94A3B8' : '#FFFFFF',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: scanState !== 'p3_dispatching' ? 'default' : 'pointer',
+                  boxShadow: scanState !== 'p3_dispatching' ? 'none' : '0 6px 16px rgba(76, 111, 255, 0.22)',
+                }}
+              >
+                <span>⚡ Auto-Dispatch Google Meet</span>
+              </button>
+            ) : (
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: '6px',
+                  padding: '7px 10px',
+                  textAlign: 'center',
+                  color: '#059669',
+                  fontSize: '0.76rem',
+                  fontWeight: 700,
+                }}
+              >
+                🎉 Google Meet Sent: <span style={{ fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', fontWeight: 600, color: '#334155' }}>meet.google.com/hyb-demo</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── Bottom Pipeline Progress Stepper ── */}
+      {/* Bottom Metrics Bar */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          padding: '10px 16px',
-          background: '#FFFFFF',
-          borderTop: '1px solid rgba(11, 18, 32, 0.06)',
+          background: 'rgba(241, 245, 249, 0.8)',
+          borderTop: `1px solid ${border}`,
+          padding: '8px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '8px',
           fontSize: '0.72rem',
+          fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+          color: dim,
         }}
       >
-        {[
-          { label: 'Applied', step: 0, phase: 'Intake' },
-          { label: 'Screening', step: 1, phase: 'AI Scoring' },
-          { label: 'Shortlist', step: 2, phase: 'Rubric' },
-          {
-            label: candidate.decision === 'shortlisted' ? 'Interview' : 'Talent Pool',
-            step: 3,
-            phase: 'Action',
-          },
-        ].map((item, idx) => {
-          const isCompleted = stage > item.step
-          const isActive = stage === item.step || (item.step === 3 && stage >= 3)
-          return (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '2px',
-                textAlign: 'center',
-                position: 'relative',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span
-                  style={{
-                    width: '14px',
-                    height: '14px',
-                    borderRadius: '50%',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: '0.62rem',
-                    fontWeight: 700,
-                    background: isCompleted
-                      ? '#10B981'
-                      : isActive
-                      ? '#4C6FFF'
-                      : '#E2E8F0',
-                    color: isCompleted || isActive ? '#FFFFFF' : '#94A3B8',
-                    transition: 'all 0.3s ease',
-                  }}
-                >
-                  {isCompleted ? '✓' : idx + 1}
-                </span>
-                <span
-                  style={{
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? '#0F172A' : isCompleted ? '#334155' : '#94A3B8',
-                    transition: 'color 0.3s ease',
-                  }}
-                >
-                  {item.label}
-                </span>
-              </div>
-            </div>
-          )
-        })}
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+          <span>⏱️ <strong>Screening:</strong> 0.6s</span>
+          <span>🎯 <strong>Precision:</strong> {scanState === 'p1_parsing' ? '...' : `${candidate.matchScore}% Match`}</span>
+          <span>📅 <strong>Scheduling:</strong> 1-Click Zero Emails</span>
+        </div>
+        <span style={{ color: blue, fontWeight: 600 }}>Interactive Autopilot Live Simulator</span>
       </div>
-
-      {/* Embedded Micro-Animation Keyframes */}
-      <style>{`
-        @keyframes hbScanLine {
-          0% { transform: translateY(0); opacity: 0.8; }
-          50% { transform: translateY(58px); opacity: 1; }
-          100% { transform: translateY(0); opacity: 0.8; }
-        }
-        @keyframes hbPulse {
-          0% { transform: scale(0.95); opacity: 0.8; }
-          50% { transform: scale(1.15); opacity: 1; }
-          100% { transform: scale(0.95); opacity: 0.8; }
-        }
-        @keyframes hbFillBar {
-          0% { width: 0%; }
-          100% { width: inherit; }
-        }
-        @keyframes hbSlideUp {
-          0% { transform: translateY(8px); opacity: 0; }
-          100% { transform: translateY(0); opacity: 1; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .hybent-live-wf * {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }

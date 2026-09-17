@@ -1,12 +1,50 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SiteView } from '../components/SiteView'
 
+// The card entering from below only reaches its own pinned `top` after
+// scrolling roughly one viewport height, so a short card leaves a gap below
+// its own bottom edge for that entire stretch — showing the incoming (or, an
+// even earlier) card peeking through underneath. Sizing every card to (near)
+// the full viewport means whichever one is pinned always fills the screen,
+// so nothing behind it can ever show through.
 const stickyCard = (index: number): React.CSSProperties => ({
   position: 'sticky',
   top: '108px',
   zIndex: index + 2,
   marginBottom: '16px',
+  minHeight: 'calc(100vh - 160px)',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
 })
+
+// Header height + breathing room. Keeps the TOC scroll target and the
+// active-section tracker in agreement.
+const NAV_OFFSET = 96
+
+// Neither getBoundingClientRect() NOR offsetTop can be trusted on one of
+// these `position: sticky` cards: once a card has ever been "stuck", Chromium
+// keeps its own offsetTop (and rect.top) reporting the live, scroll-adjusted
+// pinned position instead of its static flow position — so measuring a card
+// via itself gives a value that silently drifts with scroll history. A
+// card's rendered SIZE is never affected by being stuck though, only its
+// position is — so we compute each card's true document top by walking the
+// (non-sticky) container and summing preceding siblings' stable offsetHeight,
+// never reading position off a sticky element itself.
+function getSectionTops(ids: string[]): Record<string, number> {
+  const tops: Record<string, number> = {}
+  const container = document.getElementById(ids[0])?.parentElement
+  if (!container) return tops
+  let top = container.getBoundingClientRect().top + window.scrollY
+  for (const id of ids) {
+    tops[id] = top
+    const el = document.getElementById(id)
+    if (!el) continue
+    const cs = window.getComputedStyle(el)
+    top += el.offsetHeight + parseFloat(cs.marginTop || '0') + parseFloat(cs.marginBottom || '0')
+  }
+  return tops
+}
 
 const SECTIONS = [
   { id: 'introduction', title: '1. Introduction' },
@@ -19,16 +57,22 @@ const SECTIONS = [
   { id: 'contact-info', title: '8. Contact Information' },
 ]
 
+const SECTION_IDS = SECTIONS.map((s) => s.id)
+
 export default function CookiesPage() {
   const [activeSection, setActiveSection] = useState('introduction')
+  const isProgrammaticScroll = useRef(false)
+  const programmaticTimer = useRef<number>()
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPosition = window.scrollY + 140
+      if (isProgrammaticScroll.current) return
+      const tops = getSectionTops(SECTION_IDS)
+      const scrollPosition = window.scrollY + NAV_OFFSET
       for (const section of SECTIONS) {
         const el = document.getElementById(section.id)
-        if (el) {
-          const top = el.offsetTop
+        const top = tops[section.id]
+        if (el && top !== undefined) {
           const height = el.offsetHeight
           if (scrollPosition >= top && scrollPosition < top + height) {
             setActiveSection(section.id)
@@ -43,12 +87,16 @@ export default function CookiesPage() {
   }, [])
 
   const scrollTo = (id: string) => {
-    const el = document.getElementById(id)
-    if (el) {
-      const y = el.getBoundingClientRect().top + window.pageYOffset - 90
-      window.scrollTo({ top: y, behavior: 'smooth' })
-      setActiveSection(id)
-    }
+    const tops = getSectionTops(SECTION_IDS)
+    const top = tops[id]
+    if (top === undefined) return
+    isProgrammaticScroll.current = true
+    window.clearTimeout(programmaticTimer.current)
+    setActiveSection(id)
+    window.scrollTo({ top: top - NAV_OFFSET, behavior: 'smooth' })
+    programmaticTimer.current = window.setTimeout(() => {
+      isProgrammaticScroll.current = false
+    }, 700)
   }
 
   const handleOpenBannerSettings = () => {
@@ -181,7 +229,7 @@ export default function CookiesPage() {
               {/* Section 1: Introduction */}
               <article
                 id="introduction"
-                className="card stack-card"
+                className="stack-card"
                 style={{ ...stickyCard(0), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
@@ -195,12 +243,33 @@ export default function CookiesPage() {
                 <p className="small" style={{ marginTop: '12px', fontSize: '0.98rem', lineHeight: '1.7', color: '#334155' }}>
                   By accessing or using HYBENT products—including our flagship AI recruitment platform (Hybent Hiring), recruiter dashboards, and candidate portals—you acknowledge our data processing practices as described in this Policy and our <a href="/privacy" style={{ color: 'var(--violet, #6c47ff)', fontWeight: 600 }}>Privacy &amp; Terms Policy</a>.
                 </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '24px' }}>
+                  <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Full Transparency</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      Every cookie category we set is documented on this page, with what it does and why we use it.
+                    </p>
+                  </div>
+                  <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Granular Control</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      Accept, reject, or customize each non-essential category independently, any time you choose.
+                    </p>
+                  </div>
+                  <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>No Surprise Tracking</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      Nothing beyond strictly essential cookies loads before you've made a consent choice.
+                    </p>
+                  </div>
+                </div>
               </article>
 
               {/* Section 2: What Are Cookies */}
               <article
                 id="what-are-cookies"
-                className="card stack-card"
+                className="stack-card"
                 style={{ ...stickyCard(1), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
@@ -214,12 +283,31 @@ export default function CookiesPage() {
                 <p className="small" style={{ marginTop: '12px', fontSize: '0.98rem', lineHeight: '1.7', color: '#334155' }}>
                   In addition to cookies, HYBENT may utilize related browser storage technologies such as <strong>localStorage</strong>, <strong>sessionStorage</strong>, and secure HTTP-only cookies to handle authentication tokens, active workspace states, and feature configurations safely.
                 </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', marginTop: '24px' }}>
+                  <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 8px', fontSize: '1.02rem', fontWeight: 700, color: '#0f172a' }}>First-Party Cookies</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      Set directly by hybent.com and the Hybent Hiring platform to run the core features you're actively using — login sessions, workspace state, saved filters.
+                    </p>
+                  </div>
+                  <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 8px', fontSize: '1.02rem', fontWeight: 700, color: '#0f172a' }}>Third-Party Cookies</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      Set by vetted service providers we integrate with — embedded scheduling tools, analytics, and video calling. Covered in detail in Section 5.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '20px', padding: '16px 20px', borderRadius: '12px', background: 'rgba(108,71,255,0.05)', border: '1px solid rgba(108,71,255,0.2)' }}>
+                  <strong style={{ color: 'var(--violet, #6c47ff)' }}>Persistent vs. Session Cookies:</strong> Session cookies are deleted automatically once you close your browser; persistent cookies remain on your device for a set duration (or until you clear them) so preferences carry over between visits.
+                </div>
               </article>
 
               {/* Section 3: Types of Cookies */}
               <article
                 id="types-of-cookies"
-                className="card stack-card"
+                className="stack-card"
                 style={{ ...stickyCard(2), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
@@ -274,7 +362,7 @@ export default function CookiesPage() {
               {/* Section 4: Why We Use Cookies */}
               <article
                 id="why-we-use-cookies"
-                className="card stack-card"
+                className="stack-card"
                 style={{ ...stickyCard(3), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
@@ -308,7 +396,7 @@ export default function CookiesPage() {
               {/* Section 5: Third-Party Cookies */}
               <article
                 id="third-party-cookies"
-                className="card stack-card"
+                className="stack-card"
                 style={{ ...stickyCard(4), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
@@ -319,20 +407,29 @@ export default function CookiesPage() {
                 <p className="small" style={{ marginTop: '16px', fontSize: '0.98rem', lineHeight: '1.7', color: '#334155' }}>
                   To deliver seamless enterprise integrations, HYBENT partners with vetted third-party service providers who may also issue cookies through our services:
                 </p>
-                <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
                   <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <strong style={{ color: '#0f172a' }}>Google Services (OAuth 2.0 &amp; Google Meet):</strong> Used for secure single sign-on (SSO) authentication and automated interview calendar scheduling.
                   </div>
                   <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <strong style={{ color: '#0f172a' }}>Infrastructure &amp; Security Providers:</strong> Employed to detect rate limits, DDoS threats, and ensure continuous application availability.
                   </div>
+                  <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <strong style={{ color: '#0f172a' }}>Product Analytics Platforms:</strong> Aggregated, non-identifiable usage data that helps us understand which features are working and which need improvement.
+                  </div>
+                  <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <strong style={{ color: '#0f172a' }}>Customer Support Tooling:</strong> Powers live chat and help-desk widgets so support conversations and ticket history persist across your session.
+                  </div>
                 </div>
+                <p className="small" style={{ marginTop: '16px', fontSize: '0.9rem', lineHeight: '1.6', color: '#475569' }}>
+                  Each provider is bound by a Data Processing Agreement (DPA) and is only permitted to use cookie data for the specific service it delivers to us — never for its own independent advertising purposes.
+                </p>
               </article>
 
               {/* Section 6: Managing Cookies */}
               <article
                 id="managing-cookies"
-                className="card stack-card"
+                className="stack-card"
                 style={{ ...stickyCard(5), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
@@ -372,7 +469,7 @@ export default function CookiesPage() {
               {/* Section 7: Changes to Policy */}
               <article
                 id="changes-to-policy"
-                className="card stack-card"
+                className="stack-card"
                 style={{ ...stickyCard(6), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
@@ -386,13 +483,40 @@ export default function CookiesPage() {
                 <p className="small" style={{ marginTop: '12px', fontSize: '0.98rem', lineHeight: '1.7', color: '#334155' }}>
                   Any updates will be posted on this page with a revised &quot;Last Updated&quot; date at the top. We encourage users to check back periodically for updates.
                 </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '24px' }}>
+                  <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Revised Date</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      The &quot;Last Updated&quot; date at the top of this page always reflects the current version of this Policy.
+                    </p>
+                  </div>
+                  <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Material Changes</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      Significant changes to how we use cookies are highlighted with an on-site notice, not just a silent date change.
+                    </p>
+                  </div>
+                  <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Your Consent Stays Yours</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
+                      A policy update never silently re-enables a category you've turned off — your saved preferences carry forward.
+                    </p>
+                  </div>
+                </div>
               </article>
 
               {/* Section 8: Contact Information */}
               <article
                 id="contact-info"
-                className="card stack-card"
-                style={{ ...stickyCard(7), background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid rgba(108,71,255,0.1)' }}
+                className="stack-card"
+                style={{
+                  ...stickyCard(7),
+                  background: '#ffffff',
+                  padding: '36px',
+                  borderRadius: '24px',
+                  border: '1px solid rgba(108,71,255,0.1)',
+                }}
               >
                 <span className="icon-tile" style={{ marginBottom: '16px' }}>
                   <svg aria-hidden="true"><use href="#i-users" /></svg>
@@ -435,6 +559,23 @@ export default function CookiesPage() {
                   </div>
                 </div>
               </article>
+
+              {/*
+                Scroll-runway spacer, not a visible section.
+                The stacking cards above share one containing block (this flex
+                column), so a sticky card can only stay pinned at `top` for as
+                long as doing so keeps it inside that shared containing block.
+                Being the very last child, "8. Contact Information" IS the
+                bottom edge of that containing block — no amount of margin on
+                itself can buy it room, since its own margin defines the
+                boundary it's measured against. Without a real trailing
+                sibling here, it has no hang time at all: it flies straight
+                past `top` instead of staying pinned, uncovering the previous
+                card behind it. This spacer becomes that trailing sibling,
+                giving the last card (and the release threshold every earlier
+                card shares) real room.
+              */}
+              <div aria-hidden="true" style={{ height: 'calc(100vh + 200px)' }} />
 
             </div>
           </div>

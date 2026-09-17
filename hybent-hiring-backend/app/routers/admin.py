@@ -295,7 +295,7 @@ async def test_email(
         subject="✅ Hybent Hiring Email Test — SMTP Working",
         html_body=f"""
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:40px auto;padding:32px;border:1px solid #dadce0;border-radius:12px;">
-            <h2 style="color:#6c47ff;margin-top:0;">✅ SMTP is Working!</h2>
+            <h2 style="color:#4C6FFF;margin-top:0;">✅ SMTP is Working!</h2>
             <p style="color:#3c4043;">This test email was sent from the Hybent Hiring backend to confirm that SMTP is correctly configured.</p>
             <table style="width:100%;border-collapse:collapse;margin-top:16px;">
                 <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">From</td><td style="padding:6px 0;font-size:13px;">{settings.smtp_user}</td></tr>

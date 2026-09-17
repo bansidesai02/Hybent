@@ -191,7 +191,7 @@ export default function ClientDetailPage() {
       else navigate('/hiring/recruiter')
     },
     onError: (err: any) =>
-      toast.error(err.response?.data?.detail || err.message || 'Impersonation failed.'),
+      toast.error(err.response?.data?.message || err.message || 'Impersonation failed.'),
   })
 
   if (clientsLoading) {

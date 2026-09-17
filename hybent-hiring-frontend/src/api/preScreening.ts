@@ -109,18 +109,22 @@ export const preScreeningApi = {
   takeSession: (token: string) =>
     api.get<PublicSession>(`/v1/pre-screening/take/${token}`),
 
-  updateStatus: (sessionId: string, status: 'in_progress' | 'completed') =>
-    api.patch(`/v1/pre-screening/sessions/${sessionId}/status`, { status }),
+  // `token` is the invite token from the candidate's URL — the backend requires
+  // it on every public mutation since sessionId alone isn't a secret (it's
+  // shown to recruiters in authenticated list/detail views).
+  updateStatus: (sessionId: string, status: 'in_progress' | 'completed', token: string) =>
+    api.patch(`/v1/pre-screening/sessions/${sessionId}/status`, { status }, { params: { token } }),
 
   uploadResponse: (
     sessionId: string,
     questionIndex: number,
     audioBlob: Blob,
+    token: string,
     durationSeconds?: number,
   ) => {
     const form = new FormData()
     form.append('audio', audioBlob, `q${questionIndex}.webm`)
-    const params: Record<string, string> = { question_index: String(questionIndex) }
+    const params: Record<string, string> = { question_index: String(questionIndex), token }
     if (durationSeconds != null) params.duration_seconds = String(durationSeconds)
     return api.post<{ id: string; audio_saved: boolean; transcription: string }>(
       `/v1/pre-screening/sessions/${sessionId}/responses`,
@@ -140,10 +144,11 @@ export const preScreeningApi = {
   fetchAudioBlob: (responseId: string) =>
     api.get<Blob>(`/v1/pre-screening/audio/${responseId}`, { responseType: 'blob' }),
 
-  updateLanguage: (sessionId: string, language: ScreeningLanguage) =>
+  updateLanguage: (sessionId: string, language: ScreeningLanguage, token: string) =>
     api.patch<{ session_id: string; language: ScreeningLanguage; translated_questions: ScreeningQuestion[] }>(
       `/v1/pre-screening/sessions/${sessionId}/language`,
       { language },
+      { params: { token } },
     ),
 
   summariseSession: (sessionId: string) =>

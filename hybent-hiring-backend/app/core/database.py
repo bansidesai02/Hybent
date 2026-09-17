@@ -45,12 +45,23 @@ def get_engine():
         (current_loop is not None and _loop is not current_loop)):
         
         connect_args = {"statement_cache_size": 0}
+        if settings.is_production:
+            # Supabase (and most hosted Postgres) requires TLS on its direct
+            # connection; asyncpg doesn't request it unless told to. Local
+            # Docker Postgres has no SSL configured, so this stays dev-safe.
+            connect_args["ssl"] = "require"
 
         _engine = create_async_engine(
             settings.database_url,
             echo=False,
-            pool_size=20,
-            max_overflow=40,
+            # Small on purpose: the API process and the Celery worker each get
+            # their own engine (get_engine() is keyed by pid), so this pool
+            # size is doubled in practice. 20+40 per process (up to 120 total
+            # connections from one deployment) was exhausting Supabase's
+            # free-tier pooler connection ceiling, which made every DB-backed
+            # request — including login — queue for a connection.
+            pool_size=5,
+            max_overflow=5,
             pool_recycle=1800,
             pool_timeout=30,
             pool_pre_ping=True,
@@ -153,4 +164,18 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+
+_worker_loop = None
+
+def run_async(coro):
+    """
+    Executes an async coroutine inside a single, persistent event loop.
+    Reuses the loop across tasks to prevent connection pool churn.
+    """
+    global _worker_loop
+    if _worker_loop is None or _worker_loop.is_closed():
+        _worker_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_worker_loop)
+    return _worker_loop.run_until_complete(coro)
+
 

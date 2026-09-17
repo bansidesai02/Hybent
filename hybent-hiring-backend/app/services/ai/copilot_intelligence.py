@@ -158,7 +158,7 @@ KNOWN_WORDS: list[str] = [
     "finance", "accounting", "legal", "compliance",
     # Common attributes
     "remote", "hybrid", "fulltime", "parttime", "contract", "freelance",
-    "immediate", "notice", "fresher", "experienced",
+    "immediate", "notice", "fresher", "experienced", "experience", "years", "year", "skills", "skill",
     # Company types
     "startup", "mnc", "product", "service",
 ]
@@ -766,7 +766,7 @@ def build_search_context_from_history(
 def is_jd_creation_intent(text: str) -> bool:
     """
     Detect if the user wants to create/generate/write/draft a Job Description (JD).
-    Supports spelling mistakes, synonyms, and variations of 'Job Description' or 'JD'.
+    Supports spelling mistakes, synonyms, Hinglish, and variations of 'Job Description' or 'JD'.
     """
     text_lower = text.lower().strip()
     
@@ -787,7 +787,7 @@ def is_jd_creation_intent(text: str) -> bool:
         r"\brecruitment\s+description\b"
     ]
     
-    # 2. Action verbs indicating creation
+    # 2. Action verbs indicating creation (English & Hinglish)
     create_patterns = [
         r"\bcreate\b",
         r"\bgenerate\b",
@@ -802,13 +802,30 @@ def is_jd_creation_intent(text: str) -> bool:
         r"\bcan\s+you\b",
         r"\blooking\s+to\b",
         r"\bbuild\b",
-        r"\bdesign\b"
+        r"\bdesign\b",
+        r"\bbana\s*do\b",
+        r"\bbanado\b",
+        r"\bbanao\b",
+        r"\bbana\s*de\b",
+        r"\bbana\s*dena\b",
+        r"\bbanani\s*hai\b",
+        r"\bbanana\s*hai\b",
+        r"\bchahiye\b",
+        r"\bchahie\b",
+        r"\bkaro\b",
+        r"\bkardo\b",
+        r"\bkar\s*do\b",
+        r"\blikh\s*do\b",
+        r"\blikho\b",
+        r"\btayyar\s*karo\b",
     ]
     
     # Check direct patterns like "jd for Python" or "job description of SDE"
     direct_patterns = [
-        r"\b(?:jd|job\s+description|job\s+posting)\s+(?:for|of|on)\b",
-        r"\b(?:create|generate|write|prepare|draft|make)\s+(?:a|an)?\s*(?:jd|job\s+description|job\s+posting|job\s+post)\b"
+        r"\b(?:jd|job\s+description|job\s+posting)\s+(?:for|of|on|to)\b",
+        r"\b(?:create|generate|write|prepare|draft|make)\s+(?:a|an)?\s*(?:jd|job\s+description|job\s+posting|job\s+post)\b",
+        r"\b(?:bde|sde|qa|developer|engineer|manager)\s+jd\b",
+        r"\bjd\s+(?:bana|banao|banado|chahiye|karo|kardo|likho)\b"
     ]
     
     for dp in direct_patterns:
@@ -836,11 +853,19 @@ def extract_role_from_jd_query(text: str) -> Optional[str]:
     patterns_to_remove = [
         r"\bcreate\b", r"\bgenerate\b", r"\bwrite\b", r"\bprepare\b",
         r"\bdraft\b", r"\bmake\b", r"\bneed\b", r"\bwant\b", r"\bpost\b", r"\bpublish\b",
-        r"\bcan\s+you\b", r"\blooking\s+to\b", r"\bplease\b", r"\bfor\b", r"\ba\b", r"\ban\b", r"\bof\b", r"\bon\b",
+        r"\bcan\s+you\b", r"\blooking\s+to\b", r"\bplease\b", r"\bpls\b", r"\bplz\b",
+        r"\bfor\b", r"\ba\b", r"\ban\b", r"\bthe\b", r"\bof\b", r"\bon\b", r"\bto\b",
         r"\bjd\b", r"\bjob\s+description\b", r"\bjob\s+posting\b", r"\bjob\s+post\b",
         r"\bjob\s+specification\b", r"\bjob\s+spec\b", r"\bjob\s+requirements\b",
         r"\bhiring\s+requirements\b", r"\bhiring\s+description\b", r"\bhiring\s+post\b",
-        r"\bhiring\s+posting\b", r"\brecruitment\s+jd\b", r"\brecruitment\s+description\b"
+        r"\bhiring\s+posting\b", r"\brecruitment\s+jd\b", r"\brecruitment\s+description\b",
+        # Hinglish filler & action words
+        r"\bbana\s+do\b", r"\bbanado\b", r"\bbanao\b", r"\bbana\s+de\b", r"\bbana\s+dena\b",
+        r"\bbanani\s+hai\b", r"\bbanana\s+hai\b", r"\bchahiye\b", r"\bchahie\b",
+        r"\bkaro\b", r"\bkardo\b", r"\bkar\s+do\b", r"\bkar\s+dena\b",
+        r"\blikh\s+do\b", r"\blikho\b", r"\blikhna\b", r"\btayyar\s+karo\b",
+        r"\bek\b", r"\bki\b", r"\bka\b", r"\bke\b", r"\bko\b", r"\bse\b",
+        r"\bwali\b", r"\bwala\b", r"\bmujhe\b", r"\bhume\b", r"\bhumko\b", r"\bdedo\b", r"\bdo\b"
     ]
     
     for pat in patterns_to_remove:
@@ -874,4 +899,136 @@ def extract_role_from_jd_query(text: str) -> Optional[str]:
             capitalized.append(w.capitalize())
             
     return " ".join(capitalized)
+
+
+def validate_job_role(role_text: Optional[str]) -> tuple[str, str, str]:
+    """
+    Validate an extracted job role from user prompt.
+    Returns (status, cleaned_role, message) where status is one of:
+      - 'EMPTY': No role provided
+      - 'INVALID': Gibberish / numbers / special chars / invalid text
+      - 'INCOMPLETE': Vague or partial role (e.g., just 'Senior', 'Developer', 'Manager')
+      - 'VALID': Recognizable job title
+    """
+    if not role_text or not role_text.strip():
+        return (
+            "EMPTY",
+            "",
+            (
+                "### 📝 Create a Job Description\n\n"
+                "Please specify the job role or title you'd like to create a Job Description for.\n\n"
+                "**Examples:**\n"
+                "- *'Generate a JD for Business Development Executive (BDE)'*\n"
+                "- *'Create JD for Senior React Developer with 3+ years experience'*\n"
+                "- *'Make a JD for Product Manager in Pune'*\n\n"
+                "Tell me the role and any specific requirements you have in mind!"
+            ),
+        )
+
+    clean = role_text.strip()
+    clean_lower = clean.lower()
+
+    # 1. Non-alphabetic / mostly symbols/numbers check
+    letters_only = re.findall(r'[a-zA-Z]', clean)
+    if len(letters_only) < 2:
+        return (
+            "INVALID",
+            clean,
+            (
+                f"⚠️ **Invalid Job Role**: **'{clean}'** does not appear to be a valid job title or role.\n\n"
+                "Please provide a recognized job title (e.g. *Frontend Developer*, *Business Development Executive*, *HR Manager*) to generate a Job Description."
+            ),
+        )
+
+    # 2. Known gibberish / nonsense patterns
+    # Substrings from keyboard mash
+    mash_patterns = [
+        r'asdf', r'qwer', r'zxcv', r'hjkl', r'dfgh', r'ghjk',
+        r'([a-zA-Z])\1{2,}',  # 3+ repeated characters e.g. 'aaaa', 'zzzz'
+    ]
+    for pat in mash_patterns:
+        if re.search(pat, clean_lower):
+            return (
+                "INVALID",
+                clean,
+                (
+                    f"⚠️ **Invalid Job Role**: **'{clean}'** does not appear to be a valid job title or role.\n\n"
+                    "Please provide a valid job title (e.g. *BDE*, *React Developer*, *DevOps Engineer*, *Talent Acquisition Specialist*)."
+                ),
+            )
+
+    # Known common non-role filler words
+    nonsense_words = {
+        "something", "nothing", "anything", "whatever", "random", "test", "testing",
+        "abc", "xyz", "asdf", "foo", "bar", "baz", "kuch", "kuchbhi", "bla", "blabla",
+        "none", "na", "job", "post", "hiring", "applicant", "candidate"
+    }
+    if clean_lower in nonsense_words:
+        return (
+            "INVALID",
+            clean,
+            (
+                f"⚠️ **Invalid Job Role**: **'{clean}'** is not a specific job role.\n\n"
+                "Please specify an actual job title such as *Software Engineer*, *Sales Manager*, *HR Specialist*, etc."
+            ),
+        )
+
+    # Consonant cluster test for single-word roles (no vowels at all in words >= 4 chars)
+    known_consonant_acronyms = {
+        "html", "css", "sql", "grpc", "rxjs", "ciso", "cto", "cfo", "coo", "sqa", "dba", "scrum", "sdn", "pmp"
+    }
+    words = clean_lower.split()
+    for w in words:
+        w_letters = re.sub(r'[^a-z]', '', w)
+        if len(w_letters) >= 4 and w_letters not in known_consonant_acronyms:
+            vowels = set("aeiouy")
+            if not any(char in vowels for char in w_letters):
+                return (
+                    "INVALID",
+                    clean,
+                    (
+                        f"⚠️ **Invalid Job Role**: **'{clean}'** does not look like a recognizable job title.\n\n"
+                        "Please provide a valid job title (e.g., *Fullstack Developer*, *BDE*, *Marketing Lead*)."
+                    ),
+                )
+
+    # 3. Incomplete / Vague checks
+    seniority_only = {
+        "senior", "sr", "junior", "jr", "lead", "head", "chief", "principal",
+        "intern", "trainee", "associate", "entry level", "fresher", "experienced",
+        "mid level", "staff", "vp", "director"
+    }
+    if clean_lower in seniority_only:
+        return (
+            "INCOMPLETE",
+            clean,
+            (
+                f"🔍 **Role Incomplete**: You mentioned **'{clean}'**, but the domain or profession is missing.\n\n"
+                f"Could you specify the full role? For example:\n"
+                f"- *'{clean.title()} Software Engineer'*\n"
+                f"- *'{clean.title()} Product Manager'*\n"
+                f"- *'{clean.title()} Business Development Executive'*"
+            ),
+        )
+
+    generic_only = {
+        "developer", "engineer", "manager", "executive", "consultant",
+        "specialist", "analyst", "designer", "architect", "officer",
+        "coordinator", "assistant", "representative"
+    }
+    if clean_lower in generic_only:
+        return (
+            "INCOMPLETE",
+            clean,
+            (
+                f"🔍 **More Details Needed**: Could you please specify what kind of **{clean.title()}** you're hiring for?\n\n"
+                f"*Examples:*\n"
+                f"- *'Python Backend {clean.title()}'*\n"
+                f"- *'Frontend React {clean.title()}'*\n"
+                f"- *'Sales & BD {clean.title()}'*\n"
+                f"- *'Data {clean.title()}'*"
+            ),
+        )
+
+    return ("VALID", clean, "")
 

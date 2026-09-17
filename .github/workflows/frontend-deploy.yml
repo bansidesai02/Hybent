@@ -42,10 +42,13 @@ jobs:
           include-hidden-files: true
 
   deploy:
-    name: Deploy to Hostinger via FTP
+    name: Deploy to Hostinger via SFTP
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/yash'
     runs-on: ubuntu-latest
+    env:
+      SSH_KEY_SET: ${{ secrets.HOSTINGER_SSH_KEY }}
+      PASSWORD_SET: ${{ secrets.HOSTINGER_PASSWORD || secrets.FTP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -55,12 +58,45 @@ jobs:
           name: frontend-dist
           path: dist/
 
-      - name: Deploy to Hostinger via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Validate & Diagnose Secrets
+        run: |
+          echo "=== Diagnostic Check ==="
+          echo "HOSTINGER_HOST / FTP_SERVER: ${{ (secrets.HOSTINGER_HOST || secrets.FTP_SERVER) != '' && 'SET' || 'NOT SET' }}"
+          echo "HOSTINGER_USERNAME / FTP_USERNAME: ${{ (secrets.HOSTINGER_USERNAME || secrets.FTP_USERNAME) != '' && 'SET' || 'NOT SET' }}"
+          echo "HOSTINGER_PORT: ${{ (secrets.HOSTINGER_PORT || secrets.FTP_PORT) != '' && 'SET' || 'NOT SET' }}"
+          echo "HOSTINGER_REMOTE_PATH: ${{ (secrets.HOSTINGER_REMOTE_PATH || secrets.FTP_REMOTE_PATH) != '' && 'SET' || 'NOT SET' }}"
+          echo "HOSTINGER_SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY != '' && 'SET' || 'NOT SET' }}"
+          echo "HOSTINGER_PASSWORD / FTP_PASSWORD: ${{ (secrets.HOSTINGER_PASSWORD || secrets.FTP_PASSWORD) != '' && 'SET' || 'NOT SET' }}"
+          echo "========================"
+          if [ -z "${{ secrets.HOSTINGER_HOST || secrets.FTP_SERVER }}" ] || [ -z "${{ secrets.HOSTINGER_USERNAME || secrets.FTP_USERNAME }}" ]; then
+            echo "::error::Missing critical Hostinger secrets. Please configure HOSTINGER_HOST (or FTP_SERVER) and HOSTINGER_USERNAME (or FTP_USERNAME)."
+            exit 1
+          fi
+
+      # Option A: Deploy using SSH Private Key (Recommended)
+      - name: Deploy via SFTP (SSH Key)
+        if: ${{ env.SSH_KEY_SET != '' }}
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          server-dir: /public_html/
-          dangerous-clean-slate: true
+          server: ${{ secrets.HOSTINGER_HOST || secrets.FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_USERNAME || secrets.FTP_USERNAME }}
+          ssh_private_key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT || secrets.FTP_PORT || '65002' }}
+          local_path: './dist/*'
+          remote_path: ${{ secrets.HOSTINGER_REMOTE_PATH || secrets.FTP_REMOTE_PATH || 'public_html' }}
+          sftp_only: true
+
+      # Option B: Deploy using Password (Fallback)
+      - name: Deploy via SFTP (Password)
+        if: ${{ env.SSH_KEY_SET == '' && env.PASSWORD_SET != '' }}
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.HOSTINGER_HOST || secrets.FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_USERNAME || secrets.FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_PASSWORD || secrets.FTP_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_PORT || secrets.FTP_PORT || '65002' }}
+          local_path: './dist/*'
+          remote_path: ${{ secrets.HOSTINGER_REMOTE_PATH || secrets.FTP_REMOTE_PATH || 'public_html' }}
+          sftp_only: true
+
+

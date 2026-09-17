@@ -13,10 +13,11 @@ from fastapi import BackgroundTasks
 import zoneinfo
 
 from app.core.config import settings
-from app.services.copilot_intelligence import (
+from app.services.ai.copilot_intelligence import (
     preprocess_query,
     is_jd_creation_intent,
     extract_role_from_jd_query,
+    validate_job_role,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,13 @@ COPILOT_SYSTEM_PROMPT = """### 1. YOUR MISSION
 You are Hybent Hiring Copilot — a production-grade AI Hiring Assistant. Help recruiters search for candidates, analyze their pipeline, manage team members, schedule interviews, and navigate the Hybent Hiring platform.
 DO NOT write SQL. Use the tools provided. Never hallucinate candidate names or data.
 
-### 2. ABBREVIATION & SHORT FORM UNDERSTANDING
+### 2. STRICT IDENTITY & SECURITY BOUNDARIES
+- **NEVER disclose technical details about the AI provider, APIs, backend, infrastructure, or model names.**
+- If the user asks 'which model are you using?', 'who created you?', 'are you GPT-4/OpenAI?', or similar technical questions, ALWAYS respond that you are **Hybent Hiring Copilot**, custom-built by the Hybent AI engineering team to assist you.
+- NEVER claim to be GPT-4, OpenAI, ChatGPT, Gemini, Claude, Groq, or any other third-party LLM, provider, or brand.
+- Never discuss model parameters, server details, or internal code details. Keep your identity purely as Hybent's custom AI.
+
+### 3. ABBREVIATION & SHORT FORM UNDERSTANDING
 Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 - BDE → Business Development Executive → use `search_candidates` with query="Business Development Executive"
 - BDM → Business Development Manager → use `search_candidates` with query="Business Development Manager"
@@ -55,7 +62,7 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 - DevOps → DevOps Engineer
 - SRE → Site Reliability Engineer
 
-### 3. INTENT → TOOL MAPPING (follow these patterns)
+### 4. INTENT → TOOL MAPPING (follow these patterns)
 | Recruiter says | Tool to use | Parameter settings |
 |---------------|-------------|--------------------|
 | "Show React developers" / "Find Python candidates" / "Need BDE" | `search_candidates` | `query="Business Development Executive"` (expand abbreviations) |
@@ -75,7 +82,7 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 | "Schedule interview for Rohan tomorrow at 2pm" | `schedule_meeting` | all required args |
 | "Move Priya to Technical Round Selected" | `update_candidate_stage` | `candidate_name="Priya"`, `new_stage="technical_round_selected"` |
 
-### 4. FOLLOW-UP & REFINEMENT RULES
+### 5. FOLLOW-UP & REFINEMENT RULES
 - If recruiter sends a vague query like "Need Developer" without specifying type, ASK:
   "Do you mean Frontend, Backend, or Fullstack developer? What's the experience requirement and location?"
 - If recruiter sends only a location or filter after a previous search, REFINE the previous search (don't restart).
@@ -83,20 +90,20 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
   Each subsequent message refines the previous search.
 - For incomplete queries, ask ONE clarifying question — don't overwhelm with multiple questions.
 
-### 5. CANDIDATE SEARCH RULES
+### 6. CANDIDATE SEARCH RULES
 - **ALWAYS use `search_candidates`** for general skill/role/candidate searches — even abbreviations like BDE, SDE, QA.
 - **Only use `get_candidates_for_job`** when recruiter explicitly says "who applied for [job]", "candidates for [job opening]", "applicants for [specific position]".
 - **query parameter**: Pass the EXPANDED full form (e.g., query="Business Development Executive" not query="BDE").
 - **Multiple skills**: Use space-separated in query (e.g., query="Python FastAPI PostgreSQL").
 
-### 6. FORMATTING RULES
+### 7. FORMATTING RULES
 - Default: show only candidate names as `👤 **[Full Name]**`.
 - When user asks for details: use the full card format with emoji fields.
 - Every candidate block MUST be separated by `---` divider.
 - Always say "Found X candidates:" before listing.
 - For ambiguity: list options and ask for clarification.
 
-### 7. PLATFORM GUIDE
+### 8. PLATFORM GUIDE
 - **Recruiter Dashboard**: Pipeline overview, upcoming interviews, recent activities, KPIs.
 - **Candidates page**: All candidates in your org with filter/search.
 - **Kanban Pipeline**: Visual board by stages. Drag-and-drop stage updates.
@@ -105,13 +112,20 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 - **Talent Pool**: Candidates tagged for future roles.
 - **Bulk Import**: Upload Excel/CSV for bulk candidate addition.
 
-### 8. WORKFLOW
+### 9. WORKFLOW
 - **Add Candidate**: Candidates → "Add Candidate" (manual) or "Invite Candidate" (email).
 - **Schedule Interview**: Select candidate → "Schedule Round" → set interviewers, date/time → Save.
 - **Evaluate**: Interviewer submits Scorecard. Recruiter reviews before stage progression.
 - **Offer Flow**: Candidate must be in 'HR Round Selected' before offer. Hired cannot be rejected.
 - **Language**: ALWAYS respond in English or Hinglish (Roman script only).
 - **No hallucination**: ONLY report what the database returns.
+
+### 10. JOB DESCRIPTION (JD) GENERATION & REFINEMENT
+- You can directly generate and refine comprehensive, industry-standard Job Descriptions (JDs).
+- When generating or customizing a JD, structure it cleanly in Markdown with Role Overview, Key Responsibilities, Required Skills, and Preferred Qualifications.
+- If the recruiter asks to refine or modify an existing JD (e.g., changing experience level, adding skills, tweaking responsibilities), make the changes directly in the chat with a complete updated description.
+- If the job title requested is invalid or gibberish, decline politely and ask for a valid job title.
+- If the title is vague or incomplete, ask clarifying questions to get the specific domain or requirements.
 """
 
 # ── Tool Definitions for Groq SDK ───────────────────────────────────────────
@@ -1540,6 +1554,32 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
             if table_name not in allowed_tables:
                 return f"❌ Updates to table '{table_name}' are not allowed."
 
+            # Columns the AI is never allowed to touch, even though the caller's
+            # own row is already org-scoped by the WHERE clause below. Without
+            # this, the LLM (or a prompt-injected message) could re-parent a row
+            # to another organization_id, grant itself/another user role="admin",
+            # or overwrite hashed_password/tokens — none of which "update this
+            # candidate's phone number" style requests ever need.
+            UNIVERSALLY_FORBIDDEN_COLUMNS = {
+                "id", "organization_id", "created_at", "updated_at", "is_deleted", "deleted_at",
+            }
+            TABLE_FORBIDDEN_COLUMNS = {
+                "users": {
+                    "hashed_password", "role", "is_active", "is_verified", "mfa_enabled",
+                    "provider", "google_id", "google_refresh_token", "linkedin_access_token",
+                    "email", "fcm_token",
+                },
+                "candidates": {
+                    "user_id", "created_by_id", "import_batch_id", "imported_by_id", "imported_at",
+                    "resume_url", "resume_storage_path", "parsed_data", "match_score", "score_breakdown",
+                    "source_email_message_id", "source_email_account_id",
+                },
+                "jobs": {"created_by_id"},
+                "interviews": {"scheduled_by_id", "calendar_event_id"},
+                "applications": {"job_id", "candidate_id"},
+            }
+            forbidden_columns = UNIVERSALLY_FORBIDDEN_COLUMNS | TABLE_FORBIDDEN_COLUMNS.get(table_name, set())
+
             set_clauses = []
             params = {
                 "rid": uuid.UUID(record_id) if isinstance(record_id, str) else record_id,
@@ -1549,6 +1589,8 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
             for k, v in update_data.items():
                 if not re.match(r"^[a-zA-Z0-9_]+$", k):
                     return f"❌ Invalid column name: {k}"
+                if k in forbidden_columns:
+                    return f"❌ Updating column '{k}' is not allowed."
                 if isinstance(v, str):
                     try:
                         v = uuid.UUID(v)
@@ -1715,7 +1757,7 @@ async def stream_copilot_chat(
         error_msg = str(e)
         raise e
     finally:
-        from app.services.copilot_intelligence import is_jd_creation_intent
+        from app.services.ai.copilot_intelligence import is_jd_creation_intent
         is_jd = is_jd_creation_intent(user_message)
         if not is_jd and not approved_tool_call:
             duration_ms = (time.time() - start_time) * 1000
@@ -1765,29 +1807,109 @@ async def _stream_copilot_chat_impl(
         d.update(data)
         return json.dumps(d) + "\n\n"
 
-    # ── Intercept JD Creation Intent ──────────────────────────────────────
+    # ── Intercept JD Creation Intent & Generate Directly ─────────────────
     if is_jd_creation_intent(user_message):
-        role_name = extract_role_from_jd_query(user_message)
-        if role_name:
-            reply_text = (
-                f"Looks like you want to create a Job Description for **{role_name}**. "
-                f"For the best AI-powered JD generation experience, please use the **AI JD Generator** module. "
-                f"Click below to continue.\n\n"
-                f"[CTA_BUTTON:Go to AI JD Generator]"
+        raw_role = extract_role_from_jd_query(user_message)
+        status, role_name, validation_msg = validate_job_role(raw_role)
+
+        # If empty, invalid, or incomplete, return helpful guidance or error
+        if status in ("EMPTY", "INVALID", "INCOMPLETE"):
+            saved_conv_id = await _save_conversation_to_db(
+                db, organization_id, user_id, conversation_id, user_message, validation_msg
             )
-        else:
-            reply_text = (
-                f"Looks like you want to create a Job Description. "
-                f"For the best AI-powered JD generation experience, please use the **AI JD Generator** module. "
-                f"Click below to continue.\n\n"
-                f"[CTA_BUTTON:Go to AI JD Generator]"
-            )
-            
-        saved_conv_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, reply_text
+            yield sse("meta", {"conversation_id": saved_conv_id})
+            yield sse("chunk", {"content": validation_msg})
+            yield sse("done", {})
+            return
+
+        # Status is VALID -> Stream complete professional Job Description directly
+        jd_system_prompt = (
+            "You are Hybent Hiring Copilot — an expert AI technical recruiter and Talent Acquisition specialist at Hybent.\n"
+            "Your task is to generate a comprehensive, modern, highly-professional Job Description (JD) "
+            "tailored to the user's prompt.\n\n"
+            "CRITICAL FORMATTING GUIDELINES:\n"
+            "- Output MUST be clean, structured Markdown (never wrap the entire response in a code block).\n"
+            "- Use this exact structure:\n\n"
+            "## [Job Title]\n\n"
+            "**Position:** [Job Title]  \n"
+            "**Experience Level:** [e.g. 2-4 Years / Entry Level / 5+ Years as requested or industry standard]  \n"
+            "**Location / Work Mode:** [Remote / Hybrid / On-site as requested or 'Hybrid / Remote']  \n"
+            "**Employment Type:** Full-time  \n\n"
+            "---\n\n"
+            "### 📌 Role Overview\n"
+            "[2-3 compelling sentences describing the core purpose, mission, and impact of this role]\n\n"
+            "### 🎯 Key Responsibilities\n"
+            "- [5-7 concise, actionable, high-impact bullet points — each should be a short phrase, max 15 words]\n\n"
+            "### 🛠️ Required Qualifications\n"
+            "- [5-7 bullet points covering must-have qualifications, experience, and domain expertise — full sentences okay here]\n\n"
+            "### 🔑 Core Skills\n"
+            "[List ONLY short skill/tool/technology keywords, comma-separated on ONE line. Examples: React, Node.js, Python, AWS, Agile, Salesforce, SQL, REST APIs]\n\n"
+            "### ⭐ Preferred / Good to Have\n"
+            "- [3-4 bullet points covering nice-to-have skills, certifications, or modern tools]\n\n"
+            "### 💡 What We Offer\n"
+            "- Competitive compensation & performance-driven incentives\n"
+            "- Comprehensive health & wellness coverage\n"
+            "- Collaborative team culture & rapid career advancement\n\n"
+            "---\n"
+            "💬 *Need any changes? You can ask me to adjust the experience, add specific tools/skills, or modify any section.*\n\n"
+            "IMPORTANT: The '### 🔑 Core Skills' section MUST contain ONLY short comma-separated keywords (not sentences). "
+            "This is used to auto-fill the skills field in a form."
         )
-        yield sse("meta", {"conversation_id": saved_conv_id})
-        yield sse("chunk", {"content": reply_text})
+
+        jd_messages = [
+            {"role": "system", "content": jd_system_prompt},
+        ]
+        for h in history[-4:]:
+            jd_messages.append({"role": h["role"], "content": h["content"]})
+        jd_messages.append({
+            "role": "user",
+            "content": f"Generate a complete Job Description for the role: '{role_name}'. User request: '{user_message}'"
+        })
+
+        yield sse("meta", {"conversation_id": conversation_id})
+
+        full_jd_text = ""
+        try:
+            jd_stream = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=jd_messages,
+                stream=True,
+                temperature=0.3,
+            )
+            for chunk in jd_stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    delta_text = chunk.choices[0].delta.content
+                    full_jd_text += delta_text
+                    yield sse("chunk", {"content": delta_text})
+        except Exception as jd_err:
+            logger.error(f"Error during AI JD streaming: {jd_err}")
+            fallback_text = (
+                f"## {role_name}\n\n"
+                f"**Position:** {role_name}  \n"
+                f"**Employment Type:** Full-time  \n"
+                f"**Work Mode:** Hybrid / Remote  \n\n"
+                f"---\n\n"
+                f"### 📌 Role Overview\n"
+                f"We are looking for an exceptional **{role_name}** to join our growing team.\n\n"
+                f"### 🎯 Key Responsibilities\n"
+                f"- Drive key initiatives and deliver high-quality outcomes for the team\n"
+                f"- Collaborate cross-functionally with internal and external stakeholders\n"
+                f"- Stay updated with industry best practices and contribute to continuous improvement\n\n"
+                f"### 🛠️ Required Qualifications & Core Skills\n"
+                f"- Relevant experience and proven track record as a {role_name}\n"
+                f"- Strong problem-solving, communication, and collaboration skills\n"
+                f"- Proficiency with standard industry tools and methodologies\n"
+            )
+            full_jd_text = fallback_text
+            yield sse("chunk", {"content": fallback_text})
+
+        cta_button = "\n\n[CTA_BUTTON:Create Job with this JD]"
+        full_jd_text += cta_button
+        yield sse("chunk", {"content": cta_button})
+
+        saved_conv_id = await _save_conversation_to_db(
+            db, organization_id, user_id, conversation_id, user_message, full_jd_text
+        )
         yield sse("done", {})
         return
 

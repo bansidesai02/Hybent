@@ -6,26 +6,46 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import TYPE_CHECKING
 from dateutil import parser as date_parser
 
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from app.models.email_account import EmailAccount
 
 logger = logging.getLogger(__name__)
 
 
 def _send_smtp(to: str, subject: str, html_body: str) -> None:
-    """Send email via Gmail SMTP."""
+    """Send email via Gmail SMTP with anti-spam best practices."""
+    import email.utils
+    import re
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_user}>"
     msg["To"] = to
-    msg.attach(MIMEText(html_body, "html"))
+    msg["Reply-To"] = settings.smtp_user
+    msg["Message-ID"] = email.utils.make_msgid(domain=settings.smtp_user.split("@")[-1])
+    msg["Date"] = email.utils.formatdate(localtime=True)
+    msg["MIME-Version"] = "1.0"
+    msg["X-Mailer"] = "Hybent Hiring Platform"
+    msg["List-Unsubscribe"] = f"<mailto:{settings.smtp_user}?subject=unsubscribe>"
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=3) as server:
+    # Plain text fallback — Gmail penalizes HTML-only emails
+    plain_text = re.sub(r"<[^>]+>", "", html_body)
+    plain_text = re.sub(r"\s+", " ", plain_text).strip()
+    msg.attach(MIMEText(plain_text, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
         server.ehlo()
         server.starttls()
+        server.ehlo()
         server.login(settings.smtp_user, settings.smtp_password)
         server.sendmail(settings.smtp_user, to, msg.as_string())
+
 
 
 def _send_resend(to: str, subject: str, html_body: str) -> None:
@@ -37,8 +57,8 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": "BrainerHub Solutions <info@hybent.com>",
-
+        "from": f"{settings.smtp_from_name} <info@hybent.com>",
+        "reply_to": "info@hybent.com",
         "to": to,
         "subject": subject,
         "html": html_body
@@ -55,10 +75,29 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
             raise Exception(f"Resend API error: {response.text}")
 
 
-def send_email(to: str, subject: str, html_body: str) -> bool:
+def send_email(to: str, subject: str, html_body: str, email_account: "EmailAccount | None" = None) -> bool:
     """Send email via SMTP or print to console if SMTP not configured.
     Returns True if sent successfully (or fallback used), False otherwise.
+
+    `email_account` is optional and additive: when omitted (every existing call
+    site), behavior is unchanged — the platform's single global SMTP/Resend
+    account is used exactly as before. When a caller resolves and passes a
+    connected organization EmailAccount, the send is routed through that
+    account's own provider instead.
     """
+    if email_account is not None:
+        from app.services.email_accounts_service import get_provider
+
+        try:
+            get_provider(email_account.provider).send(email_account, to, subject, html_body)
+            logger.info(f"✅ Email sent via org account {email_account.email_address} → {to} | {subject}")
+            return True
+        except Exception as e:
+            logger.error(
+                f"❌ Failed to send via org account {email_account.email_address}: {e}", exc_info=True
+            )
+            return False
+
     if not settings.resend_api_key and (not settings.smtp_user or not settings.smtp_password):
         # Console fallback — active when neither Resend nor SMTP is configured
         logger.warning(
@@ -110,17 +149,43 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
 
 def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None, is_centered: bool = True) -> str:
     """Consistently renders the brand logo across all templates."""
-    "center" if is_centered else "left"
+    align = "center" if is_centered else "left"
     margin = "0 auto" if is_centered else "0"
     
-    # Use BrainerHub logo as default fallback (or use provided URL if any)
-    logo_url = org_logo_url or "https://www.brainerhub.com/wp-content/uploads/2022/10/brainerhub_logo.png"
-    return f'<img src="{logo_url}" alt="{org_name or "BrainerHub Solutions"}" style="max-height: 35px; max-width: 180px; display: block; margin: {margin};">'
+    # If the organization has a custom logo, render that.
+    if org_logo_url:
+        return f'<img src="{org_logo_url}" alt="{org_name or "Organization"}" style="max-height: 35px; max-width: 180px; display: block; margin: {margin};">'
+    
+    # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
+    base_url = settings.frontend_url
+    if "localhost" in base_url or "127.0.0.1" in base_url or not base_url.startswith("http"):
+        base_url = "https://hybent.com"
+        
+    # Otherwise, render the original Hybent brand wordmark & tagline (without the H logo mark)
+    return f"""
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: {margin}; text-align: {align};">
+        <tr>
+            <td align="{align}">
+                <img src="{base_url}/hybent/hybent-wordmark-light.png" alt="HYBENT" style="height: 22px; width: auto; display: block; margin: {margin};">
+            </td>
+        </tr>
+        <tr>
+            <td style="font-size: 11px; font-family: 'Plus Jakarta Sans', 'Roboto', Arial, sans-serif; color: #70757a; text-transform: uppercase; letter-spacing: 1.5px; padding-top: 8px; font-weight: 600;">
+                Where vision meets innovation
+            </td>
+        </tr>
+    </table>
+    """
 
 
 def _get_base_template(content_html: str, org_logo_url: str | None = None, org_name: str | None = None) -> str:
     """Provides a consistent, premium wrapper for all emails."""
     branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
+    
+    # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
+    base_url = settings.frontend_url
+    if "localhost" in base_url or "127.0.0.1" in base_url or not base_url.startswith("http"):
+        base_url = "https://hybent.com"
 
     return f"""
     <!DOCTYPE html>
@@ -140,11 +205,11 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
             .section-title {{ font-size: 14px; font-weight: 700; color: #3c4043; margin-bottom: 4px; text-transform: capitalize; }}
             .section-value {{ font-size: 15px; color: #3c4043; margin-bottom: 24px; }}
             .button-wrap {{ margin: 32px 0 16px; text-align: left; }}
-            .button {{ display: inline-block; background: linear-gradient(135deg, #6c47ff, #ff6bc6); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
+            .button {{ display: inline-block; background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
 
 
             .footer {{ background-color: #f8f9fa; padding: 24px; border-top: 1px solid #dadce0; text-align: center; color: #70757a; font-size: 12px; }}
-            .footer a {{ color: #6c47ff; text-decoration: none; font-weight: 600; }}
+            .footer a {{ color: #4C6FFF; text-decoration: none; font-weight: 600; }}
         </style>
     </head>
     <body>
@@ -167,36 +232,7 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
                                 Powered by
                             </td>
                             <td style="vertical-align: middle;">
-                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
-                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
-                                                <tr>
-                                                    <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                            <tr>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                <td width="5" height="12" valign="middle" align="center" style="width: 5px; min-width: 5px; max-width: 5px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="5" height="3" style="width: 5px; min-width: 5px; max-width: 5px; height: 3px; min-height: 3px; max-height: 3px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                                        <tr>
-                                                                            <td width="5" height="3" valign="top" align="center" style="background-color: #ffffff; border-radius: 0.5px; width: 5px; min-width: 5px; max-width: 5px; height: 3px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                        </tr>
-                                                                    </table>
-                                                                </td>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                        <td style="vertical-align: middle; padding-left: 2px;">
-                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
-                                                <span style="color: #6c47ff;">H</span><span style="color: #894ef3;">i</span><span style="color: #a655e8;">r</span><span style="color: #c45cdc;">e</span><span style="color: #e163d1;">o</span><span style="color: #ff6bc6;">n</span>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </table>
+                                <img src="{base_url}/hybent/hybent-wordmark-light.png" alt="Hybent" style="height: 12px; width: auto; display: block;">
                             </td>
                         </tr>
                     </table>
@@ -231,6 +267,10 @@ def _get_calendar_invite_template(
     
     branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
 
+    # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
+    base_url = settings.frontend_url
+    if "localhost" in base_url or "127.0.0.1" in base_url or not base_url.startswith("http"):
+        base_url = "https://hybent.com"
 
     return f"""
     <!DOCTYPE html>
@@ -245,7 +285,7 @@ def _get_calendar_invite_template(
             body {{ margin: 0; padding: 0; background-color: #f8f9fa; }}
             .container {{ max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #dadce0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
             .branding {{ padding: 24px 24px 0; text-align: left; }}
-            .logo-square {{ background: linear-gradient(135deg, #6c47ff, #ff6bc6); width: 16px; height: 16px; border-radius: 4px; display: inline-block; vertical-align: middle; }}
+            .logo-square {{ background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); width: 16px; height: 16px; border-radius: 4px; display: inline-block; vertical-align: middle; }}
             .logo-text {{ font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 14px; font-weight: 800; letter-spacing: -0.5px; display: inline-block; vertical-align: middle; }}
             .header {{ padding: 20px 24px; border-bottom: 1px solid #dadce0; display: table; width: 100%; box-sizing: border-box; }}
             .date-box {{ width: 52px; height: 64px; border: 1px solid #dadce0; border-radius: 8px; text-align: center; float: left; margin-right: 20px; overflow: hidden; background: #ffffff; }}
@@ -302,45 +342,17 @@ def _get_calendar_invite_template(
                 <div style="clear: both;"></div>
             </div>
             <div class="footer">
-                <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hybent.com" style="color: #6c47ff; text-decoration: none; font-weight: 600;">info@hybent.com</a></p>
+                <p style="margin: 0 0 12px 0;">Need help? Contact <a href="mailto:info@hybent.com" style="color: #4C6FFF; text-decoration: none; font-weight: 600;">info@hybent.com</a></p>
                 <p style="margin: 0 0 12px 0;">&copy; {date_year} Hybent Hiring AI Platform. All rights reserved.</p>
                 <div style="margin-top: 8px;">
+                    <!-- Powered by Section -->
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                         <tr>
-                            <td style="font-size: 10px; color: #70757a; text-transform: uppercase; letter-spacing: 0.5px; padding-right: 6px; vertical-align: middle;">
+                            <td style="font-size: 11px; color: #70757a; text-transform: uppercase; letter-spacing: 0.5px; padding-right: 6px; vertical-align: middle;">
                                 Powered by
                             </td>
                             <td style="vertical-align: middle;">
-                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td style="padding-right: 4px; vertical-align: middle; width: 26px; min-width: 26px; max-width: 26px;">
-                                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="22" height="22" style="background-color: #6c47ff; background: linear-gradient(135deg, #6c47ff, #ff6bc6); border-radius: 6px; width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; table-layout: fixed; border-collapse: collapse;">
-                                                <tr>
-                                                    <td align="center" valign="middle" style="width: 22px; height: 22px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="11" height="12" style="width: 11px; min-width: 11px; max-width: 11px; height: 12px; min-height: 12px; max-height: 12px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                            <tr>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                <td width="5" height="12" valign="middle" align="center" style="width: 5px; min-width: 5px; max-width: 5px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">
-                                                                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="5" height="3" style="width: 5px; min-width: 5px; max-width: 5px; height: 3px; min-height: 3px; max-height: 3px; table-layout: fixed; border-collapse: collapse; margin: 0 auto;">
-                                                                        <tr>
-                                                                            <td width="5" height="3" valign="top" align="center" style="background-color: #ffffff; border-radius: 0.5px; width: 5px; min-width: 5px; max-width: 5px; height: 3px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                                        </tr>
-                                                                    </table>
-                                                                </td>
-                                                                <td width="3" height="12" valign="top" align="left" style="background-color: #ffffff; border-radius: 0.75px; width: 3px; min-width: 3px; max-width: 3px; height: 12px; padding: 0; margin: 0; line-height: 1px; font-size: 1px;">&nbsp;</td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                        <td style="vertical-align: middle; padding-left: 2px;">
-                                            <span style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; color: #1e293b; line-height: 1;">
-                                                <span style="color: #6c47ff;">H</span><span style="color: #894ef3;">i</span><span style="color: #a655e8;">r</span><span style="color: #c45cdc;">e</span><span style="color: #e163d1;">o</span><span style="color: #ff6bc6;">n</span>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </table>
+                                <img src="{base_url}/hybent/hybent-wordmark-light.png" alt="Hybent" style="height: 12px; width: auto; display: block;">
                             </td>
                         </tr>
                     </table>
@@ -521,7 +533,7 @@ def send_team_invite(
         <div class="info-box">
             <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Access Credentials</p>
             <div class="info-label">Email</div>
-            <div class="info-value" style="color: #6c47ff;">{to_email}</div>
+            <div class="info-value" style="color: #4C6FFF;">{to_email}</div>
             <div class="info-label">Temporary Password</div>
             <div class="info-value" style="font-size: 22px;">{password}</div>
         </div>
@@ -552,7 +564,7 @@ def send_rejection_email(
         <div style="margin-top: 32px; text-align: left; border-top: 1px solid #f1f0ff; padding-top: 24px;">
             <p style="font-size: 14px; color: #1e293b; font-weight: 700; margin-bottom: 4px;">Best regards,</p>
             <p style="font-size: 14px; color: #64748b; margin: 0;">HR & TA</p>
-            <p style="font-size: 14px; color: #6c47ff; font-weight: 700; margin: 4px 0 0 0;">{company_name}</p>
+            <p style="font-size: 14px; color: #4C6FFF; font-weight: 700; margin: 4px 0 0 0;">{company_name}</p>
         </div>
     """
     send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
@@ -617,7 +629,7 @@ def send_interview_reschedule(
             </div>
             <div>
                 <div class="info-label">Meeting URL</div>
-                <div style="font-size: 14px; font-weight: 600; word-break: break-all; color: #6c47ff;">{meeting_link}</div>
+                <div style="font-size: 14px; font-weight: 600; word-break: break-all; color: #4C6FFF;">{meeting_link}</div>
             </div>
         </div>
  
@@ -698,7 +710,7 @@ def send_demo_request_email(
         <div class="section-title">Organization Details</div>
         <div class="section-value">
             <b>{first_name} {last_name}</b><br/>
-            <a href="mailto:{work_email}" style="color: #6c47ff; text-decoration: none;">{work_email}</a>
+            <a href="mailto:{work_email}" style="color: #4C6FFF; text-decoration: none;">{work_email}</a>
         </div>
         
         <div class="section-title">Organization</div>

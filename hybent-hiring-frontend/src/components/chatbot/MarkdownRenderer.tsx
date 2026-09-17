@@ -24,7 +24,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
           return (
             <code
-              className="px-1.5 py-0.5 rounded bg-violet-100/80 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 font-mono text-[12px] border border-violet-200/60 dark:border-violet-800/40"
+              className="px-1.5 py-0.5 rounded bg-violet-100/80 text-violet-700 font-mono text-[12px] border border-violet-200/60"
               {...props}
             >
               {children}
@@ -37,7 +37,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-violet-600 dark:text-violet-400 underline underline-offset-2 hover:text-pink-500 transition-colors font-medium"
+              className="text-violet-600 underline underline-offset-2 hover:text-pink-500 transition-colors font-medium"
             >
               {children}
             </a>
@@ -56,17 +56,17 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           return <li className="leading-relaxed">{children}</li>
         },
         h1({ children }) {
-          return <h1 className="text-base font-bold my-2 text-[#1a1040] dark:text-white">{children}</h1>
+          return <h1 className="text-base font-bold my-2 text-[#1a1040]">{children}</h1>
         },
         h2({ children }) {
-          return <h2 className="text-sm font-bold my-1.5 text-[#1a1040] dark:text-white">{children}</h2>
+          return <h2 className="text-sm font-bold my-1.5 text-[#1a1040]">{children}</h2>
         },
         h3({ children }) {
-          return <h3 className="text-xs font-semibold my-1 text-[#1a1040] dark:text-white">{children}</h3>
+          return <h3 className="text-xs font-semibold my-1 text-[#1a1040]">{children}</h3>
         },
         blockquote({ children }) {
           return (
-            <blockquote className="border-l-2 border-violet-400 pl-3 my-2 italic text-slate-600 dark:text-slate-300 bg-violet-50/50 dark:bg-violet-950/30 py-1 rounded-r-md">
+            <blockquote className="border-l-2 border-violet-400 pl-3 my-2 italic text-slate-600 bg-violet-50/50 py-1 rounded-r-md">
               {children}
             </blockquote>
           )

@@ -73,3 +73,4 @@ services:
 # Postgres is hosted on Supabase (not a Render-managed database) — see
 # DATABASE_URL above. Render's free Postgres plan expires and is deleted after
 # a fixed lifetime, which is what caused the earlier DNS/connectivity failure.
+

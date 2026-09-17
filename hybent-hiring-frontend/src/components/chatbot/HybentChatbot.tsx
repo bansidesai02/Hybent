@@ -32,7 +32,7 @@ export function HybentChatbot() {
 function HybentChatbotInner() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
-  const [hasUnread, setHasUnread] = useState(true)
+  const [hasUnread, setHasUnread] = useState(false)
   const [showChips, setShowChips] = useState(true)
 
   // Drawer, Modal, Settings & Shortcuts States
@@ -83,14 +83,19 @@ function HybentChatbotInner() {
     }
   }, [activeId, activeConversation, setMessages])
 
-  // Play sound when AI response finishes streaming
+  // Play sound and flag unread when AI finishes while chat is closed/minimized
   const [wasStreaming, setWasStreaming] = useState(false)
   useEffect(() => {
-    if (wasStreaming && !isStreaming && settings.soundEnabled) {
-      playReceivedSound()
+    if (wasStreaming && !isStreaming) {
+      if (settings.soundEnabled) {
+        playReceivedSound()
+      }
+      if (!isOpen || isMinimized) {
+        setHasUnread(true)
+      }
     }
     setWasStreaming(isStreaming)
-  }, [isStreaming, wasStreaming, settings.soundEnabled])
+  }, [isStreaming, wasStreaming, settings.soundEnabled, isOpen, isMinimized])
 
   // Toast Helper with optional Undo callback
   const addToast = useCallback(
@@ -373,7 +378,7 @@ function HybentChatbotInner() {
       </AnimatePresence>
 
       {/* Floating Launcher Button */}
-      <div className="pointer-events-auto">
+      <div className="pointer-events-auto overflow-visible">
         <ChatbotLauncher
           isOpen={isOpen && !isMinimized}
           hasUnread={hasUnread}

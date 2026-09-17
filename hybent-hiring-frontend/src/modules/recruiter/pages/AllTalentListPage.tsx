@@ -334,7 +334,7 @@ export default function AllTalentListPage() {
       toast.success('Stage updated')
       setActionsTarget(null)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update stage'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update stage'),
   })
 
   const inviteMutation = useMutation({
@@ -343,7 +343,7 @@ export default function AllTalentListPage() {
       toast.success(`Invitation sent to ${v.full_name}`)
       invalidateAll()
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to send invite'),
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to send invite'),
   })
 
   const deleteMutation = useMutation({
@@ -400,7 +400,7 @@ export default function AllTalentListPage() {
         queryClient.setQueryData(['all-talent-full'], context.previousCandidates)
         queryClient.setQueryData(['designations'], context.previousDesignations)
       }
-      toast.error(err.response?.data?.detail || 'Failed to move candidate')
+      toast.error(err.response?.data?.message || 'Failed to move candidate')
     },
   })
 
@@ -425,7 +425,7 @@ export default function AllTalentListPage() {
       const created = (res as any).data
       if (created?.id) setSelectedJobId(created.id)
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to create the designation')
+      toast.error(err.response?.data?.message || 'Failed to create the designation')
     } finally {
       setIsCreatingJob(false)
     }
@@ -441,7 +441,7 @@ export default function AllTalentListPage() {
       invalidateAll()
       setRenameTarget(null)
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to rename')
+      toast.error(err.response?.data?.message || 'Failed to rename')
     } finally {
       setIsRenamingJob(false)
     }
@@ -457,7 +457,7 @@ export default function AllTalentListPage() {
       queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
       invalidateAll()
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to delete')
+      toast.error(err.response?.data?.message || 'Failed to delete')
     } finally {
       setIsDeletingJob(false)
       setContextMenu(null)
@@ -490,7 +490,7 @@ export default function AllTalentListPage() {
       toast.success('Designation order saved')
     } catch (err: any) {
       queryClient.setQueryData(['designations'], previous)
-      toast.error(err.response?.data?.detail || 'Failed to reorder designations')
+      toast.error(err.response?.data?.message || 'Failed to reorder designations')
     }
   }
 
@@ -519,19 +519,24 @@ export default function AllTalentListPage() {
     return partial?.id ?? null
   }
 
-  const addToPipeline = async (candidate: any) => {
+  const addToPipelineMutation = useMutation({
+    mutationFn: ({ candidate, jobId }: { candidate: any; jobId: string }) =>
+      candidatesApi.updateStage(candidate.id, 'applied', false, jobId),
+    onSuccess: () => {
+      toast.success('Added to pipeline')
+      invalidateAll()
+    },
+    onError: () => toast.error('Failed to add to pipeline'),
+  })
+
+  const addToPipeline = (candidate: any) => {
+    if (addToPipelineMutation.isPending) return
     const jobId = resolveJobForCandidate(candidate)
     if (!jobId) {
       toast.error('No active job matches this candidate’s role. Pick a designation first.')
       return
     }
-    try {
-      await candidatesApi.updateStage(candidate.id, 'applied', false, jobId)
-      toast.success('Added to pipeline')
-      invalidateAll()
-    } catch {
-      toast.error('Failed to add to pipeline')
-    }
+    addToPipelineMutation.mutate({ candidate, jobId })
   }
 
   const currentDesignationTitle =
@@ -652,6 +657,7 @@ export default function AllTalentListPage() {
             <Input
               label="From"
               type="date"
+              aria-label="From date"
               value={customDateRange[0]}
               onChange={(e) => {
                 setCustomDateRange([e.target.value, customDateRange[1]])
@@ -662,6 +668,7 @@ export default function AllTalentListPage() {
             <Input
               label="To"
               type="date"
+              aria-label="To date"
               value={customDateRange[1]}
               min={customDateRange[0] || undefined}
               onChange={(e) => {
@@ -922,7 +929,16 @@ export default function AllTalentListPage() {
             candidate={actionsTarget}
             isAdmin={isAdmin}
             hasActiveJobs={activeJobs.length > 0}
-            onStage={(stage) => stageMutation.mutate({ id: actionsTarget.id, stage })}
+            busy={
+              stageMutation.isPending
+                ? stageMutation.variables?.stage ?? 'stage'
+                : addToPipelineMutation.isPending
+                  ? 'addToPipeline'
+                  : null
+            }
+            onStage={(stage) => {
+              if (!stageMutation.isPending) stageMutation.mutate({ id: actionsTarget.id, stage })
+            }}
             onAddToPipeline={() => {
               addToPipeline(actionsTarget)
               setActionsTarget(null)
@@ -951,9 +967,10 @@ export default function AllTalentListPage() {
         {viewTarget && (
           <CandidateProfileView
             candidate={viewTarget}
-            onInvite={() =>
-              inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
-            }
+            onInvite={() => {
+              if (!inviteMutation.isPending) inviteMutation.mutate({ email: viewTarget.email, full_name: viewTarget.full_name })
+            }}
+            isInviting={inviteMutation.isPending}
             onSchedule={() => navigate(`${basePath}/interviews?candidateId=${viewTarget.id}`)}
             hasInvitation={Boolean(viewTarget.invitations?.length)}
           />

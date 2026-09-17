@@ -16,7 +16,7 @@ from app.tasks.notifications import notify_organization_roles, notify_candidate_
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
-from app.services.match_scorer import evaluate_candidate_match
+from app.services.ai.match_scorer import evaluate_candidate_match
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
 
@@ -463,7 +463,8 @@ async def invite_candidate(data: CandidateInvite, current_user: Annotated[User, 
         candidate_id=candidate.id,
         organization_id=current_user.organization_id,
         email=candidate.email,
-        full_name=candidate.full_name
+        full_name=candidate.full_name,
+        background_tasks=background_tasks,
     )
     
     await log_activity(

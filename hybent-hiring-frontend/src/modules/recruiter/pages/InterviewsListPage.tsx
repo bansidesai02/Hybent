@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 
 import { useAuthStore } from '@/store/authStore'
+import { useAsyncAction } from '@/hooks/useAsyncAction'
 import { authApi } from '@/api/auth'
 import { interviewsApi } from '@/api/interviews'
 import { candidatesApi } from '@/api/candidates'
@@ -633,7 +634,7 @@ function ScheduleFormCard({
       })
     },
     onError: (err: any) =>
-      toast.error(err?.response?.data?.detail || 'Failed to schedule the interview'),
+      toast.error(err?.response?.data?.message || 'Failed to schedule the interview'),
   })
 
   return (
@@ -699,12 +700,15 @@ function ScheduleFormCard({
 function InterviewRow({
   interview,
   scorecardOpen,
+  completing,
   onCancel,
   onComplete,
   onToggleScorecard,
 }: {
   interview: Interview
   scorecardOpen: boolean
+  /** True while this row's own "Complete" mutation is in flight. */
+  completing: boolean
   onCancel: () => void
   onComplete: () => void
   onToggleScorecard: () => void
@@ -775,7 +779,7 @@ function InterviewRow({
           {interview.status === 'scheduled' && (
             <>
               <AddToCalendarDropdown interview={interview} />
-              <Button size="sm" variant="ghost" onClick={onComplete}>
+              <Button size="sm" variant="ghost" loading={completing} onClick={onComplete}>
                 Complete
               </Button>
               <Button size="sm" variant="quiet" onClick={onCancel}>
@@ -868,14 +872,14 @@ export default function InterviewsListPage() {
     onError: () => toast.error('Failed to update the interview'),
   })
 
-  const connectCalendar = async () => {
+  const [connectCalendar, connectingCalendar] = useAsyncAction(async () => {
     try {
       const res = await authApi.connectCalendar()
       window.location.href = res.data.auth_url
     } catch {
       toast.error('Could not connect your calendar')
     }
-  }
+  })
 
   return (
     <div className="pb-hb-10">
@@ -889,7 +893,12 @@ export default function InterviewsListPage() {
               Calendar synced
             </Badge>
           ) : (
-            <Button variant="ghost" icon={<CalendarCheck size={16} />} onClick={connectCalendar}>
+            <Button
+              variant="ghost"
+              icon={<CalendarCheck size={16} />}
+              loading={connectingCalendar}
+              onClick={() => connectCalendar()}
+            >
               Connect Google Calendar
             </Button>
           )
@@ -987,8 +996,13 @@ export default function InterviewsListPage() {
                     key={iv.id}
                     interview={iv}
                     scorecardOpen={openScorecard === iv.id}
+                    completing={statusMutation.isPending && statusMutation.variables?.id === iv.id}
                     onCancel={() => setCancelTarget(iv)}
-                    onComplete={() => statusMutation.mutate({ id: iv.id, status: 'completed' })}
+                    onComplete={() => {
+                      if (!statusMutation.isPending) {
+                        statusMutation.mutate({ id: iv.id, status: 'completed' })
+                      }
+                    }}
                     onToggleScorecard={() =>
                       setOpenScorecard(openScorecard === iv.id ? null : iv.id)
                     }

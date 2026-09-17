@@ -143,6 +143,7 @@ async def confirm_interview(interview_id: uuid.UUID, current_user: CurrentUser, 
     result = await db.execute(
         select(Interview).where(
             Interview.id == interview_id,
+            Interview.organization_id == current_user.organization_id,
         )
     )
     interview = result.scalar_one_or_none()
@@ -355,6 +356,7 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
     result = await db.execute(
         select(Interview).where(
             Interview.id == interview_id,
+            Interview.organization_id == current_user.organization_id,
         )
     )
     interview = result.scalar_one_or_none()
@@ -379,7 +381,7 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
             data = InterviewUpdate(status="completed", feedback=feedback_val)
         else:
             raise HTTPException(status_code=403, detail="Interviewers can only mark interviews as completed")
-    elif current_user.role != "admin" and interview.organization_id != current_user.organization_id:
+    elif current_user.role not in ("admin", "recruiter"):
         raise HTTPException(status_code=403, detail="Not authorized to update this interview")
     
     # Backend validation: Cannot reschedule to the past

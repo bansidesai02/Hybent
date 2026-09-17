@@ -352,10 +352,10 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
     if (stage === 'error') {
       return (
         <>
-          <Button variant="ghost" onClick={() => setStage('sheet-select')}>
+          <Button variant="ghost" onClick={() => setStage('sheet-select')} disabled={loading}>
             Back
           </Button>
-          <Button onClick={handleImport}>Retry</Button>
+          <Button onClick={handleImport} loading={loading}>Retry</Button>
         </>
       )
     }

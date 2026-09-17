@@ -1,3 +1,4 @@
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,8 @@ from app.services.email_service import send_candidate_invite
 from app.utils.security import hash_password, create_access_token, create_refresh_token
 from app.utils.permissions import UserRole
 from app.schemas.auth import UserOut
+
+logger = logging.getLogger(__name__)
 
 async def create_invitation(
     db: AsyncSession,

@@ -25,11 +25,11 @@ from app.schemas.job_referral import JobReferralOut
 from app.schemas.other_offer import OtherOfferCreate, OtherOfferOut
 from app.schemas.candidate_document import CandidateDocumentCreate, CandidateDocumentOut
 from app.utils.permissions import UserRole, OfferStatus, NotificationType
-from app.services.ai_evaluator import generate_prep_materials
+from app.services.ai.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
 from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
-from app.services.resume_parser import parse_resume
+from app.services.ai.resume_parser import parse_resume
 from app.schemas.response import APIResponse
 from app.tasks.notifications import notify_organization_roles
 from app.core.config import settings
@@ -208,8 +208,15 @@ async def portal_respond_offer(offer_id: uuid.UUID, data: OfferRespondRequest, c
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
 
+    cand_query = select(Candidate.id).where(Candidate.user_id == current_user.id)
+    cand_id = (await db.execute(cand_query)).scalar()
+    if not cand_id:
+        raise HTTPException(status_code=404, detail="Offer not found")
+
     result = await db.execute(
-        select(Offer).where(Offer.id == offer_id)
+        select(Offer)
+        .join(Application, Offer.application_id == Application.id)
+        .where(Offer.id == offer_id, Application.candidate_id == cand_id)
     )
     offer = result.scalar_one_or_none()
     if not offer:
@@ -532,7 +539,9 @@ async def portal_refer_job(
     if not candidate:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    job = (await db.execute(select(Job).where(Job.id == job_id))).scalar_one_or_none()
+    job = (await db.execute(
+        select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
+    )).scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 

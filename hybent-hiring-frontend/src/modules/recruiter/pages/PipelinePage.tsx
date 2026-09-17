@@ -134,7 +134,7 @@ function CardDetailDialog({ card, onClose }: { card: KanbanCard; onClose: () => 
       onClose()
       navigate(`${basePath}/pre-screening/${res.data.id}`)
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to create pre-screening session')
+      toast.error(err?.response?.data?.message || 'Failed to create pre-screening session')
     } finally {
       setBusy(false)
     }

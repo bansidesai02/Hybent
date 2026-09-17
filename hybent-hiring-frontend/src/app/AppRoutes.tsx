@@ -44,8 +44,8 @@ const HybentVerifyEmailRoute = lazy(() => import('@/modules/site/pages/HybentVer
 const HybentCreatePasswordRoute = lazy(() => import('@/modules/site/pages/HybentCreatePasswordRoute'))
 
 /* ── Candidate entry points reached by emailed token ──────────────────────── */
-const OnboardingPage = lazy(() => import('@/pages/candidate/OnboardingPage'))
-const PreScreeningPage = lazy(() => import('@/pages/candidate/PreScreeningPage'))
+const OnboardingPage = lazy(() => import('@/modules/portal/pages/candidate/OnboardingPage'))
+const PreScreeningPage = lazy(() => import('@/modules/portal/pages/candidate/PreScreeningPage'))
 
 /* ── Design system review surface ─────────────────────────────────────────────
    The condition wraps the `import()` itself, not just the route. Vite replaces

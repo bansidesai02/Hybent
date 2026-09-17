@@ -51,7 +51,10 @@ async def list_talent_pool(
         from app.models.job import Job
         from sqlalchemy import or_
         from app.utils.category import extract_all_categories
-        job = await db.get(Job, job_id)
+        job_result = await db.execute(
+            select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id)
+        )
+        job = job_result.scalar_one_or_none()
         if job:
             resolved_job_title = job.title
             job_categories = extract_all_categories(resolved_job_title)

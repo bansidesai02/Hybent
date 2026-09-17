@@ -3,6 +3,7 @@ Application configuration using pydantic-settings.
 All values read from environment variables / .env file.
 """
 from functools import lru_cache
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,7 +15,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    from pydantic import field_validator
 
     @field_validator("gemini_api_key", "groq_api_key", "huggingface_api_key", "openai_api_key", mode="before")
     @classmethod
@@ -68,6 +68,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/v1/calendar/callback"
 
+    # ── Email Accounts (per-organization integrations) ─────────────────────────
+    # Encrypts OAuth tokens / SMTP passwords for organization-connected mailboxes.
+    # MUST be set to a strong random value via env in real deployments.
+    email_accounts_encryption_key: str = "dev-only-insecure-default-change-me"
+    # Reuses the same Google OAuth client as Calendar (google_client_id/secret above) —
+    # just register this additional redirect URI on that same OAuth client.
+    gmail_redirect_uri: str = "http://localhost:8000/v1/email-accounts/gmail/callback"
+
     # ── Storage ────────────────────────────────────────────────────────────────
     upload_dir: str = "uploads"
     max_file_size_mb: int = 10
@@ -96,7 +104,6 @@ class Settings(BaseSettings):
     # Signed URL expiry in seconds (configurable per file type)
     resume_signed_url_expiry: int = 3600   # 1 hour
 
-    from pydantic import model_validator
 
     @model_validator(mode='after')
     def _strip_cloudinary_credentials(self):

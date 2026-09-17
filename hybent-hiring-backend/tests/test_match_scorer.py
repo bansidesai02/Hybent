@@ -1,5 +1,5 @@
 import pytest
-from app.services.match_scorer import compute_heuristic_match_score
+from app.services.ai.match_scorer import compute_heuristic_match_score
 
 class MockJob:
     def __init__(self, title, skills_required, min_experience_years):

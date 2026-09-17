@@ -141,6 +141,18 @@ async def seed():
             last_login=ago(hours=1),
         )
         db.add(user_gmail)
+
+        user_bansidesai = User(
+            organization_id=org.id,
+            email="bansidesai19@gmail.com",
+            full_name="Bansi Desai",
+            hashed_password=hash_password("password123"),
+            role=UserRole.ADMIN.value,
+            is_active=True,
+            is_verified=True,
+            last_login=ago(hours=1),
+        )
+        db.add(user_bansidesai)
         
         admin2 = User(
             organization_id=org.id,
@@ -364,7 +376,7 @@ async def seed():
             db.add(usage)
 
         await db.commit()
-        print(f"  ✓ Users: 8 created (2 super admins, 1 admin, 2 recruiters, 2 interviewers, 1 candidate)")
+        print(f"  ✓ Users: 9 created (2 super admins, 2 admins, 2 recruiters, 2 interviewers, 1 candidate)")
         print(f"  ✓ Subscription plans & Brainerhub Pro subscription seeded")
 
         print("\n" + "=" * 55)
@@ -374,6 +386,7 @@ async def seed():
         print("  Super Admin:  yashdesai494@hybent.com / password123")
         print("  Super Admin:  yp192006@hybent.com     / password123")
         print("  Admin:        admin@hybent.com        / password123")
+        print("  Admin:        bansidesai19@gmail.com  / password123")
         print("  HR Recruiter: recruiter@hybent.com    / password123")
         print("  HR Recruiter: recruiter2@hybent.com   / password123")
         print("  Interviewer:  interviewer@hybent.com  / password123")

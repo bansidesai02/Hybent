@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import {
   Activity, Bot, Brain, BriefcaseMedical, Building2, Calendar, ClipboardCheck,
-  ClipboardList, Coins, CreditCard, Database, FileText, Handshake, LayoutGrid,
+  ClipboardList, Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutGrid,
   Settings, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
@@ -91,6 +91,7 @@ export function getNavSections(
         label: 'Overview',
         items: [
           { to: '/hiring/super-admin', label: 'Dashboard', icon: LayoutGrid, end: true },
+          { to: '/hiring/super-admin/inbox', label: 'Inbox', icon: Inbox },
           { to: '/hiring/super-admin/analytics', label: 'Analytics', icon: TrendingUp },
         ],
       },
@@ -153,11 +154,13 @@ export function getNavSections(
     { to: '/hiring/admin/teams', label: 'Team', icon: UsersRound },
     { to: '/hiring/admin/audit', label: 'Audit Logs', icon: ClipboardList },
     { to: '/hiring/admin/ai-credits', label: 'AI Credits', icon: Coins },
+    { to: '/hiring/admin/settings', label: 'Settings', icon: Settings },
   ]
 
   const recruiterSettings: NavItem[] = [
     { to: `${basePath}/teams`, label: 'Team', icon: UsersRound },
     { to: `${basePath}/ai-credits`, label: 'AI Credits', icon: Coins },
+    { to: `${basePath}/settings`, label: 'Settings', icon: Settings },
   ]
 
   return [
@@ -165,6 +168,7 @@ export function getNavSections(
       label: 'Main',
       items: [
         { to: basePath, label: 'Overview', icon: LayoutGrid, end: true },
+        { to: `${basePath}/inbox`, label: 'Inbox', icon: Inbox },
         { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseMedical },
         candidatesGroup(basePath, role, candidateBadge),
         { to: `${basePath}/pipeline`, label: 'Pipeline', icon: PipelineGlyph },

@@ -21,9 +21,16 @@ def run_database_backup(output_dir: str = "backups") -> str:
     backup_file = os.path.join(output_dir, f"hybent_db_backup_{timestamp}.sql.gz")
 
     try:
-        # Construct pg_dump command (runs compressed)
-        cmd = f"pg_dump {db_url} | gzip > {backup_file}"
-        subprocess.run(cmd, shell=True, check=True)
+        # Clean the DATABASE_URL dialect for pg_dump compatibility (remove +asyncpg)
+        clean_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+        if clean_url.startswith("postgres://"):
+            clean_url = clean_url.replace("postgres://", "postgresql://", 1)
+
+        import gzip
+        with gzip.open(backup_file, "wb") as f_out:
+            # Run pg_dump securely without shell=True
+            subprocess.run(["pg_dump", clean_url], stdout=f_out, check=True)
+
         logger.info(f"Database backup successfully created: {backup_file}")
         return backup_file
     except Exception as e:

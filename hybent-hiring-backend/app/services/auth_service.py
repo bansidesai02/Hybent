@@ -285,6 +285,7 @@ async def google_authenticate(token: str, db: AsyncSession) -> dict:
 
         user = User(
             organization_id=org.id,
+            organization=org,
             email=email,
             full_name=full_name,
             hashed_password=None,
@@ -302,7 +303,7 @@ async def google_authenticate(token: str, db: AsyncSession) -> dict:
     user.last_login = datetime.now(timezone.utc)
 
     # Re-query user with organization loaded if needed
-    if not user.organization and user.organization_id:
+    if user.organization_id and "organization" not in user.__dict__:
         org_res = await db.execute(select(Organization).where(Organization.id == user.organization_id))
         user.organization = org_res.scalar_one_or_none()
 
