@@ -63,6 +63,25 @@ services:
         sync: false
       - key: GMAIL_REDIRECT_URI
         sync: false
+      # Encrypts connected mailbox OAuth tokens/SMTP passwords at rest — must
+      # stay the SAME value across deploys/accounts, or already-encrypted
+      # tokens in the DB can no longer be decrypted. Never regenerate this.
+      - key: EMAIL_ACCOUNTS_ENCRYPTION_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: HUGGINGFACE_API_KEY
+        sync: false
 
   # ── Redis ─────────────────────────────────────────────────────────────────
   - type: redis
