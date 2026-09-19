@@ -13,61 +13,21 @@ from app.models.organization import Organization
 from app.models.user import User, RefreshToken
 from app.schemas.auth import RegisterRequest, LoginRequest, UserOut
 from app.utils.permissions import UserRole
-from app.utils.security import hash_password, verify_password, create_access_token, create_refresh_token
+from app.utils.security import verify_password, create_access_token, create_refresh_token
 
 
 async def register_user(data: RegisterRequest, db: AsyncSession) -> dict:
-    """Create a new organization and admin user."""
-    # Check email uniqueness
-    existing = await db.execute(
-        select(User)
-        .options(joinedload(User.organization))
-        .where(User.email == data.email)
+    """
+    Public self-serve registration is disabled — the platform is invite-only.
+    New organizations are provisioned by a super admin
+    (POST /v1/super-admin/clients, see app/routers/super_admin.py), and new
+    teammates inside an existing org are added via POST /v1/users/invite.
+    Neither path goes through here, so this endpoint only ever rejects.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Public registration is disabled. Contact your Hybent admin to get an invite.",
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    # Check slug uniqueness
-    slug_check = await db.execute(
-        select(Organization).where(Organization.slug == data.organization_slug)
-    )
-    if slug_check.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Organization slug already taken")
-
-    # Create organization
-    org = Organization(
-        name=data.organization_name,
-        slug=data.organization_slug,
-    )
-    db.add(org)
-    await db.flush()  # get org.id
-
-    # Create admin user
-    user = User(
-        organization_id=org.id,
-        email=data.email,
-        hashed_password=hash_password(data.password),
-        full_name=data.full_name,
-        role=UserRole.ADMIN,
-        is_verified=True,
-    )
-    db.add(user)
-    await db.flush()
-
-    # Issue tokens
-    access_token = create_access_token({"sub": str(user.id), "org": str(org.id), "role": user.role})
-    refresh_tok = create_refresh_token()
-    db.add(RefreshToken(
-        user_id=user.id,
-        token=refresh_tok,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days),
-    ))
-
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_tok,
-        "token_type": "bearer",
-    }
 
 
 async def login_user(data: LoginRequest, db: AsyncSession) -> dict:
@@ -230,7 +190,6 @@ async def google_authenticate(token: str, db: AsyncSession) -> dict:
     Authenticate user via Google OAuth 2.0.
     Links existing user or registers a new account automatically with provider="google".
     """
-    import re
     profile = await verify_google_token(token)
 
     google_id = profile["google_id"]
@@ -263,41 +222,14 @@ async def google_authenticate(token: str, db: AsyncSession) -> dict:
 
         user.is_verified = True
     else:
-        # User does not exist, create new organization & user
-        domain = email.split("@")[-1].split(".")[0].replace("-", " ")
-        org_name = f"{domain.capitalize()} Workspace" if domain and domain not in ["gmail", "yahoo", "hotmail", "outlook"] else f"{full_name.split()[0]}'s Workspace"
-
-        raw_slug = re.sub(r"[^a-z0-9-]", "", org_name.lower().replace(" ", "-"))
-        slug = raw_slug or "organization"
-
-        # Check slug collision
-        slug_check = await db.execute(select(Organization).where(Organization.slug == slug))
-        if slug_check.scalar_one_or_none():
-            import uuid
-            slug = f"{slug}-{uuid.uuid4().hex[:6]}"
-
-        org = Organization(
-            name=org_name,
-            slug=slug,
+        # The platform is invite-only: an unrecognized Google account does not
+        # get to provision itself a new organization + admin. New orgs come
+        # from a super admin (POST /v1/super-admin/clients); new teammates
+        # inside an existing org come from POST /v1/users/invite.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No account found for this email. Ask your organization admin to invite you, or contact Hybent to set up your organization.",
         )
-        db.add(org)
-        await db.flush()
-
-        user = User(
-            organization_id=org.id,
-            organization=org,
-            email=email,
-            full_name=full_name,
-            hashed_password=None,
-            google_id=google_id,
-            provider="google",
-            avatar_url=picture,
-            role=UserRole.ADMIN,
-            is_verified=True,
-            is_active=True,
-        )
-        db.add(user)
-        await db.flush()
 
     # Update last login
     user.last_login = datetime.now(timezone.utc)
