@@ -6,7 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Briefcase, Calendar, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
+  Briefcase, Calendar, Loader2, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { globalSearch } from '@/api/search'
@@ -92,8 +92,11 @@ function HbTopbarComponent({
   const menuRef = useRef<HTMLDivElement>(null)
   // `logout()` awaits an API call before navigating away — a synchronous ref
   // guard (not state, since the component unmounts on navigation) stops a
-  // fast double-click on "Sign out" from firing it twice.
+  // fast double-click on "Sign out" from firing it twice. `loggingOut` state
+  // sits alongside it purely to render the in-progress spinner; setting state
+  // right up to unmount is harmless, React just drops it.
   const loggingOutRef = useRef(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   /* ── Search ─────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -386,16 +389,31 @@ function HbTopbarComponent({
                 <button
                   type="button"
                   role="menuitem"
+                  disabled={loggingOut}
+                  aria-busy={loggingOut || undefined}
                   onClick={() => {
                     if (loggingOutRef.current) return
                     loggingOutRef.current = true
-                    setMenuOpen(false)
+                    // Left open on purpose — closing immediately gave no sign
+                    // that anything was happening during the awaited logout
+                    // API call. It closes on its own once `logout()` navigates
+                    // to /login and this whole menu unmounts.
+                    setLoggingOut(true)
                     logout()
                   }}
-                  className="mt-1 flex w-full items-center gap-2.5 rounded-hb-sm px-3 py-2 text-left text-hb-sm text-hb-error transition-colors duration-hb hover:bg-hb-error/8 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  className="mt-1 flex w-full items-center gap-2.5 rounded-hb-sm px-3 py-2 text-left text-hb-sm text-hb-error transition-colors duration-hb hover:bg-hb-error/8 focus-visible:outline-none focus-visible:shadow-hb-ring disabled:cursor-wait disabled:opacity-70"
                 >
-                  <LogOut size={15} aria-hidden />
-                  Sign out
+                  {loggingOut ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" aria-hidden />
+                      Signing out…
+                    </>
+                  ) : (
+                    <>
+                      <LogOut size={15} aria-hidden />
+                      Sign out
+                    </>
+                  )}
                 </button>
               </motion.div>
             )}
