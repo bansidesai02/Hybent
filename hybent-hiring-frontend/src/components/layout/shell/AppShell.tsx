@@ -1,8 +1,9 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { useThemeStore } from '@/store/themeStore'
 import { SkeletonStats, Skeleton } from '@/components/hb'
 import { ImpersonationBanner } from '@/components/common/ImpersonationBanner'
 import { HbSidebar } from './HbSidebar'
@@ -58,6 +59,41 @@ function RealtimeBridge() {
   return null
 }
 
+/**
+ * Applies the user's stored theme to the document for as long as a workspace
+ * is mounted, and clears it on the way out.
+ *
+ * This is the only place the product's dark theme is ever applied. The
+ * marketing site and the auth pages never render `AppShell`, so they can
+ * never inherit a dark preference set inside a workspace — leaving one (sign
+ * out, or just navigating back to hybent.com) always lands back on light.
+ */
+function useWorkspaceTheme() {
+  const theme = useThemeStore((s) => s.theme)
+  const hasHydrated = useThemeStore((s) => s.hasHydrated)
+
+  useEffect(() => {
+    // Until the persisted preference has been read back, `theme` is just the
+    // in-memory default ('light') — applying that would fight the pre-paint
+    // script in index.html, which already got this right for a hard reload,
+    // and flash a dark-mode user to light for a frame.
+    if (!hasHydrated) return
+
+    const root = document.documentElement
+    if (theme === 'dark') {
+      root.dataset.theme = 'dark'
+      root.classList.add('dark')
+    } else {
+      root.dataset.theme = 'classic'
+      root.classList.remove('dark')
+    }
+    return () => {
+      root.dataset.theme = 'classic'
+      root.classList.remove('dark')
+    }
+  }, [theme, hasHydrated])
+}
+
 /** Mirrors a dashboard's shape — stat row then a wide panel — so the page does
     not reflow when the real content arrives. */
 function ContentFallback() {
@@ -83,6 +119,7 @@ export interface AppShellProps {
 export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellProps) {
   const { user } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  useWorkspaceTheme()
 
   const activeRole = (role ?? user?.role ?? 'recruiter') as UserRole
   const config = ROLE_CONFIG[activeRole] ?? FALLBACK

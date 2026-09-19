@@ -54,12 +54,12 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-gray-800">Adjust Your Photo</h3>
+      <div className="bg-hb-surface rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col">
+        <div className="p-6 border-b border-hb-border flex justify-between items-center">
+          <h3 className="text-xl font-bold text-hb-text">Adjust Your Photo</h3>
           <button
             onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-hb-dim hover:text-hb-text transition-colors"
           >
             ✕
           </button>
@@ -79,11 +79,11 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
           />
         </div>
 
-        <div className="p-6 space-y-6 bg-white">
+        <div className="p-6 space-y-6 bg-hb-surface">
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <label className="text-sm font-semibold text-gray-600 w-12">Zoom</label>
-              <button onClick={zoomOut} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">➖</button>
+              <label className="text-sm font-semibold text-hb-muted w-12">Zoom</label>
+              <button onClick={zoomOut} className="p-2 hover:bg-hb-surface-2 rounded-lg text-hb-muted">➖</button>
               <input
                 type="range"
                 value={zoom}
@@ -92,15 +92,15 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
                 step={0.1}
                 aria-labelledby="Zoom"
                 onChange={(e) => onZoomChange(Number(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                className="flex-1 h-2 bg-hb-border-strong rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
-              <button onClick={zoomIn} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">➕</button>
+              <button onClick={zoomIn} className="p-2 hover:bg-hb-surface-2 rounded-lg text-hb-muted">➕</button>
             </div>
 
             <div className="flex items-center justify-center gap-4 pt-2">
               <button
                 onClick={rotateClockwise}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-semibold hover:bg-gray-50 transition-all"
+                className="flex items-center gap-2 px-4 py-2 border border-hb-border rounded-xl text-hb-muted font-semibold hover:bg-hb-surface-2 transition-all"
               >
                 <span>Rotate ⟳</span>
               </button>
@@ -110,7 +110,7 @@ export default function ImageCropperModal({ image, onCropComplete, onCancel }: I
           <div className="flex gap-3 pt-2">
             <button
               onClick={onCancel}
-              className="flex-1 px-6 py-3 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-all active:scale-95"
+              className="flex-1 px-6 py-3 border border-hb-border text-hb-muted font-semibold rounded-xl hover:bg-hb-surface-2 transition-all active:scale-95"
             >
               Cancel
             </button>

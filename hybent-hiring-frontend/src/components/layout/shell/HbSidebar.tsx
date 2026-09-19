@@ -5,6 +5,7 @@ import { ChevronRight } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotificationStore } from '@/store/notificationStore'
+import { useThemeStore } from '@/store/themeStore'
 import { prefetchRoute } from '@/utils/routePrefetch'
 import { useOverlay } from '@/components/hb/useOverlay'
 import { getNavSections, isGroup, type NavGroup, type NavItem, type NavSection } from './navConfig'
@@ -56,6 +57,11 @@ function HbSidebarComponent({
   const location = useLocation()
   const { notifications } = useNotificationStore()
   const { user } = useAuth()
+  const theme = useThemeStore((s) => s.theme)
+  // A Google-account photo, chiefly, can refuse to load for a plain <img> in
+  // some referrer/CORS conditions even though the URL itself is valid —
+  // falls back to initials instead of a permanently broken image.
+  const [brokenAvatarSrc, setBrokenAvatarSrc] = useState<string | null>(null)
 
   /* Focus trap + scroll lock, but only while the drawer is actually open —
      which on desktop is never, because the resize handler below closes it. */
@@ -195,11 +201,8 @@ function HbSidebarComponent({
             aria-label="Hybent Overview"
           >
             <img src="/hybent/hybent-mark.png" alt="Hybent logo mark" className="h-7 w-7 object-contain" />
-            {/* One wordmark: the product is light-only since phase 10, so the
-                `dark:hidden` / `dark:block` pair swapped between an image that
-                always showed and one that never did. */}
             <img
-              src="/hybent/hybent-wordmark-light.png"
+              src={theme === 'dark' ? '/hybent/hybent-wordmark-dark.png' : '/hybent/hybent-wordmark-light.png'}
               alt="HYBENT"
               className="h-[17px] object-contain"
             />
@@ -367,8 +370,14 @@ function HbSidebarComponent({
         <div className="flex-none border-t border-hb-border">
           <div className="flex items-center gap-3 px-hb-5 py-hb-4">
             <span className="grid h-9 w-9 flex-none place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-xs font-bold text-hb-on-brand">
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt={user?.full_name ? `${user.full_name}'s avatar` : 'User profile avatar'} className="h-full w-full object-cover" />
+              {user?.avatar_url && user.avatar_url !== brokenAvatarSrc ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user?.full_name ? `${user.full_name}'s avatar` : 'User profile avatar'}
+                  referrerPolicy="no-referrer"
+                  onError={() => setBrokenAvatarSrc(user.avatar_url ?? null)}
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 initials
               )}

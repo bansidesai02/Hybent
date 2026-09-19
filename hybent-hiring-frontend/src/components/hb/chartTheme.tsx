@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { clsx } from 'clsx'
 import { ResponsiveContainer, Tooltip, type TooltipProps } from 'recharts'
+import { useThemeStore } from '@/store/themeStore'
 
 /**
  * Recharts, bound to the design system.
@@ -40,6 +41,12 @@ export interface ChartTheme {
 }
 
 export function useChartTheme(): ChartTheme {
+  /* Not read below — `readToken` pulls values straight off the document.
+     Subscribing here just forces this hook to re-run (and re-read the
+     now-changed custom properties) the instant the theme toggles, instead of
+     waiting on some unrelated re-render to catch up. */
+  useThemeStore((s) => s.theme)
+
   const series = [
     readToken('--hb-blue'),
     readToken('--hb-cyan'),

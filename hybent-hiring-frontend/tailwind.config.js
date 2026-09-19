@@ -7,12 +7,13 @@ const hb = (name) => `rgb(var(--hb-${name}) / <alpha-value>)`
 
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
-  /* Hybent is light-only, and as of phase 10 no `dark:` variant survives in the
-     product. The option stays anyway, as a guard rather than a crutch: deleting
-     it makes Tailwind fall back to `media`, so the day someone reintroduces a
-     `dark:` class it would silently activate for every visitor whose OS prefers
-     dark — the exact outcome the requirement rules out. Pinned to `class`,
-     nothing adds `.dark`, so such a variant stays inert until reviewed. */
+  /* The marketing site and auth pages are light-only by design; the
+     authenticated product has a user-facing Light/Dark toggle (see
+     `useThemeStore` and `AppShell`, the only place that ever adds `.dark` to
+     `<html>`). Pinned to `class` rather than left to fall back to `media`, so
+     dark mode is always something the user chose in-app — never something a
+     visitor's OS preference silently turns on for the public, brand-light
+     surfaces. */
   darkMode: 'class',
   theme: {
     extend: {

@@ -53,6 +53,7 @@ export function Avatar({
       <img
         src={src}
         alt={name ? `${name}'s avatar` : 'User avatar'}
+        referrerPolicy="no-referrer"
         onError={() => setBroken(true)}
         className={clsx(
           'shrink-0 rounded-full border border-hb-border object-cover bg-hb-surface-2',

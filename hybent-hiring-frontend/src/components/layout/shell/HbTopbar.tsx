@@ -6,10 +6,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Briefcase, Calendar, LogOut, Menu, Search, SearchX, Settings, User, Users, X,
+  Briefcase, Calendar, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { globalSearch } from '@/api/search'
+import { useThemeStore } from '@/store/themeStore'
 import type { SearchResult, SearchResults } from '@/types'
 
 const MessageInbox = lazy(() =>
@@ -74,8 +75,14 @@ function HbTopbarComponent({
   const { user, logout, basePath } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const theme = useThemeStore((s) => s.theme)
+  const toggleTheme = useThemeStore((s) => s.toggleTheme)
 
   const [menuOpen, setMenuOpen] = useState(false)
+  // Some avatar sources (a Google-account photo, chiefly) refuse to load for
+  // a plain <img> in some referrer/CORS conditions even though the URL is
+  // valid — falls back to initials instead of a permanently broken image.
+  const [brokenAvatarSrc, setBrokenAvatarSrc] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResults | null>(null)
   const [searching, setSearching] = useState(false)
@@ -311,6 +318,16 @@ function HbTopbarComponent({
 
       {/* ── Right cluster ────────────────────────────────────────────────── */}
       <div className="flex flex-none items-center gap-1.5 sm:gap-2">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          className="grid h-10 w-10 flex-none place-items-center rounded-hb-full border border-hb-border text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring"
+        >
+          {theme === 'dark' ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
+        </button>
+
         <DeferredWidgets messages={messages} />
 
         {/* User menu */}
@@ -323,8 +340,14 @@ function HbTopbarComponent({
             aria-label="Account menu"
             className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-xs font-bold text-hb-on-brand transition-transform duration-hb hover:scale-105 focus-visible:outline-none focus-visible:shadow-hb-ring"
           >
-            {user?.avatar_url ? (
-              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+            {user?.avatar_url && user.avatar_url !== brokenAvatarSrc ? (
+              <img
+                src={user.avatar_url}
+                alt=""
+                referrerPolicy="no-referrer"
+                onError={() => setBrokenAvatarSrc(user.avatar_url ?? null)}
+                className="h-full w-full object-cover"
+              />
             ) : (
               initials
             )}

@@ -56,6 +56,10 @@ export default function ProfileFormCard({
   })
 
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  // A Google-account photo, chiefly, can refuse to load for a plain <img> in
+  // some referrer/CORS conditions even though the URL itself is valid —
+  // falls back to initials instead of a permanently broken image.
+  const [brokenAvatarSrc, setBrokenAvatarSrc] = useState<string | null>(null)
 
   // Track the last profile ID we synced to detect genuine data changes
   const lastSyncedProfileId = useRef<string | null>(null)
@@ -187,8 +191,14 @@ export default function ProfileFormCard({
               onClick={() => fileInputRef.current?.click()}
               title="Click to change photo"
             >
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="avatar" className="profile-avatar-img" />
+              {user?.avatar_url && user.avatar_url !== brokenAvatarSrc ? (
+                <img
+                  src={user.avatar_url}
+                  alt="avatar"
+                  referrerPolicy="no-referrer"
+                  onError={() => setBrokenAvatarSrc(user.avatar_url ?? null)}
+                  className="profile-avatar-img"
+                />
               ) : (
                 <span className="profile-avatar-initials">{initials}</span>
               )}
