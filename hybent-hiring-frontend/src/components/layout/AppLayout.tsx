@@ -88,6 +88,13 @@ export default function AppLayout() {
     if (!href || !href.startsWith('/')) return
     if (anchor.hasAttribute('target') || anchor.hasAttribute('download')) return
     e.preventDefault()
+    if (href === location.pathname) {
+      // A nav link to the page already on screen — routing to an unchanged
+      // path doesn't touch `location.pathname`, so the scroll-to-top effect
+      // below (keyed on it) never re-fires. Do it here instead.
+      window.scrollTo(0, 0)
+      return
+    }
     navigate(href)
   }
 

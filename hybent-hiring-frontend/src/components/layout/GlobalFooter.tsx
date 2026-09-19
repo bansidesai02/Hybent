@@ -32,9 +32,9 @@ export function GlobalFooter() {
             <li><a href="/products/hiring">Hybent Hiring</a></li>
           </ul></div>
           <div><h5>Solutions</h5><ul>
-            <li><a href="/solutions">Services</a></li>
+            <li><a href="/services">Services</a></li>
             <li><a href="/industries">Industries</a></li>
-            <li><a href="/solutions">Hire Talent</a></li>
+            <li><a href="/hire-talent">Hire Talent</a></li>
           </ul></div>
           <div><h5>Company</h5><ul>
             <li><a href="/about">About</a></li><li><a href="/about/timeline">Our story</a></li><li><a href="/careers">Careers</a></li>
