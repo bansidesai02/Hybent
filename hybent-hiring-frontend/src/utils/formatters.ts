@@ -78,6 +78,30 @@ export function scoreColor(score: number | null | undefined): string {
   return 'text-hb-error'
 }
 
+/**
+ * The candidates table's "Exp" column. Backend now always sets
+ * `experience_years` (a labeled string like "1.5 Years"/"6 Months") together
+ * with `years_experience`, but this still guards older records that only have
+ * the bare float — blindly appending "y" to a value under 1 is what used to
+ * render a resume's one ambiguous internship line as "0.1y".
+ */
+export function formatExperience(candidate: {
+  experience_years?: string | null
+  years_experience?: number | null
+  relevant_experience?: string | null
+}): string {
+  if (candidate.experience_years) return candidate.experience_years
+  if (candidate.years_experience != null) {
+    const years = candidate.years_experience
+    if (years < 1) {
+      const months = Math.round(years * 12)
+      return months > 0 ? `${months} ${months === 1 ? 'Month' : 'Months'}` : '—'
+    }
+    return `${years}y`
+  }
+  return candidate.relevant_experience || '—'
+}
+
 export function stageLabel(stage: string): string {
   return stage.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 }

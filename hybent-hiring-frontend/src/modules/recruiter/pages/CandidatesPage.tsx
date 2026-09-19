@@ -22,7 +22,7 @@ import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
 import { adminApi } from '@/api/admin'
 import { designationsApi, type DesignationItem } from '@/api/designations'
-import { formatCandidateDate } from '@/utils/formatters'
+import { formatCandidateDate, formatExperience } from '@/utils/formatters'
 import type { Candidate } from '@/types'
 import { CandidateProfileView } from '@/modules/recruiter/components/CandidateProfileView'
 import { CandidateActionsPanel } from '@/modules/recruiter/components/CandidateActionsPanel'
@@ -437,10 +437,7 @@ export default function CandidatesPage() {
       width: '56px',
       align: 'center',
       cell: (c) => (
-        <span className="whitespace-nowrap text-hb-muted">
-          {c.experience_years ||
-            (c.years_experience != null ? `${c.years_experience}y` : c.relevant_experience || '—')}
-        </span>
+        <span className="whitespace-nowrap text-hb-muted">{formatExperience(c)}</span>
       ),
     },
     {
@@ -459,9 +456,13 @@ export default function CandidatesPage() {
         const inPipeline = isCandidateInActivePipeline(stage)
         const hasAccount = c.invitations?.length > 0 && c.invitations[0].is_used
         /* The triage actions only make sense for a recruiter-uploaded candidate
-           who has been scored but not yet routed anywhere. */
+           who has been scored but not yet routed anywhere — and who hasn't
+           already been rejected. `isCandidateInActivePipeline` treats a
+           rejection stage the same as "never triaged" (both are !inPipeline),
+           so without this check a rejected candidate looked untriaged and
+           still showed an active Reject button. */
         const needsTriage =
-          !inPipeline && !!activeJobs?.length && !hasAccount && c.match_score != null
+          !inPipeline && !isRejectionStage(stage) && !!activeJobs?.length && !hasAccount && c.match_score != null
 
         return (
           <div className="flex flex-col items-start gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -477,22 +478,17 @@ export default function CandidatesPage() {
                   Add to pipeline
                 </Button>
               ) : (
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    loading={stageMutation.isPending && stageMutation.variables?.id === c.id}
-                    disabled={stageMutation.isPending}
-                    onClick={() => {
-                      if (!stageMutation.isPending) stageMutation.mutate({ id: c.id, stage: 'rejected' })
-                    }}
-                  >
-                    Reject
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => toast.success('Kept in talent database')}>
-                    Talent DB
-                  </Button>
-                </div>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  loading={stageMutation.isPending && stageMutation.variables?.id === c.id}
+                  disabled={stageMutation.isPending}
+                  onClick={() => {
+                    if (!stageMutation.isPending) stageMutation.mutate({ id: c.id, stage: 'rejected' })
+                  }}
+                >
+                  Reject
+                </Button>
               ))}
 
             {stage ? (
