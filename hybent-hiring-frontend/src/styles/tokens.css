@@ -171,17 +171,59 @@
 }
 
 /* -----------------------------------------------------------------------------
-   There is no dark theme.
+   DARK — the authenticated product only.
 
-   Hybent is light-only, everywhere: the company site, the auth pages, the
-   emailed candidate flows and every workspace. A `[data-theme="dark"]` block
-   lived here through phases 1-6 and has been removed along with the theme
-   provider, its toggle and the pre-paint script in index.html.
+   The company site, the auth pages and the emailed candidate flows stay on
+   `classic`; light is the brand there, and nothing on those surfaces ever
+   reads `data-theme` or the `.dark` class. `AppShell` (the one shell every
+   signed-in workspace renders inside) is the sole place that sets either,
+   syncing them to the user's stored preference on mount and clearing them on
+   unmount — so leaving a workspace always returns to light.
 
-   Nothing sets `data-theme="dark"` or the `.dark` class any more, so any
-   surviving `dark:` Tailwind variant or `.dark` CSS block in an unmigrated file
-   is inert. Those are deleted file-by-file as each workspace migrates.
+   Only the properties that are actually theme-dependent are redeclared here;
+   geometry, spacing, type and motion stay declared once on `:root` above and
+   keep cascading unchanged. The accents reuse the full-saturation
+   `--hb-brand-*` values rather than inventing new hues — those already read
+   correctly against a dark ground, which is exactly why they're used at full
+   strength on the gradient in both themes.
    ----------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  --hb-cyan:    34 207 255;   /* = --hb-brand-cyan */
+  --hb-blue:    124 156 255;  /* lightened from brand-blue for AA text contrast on dark */
+  --hb-violet:  196 145 255;  /* lightened from brand-violet */
+  --hb-magenta: 232 92 255;   /* = --hb-brand-magenta */
+
+  --hb-bg:        13 15 22;    /* #0D0F16 */
+  --hb-bg-2:      17 20 28;    /* #11141C */
+  --hb-surface:   22 25 34;    /* #161922 */
+
+  --hb-ground:    10 12 18;    /* #0A0C12 — a step darker than surface, mirrors the light theme's relationship */
+  --hb-surface-2: 28 32 43;    /* #1C202B */
+  --hb-elevated:  33 37 49;    /* #212531 — lighter than surface, so a popover/modal lifts off the page */
+
+  --hb-text:  237 239 245;  /* #EDEFF5 */
+  --hb-muted: 166 173 191;  /* #A6ADBF */
+  --hb-dim:   118 126 145;  /* #767E91 */
+
+  --hb-border:        rgb(255 255 255 / .09);
+  --hb-border-strong: rgb(255 255 255 / .16);
+
+  --hb-success: 52 199 143;   /* #34C78F */
+  --hb-warning: 245 176 65;   /* #F5B041 */
+  --hb-error:   248 113 133;  /* #F87185 */
+
+  /* Neutral shadows read as a smudge on a dark ground, so separation leans on
+     the border tokens above; these stay as a soft black lift for the few
+     elements (popovers, the kitchen-sink card) that still want one. */
+  --hb-sh-1: 0 1px 2px rgb(0 0 0 / .30);
+  --hb-sh-2: 0 8px 24px -12px rgb(0 0 0 / .55);
+  --hb-sh-3: 0 26px 60px -24px rgb(0 0 0 / .60);
+  --hb-sh-card:       0 1px 2px rgb(0 0 0 / .25), 0 10px 30px -20px rgb(0 0 0 / .65);
+  --hb-sh-card-hover: 0 20px 46px -22px rgb(0 0 0 / .6);
+  --hb-ring: 0 0 0 4px rgb(124 156 255 / .18);
+
+  color-scheme: dark;
+}
 
 
 /* =============================================================================

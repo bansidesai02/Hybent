@@ -137,10 +137,10 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-            className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-[420px] bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.2)] flex flex-col border-l border-gray-100"
+            className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-[420px] bg-hb-surface shadow-[-20px_0_50px_rgba(0,0,0,0.2)] flex flex-col border-l border-hb-border"
           >
             {/* Header */}
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50 sticky top-0 z-10">
+            <div className="p-5 border-b border-hb-border flex items-center justify-between bg-hb-surface-2 sticky top-0 z-10">
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <Avatar name={recipient.full_name} src={recipient.avatar_url || ''} size="md" className="shadow-hb-1" />
@@ -175,15 +175,15 @@ export function ChatPanel({ open, onClose, recipient }: ChatPanelProps) {
                     <div className="absolute inset-0 border-4 border-[rgb(var(--hb-blue))]/20 rounded-full" />
                     <div className="absolute inset-0 border-4 border-t-[rgb(var(--hb-blue))] rounded-full animate-spin" />
                   </div>
-                  <p className="text-xs font-bold text-gray-400 animate-pulse">Loading conversation...</p>
+                  <p className="text-xs font-bold text-hb-dim animate-pulse">Loading conversation...</p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center px-10">
-                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[rgb(var(--hb-blue))]/5 to-indigo-50 flex items-center justify-center mb-6 shadow-sm rotate-3">
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[rgb(var(--hb-blue))]/5 to-[rgb(var(--hb-blue))]/15 flex items-center justify-center mb-6 shadow-sm rotate-3">
                     <MessageSquare className="w-10 h-10 text-[rgb(var(--hb-blue))]/50" strokeWidth={1.5} />
                   </div>
-                  <h4 className="text-base font-black text-gray-900">Say hello!</h4>
-                  <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                  <h4 className="text-base font-black text-hb-text">Say hello!</h4>
+                  <p className="text-xs text-hb-muted mt-2 leading-relaxed">
                     Start your conversation with <b>{recipient.full_name}</b>. Messages are private to your organization.
                   </p>
                 </div>

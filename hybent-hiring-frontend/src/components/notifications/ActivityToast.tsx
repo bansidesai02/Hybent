@@ -42,7 +42,7 @@ export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       key={t.id}
-      className="max-w-sm w-full bg-white/95 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-2xl pointer-events-auto flex ring-1 ring-black/5 border border-white/20 transition-all duration-300"
+      className="max-w-sm w-full bg-hb-elevated/95 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-2xl pointer-events-auto flex ring-1 ring-black/5 border border-hb-border transition-all duration-300"
     >
       <div className="flex-1 w-0 p-4">
         <div className="flex items-start">
@@ -51,21 +51,21 @@ export const ActivityToast: React.FC<ActivityToastProps> = ({ t, payload }) => {
           </div>
           <div className="ml-4 flex-1">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <p className="text-sm font-bold text-hb-text flex items-center gap-2">
                 Live Activity
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-hb-success animate-pulse" />
               </p>
               <span className="font-mono text-hb-micro font-bold uppercase text-hb-dim">
                 {payload.timestamp ? timeAgo(payload.timestamp) : 'Now'}
               </span>
             </div>
-            <p className="mt-1 text-sm text-gray-600 leading-snug font-medium">
+            <p className="mt-1 text-sm text-hb-muted leading-snug font-medium">
               {payload.message}
             </p>
           </div>
         </div>
       </div>
-      <div className="flex border-l border-gray-100/50">
+      <div className="flex border-l border-hb-border">
         <button
           onClick={() => toast.dismiss(t.id)}
           className="flex w-full items-center justify-center rounded-r-2xl border border-transparent px-4 font-mono text-hb-micro font-bold uppercase tracking-widest text-hb-cyan transition-all duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus:outline-none"

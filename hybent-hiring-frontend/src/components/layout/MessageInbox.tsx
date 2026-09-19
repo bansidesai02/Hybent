@@ -39,10 +39,10 @@ function MessageInboxComponent() {
     <div className="relative" ref={inboxRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors"
+        className="relative p-2 rounded-xl hover:bg-hb-surface-2 transition-colors"
         title="Messages"
       >
-        <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-5 h-5 text-hb-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
@@ -62,14 +62,14 @@ function MessageInboxComponent() {
             transition={{ duration: 0.15 }}
             className="fixed left-4 right-4 top-16 z-50 w-[calc(100vw-32px)] overflow-hidden rounded-hb-lg border border-hb-border bg-hb-elevated shadow-hb-2 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-80"
           >
-            <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50">
-              <h3 className="text-sm font-black text-gray-900">Active Chats</h3>
+            <div className="p-4 border-b border-hb-border flex items-center justify-between bg-hb-surface-2">
+              <h3 className="text-sm font-black text-hb-text">Active Chats</h3>
             </div>
 
-            <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
+            <div className="max-h-96 overflow-y-auto divide-y divide-hb-border">
               {conversations.length === 0 ? (
                 <div className="p-10 text-center">
-                  <p className="text-xs text-gray-400">No active conversations</p>
+                  <p className="text-xs text-hb-dim">No active conversations</p>
                 </div>
               ) : (
                 conversations.map((c) => (
@@ -88,7 +88,7 @@ function MessageInboxComponent() {
                     <div className="relative flex-shrink-0">
                       <Avatar name={c.other_user_full_name} src={c.other_user_avatar_url || ''} size="md" />
                       {c.unread_count > 0 && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[rgb(var(--hb-blue))] rounded-full border-2 border-white" />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[rgb(var(--hb-blue))] rounded-full border-2 border-hb-elevated" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -98,7 +98,7 @@ function MessageInboxComponent() {
                         </p>
                         <span className="text-hb-micro text-hb-dim">{timeAgo(c.last_message_at)}</span>
                       </div>
-                      <p className={`text-xs truncate ${c.unread_count > 0 ? 'font-black text-gray-900' : 'text-gray-500'}`}>
+                      <p className={`text-xs truncate ${c.unread_count > 0 ? 'font-black text-hb-text' : 'text-hb-muted'}`}>
                         {c.last_message}
                       </p>
                     </div>

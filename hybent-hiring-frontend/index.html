@@ -39,9 +39,28 @@
         "logo": "https://www.hybent.com/pwa-512x512.png"
       }
     </script>
-    <!-- Hybent is light-only. `data-theme="classic"` is set statically on the
-         html tag above and nothing ever changes it, so there is no pre-paint
-         script and no theme flash to guard against. -->
+    <!-- The marketing site and auth pages stay light — `data-theme="classic"`
+         above covers them and nothing here ever touches it. Only a hard
+         refresh landing directly on an authenticated workspace URL
+         (/hiring/<role>/...) needs this: it reads the same persisted
+         preference `AppShell` writes (src/store/themeStore.ts) and applies it
+         before first paint, so a dark-mode user doesn't see a flash of light
+         while React boots. -->
+    <script>
+      (function () {
+        try {
+          if (window.location.pathname.indexOf('/hiring/') !== 0) return
+          var raw = window.localStorage.getItem('hybent_hiring_theme')
+          var theme = raw && JSON.parse(raw).state && JSON.parse(raw).state.theme
+          if (theme === 'dark') {
+            document.documentElement.dataset.theme = 'dark'
+            document.documentElement.classList.add('dark')
+          }
+        } catch (e) {
+          /* Malformed storage or a disabled localStorage — fall back to light. */
+        }
+      })()
+    </script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

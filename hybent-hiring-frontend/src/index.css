@@ -62,8 +62,12 @@
 ============================================ */
 @layer base {
   :root {
-    --bg: #f0eeff;
-    --bg2: #ece8ff;
+    /* `body`'s own ground — invisible in practice since `.hb-app` and
+       `.hb-site` both paint their own background over the full viewport, but
+       aliased anyway so an overscroll/bounce edge doesn't flash light-lavender
+       under a dark workspace. */
+    --bg: rgb(var(--hb-ground));
+    --bg2: rgb(var(--hb-bg-2));
     --violet: #6c47ff;
     --violet-mid: #8b6bff;
     --violet-light: #a98bff;
@@ -72,7 +76,15 @@
     --teal: #00d4c8;
     --teal-light: #5eead4;
     --amber: #fbbf24;
-    --text-light: #9689bb;
+    /* Ink. Aliased to the `--hb-*` layer (styles/tokens.css) rather than
+       hardcoded, so legacy classes (.btn-glass, .input-base, .nav-item, the
+       sidebar footer text) re-theme along with everything else under
+       `[data-theme="dark"]`. `--text` and `--text-mid` used to be referenced
+       here (body, h1-h3, .page-title/.page-subtitle) without ever being
+       defined — a pre-existing bug fixed as part of adding the dark palette. */
+    --text: rgb(var(--hb-text));
+    --text-mid: rgb(var(--hb-muted));
+    --text-light: rgb(var(--hb-dim));
     --indigo: #6366f1;
     --cyan: #06b6d4;
     --rose: #f43f5e;
@@ -87,25 +99,41 @@
     --radius-md: 16px;
     --radius-sm: 10px;
 
-    /* Dashboard tokens */
+    /* Dashboard tokens. Plain colors alias `--hb-*` so they re-theme for
+       free; the translucent glass values (topbar/sidebar) can't be a
+       straight alias and get their own dark override below. */
     --topbar-bg: rgba(255, 255, 255, 0.88);
-    --topbar-border: #e2e8f0;
+    --topbar-border: var(--hb-border);
     --sidebar-bg: rgba(255, 255, 255, 0.75);
-    --sidebar-border: #e2e8f0;
-    --card-bg: #ffffff;
-    --card-border: rgba(108, 71, 255, 0.08);
-    --input-bg: #ffffff;
-    --input-border: rgba(108, 71, 255, 0.15);
-    --hover-row: rgba(108, 71, 255, 0.025);
-    --table-head: #f8f5ff;
-    --table-border: rgba(108, 71, 255, 0.07);
-    --kpi-bg: #ffffff;
-    --activity-bg: #ffffff;
-    --modal-bg: #ffffff;
-    --sb-active: rgba(108, 71, 255, 0.10);
-    --sb-hover: rgba(108, 71, 255, 0.06);
-    --search-bg: rgba(108, 71, 255, 0.05);
+    --sidebar-border: var(--hb-border);
+    --card-bg: rgb(var(--hb-surface));
+    --card-border: var(--hb-border);
+    --input-bg: rgb(var(--hb-surface));
+    --input-border: var(--hb-border);
+    --hover-row: rgb(var(--hb-blue) / 0.05);
+    --table-head: rgb(var(--hb-surface-2));
+    --table-border: var(--hb-border);
+    --kpi-bg: rgb(var(--hb-surface));
+    --activity-bg: rgb(var(--hb-surface));
+    --modal-bg: rgb(var(--hb-elevated));
+    --sb-active: rgb(var(--hb-blue) / 0.10);
+    --sb-hover: rgb(var(--hb-blue) / 0.06);
+    --search-bg: rgb(var(--hb-blue) / 0.05);
     --blob-op: 0.5;
+  }
+
+  /* The handful of legacy values above that are literal translucent paint
+     rather than a plain color — a straight `--hb-*` alias would keep them
+     frosted-white over a dark ground. */
+  [data-theme="dark"] {
+    --topbar-bg: rgba(22, 25, 34, 0.88);
+    --sidebar-bg: rgba(22, 25, 34, 0.75);
+    --glass: rgba(28, 32, 43, 0.72);
+    --glass-light: rgba(28, 32, 43, 0.5);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-soft: rgba(255, 255, 255, 0.06);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.30), 0 8px 16px rgba(0, 0, 0, 0.20);
+    --shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.40);
   }
 
   *,
@@ -339,7 +367,9 @@
     border-color: var(--violet);
   }
 
-  /* Stage badge colors */
+  /* Stage badge colors. Soft-bg + solid-text pairs. The light-theme text
+     colors are darkened for contrast on a white wash and go muddy on a dark
+     one, so `[data-theme="dark"]` below gives each hue a lighter pair. */
   .stage-applied {
     background: rgba(107, 114, 128, 0.10);
     color: #6b7280;
@@ -351,8 +381,8 @@
   }
 
   .stage-interview {
-    background: rgba(108, 71, 255, 0.12);
-    color: var(--violet);
+    background: rgb(var(--hb-violet) / 0.12);
+    color: rgb(var(--hb-violet));
   }
 
   .stage-offer {
@@ -370,7 +400,39 @@
     color: #ef4444;
   }
 
-  /* ---- Portal design system tokens ---- */
+  [data-theme="dark"] .stage-applied {
+    background: rgba(148, 163, 184, 0.16);
+    color: #9ca3af;
+  }
+
+  [data-theme="dark"] .stage-screening {
+    background: rgba(59, 130, 246, 0.18);
+    color: #60a5fa;
+  }
+
+  [data-theme="dark"] .stage-interview {
+    background: rgb(var(--hb-violet) / 0.18);
+    color: rgb(var(--hb-violet));
+  }
+
+  [data-theme="dark"] .stage-offer {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fbbf24;
+  }
+
+  [data-theme="dark"] .stage-hired {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+  }
+
+  [data-theme="dark"] .stage-rejected {
+    background: rgba(239, 68, 68, 0.16);
+    color: #f87171;
+  }
+
+  /* ---- Portal design system tokens ----
+     Plain colors alias `--hb-*`, so the candidate portal re-themes along
+     with every other workspace under `[data-theme="dark"]`. */
   :root {
     --brand: #6c47ff;
     --brand2: #ff6bc6;
@@ -380,19 +442,19 @@
     --p-amber: #fbbf24;
     --p-red: #f43f5e;
     --p-pink: #ff6bc6;
-    --p-bg: #f0eeff;
-    --p-bg2: #ece8ff;
-    --p-text: #1e1040;
-    --p-text-mid: #6b5f8a;
-    --p-text-lite: #cbd5e1;
-    --p-surface: #ffffff;
-    --p-border: rgba(108, 71, 255, 0.08); /* Unified with Admin */
-    --p-shadow: 0 1px 3px rgba(108, 71, 255, 0.10);
-    --p-shadow-h: 0 12px 32px rgba(108, 71, 255, 0.15);
-    --p-input-bg: #ffffff;
-    --p-input-border: rgba(108, 71, 255, 0.15);
-    --p-kpi: #ffffff;
-    --p-table-border: rgba(108, 71, 255, 0.07);
+    --p-bg: rgb(var(--hb-ground));
+    --p-bg2: rgb(var(--hb-bg-2));
+    --p-text: rgb(var(--hb-text));
+    --p-text-mid: rgb(var(--hb-muted));
+    --p-text-lite: rgb(var(--hb-dim));
+    --p-surface: rgb(var(--hb-surface));
+    --p-border: var(--hb-border);
+    --p-shadow: var(--hb-sh-1);
+    --p-shadow-h: var(--hb-sh-2);
+    --p-input-bg: rgb(var(--hb-surface));
+    --p-input-border: var(--hb-border);
+    --p-kpi: rgb(var(--hb-surface));
+    --p-table-border: var(--hb-border);
   }
 
   /* Portal avatar spin border */
@@ -679,17 +741,6 @@
   display: block;
 }
 
-/* Two wordmark files ship, one drawn for a light ground and one for a dark one.
-   Hybent is light-only, so only the dark-ink mark is ever shown and the ten
-   `[data-theme="dark"]` selectors that used to swap them are gone. Both classes
-   are kept so the markup that emits them does not have to change. */
-.wordmark-image.wordmark-light {
-  display: none !important;
-}
-.wordmark-image.wordmark-dark {
-  display: block !important;
-}
-
 .sb-header {
   background: transparent;
   padding: 24px 20px;
@@ -699,7 +750,7 @@
 .sb-divider {
   margin: 0 20px 12px;
   height: 1px;
-  background: #e2e8f0;
+  background: var(--hb-border);
 }
 
 .logo-wrap {
@@ -780,7 +831,12 @@
   0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
   50% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
 }
-/* --- Profile Form Card ----------------------------------------------- */
+/* --- Profile Form Card -----------------------------------------------
+   Converted from literal hex to the token layer so this card (rendered on
+   every role's profile page) re-themes under `[data-theme="dark"]`. The
+   avatar/save-button gradient and the on-avatar white text stay literal —
+   they're brand accent chrome, not surface color, and are meant to read the
+   same in both themes. */
 .profile-page-wrapper {
   max-width: 680px;
   margin: 0 auto;
@@ -789,18 +845,18 @@
 .profile-page-title {
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--color-text, #1a1a2e);
+  color: var(--text);
   margin-bottom: 0.25rem;
 }
 .profile-page-subtitle {
   font-size: 0.9rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-mid);
   margin-bottom: 1.5rem;
 }
 .profile-card {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 16px;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+  box-shadow: var(--hb-sh-card);
   padding: 1.75rem;
   display: flex;
   flex-direction: column;
@@ -816,7 +872,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #9ca3af;
+  color: var(--text-light);
   margin-bottom: 0.25rem;
 }
 .profile-avatar-row {
@@ -854,12 +910,12 @@
 }
 .profile-avatar:hover .profile-avatar-overlay { display: flex; }
 .profile-avatar-info { display: flex; flex-direction: column; gap: 0.25rem; }
-.profile-avatar-name { font-size: 1.1rem; font-weight: 700; color: #111827; }
-.profile-avatar-email { font-size: 0.85rem; color: #6b7280; }
+.profile-avatar-name { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+.profile-avatar-email { font-size: 0.85rem; color: var(--text-mid); }
 .profile-role-badge {
   display: inline-block;
-  background: #ede9fe;
-  color: #6d28d9;
+  background: rgb(var(--hb-violet) / 0.14);
+  color: rgb(var(--hb-violet));
   font-size: 0.7rem;
   font-weight: 700;
   padding: 0.15rem 0.6rem;
@@ -876,7 +932,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: #ef4444;
+  color: rgb(var(--hb-error));
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -900,32 +956,32 @@
 .profile-field-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text);
 }
 .profile-field-input {
   width: 100%;
   padding: 0.65rem 0.9rem;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--input-border);
   border-radius: 10px;
   font-size: 0.93rem;
-  color: #111827;
-  background: #fff;
+  color: var(--text);
+  background: var(--input-bg);
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
   box-sizing: border-box;
 }
 .profile-field-input:focus {
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
+  border-color: rgb(var(--hb-violet));
+  box-shadow: 0 0 0 3px rgb(var(--hb-violet) / 0.15);
 }
 .profile-field-readonly {
-  background: #f9fafb;
-  color: #6b7280;
+  background: rgb(var(--hb-surface-2));
+  color: var(--text-mid);
   cursor: not-allowed;
-  border-color: #e5e7eb;
+  border-color: var(--input-border);
 }
 .profile-field-readonly:focus {
-  border-color: #e5e7eb;
+  border-color: var(--input-border);
   box-shadow: none;
 }
 .profile-save-btn {
@@ -945,9 +1001,9 @@
 .profile-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 /* Skeleton */
 .profile-skeleton { gap: 1rem; }
-.skeleton-avatar { width: 68px; height: 68px; border-radius: 50%; background: #e5e7eb; animation: pulse 1.5s infinite; }
+.skeleton-avatar { width: 68px; height: 68px; border-radius: 50%; background: rgb(var(--hb-muted) / 0.20); animation: pulse 1.5s infinite; }
 .skeleton-lines { display: flex; flex-direction: column; gap: 0.5rem; }
-.skeleton-line { height: 14px; border-radius: 8px; background: #e5e7eb; animation: pulse 1.5s infinite; }
+.skeleton-line { height: 14px; border-radius: 8px; background: rgb(var(--hb-muted) / 0.20); animation: pulse 1.5s infinite; }
 .w-48 { width: 12rem; }
 .w-32 { width: 8rem; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
@@ -959,7 +1015,7 @@
 }
 .divider-h {
   height: 1px;
-  background: rgba(239, 68, 68, 0.15);
+  background: rgb(var(--hb-error) / 0.15);
   margin-bottom: 1.5rem;
 }
 .danger-zone-content {
@@ -967,28 +1023,28 @@
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  background: rgba(239, 68, 68, 0.03);
+  background: rgb(var(--hb-error) / 0.06);
   padding: 1.25rem;
   border-radius: 12px;
-  border: 1px solid rgba(239, 68, 68, 0.1);
+  border: 1px solid rgb(var(--hb-error) / 0.16);
 }
 .danger-zone-info { flex: 1; }
 .danger-zone-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #b91c1c;
+  color: rgb(var(--hb-error));
   margin-bottom: 0.25rem;
 }
 .danger-zone-text {
   font-size: 0.8rem;
-  color: #7f1d1d;
+  color: rgb(var(--hb-error));
   opacity: 0.8;
 }
 .btn-danger-outline {
   padding: 0.6rem 1.2rem;
   background: transparent;
-  color: #ef4444;
-  border: 1.5px solid #ef4444;
+  color: rgb(var(--hb-error));
+  border: 1.5px solid rgb(var(--hb-error));
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 700;
@@ -997,9 +1053,9 @@
   white-space: nowrap;
 }
 .btn-danger-outline:hover {
-  background: #ef4444;
+  background: rgb(var(--hb-error));
   color: white;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 4px 12px rgb(var(--hb-error) / 0.2);
 }
 .btn-danger-outline:disabled { opacity: 0.5; cursor: not-allowed; }
 

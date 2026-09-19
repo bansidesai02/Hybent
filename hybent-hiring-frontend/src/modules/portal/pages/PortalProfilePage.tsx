@@ -62,6 +62,10 @@ export default function PortalProfilePage() {
   const { user, setUser } = useAuthStore()
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
   const [confirmRemovePhoto, setConfirmRemovePhoto] = useState(false)
+  // A Google-account photo, chiefly, can refuse to load for a plain <img> in
+  // some referrer/CORS conditions even though the URL itself is valid —
+  // falls back to initials instead of a permanently broken image.
+  const [brokenAvatarSrc, setBrokenAvatarSrc] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -236,10 +240,12 @@ export default function PortalProfilePage() {
                 aria-label="Change profile photo"
                 className="group relative grid h-20 w-20 place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-h2 text-white focus-visible:outline-none focus-visible:shadow-hb-ring"
               >
-                {user?.avatar_url ? (
+                {user?.avatar_url && user.avatar_url !== brokenAvatarSrc ? (
                   <img
                     src={user.avatar_url}
                     alt=""
+                    referrerPolicy="no-referrer"
+                    onError={() => setBrokenAvatarSrc(user.avatar_url ?? null)}
                     className="h-full w-full rounded-full object-cover"
                   />
                 ) : (
