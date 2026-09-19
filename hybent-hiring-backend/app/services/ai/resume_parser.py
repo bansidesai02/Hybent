@@ -294,13 +294,16 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
                 if y2 >= y1:
                     m1 = m_map.get(months_found[0], 1) if len(months_found) >= 1 else 1
                     m2 = m_map.get(months_found[-1], 12) if len(months_found) >= 2 else (m1 if len(months_found) == 1 else 12)
-                    
+
                     months_diff = (y2 - y1) * 12 + (m2 - m1) + 1  # Inclusive month count
                     total_months += max(1, months_diff)
             except Exception:
                 pass
-        elif len(years_found) == 1:
-            total_months += 1  # Single year/date reference → ~1 month
+        # A single bare year ("2024") with no range and no explicit "X years/
+        # months" text isn't a duration — it's a date with the length undetermined.
+        # Guessing "~1 month" here is what produced misleading 0.1-year entries;
+        # an entry we can't confidently resolve contributes nothing, rather than
+        # a fabricated number.
 
     if total_months == 0:
         return None, None
@@ -315,6 +318,25 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
         experience_years_str = f"{display_years} {'Year' if display_years == 1 else 'Years'}"
     
     return years_float, experience_years_str
+
+
+def apply_experience_fields(candidate, parsed: dict) -> None:
+    """
+    Set `years_experience` and `experience_years` on a Candidate together, from
+    a `parse_resume()` result dict.
+
+    `parsed["years_experience"]`/`parsed["experience_years"]` are already
+    computed as a matched pair by `parse_resume()` (via
+    `calculate_years_from_experience`) — the bug this exists to prevent is an
+    endpoint copying one of the two onto the model and forgetting the other,
+    which is what previously left some candidates with a bare, unlabeled
+    `years_experience` float and no `experience_years` string to disambiguate
+    it. Every candidate-creating/updating endpoint should call this instead of
+    assigning the two fields itself.
+    """
+    if parsed.get("years_experience") is not None:
+        candidate.years_experience = parsed["years_experience"]
+        candidate.experience_years = parsed.get("experience_years")
 
 
 # ─── Fallback ────────────────────────────────────────────────────────────────────

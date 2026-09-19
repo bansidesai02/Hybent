@@ -9,7 +9,7 @@ from app.models.candidate import Candidate
 from app.schemas.candidate import CandidateOut
 from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
-from app.services.ai.resume_parser import parse_resume
+from app.services.ai.resume_parser import parse_resume, apply_experience_fields
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 from app.core.config import settings
@@ -82,10 +82,7 @@ async def upload_resume(
 
     if parsed.get("skills"):
         candidate.skills = parsed["skills"][:30]
-    if parsed.get("years_experience"):
-        candidate.years_experience = parsed["years_experience"]
-    if parsed.get("experience_years"):
-        candidate.experience_years = parsed["experience_years"]
+    apply_experience_fields(candidate, parsed)
     if parsed.get("current_title"):
         candidate.current_title = parsed["current_title"]
     if parsed.get("current_company"):
@@ -333,8 +330,7 @@ async def upload_and_create(
         candidate.resume_filename = original_name
     candidate.full_name = full_name or candidate.full_name
     candidate.skills = parsed.get("skills", [])[:30]
-    candidate.years_experience = parsed.get("years_experience")
-    candidate.experience_years = parsed.get("experience_years")
+    apply_experience_fields(candidate, parsed)
     cand_title = parsed.get("current_title")
     cand_company = parsed.get("current_company")
     if parsed.get("experience") and isinstance(parsed["experience"], list) and len(parsed["experience"]) > 0:

@@ -49,3 +49,19 @@ def test_calculate_years_from_experience():
     assert years3 == 0.5
     assert text3 == "6 Months"
 
+    # A proper date range with no explicit "X years/months" wording still
+    # computes correctly via the date-math branch.
+    exp4 = [{"duration": "Jan 2020 - Dec 2022"}]
+    years4, text4 = calculate_years_from_experience(exp4)
+    assert years4 == 3.0
+    assert text4 == "3 Years"
+
+    # A bare year with no range and no explicit duration ("2024") isn't a
+    # resolvable duration — it used to be guessed as "~1 month", producing a
+    # misleading years_experience of 0.1. An entry we can't confidently
+    # resolve should contribute nothing rather than a fabricated number.
+    exp5 = [{"duration": "2024"}]
+    years5, text5 = calculate_years_from_experience(exp5)
+    assert years5 is None
+    assert text5 is None
+

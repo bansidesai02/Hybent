@@ -535,7 +535,10 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
     elif "expected_salary" in update_data:
         update_data["expected_ctc"] = update_data["expected_salary"]
 
-    # Synchronize experience years string to years_experience float
+    # Synchronize experience years string to years_experience float. The typed
+    # string can be in months ("6 Months") as easily as years ("3 Years") —
+    # assuming the leading number is always years silently turned "6 Months"
+    # into years_experience=6.0 (i.e. 6 years).
     if "experience_years" in update_data:
         val = update_data["experience_years"]
         if val:
@@ -543,7 +546,10 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
             match = re.search(r"(\d+(?:\.\d+)?)", val)
             if match:
                 try:
-                    update_data["years_experience"] = float(match.group(1))
+                    number = float(match.group(1))
+                    update_data["years_experience"] = (
+                        round(number / 12.0, 2) if "month" in val.lower() else number
+                    )
                 except ValueError:
                     pass
 
