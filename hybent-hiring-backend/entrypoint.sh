@@ -53,7 +53,25 @@ echo "==> [entrypoint] PostgreSQL is ready."
 if [ "$SKIP_PRESTART" != "true" ]; then
     echo "==> [entrypoint] Running Alembic migrations..."
     if [ -d "/app/alembic" ]; then
-        alembic upgrade head
+        # The Postgres-ready check above is a quick connect+close — on Render's
+        # free tier the database can still be mid-wake-up and accept that ping
+        # but then time out on Alembic's own connection moments later. Without
+        # a retry here, that one flaky connection crashed the whole container;
+        # Render then restarted it from scratch (re-running the full 60s
+        # Postgres wait), which was slow enough to blow the deploy's overall
+        # timeout before Uvicorn ever got to bind its port. Retrying in place
+        # is seconds, not a full container restart.
+        MIGRATION_RETRIES=5
+        MIGRATION_COUNT=0
+        until alembic upgrade head; do
+            MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+            if [ "$MIGRATION_COUNT" -ge "$MIGRATION_RETRIES" ]; then
+                echo "==> [entrypoint] ERROR: Alembic migrations failed after $MIGRATION_RETRIES attempts. Exiting."
+                exit 1
+            fi
+            echo "==> [entrypoint] Alembic migration attempt $MIGRATION_COUNT/$MIGRATION_RETRIES failed. Retrying in 3s..."
+            sleep 3
+        done
         echo "==> [entrypoint] Migrations complete."
     else
         echo "==> [entrypoint] No /app/alembic directory found, skipping migrations."
