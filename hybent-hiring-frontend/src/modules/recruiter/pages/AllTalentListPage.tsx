@@ -25,7 +25,7 @@ import { jobsApi } from '@/api/jobs'
 import { adminApi } from '@/api/admin'
 import { designationsApi, type DesignationItem } from '@/api/designations'
 import { useNotificationStore } from '@/store/notificationStore'
-import { formatCandidateDate } from '@/utils/formatters'
+import { formatCandidateDate, formatExperience } from '@/utils/formatters'
 import type { Candidate } from '@/types'
 import type { ImportResultData } from '@/api/bulkImport'
 
@@ -839,15 +839,7 @@ export default function AllTalentListPage() {
 
                   <div className="space-y-2.5 rounded-hb bg-hb-surface-2/40 p-3 border border-hb-border/40">
                     <Fact label="Role" value={candidate.applied_job_title || candidate.current_title || '—'} />
-                    <Fact
-                      label="Experience"
-                      value={
-                        candidate.experience_years ||
-                        (candidate.years_experience != null
-                          ? `${candidate.years_experience}y`
-                          : candidate.relevant_experience || '—')
-                      }
-                    />
+                    <Fact label="Experience" value={formatExperience(candidate)} />
                     <Fact label="Applied" value={formatCandidateDate(candidate, 'dd MMM yyyy')} />
                     <Fact
                       label="Stage"

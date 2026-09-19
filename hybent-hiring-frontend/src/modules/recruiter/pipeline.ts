@@ -14,6 +14,7 @@
 /** Terminal stages that mean the candidate is out of the running. */
 export const REJECTION_STAGES = [
   'rejected',
+  'screening_rejected',
   'pre_screening_rejected',
   'technical_round_rejected',
   'technical_round_back_out',

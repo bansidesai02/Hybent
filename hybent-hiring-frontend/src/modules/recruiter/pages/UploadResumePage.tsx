@@ -314,6 +314,7 @@ function AnalysisActions({
 function UploadResume() {
   const { basePath } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [stage, setStage] = useState<Stage>('idle')
   const [result, setResult] = useState<Candidate | null>(null)
@@ -412,6 +413,15 @@ function UploadResume() {
           min_experience: parseFloat(jobReq.min_experience) || 0,
           match_threshold: parseFloat(jobReq.match_threshold) || 70,
         })
+
+        /* The new candidate exists server-side now. Other recruiters' open
+           Candidates tabs already learn this via the activity websocket, but
+           that broadcast excludes the acting user's own connections — so the
+           uploader's own All Candidates tab needs this explicit invalidation
+           to show it without a manual refresh. */
+        queryClient.invalidateQueries({ queryKey: ['candidates'] })
+        queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+        queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
 
         setStage('analyzing')
         /* The work is already done server-side; the steps are paced out so the

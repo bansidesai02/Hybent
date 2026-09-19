@@ -29,7 +29,7 @@ from app.services.ai.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
 from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
-from app.services.ai.resume_parser import parse_resume
+from app.services.ai.resume_parser import parse_resume, apply_experience_fields
 from app.schemas.response import APIResponse
 from app.tasks.notifications import notify_organization_roles
 from app.core.config import settings
@@ -72,14 +72,22 @@ async def portal_register(data: PortalRegisterRequest, db: DB):
     db.add(user)
     await db.flush()
 
-    # Create candidate profile linked to user
-    candidate = Candidate(
-        organization_id=org.id,
-        user_id=user.id,
-        email=data.email,
-        full_name=data.full_name,
-    )
-    db.add(candidate)
+    # A Candidate row with this email may already exist in this org (e.g. a
+    # recruiter uploaded their resume before they ever registered) — link the
+    # new account to it instead of creating a duplicate.
+    candidate = (await db.execute(
+        select(Candidate).where(Candidate.organization_id == org.id, Candidate.email == data.email)
+    )).scalar_one_or_none()
+    if candidate:
+        candidate.user_id = user.id
+    else:
+        candidate = Candidate(
+            organization_id=org.id,
+            user_id=user.id,
+            email=data.email,
+            full_name=data.full_name,
+        )
+        db.add(candidate)
 
     access_token = create_access_token({"sub": str(user.id), "org": str(org.id), "role": user.role})
     refresh_tok = create_refresh_token()
@@ -337,11 +345,11 @@ async def upload_portal_resume(
         candidate.resume_filename = original_name
 
     parsed = await parse_resume(file_content, file.content_type or "", file.filename or "")
+    candidate.parsed_data = parsed
 
     if parsed.get("skills"):
         candidate.skills = parsed["skills"][:30]
-    if parsed.get("years_experience"):
-        candidate.years_experience = parsed["years_experience"]
+    apply_experience_fields(candidate, parsed)
     if parsed.get("current_title"):
         candidate.current_title = parsed["current_title"]
         from app.utils.category import extract_core_category

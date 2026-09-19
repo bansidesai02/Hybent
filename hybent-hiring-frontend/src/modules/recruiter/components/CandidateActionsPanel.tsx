@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 import { Avatar, Button, StatusPill, statusDef } from '@/components/hb'
-import { STAGE_GROUPS, isCandidateInActivePipeline } from '@/modules/recruiter/pipeline'
+import { STAGE_GROUPS, isCandidateInActivePipeline, isRejectionStage } from '@/modules/recruiter/pipeline'
 
 /**
  * Everything you can do to a candidate from a list row.
@@ -207,7 +207,7 @@ export function CandidateActionsPanel({
             <span>{isInactive ? 'Activate candidate' : 'Deactivate candidate'}</span>
           </button>
 
-          {!isInactive && !inPipeline && (
+          {!isInactive && !inPipeline && !isRejectionStage(stage) && (
             <button
               type="button"
               disabled={!!busy}
