@@ -919,7 +919,7 @@ export default function AllTalentListPage() {
         {actionsTarget && (
           <CandidateActionsPanel
             candidate={actionsTarget}
-            isAdmin={isAdmin}
+            canDelete={isAdmin || user?.role === 'recruiter'}
             hasActiveJobs={activeJobs.length > 0}
             busy={
               stageMutation.isPending

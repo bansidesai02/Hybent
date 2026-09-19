@@ -22,7 +22,7 @@ import { STAGE_GROUPS, isCandidateInActivePipeline, isRejectionStage } from '@/m
  */
 export function CandidateActionsPanel({
   candidate,
-  isAdmin,
+  canDelete,
   hasActiveJobs,
   busy = null,
   onStage,
@@ -32,7 +32,9 @@ export function CandidateActionsPanel({
   onDelete,
 }: {
   candidate: any
-  isAdmin: boolean
+  /** Role check happens in the caller — delete is admin+recruiter, matching
+   * the backend's require_recruiter guard on DELETE /v1/candidates/{id}. */
+  canDelete: boolean
   hasActiveJobs: boolean
   /** Key of whatever action is currently in flight (a stage id, or
    * 'addToPipeline') — while set, every action in the panel is disabled and
@@ -220,7 +222,7 @@ export function CandidateActionsPanel({
             </button>
           )}
 
-          {isAdmin && (
+          {canDelete && (
             <button
               type="button"
               disabled={!!busy}

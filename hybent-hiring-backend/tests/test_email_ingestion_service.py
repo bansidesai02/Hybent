@@ -292,7 +292,12 @@ async def test_process_message_org_isolation_same_email_different_orgs(
     assert {c.organization_id for c in candidates} == {organization.id, other_organization.id}
 
 
-async def test_process_message_non_parseable_attachment_still_creates_candidate(db_session, organization):
+async def test_process_message_non_document_attachment_is_skipped(db_session, organization):
+    """A non-document attachment (zip, image, spreadsheet, etc.) is never a
+    real resume in practice — it used to fall through and create a candidate
+    from bare From: header data regardless, which is how automated/marketing
+    emails with random attachments turned into fake candidates. It should be
+    skipped instead, same as a message with no attachment at all."""
     account = _gmail_account(organization.id)
     db_session.add(account)
     await db_session.commit()
@@ -308,12 +313,38 @@ async def test_process_message_non_parseable_attachment_still_creates_candidate(
         service = EmailApplicationIngestionService(db_session)
         outcome = await service.process_message(account, message)
 
-    assert outcome == "created"
-    mock_parse.assert_not_called()  # not a parseable mimetype — never attempted
-    candidate = await db_session.get(Candidate, message.ingestion_result_candidate_id)
-    assert candidate.full_name == "Bob Applicant"  # derived from the From: header
-    assert candidate.email == "bob@candidate.com"
-    assert candidate.pipeline_stage == "needs_review"
+    assert outcome == "skipped"
+    mock_parse.assert_not_called()  # not a document — never attempted
+    assert message.ingestion_result_candidate_id is None
+
+
+async def test_process_message_rejected_as_not_a_resume_is_skipped(db_session, organization):
+    """A PDF/DOC/DOCX attachment that parse_resume's own content validation
+    confidently rejects (too short, or fails the is-this-a-resume check —
+    both raise HTTPException(400)) should be skipped, not turned into a
+    candidate from just the sender's email."""
+    from fastapi import HTTPException
+
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+
+    payload = _full_message_payload()
+    payload["attachments"] = [{"filename": "invoice.pdf", "mime_type": "application/pdf", "size": 100, "inline_data": "x"}]
+
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=payload), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch(
+             "app.services.ai.resume_parser.parse_resume",
+             new=AsyncMock(side_effect=HTTPException(status_code=400, detail="Invalid document.")),
+         ):
+        service = EmailApplicationIngestionService(db_session)
+        outcome = await service.process_message(account, message)
+
+    assert outcome == "skipped"
+    assert message.ingestion_result_candidate_id is None
 
 
 async def test_process_account_does_not_reprocess_on_second_run(db_session, organization):

@@ -22,6 +22,7 @@ import logging
 import re
 import uuid
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -169,7 +170,11 @@ class EmailApplicationIngestionService:
 
         await self.repo.mark_result(message.id, status, candidate_id=candidate_id)
         await self.db.commit()
-        return "created" if status == EmailIngestionStatus.CREATED else "matched_existing"
+        if status == EmailIngestionStatus.CREATED:
+            return "created"
+        if status == EmailIngestionStatus.SKIPPED_NOT_RESUME:
+            return "skipped"
+        return "matched_existing"
 
     async def _ingest_resume(
         self,
@@ -180,7 +185,7 @@ class EmailApplicationIngestionService:
         file_bytes: bytes,
         from_name: str | None,
         from_address: str | None,
-    ) -> tuple[uuid.UUID, str]:
+    ) -> tuple[uuid.UUID | None, str]:
         organization_id = account.organization_id
 
         # Cheap identity guess from headers first, so an obvious duplicate
@@ -191,18 +196,46 @@ class EmailApplicationIngestionService:
             if existing:
                 return await self._link_duplicate(message, existing, account, from_address, from_name)
 
-        parsed: dict
-        if mime_type in PARSEABLE_MIME_TYPES:
-            try:
-                from app.services.ai.resume_parser import parse_resume
-                parsed = await parse_resume(
-                    file_bytes, mime_type, filename,
-                    background_tasks=None, user_id=None, organization_id=organization_id,
-                )
-            except Exception as e:
-                logger.info(f"Resume parse failed for message {message.id}, falling back to header metadata: {e}")
-                parsed = dict(_EMPTY_PARSED_RESUME)
-        else:
+        # A resume mislabeled with a generic/wrong content-type (some mail
+        # clients do this) is still worth attempting via its file extension —
+        # matches the same content-type-then-extension fallback storage_service
+        # uses for direct uploads.
+        looks_like_a_document = mime_type in PARSEABLE_MIME_TYPES or filename.lower().endswith(
+            (".pdf", ".doc", ".docx")
+        )
+
+        if not looks_like_a_document:
+            # Never a resume in practice (spreadsheet, image, archive, etc.).
+            # This used to fall through and create a candidate from bare
+            # sender headers regardless — which is exactly how a trading-app
+            # alert or an event invite with a random attachment became a fake
+            # "candidate."
+            return None, EmailIngestionStatus.SKIPPED_NOT_RESUME
+
+        try:
+            from app.services.ai.resume_parser import parse_resume
+            parsed = await parse_resume(
+                file_bytes, mime_type, filename,
+                background_tasks=None, user_id=None, organization_id=organization_id,
+            )
+        except HTTPException as e:
+            if e.status_code == 400:
+                # parse_resume's own content check confidently rejected this
+                # (too short, unsupported format, or failed the "is this
+                # actually a resume" classifier) — respect that instead of
+                # silently creating a candidate from just the sender's email,
+                # which is what let a rejected attachment through anyway.
+                logger.info(f"Message {message.id} attachment rejected as not-a-resume: {e.detail}")
+                return None, EmailIngestionStatus.SKIPPED_NOT_RESUME
+            logger.info(f"Resume parse failed for message {message.id}, falling back to header metadata: {e}")
+            parsed = dict(_EMPTY_PARSED_RESUME)
+        except Exception as e:
+            # A transient failure (AI provider down, network error) — unlike
+            # the confident rejection above, we genuinely don't know whether
+            # this was a real resume, so it still falls back to a
+            # needs_review candidate from headers rather than losing the
+            # message (ingestion results are terminal and never auto-retried).
+            logger.info(f"Resume parse failed for message {message.id}, falling back to header metadata: {e}")
             parsed = dict(_EMPTY_PARSED_RESUME)
 
         full_name = parsed.get("full_name") or from_name or "Unknown Candidate"

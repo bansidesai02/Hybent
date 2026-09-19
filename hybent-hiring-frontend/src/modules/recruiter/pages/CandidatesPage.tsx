@@ -705,7 +705,7 @@ export default function CandidatesPage() {
         {actionsTarget && (
           <CandidateActionsPanel
             candidate={actionsTarget}
-            isAdmin={user?.role === 'admin'}
+            canDelete={user?.role === 'admin' || user?.role === 'recruiter'}
             hasActiveJobs={!!activeJobs?.length}
             busy={
               stageMutation.isPending

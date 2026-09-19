@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from sqlalchemy import select, func, or_, delete as sql_delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
-from app.dependencies import DB, get_current_user, require_recruiter, require_admin
+from app.dependencies import DB, get_current_user, require_recruiter
 from app.models.user import User
 from typing import Annotated
 from app.models.candidate import Candidate
@@ -997,7 +997,7 @@ async def reject_candidate(candidate_id: uuid.UUID, current_user: Annotated[User
 
 
 @router.delete("/{candidate_id}")
-async def delete_candidate(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(require_admin)], db: DB, background_tasks: BackgroundTasks):
+async def delete_candidate(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id, Candidate.organization_id == current_user.organization_id
