@@ -36,6 +36,7 @@ from app.services.activity_service import log_activity
 from app.services.email_inbox_service import EmailInboxService
 from app.services.email_providers import gmail_provider
 from app.services.storage_service import save_resume_bytes
+from app.services.ai.resume_rag import stage_candidate_resume_chunks
 from app.utils.category import detect_category_from_skills, extract_core_category
 from app.utils.job_matching import resolve_or_create_pool_job
 
@@ -339,6 +340,15 @@ class EmailApplicationIngestionService:
                 "subject": message.subject,
             },
         )
+
+        try:
+            # Staged on the same session/transaction as the candidate row
+            # itself (not committed here) — RAG chunks for a candidate that
+            # later rolls back roll back with it, and this never adds an
+            # early/extra commit to an already-careful ingestion flow.
+            await stage_candidate_resume_chunks(self.db, candidate)
+        except Exception as exc:
+            logger.warning(f"[RAG] Failed to stage resume chunks for candidate {candidate.id}: {exc}")
 
         return candidate.id, EmailIngestionStatus.CREATED
 

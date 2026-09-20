@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 import logging
@@ -6,7 +7,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.services.groq_client import SafeGroq as Groq
+from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import BackgroundTasks
@@ -19,12 +20,81 @@ from app.services.ai.copilot_intelligence import (
     extract_role_from_jd_query,
     validate_job_role,
 )
+from app.services.ai.copilot_router import (
+    CopilotIntent,
+    RoutedIntent,
+    GENERAL_HELP_REPLY,
+    is_greeting,
+    classify_intent,
+    resolve_context,
+    build_last_context,
+)
+from app.services.ai import resume_rag
+from app.services.ai.match_scorer import evaluate_candidate_match, get_experience_years_for_skill
 
 logger = logging.getLogger(__name__)
 
+try:
+    import google.generativeai as genai
+    if settings.gemini_api_key:
+        genai.configure(api_key=settings.gemini_api_key)
+except Exception as exc:
+    logger.warning(f"Gemini configuration error: {exc}")
+    genai = None
+
+GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
+
+
+async def _generate_text_with_fallback(system_content: str, user_content: str, temperature: float = 0.2) -> Optional[str]:
+    """
+    Groq -> Gemini text generation, for the tools that compose free-form
+    prose (resume Q&A, interview questions) rather than call a fixed tool.
+    Same 2-tier shape as classify_intent's Groq->Gemini failover and
+    match_scorer's 3-tier scoring pipeline — if Groq is fully unavailable
+    (both keys, every model), the chat turn still gets a real answer
+    instead of a canned error. Returns None only if both providers fail.
+    """
+    if settings.groq_api_key:
+        try:
+            client = Groq(api_key=settings.groq_api_key)
+            resp = client.chat.completions.create(
+                model=get_best_groq_model(client),
+                messages=[
+                    {"role": "system", "content": system_content},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=temperature,
+            )
+            text_out = (resp.choices[0].message.content or "").strip()
+            if text_out:
+                return text_out
+        except Exception as e:
+            logger.warning(f"Groq text generation failed, trying Gemini: {e}")
+
+    if genai is not None and settings.gemini_api_key:
+        try:
+            model = genai.GenerativeModel(GEMINI_FALLBACK_MODEL)
+            response = await asyncio.to_thread(
+                model.generate_content,
+                f"{system_content.strip()}\n\n{user_content.strip()}",
+                generation_config={"temperature": temperature},
+            )
+            if response and response.text:
+                return response.text.strip()
+        except Exception as e:
+            logger.error(f"Gemini text generation fallback also failed: {e}")
+
+    return None
+
 # ── Models & Prompt ──────────────────────────────────────────────────────────
 
-GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL = "llama-3.3-70b-versatile"  # fallback label for credit-usage logging only
+# NOTE: The main chat loop and intent router call get_best_groq_model() at request
+# time (same resilient multi-model/multi-key fallback used by resume_parser.py and
+# match_scorer.py) instead of pinning to a single model here. Historically this file
+# hardcoded "llama-3.1-8b-instant" — the weakest available model — for the entire
+# tool-selection/reasoning loop, which is why the Copilot missed simple questions
+# that the (correctly, 70B-class) resume parser and match scorer never struggled with.
 
 COPILOT_SYSTEM_PROMPT = """### 1. YOUR MISSION
 You are Hybent Hiring Copilot — a production-grade AI Hiring Assistant. Help recruiters search for candidates, analyze their pipeline, manage team members, schedule interviews, and navigate the Hybent Hiring platform.
@@ -126,6 +196,12 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 - If the recruiter asks to refine or modify an existing JD (e.g., changing experience level, adding skills, tweaking responsibilities), make the changes directly in the chat with a complete updated description.
 - If the job title requested is invalid or gibberish, decline politely and ask for a valid job title.
 - If the title is vague or incomplete, ask clarifying questions to get the specific domain or requirements.
+
+### 11. EVIDENCE-FIRST ANSWERS — NEVER FABRICATE
+- Every candidate/job-specific factual claim (experience, skills, education, certifications, salary, notice period, match score, status) must come from a tool result or retrieved data — never invent or guess.
+- If a tool result doesn't contain the answer, say so plainly (e.g. "I don't see that information in the available candidate data") instead of guessing.
+- Match scores and their breakdowns come from Hybent's existing scoring engine only — never estimate or restate a score you weren't given.
+- You help recruiters evaluate candidates; you do not make the final hiring decision for them.
 """
 
 # ── Tool Definitions for Groq SDK ───────────────────────────────────────────
@@ -351,14 +427,15 @@ def _format_experience(c: dict) -> Optional[str]:
     rel = c.get("relevant_experience")
     if rel and str(rel).strip():
         val = str(rel).strip()
-        # Add "Years Experience" suffix if not already present
-        if not any(x in val.lower() for x in ("year", "yr", "exp")):
+        # Add "Years Experience" suffix only if the value isn't already a
+        # complete duration (e.g. "8 Months" shouldn't become "8 Months Years Experience")
+        if not any(x in val.lower() for x in ("year", "yr", "month", "exp")):
             val = f"{val} Years Experience"
         return val
     exp_str = c.get("experience_years")
     if exp_str and str(exp_str).strip():
         val = str(exp_str).strip()
-        if not any(x in val.lower() for x in ("year", "yr", "exp")):
+        if not any(x in val.lower() for x in ("year", "yr", "month", "exp")):
             val = f"{val} Years Experience"
         return val
     exp_float = c.get("years_experience")
@@ -451,8 +528,13 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             if args.get("status"):
                 status_val = args["status"].lower().strip()
 
-                if status_val in ("shortlisted", "pre_screening_selected"):
-                    conds.append("pipeline_stage = 'pre_screening_selected'")
+                # Real ApplicationStage enum (app/utils/permissions.py) has both a
+                # pre_screening_* family AND a separate screening_* family
+                # (screening_selected/screening_rejected) — "shortlisted"/"rejected"
+                # must cover both, not just pre_screening_*, or candidates in the
+                # screening_* stages silently never match.
+                if status_val in ("shortlisted", "pre_screening_selected", "screening_selected"):
+                    conds.append("pipeline_stage IN ('pre_screening_selected', 'screening_selected')")
 
                 elif status_val in ("applied", "in_review", "new"):
                     conds.append(
@@ -474,6 +556,16 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 elif status_val in ("practical_round", "practical"):
                     conds.append(
                         "pipeline_stage IN ('practical_round', 'practical_round_selected')"
+                    )
+
+                elif status_val in ("techno_functional_round", "techno_functional", "technofunctional", "techno functional"):
+                    conds.append(
+                        "pipeline_stage IN ('techno_functional_round', 'techno_functional_selected')"
+                    )
+
+                elif status_val in ("management_round", "management"):
+                    conds.append(
+                        "pipeline_stage IN ('management_round', 'management_round_selected')"
                     )
 
                 elif status_val in ("hr_round", "hr"):
@@ -501,11 +593,11 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 elif status_val in ("rejected", "reject", "not_selected"):
                     conds.append(
                         "pipeline_stage IN ("
-                        " 'rejected', 'pre_screening_rejected', 'technical_round_rejected',"
-                        " 'technical_round_back_out', 'practical_round_rejected',"
-                        " 'practical_round_back_out', 'techno_functional_rejected',"
-                        " 'management_round_rejected', 'hr_round_rejected',"
-                        " 'offered_back_out', 'offer_withdrawn'"
+                        " 'rejected', 'screening_rejected', 'pre_screening_rejected',"
+                        " 'technical_round_rejected', 'technical_round_back_out',"
+                        " 'practical_round_rejected', 'practical_round_back_out',"
+                        " 'techno_functional_rejected', 'management_round_rejected',"
+                        " 'hr_round_rejected', 'offered_back_out', 'offer_withdrawn'"
                         ")"
                     )
 
@@ -1225,8 +1317,9 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 params["jstatus"] = args["status"].lower()
 
             sql = (
-                f"SELECT title, status, location, job_type, openings, skills_required"
-                f" FROM jobs WHERE {' AND '.join(conds)} ORDER BY created_at DESC LIMIT 15"
+                "SELECT j.title, j.status, j.location, j.job_type, j.openings, j.skills_required,"
+                " (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS application_count"
+                f" FROM jobs j WHERE {' AND '.join(conds)} ORDER BY j.created_at DESC LIMIT 15"
             )
             res = await db.execute(text(sql), params)
             res_all = res.fetchall()
@@ -1248,6 +1341,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                         parts.append(f"   📍 {j['location']}")
                     if j.get("openings"):
                         parts.append(f"   👥 Openings: {j['openings']}")
+                    parts.append(f"   📥 Applications: {j.get('application_count', 0)}")
                     skills_req = j.get("skills_required")
                     if skills_req:
                         if isinstance(skills_req, list):
@@ -1267,6 +1361,775 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
     except Exception as e:
         logger.error(f"Error in execute_read_tool [{name}]: {e}", exc_info=True)
         return f"Error searching data: {str(e)}"
+
+
+# ── Router-Driven Intent Tools ────────────────────────────────────────────────
+# These back the new intents from copilot_router.py (candidate_details,
+# resume_query, skill/experience/education/project/certification_query,
+# job_match, score_explanation, candidate_comparison, similar_candidate_search,
+# interview question generation). Unlike the Groq-tool-calling TOOLS above,
+# these are invoked deterministically from the router's already-extracted
+# entities — no second LLM call is spent choosing them.
+
+async def _fetch_candidate_full(db: AsyncSession, organization_id: str, candidate_id: str) -> Optional[dict]:
+    """Single-candidate lookup, tenant-scoped — the shared read used by every
+    router-driven tool below."""
+    res = await db.execute(
+        text(
+            "SELECT id, full_name, email, phone, location, current_title, current_company,"
+            " skills, years_experience, experience_years, relevant_experience, notice_period_days,"
+            " expected_salary, expected_ctc, current_salary, current_ctc, pipeline_stage,"
+            " match_score, score_breakdown, applied_job_title, parsed_data, summary,"
+            " linkedin_url, github_url, portfolio_url, tags"
+            " FROM candidates WHERE id = :cid AND organization_id = :oid"
+        ),
+        {"cid": candidate_id, "oid": organization_id},
+    )
+    row = res.fetchone()
+    return dict(row._mapping) if row else None
+
+
+def _format_score_breakdown(candidate_name: str, job_title: str, score: Optional[float], breakdown: dict) -> str:
+    matched = breakdown.get("matched_skills") or []
+    missing = breakdown.get("missing_skills") or []
+    reasoning = (breakdown.get("reasoning") or "").strip()
+    score_label = f"{round(float(score), 1)}%" if score is not None else "N/A"
+    parts = [f"📊 **{candidate_name}** — Match Score for **{job_title}**: **{score_label}**"]
+    if matched:
+        parts.append(f"✅ Matched: {', '.join(matched)}")
+    if missing:
+        parts.append(f"⚠️ Gap: {', '.join(missing)}")
+    if reasoning:
+        parts.append(f"\n{reasoning}")
+    return "\n".join(parts)
+
+
+async def tool_get_candidate_details(candidate_id: str, organization_id: str, db: AsyncSession) -> str:
+    c = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not c:
+        return "I couldn't find that candidate in the available records."
+
+    parts = [f"👤 **{c['full_name']}**"]
+    title, company = c.get("current_title"), c.get("current_company")
+    if title and company:
+        parts.append(f"💼 {title} at {company}")
+    elif title:
+        parts.append(f"💼 {title}")
+    if c.get("email"):
+        parts.append(f"📧 {c['email']}")
+    if c.get("phone"):
+        parts.append(f"📞 {c['phone']}")
+    if c.get("location"):
+        parts.append(f"📍 {c['location']}")
+    exp_str = _format_experience(c)
+    if exp_str:
+        parts.append(f"⭐ {exp_str}")
+    skills = c.get("skills") or []
+    if skills:
+        parts.append(f"🛠️ Skills: {', '.join(skills[:15])}")
+    if c.get("pipeline_stage"):
+        parts.append(f"📌 Stage: {c['pipeline_stage'].replace('_', ' ').title()}")
+    if c.get("applied_job_title"):
+        parts.append(f"🎯 Applied for: {c['applied_job_title']}")
+    if c.get("match_score") is not None:
+        parts.append(f"📊 Match Score: {round(float(c['match_score']), 1)}%")
+    np_val = c.get("notice_period_days")
+    if np_val and str(np_val).strip():
+        parts.append(f"⏳ Notice: {np_val}")
+    return "\n".join(parts)
+
+
+async def tool_get_resume_fact(
+    intent: CopilotIntent, candidate_id: str, skills: list[str], organization_id: str, db: AsyncSession
+) -> Optional[str]:
+    """
+    Handles skill/experience/education/project/certification_query from
+    structured data (candidate.skills, candidate.parsed_data,
+    candidate.years_experience) — no RAG/LLM call needed for the common
+    case. Returns None when the structured data can't confidently answer
+    (e.g. a specific skill's duration that only appears in free-text
+    experience descriptions) so the caller can fall back to resume_qa (RAG).
+    """
+    c = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not c:
+        return "I couldn't find that candidate in the available records."
+    name = c["full_name"]
+    parsed = c.get("parsed_data") or {}
+
+    if intent == CopilotIntent.SKILL_QUERY:
+        cand_skills = c.get("skills") or []
+        cand_skills_lower = {s.lower() for s in cand_skills}
+        if skills:
+            yes, no = [], []
+            for sk in skills:
+                sk_l = sk.lower()
+                found = sk_l in cand_skills_lower or any(sk_l in s.lower() or s.lower() in sk_l for s in cand_skills)
+                (yes if found else no).append(sk)
+            lines = []
+            if yes:
+                lines.append(f"✅ Yes — **{name}** lists: {', '.join(yes)}")
+            if no:
+                lines.append(f"⚠️ Not listed in **{name}**'s skills: {', '.join(no)}")
+            return "\n".join(lines) if lines else None
+        return f"🛠️ **{name}**'s skills: {', '.join(cand_skills)}" if cand_skills else f"I don't see skill data on file for **{name}**."
+
+    if intent == CopilotIntent.EXPERIENCE_QUERY:
+        if skills:
+            sk = skills[0]
+            years = get_experience_years_for_skill(sk.lower(), parsed.get("experience") or [])
+            if years and years > 0:
+                return f"⭐ **{name}** has approximately **{years} years** of experience with {sk}, based on their work history."
+            return None  # let the caller fall back to resume_qa for a qualitative answer
+        exp_str = _format_experience(c)
+        if exp_str:
+            return f"⭐ **{name}** has {exp_str.lower()}, based on the employment dates available in their resume."
+        return f"I couldn't find enough information in the available resume to accurately determine **{name}**'s total experience."
+
+    if intent == CopilotIntent.EDUCATION_QUERY:
+        lines = []
+        for e in parsed.get("education") or []:
+            if not isinstance(e, dict):
+                continue
+            degree, inst, year = (e.get("degree") or "").strip(), (e.get("institution") or "").strip(), e.get("year")
+            line = " at ".join([p for p in [degree, inst] if p])
+            if year:
+                line = f"{line} ({year})" if line else str(year)
+            if line:
+                lines.append(line)
+        if not lines:
+            return f"I don't see education details on file for **{name}**."
+        return f"🎓 **{name}**'s education:\n" + "\n".join(f"- {l}" for l in lines)
+
+    if intent == CopilotIntent.PROJECT_QUERY:
+        lines = []
+        for p in parsed.get("projects") or []:
+            if not isinstance(p, dict):
+                continue
+            pname = (p.get("name") or "").strip()
+            tech = ", ".join(t for t in (p.get("technologies") or []) if isinstance(t, str))
+            if not pname and not tech:
+                continue
+            lines.append(f"- **{pname or 'Project'}**" + (f" ({tech})" if tech else ""))
+        if not lines:
+            return f"I don't see any projects listed for **{name}**."
+        return f"📁 **{name}**'s projects:\n" + "\n".join(lines)
+
+    if intent == CopilotIntent.CERTIFICATION_QUERY:
+        certs = [c2 for c2 in (parsed.get("certifications") or []) if isinstance(c2, str) and c2.strip()]
+        if not certs:
+            return f"I don't see any certifications listed for **{name}**."
+        return f"📜 **{name}**'s certifications: {', '.join(certs)}"
+
+    return None
+
+
+async def tool_resume_qa(candidate_id: str, question: str, organization_id: str, db: AsyncSession) -> str:
+    """RAG-grounded fallback for open-ended resume questions — summaries,
+    'where is X used', 'what to verify', 'any issues', and anything the
+    structured fields in tool_get_resume_fact couldn't answer directly."""
+    c = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not c:
+        return "I couldn't find that candidate in the available records."
+
+    chunks = await resume_rag.semantic_search_candidate(db, organization_id, candidate_id, question or "resume summary", top_k=5)
+    if not chunks or resume_rag.best_score(chunks) < resume_rag.MIN_RELEVANCE_SCORE:
+        return f"I couldn't find enough information in **{c['full_name']}**'s available resume data to accurately answer that."
+
+    context_text = "\n\n".join(f"[{ch['section']}] {ch['content']}" for ch in chunks)
+    prompt = (
+        "Answer the recruiter's question using ONLY the resume excerpts below. "
+        "If the excerpts don't actually contain the answer, say so plainly instead of guessing. "
+        "Be concise (2-4 sentences), professional, and evidence-based.\n\n"
+        f"RESUME EXCERPTS:\n{context_text}\n\nQUESTION: {question}"
+    )
+    text_out = await _generate_text_with_fallback(
+        "You answer strictly from the given resume excerpts. Never invent facts not present in them.",
+        prompt,
+        temperature=0.2,
+    )
+    return text_out or "I couldn't generate an answer from the available resume data right now."
+
+
+async def tool_explain_match_score(
+    candidate_id: str, job_title: Optional[str], organization_id: str, db: AsyncSession
+) -> str:
+    """
+    Explains a candidate's match score. The stored candidate.match_score /
+    candidate.score_breakdown (written by match_scorer.evaluate_candidate_match
+    at resume-upload/scoring time) is the source of truth and is used
+    whenever it applies. Only when a *different* job than the one the
+    candidate was scored against is named do we call evaluate_candidate_match
+    again (read-only, not persisted) — never a second/competing scorer.
+    """
+    c = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not c:
+        return "I couldn't find that candidate in the available records."
+
+    applied_job_title = c.get("applied_job_title")
+    same_job = not job_title or (applied_job_title and job_title.strip().lower() in applied_job_title.strip().lower())
+
+    if same_job:
+        score, breakdown = c.get("match_score"), c.get("score_breakdown")
+        if score is None:
+            return f"I don't have a match score on file for **{c['full_name']}** yet — they haven't been scored against a job."
+        return _format_score_breakdown(c["full_name"], job_title or applied_job_title or "their applied role", score, breakdown or {})
+
+    job_res = await db.execute(
+        text("SELECT id, title, skills_required, min_experience_years FROM jobs WHERE organization_id = :oid AND title ILIKE :t LIMIT 1"),
+        {"oid": organization_id, "t": f"%{job_title}%"},
+    )
+    job_row = job_res.fetchone()
+    if not job_row:
+        return f"I couldn't find that job in the current Hybent data."
+
+    parsed = c.get("parsed_data") or {}
+    org_uuid = uuid.UUID(organization_id) if isinstance(organization_id, str) else organization_id
+    fresh_score, fresh_breakdown = await evaluate_candidate_match(
+        candidate_data=parsed,
+        candidate_skills=c.get("skills") or [],
+        years_experience=c.get("years_experience"),
+        job=job_row,
+        match_threshold=70.0,
+        organization_id=org_uuid,
+    )
+    return _format_score_breakdown(c["full_name"], job_row.title, fresh_score, fresh_breakdown)
+
+
+async def tool_compare_candidates(candidate_ids: list[str], organization_id: str, db: AsyncSession) -> str:
+    rows = [c for c in [await _fetch_candidate_full(db, organization_id, cid) for cid in candidate_ids] if c]
+    if len(rows) < 2:
+        return "I need at least two candidates found in your records to compare."
+
+    lines = [f"📊 **Comparing {', '.join(r['full_name'] for r in rows)}**"]
+    for c in rows:
+        lines.append(f"\n---\n👤 **{c['full_name']}**")
+        lines.append(f"⭐ Experience: {_format_experience(c) or 'Not available'}")
+        skills = c.get("skills") or []
+        lines.append(f"🛠️ Skills: {', '.join(skills[:12]) if skills else 'Not available'}")
+        edu = (c.get("parsed_data") or {}).get("education") or []
+        edu_str = "; ".join(
+            " at ".join(p for p in [e.get("degree", ""), e.get("institution", "")] if p)
+            for e in edu if isinstance(e, dict)
+        )
+        lines.append(f"🎓 Education: {edu_str or 'Not available'}")
+        lines.append(f"📊 Match Score: {round(float(c['match_score']), 1)}%" if c.get("match_score") is not None else "📊 Match Score: Not available")
+        if c.get("pipeline_stage"):
+            lines.append(f"📌 Stage: {c['pipeline_stage'].replace('_', ' ').title()}")
+    return "\n".join(lines)
+
+
+async def tool_find_similar_candidates(candidate_id: str, organization_id: str, db: AsyncSession) -> str:
+    """Structured skill-overlap prefilter (SQL array overlap) + semantic
+    rerank via resume_rag — never a full-org unfiltered scan."""
+    base = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not base:
+        return "I couldn't find that candidate in the available records."
+
+    base_skills = base.get("skills") or []
+    if not base_skills:
+        return f"I don't have enough skill data on **{base['full_name']}** to find similar candidates."
+
+    res = await db.execute(
+        text(
+            "SELECT id FROM candidates"
+            " WHERE organization_id = :oid AND id != :cid AND is_deleted = false"
+            " AND skills && :skills"
+            " ORDER BY created_at DESC LIMIT 30"
+        ),
+        {"oid": organization_id, "cid": candidate_id, "skills": base_skills},
+    )
+    prefilter_ids = [r.id for r in res.fetchall()]
+    if not prefilter_ids:
+        return f"I couldn't find any other candidates with overlapping skills to **{base['full_name']}**."
+
+    query_text = f"{base.get('current_title') or ''} skilled in {', '.join(base_skills[:10])}"
+    ranked = await resume_rag.semantic_search_candidates(db, organization_id, query_text, prefilter_ids, top_k=5)
+    cand_ids = [r["candidate_id"] for r in ranked] if ranked else prefilter_ids[:5]
+
+    lines = [f"🔎 Candidates similar to **{base['full_name']}**:\n"]
+    base_skills_lower = {s.lower() for s in base_skills}
+    for cid in cand_ids:
+        c = await _fetch_candidate_full(db, organization_id, cid)
+        if not c:
+            continue
+        shared = sorted(base_skills_lower & {s.lower() for s in (c.get("skills") or [])})
+        lines.append(
+            f"👤 **{c['full_name']}** — {_format_experience(c) or 'experience not available'}"
+            f", shared skills: {', '.join(shared) if shared else 'n/a'}"
+        )
+    return "\n".join(lines)
+
+
+async def tool_generate_interview_questions(
+    candidate_id: str, job_title: Optional[str], organization_id: str, db: AsyncSession
+) -> str:
+    """RAG-grounded interview questions — pulls the candidate's actual
+    skills/experience/projects and generates questions that only reference
+    facts present in the retrieved resume content (spec: never claim facts
+    not present in the resume)."""
+    c = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not c:
+        return "I couldn't find that candidate in the available records."
+
+    chunks = await resume_rag.semantic_search_candidate(
+        db, organization_id, candidate_id,
+        f"skills experience projects responsibilities {job_title or ''}".strip(),
+        top_k=8,
+    )
+    if chunks:
+        context_text = "\n\n".join(ch["content"] for ch in chunks)
+    else:
+        skills = c.get("skills") or []
+        if not skills:
+            return f"I don't have enough resume information for **{c['full_name']}** to generate targeted interview questions."
+        context_text = f"Skills: {', '.join(skills)}"
+
+    job_context = f"\nTarget role: {job_title}" if job_title else ""
+    prompt = (
+        "You are an expert technical interviewer. Using ONLY the candidate facts below "
+        "(never invent technologies, employers, or experience not mentioned), write 6-8 targeted "
+        "interview questions grouped under short headings (e.g. Technical, Experience, Projects). "
+        "Each question must reference something concrete from the facts below.\n\n"
+        f"CANDIDATE FACTS:\n{context_text}{job_context}"
+    )
+    text_out = await _generate_text_with_fallback(
+        "You write grounded, specific interview questions. Never reference facts not given to you.",
+        prompt,
+        temperature=0.4,
+    )
+    return text_out or "Couldn't generate interview questions right now — please try again."
+
+
+async def tool_get_interview_feedback(candidate_id: str, organization_id: str, db: AsyncSession) -> str:
+    """Interviewer scorecards for a candidate — same join scorecards.py's
+    GET /candidate/{id} uses (Scorecard join Interview by candidate_id, org-scoped)."""
+    c = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not c:
+        return "I couldn't find that candidate in the available records."
+
+    res = await db.execute(
+        text(
+            "SELECT sc.overall_rating, sc.recommendation, sc.criteria_scores, sc.strengths,"
+            " sc.weaknesses, sc.summary, sc.submitted_at, u.full_name AS submitted_by_name,"
+            " i.title AS interview_title, i.interview_type"
+            " FROM scorecards sc"
+            " JOIN interviews i ON sc.interview_id = i.id"
+            " LEFT JOIN users u ON sc.submitted_by_id = u.id"
+            " WHERE i.candidate_id = :cid AND sc.organization_id = :oid"
+            " ORDER BY sc.submitted_at DESC"
+        ),
+        {"cid": candidate_id, "oid": organization_id},
+    )
+    rows = res.fetchall()
+    if not rows:
+        return f"No interview feedback has been submitted yet for **{c['full_name']}**."
+
+    rec_label = {
+        "strong_yes": "Strong Hire", "yes": "Hire", "maybe": "Maybe",
+        "no": "No Hire", "strong_no": "Strong No Hire",
+    }
+    lines = [f"🎤 **{c['full_name']}** — Interview Feedback ({len(rows)} scorecard{'s' if len(rows) != 1 else ''}):\n"]
+    for r in rows:
+        row = dict(r._mapping)
+        by = row.get("submitted_by_name") or "An interviewer"
+        title = row.get("interview_title") or "Interview"
+        parts = [f"**{title}** — {by}"]
+        if row.get("overall_rating") is not None:
+            parts.append(f"⭐ {row['overall_rating']}/5")
+        rec = row.get("recommendation")
+        if rec:
+            parts.append(f"Recommendation: {rec_label.get(rec, rec)}")
+        strengths = (row.get("strengths") or "").strip()
+        weaknesses = (row.get("weaknesses") or "").strip()
+        summary = (row.get("summary") or "").strip()
+        detail = " | ".join(parts)
+        block = f"---\n{detail}"
+        if strengths:
+            block += f"\n✅ Strengths: {strengths}"
+        if weaknesses:
+            block += f"\n⚠️ Areas to improve: {weaknesses}"
+        if summary:
+            block += f"\n{summary}"
+        lines.append(block)
+    return "\n".join(lines)
+
+
+async def tool_get_offers(
+    candidate_id: Optional[str], status_filter: Optional[str], organization_id: str, db: AsyncSession,
+    user_message: str = "",
+) -> str:
+    """Offer status — org-scoped (matches offers.py's list_offers; no recruiter-ownership
+    restriction exists on offers in the actual API, so none is added here either).
+
+    "Competing offers" (OtherOffer — what other companies have offered the
+    candidate) is a DIFFERENT model from Hybent's own Offer records, and is
+    self-reported by the candidate via the portal only — recruiter-facing
+    candidate endpoints never eager-load it, so it's always empty there
+    today. Answering a "competing offers" question with Hybent's own offer
+    status would be actively misleading, so that phrasing is detected and
+    given an honest "not available" answer instead of being silently
+    treated as a regular offer_query.
+    """
+    if re.search(r"competing offer|other offer|another offer|multiple offer", user_message, re.IGNORECASE):
+        return (
+            "I don't have visibility into other companies' offers a candidate may have received — "
+            "that's only ever recorded by the candidate themselves through their portal, and isn't "
+            "currently exposed through the recruiter view."
+        )
+
+    conds = ["o.organization_id = :oid"]
+    params = {"oid": organization_id}
+    if candidate_id:
+        conds.append("c.id = :cid")
+        params["cid"] = candidate_id
+    if status_filter:
+        conds.append("o.status = :status")
+        params["status"] = status_filter.lower().strip()
+
+    res = await db.execute(
+        text(
+            "SELECT o.status, o.base_salary, o.salary_currency, o.position_title,"
+            " o.start_date, o.sent_at, o.responded_at, o.decline_reason, c.full_name AS candidate_name"
+            " FROM offers o"
+            " JOIN applications a ON o.application_id = a.id"
+            " JOIN candidates c ON a.candidate_id = c.id"
+            f" WHERE {' AND '.join(conds)}"
+            " ORDER BY o.created_at DESC LIMIT 20"
+        ),
+        params,
+    )
+    rows = res.fetchall()
+    if not rows:
+        if candidate_id:
+            return "No offer has been created for this candidate yet."
+        return "No offers found matching that criteria."
+
+    status_emoji = {
+        "draft": "📝", "sent": "📤", "accepted": "✅", "declined": "❌",
+        "revoked": "🚫", "expired": "⏳",
+    }
+    lines = [f"🎯 **Found {len(rows)} offer{'s' if len(rows) != 1 else ''}:**\n"]
+    for r in rows:
+        row = dict(r._mapping)
+        emoji = status_emoji.get(row["status"], "•")
+        salary = f"{row.get('salary_currency') or ''} {row['base_salary']:,.0f}".strip() if row.get("base_salary") is not None else "N/A"
+        parts = [
+            f"{emoji} **{row['candidate_name']}** — {row.get('position_title') or 'Role'}",
+            f"Status: {row['status'].title()} | Salary: {salary}",
+        ]
+        if row.get("start_date"):
+            parts.append(f"Start date: {row['start_date']}")
+        if row["status"] == "declined" and row.get("decline_reason"):
+            parts.append(f"Decline reason: {row['decline_reason']}")
+        lines.append(" | ".join(parts))
+    return "\n".join(lines)
+
+
+async def tool_get_analytics_report(
+    metric: Optional[str], job_title: Optional[str], user_id: str, user_role: Optional[str],
+    organization_id: str, db: AsyncSession,
+) -> str:
+    """
+    Dashboard/report metrics — calls the SAME report_service/analytics_service
+    functions the Reports & Analytics / AI Insights pages use (not a
+    reimplementation), so Copilot's numbers always match what's on screen,
+    including the recruiter-vs-admin scoping those services already enforce
+    (a recruiter only sees their own created candidates/jobs here, exactly
+    like the Reports page — admins see the whole org).
+    """
+    import uuid as _uuid
+    from app.services import report_service, analytics_service
+
+    org_uuid = _uuid.UUID(organization_id) if isinstance(organization_id, str) else organization_id
+    user_uuid = _uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+    is_admin = (user_role or "").lower() in ("admin", "super_admin")
+    m = (metric or "").lower()
+
+    if any(k in m for k in ("interviewer", "bias", "calibration")):
+        rows = await analytics_service.get_interviewer_performance(org_uuid, db)
+        if not rows:
+            return "No interviewer performance data available yet — this needs submitted scorecards."
+        lines = ["🎤 **Interviewer Performance:**\n"]
+        for r in rows:
+            avg = f"{r.avg_rating_given:.1f}/5" if r.avg_rating_given is not None else "N/A"
+            lines.append(f"- **{r.interviewer_name}**: {r.interviews_conducted} interviews, {r.scorecards_submitted} scorecards, avg rating given {avg}")
+        return "\n".join(lines)
+
+    if any(k in m for k in ("fair", "pass rate", "pass_rate")):
+        fm = await analytics_service.get_fairness_metrics(org_uuid, db)
+        lines = ["⚖️ **Fairness & Pass-Rate Metrics:**\n", "By stage:"]
+        for s in fm.pass_rates_by_stage:
+            lines.append(f"  - {s.stage}: {s.pass_rate:.1f}%")
+        lines.append("\nBy source:")
+        for s in fm.pass_rates_by_source:
+            lines.append(f"  - {s.source}: {s.pass_rate:.1f}%")
+        if fm.interviewer_calibration_variance:
+            lines.append("\nInterviewer rating calibration:")
+            for c in fm.interviewer_calibration_variance:
+                flag = " ⚠️" if abs(c.variance) > 0.5 else ""
+                lines.append(f"  - {c.interviewer_name}: gives {c.avg_rating_given:.1f} avg vs org avg {c.global_avg_rating:.1f}{flag}")
+        return "\n".join(lines)
+
+    if any(k in m for k in ("score distribution", "score_distribution")):
+        buckets = await analytics_service.get_score_distribution(org_uuid, db)
+        lines = ["📊 **Match Score Distribution:**\n"]
+        for b in buckets:
+            lines.append(f"- {b.range}%: {b.count} candidates")
+        return "\n".join(lines)
+
+    if any(k in m for k in ("funnel",)) or job_title:
+        job_id = None
+        if job_title:
+            job_res = await db.execute(
+                text("SELECT id FROM jobs WHERE organization_id = :oid AND title ILIKE :t LIMIT 1"),
+                {"oid": organization_id, "t": f"%{job_title}%"},
+            )
+            row = job_res.fetchone()
+            if row:
+                job_id = row.id
+        funnel = await analytics_service.get_funnel(org_uuid, job_id, db, user_id=user_uuid if not is_admin else None)
+        label = f" for **{job_title}**" if job_title else ""
+        lines = [f"📈 **Recruitment Funnel{label}:**\n"]
+        for s in funnel.stages:
+            if s.count:
+                lines.append(f"- {s.stage.replace('_', ' ').title()}: {s.count} ({s.percentage:.1f}%)")
+        return "\n".join(lines) if len(lines) > 1 else f"No application data yet{label}."
+
+    if any(k in m for k in ("time to hire", "time_to_hire", "avg time")):
+        overview = await analytics_service.get_overview(org_uuid, db, user_id=user_uuid if not is_admin else None)
+        if overview.time_to_hire_days is None:
+            return "Time-to-hire isn't available yet — Hybent doesn't have enough completed hires with timestamped stage history to compute it."
+        return f"⏱️ Average time to hire: **{overview.time_to_hire_days:.1f} days**."
+
+    # Default: the reports.py-equivalent applied/hired/backout/rejected summary
+    summary = await report_service.get_report_summary(org_uuid, user_uuid, is_admin, db)
+    lines = [
+        "📊 **Recruitment Report:**\n",
+        f"Applied: **{summary['applied']}**",
+        f"Hired: **{summary['hired']}**",
+        f"Backed out: **{summary['backout']}**",
+        f"Rejected: **{summary['rejected']}**",
+    ]
+    if summary.get("candidates_by_role"):
+        lines.append("\nBy role:")
+        for role, count in sorted(summary["candidates_by_role"].items(), key=lambda x: -x[1])[:8]:
+            lines.append(f"  - {role}: {count}")
+    return "\n".join(lines)
+
+
+async def tool_get_import_history(organization_id: str, db: AsyncSession) -> str:
+    res = await db.execute(
+        text(
+            "SELECT file_name, total_rows, success_count, failed_count, duplicate_count,"
+            " status, created_at FROM import_batches WHERE organization_id = :oid"
+            " ORDER BY created_at DESC LIMIT 10"
+        ),
+        {"oid": organization_id},
+    )
+    rows = res.fetchall()
+    if not rows:
+        return "No bulk imports have been run yet."
+
+    lines = [f"📂 **Recent Bulk Imports** ({len(rows)}):\n"]
+    for r in rows:
+        row = dict(r._mapping)
+        date_str = row["created_at"].strftime("%b %d, %Y") if row.get("created_at") else ""
+        lines.append(
+            f"- **{row['file_name']}** ({date_str}, {row['status']}): "
+            f"{row['success_count']} created, {row['duplicate_count']} duplicates skipped, {row['failed_count']} failed"
+        )
+    return "\n".join(lines)
+
+
+async def tool_get_pre_screening_status(candidate_id: str, organization_id: str, db: AsyncSession) -> str:
+    c = await _fetch_candidate_full(db, organization_id, candidate_id)
+    if not c:
+        return "I couldn't find that candidate in the available records."
+
+    res = await db.execute(
+        text(
+            "SELECT status, overall_ai_summary, completed_at, language, created_at"
+            " FROM pre_screening_sessions WHERE candidate_id = :cid AND organization_id = :oid"
+            " ORDER BY created_at DESC LIMIT 1"
+        ),
+        {"cid": candidate_id, "oid": organization_id},
+    )
+    row = res.fetchone()
+    if not row:
+        return f"**{c['full_name']}** has not been sent a pre-screening session yet."
+
+    r = dict(row._mapping)
+    status_label = {"pending": "Invited, not started", "in_progress": "In progress", "completed": "Completed"}.get(r["status"], r["status"])
+    lines = [f"🎙️ **{c['full_name']}** — Pre-Screening: **{status_label}**"]
+    if r.get("completed_at"):
+        lines.append(f"Completed: {r['completed_at'].strftime('%b %d, %Y')}")
+    if r["status"] == "completed" and r.get("overall_ai_summary"):
+        summary_text = str(r["overall_ai_summary"]).strip()
+        if summary_text and summary_text not in ("null", "{}", "None"):
+            lines.append(f"\nAI Summary: {summary_text[:600]}")
+    elif r["status"] != "completed":
+        lines.append("No summary yet — the candidate hasn't completed all questions.")
+    return "\n".join(lines)
+
+
+async def tool_get_activity(
+    user_id: str, user_role: Optional[str], organization_id: str, db: AsyncSession, resource_id: Optional[str] = None
+) -> str:
+    """
+    Recent activity / audit trail — replicates activities.py's own role
+    scoping exactly: a recruiter only ever sees THEIR OWN actions (the API
+    itself returns nothing else to a recruiter), admins see the whole org.
+    A Copilot must not claim to know "who else viewed this" for a recruiter
+    caller, because the underlying data genuinely isn't visible to them.
+    """
+    conds = ["al.organization_id = :oid", "al.resource_type IN ('job','candidate','interview','offer','application')"]
+    params = {"oid": organization_id}
+    role = (user_role or "").lower()
+
+    if resource_id:
+        conds.append("al.resource_id = :rid")
+        params["rid"] = resource_id
+
+    if role == "recruiter":
+        conds.append("al.user_id = :uid")
+        params["uid"] = user_id
+    # admin/super_admin: org-wide, no extra filter
+
+    res = await db.execute(
+        text(
+            "SELECT al.action, al.resource_type, al.details, al.created_at, u.full_name AS user_name"
+            " FROM audit_logs al LEFT JOIN users u ON al.user_id = u.id"
+            f" WHERE {' AND '.join(conds)}"
+            " ORDER BY al.created_at DESC LIMIT 15"
+        ),
+        params,
+    )
+    rows = res.fetchall()
+    if not rows:
+        if role == "recruiter":
+            return "I don't see any of your own recent activity. Note: as a recruiter, I can only see actions you performed yourself — not the whole team's activity."
+        return "No recent activity found."
+
+    lines = ["🕓 **Recent Activity:**\n"]
+    for r in rows:
+        row = dict(r._mapping)
+        by = row.get("user_name") or "System"
+        when = row["created_at"].strftime("%b %d, %I:%M %p") if row.get("created_at") else ""
+        lines.append(f"- {row['action'].replace('_', ' ').title()} ({row['resource_type']}) by **{by}** — {when}")
+    if role == "recruiter":
+        lines.append("\n_Showing your own actions only — recruiters can't see other team members' activity._")
+    return "\n".join(lines)
+
+
+async def execute_routed_intent(
+    routed: RoutedIntent,
+    resolved: dict,
+    organization_id: str,
+    db: AsyncSession,
+    user_message: str,
+    user_id: Optional[str] = None,
+    user_role: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Deterministically executes the intents the router confidently classified.
+    Returns None to signal "fall through to the legacy free-form tool-calling
+    loop" — used for GENERAL/CANDIDATE_SEARCH (which need the model's own
+    multi-turn refinement judgment over raw chat history) and any resolution
+    edge case not explicitly handled here, so existing behavior is always
+    the safety net for anything this router doesn't confidently cover.
+    """
+    intent = routed.intent
+
+    if intent in (CopilotIntent.GENERAL, CopilotIntent.CANDIDATE_SEARCH):
+        return None
+
+    if resolved["not_found"]:
+        return f"I couldn't find a candidate named **{resolved['not_found'][0]}** in the available records."
+
+    if resolved["ambiguous"]:
+        name, options = next(iter(resolved["ambiguous"].items()))
+        opts = "\n".join(f"- {o['name']}" for o in options)
+        return f"I found multiple candidates matching '{name}':\n{opts}\n\nCould you specify which one?"
+
+    candidate_id = resolved["candidates"][0]["id"] if resolved["candidates"] else None
+    no_candidate_needed = (
+        CopilotIntent.PIPELINE_QUERY, CopilotIntent.JOB_QUERY, CopilotIntent.CANDIDATE_COMPARISON,
+        CopilotIntent.ANALYTICS_QUERY, CopilotIntent.IMPORT_QUERY, CopilotIntent.ACTIVITY_QUERY,
+        CopilotIntent.OFFER_QUERY,
+    )
+    needs_candidate = intent not in no_candidate_needed
+
+    if needs_candidate and not candidate_id:
+        return "Which candidate are you asking about?"
+
+    if intent == CopilotIntent.CANDIDATE_DETAILS:
+        return await tool_get_candidate_details(candidate_id, organization_id, db)
+
+    if intent == CopilotIntent.RESUME_QUERY:
+        return await tool_resume_qa(candidate_id, routed.question or user_message, organization_id, db)
+
+    if intent in (
+        CopilotIntent.SKILL_QUERY, CopilotIntent.EXPERIENCE_QUERY, CopilotIntent.EDUCATION_QUERY,
+        CopilotIntent.PROJECT_QUERY, CopilotIntent.CERTIFICATION_QUERY,
+    ):
+        result = await tool_get_resume_fact(intent, candidate_id, routed.skills, organization_id, db)
+        if result is not None:
+            return result
+        return await tool_resume_qa(candidate_id, routed.question or user_message, organization_id, db)
+
+    if intent == CopilotIntent.JOB_QUERY:
+        job_title = resolved.get("job_title")
+        if job_title:
+            return await execute_read_tool("search_jobs", {"title": job_title}, organization_id, db)
+        if candidate_id:
+            return await tool_explain_match_score(candidate_id, None, organization_id, db)
+        return await execute_read_tool("search_jobs", {}, organization_id, db)
+
+    if intent in (CopilotIntent.JOB_MATCH, CopilotIntent.SCORE_EXPLANATION):
+        return await tool_explain_match_score(candidate_id, resolved.get("job_title"), organization_id, db)
+
+    if intent == CopilotIntent.PIPELINE_QUERY:
+        return await execute_read_tool("get_pipeline_summary", {}, organization_id, db)
+
+    if intent == CopilotIntent.INTERVIEW_QUERY:
+        wants_questions = candidate_id and bool(re.search(r"question|puch|prepare\b|\bask\b", user_message, re.IGNORECASE))
+        if wants_questions:
+            return await tool_generate_interview_questions(candidate_id, resolved.get("job_title"), organization_id, db)
+        cand_name = resolved["candidates"][0]["name"] if resolved["candidates"] else None
+        return await execute_read_tool(
+            "search_interviews", {"candidate_name": cand_name, "date_range": routed.date_range}, organization_id, db
+        )
+
+    if intent == CopilotIntent.CANDIDATE_COMPARISON:
+        ids = [cand["id"] for cand in resolved["candidates"]]
+        if len(ids) < 2:
+            return "Please name at least two candidates to compare."
+        return await tool_compare_candidates(ids, organization_id, db)
+
+    if intent == CopilotIntent.SIMILAR_CANDIDATE_SEARCH:
+        return await tool_find_similar_candidates(candidate_id, organization_id, db)
+
+    if intent == CopilotIntent.INTERVIEW_FEEDBACK_QUERY:
+        return await tool_get_interview_feedback(candidate_id, organization_id, db)
+
+    if intent == CopilotIntent.OFFER_QUERY:
+        return await tool_get_offers(candidate_id, routed.metric, organization_id, db, user_message=user_message)
+
+    if intent == CopilotIntent.ANALYTICS_QUERY:
+        return await tool_get_analytics_report(
+            routed.metric, resolved.get("job_title"), user_id, user_role, organization_id, db
+        )
+
+    if intent == CopilotIntent.IMPORT_QUERY:
+        return await tool_get_import_history(organization_id, db)
+
+    if intent == CopilotIntent.PRE_SCREENING_QUERY:
+        return await tool_get_pre_screening_status(candidate_id, organization_id, db)
+
+    if intent == CopilotIntent.ACTIVITY_QUERY:
+        return await tool_get_activity(user_id, user_role, organization_id, db, resource_id=candidate_id)
+
+    return None
 
 
 # ── Write Tool Executor ──────────────────────────────────────────────────────
@@ -1720,6 +2583,7 @@ async def stream_copilot_chat(
     user_id: Optional[uuid.UUID] = None,
     conversation_id: Optional[str] = None,
     approved_tool_call: Optional[dict] = None,
+    user_role: Optional[str] = None,
 ):
     from app.services.ai_credit_service import AICreditsService
     await AICreditsService.check_credits_available(db, organization_id, "ai_copilot")
@@ -1739,7 +2603,8 @@ async def stream_copilot_chat(
             background_tasks=background_tasks,
             user_id=user_id,
             conversation_id=conversation_id,
-            approved_tool_call=approved_tool_call
+            approved_tool_call=approved_tool_call,
+            user_role=user_role,
         ):
             if chunk:
                 try:
@@ -1797,6 +2662,7 @@ async def _stream_copilot_chat_impl(
     user_id: Optional[uuid.UUID] = None,
     conversation_id: Optional[str] = None,
     approved_tool_call: Optional[dict] = None,
+    user_role: Optional[str] = None,
 ):
     client = Groq(api_key=settings.groq_api_key)
     oid_str = str(organization_id)
@@ -1926,6 +2792,51 @@ async def _stream_copilot_chat_impl(
         yield sse("done", {})
         return
 
+    # ── 1.5 Intent Router ───────────────────────────────────────────────────
+    # Greetings/help never touch retrieval or a classification LLM call.
+    if is_greeting(user_message):
+        saved_conv_id = await _save_conversation_to_db(
+            db, organization_id, user_id, conversation_id, user_message, GENERAL_HELP_REPLY
+        )
+        yield sse("meta", {"conversation_id": saved_conv_id})
+        yield sse("chunk", {"content": GENERAL_HELP_REPLY})
+        yield sse("done", {})
+        return
+
+    router_start = time.time()
+    last_context = await _load_last_context(db, conversation_id) or {}
+    # A page_context candidate/job (recruiter is actively viewing that page)
+    # is a fresher signal than whatever was last discussed in chat, so it
+    # takes priority. This also finally makes use of page_context.job_id,
+    # which the frontend has sent for a while but nothing read before.
+    if page_context and page_context.get("candidate_id"):
+        last_context = {**last_context, "candidate_id": page_context["candidate_id"], "candidate_name": page_context.get("candidate_name")}
+    if page_context and page_context.get("job_id"):
+        last_context = {**last_context, "job_id": page_context["job_id"]}
+
+    routed = await classify_intent(user_message, last_context)
+    resolved = await resolve_context(routed, last_context, db, organization_id)
+    routed_reply = await execute_routed_intent(routed, resolved, oid_str, db, user_message, user_id=uid_str, user_role=user_role)
+
+    logger.info(
+        "Copilot router: intent=%s candidate=%s job=%s handled=%s latency_ms=%.0f",
+        routed.intent.value,
+        resolved["candidates"][0]["name"] if resolved["candidates"] else None,
+        resolved.get("job_title"),
+        routed_reply is not None,
+        (time.time() - router_start) * 1000,
+    )
+
+    if routed_reply is not None:
+        new_context = build_last_context(resolved, last_context)
+        saved_conv_id = await _save_conversation_to_db(
+            db, organization_id, user_id, conversation_id, user_message, routed_reply, last_context=new_context
+        )
+        yield sse("meta", {"conversation_id": saved_conv_id})
+        yield sse("chunk", {"content": routed_reply})
+        yield sse("done", {})
+        return
+
     # ── 2. Build Message History ──────────────────────────────────────────
     timezone_str = "Asia/Kolkata"
     try:
@@ -1969,8 +2880,9 @@ async def _stream_copilot_chat_impl(
 
     # ── 3. Stream LLM Response ────────────────────────────────────────────
     try:
+        chat_model = get_best_groq_model(client)
         stream_resp = client.chat.completions.create(
-            model=GROQ_MODEL,
+            model=chat_model,
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",
@@ -2032,7 +2944,7 @@ async def _stream_copilot_chat_impl(
                     {"role": "user", "content": user_message},
                 ]
                 fallback_resp = client.chat.completions.create(
-                    model=GROQ_MODEL,
+                    model=chat_model,
                     messages=fallback_messages,
                     stream=False,
                     temperature=0.3,
@@ -2146,13 +3058,30 @@ async def _stream_copilot_chat_impl(
 
 # ── Conversation Persistence ──────────────────────────────────────────────────
 
+async def _load_last_context(db: AsyncSession, conversation_id: Optional[str]) -> Optional[dict]:
+    """Loads the structured follow-up context (last discussed candidate/job)
+    persisted on a conversation, for the router to resolve pronouns against."""
+    if not conversation_id:
+        return None
+    from app.models.copilot_conversation import CopilotConversation
+    try:
+        res = await db.execute(
+            select(CopilotConversation).where(CopilotConversation.id == uuid.UUID(conversation_id))
+        )
+        conversation = res.scalar_one_or_none()
+        return conversation.last_context if conversation else None
+    except Exception:
+        return None
+
+
 async def _save_conversation_to_db(
     db: AsyncSession,
     organization_id,
     user_id,
     conversation_id: Optional[str],
     user_message: str,
-    assistant_reply: str
+    assistant_reply: str,
+    last_context: Optional[dict] = None,
 ) -> str:
     from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 
@@ -2178,6 +3107,9 @@ async def _save_conversation_to_db(
         )
         db.add(conversation)
         await db.flush()
+
+    if last_context is not None:
+        conversation.last_context = last_context
 
     db.add(CopilotMessage(conversation_id=conversation.id, role="user", content=user_message))
     db.add(CopilotMessage(conversation_id=conversation.id, role="assistant", content=assistant_reply))

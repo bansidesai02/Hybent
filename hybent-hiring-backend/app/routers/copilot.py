@@ -109,6 +109,7 @@ async def copilot_chat(
         user_id=current_user.id,
         conversation_id=body.conversation_id,
         approved_tool_call=body.approved_tool_call,
+        user_role=current_user.role,
     )
 
     return StreamingResponse(generator, media_type="text/event-stream")

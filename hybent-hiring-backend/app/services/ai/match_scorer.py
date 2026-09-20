@@ -2,7 +2,7 @@
 AI match scoring: compare candidate skills/experience against job requirements.
 Uses a 3-tier evaluation pipeline:
   1. Groq (Llama-3.3-70b-versatile)
-  2. Google Gemini (gemini-1.5-flash) failover
+  2. Google Gemini (gemini-2.5-flash) failover
   3. Offline Deterministic Heuristic Fallback Scorer
 """
 import asyncio
@@ -526,11 +526,16 @@ def compute_heuristic_match_score(
 
 
 async def _evaluate_candidate_match_gemini(prompt: str) -> Optional[dict]:
-    """Secondary LLM failover using Gemini 1.5 Flash."""
+    """Secondary LLM failover using Gemini 2.5 Flash.
+
+    Was pinned to "gemini-1.5-flash", which this API key's model list no
+    longer includes — every call here was silently 404-ing straight through
+    to the deterministic heuristic tier, never actually reaching Gemini.
+    """
     if not settings.gemini_api_key:
         return None
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         response = await asyncio.to_thread(
             model.generate_content,
             f"{SYSTEM_PROMPT.strip()}\n\n{prompt.strip()}",
