@@ -12,7 +12,7 @@ export default function SolutionsPage() {
         </div>
       </section>
 
-      <section className="section" id="solutions">
+      <section className="section section--tight" id="solutions">
         <div className="wrap">
           <div className="tabs" role="tablist" aria-label="Solutions">
             <button className="tab" role="tab" aria-selected="true" aria-controls="sp1" id="st1">Talent acquisition</button>
