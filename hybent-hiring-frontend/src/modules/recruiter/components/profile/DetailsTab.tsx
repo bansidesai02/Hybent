@@ -46,6 +46,12 @@ type FieldDef = {
   readOnly?: boolean
   /** Read view only; edit view has no control for it. */
   displayOnly?: boolean
+  /** Read view: show even with no value (as "Not set"), instead of being
+   * filtered out along with the rest of a sparse section. Source used to
+   * disappear from a candidate's overview entirely whenever it and every
+   * other field in "Source & references" was empty, hiding that there was
+   * anything there to edit. */
+  alwaysShow?: boolean
 }
 
 const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
@@ -96,7 +102,7 @@ const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
   {
     title: 'Source & references',
     fields: [
-      { key: 'source', label: 'Source', placeholder: 'e.g. LinkedIn, Referral, Job board' },
+      { key: 'source', label: 'Source', placeholder: 'e.g. LinkedIn, Referral, Job board', alwaysShow: true },
       { key: 'reference', label: 'Reference / referral', placeholder: 'e.g. Referrer name' },
       { key: 'hr_name', label: 'HR name', placeholder: 'e.g. Recruiter name' },
       { key: 'sr_no', label: 'Serial no', placeholder: 'e.g. 1' },
@@ -225,7 +231,7 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
       return null
     })()
 
-    const extras: Record<string, Array<{ label: string; value: any }>> = {
+    const extras: Record<string, Array<{ label: string; value: any; alwaysShow?: boolean }>> = {
       Experience: [],
       Interview: [
         {
@@ -252,12 +258,12 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
       .map((section) => ({
         title: section.title,
         fields: [
-          ...section.fields.map((f) => ({
-            label: f.label,
-            value: (candidate as any)[f.key],
-          })),
+          ...section.fields.map((f) => {
+            const value = (candidate as any)[f.key]
+            return { label: f.label, value: isEmpty(value) && f.alwaysShow ? 'Not set' : value, alwaysShow: f.alwaysShow }
+          }),
           ...(extras[section.title] ?? []),
-        ].filter((f) => !isEmpty(f.value)),
+        ].filter((f) => !isEmpty(f.value) || f.alwaysShow),
       }))
       .filter((s) => s.fields.length > 0)
   }, [candidate])
