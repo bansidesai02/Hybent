@@ -33,7 +33,7 @@ type FormKey =
   | 'current_ctc' | 'expected_ctc' | 'notice_period_days' | 'availability_status'
   | 'technical_panel' | 'import_status'
   | 'remarks_practical' | 'techno_functional_hr_interview' | 'remarks_hr' | 'remarks_technical'
-  | 'reference' | 'hr_name' | 'sr_no'
+  | 'reference' | 'hr_name' | 'sr_no' | 'source'
   | 'linkedin_url' | 'github_url' | 'portfolio_url'
   | 'interview_availability_days' | 'interview_time_slot'
 
@@ -96,6 +96,7 @@ const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
   {
     title: 'Source & references',
     fields: [
+      { key: 'source', label: 'Source', placeholder: 'e.g. LinkedIn, Referral, Job board' },
       { key: 'reference', label: 'Reference / referral', placeholder: 'e.g. Referrer name' },
       { key: 'hr_name', label: 'HR name', placeholder: 'e.g. Recruiter name' },
       { key: 'sr_no', label: 'Serial no', placeholder: 'e.g. 1' },
@@ -138,6 +139,7 @@ function initialForm(c: Candidate): Record<FormKey, string> {
     techno_functional_hr_interview: c.techno_functional_hr_interview || '',
     remarks_hr: c.remarks_hr || '',
     remarks_technical: c.remarks_technical || '',
+    source: c.source || '',
     reference: c.reference || '',
     hr_name: c.hr_name || '',
     sr_no: String(c.sr_no || ''),
@@ -241,7 +243,6 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
         },
       ],
       'Source & references': [
-        { label: 'Source', value: candidate.source },
         { label: 'Import sheet', value: candidate.import_panel_name },
         { label: 'Import date', value: importDate },
       ],

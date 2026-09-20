@@ -22,7 +22,7 @@ import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
 import { adminApi } from '@/api/admin'
 import { designationsApi, type DesignationItem } from '@/api/designations'
-import { formatCandidateDate, formatExperience } from '@/utils/formatters'
+import { formatCandidateDate, formatExperience, stageLabel } from '@/utils/formatters'
 import type { Candidate } from '@/types'
 import { CandidateProfileView } from '@/modules/recruiter/components/CandidateProfileView'
 import { CandidateActionsPanel } from '@/modules/recruiter/components/CandidateActionsPanel'
@@ -501,6 +501,16 @@ export default function CandidatesPage() {
           </div>
         )
       },
+    },
+    {
+      key: 'source',
+      header: 'Source',
+      width: '120px',
+      cell: (c) => (
+        <span className="whitespace-nowrap text-hb-muted">
+          {c.source ? stageLabel(c.source) : '—'}
+        </span>
+      ),
     },
     {
       key: 'actions',
