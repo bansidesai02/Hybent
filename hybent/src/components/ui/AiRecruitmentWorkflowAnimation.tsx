@@ -387,23 +387,15 @@ export function AiRecruitmentWorkflowAnimation() {
     >
       {/* ── Dashboard Header ── */}
       <div
+        className="flex items-center justify-between flex-wrap gap-2 px-3 py-4.5 bg-white  "
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 18px',
-          background: '#FFFFFF',
           borderBottom: '1px solid rgba(11, 18, 32, 0.06)',
-          fontSize: '0.82rem',
-          flexWrap: 'wrap',
-          gap: '8px',
+          fontSize: '0.82rem'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
+        <div className="flex items-center gap-2">
+          <div className="size-2 shrink-0"
             style={{
-              width: '8px',
-              height: '8px',
               borderRadius: '50%',
               background: isScanning ? '#22CFFF' : '#10B981',
               boxShadow: isScanning
@@ -424,17 +416,13 @@ export function AiRecruitmentWorkflowAnimation() {
           >
             AI Hiring Pipeline
           </span>
-          <span
+          <span className="inline-flex flex-wrap items-center gap-1 px-2 py-2 text-nowrap"
             style={{
-              fontSize: '0.7rem',
-              padding: '2px 7px',
               borderRadius: '999px',
               background: isScanning ? 'rgba(34,207,255,0.12)' : 'rgba(16,185,129,0.12)',
               color: isScanning ? '#0284C7' : '#059669',
+              fontSize: '0.7rem',
               fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
             }}
           >
             {isScanning ? 'Scanning...' : 'Scan Complete'}
@@ -442,17 +430,14 @@ export function AiRecruitmentWorkflowAnimation() {
         </div>
 
         {/* Action Controls & Candidate Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className='flex items-center gap-2'>
           {/* Re-scan Button */}
           <button
             onClick={() => handleReScan()}
             title="Re-run AI Resume Scan"
             aria-label="Re-scan Resume"
+            className='inline-flex items-center gap-1 px-1 py-2.5'
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '4px 10px',
               borderRadius: '8px',
               border: '1px solid rgba(76, 111, 255, 0.25)',
               background: isScanning ? '#F8FAFC' : 'rgba(76, 111, 255, 0.08)',
@@ -483,7 +468,7 @@ export function AiRecruitmentWorkflowAnimation() {
           </button>
 
           {/* Candidate Switcher Dots */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: '4px' }}>
+          <div className='flex items-center gap-1 ml-1'>
             {CANDIDATES.map((c, i) => (
               <button
                 key={c.id}
@@ -510,14 +495,9 @@ export function AiRecruitmentWorkflowAnimation() {
       </div>
 
       {/* ── Main Dynamic Stage Area ── */}
-      <div
+      <div className='flex flex-col justify-center relative px-4.5 py-5'
         style={{
-          padding: '18px 20px',
           minHeight: '230px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          position: 'relative',
           opacity: isTransitioning ? 0 : 1,
           transform: isTransitioning ? 'translateY(4px)' : 'translateY(0)',
           transition: 'opacity 0.2s ease, transform 0.2s ease',
@@ -525,19 +505,13 @@ export function AiRecruitmentWorkflowAnimation() {
       >
         {/* ════ STAGE 0: Resume Intake & Scanning ════ */}
         {stage === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div
+          <div className='flex flex-col gap-3'>
+            <div className='flex flex-col gap-1 px-2.5 py-3.5 relative overflow-hidden'
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 14px',
                 background: '#FFFFFF',
                 borderRadius: '12px',
                 border: '1px solid rgba(99, 102, 241, 0.15)',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
-                position: 'relative',
-                overflow: 'hidden',
               }}
             >
               {/* Animated AI Scanning Laser Line */}
@@ -554,18 +528,13 @@ export function AiRecruitmentWorkflowAnimation() {
                 }}
               />
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
+              <div className='flex gap-3'>
+                <div className='size-9 grid place-items-center shrink-0'
                   style={{
-                    width: '36px',
-                    height: '36px',
                     borderRadius: '9px',
                     background: 'linear-gradient(135deg, rgba(76,111,255,0.12), rgba(34,207,255,0.12))',
-                    display: 'grid',
-                    placeItems: 'center',
                     color: '#4C6FFF',
                     fontSize: '18px',
-                    flexShrink: 0,
                   }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -577,11 +546,11 @@ export function AiRecruitmentWorkflowAnimation() {
                   </svg>
                 </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className='flex flex-col gap-2'>
                     <span style={{ fontWeight: 700, fontSize: '0.96rem', color: '#0F172A' }}>
                       {candidate.name}
                     </span>
-                    <span
+                    <span className='max-w-fit'
                       style={{
                         fontSize: '0.68rem',
                         fontWeight: 600,
@@ -600,7 +569,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 </div>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
+              <div className='flex gap-2'>
                 <div
                   style={{
                     fontSize: '0.72rem',
@@ -611,7 +580,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 >
                   {candidate.fileName}
                 </div>
-                <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>{candidate.fileSize}</div>
+                <div className='text-nowrap' style={{ fontSize: '0.68rem', color: '#94A3B8' }}>{candidate.fileSize}</div>
               </div>
             </div>
 
@@ -624,16 +593,12 @@ export function AiRecruitmentWorkflowAnimation() {
                 border: '1px solid rgba(11, 18, 32, 0.05)',
               }}
             >
-              <div
+              <div className='flex justify-center items-center mb-2'
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
                   fontSize: '0.76rem',
-                  marginBottom: '8px',
                 }}
               >
-                <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className='flex items-center gap-1.5' style={{ color: '#475569' }}>
                   <span
                     style={{
                       width: '6px',
@@ -677,18 +642,14 @@ export function AiRecruitmentWorkflowAnimation() {
               </div>
 
               {/* Extraction criteria chips */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+              <div className='flex flex-col gap-2 '>
                 {candidate.extractedHighlights.map((item, idx) => (
-                  <div
+                  <div className='flex items-center gap-1 px-1 py-2'
                     key={idx}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
                       fontSize: '0.72rem',
                       color: parseProgress >= 50 ? '#334155' : '#94A3B8',
                       background: '#F8FAFC',
-                      padding: '4px 8px',
                       borderRadius: '6px',
                       transition: 'all 0.3s ease',
                       opacity: parseProgress >= (idx + 1) * 25 ? 1 : 0.4,
@@ -715,8 +676,8 @@ export function AiRecruitmentWorkflowAnimation() {
 
         {/* ════ STAGE 1: AI Screening & Criteria Breakdown ════ */}
         {stage === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className='flex flex-col gap-2.5'>
+            <div className='flex flex-col gap-2'>
               <div>
                 <span
                   style={{
@@ -733,17 +694,13 @@ export function AiRecruitmentWorkflowAnimation() {
                   Evaluating {candidate.name} against rubric
                 </div>
               </div>
-              <span
+              <span className='flex items-center gap-1 max-w-fit px-2 py-2'
                 style={{
                   fontSize: '0.72rem',
                   fontWeight: 600,
-                  padding: '3px 8px',
                   borderRadius: '999px',
                   background: 'rgba(34,207,255,0.12)',
                   color: '#0284C7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
                 }}
               >
                 <span
@@ -760,13 +717,9 @@ export function AiRecruitmentWorkflowAnimation() {
             </div>
 
             {/* Evaluation Bars */}
-            <div
+            <div className='flex flex-col gap-2 px-3 py-3.5 '
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
                 background: '#FFFFFF',
-                padding: '12px 14px',
                 borderRadius: '12px',
                 border: '1px solid rgba(11, 18, 32, 0.06)',
               }}
@@ -778,10 +731,8 @@ export function AiRecruitmentWorkflowAnimation() {
                 { label: 'Culture / Role Fit', score: candidate.categoryScores.roleFit },
               ].map((metric, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <div
+                  <div className='flex justify-between'
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
                       fontSize: '0.74rem',
                       fontWeight: 500,
                       color: '#475569',
@@ -808,8 +759,8 @@ export function AiRecruitmentWorkflowAnimation() {
                           metric.score >= 80
                             ? 'linear-gradient(90deg, #4C6FFF, #22CFFF)'
                             : metric.score >= 65
-                            ? 'linear-gradient(90deg, #3B82F6, #60A5FA)'
-                            : 'linear-gradient(90deg, #94A3B8, #CBD5E1)',
+                              ? 'linear-gradient(90deg, #3B82F6, #60A5FA)'
+                              : 'linear-gradient(90deg, #94A3B8, #CBD5E1)',
                         borderRadius: '999px',
                         animation: `hbFillBar 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards`,
                       }}
@@ -823,30 +774,18 @@ export function AiRecruitmentWorkflowAnimation() {
 
         {/* ════ STAGE 2: Overall Match Score & AI Recommendation ════ */}
         {stage === 2 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div
+          <div className='flex flex-col gap-2.5'>
+            <div className='flex  gap-2 items-center px-3 py-3.5'
               style={{
-                display: 'grid',
                 gridTemplateColumns: '120px 1fr',
-                gap: '14px',
-                alignItems: 'center',
                 background: '#FFFFFF',
-                padding: '12px 14px',
                 borderRadius: '12px',
                 border: `1px solid ${tierColors.border}`,
                 boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
               }}
             >
               {/* Left: Circular Progress Gauge */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                }}
-              >
+              <div className='flex flex-col items-center justify-center relative'>
                 <svg width="68" height="68" viewBox="0 0 68 68">
                   <circle
                     cx="34"
@@ -906,8 +845,8 @@ export function AiRecruitmentWorkflowAnimation() {
 
               {/* Right: Score Tier & AI Insight */}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span
+                <div className='flex flex-col gap-2 mb-1'>
+                  <span className='max-w-fit'
                     style={{
                       fontSize: '0.72rem',
                       fontWeight: 700,
@@ -937,11 +876,9 @@ export function AiRecruitmentWorkflowAnimation() {
             </div>
 
             {/* Key Strengths & Missing Criteria */}
-            <div
+            <div className='grid gap-2'
               style={{
-                display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: '8px',
                 fontSize: '0.72rem',
               }}
             >
@@ -956,7 +893,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 <div style={{ fontWeight: 700, color: '#059669', marginBottom: '4px' }}>
                   ✓ Key Strengths
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <div className='flex flex-wrap gap-1'>
                   {candidate.strengths.map((s, idx) => (
                     <span
                       key={idx}
@@ -986,7 +923,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 <div style={{ fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>
                   ⚠ Gaps / Considerations
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <div className='flex flex-wrap gap-1'>
                   {candidate.missing.map((m, idx) => (
                     <span
                       key={idx}
@@ -1010,31 +947,23 @@ export function AiRecruitmentWorkflowAnimation() {
 
         {/* ════ STAGE 3: Decision & Interview Scheduling / Routing (COMPLETED STATE) ════ */}
         {stage === 3 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className='flex flex-col gap-2.5'>
             {/* Candidate Summary Row */}
-            <div
+            <div className='flex flex-col gap-1 px-2 py-3'
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
                 background: '#FFFFFF',
                 borderRadius: '10px',
                 border: '1px solid rgba(11, 18, 32, 0.06)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
+              <div className='flex items-center gap-2'>
+                <div className='grid place-items-center shrink-0 size-7'
                   style={{
-                    width: '28px',
-                    height: '28px',
                     borderRadius: '50%',
                     background: tierColors.bg,
                     color: tierColors.text,
                     fontWeight: 700,
                     fontSize: '0.75rem',
-                    display: 'grid',
-                    placeItems: 'center',
                   }}
                 >
                   {candidate.name
@@ -1050,7 +979,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className='flex items-center gap-2'>
                 <span
                   style={{
                     fontSize: '0.74rem',
@@ -1079,31 +1008,22 @@ export function AiRecruitmentWorkflowAnimation() {
 
             {/* Shortlisted Flow: Interview Scheduled Card */}
             {candidate.decision === 'shortlisted' && candidate.interview && (
-              <div
+              <div className='flex flex-col gap-1 px-3 py-3.5'
                 style={{
                   background: 'linear-gradient(135deg, rgba(76,111,255,0.05), rgba(34,207,255,0.05))',
-                  padding: '12px 14px',
                   borderRadius: '12px',
                   border: '1px solid rgba(76,111,255,0.18)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
                   animation: 'hbSlideUp 0.35s cubic-bezier(0.2, 0.8, 0.3, 1)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
+                <div className='flex gap-2.5'>
+                  <div className='grid place-items-center shrink-0 size-9'
                     style={{
-                      width: '36px',
-                      height: '36px',
                       borderRadius: '8px',
                       background: '#FFFFFF',
                       border: '1px solid rgba(76,111,255,0.2)',
-                      display: 'grid',
-                      placeItems: 'center',
                       color: '#4C6FFF',
                       fontSize: '16px',
-                      flexShrink: 0,
                     }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1126,16 +1046,12 @@ export function AiRecruitmentWorkflowAnimation() {
                   </div>
                 </div>
 
-                <div
+                <div className='flex items-center gap-2 px-2 py-2 w-full'
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
                     fontSize: '0.72rem',
                     fontWeight: 700,
                     color: '#059669',
                     background: '#FFFFFF',
-                    padding: '5px 10px',
                     borderRadius: '8px',
                     border: '1px solid rgba(16, 185, 129, 0.25)',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
@@ -1148,30 +1064,21 @@ export function AiRecruitmentWorkflowAnimation() {
 
             {/* Non-shortlisted Flow: Review / Pool Routing */}
             {candidate.decision !== 'shortlisted' && (
-              <div
+              <div className='flex flex-col gap-2 px-3 py-3.5'
                 style={{
                   background: '#FFFFFF',
-                  padding: '12px 14px',
                   borderRadius: '12px',
                   border: '1px solid rgba(100, 116, 139, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
                   animation: 'hbSlideUp 0.35s cubic-bezier(0.2, 0.8, 0.3, 1)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
+                <div className='flex gap-2.5'>
+                  <div className='grid place-items-center shrink-0 size-9'
                     style={{
-                      width: '36px',
-                      height: '36px',
                       borderRadius: '8px',
                       background: '#F8FAFC',
                       border: '1px solid #E2E8F0',
-                      display: 'grid',
-                      placeItems: 'center',
                       color: '#64748B',
-                      flexShrink: 0,
                     }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1207,30 +1114,24 @@ export function AiRecruitmentWorkflowAnimation() {
             )}
 
             {/* Resting State Interactive Action Banner */}
-            <div
+            <div className='flex flex-col gap-2 px-2 py-3'
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
                 background: '#F8FAFC',
                 borderRadius: '8px',
                 border: '1px dashed rgba(11, 18, 32, 0.12)',
                 fontSize: '0.74rem',
               }}
             >
-              <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className='flex items-center gap-1.5'
+               style={{ color: '#64748B' }}>
                 <span style={{ color: '#10B981', fontWeight: 700 }}>✓</span>
                 Workflow finished for {candidate.name}
               </span>
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div className='flex flex-col gap-2'>
                 <button
                   onClick={() => handleReScan()}
+                  className='inline-flex items-center gap-1 px-2 py-2'
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
                     borderRadius: '6px',
                     border: '1px solid rgba(76, 111, 255, 0.3)',
                     background: '#FFFFFF',
@@ -1244,11 +1145,8 @@ export function AiRecruitmentWorkflowAnimation() {
                 </button>
                 <button
                   onClick={handleNextCandidate}
+                  className='inline-flex items-center justify-between gap-1 px-2 py-2'
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
                     borderRadius: '6px',
                     border: 'none',
                     background: 'linear-gradient(90deg, #4C6FFF, #22CFFF)',
@@ -1267,11 +1165,9 @@ export function AiRecruitmentWorkflowAnimation() {
       </div>
 
       {/* ── Bottom Pipeline Progress Stepper ── */}
-      <div
+      <div className='flex justify-between gap-1 px-2.5 py-4'
         style={{
-          display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          padding: '10px 16px',
           background: '#FFFFFF',
           borderTop: '1px solid rgba(11, 18, 32, 0.06)',
           fontSize: '0.72rem',
@@ -1290,32 +1186,19 @@ export function AiRecruitmentWorkflowAnimation() {
           const isCompleted = stage > item.step
           const isActive = stage === item.step || (item.step === 3 && stage >= 3)
           return (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '2px',
-                textAlign: 'center',
-                position: 'relative',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span
+            <div className='flex flex-col items-center gap-0.5 text-center relative'
+              key={idx}>
+              <div className='flexx items-center gap-1'>
+                <span className='grid place-items-center size-3.5'
                   style={{
-                    width: '14px',
-                    height: '14px',
                     borderRadius: '50%',
-                    display: 'grid',
-                    placeItems: 'center',
                     fontSize: '0.62rem',
                     fontWeight: 700,
                     background: isCompleted
                       ? '#10B981'
                       : isActive
-                      ? '#4C6FFF'
-                      : '#E2E8F0',
+                        ? '#4C6FFF'
+                        : '#E2E8F0',
                     color: isCompleted || isActive ? '#FFFFFF' : '#94A3B8',
                     transition: 'all 0.3s ease',
                   }}

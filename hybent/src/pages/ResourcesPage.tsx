@@ -12,7 +12,7 @@ export default function ResourcesPage() {
         </div>
       </section>
 
-      <section className="section" id="blog">
+      <section className="section section--tight-pt-none" id="blog">
         <div className="wrap">
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "24px", flexWrap: "wrap", marginBottom: "36px" }} data-rv="up">
             <div>
@@ -86,9 +86,9 @@ export default function ResourcesPage() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--tight-pt-none">
         <div className="wrap" style={{ maxWidth: "900px" }}>
-          <div className="section-head center" data-rv="up">
+          <div className="section-head" data-rv="up">
             <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>FAQ</span></p>
             <h2 className="h-lg">The questions we get asked first</h2>
           </div>

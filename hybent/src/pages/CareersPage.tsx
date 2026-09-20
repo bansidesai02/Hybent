@@ -12,7 +12,7 @@ export default function CareersPage() {
         </div>
       </section>
 
-      <section className="section" id="careers">
+      <section className="section section--tight-pt-none" id="careers">
         <div className="wrap">    <div style={{ marginBottom: "clamp(28px,4vw,48px)" }} data-rv="up"><img className="shot shot--art" src="/assets/shot-art.webp" width="760" height="1013" alt="Illustration of an AI-assisted software workspace with analytics, tasks and team members" loading="lazy" decoding="async" /></div>
           <div className="grid" style={{ gap: "12px" }} data-rv="up">
             <a className="role" href="/contact"><span><h4>Full-Stack Engineer, Hybent Hiring</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
@@ -29,9 +29,9 @@ export default function CareersPage() {
         </div>
       </section>
 
-      <section className="section section--tight">
+      <section className="section section--tight section--tight-pt-none">
         <div className="wrap">
-          <div className="section-head center" data-rv="up">
+          <div className="section-head" data-rv="up">
             <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>Culture</span></p>
             <h2 className="h-md">How we work</h2>
           </div>
