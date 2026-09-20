@@ -75,6 +75,15 @@ const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
     ],
   },
   {
+    title: 'Source & references',
+    fields: [
+      { key: 'source', label: 'Source', placeholder: 'e.g. LinkedIn, Referral, Job board', alwaysShow: true },
+      { key: 'reference', label: 'Reference / referral', placeholder: 'e.g. Referrer name' },
+      { key: 'hr_name', label: 'HR name', placeholder: 'e.g. Recruiter name' },
+      { key: 'sr_no', label: 'Serial no', placeholder: 'e.g. 1' },
+    ],
+  },
+  {
     title: 'Salary & joining',
     fields: [
       { key: 'current_ctc', label: 'Current salary', placeholder: 'e.g. ₹22,00,000' },
@@ -97,15 +106,6 @@ const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
     fields: [
       { key: 'remarks_hr', label: 'Remarks (HR)', placeholder: 'HR remarks…', multiline: true },
       { key: 'remarks_technical', label: 'Remarks (technical)', placeholder: 'Technical remarks…', multiline: true },
-    ],
-  },
-  {
-    title: 'Source & references',
-    fields: [
-      { key: 'source', label: 'Source', placeholder: 'e.g. LinkedIn, Referral, Job board', alwaysShow: true },
-      { key: 'reference', label: 'Reference / referral', placeholder: 'e.g. Referrer name' },
-      { key: 'hr_name', label: 'HR name', placeholder: 'e.g. Recruiter name' },
-      { key: 'sr_no', label: 'Serial no', placeholder: 'e.g. 1' },
     ],
   },
   {
