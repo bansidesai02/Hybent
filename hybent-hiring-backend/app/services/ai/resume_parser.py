@@ -25,6 +25,16 @@ logger = logging.getLogger(__name__)
 
 groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
 
+try:
+    import google.generativeai as genai
+    if settings.gemini_api_key:
+        genai.configure(api_key=settings.gemini_api_key)
+except Exception as exc:
+    logger.warning(f"Gemini configuration error: {exc}")
+    genai = None
+
+GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
+
 
 # ─── Pydantic schema ────────────────────────────────────────────────────────────
 
@@ -480,7 +490,7 @@ def _call_groq_with_retry(
 
 def _verify_is_resume_with_keywords(text: str) -> bool:
     text_lower = text.lower()
-    
+
     # Exclude government IDs and unrelated documents by checking for specific words
     blacklist_patterns = [
         r"government of india", r"permanent account number", r"aadhaar", r"income tax department",
@@ -493,47 +503,94 @@ def _verify_is_resume_with_keywords(text: str) -> bool:
             logger.info(f"Document validation failed: matched blacklist pattern '{pattern}'")
             return False
 
+    # Many resume templates (esp. Canva-style designs exported to PDF) render
+    # section headings with wide letter-spacing, e.g. "E D U C A T I O N".
+    # pdfplumber preserves that as literal spaces between characters, so a
+    # plain `"education" in text` substring check never matches the heading
+    # even though the document plainly is a resume — this legitimate resume
+    # was being rejected for exactly that reason. Matching against a
+    # whitespace-collapsed copy of the text catches both the normal case and
+    # this letter-spaced-heading case, without weakening the check (a random
+    # non-resume document collapsing to contain these specific keywords by
+    # coincidence is effectively impossible).
+    text_collapsed = re.sub(r"\s+", "", text_lower)
+
     # Resumes typically contain a combination of keywords from different sections
     resume_keywords = [
-        "experience", "education", "skills", "projects", "employment", 
+        "experience", "education", "skills", "projects", "employment",
         "summary", "work history", "academic", "qualifications", "curriculum vitae", "resume"
     ]
-    matches = sum(1 for kw in resume_keywords if kw in text_lower)
+    matches = sum(
+        1 for kw in resume_keywords
+        if kw in text_lower or kw.replace(" ", "") in text_collapsed
+    )
     # If it has at least 2 common resume section keywords, consider it a resume
     is_res = matches >= 2
     logger.info(f"Document keyword validation result: matches={matches}, is_resume={is_res}")
     return is_res
 
 
+_DOCUMENT_CLASSIFIER_PROMPT = """
+You are an expert AI document classifier. Analyze the text below and determine if it is a genuine professional resume or curriculum vitae (CV).
+
+A genuine resume/CV MUST contain details about a person's professional history, such as their work experience, professional skills, education, or project history.
+Section headings may have unusual letter-spacing (e.g. "E D U C A T I O N") due to PDF export artifacts — do not treat that as a reason to reject.
+
+You MUST reject documents that are NOT resumes, including:
+- Identity cards / government documents (e.g. Aadhaar, PAN, Passports, Driving Licenses, SSNs)
+- Certificates (e.g. course completion, degree certificates)
+- Academic transcripts / Marksheets
+- Business documents (e.g. Invoices, receipts, purchase orders, offer letters, employment contracts)
+- Random letters, articles, essays, or unrelated text.
+
+Return ONLY a valid JSON object with the following structure:
+{
+  "is_resume": true or false,
+  "reason": "a brief explanation of your decision"
+}
+
+Text to analyze:
+"""
+
+
+def _verify_is_resume_with_gemini(text: str) -> Optional[bool]:
+    """Secondary classifier — only reached when Groq (all configured keys,
+    every model) has failed. Returns None (not False!) on any failure so the
+    caller falls through to the keyword check instead of wrongly treating
+    'Gemini unavailable' as 'not a resume'."""
+    if genai is None or not settings.gemini_api_key:
+        return None
+    try:
+        model = genai.GenerativeModel(GEMINI_FALLBACK_MODEL)
+        response = model.generate_content(
+            _DOCUMENT_CLASSIFIER_PROMPT + text[:4000],
+            generation_config={"response_mime_type": "application/json", "temperature": 0.1},
+        )
+        if response and response.text:
+            cleaned = response.text.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`").removeprefix("json").strip()
+            res = json.loads(cleaned)
+            is_res = res.get("is_resume", False)
+            logger.info(f"Gemini document validation result: is_resume={is_res}, reason={res.get('reason')}")
+            return is_res
+    except Exception as e:
+        logger.warning(f"Gemini document validation failover error: {e}")
+    return None
+
+
 def _verify_is_resume_with_llm(text: str) -> bool:
     if not groq_client:
+        gemini_result = _verify_is_resume_with_gemini(text)
+        if gemini_result is not None:
+            return gemini_result
         return _verify_is_resume_with_keywords(text)
-    
-    prompt = """
-    You are an expert AI document classifier. Analyze the text below and determine if it is a genuine professional resume or curriculum vitae (CV).
 
-    A genuine resume/CV MUST contain details about a person's professional history, such as their work experience, professional skills, education, or project history.
-
-    You MUST reject documents that are NOT resumes, including:
-    - Identity cards / government documents (e.g. Aadhaar, PAN, Passports, Driving Licenses, SSNs)
-    - Certificates (e.g. course completion, degree certificates)
-    - Academic transcripts / Marksheets
-    - Business documents (e.g. Invoices, receipts, purchase orders, offer letters, employment contracts)
-    - Random letters, articles, essays, or unrelated text.
-
-    Return ONLY a valid JSON object with the following structure:
-    {
-      "is_resume": true or false,
-      "reason": "a brief explanation of your decision"
-    }
-
-    Text to analyze:
-    """
     try:
         completion = groq_client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that outputs ONLY valid JSON."},
-                {"role": "user", "content": prompt + text[:4000]},
+                {"role": "user", "content": _DOCUMENT_CLASSIFIER_PROMPT + text[:4000]},
             ],
             model=get_best_groq_model(groq_client),
             response_format={"type": "json_object"},
@@ -547,8 +604,12 @@ def _verify_is_resume_with_llm(text: str) -> bool:
             logger.info(f"Document validation result: is_resume={is_res}, reason={res.get('reason')}")
             return is_res
     except Exception as e:
-        logger.error(f"Error during document validation: {e}")
-    
+        logger.error(f"Error during document validation (Groq): {e}. Trying Gemini failover...")
+
+    gemini_result = _verify_is_resume_with_gemini(text)
+    if gemini_result is not None:
+        return gemini_result
+
     return _verify_is_resume_with_keywords(text)
 
 
