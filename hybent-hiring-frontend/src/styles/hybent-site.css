@@ -125,6 +125,8 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .wrap{width:100%;max-width:var(--maxw);margin-inline:auto;padding-inline:var(--pad)}
 .hb-site .section{padding-block:clamp(72px,9vw,132px);position:relative}
 .hb-site .section--tight{padding-block:clamp(56px,6vw,88px)}
+.hb-site .section--tight-py-none{padding-block:0}
+.hb-site .section--tight-pt-none{padding-top:0;}
 .hb-site .grid{display:grid;gap:clamp(16px,2vw,24px)}
 .hb-site .g2{grid-template-columns:repeat(2,1fr)}
 .hb-site .g3{grid-template-columns:repeat(3,1fr)}
@@ -197,6 +199,10 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .btn-sm{--bh:38px;padding:0 16px;font-size:.86rem}
 .hb-site .btn .arw{transition:transform .3s cubic-bezier(.2,.8,.3,1)}
 .hb-site .btn:hover .arw{transform:translateX(4px)}
+
+@media (max-width:480px){
+  .hb-site .btn {font-size: 0.75rem;}
+}
 
 .hb-site .link-arrow{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:.93rem;color:var(--text)}
 .hb-site .link-arrow svg{transition:transform .3s}
@@ -345,7 +351,7 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .drawer.open{opacity:1;visibility:visible;transform:none}
 .hb-site .drawer a{display:block;padding:15px 4px;font-family:var(--f-display);font-size:1.28rem;font-weight:500;border-bottom:1px solid var(--border)}
 .hb-site .drawer .drawer__cta{display:flex;flex-direction:column;gap:12px;margin-top:26px}
-.hb-site .drawer .drawer__cta a{border:0;padding:0}
+.hb-site .drawer .drawer__cta a{display: flex;justify-content: center;align-items: center; border:0;padding:0}
 /* ============================ HERO ============================ */
 /* The orbs still get clipped horizontally (they hang off both edges and would
    otherwise widen the page), but never vertically: cutting them at the hero's
@@ -360,9 +366,9 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 
 .hb-site .hero__grid{display:grid;grid-template-columns:1.06fr .94fr;gap:clamp(30px,4.5vw,64px);align-items:center}
 .hb-site .hero__pill{
-  display:inline-flex;align-items:center;gap:10px;height:34px;padding:0 8px 0 8px;border-radius:var(--r-full);
+  display:inline-flex;align-items:center;gap:10px;min-height:34px;padding:4px 8px;border-radius:var(--r-full);
   background:rgba(255,255,255,.05);border:1px solid var(--border-strong);backdrop-filter:blur(12px);
-  font-size:.82rem;color:#C4CCDC;margin-bottom:26px;
+  font-size:.82rem;line-height: 1.4; color:#C4CCDC;margin-bottom:26px;
 }
 .hb-site .hero__pill b{
   display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:var(--r-full);

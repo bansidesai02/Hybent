@@ -14,7 +14,7 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      <section className="section" id="security">
+      <section className="section section--tight-pt-none" id="security">
         <div className="wrap">    <div className="figrow" data-rv="up"><div className="figpanel"><svg className="fig" role="img" aria-label="Every product inherits the same encryption, access control, audit and explainability controls" viewBox="0 0 460 250" width="460" height="250">
             <g>
               <rect x="88" y="18" width="128" height="34" rx="10" fill="var(--surface)" stroke="var(--border-strong)" />

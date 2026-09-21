@@ -14,7 +14,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section className="section" id="contact">
+      <section className="section section--tight-pt-none" id="contact">
         <div className="wrap">
           <div className="split" style={{ alignItems: "start" }}>
             <div data-rv="left">

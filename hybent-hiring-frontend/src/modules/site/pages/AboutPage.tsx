@@ -14,7 +14,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--tight-pt-none">
         <div className="wrap">
           <div className="grid g2" style={{ gap: "clamp(16px,2vw,24px)", marginBottom: "24px" }}>
             <article className="card" data-rv="left" style={{ padding: "clamp(28px,3.4vw,44px)" }}>
@@ -60,7 +60,7 @@ export default function AboutPage() {
               </div>
             </div>
 
-          <div className="section-head center" data-rv="up" style={{ marginTop: "clamp(48px,6vw,80px)" }}>
+          <div className="section-head" data-rv="up" style={{ marginTop: "clamp(48px,6vw,80px)" }}>
             <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>Core values</span></p>
             <h2 className="h-lg">Six principles that survive contact with a deadline</h2>
           </div>
@@ -115,7 +115,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="section" id="timeline">
+      <section className="section section--tight-pt-none" id="timeline">
         <div className="wrap split" style={{ alignItems: "start" }}>
           <div data-rv="left">
             <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Our story</span></p>
@@ -134,7 +134,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--tight-pt-none">
         <div className="wrap">
           <div className="split" style={{ alignItems: "start" }}>
             <div data-rv="left">
