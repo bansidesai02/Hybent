@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
@@ -62,9 +62,13 @@ import {
  *
  * - `CustomNumberSelector` — 86 lines building an hour picker, a minute picker
  *   and an AM/PM toggle out of `<div onClick>` inside a `position:absolute`
- *   popover, none of it reachable by keyboard. It is now one
- *   `<input type="time">`, which is keyboard- and screen-reader-correct for
- *   free and renders as the platform time picker on a phone.
+ *   popover, none of it reachable by keyboard. It became `<input type="time">`,
+ *   keyboard- and screen-reader-correct for free — but its dropdown is the
+ *   browser's own time-spinner and cannot be restyled (square corners on
+ *   Windows/Chrome, off-brand everywhere). `TimePicker` below replaces it
+ *   with a `combobox`/`listbox` pair built on the same markup pattern as the
+ *   "Available slots" grid: fully keyboard-navigable (arrows, Home/End,
+ *   Enter, Escape) and styled with the design system's own tokens.
  * - `MultiSelectPanelists` — a fake `<select>` built from divs. It is now a
  *   real `fieldset` of checkboxes. Interviewer lists are short; a popover was
  *   buying nothing and costing every keyboard user the control.
@@ -128,6 +132,185 @@ function formatSlot(time: string) {
   const [hh, mm] = time.split(':')
   const h = parseInt(hh, 10)
   return `${h % 12 || 12}:${mm} ${h >= 12 ? 'PM' : 'AM'}`
+}
+
+const HOURS_12 = Array.from({ length: 12 }, (_, i) => i + 1) // 1..12
+const MINUTES_5 = Array.from({ length: 12 }, (_, i) => i * 5) // 0,5,…,55
+const PERIODS = ['AM', 'PM'] as const
+
+function to12Hour(value: string) {
+  const [hh, mm] = value.split(':').map(Number)
+  const period = hh >= 12 ? 'PM' : 'AM'
+  const hour = hh % 12 || 12
+  return { hour, minute: mm, period: period as 'AM' | 'PM' }
+}
+
+function to24Hour(hour: number, minute: number, period: 'AM' | 'PM') {
+  const hh = period === 'AM' ? hour % 12 : (hour % 12) + 12
+  return `${String(hh).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+/** One column of a spinner: a vertically-scrolling listbox with roving focus. */
+function SpinnerColumn<T extends string | number>({
+  label,
+  options,
+  value,
+  format,
+  onSelect,
+}: {
+  label: string
+  options: readonly T[]
+  value: T
+  format: (v: T) => string
+  onSelect: (v: T) => void
+}) {
+  const listRef = useRef<HTMLUListElement>(null)
+  const activeIndex = Math.max(0, options.indexOf(value))
+
+  useEffect(() => {
+    const el = listRef.current?.children[activeIndex] as HTMLElement | undefined
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex])
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      onSelect(options[Math.min(activeIndex + 1, options.length - 1)])
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      onSelect(options[Math.max(activeIndex - 1, 0)])
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      onSelect(options[0])
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      onSelect(options[options.length - 1])
+    }
+  }
+
+  return (
+    <ul
+      ref={listRef}
+      role="listbox"
+      aria-label={label}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="max-h-[180px] w-16 shrink-0 overflow-y-auto rounded-hb-sm border border-hb-border bg-hb-surface p-1 focus:outline-none focus-visible:shadow-hb-ring"
+    >
+      {options.map((opt) => (
+        <li
+          key={opt}
+          role="option"
+          aria-selected={opt === value}
+          onMouseDown={(e) => {
+            e.preventDefault()
+            onSelect(opt)
+          }}
+          className={
+            'cursor-pointer rounded-hb-xs px-2 py-1.5 text-center text-hb-sm transition-colors duration-hb ' +
+            (opt === value ? 'bg-hb-blue/10 font-semibold text-hb-blue' : 'text-hb-muted hover:bg-hb-surface-2')
+          }
+        >
+          {format(opt)}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * A custom replacement for `<input type="time">`.
+ *
+ * The native input is keyboard- and screen-reader-correct (see the phase-6
+ * note above), but its popup is the OS's own time-spinner and cannot be
+ * restyled — square corners on Windows/Chrome regardless of the rest of the
+ * design system. This rebuilds the same hour / minute / AM-PM layout the
+ * pre-phase-6 `CustomNumberSelector` had, but as real `listbox`/`option`
+ * markup (arrow-key, Home/End and click all work, and each column is a
+ * proper accessible widget) styled with the design system's own tokens.
+ */
+function TimePicker({ id, value, onChange }: { id: string; value: string; onChange: (time: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const { hour, minute, period } = to12Hour(value)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const setHour = (h: number) => onChange(to24Hour(h, minute, period))
+  const setMinute = (m: number) => onChange(to24Hour(hour, m, period))
+  const setPeriod = (p: 'AM' | 'PM') => onChange(to24Hour(hour, minute, p))
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setOpen(true)
+          }
+        }}
+        className="mt-2 flex h-[42px] w-full items-center justify-between rounded-hb-sm border border-hb-border bg-hb-surface px-[13px] font-body text-hb-body text-hb-text transition-[border-color,box-shadow] duration-hb ease-hb focus:border-hb-blue/60 focus:shadow-hb-ring focus:outline-none"
+      >
+        <span>{formatSlot(value)}</span>
+        <Clock size={16} className="text-hb-dim" aria-hidden />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 flex gap-2 rounded-hb-sm border border-hb-border bg-hb-elevated p-2 shadow-hb-card">
+          <SpinnerColumn label="Hour" options={HOURS_12} value={hour} format={(h) => String(h)} onSelect={setHour} />
+          <SpinnerColumn
+            label="Minute"
+            options={MINUTES_5}
+            value={minute}
+            format={(m) => String(m).padStart(2, '0')}
+            onSelect={setMinute}
+          />
+          <div role="radiogroup" aria-label="AM or PM" className="flex shrink-0 flex-col gap-1 self-start">
+            {PERIODS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                role="radio"
+                aria-checked={p === period}
+                onClick={() => setPeriod(p)}
+                className={
+                  'rounded-hb-xs border px-3 py-1.5 text-hb-sm font-semibold transition-colors duration-hb focus:outline-none focus-visible:shadow-hb-ring ' +
+                  (p === period
+                    ? 'border-hb-blue/50 bg-hb-blue/10 text-hb-blue'
+                    : 'border-hb-border bg-hb-surface text-hb-muted hover:text-hb-text')
+                }
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ── Scorecards ─────────────────────────────────────────────────────────────── */
@@ -458,14 +641,7 @@ function TimeSlots({
         <div className="flex items-end gap-3">
           <div className="flex-1">
             <Label htmlFor="custom-time">Or pick any time</Label>
-            <input
-              id="custom-time"
-              type="time"
-              step={300}
-              value={selected || '09:00'}
-              onChange={(e) => onSelect(e.target.value)}
-              className="mt-2 h-[42px] w-full rounded-hb-sm border border-hb-border bg-hb-surface px-[13px] font-body text-hb-body text-hb-text transition-[border-color,box-shadow] duration-hb ease-hb focus:border-hb-blue/60 focus:shadow-hb-ring focus:outline-none"
-            />
+            <TimePicker id="custom-time" value={selected || '09:00'} onChange={onSelect} />
           </div>
           <Badge tone="info" className="mb-2.5">
             {formatSlot(selected || '09:00')}
