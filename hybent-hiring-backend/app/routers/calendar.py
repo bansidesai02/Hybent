@@ -53,11 +53,11 @@ async def google_calendar_callback(
     """Callback for Google OAuth2. Saves the refresh token to the user."""
     if error:
         logger.error(f"Google Calendar OAuth error: {error}")
-        return RedirectResponse(url=f"{settings.frontend_url}/recruiter?error=calendar_auth_failed")
+        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")
 
     if not code:
         logger.error("No authorization code received in callback")
-        return RedirectResponse(url=f"{settings.frontend_url}/recruiter?error=calendar_auth_failed")
+        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")
 
     try:
         # Exchange code for tokens using httpx directly
@@ -77,7 +77,7 @@ async def google_calendar_callback(
             
             if token_response.status_code != 200:
                 logger.error(f"Failed to exchange code for token: {token_response.text}")
-                return RedirectResponse(url=f"{settings.frontend_url}/recruiter?error=calendar_auth_failed")
+                return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")
             
             tokens = token_response.json()
             refresh_token = tokens.get("refresh_token")
@@ -97,8 +97,8 @@ async def google_calendar_callback(
             else:
                 logger.warning(f"No refresh token returned for user {state}. Ensure prompt='consent' was used.")
                     
-        return RedirectResponse(url=f"{settings.frontend_url}/recruiter?success=calendar_connected")
-        
+        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?success=calendar_connected")
+
     except Exception as e:
         logger.error(f"Google Calendar callback failed: {e}")
-        return RedirectResponse(url=f"{settings.frontend_url}/recruiter?error=calendar_auth_failed")
+        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")

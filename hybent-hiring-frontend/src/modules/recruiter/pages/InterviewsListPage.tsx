@@ -981,10 +981,34 @@ function InterviewRow({
 /* ── Page ───────────────────────────────────────────────────────────────────── */
 
 export default function InterviewsListPage() {
-  const { user } = useAuthStore()
+  const { user, setUser } = useAuthStore()
   const queryClient = useQueryClient()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const preselectedCandidateId = searchParams.get('candidateId')
+
+  /* Landing spot for the Google Calendar OAuth callback redirect
+     (`GET /v1/calendar/callback` in the backend) — it appends `success` or
+     `error` and sends the browser back here. Report it, then drop the param
+     and refresh the user so the "Calendar synced" badge above reflects it
+     without a manual reload. */
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+    if (!success && !error) return
+
+    if (success === 'calendar_connected') {
+      toast.success('Google Calendar connected')
+      authApi.me().then((res) => setUser(res.data)).catch(() => {})
+    } else if (error === 'calendar_auth_failed') {
+      toast.error('Could not connect your calendar')
+    }
+
+    const next = new URLSearchParams(searchParams)
+    next.delete('success')
+    next.delete('error')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [selectedTime, setSelectedTime] = useState('')

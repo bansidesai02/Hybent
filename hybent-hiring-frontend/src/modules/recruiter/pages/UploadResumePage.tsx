@@ -97,6 +97,20 @@ const ANALYSIS_STEPS = [
   },
 ]
 
+/** "Analysing" with three dots that pulse in sequence, instead of a static string. */
+function AnalysingLabel() {
+  return (
+    <span className="inline-flex items-baseline">
+      Analysing
+      {[0, 1, 2].map((i) => (
+        <span key={i} className="animate-pulse-slow" style={{ animationDelay: `${i * 0.2}s` }}>
+          .
+        </span>
+      ))}
+    </span>
+  )
+}
+
 /* â”€â”€ Error boundary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 class ErrorBoundary extends Component<
@@ -664,14 +678,29 @@ function UploadResume() {
             <div className="space-y-hb-4">
               <Card padding="none">
                 <div className="flex items-center gap-3 border-b border-hb-border bg-hb-surface-2 px-5 py-3.5">
-                  <Sparkles size={16} aria-hidden className="text-hb-cyan" />
+                  <Sparkles
+                    size={16}
+                    aria-hidden
+                    className={'text-hb-cyan' + (stage === 'done' ? '' : ' animate-pulse-slow')}
+                  />
                   <h2 className="font-display text-hb-h3 text-hb-text">
-                    {stage === 'done' ? 'Analysis complete' : 'Analysing...'}
+                    {stage === 'done' ? 'Analysis complete' : <AnalysingLabel />}
                   </h2>
                   <span className="ml-auto font-mono text-hb-micro tabular-nums text-hb-muted">
                     {stage === 'done' ? ANALYSIS_STEPS.length : completedSteps} /{' '}
                     {ANALYSIS_STEPS.length}
                   </span>
+                </div>
+
+                {/* Fills as steps complete, so waiting has something to watch
+                    besides the list below. */}
+                <div className="h-[3px] w-full bg-hb-surface-2">
+                  <div
+                    className="h-full bg-hb-grad transition-[width] duration-hb-slow ease-hb"
+                    style={{
+                      width: `${((stage === 'done' ? ANALYSIS_STEPS.length : completedSteps) / ANALYSIS_STEPS.length) * 100}%`,
+                    }}
+                  />
                 </div>
 
                 <ol className="px-5 py-2">
@@ -683,20 +712,34 @@ function UploadResume() {
                         key={step.id}
                         className="flex items-start gap-3 border-b border-hb-border py-3 last:border-0"
                       >
-                        <IconTile size="sm" className={running ? 'animate-pulse' : undefined}>
-                          {step.icon}
-                        </IconTile>
+                        <span className="relative inline-flex shrink-0">
+                          {running && (
+                            <span
+                              aria-hidden
+                              className="absolute -inset-1 rounded-full border-2 border-hb-cyan/30 border-t-hb-cyan animate-spin"
+                            />
+                          )}
+                          <IconTile
+                            size="sm"
+                            className={
+                              'transition-transform duration-hb ease-hb ' +
+                              (done ? 'scale-100' : running ? 'scale-105' : 'scale-95 opacity-60')
+                            }
+                          >
+                            {step.icon}
+                          </IconTile>
+                        </span>
                         <div className="min-w-0">
                           <p
                             className={
-                              'text-hb-sm font-semibold ' +
+                              'text-hb-sm font-semibold transition-colors duration-hb ' +
                               (done ? 'text-hb-text' : running ? 'text-hb-cyan' : 'text-hb-dim')
                             }
                           >
                             {step.label}
                           </p>
                           {done && result && (
-                            <p className="mt-0.5 truncate text-hb-xs text-hb-muted">
+                            <p className="mt-0.5 animate-fade-in truncate text-hb-xs text-hb-muted">
                               {step.detail(result, scoring ?? undefined)}
                             </p>
                           )}
