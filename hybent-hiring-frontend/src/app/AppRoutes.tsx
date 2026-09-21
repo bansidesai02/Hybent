@@ -47,6 +47,9 @@ const HybentCreatePasswordRoute = lazy(() => import('@/modules/site/pages/Hybent
 const OnboardingPage = lazy(() => import('@/modules/portal/pages/candidate/OnboardingPage'))
 const PreScreeningPage = lazy(() => import('@/modules/portal/pages/candidate/PreScreeningPage'))
 
+/* ── Public, no-login apply link (e.g. attached to a LinkedIn post) ───────── */
+const PublicApplyPage = lazy(() => import('@/modules/apply/pages/PublicApplyPage'))
+
 /* ── Design system review surface ─────────────────────────────────────────────
    The condition wraps the `import()` itself, not just the route. Vite replaces
    `import.meta.env.DEV` with a literal at build time, so in production the
@@ -134,6 +137,9 @@ export default function AppRoutes() {
       {/* ── Token-gated candidate flows ── */}
       <Route path="/onboarding/:token" element={<OnboardingPage />} />
       <Route path="/pre-screening/:token" element={<PreScreeningPage />} />
+
+      {/* ── Public apply link — no login required to view or submit ── */}
+      <Route path="/apply/:orgSlug/:jobId" element={<PublicApplyPage />} />
 
       {/* ── Design system, dev only ── */}
       {kitchenSinkRoute}
