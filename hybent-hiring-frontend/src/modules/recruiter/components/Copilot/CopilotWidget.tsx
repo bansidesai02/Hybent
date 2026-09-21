@@ -163,7 +163,7 @@ interface CandidateCardData {
   salary?: string
 }
 
-function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardData; onViewProfile?: (email: string) => void }) {
+function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardData; onViewProfile?: (name: string) => void }) {
   const initials = candidate.name
     .split(' ')
     .map((n) => n[0])
@@ -212,7 +212,24 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
   ].filter(Boolean) as Array<{ icon: React.ReactNode; value: string; truncate?: boolean }>
 
   return (
-    <Card variant="interactive" padding="compact" className="w-full">
+    <Card
+      variant="interactive"
+      padding="compact"
+      className="w-full"
+      role={onViewProfile ? 'button' : undefined}
+      tabIndex={onViewProfile ? 0 : undefined}
+      onClick={onViewProfile ? () => onViewProfile(candidate.name) : undefined}
+      onKeyDown={
+        onViewProfile
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onViewProfile(candidate.name)
+              }
+            }
+          : undefined
+      }
+    >
       <div className="flex items-center gap-3">
         <Avatar name={candidate.name} size="md" />
         <div className="min-w-0 flex-1">
@@ -249,7 +266,7 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
         </ul>
       )}
 
-      {(candidate.stage || (onViewProfile && candidate.email)) && (
+      {(candidate.stage || onViewProfile) && (
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-hb-border pt-2.5">
           {candidate.stage ? (
             <span
@@ -261,13 +278,13 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
           ) : (
             <span />
           )}
-          {onViewProfile && candidate.email && (
+          {onViewProfile && (
             <Button
               size="sm"
               trailingIcon={<ArrowRight size={13} />}
               onClick={(e) => {
                 e.stopPropagation()
-                onViewProfile(candidate.email!)
+                onViewProfile(candidate.name)
               }}
             >
               View profile
@@ -1667,8 +1684,8 @@ export function CopilotWidget() {
         if (match) {
           card.name = match[1].replace(/\*\*/g, '').trim()
         }
-      } else if (trimmed.includes('✉️')) {
-        const match = trimmed.match(/✉️\s*(.*)/)
+      } else if (trimmed.includes('📧')) {
+        const match = trimmed.match(/📧\s*(.*)/)
         if (match) card.email = match[1].replace(/\*\*/g, '').trim()
       } else if (trimmed.includes('💼')) {
         const match = trimmed.match(/💼\s*(.*)/)
@@ -1685,8 +1702,8 @@ export function CopilotWidget() {
       } else if (trimmed.includes('⏳')) {
         const match = trimmed.match(/⏳\s*(.*)/)
         if (match) card.notice = match[1].replace(/\*\*/g, '').trim()
-      } else if (trimmed.includes('🔖')) {
-        const match = trimmed.match(/🔖\s*(.*)/)
+      } else if (trimmed.includes('📌')) {
+        const match = trimmed.match(/📌\s*(.*)/)
         if (match) card.stage = match[1].replace(/\*\*/g, '').trim()
       } else if (trimmed.includes('💰')) {
         const match = trimmed.match(/💰\s*(.*)/)
@@ -1697,23 +1714,46 @@ export function CopilotWidget() {
     return card.name ? card : null
   }
 
-  const handleViewProfile = useCallback((email: string) => {
-    try {
-      const role = useAuthStore.getState().user?.role
-      const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
-      const path = `${basePath}/candidates?search=${encodeURIComponent(email)}`
-      // Use history API to navigate without reload
-      if (window.history && window.history.pushState) {
-        window.history.pushState({}, '', path)
-        // Dispatch popstate so React Router picks up the change
-        window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
-      } else {
-        window.location.href = path
-      }
-    } catch (err) {
-      console.error('View profile error:', err)
+  const navigateToCandidate = useCallback((candidateId: string) => {
+    const role = useAuthStore.getState().user?.role
+    const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
+    // ?openId=<id> is the same deep link the pre-screening review flow already
+    // uses to land directly on a candidate's profile — CandidatesPage picks
+    // it up in a useEffect and opens the profile overlay for that id.
+    const path = `${basePath}/candidates?openId=${encodeURIComponent(candidateId)}`
+    if (window.history && window.history.pushState) {
+      window.history.pushState({}, '', path)
+      window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
+    } else {
+      window.location.href = path
     }
   }, [])
+
+  // Cards from the Copilot only ever carry a name (that's all the chat text
+  // reliably includes), so opening a profile means resolving that name to an
+  // id first via the same suggest endpoint the input's autocomplete already
+  // uses, then deep-linking with ?openId=<id> — the one mechanism that
+  // actually opens a candidate's profile (a plain ?search= query param was
+  // being set here before, but CandidatesPage never reads it).
+  const handleViewProfile = useCallback(async (name: string) => {
+    try {
+      const res = await candidatesApi.suggest(name)
+      const items = res.data || []
+      if (items.length === 0) {
+        toast.error(`Couldn't find "${name}" — try searching for them manually.`)
+        return
+      }
+      const exact = items.find((c: any) => c.full_name?.toLowerCase() === name.toLowerCase())
+      if (items.length > 1 && !exact) {
+        toast.error(`Multiple candidates match "${name}" — please search manually.`)
+        return
+      }
+      navigateToCandidate((exact ?? items[0]).id)
+    } catch (err) {
+      console.error('View profile error:', err)
+      toast.error('Could not open that candidate\'s profile.')
+    }
+  }, [navigateToCandidate])
 
   const renderBotMessageContent = (content: string) => {
     // Check for CTA_BUTTON

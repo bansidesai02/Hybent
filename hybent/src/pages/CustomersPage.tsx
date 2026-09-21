@@ -12,7 +12,7 @@ export default function CustomersPage() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--tight-pt-none">
         <div className="wrap">
           <div className="split" style={{ marginBottom: "clamp(40px,5vw,64px)" }}>
             <div data-rv="left">
@@ -48,7 +48,7 @@ export default function CustomersPage() {
         </div>
       </section>
 
-      <section className="section section--tight" id="cases">
+      <section className="section section--tight section--tight-pt-none" id="cases">
         <div className="wrap">
           <div className="section-head" data-rv="up">
             <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Illustrative outcomes</span></p>
@@ -86,9 +86,9 @@ export default function CustomersPage() {
         </div>
       </section>
 
-      <section className="section section--tight">
+      <section className="section section--tight section--tight-pt-none">
         <div className="wrap">
-          <div className="section-head center" data-rv="up">
+          <div className="section-head" data-rv="up">
             <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>Integrations</span></p>
             <h2 className="h-md">Designed to fit the stack you already run</h2>
             <p className="lead">Hybent Hiring connects through documented APIs and webhooks, with connectors rolling out across identity, calendars, job boards and e-signature. Tell us what you use and we will tell you honestly where it sits on the list.</p>

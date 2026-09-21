@@ -2,6 +2,7 @@
 Candidate portal endpoints — for candidates to self-register, view their own applications,
 respond to offers, and view interview schedules.
 """
+import logging
 import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
@@ -30,9 +31,12 @@ from datetime import datetime, timezone
 from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
 from app.services.ai.resume_parser import parse_resume, apply_experience_fields
+from app.services.ai.resume_rag import stage_candidate_resume_chunks
 from app.schemas.response import APIResponse
 from app.tasks.notifications import notify_organization_roles
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/portal", tags=["portal"])
 
@@ -364,6 +368,11 @@ async def upload_portal_resume(
     # "In Review" and can evaluate them properly.
     if candidate.pipeline_stage in (None, "needs_review"):
         candidate.pipeline_stage = None
+
+    try:
+        await stage_candidate_resume_chunks(db, candidate)
+    except Exception as exc:
+        logger.warning(f"[RAG] Failed to stage resume chunks for candidate {candidate.id}: {exc}")
 
     await db.commit()
     await db.refresh(candidate)

@@ -33,7 +33,7 @@ type FormKey =
   | 'current_ctc' | 'expected_ctc' | 'notice_period_days' | 'availability_status'
   | 'technical_panel' | 'import_status'
   | 'remarks_practical' | 'techno_functional_hr_interview' | 'remarks_hr' | 'remarks_technical'
-  | 'reference' | 'hr_name' | 'sr_no'
+  | 'reference' | 'hr_name' | 'sr_no' | 'source'
   | 'linkedin_url' | 'github_url' | 'portfolio_url'
   | 'interview_availability_days' | 'interview_time_slot'
 
@@ -46,6 +46,12 @@ type FieldDef = {
   readOnly?: boolean
   /** Read view only; edit view has no control for it. */
   displayOnly?: boolean
+  /** Read view: show even with no value (as "Not set"), instead of being
+   * filtered out along with the rest of a sparse section. Source used to
+   * disappear from a candidate's overview entirely whenever it and every
+   * other field in "Source & references" was empty, hiding that there was
+   * anything there to edit. */
+  alwaysShow?: boolean
 }
 
 const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
@@ -66,6 +72,15 @@ const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
       { key: 'current_company', label: 'Current employer', placeholder: 'e.g. Google' },
       { key: 'experience_years', label: 'Experience', placeholder: 'e.g. 5 years' },
       { key: 'relevant_experience', label: 'Relevant experience', placeholder: 'e.g. 3 years' },
+    ],
+  },
+  {
+    title: 'Source & references',
+    fields: [
+      { key: 'source', label: 'Source', placeholder: 'e.g. LinkedIn, Referral, Job board', alwaysShow: true },
+      { key: 'reference', label: 'Reference / referral', placeholder: 'e.g. Referrer name' },
+      { key: 'hr_name', label: 'HR name', placeholder: 'e.g. Recruiter name' },
+      { key: 'sr_no', label: 'Serial no', placeholder: 'e.g. 1' },
     ],
   },
   {
@@ -91,14 +106,6 @@ const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
     fields: [
       { key: 'remarks_hr', label: 'Remarks (HR)', placeholder: 'HR remarks…', multiline: true },
       { key: 'remarks_technical', label: 'Remarks (technical)', placeholder: 'Technical remarks…', multiline: true },
-    ],
-  },
-  {
-    title: 'Source & references',
-    fields: [
-      { key: 'reference', label: 'Reference / referral', placeholder: 'e.g. Referrer name' },
-      { key: 'hr_name', label: 'HR name', placeholder: 'e.g. Recruiter name' },
-      { key: 'sr_no', label: 'Serial no', placeholder: 'e.g. 1' },
     ],
   },
   {
@@ -138,6 +145,7 @@ function initialForm(c: Candidate): Record<FormKey, string> {
     techno_functional_hr_interview: c.techno_functional_hr_interview || '',
     remarks_hr: c.remarks_hr || '',
     remarks_technical: c.remarks_technical || '',
+    source: c.source || '',
     reference: c.reference || '',
     hr_name: c.hr_name || '',
     sr_no: String(c.sr_no || ''),
@@ -223,7 +231,7 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
       return null
     })()
 
-    const extras: Record<string, Array<{ label: string; value: any }>> = {
+    const extras: Record<string, Array<{ label: string; value: any; alwaysShow?: boolean }>> = {
       Experience: [],
       Interview: [
         {
@@ -241,7 +249,6 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
         },
       ],
       'Source & references': [
-        { label: 'Source', value: candidate.source },
         { label: 'Import sheet', value: candidate.import_panel_name },
         { label: 'Import date', value: importDate },
       ],
@@ -251,12 +258,12 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
       .map((section) => ({
         title: section.title,
         fields: [
-          ...section.fields.map((f) => ({
-            label: f.label,
-            value: (candidate as any)[f.key],
-          })),
+          ...section.fields.map((f) => {
+            const value = (candidate as any)[f.key]
+            return { label: f.label, value: isEmpty(value) && f.alwaysShow ? 'Not set' : value, alwaysShow: f.alwaysShow }
+          }),
           ...(extras[section.title] ?? []),
-        ].filter((f) => !isEmpty(f.value)),
+        ].filter((f) => !isEmpty(f.value) || f.alwaysShow),
       }))
       .filter((s) => s.fields.length > 0)
   }, [candidate])

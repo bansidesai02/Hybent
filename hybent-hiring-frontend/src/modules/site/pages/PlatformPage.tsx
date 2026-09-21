@@ -14,7 +14,7 @@ export default function PlatformPage() {
         </div>
       </section>
 
-      <section className="section" id="ecosystem">
+      <section className="section section--tight-pt-none" id="ecosystem">
         <div className="wrap">
           <div className="eco" data-rv="scale">
             <div className="eco__layers">
@@ -51,7 +51,7 @@ export default function PlatformPage() {
         </div>
       </section>
 
-      <section className="section section--tight">
+      <section className="section section--tight section--tight-pt-none">
         <div className="wrap">
           <div className="split">
             <div data-rv="left">

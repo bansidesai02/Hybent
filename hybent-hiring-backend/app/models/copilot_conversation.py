@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -20,6 +20,13 @@ class CopilotConversation(Base):
     )
     # Auto-generated from the first 60 chars of the user's first message
     title: Mapped[str] = mapped_column(String(200), nullable=False, default="New Conversation")
+
+    # Structured follow-up context resolved after each turn, e.g.
+    # {"candidate_id": "...", "candidate_name": "...", "job_id": "...",
+    #  "job_title": "...", "skill": "..."} — lets the router resolve pronouns
+    # ("iska score?", "aur FastAPI?") without replaying/re-inferring from
+    # raw chat history every turn.
+    last_context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

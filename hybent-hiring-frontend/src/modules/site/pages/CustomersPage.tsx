@@ -450,7 +450,7 @@ export default function CustomersPage() {
       {/* ── INTEGRATIONS ECOSYSTEM SECTION ──────────────────────────── */}
       <section className="section section--tight" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="wrap">
-          <div className="section-head center" data-rv="up">
+          <div className="section-head" data-rv="up">
             <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>Integrations</span></p>
             <h2 className="h-md">Designed to fit the stack you already run</h2>
             <p className="lead">Hybent connects seamlessly through documented REST APIs, webhooks, and direct connectors across identity, calendar systems, job boards, and HRIS platforms.</p>

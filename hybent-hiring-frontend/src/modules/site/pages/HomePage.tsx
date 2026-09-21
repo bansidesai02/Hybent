@@ -11,11 +11,6 @@ export default function HomePage() {
 
         <div className="wrap hero__grid">
           <div>
-            <a className="hero__pill" href="/products/hiring" data-rv="up">
-              <b>Live</b>
-              <span>Hybent Hiring, our AI recruitment platform, is live</span>
-              <svg aria-hidden="true"><use href="#i-arrow" /></svg>
-            </a>
 
             {/* Each rotating item is a whole line, so the heading is exactly
                 one line tall whichever word is on screen. Words stay short on
@@ -36,12 +31,6 @@ export default function HomePage() {
             <div className="hero__actions" data-rv="up" data-delay="240">
               <a className="btn btn-primary btn-lg" href="/products">Explore Hybent Hiring <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               <a className="btn btn-ghost btn-lg" href="/contact">Book a demo</a>
-            </div>
-
-            <div className="hero__meta" data-rv="up" data-delay="320">
-              <div><strong>Live</strong><span>Hybent Hiring in production</span></div>
-              <div><strong>AI-first</strong><span>How we build</span></div>
-              <div><strong>Enterprise</strong><span>Security by default</span></div>
             </div>
           </div>
 
@@ -67,7 +56,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section section--tight" aria-label="Hybent Hiring capabilities">
+      <section className="section section--tight section--tight-pt-none" aria-label="Hybent Hiring capabilities">
         <div className="wrap">
           <p className="mono center" style={{ textAlign: "center", marginBottom: "32px" }} data-rv="up">What Hybent Hiring handles, end to end</p>
         </div>
@@ -248,7 +237,7 @@ export default function HomePage() {
 
       <section className="section section--tight">
         <div className="wrap">
-          <div className="section-head center" data-rv="up">
+          <div className="section-head" data-rv="up">
             <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>Why HYBENT</span></p>
             <h2 className="h-lg">Built for the decade, not for the demo</h2>
             <p className="lead">Four commitments we hold ourselves to in every release, in every product, for every customer.</p>

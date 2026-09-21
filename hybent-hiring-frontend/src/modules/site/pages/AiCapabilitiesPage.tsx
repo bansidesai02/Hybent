@@ -14,7 +14,7 @@ export default function AiCapabilitiesPage() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--tight-pt-none">
         <div className="wrap">
           <div className="cta-band cta-band--ai" data-rv="scale">
             <div className="split">

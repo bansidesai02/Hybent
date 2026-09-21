@@ -10,6 +10,7 @@ from app.schemas.candidate import CandidateOut
 from app.services.storage_service import save_resume
 from app.services import supabase_storage_service
 from app.services.ai.resume_parser import parse_resume, apply_experience_fields
+from app.services.ai.resume_rag import index_candidate_resume_by_id
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 from app.core.config import settings
@@ -101,6 +102,8 @@ async def upload_resume(
         candidate.github_url = parsed["github_url"]
     if parsed.get("portfolio_url") and not candidate.portfolio_url:
         candidate.portfolio_url = parsed["portfolio_url"]
+
+    background_tasks.add_task(index_candidate_resume_by_id, candidate.id, current_user.organization_id)
 
     return APIResponse.success(message="Resume uploaded successfully.", data=CandidateOut.model_validate(candidate))
 
@@ -370,5 +373,7 @@ async def upload_and_create(
         resource_id=str(candidate.id),
         details={"name": candidate.full_name}
     )
+
+    background_tasks.add_task(index_candidate_resume_by_id, candidate.id, current_user.organization_id)
 
     return APIResponse.success(message="Candidate created successfully.", data=CandidateOut.model_validate(candidate), status_code=201)

@@ -10,11 +10,6 @@ export default function HomePage() {
 
         <div className="wrap hero__grid">
           <div>
-            <p className="hero__pill" data-rv="up">
-              <b>Live</b>
-              <span>Hybent Hiring, our AI recruitment platform, is live</span>
-              <svg aria-hidden="true"><use href="#i-arrow" /></svg>
-            </p>
 
             <h1 data-rv="up" data-delay="80">
               Intelligent software for<br />
@@ -31,13 +26,6 @@ export default function HomePage() {
             <div className="hero__actions" data-rv="up" data-delay="240">
               <a className="btn btn-primary btn-lg" href="/products">Explore Hybent Hiring <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               <a className="btn btn-ghost btn-lg" href="/contact">Book a demo</a>
-            </div>
-
-            <div className="hero__meta" data-rv="up" data-delay="320">
-              <div><strong>Live</strong><span>Hybent Hiring in production</span></div>
-              <div><strong>AI-first</strong><span>How we build</span></div>
-              <div><strong>Enterprise</strong><span>Security by default</span></div>
-              <div><strong>Ecosystem</strong><span>More products coming</span></div>
             </div>
           </div>
 
@@ -89,7 +77,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section section--tight">
+      <section className="section section--tight section--tight-pt-none">
         <div className="wrap">
           <div className="grid g4">
             <div className="card card--flat stat" data-rv="up"><b>Live</b><span>First product shipped</span><em>Hybent Hiring · AI recruitment platform</em></div>
@@ -101,7 +89,7 @@ export default function HomePage() {
       </section>
 
 
-      <section className="section" id="products-overview">
+      <section className="section section--tight-pt-none" id="products-overview">
         <div className="wrap">
           <div className="section-head" data-rv="up">
             <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Products</span></p>
@@ -109,7 +97,8 @@ export default function HomePage() {
             <p className="lead">Hybent Hiring is live and carrying real hiring work today. Underneath it sits the platform every product we ship after this one will stand on.</p>
           </div>
           <div className="grid g3">
-            <article className="card" data-rv="up"><div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
+            <article className="card" data-rv="up">
+              <div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
               <div style={{ marginBottom: '20px' }}>
                 <AiRecruitmentWorkflowAnimation />
               </div>
@@ -120,40 +109,40 @@ export default function HomePage() {
             </article>
             <article className="card" data-rv="up" data-delay="90"><div className="card__glow" style={{ top: "-40px", right: "-40px" }}></div>
               <svg className="fig fig--thumb" role="img" aria-label="Platform layer stack: products, intelligence, services, data" viewBox="0 0 300 140" width="300" height="140">
-            <rect x="1" y="1" width="298" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
-            <g>
-              <rect x="30" y="20" width="240" height="24" rx="7" fill="url(#hbgh)" opacity=".85" />
-              <text x="42" y="36" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="#fff">PRODUCTS</text>
-              <rect x="30" y="50" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-              <text x="42" y="66" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">INTELLIGENCE</text>
-              <rect x="30" y="80" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-              <text x="42" y="96" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">PLATFORM SERVICES</text>
-              <rect x="30" y="110" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-              <text x="42" y="126" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">DATA FOUNDATION</text>
-            </g>
-          </svg>
-                <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
+                <rect x="1" y="1" width="298" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
+                <g>
+                  <rect x="30" y="20" width="240" height="24" rx="7" fill="url(#hbgh)" opacity=".85" />
+                  <text x="42" y="36" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="#fff">PRODUCTS</text>
+                  <rect x="30" y="50" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
+                  <text x="42" y="66" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">INTELLIGENCE</text>
+                  <rect x="30" y="80" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
+                  <text x="42" y="96" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">PLATFORM SERVICES</text>
+                  <rect x="30" y="110" width="240" height="24" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
+                  <text x="42" y="126" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--muted)">DATA FOUNDATION</text>
+                </g>
+              </svg>
+              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
               <h3 className="h-sm" style={{ margin: "16px 0 8px" }}>The Platform</h3>
               <p className="small">Identity, permissions, workflow, audit and a shared data model — written once, inherited by every product we ship after this one.</p>
               <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/platform">See the platform <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
             </article>
             <article className="card" data-rv="up" data-delay="180"><div className="card__glow" style={{ bottom: "-40px", right: "-40px" }}></div>
               <svg className="fig fig--thumb" role="img" aria-label="Product roadmap: one live milestone, three still to come" viewBox="0 0 300 140" width="300" height="140">
-            <rect x="1" y="1" width="298" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
-            <line x1="40" y1="70" x2="260" y2="70" stroke="var(--border)" strokeWidth="2" strokeDasharray="5 6" />
-            <line x1="40" y1="70" x2="96" y2="70" stroke="url(#hbgh)" strokeWidth="2.4" />
-            <circle cx="40" cy="70" r="12" fill="url(#hbg)" />
-            <path d="M35 70l3.6 3.6L46 66" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-            <text x="24" y="98" fontFamily="IBM Plex Mono" fontSize="7.5" letterSpacing="1.2" fill="var(--text)">LIVE</text>
-            <g fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6">
-              <circle cx="114" cy="70" r="9" /><circle cx="188" cy="70" r="9" /><circle cx="260" cy="70" r="9" />
-            </g>
-            <g fontFamily="IBM Plex Mono" fontSize="7" letterSpacing="1.1" fill="var(--dim)" textAnchor="middle">
-              <text x="114" y="98">SOON</text><text x="188" y="98">SOON</text><text x="260" y="98">SOON</text>
-            </g>
-            <text x="150" y="34" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.6" fill="var(--dim)">ROADMAP</text>
-          </svg>
-                <span className="icon-tile"><svg aria-hidden="true"><use href="#i-compass" /></svg></span>
+                <rect x="1" y="1" width="298" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
+                <line x1="40" y1="70" x2="260" y2="70" stroke="var(--border)" strokeWidth="2" strokeDasharray="5 6" />
+                <line x1="40" y1="70" x2="96" y2="70" stroke="url(#hbgh)" strokeWidth="2.4" />
+                <circle cx="40" cy="70" r="12" fill="url(#hbg)" />
+                <path d="M35 70l3.6 3.6L46 66" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                <text x="24" y="98" fontFamily="IBM Plex Mono" fontSize="7.5" letterSpacing="1.2" fill="var(--text)">LIVE</text>
+                <g fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6">
+                  <circle cx="114" cy="70" r="9" /><circle cx="188" cy="70" r="9" /><circle cx="260" cy="70" r="9" />
+                </g>
+                <g fontFamily="IBM Plex Mono" fontSize="7" letterSpacing="1.1" fill="var(--dim)" textAnchor="middle">
+                  <text x="114" y="98">SOON</text><text x="188" y="98">SOON</text><text x="260" y="98">SOON</text>
+                </g>
+                <text x="150" y="34" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.6" fill="var(--dim)">ROADMAP</text>
+              </svg>
+              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-compass" /></svg></span>
               <h3 className="h-sm" style={{ margin: "16px 0 8px" }}>What comes next</h3>
               <p className="small">CRM, HRMS, ERP, Analytics and more, all on the same foundation. None of it has shipped, and we say so on every card.</p>
               <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/products/roadmap">View the roadmap <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
@@ -166,85 +155,85 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section section--tight">
+      <section className="section section--tight section--tight-pt-none">
         <div className="wrap">
-          <div className="section-head center" data-rv="up">
+          <div className="section-head" data-rv="up">
             <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>Why HYBENT</span></p>
             <h2 className="h-lg">Built for the decade, not for the demo</h2>
             <p className="lead">Four commitments we hold ourselves to in every release, in every product, for every customer.</p>
           </div>
           <div className="grid g4">
             <article className="card" data-rv="up"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true">
-      
-            <path d="M30 62l14-16 10 9 14-20" fill="none" stroke="url(#hbgh)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="30" cy="62" r="4.5" fill="var(--surface)" stroke="url(#hbgh)" strokeWidth="2.6" />
-            <circle cx="68" cy="35" r="4.5" fill="url(#hbgh)" />
-          </svg></span>
+
+              <path d="M30 62l14-16 10 9 14-20" fill="none" stroke="url(#hbgh)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="30" cy="62" r="4.5" fill="var(--surface)" stroke="url(#hbgh)" strokeWidth="2.6" />
+              <circle cx="68" cy="35" r="4.5" fill="url(#hbgh)" />
+            </svg></span>
               <h3 className="h-sm" style={{ margin: "18px 0 9px" }}>Fast to adopt</h3>
               <p className="small">Guided import, sensible defaults and ready-made rubrics by role type. Hybent Hiring is designed to run a live requisition without a services project.</p></article>
             <article className="card" data-rv="up" data-delay="90"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true">
-      
-            <rect x="30" y="30" width="36" height="36" rx="9" fill="none" stroke="url(#hbgh)" strokeWidth="3" />
-            <rect x="41" y="41" width="14" height="14" rx="4" fill="url(#hbgh)" />
-            <g stroke="url(#hbgh)" strokeWidth="2.6" strokeLinecap="round">
-              <path d="M40 22v8M56 22v8M40 66v8M56 66v8M22 40h8M22 56h8M66 40h8M66 56h8" /></g>
-          </svg></span>
+
+              <rect x="30" y="30" width="36" height="36" rx="9" fill="none" stroke="url(#hbgh)" strokeWidth="3" />
+              <rect x="41" y="41" width="14" height="14" rx="4" fill="url(#hbgh)" />
+              <g stroke="url(#hbgh)" strokeWidth="2.6" strokeLinecap="round">
+                <path d="M40 22v8M56 22v8M40 66v8M56 66v8M22 40h8M22 56h8M66 40h8M66 56h8" /></g>
+            </svg></span>
               <h3 className="h-sm" style={{ margin: "18px 0 9px" }}>AI-first, not AI-added</h3>
               <p className="small">Parsing, screening and ranking are the product, not a feature we bolted onto a legacy workflow after the fact.</p></article>
             <article className="card" data-rv="up" data-delay="180"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true">
-      
-            <path d="M28 42v24a3 3 0 003 3h34a3 3 0 003-3V42" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" />
-            <path d="M48 58V26M38 36l10-10 10 10" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg></span>
+
+              <path d="M28 42v24a3 3 0 003 3h34a3 3 0 003-3V42" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" />
+              <path d="M48 58V26M38 36l10-10 10 10" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg></span>
               <h3 className="h-sm" style={{ margin: "18px 0 9px" }}>Your data, portable</h3>
               <p className="small">Full export in open formats, whenever you ask. Staying with us should be a choice you keep making.</p></article>
             <article className="card" data-rv="up" data-delay="270"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true">
-      
-            <rect x="24" y="30" width="48" height="34" rx="9" fill="none" stroke="url(#hbgh)" strokeWidth="3" />
-            <path d="M38 64l-4 10 12-10" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinejoin="round" />
-            <g stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round"><path d="M36 44h6M52 44h8M36 53h20" /></g>
-          </svg></span>
+
+              <rect x="24" y="30" width="48" height="34" rx="9" fill="none" stroke="url(#hbgh)" strokeWidth="3" />
+              <path d="M38 64l-4 10 12-10" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinejoin="round" />
+              <g stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round"><path d="M36 44h6M52 44h8M36 53h20" /></g>
+            </svg></span>
               <h3 className="h-sm" style={{ margin: "18px 0 9px" }}>Access to the builders</h3>
               <p className="small">You talk to the people writing the code. Early customers shape what we ship next, and we say so publicly.</p></article>
           </div>
         </div>
       </section>
 
-      <section className="section" id="company">
+      <section className="section section--tight-pt-none" id="company">
         <div className="wrap figrow" data-rv="up">
-            <div className="figpanel"><svg className="fig" role="img" aria-label="How Hybent Hiring processes an application: apply, parse, screen, shortlist, interview, offer" viewBox="0 0 700 190" width="700" height="190">
+          <div className="figpanel"><svg className="fig" role="img" aria-label="How Hybent Hiring processes an application: apply, parse, screen, shortlist, interview, offer" viewBox="0 0 700 190" width="700" height="190">
             <line x1="60" y1="86" x2="646" y2="86" stroke="var(--border)" strokeWidth="1.6" />
             <g>
-        
+
               <rect x="18" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
               <rect x="42" y="66" width="36" height="42" rx="5" fill="var(--surface-2)" stroke="var(--border)" />
               <g fill="var(--border-strong)"><rect x="48" y="74" width="24" height="3.4" rx="1.7" /><rect x="48" y="82" width="18" height="3.4" rx="1.7" /><rect x="48" y="90" width="22" height="3.4" rx="1.7" /><rect x="48" y="98" width="14" height="3.4" rx="1.7" /></g>
-        
+
               <rect x="140" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
               <g><rect x="156" y="66" width="52" height="9" rx="4.5" fill="url(#hbgh)" opacity=".85" />
-                 <rect x="156" y="80" width="34" height="9" rx="4.5" fill="var(--border-strong)" />
-                 <rect x="156" y="94" width="46" height="9" rx="4.5" fill="var(--border-strong)" /></g>
-        
+                <rect x="156" y="80" width="34" height="9" rx="4.5" fill="var(--border-strong)" />
+                <rect x="156" y="94" width="46" height="9" rx="4.5" fill="var(--border-strong)" /></g>
+
               <rect x="262" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
               <g transform="translate(304,86)">
                 <circle r="22" fill="none" stroke="var(--border)" strokeWidth="6" />
                 <circle r="22" fill="none" stroke="url(#hbgh)" strokeWidth="6" strokeLinecap="round" strokeDasharray="104 138" transform="rotate(-90)" />
                 <text y="4" textAnchor="middle" fontFamily="Sora" fontSize="13" fontWeight="600" fill="var(--text)">94</text>
               </g>
-        
+
               <rect x="384" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
               <g><rect x="400" y="64" width="52" height="14" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-                 <circle cx="410" cy="71" r="4" fill="url(#hbg)" />
-                 <rect x="400" y="82" width="52" height="14" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-                 <circle cx="410" cy="89" r="4" fill="url(#hbg)" opacity=".7" />
-                 <rect x="400" y="100" width="52" height="10" rx="5" fill="var(--surface-2)" opacity=".5" /></g>
-        
+                <circle cx="410" cy="71" r="4" fill="url(#hbg)" />
+                <rect x="400" y="82" width="52" height="14" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
+                <circle cx="410" cy="89" r="4" fill="url(#hbg)" opacity=".7" />
+                <rect x="400" y="100" width="52" height="10" rx="5" fill="var(--surface-2)" opacity=".5" /></g>
+
               <rect x="506" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
               <rect x="524" y="66" width="48" height="40" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
               <line x1="524" y1="78" x2="572" y2="78" stroke="var(--border)" />
               <rect x="530" y="84" width="12" height="12" rx="3" fill="url(#hbg)" opacity=".8" />
               <rect x="548" y="84" width="12" height="12" rx="3" fill="var(--border-strong)" />
-        
+
               <rect x="628" y="52" width="54" height="68" rx="12" fill="url(#hbgh)" opacity=".14" stroke="var(--border-strong)" />
               <path d="M643 88l7 7 15-16" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" />
             </g>
@@ -257,7 +246,7 @@ export default function HomePage() {
             </g>
           </svg></div>
         </div>
-        <div className="wrap split">
+        <div className="wrap split pt-12">
           <div data-rv="left">
             <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Who we are</span></p>
             <h2 className="h-lg">Enterprise software should remove work, not quietly create more of it.</h2>
@@ -294,7 +283,7 @@ export default function HomePage() {
       </section>
 
 
-      <section className="section">
+      <section className="section section--tight-py-none">
         <div className="wrap">
           <div className="cta-band" data-rv="scale">
             <div className="split">

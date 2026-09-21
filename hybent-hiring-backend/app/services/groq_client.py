@@ -6,11 +6,42 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-PRIMARY_KEY = settings.groq_api_key
-FALLBACK_KEY = os.getenv("GROQ_FALLBACK_API_KEY", settings.groq_api_key)
 
-# Global state to track fallback status
-_use_fallback = False
+def _load_keys() -> list[str]:
+    """
+    All configured Groq API keys, in priority order, deduplicated and with
+    empty values dropped.
+
+    GROQ_API_KEY is the primary. Any number of additional keys can be added
+    as GROQ_FALLBACK_API_KEY, GROQ_FALLBACK_API_KEY_2, GROQ_FALLBACK_API_KEY_3,
+    ... (numbering starts at 2 since GROQ_FALLBACK_API_KEY is the first
+    fallback) — each is tried in order whenever every key before it has
+    failed. There's no fixed limit; just add the next number.
+    """
+    keys = [settings.groq_api_key, os.getenv("GROQ_FALLBACK_API_KEY", "")]
+    i = 2
+    while True:
+        k = os.getenv(f"GROQ_FALLBACK_API_KEY_{i}", "")
+        if not k:
+            break
+        keys.append(k)
+        i += 1
+
+    seen = set()
+    return [k for k in keys if k and not (k in seen or seen.add(k))]
+
+
+ALL_KEYS = _load_keys()
+
+# Kept for any external caller/test referencing the old two-key names.
+PRIMARY_KEY = ALL_KEYS[0] if ALL_KEYS else ""
+FALLBACK_KEY = ALL_KEYS[1] if len(ALL_KEYS) > 1 else PRIMARY_KEY
+
+# Keys that have failed (rate limit / auth error) at least once this process
+# lifetime. Tried last rather than dropped entirely, since a rate limit is
+# often time-windowed (e.g. a daily quota) and may have recovered by the
+# time every other key is also exhausted.
+_failed_keys: set[str] = set()
 
 PREFERRED_TEXT_MODELS = [
     "llama-3.3-70b-versatile",
@@ -34,16 +65,37 @@ def sanitize_error_msg(err_obj) -> str:
     # Mask any Groq API keys matching gsk_ pattern
     return re.sub(r'gsk_[A-Za-z0-9_-]+', '[REDACTED_API_KEY]', msg)
 
+
+def _ordered_keys() -> list[str]:
+    """Not-yet-failed keys first (in configured priority order), then
+    previously-failed ones as a last resort — never gives up on a key
+    permanently within a single call, just deprioritizes it."""
+    healthy = [k for k in ALL_KEYS if k not in _failed_keys]
+    failed = [k for k in ALL_KEYS if k in _failed_keys]
+    return healthy + failed
+
+
 def get_current_key() -> str:
-    global _use_fallback
-    if _use_fallback:
-        return FALLBACK_KEY
-    return PRIMARY_KEY or FALLBACK_KEY
+    ordered = _ordered_keys()
+    return ordered[0] if ordered else ""
+
+
+def mark_key_failed(key: str):
+    if key and key not in _failed_keys:
+        _failed_keys.add(key)
+        remaining = len(ALL_KEYS) - len(_failed_keys)
+        logger.warning(
+            f"A Groq API key failed (rate limit or auth). "
+            f"{remaining} of {len(ALL_KEYS)} configured key(s) still available."
+        )
+
 
 def mark_primary_failed():
-    global _use_fallback
-    _use_fallback = True
-    logger.warning("Primary Groq API key hit rate limit or failed. Switched to fallback API key globally.")
+    """Backward-compat alias — old two-key code called this specifically
+    when the primary key failed; equivalent to marking whichever key was
+    actually in use as failed."""
+    mark_key_failed(PRIMARY_KEY)
+
 
 class SafeCompletions:
     def __init__(self, client_factory):
@@ -52,7 +104,7 @@ class SafeCompletions:
     def create(self, *args, **kwargs):
         # 1. Determine list of models to try
         requested_model = kwargs.get("model")
-        
+
         models_to_try = []
         if requested_model:
             models_to_try.append(requested_model)
@@ -60,17 +112,8 @@ class SafeCompletions:
             if m not in models_to_try:
                 models_to_try.append(m)
 
-        # 2. Determine keys to try
-        global _use_fallback
-        keys_to_try = []
-        if _use_fallback:
-            keys_to_try = [FALLBACK_KEY, PRIMARY_KEY]
-        else:
-            keys_to_try = [PRIMARY_KEY or FALLBACK_KEY, FALLBACK_KEY]
-        
-        # Deduplicate keys while maintaining order
-        seen_keys = set()
-        keys_to_try = [k for k in keys_to_try if k and not (k in seen_keys or seen_keys.add(k))]
+        # 2. Determine keys to try — every configured key, healthy ones first
+        keys_to_try = _ordered_keys()
 
         last_exception = None
 
@@ -80,41 +123,39 @@ class SafeCompletions:
                     # Update kwargs with the model we are trying
                     if "model" in kwargs or requested_model:
                         kwargs["model"] = model
-                    
+
                     logger.info(f"Attempting Groq completion with model={model} and key={key[:12] if key else 'None'}...")
                     client = Groq(api_key=key)
                     return client.chat.completions.create(*args, **kwargs)
                 except (RateLimitError, APIStatusError) as e:
                     last_exception = e
                     status_code = getattr(e, "status_code", None)
-                    
+
                     # If model not found, try the next model
                     if status_code == 404:
                         logger.warning(f"Groq Model not found: {model} (status=404). Trying next model...")
                         continue
-                    
+
                     # If rate limit or auth, try the next key (or next model if keys exhausted)
                     if status_code in (429, 401, 403) or isinstance(e, RateLimitError):
                         logger.warning(f"Groq API key failed (status={status_code}, error={sanitize_error_msg(e)}). Retrying with fallback options...")
-                        if key == PRIMARY_KEY:
-                            mark_primary_failed()
+                        mark_key_failed(key)
                         continue
-                    
+
                     # For other APIStatusErrors, raise or retry next
                     raise e
                 except Exception as e:
                     last_exception = e
                     err_str = str(e).lower()
                     if "rate limit" in err_str or "429" in err_str or "limit exceeded" in err_str or "authentication" in err_str or "api_key" in err_str:
-                        logger.warning(f"Groq API limit/auth error: {sanitize_error_msg(e)}. Retrying with fallback options...")
-                        if key == PRIMARY_KEY:
-                            mark_primary_failed()
+                        logger.warning(f"Groq API key failed (error={sanitize_error_msg(e)}). Retrying with fallback options...")
+                        mark_key_failed(key)
                         continue
                     if "model_not_found" in err_str or "does not exist" in err_str or "404" in err_str:
                         logger.warning(f"Groq model error: {sanitize_error_msg(e)}. Trying next model...")
                         continue
                     raise e
-        
+
         # If we exhausted everything, raise the last exception
         if last_exception:
             raise last_exception
@@ -137,15 +178,7 @@ class SafeTranscriptions:
             if m not in models_to_try:
                 models_to_try.append(m)
 
-        global _use_fallback
-        keys_to_try = []
-        if _use_fallback:
-            keys_to_try = [FALLBACK_KEY, PRIMARY_KEY]
-        else:
-            keys_to_try = [PRIMARY_KEY or FALLBACK_KEY, FALLBACK_KEY]
-        
-        seen_keys = set()
-        keys_to_try = [k for k in keys_to_try if k and not (k in seen_keys or seen_keys.add(k))]
+        keys_to_try = _ordered_keys()
 
         last_exception = None
 
@@ -164,8 +197,7 @@ class SafeTranscriptions:
                         continue
                     if status_code in (429, 401, 403) or isinstance(e, RateLimitError):
                         logger.warning(f"Groq transcription key failed (status={status_code}). Retrying...")
-                        if key == PRIMARY_KEY:
-                            mark_primary_failed()
+                        mark_key_failed(key)
                         continue
                     raise e
                 except Exception as e:
@@ -173,8 +205,7 @@ class SafeTranscriptions:
                     err_str = str(e).lower()
                     if "rate limit" in err_str or "429" in err_str or "limit exceeded" in err_str:
                         logger.warning(f"Groq transcription limit/auth: {sanitize_error_msg(e)}. Retrying...")
-                        if key == PRIMARY_KEY:
-                            mark_primary_failed()
+                        mark_key_failed(key)
                         continue
                     if "model_not_found" in err_str or "does not exist" in err_str:
                         logger.warning(f"Groq audio model error: {sanitize_error_msg(e)}. Trying next...")
@@ -200,11 +231,7 @@ class SafeGroq:
         self.audio = SafeAudio(self._get_client)
 
     def _get_client(self) -> Groq:
-        global _use_fallback
-        if _use_fallback:
-            current_key = FALLBACK_KEY
-        else:
-            current_key = self.explicit_api_key or get_current_key()
+        current_key = self.explicit_api_key or get_current_key()
 
         if not self._inner_client or self._inner_client_key != current_key:
             self._inner_client = Groq(api_key=current_key, *self.init_args, **self.init_kwargs)

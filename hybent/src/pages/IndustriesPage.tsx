@@ -12,7 +12,7 @@ export default function IndustriesPage() {
         </div>
       </section>
 
-      <section className="section" id="industries">
+      <section className="section section--tight" id="industries">
         <div className="wrap">    <div className="grid g4">
             <article className="card" data-rv="up"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><rect x="30" y="30" width="36" height="36" rx="9" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" /><path d="M40 44l-6 4 6 4M56 44l6 4-6 4" fill="none" stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" /><g stroke="url(#hbgh)" strokeWidth="2.6" strokeLinecap="round"><path d="M40 22v8M56 22v8M40 66v8M56 66v8M22 40h8M22 56h8M66 40h8M66 56h8" /></g></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Technology</h3><p className="small">Technical screening rubrics, take-home evaluation and pipelines that move at engineering speed.</p></article>
             <article className="card" data-rv="up" data-delay="60"><span className="icon-tile"><svg viewBox="0 0 96 96" aria-hidden="true"><path d="M48 22l20 8v16c0 14-9 22-20 26-11-4-20-12-20-26V30z" fill="none" stroke="url(#hbgh)" strokeWidth="3.2" strokeLinejoin="round" /><path d="M38 52l7 7 15-16" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg></span><h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Financial services</h3><p className="small">Reference and licensing evidence captured in-flow, with a decision record for every rejection.</p></article>

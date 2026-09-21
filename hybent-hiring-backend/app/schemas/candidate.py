@@ -115,6 +115,7 @@ class CandidateUpdate(BaseModel):
     import_status: str | None = None
     hr_name: str | None = None
     sr_no: str | None = None
+    source: str | None = None
 
 class CandidateStageUpdate(BaseModel):
     pipeline_stage: str

@@ -15,16 +15,20 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      <section className="section" id="products">
+      <section className="section section--tight-pt-none" id="products">
         <div className="wrap">
-    
+
           <div className="flagship" data-rv="scale">
             <div className="flagship__in">
               <div>
-                <div className="flagship__logo">
-                  <span className="fl-mark">H</span>
-                  <span><h3>Hybent Hiring</h3><p>AI recruitment platform</p></span>
-                  <span className="badge badge--live" style={{ marginLeft: "6px" }}><i className="dot dot--pulse"></i>Live</span>
+                <div className="flagship__logo flex-wrap">
+                  <span className="fl-mark shrink-0">H</span>
+                  <span><h3>Hybent Hiring</h3>
+                    <p>AI recruitment platform</p>
+                  </span>
+                  <span className="badge badge--live" style={{ marginLeft: "6px" }}>
+                    <i className="dot dot--pulse"></i>Live
+                  </span>
                 </div>
                 <p className="lead" style={{ fontSize: "1.02rem" }}>Hiring breaks in the handoffs — sourcing to screening, screening to interview, interview to offer. Hybent Hiring holds the whole pipeline in one place and puts AI on the work people do least consistently by hand: reading every résumé against the same standard, keeping scorecards comparable, and never leaving a candidate waiting on an answer.</p>
                 <ul className="feat-list">
