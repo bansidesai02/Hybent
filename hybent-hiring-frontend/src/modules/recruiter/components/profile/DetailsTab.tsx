@@ -5,7 +5,7 @@ import { ExternalLink, Lock } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
 import { candidatesApi } from '@/api/candidates'
-import { formatDate } from '@/utils/formatters'
+import { formatDate, formatExperienceDuration } from '@/utils/formatters'
 import { statusDef } from '@/components/hb'
 import type { Candidate } from '@/types'
 import { Badge, Button, Card, Input, Textarea } from '@/components/hb'
@@ -383,13 +383,18 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
             <section>
               <SectionHeading>Career journey</SectionHeading>
               <ol className="space-y-hb-5">
-                {(experience as any[]).map((exp, i) => (
+                {(experience as any[]).map((exp, i) => {
+                  const durationBadge = formatExperienceDuration(exp.duration)
+                  return (
                   <li key={i} className="relative pl-5">
                     <span
                       aria-hidden
                       className="absolute left-0 top-1.5 bottom-0 w-0.5 rounded-full bg-hb-grad"
                     />
-                    <h4 className="font-display text-hb-h3 text-hb-text">{exp.title}</h4>
+                    <div className="flex items-start justify-between gap-3">
+                      <h4 className="font-display text-hb-h3 text-hb-text">{exp.title}</h4>
+                      {durationBadge && <Badge className="shrink-0">{durationBadge}</Badge>}
+                    </div>
                     <p className="mt-0.5 text-hb-sm text-hb-cyan">
                       {exp.company}
                       {exp.duration && <span className="ml-2 text-hb-muted">· {exp.duration}</span>}
@@ -398,7 +403,8 @@ export function DetailsTab({ candidate }: { candidate: Candidate }) {
                       <p className="mt-1.5 text-hb-sm text-hb-muted">{exp.description}</p>
                     )}
                   </li>
-                ))}
+                  )
+                })}
               </ol>
             </section>
           )}

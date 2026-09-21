@@ -102,6 +102,61 @@ export function formatExperience(candidate: {
   return candidate.relevant_experience || '—'
 }
 
+const MONTH_MAP: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+}
+
+/**
+ * Turns one résumé experience entry's raw `duration` string (as parsed
+ * verbatim off the résumé, e.g. "June 2024 - June 2026", "Jan 2020 - Present",
+ * "3 years 2 months") into a compact badge: "X Year Y Month" when the role
+ * ran a year or more, just "Y Month" under a year (no "0 Year" prefix), or
+ * null when nothing parseable is there — mirrors the same duration parsing
+ * app.services.ai.resume_parser.calculate_years_from_experience does on the
+ * backend for the candidate's *total* experience, but per role here.
+ */
+export function formatExperienceDuration(duration: string | null | undefined): string | null {
+  if (!duration) return null
+  const raw = duration.trim()
+  if (!raw) return null
+
+  // Explicit "X years Y months" already stated on the resume — trust it directly.
+  const explicitYears = raw.match(/(\d+(?:\.\d+)?)\s*(?:yr|year)s?/i)
+  const explicitMonths = raw.match(/(\d+(?:\.\d+)?)\s*(?:mo|month)s?/i)
+  if (explicitYears || explicitMonths) {
+    const y = explicitYears ? Math.floor(parseFloat(explicitYears[1])) : 0
+    const m = explicitMonths ? Math.round(parseFloat(explicitMonths[1])) : 0
+    return formatYearsMonths(y, m)
+  }
+
+  // Otherwise, parse it as a date range: "<start> - <end>", end possibly "Present"/"Current"/"Now".
+  const now = new Date()
+  const normalized = raw.replace(/\b(present|current|now)\b/i, `${now.toLocaleString('en-US', { month: 'short' })} ${now.getFullYear()}`)
+
+  const tokens = normalized.match(/([A-Za-z]{3,})[a-z]*\.?\s+((?:19|20)\d{2})/gi)
+  if (!tokens || tokens.length < 2) return null
+
+  const parsed = tokens.map((t) => {
+    const m = t.match(/([A-Za-z]{3,})[a-z]*\.?\s+((?:19|20)\d{2})/i)!
+    const monthKey = m[1].slice(0, 3).toLowerCase()
+    return { month: MONTH_MAP[monthKey] ?? 1, year: parseInt(m[2], 10) }
+  })
+
+  const start = parsed[0]
+  const end = parsed[parsed.length - 1]
+  const totalMonths = (end.year - start.year) * 12 + (end.month - start.month) + 1
+  if (!Number.isFinite(totalMonths) || totalMonths <= 0) return null
+
+  return formatYearsMonths(Math.floor(totalMonths / 12), totalMonths % 12)
+}
+
+function formatYearsMonths(years: number, months: number): string | null {
+  if (years <= 0 && months <= 0) return null
+  if (years <= 0) return `${months} Month`
+  return months > 0 ? `${years} Year ${months} Month` : `${years} Year`
+}
+
 export function stageLabel(stage: string): string {
   return stage.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 }
