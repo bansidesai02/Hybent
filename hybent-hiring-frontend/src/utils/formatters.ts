@@ -134,11 +134,12 @@ export function formatExperienceDuration(duration: string | null | undefined): s
   const now = new Date()
   const normalized = raw.replace(/\b(present|current|now)\b/i, `${now.toLocaleString('en-US', { month: 'short' })} ${now.getFullYear()}`)
 
-  const tokens = normalized.match(/([A-Za-z]{3,})[a-z]*\.?\s+((?:19|20)\d{2})/gi)
+  // Month and year are sometimes run together with no space, e.g. "Jan2025".
+  const tokens = normalized.match(/([A-Za-z]{3,})[a-z]*\.?\s*((?:19|20)\d{2})/gi)
   if (!tokens || tokens.length < 2) return null
 
   const parsed = tokens.map((t) => {
-    const m = t.match(/([A-Za-z]{3,})[a-z]*\.?\s+((?:19|20)\d{2})/i)!
+    const m = t.match(/([A-Za-z]{3,})[a-z]*\.?\s*((?:19|20)\d{2})/i)!
     const monthKey = m[1].slice(0, 3).toLowerCase()
     return { month: MONTH_MAP[monthKey] ?? 1, year: parseInt(m[2], 10) }
   })

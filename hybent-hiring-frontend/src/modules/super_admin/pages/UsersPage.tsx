@@ -260,6 +260,7 @@ export default function UsersPage() {
           limit={PAGE_SIZE}
           onPage={setPage}
           noun="accounts"
+          asCardFooter
         />
       </Card>
 
