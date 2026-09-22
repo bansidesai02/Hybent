@@ -38,6 +38,12 @@ export function Pagination({
   onPage,
   /** What is being counted, for the range summary. */
   noun = 'results',
+  /** Sitting directly under a `DataTable` inside a `Card padding="none"` — the
+   * table supplies its own `px-4` inset and each row's own `border-b`, but the
+   * last row's is dropped (`last:border-0`), so without this the pagination
+   * row has no horizontal inset and nothing marking it as part of the same
+   * card, reading as a mismatched, oddly-flush strip under the table. */
+  asCardFooter = false,
   className,
 }: {
   page: number
@@ -46,6 +52,7 @@ export function Pagination({
   limit: number
   onPage: (next: number) => void
   noun?: string
+  asCardFooter?: boolean
   className?: string
 }) {
   if (pages <= 1) return null
@@ -63,7 +70,11 @@ export function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className={clsx('flex flex-wrap items-center justify-between gap-3 pt-hb-4', className)}
+      className={clsx(
+        'flex flex-wrap items-center justify-between gap-3 pt-hb-4',
+        asCardFooter && 'px-4 pb-hb-4 border-t border-hb-border',
+        className
+      )}
     >
       <p role="status" className="text-hb-sm text-hb-muted">
         <span className="font-mono tabular-nums text-hb-text">

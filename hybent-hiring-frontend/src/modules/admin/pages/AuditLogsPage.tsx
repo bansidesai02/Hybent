@@ -354,6 +354,7 @@ export default function AuditLogsPage() {
               limit={data.limit}
               onPage={setPage}
               noun="log entries"
+              asCardFooter
             />
           )}
         </Card>

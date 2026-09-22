@@ -193,6 +193,7 @@ export default function AuditLogsPage() {
           limit={PAGE_SIZE}
           onPage={setPage}
           noun="log entries"
+          asCardFooter
         />
       </Card>
     </div>
