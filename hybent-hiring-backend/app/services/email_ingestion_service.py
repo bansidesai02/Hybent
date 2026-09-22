@@ -44,17 +44,25 @@ logger = logging.getLogger(__name__)
 
 SOURCE_EMAIL = "email"
 
-# Signature/logo images are the main personal-inbox noise source and are
-# never resumes in practice — excluded regardless of size. Everything else
-# with a filename (PDF/DOC/DOCX/anything) counts, per the product decision
-# to treat "any file" as a candidate resume attempt.
-EXCLUDED_ATTACHMENT_MIME_TYPES = {"image/png", "image/gif"}
-
 PARSEABLE_MIME_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/msword",
 }
+
+# Some mail clients send PDFs/DOCs with a generic mime type (e.g.
+# application/octet-stream) — fall back to the filename extension so those
+# aren't dropped just because the mime type is uninformative.
+RESUME_FILE_EXTENSIONS = (".pdf", ".doc", ".docx")
+
+
+class NotAResume(Exception):
+    """Raised internally to signal a qualifying attachment was positively
+    identified as not a resume (by app.services.ai.resume_parser's content
+    validation) — distinct from a transient parsing/infra failure, so the
+    message can be marked SKIPPED_NOT_RESUME instead of FAILED, and no
+    placeholder candidate gets created from it."""
+
 
 _EMPTY_PARSED_RESUME = {
     "full_name": None,
@@ -78,15 +86,31 @@ _EMPTY_PARSED_RESUME = {
 }
 
 
+def _is_resume_document_type(attachment: dict) -> bool:
+    """A real resume document type (PDF/DOC/DOCX) by mime type or, failing
+    that, filename extension. Signature images, zips, spreadsheets, and
+    every other attachment type showing up in personal/shared inboxes are
+    never resumes in practice, so they're excluded outright here rather than
+    accepted sight-unseen and left for a human to reject later."""
+    if attachment.get("mime_type") in PARSEABLE_MIME_TYPES:
+        return True
+    filename = (attachment.get("filename") or "").lower()
+    return filename.endswith(RESUME_FILE_EXTENSIONS)
+
+
 def _select_attachment(attachments: list[dict]) -> dict | None:
     """First attachment that looks like a genuine resume attempt (has a
-    filename, isn't a signature-image mimetype, is within the size limit).
+    filename, is a resume-shaped document type, is within the size limit).
     One email -> at most one candidate; extra attachments are ignored rather
-    than creating ambiguous multiple candidates from a single message."""
+    than creating ambiguous multiple candidates from a single message.
+
+    This is a cheap type/size filter only — whether the document's *content*
+    is actually a resume (vs. an invoice, ID, certificate, etc.) is checked
+    later in _ingest_resume via app.services.ai.resume_parser."""
     for attachment in attachments:
         if not attachment.get("filename"):
             continue
-        if attachment.get("mime_type") in EXCLUDED_ATTACHMENT_MIME_TYPES:
+        if not _is_resume_document_type(attachment):
             continue
         if attachment.get("size", 0) and attachment["size"] > settings.max_file_size_bytes:
             continue
@@ -163,6 +187,10 @@ class EmailApplicationIngestionService:
             candidate_id, status = await self._ingest_resume(
                 account, message, qualifying["filename"], qualifying["mime_type"], file_bytes, from_name, from_address
             )
+        except NotAResume:
+            await self.repo.mark_result(message.id, EmailIngestionStatus.SKIPPED_NOT_RESUME)
+            await self.db.commit()
+            return "skipped"
         except Exception as e:
             logger.exception(f"Email ingestion failed to create candidate for message {message.id}")
             await self.repo.mark_result(message.id, EmailIngestionStatus.FAILED, error=str(e)[:2000])

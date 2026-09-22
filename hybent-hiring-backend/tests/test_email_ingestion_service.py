@@ -92,14 +92,23 @@ def test_select_attachment_skips_signature_images_and_missing_filename():
     assert picked["filename"] == "resume.pdf"
 
 
-def test_select_attachment_skips_oversized_and_accepts_any_other_file_type():
+def test_select_attachment_skips_oversized_and_non_document_types():
     from app.core.config import settings
     attachments = [
         {"filename": "huge.pdf", "mime_type": "application/pdf", "size": settings.max_file_size_bytes + 1},
         {"filename": "profile.zip", "mime_type": "application/zip", "size": 100},
+        {"filename": "invoice.xlsx", "mime_type": "application/vnd.ms-excel", "size": 100},
     ]
+    assert _select_attachment(attachments) is None  # nothing here is a resume-shaped document
+
+
+def test_select_attachment_falls_back_to_extension_for_generic_mime_type():
+    """Some mail clients send PDFs/DOCs with a generic mime type — the
+    filename extension is still enough to qualify the attachment for the
+    (later, content-based) resume check."""
+    attachments = [{"filename": "resume.docx", "mime_type": "application/octet-stream", "size": 100}]
     picked = _select_attachment(attachments)
-    assert picked["filename"] == "profile.zip"  # "any file" decision — not just PDF/DOCX
+    assert picked["filename"] == "resume.docx"
 
 
 def test_select_attachment_returns_none_when_nothing_qualifies():

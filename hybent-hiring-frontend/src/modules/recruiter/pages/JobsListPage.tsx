@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { BriefcaseBusiness, Edit2, Eye, Plus, Trash2, XCircle, Zap } from 'lucide-react'
+import { BriefcaseBusiness, Edit2, Eye, Link2, Plus, Trash2, XCircle, Zap } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
 import { jobsApi } from '@/api/jobs'
 import { aiApi } from '@/api/ai'
+import { organizationsApi } from '@/api/organizations'
 import { formatDate } from '@/utils/formatters'
 import type { Job, JobStatus } from '@/types'
 import { LinkedInShareModal } from '@/modules/recruiter/components/LinkedInShareModal'
@@ -124,7 +125,22 @@ function Prose({ title, body }: { title: string; body: string }) {
   )
 }
 
-function JobDetailDialog({ job, onClose }: { job: Job; onClose: () => void }) {
+/** Copies the public, no-login "apply to this job" link — shareable on LinkedIn or anywhere else. */
+async function copyApplyLink(orgSlug: string | undefined, job: Job) {
+  if (!orgSlug) {
+    toast.error('Apply link is still loading — try again in a moment.')
+    return
+  }
+  const url = `${window.location.origin}/apply/${orgSlug}/${job.id}`
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.success('Apply link copied!')
+  } catch {
+    toast.error('Could not copy the apply link.')
+  }
+}
+
+function JobDetailDialog({ job, orgSlug, onClose }: { job: Job; orgSlug: string | undefined; onClose: () => void }) {
   const [busy, setBusy] = useState(false)
 
   /* Opens the stored JD if there is one, otherwise generates a PDF. Both end at
@@ -177,6 +193,14 @@ function JobDetailDialog({ job, onClose }: { job: Job; onClose: () => void }) {
       }
       footer={
         <>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Link2 size={14} />}
+            onClick={() => copyApplyLink(orgSlug, job)}
+          >
+            Copy apply link
+          </Button>
           <Button variant="quiet" size="sm" onClick={() => openJd(true)} loading={busy}>
             Download JD
           </Button>
@@ -231,6 +255,12 @@ export default function JobsListPage() {
   const [deleteTarget, setDeleteTarget] = useState<Job | null>(null)
 
   const isAdmin = user?.role === 'admin'
+
+  const { data: organization } = useQuery({
+    queryKey: ['organization', 'me'],
+    queryFn: () => organizationsApi.getMe().then((r: any) => r.data),
+    staleTime: 5 * 60 * 1000,
+  })
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['jobs', page, statusFilter, search],
@@ -357,11 +387,14 @@ export default function JobsListPage() {
       key: 'actions',
       header: <span className="sr-only">Actions</span>,
       align: 'right',
-      width: '130px',
+      width: '170px',
       cell: (job) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           <IconButton label="Share on LinkedIn" onClick={() => setLinkedInJob(job)}>
             <LinkedInGlyph />
+          </IconButton>
+          <IconButton label="Copy apply link" onClick={() => copyApplyLink(organization?.slug, job)}>
+            <Link2 size={14} />
           </IconButton>
 
           {isAdmin && (
@@ -479,7 +512,7 @@ export default function JobsListPage() {
       <LinkedInShareModal job={linkedInJob} onClose={() => setLinkedInJob(null)} />
 
       {selectedJob && (
-        <JobDetailDialog job={selectedJob} onClose={() => setSelectedJob(null)} />
+        <JobDetailDialog job={selectedJob} orgSlug={organization?.slug} onClose={() => setSelectedJob(null)} />
       )}
 
       <ConfirmDialog

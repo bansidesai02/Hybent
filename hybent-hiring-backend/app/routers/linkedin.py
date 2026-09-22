@@ -1,15 +1,21 @@
 """
-LinkedIn OAuth 2.0 + UGC Post API router.
+LinkedIn OAuth 2.0 connect router.
+
+Publishing itself does not go through LinkedIn's API (that requires the
+`w_member_social` scope, which is gated behind LinkedIn product review and
+was the source of repeated production issues here). Instead, the frontend
+copies the AI-drafted post to the clipboard and opens LinkedIn's own post
+composer for the recruiter to paste into and publish themselves — the
+standard workaround most ATS integrations use. This router only exists to
+gate that "Post" action behind a "Connect LinkedIn" step, as requested.
 
 Endpoints:
   GET  /v1/linkedin/connect-url   → returns the OAuth authorization URL
   GET  /v1/linkedin/callback      → exchanges code for token, stores it, returns HTML postMessage page
   GET  /v1/linkedin/status        → { connected: bool }
-  POST /v1/linkedin/post          → creates a UGC post (text + optional image)
   DELETE /v1/linkedin/disconnect  → clears stored token
 """
 
-import base64
 import time
 import urllib.parse
 import logging
@@ -17,7 +23,7 @@ from typing import Annotated
 
 import httpx
 from jose import jwt, JWTError
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 
 from app.core.config import settings
@@ -34,10 +40,8 @@ router = APIRouter(prefix="/v1/linkedin", tags=["linkedin"])
 _AUTH_URL   = "https://www.linkedin.com/oauth/v2/authorization"
 _TOKEN_URL  = "https://www.linkedin.com/oauth/v2/accessToken"
 _API_BASE   = "https://api.linkedin.com/v2"
-# Scopes required:
-#   openid + profile  → userinfo (needed to get person URN)
-#   w_member_social   → create UGC posts
-_SCOPES     = "openid profile w_member_social"
+# openid + profile → userinfo, just enough to confirm a connected identity.
+_SCOPES     = "openid profile"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -62,84 +66,6 @@ def _decode_state(state: str) -> str:
         raise ValueError("state_expired_or_invalid")
     except Exception:
         raise ValueError("state_invalid")
-
-
-async def _get_linkedin_profile(token: str) -> dict:
-    """Fetch LinkedIn profile via OpenID userinfo endpoint."""
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            f"{_API_BASE}/userinfo",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        r.raise_for_status()
-        return r.json()
-
-
-async def _upload_image(token: str, person_urn: str, image_base64: str) -> str | None:
-    """
-    Upload an image to LinkedIn's media API.
-    Returns the asset URN (e.g. urn:li:digitalmediaAsset:...) or None on failure.
-    """
-    async with httpx.AsyncClient(timeout=60) as client:
-        # 1. Register upload
-        reg_resp = await client.post(
-            f"{_API_BASE}/assets?action=registerUpload",
-            json={
-                "registerUploadRequest": {
-                    "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
-                    "owner": person_urn,
-                    "serviceRelationships": [
-                        {
-                            "relationshipType": "OWNER",
-                            "identifier": "urn:li:userGeneratedContent",
-                        }
-                    ],
-                }
-            },
-            headers={
-                "Authorization": f"Bearer {token}",
-                "X-Restli-Protocol-Version": "2.0.0",
-                "Content-Type": "application/json",
-            },
-        )
-
-        if reg_resp.status_code not in (200, 201):
-            logger.warning(f"LinkedIn registerUpload failed: {reg_resp.status_code} {reg_resp.text}")
-            return None
-
-        reg_data   = reg_resp.json()
-        upload_url = (
-            reg_data.get("value", {})
-            .get("uploadMechanism", {})
-            .get("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {})
-            .get("uploadUrl")
-        )
-        asset_urn  = reg_data.get("value", {}).get("asset")
-
-        if not upload_url or not asset_urn:
-            logger.warning("LinkedIn registerUpload response missing uploadUrl or asset.")
-            return None
-
-        # 2. Strip data-URL prefix and decode
-        if "," in image_base64:
-            image_base64 = image_base64.split(",", 1)[1]
-        image_bytes = base64.b64decode(image_base64)
-
-        # 3. PUT binary image
-        put_resp = await client.put(
-            upload_url,
-            content=image_bytes,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/octet-stream",
-            },
-        )
-
-        if put_resp.status_code not in (200, 201):
-            logger.warning(f"LinkedIn image upload PUT failed: {put_resp.status_code} {put_resp.text}")
-            return None
-
-        return asset_urn
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -269,131 +195,6 @@ async def linkedin_status(
     return APIResponse.success(
         message="LinkedIn connection status retrieved.",
         data={"connected": bool(current_user.linkedin_access_token)}
-    )
-
-
-@router.post("/post")
-async def post_to_linkedin(
-    current_user: Annotated[User, Depends(require_recruiter)],
-    db: DB,
-    body: dict = Body(...),
-):
-    """
-    Publish a post to the recruiter's LinkedIn feed.
-
-    Body fields:
-      text         (str, required)  — full post text including hashtags
-      image_base64 (str, optional)  — base64 PNG/JPG data URL or raw base64
-    """
-    token = current_user.linkedin_access_token
-    if not token:
-        raise HTTPException(
-            status_code=401,
-            detail="LinkedIn not connected. Please connect your LinkedIn account first.",
-        )
-
-    text         = (body.get("text") or "").strip()
-    image_base64 = body.get("image_base64")
-
-    if not text:
-        raise HTTPException(status_code=400, detail="Post text cannot be empty.")
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        # ── 1. Get LinkedIn person URN ────────────────────────────────────────
-        profile_resp = await client.get(
-            f"{_API_BASE}/userinfo",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-
-        if profile_resp.status_code == 401:
-            # Token expired — clear it and ask user to reconnect
-            current_user.linkedin_access_token = None
-            await db.commit()
-            raise HTTPException(
-                status_code=401,
-                detail="LinkedIn session expired. Please reconnect your LinkedIn account.",
-            )
-
-        if not profile_resp.is_success:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Failed to fetch LinkedIn profile: {profile_resp.status_code}",
-            )
-
-        profile    = profile_resp.json()
-        sub        = profile.get("sub")  # LinkedIn member ID (OpenID)
-        if not sub:
-            raise HTTPException(status_code=502, detail="LinkedIn profile missing 'sub' field.")
-
-        person_urn = f"urn:li:person:{sub}"
-
-        # ── 2. Upload image (optional) ────────────────────────────────────────
-        asset_urn: str | None = None
-        if image_base64:
-            asset_urn = await _upload_image(token, person_urn, image_base64)
-            if not asset_urn:
-                logger.warning("Image upload failed; posting text-only as fallback.")
-
-        # ── 3. Build UGC post body ────────────────────────────────────────────
-        share_content: dict
-        if asset_urn:
-            share_content = {
-                "shareCommentary":    {"text": text},
-                "shareMediaCategory": "IMAGE",
-                "media": [
-                    {
-                        "status":      "READY",
-                        "description": {"text": "Job opportunity banner"},
-                        "media":       asset_urn,
-                        "title":       {"text": "Job Opening"},
-                    }
-                ],
-            }
-        else:
-            share_content = {
-                "shareCommentary":    {"text": text},
-                "shareMediaCategory": "NONE",
-            }
-
-        post_body = {
-            "author":         person_urn,
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": share_content,
-            },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-            },
-        }
-
-        # ── 4. Create the post ────────────────────────────────────────────────
-        post_resp = await client.post(
-            f"{_API_BASE}/ugcPosts",
-            json=post_body,
-            headers={
-                "Authorization":              f"Bearer {token}",
-                "X-Restli-Protocol-Version":  "2.0.0",
-                "Content-Type":               "application/json",
-            },
-        )
-
-    if post_resp.status_code not in (200, 201):
-        logger.error(f"LinkedIn UGC post failed: {post_resp.status_code} {post_resp.text}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"LinkedIn API error: {post_resp.status_code}. "
-                   "Your post may not have the required permissions (w_member_social scope).",
-        )
-
-    # Extract post ID from header or response body
-    post_id  = post_resp.headers.get("x-restli-id") or post_resp.json().get("id", "")
-    post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else "https://www.linkedin.com/feed/"
-
-    logger.info(f"LinkedIn post created: {post_id} by user {current_user.id}")
-
-    return APIResponse.success(
-        message="Posted to LinkedIn successfully!",
-        data={"post_id": post_id, "post_url": post_url},
     )
 
 

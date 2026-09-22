@@ -833,6 +833,7 @@ Style Guidelines for the Tone '{tone}':
 General Rules:
 - Mention the role, key responsibilities, and what makes it exciting.
 - Use line breaks between paragraphs for high readability.
+- If an Application Link is given below, end the post with a clear call to action that includes that exact link on its own line (e.g. "Apply here: <link>") so candidates can click through to apply.
 - Return ONLY valid JSON, no markdown, no backticks.
 
 Job Details:
@@ -868,6 +869,9 @@ async def generate_linkedin_post(
         f"Skills Required: {', '.join(job_data.get('skills_required', []))}\n"
         f"Description: {job_data.get('description', '')[:500]}"
     )
+    apply_url = (job_data.get("apply_url") or "").strip()
+    if apply_url:
+        job_summary += f"\nApplication Link: {apply_url}"
 
     tone = job_data.get("tone", "professional").lower()
     style = STYLE_GUIDELINES.get(tone, STYLE_GUIDELINES["professional"])

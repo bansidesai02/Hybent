@@ -14,9 +14,11 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
+import { useQuery } from '@tanstack/react-query'
 
 import { aiApi } from '@/api/ai'
 import { linkedinApi } from '@/api/linkedin'
+import { organizationsApi } from '@/api/organizations'
 import {
   Avatar,
   Badge,
@@ -222,6 +224,14 @@ const IMAGE_TYPES = [
   { value: 'none' as const, label: 'None' },
 ]
 
+/**
+ * LinkedIn does not let a URL pre-fill post text into a member's composer —
+ * only publishing through a member's own authenticated session can do that.
+ * So "publish" here means: copy the drafted text/image, then open LinkedIn's
+ * own blank composer for the recruiter to paste into and publish themselves.
+ */
+const LINKEDIN_COMPOSE_URL = 'https://www.linkedin.com/feed/?shareActive=true'
+
 export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
   // ── Screen machine ──────────────────────────────────────────────────────────
   const [screen, setScreen] = useState<Screen>('compose')
@@ -246,10 +256,22 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
 
   // ── Post state ──────────────────────────────────────────────────────────────
   const [isPosting, setIsPosting] = useState(false)
-  const [postResult, setPostResult] = useState<{ post_id: string; post_url: string } | null>(null)
+  const [readySummary, setReadySummary] = useState<{ imageIncluded: boolean; imageCopied: boolean } | null>(null)
 
   const toneLabelId = useId()
   const visualLabelId = useId()
+
+  // ── Apply link — the org slug + job id, shared by the AI draft and the
+  //    standalone "Copy Apply Link" button so a manually-written post can
+  //    carry it too. ───────────────────────────────────────────────────────
+  const { data: organization } = useQuery({
+    queryKey: ['organization', 'me'],
+    queryFn: () => organizationsApi.getMe().then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+  })
+  const applyUrl = job && organization?.slug
+    ? `${window.location.origin}/apply/${organization.slug}/${job.id}`
+    : ''
 
   // ── Check LinkedIn connection when modal opens ──────────────────────────────
   useEffect(() => {
@@ -270,7 +292,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
   useEffect(() => {
     if (!job) {
       setScreen('compose')
-      setPostResult(null)
+      setReadySummary(null)
       setIsPosting(false)
     }
   }, [job])
@@ -290,7 +312,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
           window.removeEventListener('message', listener)
           popup?.close()
           setIsConnected(true)
-          toast.success('LinkedIn connected! You can now post directly.')
+          toast.success('LinkedIn connected!')
         }
         if (e.data?.type === 'LINKEDIN_ERROR') {
           window.removeEventListener('message', listener)
@@ -330,16 +352,22 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
       const r: any = await aiApi.generateLinkedInPost({
         title: job.title, location: job.location, job_type: job.job_type,
         experience_level: job.experience_level, skills_required: job.skills_required,
-        description: job.description, tone: selectedTone,
+        description: job.description, tone: selectedTone, apply_url: applyUrl || undefined,
       })
       const data = r.data ?? r
-      if (data?.post_content) setPostText(data.post_content)
+      if (data?.post_content) {
+        let content: string = data.post_content
+        if (applyUrl && !content.includes(applyUrl)) {
+          content = `${content.trim()}\n\nApply here: ${applyUrl}`
+        }
+        setPostText(content)
+      }
       if (data?.hashtags?.length) setHashtags(data.hashtags)
       toast.success('AI post generated!')
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'AI generation failed.')
     } finally { setIsGenerating(false) }
-  }, [job, selectedTone])
+  }, [job, selectedTone, applyUrl])
 
   /* Tags carry their hash into the post body, so one is added if the recruiter
      did not type it. Deduped after prefixing, so "react" cannot be added twice
@@ -379,27 +407,64 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
     } finally { setIsGeneratingImage(false) }
   }
 
+  // ── Copy apply link ─────────────────────────────────────────────────────────
+  // Standalone from the AI draft — also for a post written entirely by hand.
+  const handleCopyApplyLink = async () => {
+    if (!applyUrl) { toast.error('Apply link is still loading — try again in a moment.'); return }
+    try {
+      await navigator.clipboard.writeText(applyUrl)
+      toast.success('Apply link copied!')
+    } catch {
+      toast.error('Could not copy the apply link.')
+    }
+  }
+
   // ── Publish ─────────────────────────────────────────────────────────────────
+  // LinkedIn does not accept prefilled post text via URL (and the direct
+  // publish API requires the restricted `w_member_social` scope) — so this
+  // copies the draft to the clipboard and opens LinkedIn's own composer for
+  // the recruiter to paste into and review before publishing themselves.
   const handlePublish = async () => {
+    if (!job) return
     setIsPosting(true)
     try {
       const fullText = postText.trim() + (hashtags.length ? '\n\n' + hashtags.join(' ') : '')
-      const finalImage = imageType === 'ai' ? aiImageUrl : (imageType === 'card' ? imageUrl : undefined)
+      const finalImageData = imageType === 'ai' ? aiImageUrl : (imageType === 'card' ? imageUrl : '')
 
-      const r: any = await linkedinApi.post({ text: fullText, image_base64: finalImage })
-      const result = r?.data ?? r
-      setPostResult(result)
-      setScreen('success')
-      toast.success('Posted to LinkedIn! 🎉')
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to post.'
-      if (err?.response?.status === 401) {
-        setIsConnected(false)
-        setScreen('confirm')
-        toast.error('LinkedIn session expired. Please reconnect.')
-      } else {
-        toast.error(msg)
+      await navigator.clipboard.writeText(fullText)
+
+      let imageCopied = false
+      if (finalImageData) {
+        const filename = `${job.title.replace(/\s+/g, '_')}_job_opening.png`
+        const link = document.createElement('a')
+        link.href = finalImageData
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        try {
+          const res = await fetch(finalImageData)
+          const blob = await res.blob()
+          await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
+          imageCopied = true
+        } catch (err) {
+          console.warn('Auto-copying image to clipboard failed, falling back to download only:', err)
+        }
       }
+
+      window.open(LINKEDIN_COMPOSE_URL, '_blank')
+      setReadySummary({ imageIncluded: !!finalImageData, imageCopied })
+      setScreen('success')
+
+      if (finalImageData) {
+        toast.success(imageCopied ? 'Text & image copied! Image also downloaded.' : 'Text copied & image downloaded!')
+      } else {
+        toast.success('Post text copied to clipboard!')
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to prepare the post. Please try again.')
     } finally { setIsPosting(false) }
   }
 
@@ -424,7 +489,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
     screen === 'compose' ? (
       <>
         <p className="mr-auto max-w-[46ch] text-hb-xs text-hb-muted">
-          Your post will publish directly to your LinkedIn feed — no copy-paste needed.
+          Next, we'll copy this post and open LinkedIn so you can review and publish it yourself.
         </p>
         <Button
           size="lg"
@@ -454,32 +519,29 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
             disabled={!isConnected}
             icon={<LinkedInGlyph size={16} />}
           >
-            {isPosting ? 'Publishing…' : 'Publish to LinkedIn'}
+            {isPosting ? 'Preparing…' : 'Copy & open LinkedIn'}
           </Button>
         </span>
       </>
     ) : (
       <>
-        {postResult?.post_url && (
-          /* A real link, so it can be opened in a new tab or copied. */
-          <a
-            href={postResult.post_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={clsx(
-              'inline-flex h-10 items-center gap-2 rounded-hb-full px-5',
-              'bg-hb-grad font-body text-hb-body font-bold text-hb-on-brand',
-              'transition-transform duration-hb ease-hb hover:-translate-y-[2px]'
-            )}
-          >
-            <ExternalLink size={16} aria-hidden />
-            View post on LinkedIn
-          </a>
-        )}
+        <a
+          href={LINKEDIN_COMPOSE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={clsx(
+            'inline-flex h-10 items-center gap-2 rounded-hb-full px-5',
+            'bg-hb-grad font-body text-hb-body font-bold text-hb-on-brand',
+            'transition-transform duration-hb ease-hb hover:-translate-y-[2px]'
+          )}
+        >
+          <ExternalLink size={16} aria-hidden />
+          Open LinkedIn again
+        </a>
         <Button
           variant="ghost"
           icon={<RefreshCw size={14} />}
-          onClick={() => { setScreen('compose'); setPostText(''); setHashtags([]); setPostResult(null) }}
+          onClick={() => { setScreen('compose'); setPostText(''); setHashtags([]); setReadySummary(null) }}
         >
           Post another
         </Button>
@@ -523,7 +585,17 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
             </Button>
           </>
         ) : (
-          <Badge tone="warning">Not connected</Badge>
+          <>
+            <Badge tone="warning">Not connected</Badge>
+            <Button
+              size="sm"
+              icon={<LinkedInGlyph size={14} />}
+              loading={isConnecting}
+              onClick={handleConnectLinkedIn}
+            >
+              {isConnecting ? 'Connecting…' : 'Connect LinkedIn'}
+            </Button>
+          </>
         )}
       </div>
 
@@ -594,6 +666,20 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
               onChange={handleTagsChange}
               placeholder="#addtag"
             />
+
+            <div className="flex items-center justify-between gap-hb-2 rounded-hb-sm border border-hb-border bg-hb-surface-2 px-hb-3 py-hb-2.5">
+              <p className="min-w-0 truncate text-hb-xs text-hb-muted">
+                {applyUrl || 'Apply link loads once organization info is ready…'}
+              </p>
+              <Button
+                size="sm"
+                variant="quiet"
+                icon={<Link2 size={13} />}
+                onClick={handleCopyApplyLink}
+              >
+                Copy apply link
+              </Button>
+            </div>
           </div>
 
           {/* Right — visual */}
@@ -739,7 +825,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                 Connect your LinkedIn account
               </h3>
               <p className="mt-hb-2 max-w-[46ch] text-hb-sm text-hb-muted">
-                To publish directly to LinkedIn you need to authorise Hybent Hiring once.
+                Connect your LinkedIn account once to post job openings.
                 Click below — it opens a small popup.
               </p>
               <Button
@@ -785,10 +871,19 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
       {screen === 'success' && (
         <div className="flex flex-col items-center py-hb-10 text-center">
           <IconTile size="lg" className="text-hb-success"><CheckCircle2 /></IconTile>
-          <h3 className="mt-hb-4 font-display text-hb-h2 text-hb-text">Posted to LinkedIn</h3>
-          <p className="mt-hb-2 max-w-[42ch] text-hb-sm text-hb-muted">
-            Your job post is now live on LinkedIn. It may take a few seconds to appear in your feed.
+          <h3 className="mt-hb-4 font-display text-hb-h2 text-hb-text">Ready to post on LinkedIn</h3>
+          <p className="mt-hb-2 max-w-[46ch] text-hb-sm text-hb-muted">
+            LinkedIn's post composer has opened in a new tab.
           </p>
+          <ol className="mt-hb-4 max-w-[46ch] list-decimal space-y-1.5 pl-5 text-left text-hb-sm text-hb-text">
+            <li>Your post text has been copied to the clipboard.</li>
+            {readySummary?.imageIncluded && (
+              <li>
+                The banner image has been downloaded{readySummary.imageCopied ? ' and copied' : ''} — attach it to the post on LinkedIn.
+              </li>
+            )}
+            <li>Switch to the LinkedIn tab, press Ctrl/Cmd+V to paste the text, then review and publish.</li>
+          </ol>
         </div>
       )}
     </Dialog>

@@ -43,6 +43,30 @@ class JobUpdate(BaseModel):
     jd_filename: str | None = None
 
 
+class PublicOrganizationOut(OrmSchema):
+    name: str
+    slug: str
+    logo_url: str | None = None
+
+
+class JobPublicOut(OrmSchema):
+    """Trimmed, safe-for-anonymous-viewers job schema for the public apply page."""
+    id: str
+    title: str
+    location: str | None = None
+    job_type: str
+    experience_level: str | None = None
+    min_experience_years: int | None = 0
+    description: str
+    requirements: str | None = None
+    responsibilities: str | None = None
+    benefits: str | None = None
+    skills_required: list[str]
+    is_remote: bool
+    application_deadline: datetime | None = None
+    organization: PublicOrganizationOut
+
+
 class JobOut(OrmSchema):
     id: str
     organization_id: str

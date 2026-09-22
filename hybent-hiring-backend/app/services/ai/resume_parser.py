@@ -36,6 +36,20 @@ except Exception as exc:
 GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
 
 
+class NotAResumeError(HTTPException):
+    """Raised when a document fails resume validation — unreadable, or
+    positively classified as not a resume/CV (invoice, ID, certificate,
+    etc.). Subclasses HTTPException so the manual-upload routers (which let
+    parse_resume's exceptions propagate straight to a 400 response) keep
+    working unchanged. Callers that need to tell "this genuinely isn't a
+    resume" apart from a transient parsing failure — e.g. email ingestion,
+    which should skip the former but still fall back gracefully on the
+    latter — catch this type specifically."""
+
+    def __init__(self, detail: str = "Invalid document. Please upload a valid professional resume/CV."):
+        super().__init__(status_code=400, detail=detail)
+
+
 # ─── Pydantic schema ────────────────────────────────────────────────────────────
 
 class ExperienceEntry(BaseModel):
@@ -634,17 +648,11 @@ async def parse_resume(
         text = extract_text_from_doc(file_content)
     else:
         logger.warning(f"Unsupported resume format or content type: {content_type}")
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid document. Please upload a valid professional resume/CV."
-        )
+        raise NotAResumeError()
 
     if not text or len(text.strip()) < 150:
         logger.warning("Could not extract text or text too short from resume")
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid document. Please upload a valid professional resume/CV."
-        )
+        raise NotAResumeError()
 
     # Perform strict document validation
     if groq_client:
@@ -653,10 +661,7 @@ async def parse_resume(
         is_resume = _verify_is_resume_with_keywords(text)
 
     if not is_resume:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid document. Please upload a valid professional resume/CV."
-        )
+        raise NotAResumeError()
 
     if organization_id:
         from app.services.ai_credit_service import AICreditsService
