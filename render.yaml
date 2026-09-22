@@ -10,6 +10,14 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      # Was unset, which entrypoint.sh defaults to 1 — a single Uvicorn worker
+      # serving every request site-wide. One request doing blocking work
+      # (resume parsing, password hashing) froze the whole site for every
+      # other concurrent user. 2 is a conservative bump for the free plan's
+      # limited RAM (each worker loads its own full copy of the app) — not
+      # higher without also upgrading the plan.
+      - key: WEB_CONCURRENCY
+        value: "2"
       # Supabase Postgres via the SESSION POOLER (port 5432 on
       # aws-<n>-<region>.pooler.supabase.com, username `postgres.<project-ref>`)
       # — NOT the "Direct connection" host (db.<ref>.supabase.co), which
