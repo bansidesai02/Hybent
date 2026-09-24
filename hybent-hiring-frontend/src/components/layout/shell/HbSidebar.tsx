@@ -367,7 +367,7 @@ function HbSidebarComponent({
         </nav>
 
         {/* ── Who you are ───────────────────────────────────────────────── */}
-        <div className="flex-none border-t border-hb-border">
+        {/* <div className="flex-none border-t border-hb-border">
           <div className="flex items-center gap-3 px-hb-5 py-hb-4">
             <span className="grid h-9 w-9 flex-none place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-xs font-bold text-hb-on-brand">
               {user?.avatar_url && user.avatar_url !== brokenAvatarSrc ? (
@@ -394,7 +394,7 @@ function HbSidebarComponent({
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
       </aside>
     </>
   )
