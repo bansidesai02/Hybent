@@ -68,7 +68,7 @@ export function ChatMessageActions({
         {/* Copy */}
         <button
           onClick={handleCopy}
-          className="p-1 rounded-md text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/60 transition-colors flex items-center gap-1 text-[11px]"
+          className="p-1 rounded-md text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors flex items-center gap-1 text-[11px]"
           title="Copy response"
         >
           {copied ? (
@@ -85,7 +85,7 @@ export function ChatMessageActions({
         {onRegenerate && (
           <button
             onClick={onRegenerate}
-            className="p-1 rounded-md text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/60 transition-colors"
+            className="p-1 rounded-md text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
             title="Regenerate response"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -98,8 +98,8 @@ export function ChatMessageActions({
             onClick={onToggleLike}
             className={`p-1 rounded-md transition-colors ${
               liked
-                ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50'
-                : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                ? 'text-emerald-500 bg-emerald-50'
+                : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'
             }`}
             title="Good response"
           >
@@ -113,8 +113,8 @@ export function ChatMessageActions({
             onClick={onToggleDislike}
             className={`p-1 rounded-md transition-colors ${
               disliked
-                ? 'text-red-500 bg-red-50 dark:bg-red-950/50'
-                : 'text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40'
+                ? 'text-red-500 bg-red-50'
+                : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
             }`}
             title="Bad response"
           >
@@ -126,7 +126,7 @@ export function ChatMessageActions({
         {onShare && (
           <button
             onClick={onShare}
-            className="p-1 rounded-md text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/60 transition-colors"
+            className="p-1 rounded-md text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
             title="Share message"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -138,8 +138,8 @@ export function ChatMessageActions({
           onClick={handleSpeech}
           className={`p-1 rounded-md transition-colors ${
             isSpeaking
-              ? 'text-violet-600 bg-violet-100 dark:bg-violet-900/60 animate-pulse'
-              : 'text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/60'
+              ? 'text-violet-600 bg-violet-100 animate-pulse'
+              : 'text-slate-400 hover:text-violet-600 hover:bg-violet-50'
           }`}
           title={isSpeaking ? 'Stop reading' : 'Read aloud'}
         >
@@ -155,7 +155,7 @@ export function ChatMessageActions({
       {onEditUserMsg && (
         <button
           onClick={onEditUserMsg}
-          className="p-1 rounded-md text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/60 transition-colors flex items-center gap-1 text-[11px]"
+          className="p-1 rounded-md text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors flex items-center gap-1 text-[11px]"
           title="Edit message"
         >
           <Edit2 className="w-3.5 h-3.5" />

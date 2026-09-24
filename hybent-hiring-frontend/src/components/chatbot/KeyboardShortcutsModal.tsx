@@ -48,18 +48,18 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 10 }}
         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-        className="relative z-10 w-full max-w-[340px] p-5 rounded-[22px] bg-white/95 dark:bg-[#1a1236]/95 border border-white/60 dark:border-violet-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+        className="relative z-10 w-full max-w-[340px] p-5 rounded-[22px] bg-white/95 border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl"
       >
         <button
           onClick={onClose}
-          className="absolute top-3.5 right-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="absolute top-3.5 right-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
           aria-label="Close shortcuts modal"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-2 mb-4 text-[#1a1040] dark:text-white">
-          <div className="p-2 rounded-xl bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400">
+        <div className="flex items-center gap-2 mb-4 text-[#1a1040]">
+          <div className="p-2 rounded-xl bg-violet-100 text-violet-600">
             <Keyboard className="w-5 h-5" />
           </div>
           <div>
@@ -72,12 +72,12 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
           {SHORTCUTS.map((s, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 text-xs"
+              className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs"
             >
-              <span className="text-slate-600 dark:text-slate-300 font-medium text-[11px]">
+              <span className="text-slate-600 font-medium text-[11px]">
                 {s.desc}
               </span>
-              <kbd className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono font-bold text-violet-700 dark:text-violet-300 shadow-xs">
+              <kbd className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-mono font-bold text-violet-700 shadow-xs">
                 {s.key}
               </kbd>
             </div>

@@ -244,7 +244,7 @@ function HybentChatbotInner() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 12 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-            className="relative pointer-events-auto mb-2 sm:mb-3 w-[calc(100vw-24px)] sm:w-[380px] h-[calc(100vh-110px)] sm:h-[560px] max-h-[570px] flex flex-col bg-white text-slate-900 backdrop-blur-2xl border border-slate-200/90 rounded-[20px] shadow-[0_20px_50px_-10px_rgba(15,23,42,0.22)] overflow-hidden"
+            className="relative pointer-events-auto mb-2 sm:mb-3 w-[calc(100vw-24px)] sm:w-[380px] h-[calc(100vh-110px)] sm:h-[min(560px,calc(100vh-110px))] max-h-[570px] flex flex-col bg-white text-slate-900 border border-slate-200/90 rounded-[20px] shadow-[0_20px_50px_-10px_rgba(15,23,42,0.22)] overflow-hidden"
           >
             {/* Toast Notifications Overlay */}
             <ToastNotification toasts={toasts} onDismiss={(id) => setToasts((t) => t.filter((item) => item.id !== id))} />

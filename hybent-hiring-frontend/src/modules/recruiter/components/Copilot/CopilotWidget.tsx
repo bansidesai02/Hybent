@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import toast from 'react-hot-toast'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useMessageStore } from '@/store/messageStore'
@@ -1673,6 +1674,12 @@ export function CopilotWidget() {
 
   const parseCandidateCard = (text: string): CandidateCardData | null => {
     if (!text.includes('👤')) return null
+    // search_users' team-member blocks use the same 👤 name line but a
+    // "🔑 Role:" field candidates never have — a team member isn't a
+    // candidate, has no profile page, and offering a "View profile" button
+    // for one is at best a dead link, at worst a navigation to the wrong
+    // record when a team member and a candidate happen to share a name.
+    if (text.includes('🔑')) return null
     const lines = text.split('\n')
     const card: CandidateCardData = { name: '' }
     
@@ -1765,6 +1772,45 @@ export function CopilotWidget() {
       cleanContent = content.replace(/\[CTA_BUTTON:.*?\]/g, '').trim()
     }
 
+    // [PENDING_TOOL:name] — a backend-only marker (COPILOT_SYSTEM_PROMPT §5)
+    // that tells the *next* turn a short reply like "Technical Round" is
+    // continuing this write-tool clarification, not a fresh question. Purely
+    // for the backend's own history parsing — never shown to the recruiter.
+    cleanContent = cleanContent.replace(/\n*\[PENDING_TOOL:.*?\]/g, '').trim()
+
+    // [SUGGEST:label one|label two] — the Copilot's next-action suggestions
+    // (see COPILOT_SYSTEM_PROMPT §7). Rendered as chips; clicking one sends
+    // its label as the next message, same as the onboarding prompt cards do.
+    // A reply can carry more than one group (e.g. interview stage AND
+    // interviewer choices) — each becomes its own row so it's clear they're
+    // separate decisions, not one flat list to pick one item out of.
+    const suggestionGroups = Array.from(cleanContent.matchAll(/\[SUGGEST:(.*?)\]/g)).map((m) =>
+      m[1].split('|').map((s) => s.trim()).filter(Boolean)
+    )
+    if (suggestionGroups.length > 0) {
+      cleanContent = cleanContent.replace(/\[SUGGEST:.*?\]/g, '').trim()
+    }
+
+    const renderSuggestions = () =>
+      suggestionGroups.length > 0 ? (
+        <div className="mt-2.5 flex flex-col gap-1.5">
+          {suggestionGroups.map((group, gi) => (
+            <div key={gi} className="flex flex-wrap gap-1.5">
+              {group.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => handleSend(label)}
+                  className="rounded-hb-full border border-hb-border bg-hb-surface px-3 py-1.5 text-hb-xs font-medium text-hb-cyan transition-colors duration-hb hover:border-hb-cyan/50 hover:bg-hb-cyan/10"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null
+
     const isJD =
       cleanContent.includes('Role Overview') ||
       cleanContent.includes('Key Responsibilities') ||
@@ -1825,12 +1871,15 @@ export function CopilotWidget() {
     if (parts.length <= 1) {
       return (
         <div className="flex w-full flex-col items-start">
-          <ReactMarkdown>{cleanContent}</ReactMarkdown>
+          <div className="copilot-markdown w-full">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
+          </div>
           {isJD ? (
             <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
           ) : (
             renderGenericCta()
           )}
+          {renderSuggestions()}
         </div>
       )
     }
@@ -1844,13 +1893,18 @@ export function CopilotWidget() {
           }
           const trimmedPart = part.trim()
           if (!trimmedPart) return null
-          return <ReactMarkdown key={idx}>{trimmedPart}</ReactMarkdown>
+          return (
+            <div key={idx} className="copilot-markdown">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{trimmedPart}</ReactMarkdown>
+            </div>
+          )
         })}
         {isJD ? (
           <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
         ) : (
           renderGenericCta()
         )}
+        {renderSuggestions()}
       </div>
     )
   }

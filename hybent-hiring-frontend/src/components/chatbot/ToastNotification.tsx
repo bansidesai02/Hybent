@@ -18,15 +18,15 @@ export function ToastNotification({ toasts, onDismiss }: ToastNotificationProps)
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-            className="pointer-events-auto flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 border border-slate-700 dark:border-slate-200 shadow-[0_8px_24px_rgba(0,0,0,0.25)] backdrop-blur-lg text-xs font-semibold"
+            className="pointer-events-auto flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-900/95 text-white border border-slate-700 shadow-[0_8px_24px_rgba(0,0,0,0.25)] backdrop-blur-lg text-xs font-semibold"
           >
             <div className="flex items-center gap-2">
               {toast.type === 'error' ? (
-                <AlertCircle className="w-4 h-4 text-red-400 dark:text-red-500 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               ) : toast.type === 'warning' ? (
-                <AlertCircle className="w-4 h-4 text-amber-400 dark:text-amber-500 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
               ) : (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-500 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               )}
               <span>{toast.message}</span>
             </div>
@@ -47,7 +47,7 @@ export function ToastNotification({ toasts, onDismiss }: ToastNotificationProps)
 
               <button
                 onClick={() => onDismiss(toast.id)}
-                className="p-0.5 rounded text-slate-400 hover:text-white dark:hover:text-slate-900 transition-colors"
+                className="p-0.5 rounded text-slate-400 hover:text-white transition-colors"
                 aria-label="Dismiss notification"
               >
                 <X className="w-3.5 h-3.5" />

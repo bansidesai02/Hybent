@@ -54,7 +54,7 @@ export function ChatbotHeader({
           whileHover={{ scale: 1.1, backgroundColor: 'rgba(108, 71, 255, 0.1)' }}
           whileTap={{ scale: 0.9 }}
           onClick={onMinimize}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
           title="Minimize"
           aria-label="Minimize chatbot"
         >
@@ -66,7 +66,7 @@ export function ChatbotHeader({
           whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
           whileTap={{ scale: 0.9 }}
           onClick={onClose}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
           title="Close"
           aria-label="Close chatbot"
         >

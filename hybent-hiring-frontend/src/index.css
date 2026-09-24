@@ -1092,3 +1092,53 @@
 .animate-wobble-once {
   animation: wobble 0.75s ease-in-out;
 }
+
+/* Copilot chat markdown.
+   ReactMarkdown emits plain <ul>/<li>/<table>/<strong> with no styling —
+   Tailwind's Preflight strips all default list/table appearance, so a
+   bulleted "what I need from you" reply rendered as unmarked, unindented
+   paragraph lines (no bullet, no spacing) instead of a scannable list.
+   This is the one place in the Copilot widget that needs typography rules
+   rather than one-off classNames, since the content is arbitrary Markdown
+   the model writes, not markup this file controls directly. */
+.copilot-markdown p { margin: 0 0 8px; line-height: 1.5; }
+.copilot-markdown p:last-child { margin-bottom: 0; }
+.copilot-markdown strong { font-weight: 700; color: rgb(var(--hb-text)); }
+.copilot-markdown ul, .copilot-markdown ol {
+  margin: 4px 0 10px;
+  padding-left: 20px;
+}
+.copilot-markdown ul { list-style: disc; }
+.copilot-markdown ol { list-style: decimal; }
+.copilot-markdown li { margin-bottom: 4px; line-height: 1.45; }
+.copilot-markdown li:last-child { margin-bottom: 0; }
+.copilot-markdown a { color: rgb(var(--hb-blue)); text-decoration: underline; text-underline-offset: 2px; }
+.copilot-markdown code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  background: rgb(var(--hb-surface-2));
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.copilot-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.85em;
+}
+.copilot-markdown th, .copilot-markdown td {
+  border: 1px solid rgb(var(--hb-border));
+  padding: 6px 10px;
+  text-align: left;
+}
+.copilot-markdown th {
+  background: rgb(var(--hb-surface-2));
+  font-weight: 600;
+  color: rgb(var(--hb-text));
+}
+.copilot-markdown h1, .copilot-markdown h2, .copilot-markdown h3 {
+  font-weight: 700;
+  color: rgb(var(--hb-text));
+  margin: 10px 0 6px;
+}
+.copilot-markdown h1:first-child, .copilot-markdown h2:first-child, .copilot-markdown h3:first-child { margin-top: 0; }

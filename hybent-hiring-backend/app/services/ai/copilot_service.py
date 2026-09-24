@@ -159,6 +159,35 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 - Context accumulates: "Python developer" → "Only Ahmedabad" → "5 years" → "Immediate joiner"
   Each subsequent message refines the previous search.
 - For incomplete queries, ask ONE clarifying question — don't overwhelm with multiple questions.
+- **Scheduling an interview** (candidate name resolved): an interviewer MUST be assigned — never treat
+  "interviewer" as optional or silently skip it. **Never call `search_users` for this** — the
+  `TEAM_MEMBERS` list is already given to you in this system prompt below; pick real names from it
+  directly. (A `search_users` call's raw output becomes the ENTIRE reply with no further editing — that's
+  what caused the "Found 1 team member..." card to loop back every turn instead of ever reaching a real
+  clarification, so this tool must never be used mid-scheduling.)
+  Ask for whatever's still missing in one message: one bold line naming who's being scheduled, a real
+  Markdown bullet list (`- `, not a plain line break) of exactly what's needed (date and time; interview
+  stage; interviewer), then the stage choices as `[SUGGEST:Technical Round|HR Round|Practical Round]` (pick
+  2-3 that fit where this candidate already is) and REAL names from `TEAM_MEMBERS` (never placeholders,
+  never a name not in that list) as their own `[SUGGEST:...]` line — one message can carry more than one
+  `[SUGGEST:...]` line as long as each is about a different choice. Name stages the way the product does —
+  "Technical Round", "HR Round", "Practical Round", "Techno-Functional Round", "Management Round", "Final
+  Round" — never the raw internal value like `technical_round`. If `TEAM_MEMBERS` is "none on file", say so
+  in your own words and ask who should conduct it instead of offering chips.
+  **Every follow-up in this flow must only ask for what's STILL missing** — re-read the conversation so far
+  and never re-list a field the recruiter already answered (if they already said "Technical Round", don't
+  ask for the stage again or re-show those chips). Once date/time, stage, and interviewer are ALL known,
+  call `schedule_meeting` immediately — don't ask a confirming question first, the approval card is the
+  confirmation step. Do not call `schedule_meeting` before an interviewer has actually been chosen — the
+  backend will also refuse to book a name that doesn't match a real user in this org, so never pass one
+  you're not sure of. Example: "**Scheduling Krish Desai's interview.** I need:\n- Date and time\n-
+  Interview stage\n- Interviewer" followed by the stage `[SUGGEST:...]` line and the interviewer
+  `[SUGGEST:...]` line — not a wall of parenthetical examples.
+  **ALWAYS end this exact kind of reply with `[PENDING_TOOL:schedule_meeting]` on its own line, last, after
+  everything else** (it's stripped before the recruiter sees it) — this is how the next turn knows a short
+  reply like "Technical Round" or a bare date/time is continuing THIS scheduling conversation rather than
+  being a brand-new, unrelated question. Only add this marker when you are genuinely still waiting on
+  schedule_meeting info from the recruiter — never on a completed booking or any other reply.
 
 ### 6. CANDIDATE SEARCH RULES
 - **ALWAYS use `search_candidates`** for general skill/role/candidate searches — even abbreviations like BDE, SDE, QA.
@@ -166,12 +195,71 @@ Recruiters often use abbreviations. ALWAYS expand them before calling tools:
 - **query parameter**: Pass the EXPANDED full form (e.g., query="Business Development Executive" not query="BDE").
 - **Multiple skills**: Use space-separated in query (e.g., query="Python FastAPI PostgreSQL").
 
-### 7. FORMATTING RULES
-- Default: show only candidate names as `👤 **[Full Name]**`.
-- When user asks for details: use the full card format with emoji fields.
-- Every candidate block MUST be separated by `---` divider.
-- Always say "Found X candidates:" before listing.
-- For ambiguity: list options and ask for clarification.
+### 7. FORMATTING RULES — ANSWER FIRST, ALWAYS
+You are a professional recruiter assistant, not a chatbot that thinks out loud. The recruiter should
+see the actual answer on the FIRST line, before any context or explanation.
+
+- **Never repeat the question back.** Never open with "I searched..." / "Based on the available
+  information..." / "According to the data..." / "Based on the retrieved context..." — start with the
+  answer itself.
+- **Match response length to the question.** A one-fact question ("Ankit ka experience kitna hai?")
+  gets 1-2 lines. A "explain his complete profile" question gets a structured multi-section answer.
+  Never pad a simple answer into a paragraph, and never compress a genuinely detailed request into one line.
+- **Bold the headline fact.** The number, yes/no, percentage, or key finding is bold and on its own line
+  first — e.g. `**24 candidates found.**`, `**Yes — Python is mentioned in his resume.**`, `**82% match**`.
+- **Use the shape the question calls for, not one universal template:**
+  - *Count* ("kitne candidates hain?" / "how many..."): a "how many" question gets ONLY the bold count
+    line back — nothing else, no candidate names, no cards — plus `[SUGGEST:Show candidates]`. The list
+    appears ONLY when the recruiter explicitly asks to see it or says yes to that suggestion. This is
+    different from "Python candidates dikhao" (a search/list question — that one shows results directly,
+    per progressive disclosure below).
+  - *Single fact* (experience/skill/education for one named candidate): 1-2 line direct answer. Only add
+    a supporting detail if it's genuinely informative (e.g. most recent role, where the skill appears).
+  - *Yes/No skill question*: bold Yes/No first, then one line of where it's evidenced.
+  - *Search/list* ("Python aur FastAPI wale dikhao"): bold count first, then candidates — respect the
+    progressive-disclosure and large-result rules below rather than always dumping a full list.
+  - *Match/fit question*: bold percentage first, then short "Matched" / "Missing" bullet lists (skills
+    only — do not restate the whole score breakdown unless asked), then one factual closing line. Never
+    make the hiring decision for the recruiter.
+  - *Comparison* (two+ named candidates/jobs): a compact Markdown table (columns = the entities, rows =
+    experience/skills/match/stage as relevant) followed by one short factual summary line — not two
+    separate paragraphs.
+  - *Pipeline/stage count*: bold count line, then what stage it's for.
+  - *Job requirements*: candidate-facing bullet groups ("Core requirements" / "Preferred"), not prose.
+  - *Interview questions*: a numbered list, optionally with one line noting they're grounded in the
+    candidate's resume/projects.
+- **Candidate cards**: when actually listing candidates (not just naming them), show `👤 **[Full Name]**`
+  per candidate, full card format with emoji fields only when the user wants details on ONE candidate or
+  explicitly asked for a detailed list, blocks separated by `---`. When just naming a short set of
+  candidates, plain `👤 **[Full Name]**` lines are enough — don't force the full card for a quick mention.
+- **Progressive disclosure — do not dump large result sets:**
+  - ≤5 results: show them directly.
+  - 6-20 results: show a useful subset (e.g. top 5-8 by match/relevance) plus the total count, and offer
+    to show the rest or narrow further.
+  - 50+ results: NEVER list them. Give the count, a short real breakdown computed from the actual data
+    (e.g. "6 have 80%+ match", "14 mention Python") if you have the numbers, and offer specific narrowing
+    options (by skill, experience, stage) instead of a wall of cards.
+  - Only include breakdown numbers you can actually compute from the tool's data — never estimate or invent.
+- **Suggested next actions** — use the `[SUGGEST:label one|label two]` marker (each label is something the
+  recruiter could plausibly say next) ONLY when there's a genuine next step: the result was large/truncated,
+  more detail is clearly useful, or the recruiter is mid-workflow. Do NOT append a suggestion to every
+  answer — a plain 1-2 line factual answer usually needs nothing after it. Never stack more than one
+  `[SUGGEST:...]` marker in a single reply, and never offer an action that doesn't make sense for what
+  was just asked.
+- **Zero results**: bold "No matching candidates found." (or job/interview/etc. as relevant), one line
+  naming what was searched for, then — only if genuinely useful — a `[SUGGEST:...]` with sensible
+  alternatives derived from the actual filters used (e.g. remove one filter, broaden a range). Never say
+  just "No data found."
+- **Missing/partial data**: say plainly what's missing in one short line — "I couldn't find salary
+  information for this candidate." — never hedge with retrieval/AI language.
+- **Natural language, no internal terminology**: never say "chunk", "RAG", "retrieved context",
+  "database", "the tool returned", or similar. Speak the way a colleague would — "His resume mentions...",
+  "I couldn't find...", "Found X candidates."
+- **No stray formatting marks**: never leave a bare pair of backticks, an empty code span, or any
+  placeholder punctuation sitting on its own line — every bullet item ends cleanly with real words, not a
+  dangling `` `` ``, `()`, or similar artifact.
+- For genuine ambiguity where context truly doesn't resolve it (e.g. "Score?" with no candidate/job in
+  context), ask ONE direct clarifying question instead of guessing.
 
 ### 8. PLATFORM GUIDE
 - **Recruiter Dashboard**: Pipeline overview, upcoming interviews, recent activities, KPIs.
@@ -309,7 +397,8 @@ TOOLS = [
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"},
-                    "email": {"type": "string"}
+                    "email": {"type": "string"},
+                    "role": {"type": "string", "description": "Filter to one role exactly: 'interviewer', 'recruiter', or 'admin'. Use role='interviewer' to find who can be assigned to an interview before scheduling one."}
                 }
             }
         }
@@ -365,6 +454,32 @@ TOOLS = [
         }
     }
 ]
+
+
+def _allow_null_on_optional_params(tools: list[dict]) -> list[dict]:
+    """Groq's tool-call validation rejects `null` against a bare `"type":
+    "string"` schema — but the model routinely passes `null` for an optional
+    filter it isn't using (e.g. `search_users({"role": "interviewer",
+    "name": null, "email": null})` instead of omitting the unused keys),
+    which used to blow up the whole turn with a raw schema-validation error
+    surfaced straight to the recruiter ("Tool call validation failed:
+    parameters ... did not match schema"). Every optional property's type
+    gets `"null"` added here so that's a valid call, not a crash, while
+    every `"required"` property is left exactly as declared.
+    """
+    for tool in tools:
+        params = tool.get("function", {}).get("parameters", {})
+        required = set(params.get("required") or [])
+        for prop_name, prop in (params.get("properties") or {}).items():
+            if prop_name in required:
+                continue
+            t = prop.get("type")
+            if isinstance(t, str) and t != "null":
+                prop["type"] = [t, "null"]
+    return tools
+
+
+TOOLS = _allow_null_on_optional_params(TOOLS)
 
 # ── Stopwords (intentionally EXCLUDES tech skills — they are search terms) ───
 # Delegate to intelligence module's stopwords; keep minimal here.
@@ -442,6 +557,66 @@ def _format_experience(c: dict) -> Optional[str]:
     if exp_float is not None:
         return f"{exp_float} Years Experience"
     return None
+
+
+def _format_candidate_block(c: dict, detailed: bool) -> str:
+    """One candidate as either a bare name line or a full emoji-field card."""
+    if not detailed:
+        return f"👤 **{c['full_name']}**"
+
+    parts = [f"👤 **{c['full_name']}**"]
+
+    if c.get("email"):
+        parts.append(f"📧 {c['email']}")
+
+    title = c.get("current_title")
+    company = c.get("current_company")
+    if title and company:
+        parts.append(f"💼 {title} at {company}")
+    elif title:
+        parts.append(f"💼 {title}")
+    elif company:
+        parts.append(f"💼 Works at {company}")
+
+    if c.get("location"):
+        parts.append(f"📍 {c['location']}")
+
+    exp_str = _format_experience(c)
+    if exp_str:
+        parts.append(f"⭐ {exp_str}")
+
+    skills_val = c.get("skills")
+    if skills_val:
+        skills_display = ", ".join(skills_val[:10]) if isinstance(skills_val, list) else str(skills_val)
+        if skills_display.strip():
+            parts.append(f"🛠️ Skills: {skills_display}")
+
+    np_val = c.get("notice_period_days")
+    if np_val and str(np_val).strip():
+        raw_np = str(np_val).strip()
+        if raw_np.lower() in ("0", "0 days", "0 day") or "immediate" in raw_np.lower():
+            label = "Immediate"
+        else:
+            label = raw_np if "day" in raw_np.lower() else f"{raw_np} days"
+        parts.append(f"⏳ Notice: {label}")
+
+    stage = c.get("pipeline_stage")
+    if stage:
+        parts.append(f"📌 Stage: {stage.replace('_', ' ').title()}")
+
+    sal = c.get("expected_salary") or c.get("expected_ctc")
+    if sal:
+        parts.append(f"💰 Expected: {sal}")
+
+    return "\n".join(parts)
+
+
+# Progressive-disclosure thresholds for search_candidates — see spec §6/§17:
+# small sets are shown in full, mid-size sets show a ranked subset with a
+# suggestion to see more, and large sets never get dumped into the chat.
+_SEARCH_SHOW_ALL_MAX = 5
+_SEARCH_SUBSET_SIZE = 8
+_SEARCH_LARGE_THRESHOLD = 20
 
 
 # ── Read Tool Executor ───────────────────────────────────────────────────────
@@ -802,27 +977,44 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 raw_q = args.get("query", "")
                 original_q = intent.raw_query if intent else raw_q
                 if args.get("date_range") == "today":
-                    result_text = "No candidates were added today."
+                    result_text = "**No candidates found.** None were added today."
                 elif args.get("date_range") == "this_week":
-                    result_text = "No candidates were added this week."
+                    result_text = "**No candidates found.** None were added this week."
                 elif args.get("location"):
-                    result_text = f"No candidates found in **{args['location']}**. Try searching without the location filter."
+                    result_text = (
+                        f"**No matching candidates found** in {args['location']}."
+                        f"\n\n[SUGGEST:Search without the location filter]"
+                    )
                 elif args.get("status"):
-                    result_text = f"No candidates found in the **'{args['status']}'** stage."
+                    result_text = f"**No candidates found** in the '{args['status']}' stage."
                 elif original_q:
                     result_text = (
-                        f"No candidates found matching **'{original_q}'**.\n\n"
-                        f"💡 Try:\n"
-                        f"- A broader search term (e.g., just the skill name)\n"
-                        f"- Removing some filters\n"
-                        f"- Checking if candidates exist in the **All Candidates** page"
+                        f"**No matching candidates found** for '{original_q}'."
+                        f"\n\n[SUGGEST:Try a broader search term|Remove some filters]"
                     )
                 else:
-                    result_text = "No candidates matched your search criteria. Try broadening your search."
+                    result_text = "**No candidates found** matching your search criteria."
             else:
-                header = f"Found **{match_count}** candidate{'s' if match_count != 1 else ''}:"
-                if match_count > limit_val:
-                    header += f" (showing top {limit_val})"
+                header = f"**Found {match_count} candidate{'s' if match_count != 1 else ''}.**"
+
+                # A pure "how many" question gets ONLY the count — never the
+                # list — regardless of how small the result set is. The list
+                # only appears if the recruiter explicitly asked for it, or
+                # says yes to the suggestion. ("kitne candidates hain?" is a
+                # different question from "Python candidates dikhao", even
+                # though both call this same tool.)
+                um_lower = (user_message or "").lower()
+                _count_kw = ("kitne", "kitna", "kitni", "how many", "count of", "number of", "total number")
+                _list_kw = (
+                    "dikha", "show me", "show them", "show all", "show candidates",
+                    "list them", "list all", "list candidates", "puri list", "full list",
+                )
+                is_count_only = any(kw in um_lower for kw in _count_kw) and not any(kw in um_lower for kw in _list_kw)
+
+                if is_count_only:
+                    result_text = f"{header}\n\n[SUGGEST:Show candidates]"
+                    _cache_set(cache_key, result_text, ttl=_CACHE_TTL_SEARCH)
+                    return result_text
 
                 # ── AI Ranking: score each candidate post-fetch ────────────
                 query_words = []
@@ -861,64 +1053,50 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                     return score
 
                 # Sort by AI score (best first)
-                ranked = sorted(res_all, key=lambda r: _score_candidate(dict(r._mapping)), reverse=True)
+                ranked_dicts = sorted(
+                    (dict(r._mapping) for r in res_all), key=_score_candidate, reverse=True
+                )
 
-                formatted_candidates = []
-                for r in ranked:
-                    c = dict(r._mapping)
-                    if not detailed:
-                        formatted_candidates.append(f"👤 **{c['full_name']}**")
-                    else:
-                        parts = [f"👤 **{c['full_name']}**"]
+                if match_count > _SEARCH_LARGE_THRESHOLD:
+                    # Large result set — never dump into chat. Count + a real,
+                    # computed breakdown (nothing estimated) + narrowing options.
+                    sample = ranked_dicts  # everything actually fetched (up to limit_val)
+                    breakdown = []
+                    high_match = sum(1 for c in sample if (c.get("match_score") or 0) >= 80)
+                    if high_match:
+                        breakdown.append(f"- {high_match} have an 80%+ match score")
+                    exp3 = sum(1 for c in sample if (c.get("years_experience") or 0) >= 3)
+                    if exp3:
+                        breakdown.append(f"- {exp3} have 3+ years of experience")
+                    if args.get("notice_period_max") is None:
+                        immediate = sum(
+                            1 for c in sample
+                            if "immediate" in str(c.get("notice_period_days") or "").lower()
+                            or str(c.get("notice_period_days") or "").strip() in ("0", "0 days")
+                        )
+                        if immediate:
+                            breakdown.append(f"- {immediate} are immediate joiners")
 
-                        if c.get("email"):
-                            parts.append(f"📧 {c['email']}")
+                    result_text = header
+                    if breakdown:
+                        result_text += "\n\nQuick breakdown:\n" + "\n".join(breakdown)
+                    result_text += "\n\n[SUGGEST:Show top matches|Filter by experience|Filter by stage]"
 
-                        title = c.get("current_title")
-                        company = c.get("current_company")
-                        if title and company:
-                            parts.append(f"💼 {title} at {company}")
-                        elif title:
-                            parts.append(f"💼 {title}")
-                        elif company:
-                            parts.append(f"💼 Works at {company}")
+                elif match_count > _SEARCH_SHOW_ALL_MAX:
+                    # Mid-size set — show a ranked, useful subset rather than
+                    # everything, and offer to see the rest.
+                    subset = ranked_dicts[:_SEARCH_SUBSET_SIZE]
+                    blocks = [_format_candidate_block(c, detailed) for c in subset]
+                    result_text = (
+                        f"{header} Showing top {len(subset)}.\n\n---\n\n"
+                        + "\n\n---\n\n".join(blocks)
+                    )
+                    if match_count > len(subset):
+                        result_text += "\n\n[SUGGEST:Show all|Narrow the search]"
 
-                        if c.get("location"):
-                            parts.append(f"📍 {c['location']}")
-
-                        exp_str = _format_experience(c)
-                        if exp_str:
-                            parts.append(f"⭐ {exp_str}")
-
-                        skills_val = c.get("skills")
-                        if skills_val:
-                            if isinstance(skills_val, list):
-                                skills_display = ", ".join(skills_val[:10])
-                            else:
-                                skills_display = str(skills_val)
-                            if skills_display.strip():
-                                parts.append(f"🛠️ Skills: {skills_display}")
-
-                        np_val = c.get("notice_period_days")
-                        if np_val and str(np_val).strip():
-                            raw_np = str(np_val).strip()
-                            if raw_np.lower() in ("0", "0 days", "0 day") or "immediate" in raw_np.lower():
-                                label = "Immediate"
-                            else:
-                                label = raw_np if "day" in raw_np.lower() else f"{raw_np} days"
-                            parts.append(f"⏳ Notice: {label}")
-
-                        stage = c.get("pipeline_stage")
-                        if stage:
-                            parts.append(f"📌 Stage: {stage.replace('_', ' ').title()}")
-
-                        sal = c.get("expected_salary") or c.get("expected_ctc")
-                        if sal:
-                            parts.append(f"💰 Expected: {sal}")
-
-                        formatted_candidates.append("\n".join(parts))
-
-                result_text = header + "\n\n" + "\n\n---\n\n".join(formatted_candidates)
+                else:
+                    blocks = [_format_candidate_block(c, detailed) for c in ranked_dicts]
+                    result_text = header + "\n\n---\n\n" + "\n\n---\n\n".join(blocks)
 
         # ── get_analytics ─────────────────────────────────────────────────
         elif name == "get_analytics":
@@ -1220,7 +1398,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                             parts.append(f"🎯 Match Score: {round(float(c['match_score']), 1)}%")
                         formatted_candidates.append("\n".join(parts))
 
-                result_text = header + "\n\n" + "\n\n---\n\n".join(formatted_candidates)
+                result_text = header + "\n\n---\n\n" + "\n\n---\n\n".join(formatted_candidates)
 
         # ── get_pipeline_summary ─────────────────────────────────────────
         elif name == "get_pipeline_summary":
@@ -1284,6 +1462,9 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             if args.get("email"):
                 conds.append("email ILIKE :e")
                 params["e"] = f"%{args['email']}%"
+            if args.get("role"):
+                conds.append("role = :role")
+                params["role"] = args["role"].lower().strip()
 
             sql = f"SELECT full_name, email, role FROM users WHERE {' AND '.join(conds)} LIMIT 15"
             res = await db.execute(text(sql), params)
@@ -1301,7 +1482,10 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                         f"🔑 Role: {u['role'].replace('_', ' ').title()}"
                     ]
                     formatted_users.append("\n".join(parts))
-                result_text = f"Found {len(res_all)} team member{'s' if len(res_all) != 1 else ''}:\n\n" + "\n\n---\n\n".join(formatted_users)
+                result_text = (
+                    f"**Found {len(res_all)} team member{'s' if len(res_all) != 1 else ''}.**\n\n---\n\n"
+                    + "\n\n---\n\n".join(formatted_users)
+                )
 
         # ── search_jobs ──────────────────────────────────────────────────
         elif name == "search_jobs":
@@ -1390,18 +1574,24 @@ async def _fetch_candidate_full(db: AsyncSession, organization_id: str, candidat
 
 
 def _format_score_breakdown(candidate_name: str, job_title: str, score: Optional[float], breakdown: dict) -> str:
+    """Answer-first match explanation: bold % first, then matched/missing
+    skill bullets, then the stored evaluator reasoning as a short closing
+    line — never a fresh restated summary (that would risk drifting from
+    what the scoring engine actually said)."""
     matched = breakdown.get("matched_skills") or []
     missing = breakdown.get("missing_skills") or []
     reasoning = (breakdown.get("reasoning") or "").strip()
     score_label = f"{round(float(score), 1)}%" if score is not None else "N/A"
-    parts = [f"📊 **{candidate_name}** — Match Score for **{job_title}**: **{score_label}**"]
+
+    parts = [f"**{score_label} match** — {candidate_name} for {job_title}"]
+
     if matched:
-        parts.append(f"✅ Matched: {', '.join(matched)}")
+        parts.append("Matched:\n" + "\n".join(f"- {s}" for s in matched))
     if missing:
-        parts.append(f"⚠️ Gap: {', '.join(missing)}")
+        parts.append("Missing:\n" + "\n".join(f"- {s}" for s in missing))
     if reasoning:
-        parts.append(f"\n{reasoning}")
-    return "\n".join(parts)
+        parts.append(reasoning)
+    return "\n\n".join(parts)
 
 
 async def tool_get_candidate_details(candidate_id: str, organization_id: str, db: AsyncSession) -> str:
@@ -1596,26 +1786,43 @@ async def tool_explain_match_score(
 
 
 async def tool_compare_candidates(candidate_ids: list[str], organization_id: str, db: AsyncSession) -> str:
+    """Side-by-side Markdown table — scannable in one glance rather than
+    stacked per-candidate blocks the recruiter has to scroll between."""
     rows = [c for c in [await _fetch_candidate_full(db, organization_id, cid) for cid in candidate_ids] if c]
     if len(rows) < 2:
         return "I need at least two candidates found in your records to compare."
 
-    lines = [f"📊 **Comparing {', '.join(r['full_name'] for r in rows)}**"]
-    for c in rows:
-        lines.append(f"\n---\n👤 **{c['full_name']}**")
-        lines.append(f"⭐ Experience: {_format_experience(c) or 'Not available'}")
-        skills = c.get("skills") or []
-        lines.append(f"🛠️ Skills: {', '.join(skills[:12]) if skills else 'Not available'}")
+    def edu_str(c: dict) -> str:
         edu = (c.get("parsed_data") or {}).get("education") or []
-        edu_str = "; ".join(
+        return "; ".join(
             " at ".join(p for p in [e.get("degree", ""), e.get("institution", "")] if p)
             for e in edu if isinstance(e, dict)
-        )
-        lines.append(f"🎓 Education: {edu_str or 'Not available'}")
-        lines.append(f"📊 Match Score: {round(float(c['match_score']), 1)}%" if c.get("match_score") is not None else "📊 Match Score: Not available")
-        if c.get("pipeline_stage"):
-            lines.append(f"📌 Stage: {c['pipeline_stage'].replace('_', ' ').title()}")
-    return "\n".join(lines)
+        ) or "Not available"
+
+    def skills_str(c: dict) -> str:
+        skills = c.get("skills") or []
+        return ", ".join(skills[:8]) if skills else "Not available"
+
+    def score_str(c: dict) -> str:
+        return f"{round(float(c['match_score']), 1)}%" if c.get("match_score") is not None else "Not available"
+
+    def stage_str(c: dict) -> str:
+        stage = c.get("pipeline_stage")
+        return stage.replace("_", " ").title() if stage else "Not available"
+
+    names = [c["full_name"] for c in rows]
+    header = f"|  | {' | '.join(names)} |"
+    divider = "|---" * (len(rows) + 1) + "|"
+    table_rows = [
+        ("Experience", [_format_experience(c) or "Not available" for c in rows]),
+        ("Skills", [skills_str(c) for c in rows]),
+        ("Education", [edu_str(c) for c in rows]),
+        ("Match score", [score_str(c) for c in rows]),
+        ("Stage", [stage_str(c) for c in rows]),
+    ]
+    body = "\n".join(f"| {label} | {' | '.join(vals)} |" for label, vals in table_rows)
+
+    return f"**Comparing {', '.join(names)}**\n\n{header}\n{divider}\n{body}"
 
 
 async def tool_find_similar_candidates(candidate_id: str, organization_id: str, db: AsyncSession) -> str:
@@ -2484,7 +2691,17 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
 # ── Hallucinated Tool Call Extractor ─────────────────────────────────────────
 
 def extract_hallucinated_tool_call(text_content: str) -> Optional[tuple[str, dict]]:
-    """Parse tool calls from raw text if the LLM hallucinated instead of using API."""
+    """Parse tool calls from raw text if the LLM hallucinated instead of using API.
+
+    Only fires when a tool name shows up near the START of the reply — i.e.
+    the model wrote a fake call INSTEAD OF answering, not a real, complete
+    answer that happens to mention a tool name in passing. Without this
+    guard, a perfectly good multi-line clarification (e.g. asking for
+    interview date/time) could have a stray "update_candidate_stage"-shaped
+    fragment further down get detected and get its own canned override text
+    appended after the real answer, producing a garbled, self-contradicting
+    reply the recruiter actually saw.
+    """
     known_tools = [
         "search_candidates", "search_users", "search_jobs",
         "schedule_meeting", "db_update", "update_candidate_stage",
@@ -2492,10 +2709,11 @@ def extract_hallucinated_tool_call(text_content: str) -> Optional[tuple[str, dic
         "get_candidates_for_job"
     ]
     text_clean = text_content.replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n')
+    _HALLUCINATION_SCAN_WINDOW = 60
 
     for tool_name in known_tools:
         idx = text_clean.find(tool_name)
-        if idx != -1:
+        if idx != -1 and idx < _HALLUCINATION_SCAN_WINDOW:
             start_json = text_clean.find("{", idx)
             if start_json != -1:
                 braces = 0
@@ -2793,6 +3011,21 @@ async def _stream_copilot_chat_impl(
         return
 
     # ── 1.5 Intent Router ───────────────────────────────────────────────────
+    # A reply that's continuing a pending write-tool clarification (the
+    # recruiter just answering "which interview stage?" with "Technical
+    # Round") must NOT be handed to the router — "Technical Round" alone
+    # looks exactly like a pipeline_query to the classifier, which would
+    # silently answer an unrelated question (a pipeline breakdown) and
+    # drop the in-progress scheduling conversation entirely, which is
+    # exactly what used to happen here. See the `[PENDING_TOOL:...]`
+    # marker instruction in COPILOT_SYSTEM_PROMPT §5.
+    last_assistant_text = ""
+    for _msg in reversed(history or []):
+        if _msg.get("role") == "assistant":
+            last_assistant_text = _msg.get("content") or ""
+            break
+    mid_write_tool_flow = "[PENDING_TOOL:" in last_assistant_text
+
     # Greetings/help never touch retrieval or a classification LLM call.
     if is_greeting(user_message):
         saved_conv_id = await _save_conversation_to_db(
@@ -2803,7 +3036,6 @@ async def _stream_copilot_chat_impl(
         yield sse("done", {})
         return
 
-    router_start = time.time()
     last_context = await _load_last_context(db, conversation_id) or {}
     # A page_context candidate/job (recruiter is actively viewing that page)
     # is a fresher signal than whatever was last discussed in chat, so it
@@ -2814,28 +3046,32 @@ async def _stream_copilot_chat_impl(
     if page_context and page_context.get("job_id"):
         last_context = {**last_context, "job_id": page_context["job_id"]}
 
-    routed = await classify_intent(user_message, last_context)
-    resolved = await resolve_context(routed, last_context, db, organization_id)
-    routed_reply = await execute_routed_intent(routed, resolved, oid_str, db, user_message, user_id=uid_str, user_role=user_role)
+    if not mid_write_tool_flow:
+        router_start = time.time()
+        routed = await classify_intent(user_message, last_context)
+        resolved = await resolve_context(routed, last_context, db, organization_id)
+        routed_reply = await execute_routed_intent(routed, resolved, oid_str, db, user_message, user_id=uid_str, user_role=user_role)
 
-    logger.info(
-        "Copilot router: intent=%s candidate=%s job=%s handled=%s latency_ms=%.0f",
-        routed.intent.value,
-        resolved["candidates"][0]["name"] if resolved["candidates"] else None,
-        resolved.get("job_title"),
-        routed_reply is not None,
-        (time.time() - router_start) * 1000,
-    )
-
-    if routed_reply is not None:
-        new_context = build_last_context(resolved, last_context)
-        saved_conv_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, routed_reply, last_context=new_context
+        logger.info(
+            "Copilot router: intent=%s candidate=%s job=%s handled=%s latency_ms=%.0f",
+            routed.intent.value,
+            resolved["candidates"][0]["name"] if resolved["candidates"] else None,
+            resolved.get("job_title"),
+            routed_reply is not None,
+            (time.time() - router_start) * 1000,
         )
-        yield sse("meta", {"conversation_id": saved_conv_id})
-        yield sse("chunk", {"content": routed_reply})
-        yield sse("done", {})
-        return
+
+        if routed_reply is not None:
+            new_context = build_last_context(resolved, last_context)
+            saved_conv_id = await _save_conversation_to_db(
+                db, organization_id, user_id, conversation_id, user_message, routed_reply, last_context=new_context
+            )
+            yield sse("meta", {"conversation_id": saved_conv_id})
+            yield sse("chunk", {"content": routed_reply})
+            yield sse("done", {})
+            return
+    else:
+        logger.info("Copilot router: skipped (mid write-tool clarification flow)")
 
     # ── 2. Build Message History ──────────────────────────────────────────
     timezone_str = "Asia/Kolkata"
@@ -2857,11 +3093,38 @@ async def _stream_copilot_chat_impl(
         local_dt = datetime.now()
 
     curr_time = local_dt.strftime("%A, %b %d, %Y %I:%M %p")
+
+    # Team members, given directly as context rather than left for the model
+    # to fetch via `search_users` mid-conversation. Every read-tool call's
+    # result is streamed to the recruiter VERBATIM as the whole reply (see
+    # "Execute read tool and return formatted results directly" below) —
+    # there's no second pass that turns a tool result into prose. So a
+    # mid-flow `search_users` call while scheduling an interview doesn't
+    # get woven into "I need: ... [interviewer chips]" — its raw "Found 1
+    # team member..." card becomes the entire reply, which is exactly the
+    # loop the recruiter hit (every turn re-showing the same team-member
+    # card instead of asking for what's still missing). Giving the model
+    # real names up front means it never needs that tool call for this.
+    team_res = await db.execute(
+        text("SELECT full_name, role FROM users WHERE organization_id = :oid ORDER BY full_name"),
+        {"oid": organization_id},
+    )
+    team_rows = team_res.fetchall()
+    team_list = (
+        ", ".join(f"{r.full_name} ({r.role})" for r in team_rows)
+        if team_rows else "none on file"
+    )
+
     sys_prompt = (
         f"{COPILOT_SYSTEM_PROMPT}\n\n"
         f"CURRENT_TIME: {curr_time}\n"
         f"(Always convert relative dates like 'tomorrow', 'next week' to YYYY-MM-DD HH:MM format"
-        f" based on CURRENT_TIME when calling tools.)"
+        f" based on CURRENT_TIME when calling tools. That 24-hour YYYY-MM-DD HH:MM format is ONLY for"
+        f" tool call arguments — never show it to the recruiter. Any date/time you show or give as an"
+        f" example IN YOUR REPLY must be 12-hour with AM/PM, e.g. 'Sep 24, 2:00 PM' or 'Tomorrow 2:00 PM'.)\n\n"
+        f"TEAM_MEMBERS (this org's actual users — any of them can be assigned as an interviewer;"
+        f" use ONLY these names, never invent one, and never call search_users to look this up —"
+        f" you already have the full list): {team_list}"
     )
 
     messages = [{"role": "system", "content": sys_prompt}]
@@ -3050,8 +3313,14 @@ async def _stream_copilot_chat_impl(
             await db.rollback()
         except Exception:
             pass
+        # Full detail goes to the logs, never to the recruiter — a raw
+        # exception string (SQL, a provider's schema-validation error, a
+        # stack trace fragment) is exactly the kind of internal/technical
+        # leak COPILOT_SYSTEM_PROMPT §2 and §11 rule out everywhere else;
+        # this is the one path those prompt rules can't reach, since it
+        # fires when the LLM call itself failed rather than replied badly.
         logger.error(f"Copilot stream error: {e}", exc_info=True)
-        error_msg = f"Sorry, I encountered an error: {str(e)}"
+        error_msg = "Sorry, something went wrong on my end. Please try that again."
         yield sse("chunk", {"content": error_msg})
         yield sse("done", {})
 
