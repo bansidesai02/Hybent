@@ -1,8 +1,8 @@
 import type { ComponentType } from 'react'
 import {
-  Activity, Bot, Brain, BriefcaseMedical, Building2, Calendar, ClipboardCheck,
-  ClipboardList, Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutGrid,
-  Settings, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
+  Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
+  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, ScrollText,
+  Settings, Sparkles, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -46,9 +46,11 @@ export interface NavGroup {
 export type NavEntry = NavItem | NavGroup
 
 export interface NavSection {
-  /** Empty string renders no heading — the interviewer nav is a flat list. */
+  /** Identifies the section. Not rendered — the sidebar is one flat list. */
   label: string
   items: NavEntry[]
+  /** Pin to the bottom of the sidebar — for account-level destinations. */
+  pinned?: boolean
 }
 
 export function isGroup(entry: NavEntry): entry is NavGroup {
@@ -90,7 +92,7 @@ export function getNavSections(
       {
         label: 'Overview',
         items: [
-          { to: '/hiring/super-admin', label: 'Dashboard', icon: LayoutGrid, end: true },
+          { to: '/hiring/super-admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
           { to: '/hiring/super-admin/inbox', label: 'Inbox', icon: Inbox },
           { to: '/hiring/super-admin/analytics', label: 'Analytics', icon: TrendingUp },
         ],
@@ -107,12 +109,13 @@ export function getNavSections(
         items: [
           { to: '/hiring/super-admin/users', label: 'All users', icon: Users },
           { to: '/hiring/super-admin/flags', label: 'Feature flags', icon: ToggleLeft },
-          { to: '/hiring/super-admin/audit', label: 'Audit logs', icon: ClipboardList },
+          { to: '/hiring/super-admin/audit', label: 'Audit logs', icon: ScrollText },
           { to: '/hiring/super-admin/health', label: 'Health monitor', icon: Activity },
         ],
       },
       {
         label: 'Settings',
+        pinned: true,
         items: [{ to: '/hiring/super-admin/settings', label: 'Global settings', icon: Settings }],
       },
     ]
@@ -123,8 +126,8 @@ export function getNavSections(
       {
         label: '',
         items: [
-          { to: '/hiring/interviewer', label: 'Dashboard', icon: LayoutGrid, end: true },
-          { to: '/hiring/interviewer/interviews', label: 'My Interviews', icon: Calendar },
+          { to: '/hiring/interviewer', label: 'Dashboard', icon: LayoutDashboard, end: true },
+          { to: '/hiring/interviewer/interviews', label: 'My Interviews', icon: CalendarDays },
           {
             to: '/hiring/interviewer/scorecard-hub',
             label: 'Scoreboard',
@@ -148,66 +151,47 @@ export function getNavSections(
     ]
   }
 
-  /* Recruiter and admin share a shape; only the Settings section and the
+  /* Recruiter and admin share a shape; only the Workspace section and the
      Candidates labels differ. */
-  const adminSettings: NavItem[] = [
+  const adminWorkspace: NavItem[] = [
     { to: '/hiring/admin/teams', label: 'Team', icon: UsersRound },
-    { to: '/hiring/admin/audit', label: 'Audit Logs', icon: ClipboardList },
+    { to: '/hiring/admin/audit', label: 'Audit Logs', icon: ScrollText },
     { to: '/hiring/admin/ai-credits', label: 'AI Credits', icon: Coins },
-    { to: '/hiring/admin/settings', label: 'Settings', icon: Settings },
   ]
 
-  const recruiterSettings: NavItem[] = [
+  const recruiterWorkspace: NavItem[] = [
     { to: `${basePath}/teams`, label: 'Team', icon: UsersRound },
     { to: `${basePath}/ai-credits`, label: 'AI Credits', icon: Coins },
-    { to: `${basePath}/settings`, label: 'Settings', icon: Settings },
   ]
 
   return [
     {
       label: 'Main',
       items: [
-        { to: basePath, label: 'Overview', icon: LayoutGrid, end: true },
+        { to: basePath, label: 'Overview', icon: LayoutDashboard, end: true },
         { to: `${basePath}/inbox`, label: 'Inbox', icon: Inbox },
-        { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseMedical },
+        { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseBusiness },
         candidatesGroup(basePath, role, candidateBadge),
-        { to: `${basePath}/pipeline`, label: 'Pipeline', icon: PipelineGlyph },
-        { to: `${basePath}/interviews`, label: 'Schedule', icon: Calendar },
+        { to: `${basePath}/pipeline`, label: 'Pipeline', icon: SquareKanban },
+        { to: `${basePath}/interviews`, label: 'Schedule', icon: CalendarDays },
         { to: `${basePath}/offers`, label: 'Offers', icon: Handshake },
       ],
     },
     {
       label: 'Intelligence',
       items: [
-        { to: `${basePath}/analytics`, label: 'AI Insights', icon: Bot },
-        { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: TrendingUp },
+        { to: `${basePath}/analytics`, label: 'AI Insights', icon: Sparkles },
+        { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: ChartColumn },
       ],
     },
     {
+      label: 'Workspace',
+      items: role === 'admin' ? adminWorkspace : recruiterWorkspace,
+    },
+    {
       label: 'Settings',
-      items: role === 'admin' ? adminSettings : recruiterSettings,
+      pinned: true,
+      items: [{ to: `${basePath}/settings`, label: 'Settings', icon: Settings }],
     },
   ]
-}
-
-/** Three linked nodes — the pipeline. Kept from the old sidebar; lucide has no
-    equivalent, and it draws with `currentColor` so it themes like the rest. */
-export function PipelineGlyph({ size = 16, className }: { size?: number | string; className?: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      className={className}
-      aria-hidden
-    >
-      <circle cx="3" cy="8" r="1.8" />
-      <circle cx="8" cy="8" r="1.8" />
-      <circle cx="13" cy="8" r="1.8" />
-      <path d="M4.8 8h1.4M9.8 8h1.4" strokeLinecap="round" />
-    </svg>
-  )
 }
