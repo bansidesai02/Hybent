@@ -52,18 +52,18 @@ export function SettingsDrawer({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-        className="relative z-10 w-[88%] sm:w-[340px] h-full bg-white/95 dark:bg-[#140e2d]/95 backdrop-blur-2xl border-l border-violet-100 dark:border-violet-900/40 rounded-r-[20px] flex flex-col shadow-2xl overflow-hidden"
+        className="relative z-10 w-[88%] sm:w-[340px] h-full bg-white/95 backdrop-blur-2xl border-l border-violet-100 rounded-r-[20px] flex flex-col shadow-2xl overflow-hidden"
       >
         {/* Header Bar */}
-        <div className="p-4 border-b border-violet-100/60 dark:border-violet-900/40 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[#1a1040] dark:text-white">
-            <Sliders className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+        <div className="p-4 border-b border-violet-100/60 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[#1a1040]">
+            <Sliders className="w-4 h-4 text-violet-600" />
             <h3 className="font-bold text-sm">Settings & Preferences</h3>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 transition-colors"
             aria-label="Close settings"
           >
             <X className="w-4 h-4" />
@@ -71,13 +71,13 @@ export function SettingsDrawer({
         </div>
 
         {/* Scrollable Controls Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-5 text-xs scrollbar-thin scrollbar-thumb-violet-200 dark:scrollbar-thumb-violet-800">
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 text-xs scrollbar-thin scrollbar-thumb-violet-200">
           {/* Theme Selector */}
           <div className="space-y-2">
-            <label className="font-bold text-slate-700 dark:text-slate-200 uppercase text-[10px] tracking-wider">
+            <label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">
               Theme Mode
             </label>
-            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60">
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200">
               {(['light', 'dark', 'system'] as ThemeMode[]).map((t) => (
                 <button
                   key={t}
@@ -85,7 +85,7 @@ export function SettingsDrawer({
                   className={`py-1.5 px-2 rounded-lg font-semibold flex items-center justify-center gap-1 transition-all ${
                     settings.theme === t
                       ? 'bg-violet-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-violet-600'
+                      : 'text-slate-600 hover:text-violet-600'
                   }`}
                 >
                   {t === 'light' && <Sun className="w-3.5 h-3.5" />}
@@ -98,15 +98,15 @@ export function SettingsDrawer({
           </div>
 
           {/* Sound Effects Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-slate-800">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/60">
             <div className="flex items-center gap-2.5">
               {settings.soundEnabled ? (
-                <Volume2 className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                <Volume2 className="w-4 h-4 text-violet-600" />
               ) : (
                 <VolumeX className="w-4 h-4 text-slate-400" />
               )}
               <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">Sound Effects</p>
+                <p className="font-semibold text-slate-800">Sound Effects</p>
                 <p className="text-[10px] text-slate-400">Subtle audio feedback on messages</p>
               </div>
             </div>
@@ -114,7 +114,7 @@ export function SettingsDrawer({
             <button
               onClick={() => onUpdateSetting('soundEnabled', !settings.soundEnabled)}
               className={`w-10 h-6 rounded-full p-0.5 transition-colors ${
-                settings.soundEnabled ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
+                settings.soundEnabled ? 'bg-violet-600' : 'bg-slate-300'
               }`}
             >
               <div
@@ -128,15 +128,15 @@ export function SettingsDrawer({
           {/* Streaming Speed */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="font-bold text-slate-700 dark:text-slate-200 uppercase text-[10px] tracking-wider flex items-center gap-1">
+              <label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider flex items-center gap-1">
                 <Gauge className="w-3.5 h-3.5 text-violet-500" />
                 <span>AI Response Speed</span>
               </label>
-              <span className="capitalize font-semibold text-violet-600 dark:text-violet-400 text-[11px]">
+              <span className="capitalize font-semibold text-violet-600 text-[11px]">
                 {settings.streamSpeed}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80">
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100">
               {(['fast', 'medium', 'relaxed'] as StreamSpeed[]).map((spd) => (
                 <button
                   key={spd}
@@ -144,7 +144,7 @@ export function SettingsDrawer({
                   className={`py-1.5 rounded-lg font-semibold capitalize transition-all ${
                     settings.streamSpeed === spd
                       ? 'bg-violet-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-300'
+                      : 'text-slate-600'
                   }`}
                 >
                   {spd}
@@ -155,10 +155,10 @@ export function SettingsDrawer({
 
           {/* Density Mode */}
           <div className="space-y-2">
-            <label className="font-bold text-slate-700 dark:text-slate-200 uppercase text-[10px] tracking-wider">
+            <label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">
               Message Density
             </label>
-            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80">
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100">
               {(['comfortable', 'compact'] as MessageDensity[]).map((den) => (
                 <button
                   key={den}
@@ -166,7 +166,7 @@ export function SettingsDrawer({
                   className={`py-1.5 rounded-lg font-semibold capitalize transition-all ${
                     settings.density === den
                       ? 'bg-violet-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-300'
+                      : 'text-slate-600'
                   }`}
                 >
                   {den}
@@ -177,7 +177,7 @@ export function SettingsDrawer({
 
           {/* Toggle Options List */}
           <div className="space-y-2.5 pt-1">
-            <label className="font-bold text-slate-700 dark:text-slate-200 uppercase text-[10px] tracking-wider">
+            <label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">
               Display Preferences
             </label>
 
@@ -193,15 +193,15 @@ export function SettingsDrawer({
                 return (
                   <div
                     key={item.key}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100"
                   >
-                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                    <span className="font-medium text-slate-700">
                       {item.label}
                     </span>
                     <button
                       onClick={() => onUpdateSetting(k, !val as any)}
                       className={`w-8 h-5 rounded-full p-0.5 transition-colors ${
-                        val ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
+                        val ? 'bg-violet-600' : 'bg-slate-300'
                       }`}
                     >
                       <div
@@ -220,9 +220,9 @@ export function SettingsDrawer({
           <div className="pt-2">
             <button
               onClick={onOpenShortcuts}
-              className="w-full py-2.5 px-3 rounded-xl bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800/60 text-violet-700 dark:text-violet-300 font-semibold flex items-center justify-center gap-2 hover:bg-violet-100 transition-colors"
+              className="w-full py-2.5 px-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 font-semibold flex items-center justify-center gap-2 hover:bg-violet-100 transition-colors"
             >
-              <Keyboard className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <Keyboard className="w-4 h-4 text-violet-600" />
               <span>Keyboard Shortcuts (Ctrl+/)</span>
             </button>
           </div>

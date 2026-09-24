@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /hiring/
+Disallow: /dashboard
+Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /create-password
+Disallow: /onboarding/
+Disallow: /pre-screening/
+Disallow: /dev/
+
+Sitemap: https://hybent.com/sitemap.xml

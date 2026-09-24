@@ -103,7 +103,7 @@ export function ConversationHistoryDrawer({
 
     return (
       <div className="space-y-1 my-3">
-        <div className="px-2 text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+        <div className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
           {title === 'Pinned' && <Pin className="w-3 h-3 text-amber-500 fill-amber-500" />}
           <span>{title}</span>
         </div>
@@ -126,7 +126,7 @@ export function ConversationHistoryDrawer({
               }}
             >
               <div className="flex items-start gap-2.5 min-w-0 flex-1 pr-2">
-                <MessageSquare className={`w-4 h-4 mt-0.5 shrink-0 ${isActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
+                <MessageSquare className={`w-4 h-4 mt-0.5 shrink-0 ${isActive ? 'text-violet-600' : 'text-slate-400'}`} />
 
                 <div className="min-w-0 flex-1">
                   {isEditing ? (
@@ -137,7 +137,7 @@ export function ConversationHistoryDrawer({
                         onChange={(e) => setRenameText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSaveRename(conv.id)}
                         autoFocus
-                        className="w-full px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-violet-500 rounded focus:outline-none text-[#1a1040] dark:text-white"
+                        className="w-full px-2 py-1 text-xs bg-white border border-violet-500 rounded focus:outline-none text-[#1a1040]"
                       />
                       <button
                         onClick={() => handleSaveRename(conv.id)}
@@ -148,11 +148,11 @@ export function ConversationHistoryDrawer({
                     </div>
                   ) : (
                     <>
-                      <h4 className={`text-xs font-semibold truncate ${isActive ? 'text-violet-900 dark:text-white' : 'text-[#1a1040] dark:text-slate-200'}`}>
+                      <h4 className={`text-xs font-semibold truncate ${isActive ? 'text-violet-900' : 'text-[#1a1040]'}`}>
                         {conv.title}
                       </h4>
                       {conv.previewText && (
-                        <p className="text-[11px] text-slate-400 dark:text-slate-400 truncate mt-0.5">
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">
                           {conv.previewText}
                         </p>
                       )}
@@ -165,7 +165,7 @@ export function ConversationHistoryDrawer({
               <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => setActiveMenuId(activeMenuId === conv.id ? null : conv.id)}
-                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors opacity-0 group-hover:opacity-100"
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors opacity-0 group-hover:opacity-100"
                   aria-label="Conversation options"
                 >
                   <MoreVertical className="w-3.5 h-3.5" />
@@ -173,10 +173,10 @@ export function ConversationHistoryDrawer({
 
                 {/* Dropdown Menu */}
                 {activeMenuId === conv.id && (
-                  <div className="absolute right-0 top-7 z-30 w-36 p-1 rounded-xl bg-white dark:bg-[#1f173b] border border-violet-200 dark:border-violet-700 shadow-xl text-xs font-medium space-y-0.5">
+                  <div className="absolute right-0 top-7 z-30 w-36 p-1 rounded-xl bg-white border border-violet-200 shadow-xl text-xs font-medium space-y-0.5">
                     <button
                       onClick={() => handleStartRename(conv)}
-                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/40 text-left flex items-center gap-2 text-slate-700 dark:text-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 text-left flex items-center gap-2 text-slate-700"
                     >
                       <Edit2 className="w-3.5 h-3.5 text-blue-500" />
                       <span>Rename</span>
@@ -187,7 +187,7 @@ export function ConversationHistoryDrawer({
                         onTogglePin(conv.id)
                         setActiveMenuId(null)
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/40 text-left flex items-center gap-2 text-slate-700 dark:text-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 text-left flex items-center gap-2 text-slate-700"
                     >
                       <Pin className="w-3.5 h-3.5 text-amber-500" />
                       <span>{conv.isPinned ? 'Unpin' : 'Pin'}</span>
@@ -198,7 +198,7 @@ export function ConversationHistoryDrawer({
                         onDuplicate(conv.id)
                         setActiveMenuId(null)
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/40 text-left flex items-center gap-2 text-slate-700 dark:text-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 text-left flex items-center gap-2 text-slate-700"
                     >
                       <Copy className="w-3.5 h-3.5 text-purple-500" />
                       <span>Duplicate</span>
@@ -209,7 +209,7 @@ export function ConversationHistoryDrawer({
                         onExport(conv)
                         setActiveMenuId(null)
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/40 text-left flex items-center gap-2 text-slate-700 dark:text-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 text-left flex items-center gap-2 text-slate-700"
                     >
                       <Download className="w-3.5 h-3.5 text-teal-500" />
                       <span>Export</span>
@@ -220,20 +220,20 @@ export function ConversationHistoryDrawer({
                         onToggleArchive(conv.id)
                         setActiveMenuId(null)
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/40 text-left flex items-center gap-2 text-slate-700 dark:text-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-violet-50 text-left flex items-center gap-2 text-slate-700"
                     >
                       <Archive className="w-3.5 h-3.5 text-indigo-500" />
                       <span>{conv.isArchived ? 'Unarchive' : 'Archive'}</span>
                     </button>
 
-                    <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                    <div className="my-1 border-t border-slate-100" />
 
                     <button
                       onClick={() => {
                         setDeletingId(conv.id)
                         setActiveMenuId(null)
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 text-left flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold"
+                      className="w-full px-2.5 py-1.5 rounded-lg hover:bg-red-50 text-left flex items-center gap-2 text-red-600 font-semibold"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-red-500" />
                       <span>Delete</span>
@@ -295,7 +295,7 @@ export function ConversationHistoryDrawer({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 transition-colors"
               title="Close history"
             >
               <X className="w-4 h-4" />
@@ -304,7 +304,7 @@ export function ConversationHistoryDrawer({
         </div>
 
         {/* Search Input Box */}
-        <div className="p-3 border-b border-violet-100/60 dark:border-violet-900/40">
+        <div className="p-3 border-b border-violet-100/60">
           <div className="relative flex items-center">
             <Search className="w-3.5 h-3.5 absolute left-3 text-slate-400" />
             <input
@@ -319,12 +319,12 @@ export function ConversationHistoryDrawer({
         </div>
 
         {/* Grouped Conversations List */}
-        <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-violet-200 dark:scrollbar-thumb-violet-800">
+        <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-violet-200">
           {!hasAny ? (
             /* Empty State for Search or History */
             <div className="h-full flex flex-col items-center justify-center text-center p-4 space-y-2 text-slate-400">
               <MessageSquare className="w-8 h-8 opacity-40 text-violet-500" />
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <p className="text-xs font-semibold text-slate-600">
                 {searchQuery ? 'No matching conversations' : 'No chat history yet'}
               </p>
               <p className="text-[11px]">
@@ -352,21 +352,21 @@ export function ConversationHistoryDrawer({
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative z-10 w-full max-w-[280px] p-5 rounded-2xl bg-white dark:bg-[#1a1236] border border-violet-200 dark:border-violet-800 text-center shadow-2xl"
+              className="relative z-10 w-full max-w-[280px] p-5 rounded-2xl bg-white border border-violet-200 text-center shadow-2xl"
             >
-              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-500 flex items-center justify-center mx-auto mb-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-3">
                 <AlertTriangle className="w-5 h-5" />
               </div>
-              <h4 className="text-sm font-bold text-[#1a1040] dark:text-white mb-1">
+              <h4 className="text-sm font-bold text-[#1a1040] mb-1">
                 Delete Conversation?
               </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              <p className="text-xs text-slate-500 mb-4">
                 This action cannot be undone.
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setDeletingId(null)}
-                  className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                  className="flex-1 py-2 rounded-xl bg-slate-100 text-xs font-semibold text-slate-700"
                 >
                   Cancel
                 </button>

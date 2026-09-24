@@ -213,10 +213,6 @@ export function GlobalNav({
                       </span>
                     </div>
                   </div>
-                  <div className="mega__foot">
-                    <p className="small">Hybent Hiring is our flagship AI recruitment platform.</p>
-                    <a className="link-arrow" href="/products/hiring">Explore product <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                  </div>
                 </div>
               </li>
               <SolutionsMegaMenu />

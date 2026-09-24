@@ -60,7 +60,7 @@ const ONBOARDING_CARDS = [
 
 export function WelcomeOnboarding({ onSelectPrompt }: WelcomeOnboardingProps) {
   return (
-    <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-thin scrollbar-thumb-violet-200">
+    <div className="flex-1 min-h-0 overflow-y-auto px-5 py-6 space-y-6 scrollbar-thin scrollbar-thumb-violet-200">
       {/* Onboarding Header Banner */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}

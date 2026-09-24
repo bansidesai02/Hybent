@@ -31,16 +31,16 @@ export class ChatbotErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="p-6 m-4 rounded-[20px] bg-red-50/90 dark:bg-red-950/80 border border-red-200 dark:border-red-800 text-center space-y-4 shadow-xl">
-          <div className="w-12 h-12 mx-auto rounded-full bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 flex items-center justify-center">
+        <div className="p-6 m-4 rounded-[20px] bg-red-50/90 border border-red-200 text-center space-y-4 shadow-xl">
+          <div className="w-12 h-12 mx-auto rounded-full bg-red-100 text-red-600 flex items-center justify-center">
             <AlertTriangle className="w-6 h-6" />
           </div>
 
           <div className="space-y-1">
-            <h3 className="font-bold text-sm text-red-800 dark:text-red-200">
+            <h3 className="font-bold text-sm text-red-800">
               Something went wrong
             </h3>
-            <p className="text-xs text-red-600 dark:text-red-300">
+            <p className="text-xs text-red-600">
               An unexpected render error occurred inside the chatbot interface.
             </p>
           </div>

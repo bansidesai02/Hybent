@@ -44,27 +44,27 @@ export function ExitConfirmationModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 10 }}
         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-        className="relative z-10 w-full max-w-[340px] p-6 rounded-[22px] bg-white/95 dark:bg-[#1a1236]/95 border border-white/60 dark:border-violet-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl text-center"
+        className="relative z-10 w-full max-w-[340px] p-6 rounded-[22px] bg-white/95 border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl text-center"
       >
         {/* Top Dismiss Button */}
         <button
           onClick={onClose}
-          className="absolute top-3.5 right-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="absolute top-3.5 right-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
           aria-label="Close dialog"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Warning Icon Badge */}
-        <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800/50 text-red-500 flex items-center justify-center mx-auto mb-4 shadow-sm">
+        <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-200 text-red-500 flex items-center justify-center mx-auto mb-4 shadow-sm">
           <AlertTriangle className="w-6 h-6" />
         </div>
 
         {/* Title & Description */}
-        <h3 className="text-lg font-bold text-[#1a1040] dark:text-white mb-2">
+        <h3 className="text-lg font-bold text-[#1a1040] mb-2">
           End Conversation?
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-300 leading-relaxed mb-6">
+        <p className="text-xs text-slate-500 leading-relaxed mb-6">
           Leaving this conversation will end your current AI session. You can start a new session anytime.
         </p>
 
@@ -85,7 +85,7 @@ export function ExitConfirmationModal({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.97 }}
             onClick={onClose}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-[#1a1040] dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700/60 transition-all duration-200"
+            className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#1a1040] text-xs font-semibold border border-slate-200 transition-all duration-200"
           >
             Continue Chat
           </motion.button>
