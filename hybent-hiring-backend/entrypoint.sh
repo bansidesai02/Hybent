@@ -96,11 +96,20 @@ if [ $# -gt 0 ]; then
 else
     # In the Render Free tier, we cannot deploy separate background workers.
     # We run the Celery worker and beat in the background of this web container.
-    echo "==> [entrypoint] Starting Celery worker in background (pool=solo, concurrency=1)..."
-    celery -A app.core.celery_app worker --loglevel=info --pool=solo --concurrency=1 &
-    
-    echo "==> [entrypoint] Starting Celery beat in background..."
-    celery -A app.core.celery_app beat --loglevel=info &
+    #
+    # Memory is the constraint here (512Mi for everything), so:
+    #  -B    runs beat inside the worker's main process instead of as a
+    #        separate one — a whole extra copy of the app (~135Mi) saved.
+    #  prefork, concurrency=1
+    #        one child runs tasks. Forked from the main process, it shares its
+    #        memory pages until it writes to them, so it costs little extra.
+    #  --max-memory-per-child (KiB)
+    #        once the child passes ~245Mi (a big batch of resume PDFs), it is
+    #        replaced after its current task instead of staying that large.
+    #        Needs prefork — the previous pool=solo has no child to recycle.
+    echo "==> [entrypoint] Starting Celery worker + embedded beat in background (prefork, concurrency=1)..."
+    celery -A app.core.celery_app worker -B --loglevel=info \
+        --pool=prefork --concurrency=1 --max-memory-per-child=250000 &
  
     echo "==> [entrypoint] Starting Uvicorn..."
     if [ "${WEB_CONCURRENCY:-1}" -gt 1 ]; then

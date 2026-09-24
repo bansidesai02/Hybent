@@ -10,14 +10,15 @@ services:
     envVars:
       - key: APP_ENV
         value: production
-      # Was unset, which entrypoint.sh defaults to 1 — a single Uvicorn worker
-      # serving every request site-wide. One request doing blocking work
-      # (resume parsing, password hashing) froze the whole site for every
-      # other concurrent user. 2 is a conservative bump for the free plan's
-      # limited RAM (each worker loads its own full copy of the app) — not
-      # higher without also upgrading the plan.
+      # 1, not 2. This one 512Mi container also runs the Celery worker and
+      # beat (entrypoint.sh — the free plan has no background services), and
+      # each Uvicorn worker loads its own full copy of the app (~200-250Mi).
+      # With 2 workers the container went over 512Mi at startup and Render
+      # killed it ("Out of memory", "No open ports detected"). A second web
+      # worker needs a plan with more RAM (Standard, 2GB) — Starter is also
+      # 512Mi and would not help.
       - key: WEB_CONCURRENCY
-        value: "2"
+        value: "1"
       # Supabase Postgres via the SESSION POOLER (port 5432 on
       # aws-<n>-<region>.pooler.supabase.com, username `postgres.<project-ref>`)
       # — NOT the "Direct connection" host (db.<ref>.supabase.co), which
