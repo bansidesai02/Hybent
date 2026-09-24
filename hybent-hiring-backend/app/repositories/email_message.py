@@ -5,8 +5,20 @@ from sqlalchemy import desc, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models.email_message import EmailIngestionStatus, EmailMessage
+from app.models.email_message import MAX_INGESTION_ATTEMPTS, EmailIngestionStatus, EmailMessage
 from app.repositories.base import BaseRepository
+
+
+RESUME_STATUSES = (EmailIngestionStatus.CREATED, EmailIngestionStatus.MATCHED_EXISTING)
+
+
+def _claimable_status():
+    """Not yet evaluated, or a transient failure with attempts left."""
+    return or_(
+        EmailMessage.ingestion_status.is_(None),
+        (EmailMessage.ingestion_status == EmailIngestionStatus.RETRY_PENDING)
+        & (EmailMessage.ingestion_attempts < MAX_INGESTION_ATTEMPTS),
+    )
 
 
 class EmailMessageRepository(BaseRepository[EmailMessage]):
@@ -23,11 +35,15 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
         return result.scalar_one_or_none()
 
     async def list_for_account(
-        self, email_account_id: uuid.UUID, limit: int = 50, offset: int = 0
+        self, email_account_id: uuid.UUID, limit: int = 50, offset: int = 0, resumes_only: bool = False
     ) -> list[EmailMessage]:
+        query = select(EmailMessage).where(EmailMessage.email_account_id == email_account_id)
+        if resumes_only:
+            # Only mail the ingestion pass turned into (or matched to) a
+            # candidate — the rest of a mailbox is newsletters and alerts.
+            query = query.where(EmailMessage.ingestion_status.in_(RESUME_STATUSES))
         result = await self.db.execute(
-            select(EmailMessage)
-            .where(EmailMessage.email_account_id == email_account_id)
+            query
             .order_by(desc(EmailMessage.received_at))
             .limit(limit)
             .offset(offset)
@@ -54,7 +70,7 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
             select(EmailMessage)
             .where(
                 EmailMessage.email_account_id == email_account_id,
-                EmailMessage.ingestion_status.is_(None),
+                _claimable_status(),
             )
             .order_by(EmailMessage.received_at)
             .limit(limit)
@@ -63,7 +79,7 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
 
     async def claim_for_processing(self, message_id: uuid.UUID, stale_after_minutes: int = 15) -> bool:
         """Atomically claim a message for ingestion processing. Returns True if
-        this call won the claim (status was NULL, or was "processing" but its
+        this call won the claim (status was NULL, a retry is pending, or was "processing" but its
         lock is stale — e.g. a worker crashed mid-run). Safe against two
         overlapping ingestion runs picking up the same message."""
         stale_cutoff = datetime.now(timezone.utc) - timedelta(minutes=stale_after_minutes)
@@ -72,12 +88,16 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
             .where(
                 EmailMessage.id == message_id,
                 or_(
-                    EmailMessage.ingestion_status.is_(None),
+                    _claimable_status(),
                     (EmailMessage.ingestion_status == EmailIngestionStatus.PROCESSING)
                     & (EmailMessage.ingestion_locked_at < stale_cutoff),
                 ),
             )
-            .values(ingestion_status=EmailIngestionStatus.PROCESSING, ingestion_locked_at=datetime.now(timezone.utc))
+            .values(
+                ingestion_status=EmailIngestionStatus.PROCESSING,
+                ingestion_locked_at=datetime.now(timezone.utc),
+                ingestion_attempts=EmailMessage.ingestion_attempts + 1,
+            )
         )
         return result.rowcount > 0
 
@@ -88,14 +108,14 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
         candidate_id: uuid.UUID | None = None,
         error: str | None = None,
     ) -> None:
-        await self.db.execute(
-            update(EmailMessage)
-            .where(EmailMessage.id == message_id)
-            .values(
-                ingestion_status=status,
-                ingestion_result_candidate_id=candidate_id,
-                ingestion_error=error,
-                ingestion_processed_at=datetime.now(timezone.utc),
-                ingestion_locked_at=None,
-            )
-        )
+        values = {
+            "ingestion_status": status,
+            "ingestion_error": error,
+            "ingestion_processed_at": datetime.now(timezone.utc),
+            "ingestion_locked_at": None,
+        }
+        # Only ever set, never cleared — a retry pass that creates nothing new
+        # must not wipe the candidate an earlier pass already produced.
+        if candidate_id is not None:
+            values["ingestion_result_candidate_id"] = candidate_id
+        await self.db.execute(update(EmailMessage).where(EmailMessage.id == message_id).values(**values))

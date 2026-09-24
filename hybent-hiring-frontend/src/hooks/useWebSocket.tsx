@@ -76,6 +76,32 @@ export function useWebSocket() {
               })
             }
           }
+          if (msg.event === 'candidate_ingested' && msg.data) {
+            // Sent by email ingestion after the candidate is committed, to
+            // the whole org — including whoever connected the mailbox,
+            // whom the generic activity broadcast skips as the "actor".
+            if (window.location.pathname.startsWith('/portal')) return
+
+            queryClient.invalidateQueries({ queryKey: ['candidates'] })
+            queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+            queryClient.invalidateQueries({ queryKey: ['talent-pool'] })
+            queryClient.invalidateQueries({ queryKey: ['talent-pool-stats'] })
+            queryClient.invalidateQueries({ queryKey: ['overview-stats'] })
+            queryClient.invalidateQueries({ queryKey: ['inbox'] })
+
+            const name = msg.data.full_name || 'A new candidate'
+            toast.custom((t) => (
+              <ActivityToast
+                t={t}
+                payload={{
+                  action: 'CREATE',
+                  resource_type: 'candidate',
+                  message: `${name} was added from email and is waiting for review`,
+                  timestamp: new Date().toISOString(),
+                }}
+              />
+            ), { id: `ingested-${msg.data.candidate_id}`, duration: 5000 })
+          }
           if (msg.event === 'unread_count') {
             setUnreadCount(msg.data.count)
           }

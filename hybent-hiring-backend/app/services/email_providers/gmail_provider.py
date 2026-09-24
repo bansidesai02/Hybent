@@ -287,4 +287,8 @@ def get_message_full(account: EmailAccount, provider_message_id: str) -> dict:
         "from_name": from_name,
         "from_address": from_address,
         "subject": _header(msg_headers, "Subject"),
+        "to": _header(msg_headers, "To"),
+        "cc": _header(msg_headers, "Cc"),
+        "reply_to": _header(msg_headers, "Reply-To"),
+        "date": _header(msg_headers, "Date"),
     }

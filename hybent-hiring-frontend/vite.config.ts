@@ -86,7 +86,10 @@ export default defineConfig({
       const target = process.env.VITE_DEV_PROXY_TARGET || 'http://localhost:8000'
       const wsTarget = target.replace(/^http/, 'ws')
       return {
-        '/v1': { target, changeOrigin: true, secure: false },
+        // `ws: true` — the realtime socket lives under /v1 too
+        // (/v1/notifications/ws). Without it the upgrade is never forwarded,
+        // the socket silently fails, and nothing live reaches the browser.
+        '/v1': { target, changeOrigin: true, secure: false, ws: true },
         '/api': { target, changeOrigin: true, secure: false },
         '/static': { target, changeOrigin: true, secure: false },
         '/ws': { target: wsTarget, ws: true, changeOrigin: true },

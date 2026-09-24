@@ -65,3 +65,35 @@ def test_calculate_years_from_experience():
     assert years5 is None
     assert text5 is None
 
+
+
+def test_parsed_resume_tolerates_llm_nulls():
+    """A role with no dates comes back as `"duration": null`. That used to fail
+    validation for the whole résumé, which then silently degraded to the regex
+    fallback — no experience, and the name read off the page as "Resume"."""
+    from app.services.ai.resume_parser import ParsedResume
+
+    parsed = ParsedResume(**{
+        "full_name": "Axay Patanvadiya",
+        "experience": [{"title": None, "company": "Rigel Networks", "duration": None, "description": None}, None],
+        "skills": ["Laravel", None],
+        "education": None,
+    })
+    assert parsed.experience[0].company == "Rigel Networks"
+    assert parsed.experience[0].duration == ""
+    assert len(parsed.experience) == 1
+    assert parsed.skills == ["Laravel"]
+    assert parsed.education == []
+    assert ParsedResume(full_name=None).full_name == "Unknown"
+
+
+def test_months_in_date_range_formats():
+    from app.services.ai.resume_parser import _months_in_date_range as months
+
+    assert months("06/2024 – 08/2025") == 15
+    assert months("Jun, 2023 - Dec 2023") == 7
+    assert months("Apr - 2021 - Nov - 2024") == 44
+    assert months("Sept2020-Mar2022") == 19
+    assert months("December 2021 – December 2022") == 13
+    assert months("2019 - 2021") == 36
+    assert months("2024") is None

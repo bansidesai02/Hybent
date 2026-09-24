@@ -125,11 +125,41 @@ export interface EmailMessage {
   snippet: string | null
   received_at: string | null
   is_read: boolean
+  to_address?: string | null
+  ingestion_status?: string | null
+  /** Candidates this email produced or was matched to. */
+  candidate_count?: number
+}
+
+export interface EmailAttachment {
+  /** Position in the message's attachment list — the download key. */
+  index: number
+  filename: string
+  mime_type: string
+  size: number
+  /** The candidate created from this attachment, when there is one. */
+  candidate_id: string | null
+  candidate_name: string | null
+}
+
+export interface EmailCandidateLink {
+  id: string
+  full_name: string
+  email: string | null
+  resume_filename: string | null
+  pipeline_stage: string | null
 }
 
 export interface EmailMessageDetail extends EmailMessage {
   body_html: string | null
   body_text: string | null
+  to: string | null
+  cc: string | null
+  reply_to: string | null
+  /** The raw Date header, as sent. */
+  date: string | null
+  attachments: EmailAttachment[]
+  candidates: EmailCandidateLink[]
 }
 
 export interface Job {

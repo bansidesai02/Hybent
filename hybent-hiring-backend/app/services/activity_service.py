@@ -15,10 +15,16 @@ async def log_activity(
     resource_id: str | None = None,
     details: dict | None = None,
     ip_address: str | None = None,
-    user_agent: str | None = None
+    user_agent: str | None = None,
+    broadcast: bool = True,
 ) -> AuditLog:
     """
     Logs an activity to the database and broadcasts it via WebSockets.
+
+    Pass `broadcast=False` when the caller announces the change itself —
+    the broadcast here goes out on flush, before the caller commits, and
+    skips the acting user, which suits an interactive request but not a
+    background job acting on someone's behalf.
     """
     activity = AuditLog(
         organization_id=organization_id,
@@ -35,6 +41,9 @@ async def log_activity(
     
     # Refresh to ensure we have all fields for broadcasting
     await db.refresh(activity)
+
+    if not broadcast:
+        return activity
 
     # Broadcast to organization
     # For now, we'll broadcast to all connected users in the organization

@@ -1,6 +1,14 @@
 """Automated counterpart to app/routers/resumes.py::upload_and_create — turns
-an inbound email attachment on a connected mailbox into a Candidate, without
-a human recruiter driving the upload.
+each inbound resume attachment on a connected mailbox into a Candidate,
+without a human recruiter driving the upload. One email can carry several
+resumes (a referrer or agency sending a batch) — each becomes its own
+candidate.
+
+A transient parse failure (AI rate limit, credits exhausted, provider down)
+does not produce a hollow candidate: the message goes to RETRY_PENDING and is
+picked up again by later runs, up to MAX_INGESTION_ATTEMPTS. Only the final
+attempt falls back to a candidate built from the email headers, so the
+application is never silently lost.
 
 Every candidate created here lands in pipeline_stage="needs_review"
 unconditionally (never auto-scored into an active pipeline) — broad mailbox
@@ -18,6 +26,7 @@ mechanism (which mailbox, which inbound email, the sender) is preserved in
 Candidate.source_email_message_id/source_email_account_id and in the
 AuditLog `details`, so it's still clear this wasn't a manual upload.
 """
+import asyncio
 import logging
 import re
 import uuid
@@ -29,16 +38,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.candidate import Candidate
 from app.models.email_account import EmailAccount
-from app.models.email_message import EmailIngestionStatus, EmailMessage
+from app.models.email_message import MAX_INGESTION_ATTEMPTS, EmailIngestionStatus, EmailMessage
 from app.repositories.email_message import EmailMessageRepository
 from app.services import supabase_storage_service
 from app.services.activity_service import log_activity
 from app.services.email_inbox_service import EmailInboxService
 from app.services.email_providers import gmail_provider
 from app.services.storage_service import save_resume_bytes
+from app.services.ai.resume_parser import apply_experience_fields
 from app.services.ai.resume_rag import stage_candidate_resume_chunks
 from app.utils.category import detect_category_from_skills, extract_core_category
+from app.utils.exceptions import InsufficientCreditsException
 from app.utils.job_matching import resolve_or_create_pool_job
+from app.websocket.manager import ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +67,13 @@ PARSEABLE_MIME_TYPES = {
 # aren't dropped just because the mime type is uninformative.
 RESUME_FILE_EXTENSIONS = (".pdf", ".doc", ".docx")
 
+# Bounds AI spend on a single message — no genuine application carries more.
+MAX_RESUMES_PER_EMAIL = 10
+
+# Spacing between AI parses within a batch, so ingestion doesn't trip the
+# provider's rate limit on its own.
+PARSE_SPACING_SECONDS = 0.5
+
 
 class NotAResume(Exception):
     """Raised internally to signal a qualifying attachment was positively
@@ -62,6 +81,18 @@ class NotAResume(Exception):
     validation) — distinct from a transient parsing/infra failure, so the
     message can be marked SKIPPED_NOT_RESUME instead of FAILED, and no
     placeholder candidate gets created from it."""
+
+
+class TransientParseError(Exception):
+    """The AI parse failed for a reason that may clear on its own (rate
+    limit, provider outage). The message is retried on a later run rather
+    than turned into a candidate with no parsed data."""
+
+
+class CreditsExhausted(TransientParseError):
+    """The organisation has no AI credits left. Retried like any transient
+    failure, but also stops the rest of the account's batch — every other
+    message would fail the same way and burn an attempt for nothing."""
 
 
 _EMPTY_PARSED_RESUME = {
@@ -98,15 +129,15 @@ def _is_resume_document_type(attachment: dict) -> bool:
     return filename.endswith(RESUME_FILE_EXTENSIONS)
 
 
-def _select_attachment(attachments: list[dict]) -> dict | None:
-    """First attachment that looks like a genuine resume attempt (has a
-    filename, is a resume-shaped document type, is within the size limit).
-    One email -> at most one candidate; extra attachments are ignored rather
-    than creating ambiguous multiple candidates from a single message.
+def _select_attachments(attachments: list[dict]) -> list[dict]:
+    """Every attachment that looks like a genuine resume attempt (has a
+    filename, is a resume-shaped document type, is within the size limit),
+    capped at MAX_RESUMES_PER_EMAIL.
 
-    This is a cheap type/size filter only — whether the document's *content*
+    This is a cheap type/size filter only — whether each document's *content*
     is actually a resume (vs. an invoice, ID, certificate, etc.) is checked
     later in _ingest_resume via app.services.ai.resume_parser."""
+    selected = []
     for attachment in attachments:
         if not attachment.get("filename"):
             continue
@@ -114,8 +145,10 @@ def _select_attachment(attachments: list[dict]) -> dict | None:
             continue
         if attachment.get("size", 0) and attachment["size"] > settings.max_file_size_bytes:
             continue
-        return attachment
-    return None
+        selected.append(attachment)
+        if len(selected) >= MAX_RESUMES_PER_EMAIL:
+            break
+    return selected
 
 
 class EmailApplicationIngestionService:
@@ -142,32 +175,49 @@ class EmailApplicationIngestionService:
 
         counts = {"created": 0, "matched_existing": 0, "skipped": 0, "failed": 0}
         messages = await self.repo.get_unprocessed(account.id)
-        for message in messages:
+        for i, message in enumerate(messages):
+            if i:
+                await asyncio.sleep(PARSE_SPACING_SECONDS)
             try:
                 outcome = await self.process_message(account, message)
                 if outcome:
                     counts[outcome] = counts.get(outcome, 0) + 1
+            except CreditsExhausted:
+                counts["retry"] = counts.get("retry", 0) + 1
+                logger.warning(f"AI credits exhausted for {account.email_address}; deferring the rest of this batch")
+                break
             except Exception as e:
                 logger.warning(f"Email ingestion failed for message {message.id} on {account.email_address}: {e}")
         return counts
 
     async def process_message(self, account: EmailAccount, message: EmailMessage) -> str | None:
+        """Ingest every resume attached to one message.
+
+        Returns the message-level outcome ("created", "matched_existing",
+        "skipped", "retry" or "failed"). Raises CreditsExhausted after
+        recording the retry, so process_account can stop its batch."""
         claimed = await self.repo.claim_for_processing(message.id)
         if not claimed:
             return None
         await self.db.commit()
+        # The claim bumped ingestion_attempts in SQL; read it back.
+        await self.db.refresh(message)
+        final_attempt = message.ingestion_attempts >= MAX_INGESTION_ATTEMPTS
 
         try:
             full = gmail_provider.get_message_full(account, message.provider_message_id)
         except Exception as e:
-            await self.repo.mark_result(message.id, EmailIngestionStatus.FAILED, error=str(e)[:2000])
+            # A Gmail/network failure says nothing about the email itself —
+            # retry it like a transient parse failure until attempts run out.
+            status = EmailIngestionStatus.FAILED if final_attempt else EmailIngestionStatus.RETRY_PENDING
+            await self.repo.mark_result(message.id, status, error=f"message fetch failed: {e}"[:2000])
             await self.db.commit()
-            return "failed"
+            return "failed" if final_attempt else "retry"
 
         attachments = full.get("attachments") or []
         message.has_attachments = bool(attachments)
 
-        qualifying = _select_attachment(attachments)
+        qualifying = _select_attachments(attachments)
         if not qualifying:
             await self.repo.mark_result(message.id, EmailIngestionStatus.SKIPPED_NOT_RESUME)
             await self.db.commit()
@@ -175,35 +225,125 @@ class EmailApplicationIngestionService:
 
         from_name = full.get("from_name") or message.from_name
         from_address = full.get("from_address") or message.from_address
+        # With several resumes attached the sender is a referrer or agency,
+        # not the candidate — their name and address must not stand in for
+        # any one applicant's.
+        multi = len(qualifying) > 1
 
-        try:
-            file_bytes = gmail_provider.get_attachment_content(account, message.provider_message_id, qualifying)
-        except Exception as e:
-            await self.repo.mark_result(message.id, EmailIngestionStatus.FAILED, error=f"attachment fetch failed: {e}"[:2000])
+        created: list[uuid.UUID] = []
+        matched: list[uuid.UUID] = []
+        errors: list[str] = []
+        retry = False
+        credits_exhausted = False
+
+        for attachment in qualifying:
+            filename = attachment["filename"]
+
+            # Already turned into a candidate by an earlier attempt of this
+            # same message — don't re-parse or spend credits on it again.
+            done = await self._candidate_from_earlier_attempt(message, filename)
+            if done:
+                created.append(done.id)
+                continue
+
+            if credits_exhausted:
+                retry = True
+                continue
+
+            try:
+                file_bytes = gmail_provider.get_attachment_content(account, message.provider_message_id, attachment)
+            except Exception as e:
+                errors.append(f"{filename}: attachment fetch failed: {e}")
+                if not final_attempt:
+                    retry = True
+                continue
+
+            # A savepoint per attachment: a failure discards only what this
+            # attachment staged. A full rollback would also expire `account`
+            # and `message`, which the rest of the loop still reads.
+            try:
+                async with self.db.begin_nested():
+                    candidate_id, status = await self._ingest_resume(
+                        account, message, filename, attachment["mime_type"], file_bytes,
+                        from_name, from_address, multi=multi, final_attempt=final_attempt,
+                    )
+            except NotAResume:
+                continue
+            except TransientParseError as e:
+                retry = True
+                errors.append(f"{filename}: {e}")
+                if isinstance(e, CreditsExhausted):
+                    credits_exhausted = True
+                continue
+            except Exception as e:
+                logger.exception(f"Email ingestion failed to create candidate from {filename} on message {message.id}")
+                errors.append(f"{filename}: {e}")
+                continue
+
+            # Commit per attachment, so a later failure can't roll back a
+            # candidate that was already created successfully.
             await self.db.commit()
-            return "failed"
+            if status == EmailIngestionStatus.CREATED:
+                created.append(candidate_id)
+                await self._announce_candidate(account, candidate_id)
+            elif status == EmailIngestionStatus.MATCHED_EXISTING:
+                matched.append(candidate_id)
 
-        try:
-            candidate_id, status = await self._ingest_resume(
-                account, message, qualifying["filename"], qualifying["mime_type"], file_bytes, from_name, from_address
+        error = "\n".join(errors)[:2000] or None
+        first_candidate = (created or matched or [None])[0]
+
+        if retry:
+            await self.repo.mark_result(
+                message.id, EmailIngestionStatus.RETRY_PENDING, candidate_id=first_candidate, error=error
             )
-        except NotAResume:
-            await self.repo.mark_result(message.id, EmailIngestionStatus.SKIPPED_NOT_RESUME)
             await self.db.commit()
-            return "skipped"
-        except Exception as e:
-            logger.exception(f"Email ingestion failed to create candidate for message {message.id}")
-            await self.repo.mark_result(message.id, EmailIngestionStatus.FAILED, error=str(e)[:2000])
-            await self.db.commit()
-            return "failed"
+            if credits_exhausted:
+                raise CreditsExhausted(error or "AI credits exhausted")
+            return "retry"
 
-        await self.repo.mark_result(message.id, status, candidate_id=candidate_id)
+        if created:
+            status, outcome = EmailIngestionStatus.CREATED, "created"
+        elif matched:
+            status, outcome = EmailIngestionStatus.MATCHED_EXISTING, "matched_existing"
+        elif errors:
+            status, outcome = EmailIngestionStatus.FAILED, "failed"
+        else:
+            status, outcome = EmailIngestionStatus.SKIPPED_NOT_RESUME, "skipped"
+
+        await self.repo.mark_result(message.id, status, candidate_id=first_candidate, error=error)
         await self.db.commit()
-        if status == EmailIngestionStatus.CREATED:
-            return "created"
-        if status == EmailIngestionStatus.SKIPPED_NOT_RESUME:
-            return "skipped"
-        return "matched_existing"
+        return outcome
+
+    async def _announce_candidate(self, account: EmailAccount, candidate_id: uuid.UUID) -> None:
+        """Tell every open workspace in the org that a candidate arrived, so
+        candidate lists refresh without a page reload.
+
+        Sent only after the commit, so a browser refetching on receipt
+        actually sees the row. And sent to everyone: log_activity's own
+        broadcast excludes the acting user, which here is whoever connected
+        the mailbox — the one person most likely to be watching for it."""
+        try:
+            candidate = await self.db.get(Candidate, candidate_id)
+            await ws_manager.broadcast_to_org(
+                org_id=str(account.organization_id),
+                event="candidate_ingested",
+                data={
+                    "candidate_id": str(candidate_id),
+                    "full_name": candidate.full_name if candidate else None,
+                    "email_account_address": account.email_address,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to announce ingested candidate {candidate_id}: {e}")
+
+    async def _candidate_from_earlier_attempt(self, message: EmailMessage, filename: str) -> Candidate | None:
+        result = await self.db.execute(
+            select(Candidate).where(
+                Candidate.source_email_message_id == message.id,
+                Candidate.resume_filename == filename,
+            )
+        )
+        return result.scalars().first()
 
     async def _ingest_resume(
         self,
@@ -214,8 +354,22 @@ class EmailApplicationIngestionService:
         file_bytes: bytes,
         from_name: str | None,
         from_address: str | None,
+        *,
+        multi: bool = False,
+        final_attempt: bool = True,
     ) -> tuple[uuid.UUID | None, str]:
+        """Create (or match) the candidate for one resume attachment.
+
+        `multi`: the message carries several resumes, so the sender's headers
+        say nothing about who this one belongs to and are never used for it.
+        `final_attempt`: on a transient parse failure, fall back to a
+        header-only candidate instead of raising TransientParseError."""
         organization_id = account.organization_id
+
+        # With several resumes the sender is not the applicant — only their
+        # own resumes identify them.
+        if multi:
+            from_name = from_address = None
 
         # Cheap identity guess from headers first, so an obvious duplicate
         # sender can skip the expensive AI parse below entirely.
@@ -256,22 +410,22 @@ class EmailApplicationIngestionService:
                 # which is what let a rejected attachment through anyway.
                 logger.info(f"Message {message.id} attachment rejected as not-a-resume: {e.detail}")
                 return None, EmailIngestionStatus.SKIPPED_NOT_RESUME
-            logger.info(f"Resume parse failed for message {message.id}, falling back to header metadata: {e}")
-            parsed = dict(_EMPTY_PARSED_RESUME)
+            parsed = self._parse_failed(message, filename, e, final_attempt)
+        except InsufficientCreditsException as e:
+            if not final_attempt:
+                raise CreditsExhausted(e.message) from e
+            parsed = self._parse_failed(message, filename, e, final_attempt)
         except Exception as e:
-            # A transient failure (AI provider down, network error) — unlike
-            # the confident rejection above, we genuinely don't know whether
-            # this was a real resume, so it still falls back to a
-            # needs_review candidate from headers rather than losing the
-            # message (ingestion results are terminal and never auto-retried).
-            logger.info(f"Resume parse failed for message {message.id}, falling back to header metadata: {e}")
-            parsed = dict(_EMPTY_PARSED_RESUME)
+            parsed = self._parse_failed(message, filename, e, final_attempt)
 
         full_name = parsed.get("full_name") or from_name or "Unknown Candidate"
         email = parsed.get("email") or from_address
         if not email:
             clean_name = re.sub(r"[^a-zA-Z0-9]", "", full_name.lower()) or "applicant"
             email = f"{clean_name}.{uuid.uuid4().hex[:6]}@hybent.temp"
+        # Same as manual upload: parsed_data carries the email the candidate
+        # was actually saved under.
+        parsed["email"] = email
 
         existing = await self._find_existing_candidate(organization_id, email)
         if existing:
@@ -300,6 +454,15 @@ class EmailApplicationIngestionService:
                 organization_id=organization_id,
             )
 
+        # Same fallback as manual upload: a resume whose header omits a
+        # current title/company still has them as its latest experience entry.
+        current_title = parsed.get("current_title")
+        current_company = parsed.get("current_company")
+        experience = parsed.get("experience")
+        if isinstance(experience, list) and experience and isinstance(experience[0], dict):
+            current_title = current_title or experience[0].get("title")
+            current_company = current_company or experience[0].get("company")
+
         candidate = Candidate(
             organization_id=organization_id,
             created_by_id=account.connected_by_user_id,
@@ -311,10 +474,8 @@ class EmailApplicationIngestionService:
             pipeline_stage="needs_review",  # unconditional — see module docstring
             applied_job_title=job.title if job else None,
             skills=candidate_skills_list[:30],
-            years_experience=parsed.get("years_experience"),
-            experience_years=parsed.get("experience_years"),
-            current_title=parsed.get("current_title"),
-            current_company=parsed.get("current_company"),
+            current_title=current_title,
+            current_company=current_company,
             summary=parsed.get("summary"),
             phone=parsed.get("phone"),
             location=parsed.get("location"),
@@ -325,6 +486,7 @@ class EmailApplicationIngestionService:
             score_breakdown=breakdown,
             parsed_data=parsed,
         )
+        apply_experience_fields(candidate, parsed)
         self.db.add(candidate)
         await self.db.flush()
 
@@ -367,6 +529,7 @@ class EmailApplicationIngestionService:
                 "from_name": from_name,
                 "subject": message.subject,
             },
+            broadcast=False,  # announced after commit — see _announce_candidate
         )
 
         try:
@@ -379,6 +542,22 @@ class EmailApplicationIngestionService:
             logger.warning(f"[RAG] Failed to stage resume chunks for candidate {candidate.id}: {exc}")
 
         return candidate.id, EmailIngestionStatus.CREATED
+
+    def _parse_failed(self, message: EmailMessage, filename: str, error: Exception, final_attempt: bool) -> dict:
+        """A parse failure that isn't a confident "not a resume". Before the
+        last attempt it is retried on a later run — creating the candidate
+        now would leave it with no experience, education or durations, which
+        a manual upload never does. On the last attempt we still don't know
+        whether this was a real resume, so it falls back to a needs_review
+        candidate from headers rather than losing the application."""
+        if not final_attempt:
+            logger.info(f"Resume parse failed for {filename} on message {message.id}; will retry: {error}")
+            raise TransientParseError(str(error)[:500]) from error
+        logger.warning(
+            f"Resume parse failed for {filename} on message {message.id} after "
+            f"{MAX_INGESTION_ATTEMPTS} attempts, falling back to header metadata: {error}"
+        )
+        return dict(_EMPTY_PARSED_RESUME)
 
     async def _find_existing_candidate(self, organization_id: uuid.UUID, email: str) -> Candidate | None:
         result = await self.db.execute(
@@ -408,5 +587,6 @@ class EmailApplicationIngestionService:
                 "from_address": from_address,
                 "from_name": from_name,
             },
+            broadcast=False,
         )
         return existing.id, EmailIngestionStatus.MATCHED_EXISTING

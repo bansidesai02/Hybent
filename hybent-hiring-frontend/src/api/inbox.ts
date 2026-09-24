@@ -19,4 +19,8 @@ export const inboxApi = {
   sync: () => api.post<{ new_count: number }>('/v1/inbox/sync'),
 
   get: (messageId: string) => api.get<EmailMessageDetail>(`/v1/inbox/${messageId}`),
+
+  /** One attachment's bytes, fetched live from the mailbox. */
+  downloadAttachment: (messageId: string, index: number) =>
+    api.get<Blob>(`/v1/inbox/${messageId}/attachments/${index}`, { responseType: 'blob' }),
 }

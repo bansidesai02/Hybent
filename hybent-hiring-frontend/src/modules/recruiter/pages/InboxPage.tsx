@@ -2,21 +2,36 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
-import { Inbox as InboxIcon, RefreshCw } from 'lucide-react'
+import { Download, FileText, Paperclip, RefreshCw, UserRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { inboxApi } from '@/api/inbox'
 import { useAuth } from '@/hooks/useAuth'
-import type { EmailMessage } from '@/types'
+import type { EmailAttachment, EmailMessage, EmailMessageDetail } from '@/types'
 import { Badge, Button, Card, Dialog, EmptyState, PageHeader, Skeleton } from '@/components/hb'
 
 /**
  * A resolved inbox for whoever is looking: admins/super admins see their
  * organization's primary (shared) mailbox; a recruiter sees their own single
  * personal one. Reading is Gmail-only for now — SMTP has no read protocol.
+ *
+ * Only applications are listed — mail that email ingestion turned into (or
+ * matched to) a candidate. The rest of a mailbox is alerts and newsletters.
  */
 
+function formatSize(bytes: number): string {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function plural(n: number, word: string) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
 export default function InboxPage() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, basePath } = useAuth()
   const queryClient = useQueryClient()
   const [openMessage, setOpenMessage] = useState<EmailMessage | null>(null)
 
@@ -98,8 +113,8 @@ export default function InboxPage() {
       ) : messages.length === 0 ? (
         <Card>
           <EmptyState
-            title="No messages yet"
-            description="Click Sync now to pull in recent mail, or wait — this inbox syncs automatically every few minutes."
+            title="No applications yet"
+            description="Emails with resumes attached show up here once they've been turned into candidates. The mailbox is checked automatically every few minutes."
             action={{
               label: 'Sync now',
               onClick: () => {
@@ -138,7 +153,12 @@ export default function InboxPage() {
                     </p>
                     <p className="truncate text-hb-xs text-hb-dim">{message.snippet}</p>
                   </div>
-                  {!message.is_read && <Badge tone="info">New</Badge>}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {!!message.candidate_count && (
+                      <Badge tone="success">{plural(message.candidate_count, 'candidate')}</Badge>
+                    )}
+                    {!message.is_read && <Badge tone="info">New</Badge>}
+                  </div>
                 </button>
               </li>
             ))}
@@ -150,12 +170,92 @@ export default function InboxPage() {
         open={!!openMessage}
         onClose={() => setOpenMessage(null)}
         title={openMessage?.subject || '(no subject)'}
-        description={openMessage?.from_name || openMessage?.from_address || undefined}
-        size="lg"
+        size="xl"
       >
-        {detailQuery.isLoading ? (
-          <Skeleton className="h-40 w-full" rounded="md" />
-        ) : detailQuery.data?.body_html ? (
+        {detailQuery.isLoading || !detailQuery.data ? (
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full" rounded="md" />
+            <Skeleton className="h-40 w-full" rounded="md" />
+          </div>
+        ) : (
+          <MessageDetail detail={detailQuery.data} candidatesPath={`${basePath}/candidates`} />
+        )}
+      </Dialog>
+    </div>
+  )
+}
+
+
+function MessageDetail({ detail, candidatesPath }: { detail: EmailMessageDetail; candidatesPath: string }) {
+  const sender = detail.from_name
+    ? `${detail.from_name} <${detail.from_address}>`
+    : detail.from_address || 'Unknown sender'
+  const sentAt = detail.received_at
+    ? format(new Date(detail.received_at), "EEE, d MMM yyyy 'at' h:mm a")
+    : detail.date
+
+  const headers: { label: string; value: string | null | undefined }[] = [
+    { label: 'From', value: sender },
+    { label: 'To', value: detail.to },
+    { label: 'Cc', value: detail.cc },
+    { label: 'Reply-To', value: detail.reply_to },
+    { label: 'Date', value: sentAt },
+  ]
+
+  return (
+    <div className="space-y-hb-5">
+      {/* ── Headers ─────────────────────────────────────────────────── */}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-hb-sm border border-hb-border bg-hb-surface-2 px-4 py-3 text-hb-sm">
+        {headers
+          .filter((h) => h.value)
+          .map((h) => (
+            <div key={h.label} className="contents">
+              <dt className="font-mono text-hb-label uppercase text-hb-dim">{h.label}</dt>
+              <dd className="min-w-0 break-words text-hb-text">{h.value}</dd>
+            </div>
+          ))}
+      </dl>
+
+      {/* ── Candidates ──────────────────────────────────────────────── */}
+      {detail.candidates.length > 0 && (
+        <section>
+          <h3 className="mb-2 font-mono text-hb-label uppercase text-hb-dim">
+            {plural(detail.candidates.length, 'candidate')} from this email
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {detail.candidates.map((c) => (
+              <Link
+                key={c.id}
+                to={`${candidatesPath}?openId=${c.id}`}
+                className="inline-flex h-8 items-center gap-1.5 rounded-hb-full border border-hb-border bg-hb-surface px-3 text-hb-sm font-semibold text-hb-text transition-colors duration-hb hover:border-hb-blue/40 hover:text-hb-blue"
+              >
+                <UserRound size={13} aria-hidden />
+                {c.full_name}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Attachments ─────────────────────────────────────────────── */}
+      {detail.attachments.length > 0 && (
+        <section>
+          <h3 className="mb-2 flex items-center gap-1.5 font-mono text-hb-label uppercase text-hb-dim">
+            <Paperclip size={12} aria-hidden />
+            {plural(detail.attachments.length, 'attachment')}
+          </h3>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {detail.attachments.map((a) => (
+              <AttachmentRow key={a.index} messageId={detail.id} attachment={a} candidatesPath={candidatesPath} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ── Body ────────────────────────────────────────────────────── */}
+      <section>
+        <h3 className="mb-2 font-mono text-hb-label uppercase text-hb-dim">Message</h3>
+        {detail.body_html ? (
           // Email HTML is attacker-controlled (anyone can email this inbox), so
           // it's never inserted into this page's own DOM via innerHTML — that
           // would let an `onerror`/`javascript:` payload run with this app's
@@ -164,15 +264,74 @@ export default function InboxPage() {
           <iframe
             title="Message content"
             sandbox=""
-            srcDoc={detailQuery.data.body_html}
+            srcDoc={detail.body_html}
             className="h-[420px] w-full rounded-hb-sm border border-hb-border bg-white"
           />
         ) : (
-          <p className="whitespace-pre-wrap text-hb-sm text-hb-text">
-            {detailQuery.data?.body_text || 'No content'}
+          <p className="whitespace-pre-wrap rounded-hb-sm border border-hb-border px-4 py-3 text-hb-sm text-hb-text">
+            {detail.body_text?.trim() || 'No message text'}
           </p>
         )}
-      </Dialog>
+      </section>
     </div>
+  )
+}
+
+function AttachmentRow({
+  messageId,
+  attachment,
+  candidatesPath,
+}: {
+  messageId: string
+  attachment: EmailAttachment
+  candidatesPath: string
+}) {
+  const [downloading, setDownloading] = useState(false)
+
+  const download = async () => {
+    setDownloading(true)
+    try {
+      const res = await inboxApi.downloadAttachment(messageId, attachment.index)
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = attachment.filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Could not download this attachment')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <li className="flex items-center gap-3 rounded-hb-sm border border-hb-border bg-hb-surface px-3 py-2.5">
+      <FileText size={18} className="flex-none text-hb-dim" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-hb-sm font-semibold text-hb-text" title={attachment.filename}>
+          {attachment.filename}
+        </p>
+        <p className="truncate text-hb-xs text-hb-dim">
+          {formatSize(attachment.size)}
+          {attachment.candidate_id ? (
+            <>
+              {' · '}
+              <Link to={`${candidatesPath}?openId=${attachment.candidate_id}`} className="text-hb-blue hover:underline">
+                {attachment.candidate_name || 'View candidate'}
+              </Link>
+            </>
+          ) : null}
+        </p>
+      </div>
+      <Button
+        size="sm"
+        variant="quiet"
+        icon={<Download size={15} />}
+        onClick={download}
+        loading={downloading}
+        aria-label={`Download ${attachment.filename}`}
+      />
+    </li>
   )
 }

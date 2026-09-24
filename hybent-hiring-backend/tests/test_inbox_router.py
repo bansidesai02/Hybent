@@ -72,11 +72,27 @@ async def test_sync_and_list_gmail_inbox(client, admin_headers, db_session, orga
     assert sync_response.status_code == 200
     assert sync_response.json()["data"]["new_count"] == 1
 
+    # Synced, but not a resume application — the Inbox only lists those.
+    list_response = await client.get("/v1/inbox", headers=admin_headers)
+    assert list_response.json()["data"]["messages"] == []
+
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+    from app.models.email_message import EmailIngestionStatus, EmailMessage
+    message = (await db_session.execute(select(EmailMessage))).scalar_one()
+    message.ingestion_status = EmailIngestionStatus.CREATED
+    db_session.add(Candidate(
+        organization_id=organization.id, email="jane@acme.com", full_name="Jane",
+        source="email", source_email_message_id=message.id,
+    ))
+    await db_session.commit()
+
     list_response = await client.get("/v1/inbox", headers=admin_headers)
     messages = list_response.json()["data"]["messages"]
     assert len(messages) == 1
     assert messages[0]["subject"] == "Hello"
     assert messages[0]["is_read"] is False
+    assert messages[0]["candidate_count"] == 1
 
 
 async def test_get_message_detail_fetches_body(client, admin_headers, db_session, organization):
@@ -110,3 +126,59 @@ async def test_get_message_detail_fetches_body(client, admin_headers, db_session
     data = response.json()["data"]
     assert data["body_html"] == "<p>Hi</p>"
     assert data["is_read"] is True
+
+
+async def test_message_detail_has_headers_attachments_and_candidates(client, admin_headers, db_session, organization):
+    from app.models.candidate import Candidate
+    from app.models.email_account import EmailAccount, EmailAccountProvider
+    from app.models.email_message import EmailIngestionStatus, EmailMessage
+
+    account = EmailAccount(
+        organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
+        email_address="gmail@acme.com", is_default=True,
+        refresh_token_encrypted=crypto.encrypt("refresh-token"),
+    )
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = EmailMessage(
+        organization_id=organization.id, email_account_id=account.id, provider_message_id="m1",
+        subject="Two profiles", ingestion_status=EmailIngestionStatus.CREATED,
+    )
+    db_session.add(message)
+    await db_session.commit()
+    await db_session.refresh(message)
+    alice = Candidate(
+        organization_id=organization.id, email="alice@x.com", full_name="Alice",
+        source="email", source_email_message_id=message.id, resume_filename="alice.pdf",
+    )
+    db_session.add(alice)
+    await db_session.commit()
+    await db_session.refresh(alice)
+
+    full = {
+        "body_html": None, "body_text": "Please find attached.",
+        "to": "gmail@acme.com", "cc": "boss@acme.com", "date": "Thu, 24 Sep 2026 13:09:49 +0000",
+        "attachments": [
+            {"filename": "alice.pdf", "mime_type": "application/pdf", "size": 1200, "inline_data": "YWJj"},
+            {"filename": "terms.pdf", "mime_type": "application/pdf", "size": 300, "inline_data": "eHl6"},
+        ],
+    }
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=full):
+        detail = (await client.get(f"/v1/inbox/{message.id}", headers=admin_headers)).json()["data"]
+        download = await client.get(f"/v1/inbox/{message.id}/attachments/0", headers=admin_headers)
+        missing = await client.get(f"/v1/inbox/{message.id}/attachments/5", headers=admin_headers)
+
+    assert detail["to"] == "gmail@acme.com"
+    assert detail["cc"] == "boss@acme.com"
+    assert detail["date"].startswith("Thu, 24 Sep 2026")
+    assert [a["filename"] for a in detail["attachments"]] == ["alice.pdf", "terms.pdf"]
+    assert detail["attachments"][0]["candidate_id"] == str(alice.id)
+    assert detail["attachments"][1]["candidate_id"] is None
+    assert [c["full_name"] for c in detail["candidates"]] == ["Alice"]
+
+    assert download.status_code == 200
+    assert download.content == b"abc"
+    assert download.headers["content-type"] == "application/pdf"
+    assert "alice.pdf" in download.headers["content-disposition"]
+    assert missing.status_code == 404

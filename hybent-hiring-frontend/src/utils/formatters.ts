@@ -125,31 +125,52 @@ export function formatExperienceDuration(duration: string | null | undefined): s
   const explicitYears = raw.match(/(\d+(?:\.\d+)?)\s*(?:yr|year)s?/i)
   const explicitMonths = raw.match(/(\d+(?:\.\d+)?)\s*(?:mo|month)s?/i)
   if (explicitYears || explicitMonths) {
-    const y = explicitYears ? Math.floor(parseFloat(explicitYears[1])) : 0
-    const m = explicitMonths ? Math.round(parseFloat(explicitMonths[1])) : 0
-    return formatYearsMonths(y, m)
+    // Fractional years carry months: "2.5 Years" is 2 years 6 months.
+    const total =
+      Math.round((explicitYears ? parseFloat(explicitYears[1]) : 0) * 12) +
+      Math.round(explicitMonths ? parseFloat(explicitMonths[1]) : 0)
+    return formatYearsMonths(Math.floor(total / 12), total % 12)
   }
 
-  // Otherwise, parse it as a date range: "<start> - <end>", end possibly "Present"/"Current"/"Now".
-  const now = new Date()
-  const normalized = raw.replace(/\b(present|current|now)\b/i, `${now.toLocaleString('en-US', { month: 'short' })} ${now.getFullYear()}`)
-
-  // Month and year are sometimes run together with no space, e.g. "Jan2025".
-  const tokens = normalized.match(/([A-Za-z]{3,})[a-z]*\.?\s*((?:19|20)\d{2})/gi)
-  if (!tokens || tokens.length < 2) return null
-
-  const parsed = tokens.map((t) => {
-    const m = t.match(/([A-Za-z]{3,})[a-z]*\.?\s*((?:19|20)\d{2})/i)!
-    const monthKey = m[1].slice(0, 3).toLowerCase()
-    return { month: MONTH_MAP[monthKey] ?? 1, year: parseInt(m[2], 10) }
-  })
-
-  const start = parsed[0]
-  const end = parsed[parsed.length - 1]
-  const totalMonths = (end.year - start.year) * 12 + (end.month - start.month) + 1
-  if (!Number.isFinite(totalMonths) || totalMonths <= 0) return null
+  // Otherwise, parse it as a date range: "<start> - <end>".
+  const totalMonths = monthsInDateRange(raw)
+  if (totalMonths == null) return null
 
   return formatYearsMonths(Math.floor(totalMonths / 12), totalMonths % 12)
+}
+
+/* One date inside a résumé duration string. Résumés write these many ways:
+   "Jan 2020", "January, 2020", "Apr - 2021", "Sept2020", "06/2024", "2019". */
+const DATE_TOKEN =
+  /\b(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s,.'\u2019/-]*((?:19|20)\d{2})|(0?[1-9]|1[0-2])\s*[/.-]\s*((?:19|20)\d{2})|((?:19|20)\d{2}))\b/gi
+const ONGOING = /\b(present|current|currently|now|today|till date|to date|ongoing)\b/i
+
+/**
+ * Inclusive month count of a "<start> - <end>" duration, or null when fewer
+ * than two dates can be read. An end of "Present"/"Current" is this month. A
+ * bare year has no month: as a start it counts from January, as an end
+ * through December. Kept in step with `_months_in_date_range` in
+ * app/services/ai/resume_parser.py, which computes the candidate's total.
+ */
+function monthsInDateRange(raw: string): number | null {
+  const now = new Date()
+  const normalized = raw.replace(
+    ONGOING,
+    `${now.toLocaleString('en-US', { month: 'short' })} ${now.getFullYear()}`
+  )
+
+  const dates: { year: number; month: number | null }[] = []
+  for (const m of normalized.matchAll(DATE_TOKEN)) {
+    if (m[1]) dates.push({ year: parseInt(m[2], 10), month: MONTH_MAP[m[1].slice(0, 3).toLowerCase()] })
+    else if (m[3]) dates.push({ year: parseInt(m[4], 10), month: parseInt(m[3], 10) })
+    else dates.push({ year: parseInt(m[5], 10), month: null })
+  }
+  if (dates.length < 2) return null
+
+  const start = dates[0]
+  const end = dates[dates.length - 1]
+  const months = (end.year - start.year) * 12 + ((end.month ?? 12) - (start.month ?? 1)) + 1
+  return Number.isFinite(months) && months > 0 ? months : null
 }
 
 function formatYearsMonths(years: number, months: number): string | null {

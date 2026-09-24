@@ -15,7 +15,7 @@ import subprocess
 import time
 import uuid
 from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from fastapi import BackgroundTasks, HTTPException
 
 from app.core.config import settings
@@ -52,11 +52,27 @@ class NotAResumeError(HTTPException):
 
 # ─── Pydantic schema ────────────────────────────────────────────────────────────
 
+def _drop_nulls(data):
+    """The LLM writes `null` for anything a résumé leaves out — a role with
+    no dates, a missing name. Let those fall back to the field's default
+    instead of failing validation: one null used to reject the whole parse,
+    and the résumé then silently degraded to the regex fallback (no
+    experience, no education, the name read as "Resume")."""
+    if isinstance(data, dict):
+        return {k: v for k, v in data.items() if v is not None}
+    return data
+
+
 class ExperienceEntry(BaseModel):
     title: str = ""
     company: str = ""
     duration: str = ""
     description: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate_nulls(cls, data):
+        return _drop_nulls(data)
 
 
 class ParsedResume(BaseModel):
@@ -78,6 +94,17 @@ class ParsedResume(BaseModel):
     projects: list[dict] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate_nulls(cls, data):
+        data = _drop_nulls(data)
+        if isinstance(data, dict):
+            # Nulls inside lists too, e.g. "skills": ["Python", null].
+            for key in ("skills", "certifications", "languages", "education", "experience", "projects"):
+                if isinstance(data.get(key), list):
+                    data[key] = [item for item in data[key] if item is not None]
+        return data
 
 
 # ─── Prompt ─────────────────────────────────────────────────────────────────────
@@ -271,6 +298,46 @@ def _detect_file_type(file_content: bytes, content_type: str, filename: str = ""
 
 # ─── Years experience calculation ────────────────────────────────────────────────
 
+# One date inside a résumé duration string. Résumés write these many ways:
+# "Jan 2020", "January, 2020", "Apr - 2021", "Sept2020", "06/2024", "2019".
+_MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+           "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+_DATE_TOKEN = re.compile(
+    r"\b(?:"
+    r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s,.'\u2019/\-]*((?:19|20)\d{2})"  # month name
+    r"|(0?[1-9]|1[0-2])\s*[/.\-]\s*((?:19|20)\d{2})"  # numeric MM/YYYY
+    r"|((?:19|20)\d{2})"  # bare year
+    r")\b",
+    re.IGNORECASE,
+)
+_ONGOING = re.compile(r"\b(present|current|currently|now|today|till date|to date|ongoing)\b", re.IGNORECASE)
+
+
+def _months_in_date_range(duration: str) -> Optional[int]:
+    """Inclusive month count of a "<start> - <end>" duration, or None when
+    fewer than two dates can be read. An end of "Present"/"Current" is this
+    month. A bare year has no month: as a start it counts from January, as
+    an end through December. Mirrors formatExperienceDuration on the
+    frontend, which renders the per-role badge from the same strings."""
+    now = datetime.now()
+    norm = _ONGOING.sub(f"{now.strftime('%b')} {now.year}", duration)
+
+    dates: list[tuple[int, Optional[int]]] = []
+    for m in _DATE_TOKEN.finditer(norm):
+        if m.group(1):
+            dates.append((int(m.group(2)), _MONTHS[m.group(1)[:3].lower()]))
+        elif m.group(3):
+            dates.append((int(m.group(4)), int(m.group(3))))
+        else:
+            dates.append((int(m.group(5)), None))
+    if len(dates) < 2:
+        return None
+
+    (y1, m1), (y2, m2) = dates[0], dates[-1]
+    months = (y2 - y1) * 12 + ((m2 or 12) - (m1 or 1)) + 1
+    return months if months > 0 else None
+
+
 def calculate_years_from_experience(experience_list: list) -> tuple[Optional[float], Optional[str]]:
     """
     Calculate total years of experience from experience entries.
@@ -279,9 +346,6 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
     Returns: (years_float, experience_years_str)
     """
     total_months = 0
-    now = datetime.now()
-    current_year = now.year
-    current_month_name = now.strftime("%b")
 
     for exp in experience_list:
         if hasattr(exp, 'model_dump'):
@@ -300,29 +364,10 @@ def calculate_years_from_experience(experience_list: list) -> tuple[Optional[flo
                 total_months += float(months_match.group(1))
             continue
 
-        # Pattern: date range — normalize "Present/Current/Now" to current month/year
-        norm = re.sub(
-            r'\b(present|current|now|today)\b',
-            f'{current_month_name} {current_year}',
-            duration,
-            flags=re.IGNORECASE,
-        )
-        years_found = re.findall(r'\b((?:19|20)\d{2})\b', norm)
-        months_found = re.findall(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b', norm.lower())
-        
-        m_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
-
-        if len(years_found) >= 2:
-            try:
-                y1, y2 = int(years_found[0]), int(years_found[-1])
-                if y2 >= y1:
-                    m1 = m_map.get(months_found[0], 1) if len(months_found) >= 1 else 1
-                    m2 = m_map.get(months_found[-1], 12) if len(months_found) >= 2 else (m1 if len(months_found) == 1 else 12)
-
-                    months_diff = (y2 - y1) * 12 + (m2 - m1) + 1  # Inclusive month count
-                    total_months += max(1, months_diff)
-            except Exception:
-                pass
+        # Pattern: date range. Needs at least two resolvable dates.
+        months = _months_in_date_range(duration)
+        if months:
+            total_months += months
         # A single bare year ("2024") with no range and no explicit "X years/
         # months" text isn't a duration — it's a date with the length undetermined.
         # Guessing "~1 month" here is what produced misleading 0.1-year entries;

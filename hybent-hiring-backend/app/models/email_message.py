@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,12 +11,20 @@ from app.core.database import Base
 class EmailIngestionStatus:
     """Outcome of the auto-candidate-ingestion pass for a message (None = not
     yet evaluated). Terminal values are set exactly once and are never
-    retried automatically — see EmailMessageRepository.claim_for_processing."""
+    retried automatically; RETRY_PENDING is the one non-terminal outcome — see
+    EmailMessageRepository.claim_for_processing."""
     PROCESSING = "processing"
     CREATED = "created"
     MATCHED_EXISTING = "matched_existing"
     SKIPPED_NOT_RESUME = "skipped_not_resume"
     FAILED = "failed"
+    # A transient parse failure (AI rate limit, credits exhausted, provider
+    # down) — picked up again by the next ingestion run until
+    # MAX_INGESTION_ATTEMPTS is reached. Not terminal.
+    RETRY_PENDING = "retry_pending"
+
+
+MAX_INGESTION_ATTEMPTS = 3
 
 
 class EmailMessage(Base):
@@ -70,6 +78,8 @@ class EmailMessage(Base):
     # Claim lock for claim_for_processing — set when a worker starts
     # processing, cleared on completion; a stale lock is reclaimable.
     ingestion_locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Incremented on every claim; bounds RETRY_PENDING re-processing.
+    ingestion_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
