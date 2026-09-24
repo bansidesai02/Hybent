@@ -93,7 +93,7 @@ export function getNavSections(
         label: 'Overview',
         items: [
           { to: '/hiring/super-admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-          { to: '/hiring/super-admin/inbox', label: 'Inbox', icon: Inbox },
+          { to: '/hiring/super-admin/inbox', label: 'Gmail Inbox', icon: Inbox },
           { to: '/hiring/super-admin/analytics', label: 'Analytics', icon: TrendingUp },
         ],
       },
@@ -169,7 +169,7 @@ export function getNavSections(
       label: 'Main',
       items: [
         { to: basePath, label: 'Overview', icon: LayoutDashboard, end: true },
-        { to: `${basePath}/inbox`, label: 'Inbox', icon: Inbox },
+        { to: `${basePath}/inbox`, label: 'Gmail Inbox', icon: Inbox },
         { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseBusiness },
         candidatesGroup(basePath, role, candidateBadge),
         { to: `${basePath}/pipeline`, label: 'Pipeline', icon: SquareKanban },
