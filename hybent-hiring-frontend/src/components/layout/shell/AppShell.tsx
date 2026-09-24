@@ -125,7 +125,9 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
   const config = ROLE_CONFIG[activeRole] ?? FALLBACK
 
   return (
-    <div className="hb-app flex h-dvh h-screen overflow-hidden">
+    /* Desktop: sidebar and main column are two matching floating panels on
+       the app ground, separated by an even 8px gutter. */
+    <div className="hb-app flex h-dvh h-screen overflow-hidden lg:gap-2 lg:p-2">
       {config.websocket && <RealtimeBridge />}
 
       <HbSidebar
@@ -136,7 +138,10 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
         onCloseMobile={() => setDrawerOpen(false)}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      {/* No background of its own: the app ground, its glows and the grid
+          (`.hb-app` / `.hb-app::before` in tokens.css) must show through —
+          any fill here hides them. The panel is just its border and radius. */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden lg:rounded-hb-md lg:border lg:border-hb-border">
         <ImpersonationBanner />
         <HbTopbar
           onToggleMenu={() => setDrawerOpen((o) => !o)}
