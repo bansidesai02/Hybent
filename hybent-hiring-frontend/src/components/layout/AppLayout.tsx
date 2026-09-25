@@ -9,6 +9,7 @@ import { CookieBanner } from './CookieBanner'
 
 import { HybentChatbot } from '@/components/chatbot/HybentChatbot'
 import { ROUTE_META } from '@/app/routeMeta'
+import { applyPageMeta, routeMetaPath } from '@/app/seo'
 import '@/styles/hybent-site.css'
 
 /**
@@ -34,6 +35,9 @@ export default function AppLayout() {
   const [, segment = '', fragment = ''] = location.pathname.split('/')
   const viewKey = location.pathname === '/' ? 'index' : segment
   const metaKey = location.pathname === '/products/hiring' ? 'hiring' : viewKey
+  /* A service detail page applies its own meta; the generic Services meta must
+     not overwrite it. */
+  const isServiceDetail = segment === 'services' && fragment !== ''
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
   const toggleDrawer = useCallback(() => setDrawerOpen((open) => !open), [])
@@ -50,19 +54,16 @@ export default function AppLayout() {
     setDrawerOpen(false)
   }, [location.pathname])
 
-  /* Per-view title and description, plus aria-current on the owning nav link. */
+  /* Per-view title, description and canonical, plus aria-current on the owning nav link. */
   useEffect(() => {
     const meta = ROUTE_META[metaKey]
-    if (meta) {
-      document.title = meta.title
-      document.querySelector('meta[name="description"]')?.setAttribute('content', meta.description)
-    }
+    if (meta && !isServiceDetail) applyPageMeta({ ...meta, path: routeMetaPath(metaKey) })
     document.querySelectorAll<HTMLElement>('[data-nav]').forEach((link) => {
       const owns = ` ${link.getAttribute('data-nav')} `.includes(` ${metaKey} `)
       if (owns) link.setAttribute('aria-current', 'page')
       else link.removeAttribute('aria-current')
     })
-  }, [metaKey])
+  }, [metaKey, isServiceDetail])
 
   /* Land on the top of the view, or on a deep-linked section (/about/timeline). */
   useEffect(() => {

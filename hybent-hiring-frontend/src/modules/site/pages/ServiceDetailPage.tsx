@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { SiteView } from '../components/SiteView'
 import { getServiceBySlug } from '../data/servicesData'
+import { applyPageMeta, serviceMeta } from '@/app/seo'
 
 import { ServiceHero } from '../components/service-detail/ServiceHero'
 import { ServiceCapabilities } from '../components/service-detail/ServiceCapabilities'
@@ -18,15 +19,7 @@ export default function ServiceDetailPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior })
 
-    if (service) {
-      document.title = service.seo?.title || `${service.title} | HYBENT Services`
-
-      // Update meta description
-      const metaDescription = document.querySelector('meta[name="description"]')
-      if (metaDescription && service.seo?.description) {
-        metaDescription.setAttribute('content', service.seo.description)
-      }
-    }
+    if (service) applyPageMeta(serviceMeta(service))
   }, [slug, service])
 
   if (!service) {

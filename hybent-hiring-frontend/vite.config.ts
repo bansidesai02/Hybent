@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath } from 'url'
 import path from 'path'
+import { seoPages } from './vite-plugins/seoPages'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -13,6 +14,11 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'firebase-messaging-sw.ts',
+      // The per-page SEO copies of index.html are for crawlers; precaching all
+      // of them would only bloat every visitor's install.
+      injectManifest: {
+        globIgnores: ['**/node_modules/**/*', '_seo/**'],
+      },
       injectRegister: 'auto',
       // Without this, a deployed update sits waiting in the background until
       // every open tab is fully closed — the old service worker (and its
@@ -55,6 +61,7 @@ export default defineConfig({
         type: 'module',
       },
     }),
+    seoPages(),
   ],
   resolve: {
     alias: {
