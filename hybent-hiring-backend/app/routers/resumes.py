@@ -53,8 +53,8 @@ async def upload_resume(
     file_content = await file.read()
     await file.seek(0)
 
-    # ── Upload to Supabase Storage (if configured) or fall back to Cloudinary/local ──
-    if settings.supabase_url and settings.supabase_service_role_key:
+    # ── Production → Supabase Storage; local/Docker → Cloudinary (or local disk) ──
+    if settings.use_supabase_resume_storage:
         storage_path = await supabase_storage_service.upload_resume(
             file_content=file_content,
             organization_id=str(current_user.organization_id),
@@ -308,9 +308,9 @@ async def upload_and_create(
     elif candidate.pipeline_stage is None or candidate.pipeline_stage == "needs_review":
         candidate.pipeline_stage = initial_stage
 
-    # ── Upload to Supabase Storage (if configured) or fall back to Cloudinary/local ──
+    # ── Production → Supabase Storage; local/Docker → Cloudinary (or local disk) ──
     uploaded_to_supabase = False
-    if settings.supabase_url and settings.supabase_service_role_key:
+    if settings.use_supabase_resume_storage:
         try:
             storage_path = await supabase_storage_service.upload_resume(
                 file_content=file_content,

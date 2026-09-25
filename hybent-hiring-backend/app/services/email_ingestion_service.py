@@ -721,7 +721,7 @@ class EmailApplicationIngestionService:
         self.db.add(candidate)
         await self.db.flush()
 
-        if settings.supabase_url and settings.supabase_service_role_key:
+        if settings.use_supabase_resume_storage:
             try:
                 storage_path = await supabase_storage_service.upload_resume(
                     file_content=file_bytes,
