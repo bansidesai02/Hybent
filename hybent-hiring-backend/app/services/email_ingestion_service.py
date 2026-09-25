@@ -86,16 +86,35 @@ MEMORY_PAUSE_RSS_MB = 350
 
 def _memory_pressure() -> tuple[bool, str]:
     """(over the pause threshold?, human-readable usage). Uses the cgroup v2
-    container figures (what an out-of-memory kill is judged on) when present,
-    else this process's resident memory."""
+    container's *working set* — what an out-of-memory kill is judged on —
+    when present, else this process's resident memory.
+
+    The working set excludes inactive file cache: `memory.current` alone
+    counts cached files (PDFs just read, libraries), which the kernel frees
+    on demand. Measuring that read ~511/512 MiB on a healthy container and
+    paused ingestion after every single resume."""
     try:
         with open("/sys/fs/cgroup/memory.current") as f:
             used = int(f.read())
         with open("/sys/fs/cgroup/memory.max") as f:
             raw = f.read().strip()
+        inactive_file = 0
+        try:
+            with open("/sys/fs/cgroup/memory.stat") as f:
+                for line in f:
+                    key, _, value = line.partition(" ")
+                    if key == "inactive_file":
+                        inactive_file = int(value)
+                        break
+        except (OSError, ValueError):
+            pass
         if raw != "max":
             limit = int(raw)
-            return used >= limit * MEMORY_PAUSE_FRACTION, f"container {used >> 20}/{limit >> 20} MiB"
+            working_set = max(0, used - inactive_file)
+            return (
+                working_set >= limit * MEMORY_PAUSE_FRACTION,
+                f"container working set {working_set >> 20}/{limit >> 20} MiB (+{inactive_file >> 20} MiB cache)",
+            )
     except (OSError, ValueError):
         pass
     try:

@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 import os
 from groq import Groq, RateLimitError, APIStatusError
 from app.core.config import settings
@@ -43,6 +44,14 @@ FALLBACK_KEY = ALL_KEYS[1] if len(ALL_KEYS) > 1 else PRIMARY_KEY
 # time every other key is also exhausted.
 _failed_keys: set[str] = set()
 
+# Keys Groq rejected outright (401/403: invalid or revoked). Unlike a rate
+# limit this never recovers, so they're dropped for the process lifetime —
+# an invalid key used to be retried against every model on every call.
+_invalid_keys: set[str] = set()
+
+# Models Groq said don't exist (404); skipped from then on.
+_missing_models: set[str] = set()
+
 PREFERRED_TEXT_MODELS = [
     "llama-3.3-70b-versatile",
     "openai/gpt-oss-120b",
@@ -70,9 +79,20 @@ def _ordered_keys() -> list[str]:
     """Not-yet-failed keys first (in configured priority order), then
     previously-failed ones as a last resort — never gives up on a key
     permanently within a single call, just deprioritizes it."""
-    healthy = [k for k in ALL_KEYS if k not in _failed_keys]
-    failed = [k for k in ALL_KEYS if k in _failed_keys]
+    usable = [k for k in ALL_KEYS if k not in _invalid_keys]
+    healthy = [k for k in usable if k not in _failed_keys]
+    failed = [k for k in usable if k in _failed_keys]
     return healthy + failed
+
+
+def mark_key_invalid(key: str):
+    if key and key not in _invalid_keys:
+        _invalid_keys.add(key)
+        logger.error(
+            f"A Groq API key was rejected as invalid (key={key[:12]}…) and won't be used again "
+            f"until restart — remove or replace it. {len(ALL_KEYS) - len(_invalid_keys)} of "
+            f"{len(ALL_KEYS)} configured key(s) remain."
+        )
 
 
 def get_current_key() -> str:
@@ -111,6 +131,7 @@ class SafeCompletions:
         for m in PREFERRED_TEXT_MODELS:
             if m not in models_to_try:
                 models_to_try.append(m)
+        models_to_try = [m for m in models_to_try if m not in _missing_models] or models_to_try
 
         # 2. Determine keys to try — every configured key, healthy ones first
         keys_to_try = _ordered_keys()
@@ -134,10 +155,17 @@ class SafeCompletions:
                     # If model not found, try the next model
                     if status_code == 404:
                         logger.warning(f"Groq Model not found: {model} (status=404). Trying next model...")
+                        _missing_models.add(model)
                         continue
 
-                    # If rate limit or auth, try the next key (or next model if keys exhausted)
-                    if status_code in (429, 401, 403) or isinstance(e, RateLimitError):
+                    # Invalid / revoked key: it fails for every model, so go
+                    # straight to the next key instead of trying all of them.
+                    if status_code in (401, 403):
+                        mark_key_invalid(key)
+                        break
+
+                    # Rate limit: Groq limits per model, so try the next one
+                    if status_code == 429 or isinstance(e, RateLimitError):
                         logger.warning(f"Groq API key failed (status={status_code}, error={sanitize_error_msg(e)}). Retrying with fallback options...")
                         mark_key_failed(key)
                         continue
@@ -243,21 +271,43 @@ class SafeGroq:
         return getattr(client, name)
 
 cached_best_model = None
+# After a failed models lookup, don't retry it before every single call.
+_MODELS_LOOKUP_RETRY_SECONDS = 1800
+_models_lookup_failed_at: float | None = None
+
 
 def get_best_groq_model(groq_client=None) -> str:
-    global cached_best_model
+    """The first preferred model the account actually offers. Asks with each
+    usable key in turn — the lookup used to go only through the primary key,
+    so an invalid primary failed it (and was retried) on every call."""
+    global cached_best_model, _models_lookup_failed_at
     if cached_best_model:
         return cached_best_model
+    fallback = next((m for m in PREFERRED_TEXT_MODELS if m not in _missing_models), PREFERRED_TEXT_MODELS[0])
+    if _models_lookup_failed_at and time.monotonic() - _models_lookup_failed_at < _MODELS_LOOKUP_RETRY_SECONDS:
+        return fallback
 
-    temp_client = groq_client
-    if not temp_client:
+    clients = [groq_client] if groq_client is not None else [Groq(api_key=k) for k in _ordered_keys()]
+    for client in clients:
         try:
-            temp_client = SafeGroq(api_key=settings.groq_api_key) if settings.groq_api_key else None
-        except Exception:
-            temp_client = None
+            available_ids = [m.id for m in client.models.list().data]
+        except APIStatusError as e:
+            if getattr(e, "status_code", None) in (401, 403):
+                mark_key_invalid(getattr(client, "api_key", ""))
+            logger.warning(f"Failed to fetch Groq models list ({sanitize_error_msg(e)}); trying next key.")
+            continue
+        except Exception as e:
+            logger.warning(f"Failed to fetch Groq models list ({sanitize_error_msg(e)}); trying next key.")
+            continue
+        for pm in PREFERRED_TEXT_MODELS:
+            if pm in available_ids:
+                cached_best_model = pm
+                logger.info(f"Dynamically selected Groq model: {pm}")
+                return pm
 
-    if not temp_client:
-        return PREFERRED_TEXT_MODELS[0]
+    _models_lookup_failed_at = time.monotonic()
+    logger.warning(f"Groq models lookup failed with every key; using {fallback} for the next 30 minutes.")
+    return fallback
 
     try:
         models_res = temp_client.models.list()
