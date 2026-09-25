@@ -52,6 +52,21 @@ export function useSiteBehaviours(routeKey: string) {
       revealables.forEach((el) => io.observe(el))
       cleanups.push(() => io.disconnect())
 
+      // Content fetched after mount (e.g. the hiring page FAQs) adds [data-rv]
+      // nodes the initial query never saw; left unobserved they stay at
+      // opacity 0 and read as a blank gap in the page.
+      const rvo = new MutationObserver((records) => {
+        records.forEach((rec) => {
+          rec.addedNodes.forEach((node) => {
+            if (!(node instanceof HTMLElement)) return
+            if (node.matches('[data-rv]') && !node.classList.contains('in')) io.observe(node)
+            node.querySelectorAll<HTMLElement>('[data-rv]:not(.in)').forEach((el) => io.observe(el))
+          })
+        })
+      })
+      rvo.observe(document.body, { childList: true, subtree: true })
+      cleanups.push(() => rvo.disconnect())
+
       const cio = new IntersectionObserver(
         (entries) => {
           entries.forEach((en) => {

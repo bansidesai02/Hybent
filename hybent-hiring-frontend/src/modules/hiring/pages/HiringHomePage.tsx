@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react'
-
 import { SiteView } from '@/modules/site/components/SiteView'
 import { AUTH, SITE } from '@/app/paths'
 import { HiringSimulator } from '../components/HiringSimulator'
@@ -14,7 +12,7 @@ import { HiringSimulator } from '../components/HiringSimulator'
  * /products, it read as a different company's page.
  *
  * Now it is built from the same vocabulary as every other site view: `.hero`,
- * `.section`, `.card`, `.icon-tile`, `.eyebrow`, `.chip`, `.faq`, `.cta-band`,
+ * `.section`, `.card`, `.icon-tile`, `.eyebrow`, `.chip`, `.cta-band`,
  * with `[data-rv]` for scroll reveal. Nothing here names a colour or a font —
  * `hybent-site.css` owns all of it, so the page cannot drift again.
  */
@@ -134,8 +132,6 @@ const FEATURES = [
   },
 ]
 
-type Faq = { q: string; a: string }
-
 /* ─── Small pieces ─────────────────────────────────────────────────────────── */
 
 function Eyebrow({ children }: { children: string }) {
@@ -158,25 +154,6 @@ function Tile({ icon }: { icon: string }) {
 /* ─── Page ─────────────────────────────────────────────────────────────────── */
 
 export default function HiringHomePage() {
-  /* FAQ copy is editable without a deploy, so it stays remote. */
-  const [faqs, setFaqs] = useState<Faq[]>([])
-
-  useEffect(() => {
-    let live = true
-    fetch('/landing-config.json')
-      .then((res) => res.json())
-      .then((data) => {
-        if (live) setFaqs(data.faqs ?? [])
-      })
-      .catch(() => {
-        /* The section simply does not render. A marketing FAQ is not worth an
-           error state on an otherwise complete page. */
-      })
-    return () => {
-      live = false
-    }
-  }, [])
-
   return (
     <SiteView route="hiring">
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
@@ -185,12 +162,7 @@ export default function HiringHomePage() {
         <div className="hero__orb orb-b" data-para="-0.03" />
 
         <div className="wrap center">
-          <p className="hero__pill" data-rv="up">
-            <i className="dot dot--pulse" />
-            AI-powered recruiting platform
-          </p>
-
-          <h1 className="h-xl" data-rv="up" data-delay="80" style={{ marginTop: '18px' }}>
+          <h1 className="h-xl" data-rv="up" data-delay="80">
             Hire on <span className="grad-text">autopilot</span>.
           </h1>
 
@@ -292,59 +264,55 @@ export default function HiringHomePage() {
 
       {/* ── About ─────────────────────────────────────────────────────────── */}
       <section className="section" id="about">
-        <div className="wrap" style={{ maxWidth: '860px' }}>
-          <div className="section-head center" data-rv="up">
-            <Eyebrow>About Hybent Hiring</Eyebrow>
-            <h2 className="h-lg">Reimagining the Future of Hiring</h2>
-            <p className="lead" style={{ marginTop: '22px' }}>
-              Hiring shouldn&rsquo;t feel complicated.
-            </p>
-          </div>
+        <div className="wrap">
+          <div className="split" style={{ alignItems: 'center' }}>
+            <div data-rv="left">
+              <Eyebrow>About Hybent Hiring</Eyebrow>
+              <h2 className="h-lg">Reimagining the <span className="grad-text">future of hiring</span></h2>
+              <p className="lead" style={{ marginTop: '20px', color: 'var(--text)' }}>
+                Hiring shouldn&rsquo;t feel complicated.
+              </p>
+              <p className="small" style={{ marginTop: '14px', fontSize: '1rem', lineHeight: '1.75' }}>
+                Yet recruiters continue to work across disconnected tools, endless emails, spreadsheets,
+                and repetitive administrative tasks that slow down every hiring decision.
+              </p>
+              <p className="small" style={{ marginTop: '14px', fontSize: '1rem', lineHeight: '1.75', fontWeight: 600, color: 'var(--text)' }}>
+                We created Hybent Hiring to change that.
+              </p>
+              <p className="small" style={{ marginTop: '14px', fontSize: '1rem', lineHeight: '1.75' }}>
+                Our platform combines artificial intelligence with thoughtful product design to create a
+                faster, smarter, and more collaborative hiring experience. From sourcing candidates to final offers,
+                every workflow is designed to eliminate friction and help teams make confident hiring decisions.
+              </p>
+              <p style={{ marginTop: '24px', paddingLeft: '18px', borderLeft: '2px solid var(--violet)', fontSize: '1rem', lineHeight: '1.7', color: 'var(--text)', maxWidth: '56ch' }}>
+                We&rsquo;re building the technology that helps organizations discover exceptional
+                talent&mdash;faster, smarter, and with greater confidence.
+              </p>
+            </div>
 
-          <div data-rv="up" data-delay="80" style={{ maxWidth: '760px', marginInline: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75' }}>
-              Yet recruiters continue to work across disconnected tools, endless emails, spreadsheets,
-              and repetitive administrative tasks that slow down every hiring decision.
-            </p>
-            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75', fontWeight: 600, color: 'var(--text)' }}>
-              We created Hybent Hiring to change that.
-            </p>
-            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75' }}>
-              Our platform combines artificial intelligence with thoughtful product design to create a
-              faster, smarter, and more collaborative hiring experience. From sourcing candidates to final offers,
-              every workflow is designed to eliminate friction and help teams make confident hiring decisions.
-            </p>
-            <p className="small" style={{ fontSize: '1.02rem', lineHeight: '1.75' }}>
-              We&rsquo;re building the technology that helps organizations discover exceptional
-              talent&mdash;faster, smarter, and with greater confidence.
-            </p>
+            <div data-rv="right">
+              <figure className="founder-card">
+                <span className="founder-card__mark" aria-hidden="true">&ldquo;</span>
+                <blockquote>
+                  I didn&rsquo;t want to build just another HR tool. I wanted to build the thing I
+                  wish existed &mdash; a recruiter&rsquo;s co-pilot that handles the boring parts so
+                  humans can focus on the human parts.
+                </blockquote>
+                <figcaption>
+                  <picture>
+                    <source srcSet="/portrait-01.webp" type="image/webp" />
+                    <img className="founder-card__avatar" src="/portrait-01.jpg" alt="Bansi Desai" width={96} height={96} loading="lazy" decoding="async" />
+                  </picture>
+                  <div>
+                    <b>Bansi Desai</b>
+                    <span>Founder &amp; CEO, Hybent</span>
+                  </div>
+                </figcaption>
+              </figure>
+            </div>
           </div>
         </div>
       </section>
-
-      {/* ── FAQs ──────────────────────────────────────────────────────────── */}
-      {faqs.length > 0 && (
-        <section className="section section--tight" id="faqs">
-          <div className="wrap" style={{ maxWidth: '860px' }}>
-            <div className="section-head center" data-rv="up">
-              <Eyebrow>Questions</Eyebrow>
-              <h2 className="h-lg">Frequently asked</h2>
-            </div>
-
-            <div className="faq" data-rv="up">
-              {faqs.map((faq, i) => (
-                <details key={faq.q} open={i === 0}>
-                  <summary>
-                    {faq.q}
-                    <span className="pm" />
-                  </summary>
-                  <div className="ans">{faq.a}</div>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ── Close ─────────────────────────────────────────────────────────── */}
       <section className="section">
