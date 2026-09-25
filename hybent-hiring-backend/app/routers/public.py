@@ -17,7 +17,9 @@ from app.models.job import Job
 from app.models.candidate import Candidate
 from app.models.application import Application
 from app.schemas.job import JobPublicOut
+from app.core.config import settings
 from app.services import supabase_storage_service
+from app.services.storage_service import save_resume
 from app.utils.permissions import ApplicationStage, NotificationType, UserRole
 from app.tasks.notifications import notify_organization_roles
 
@@ -105,17 +107,23 @@ async def apply_to_public_job(
         if existing_application:
             raise HTTPException(status_code=409, detail="You have already applied to this job.")
 
-    file_content = await resume.read()
-    storage_path = await supabase_storage_service.upload_resume(
-        file_content=file_content,
-        organization_id=str(job.organization_id),
-        candidate_id=str(candidate.id),
-        original_filename=resume.filename or "resume",
-        content_type=resume.content_type or "application/octet-stream",
-    )
-    candidate.resume_storage_path = storage_path
-    candidate.resume_url = None
-    candidate.resume_filename = resume.filename
+    # Production → Supabase Storage; local/Docker → Cloudinary (or local disk)
+    if settings.use_supabase_resume_storage:
+        file_content = await resume.read()
+        storage_path = await supabase_storage_service.upload_resume(
+            file_content=file_content,
+            organization_id=str(job.organization_id),
+            candidate_id=str(candidate.id),
+            original_filename=resume.filename or "resume",
+            content_type=resume.content_type or "application/octet-stream",
+        )
+        candidate.resume_storage_path = storage_path
+        candidate.resume_url = None
+        candidate.resume_filename = resume.filename
+    else:
+        url, original_name = await save_resume(resume, str(job.organization_id))
+        candidate.resume_url = url
+        candidate.resume_filename = original_name
     candidate.applied_job_title = job.title
 
     application = Application(

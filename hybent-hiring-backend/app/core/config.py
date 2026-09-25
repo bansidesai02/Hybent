@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     # Signed URL expiry in seconds (configurable per file type)
     resume_signed_url_expiry: int = 3600   # 1 hour
 
+    @property
+    def use_supabase_resume_storage(self) -> bool:
+        """Production (Render) stores resumes in Supabase; local/Docker in Cloudinary."""
+        return self.app_env == "production"
+
 
     @model_validator(mode='after')
     def _strip_cloudinary_credentials(self):
