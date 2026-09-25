@@ -1,5 +1,17 @@
 RewriteEngine On
 RewriteBase /
+
+# Public pages have a prerendered copy of index.html in /_seo/ carrying their
+# own title, description and canonical (vite-plugins/seoPages.ts). Serve it so
+# crawlers see the right head without running JS. If a copy is missing these
+# rules don't match and the plain SPA fallback below takes over.
+RewriteRule ^$ /_seo/index.html [L]
+RewriteCond %{DOCUMENT_ROOT}/_seo/$1.html -f
+RewriteRule ^(.+?)/?$ /_seo/$1.html [L]
+# Deep-linked sections (/about/timeline) share their page's head.
+RewriteCond %{DOCUMENT_ROOT}/_seo/$1.html -f
+RewriteRule ^([^/]+)/[^/]+/?$ /_seo/$1.html [L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /index.html [L]

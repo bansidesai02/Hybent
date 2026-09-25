@@ -118,8 +118,15 @@ server {
     # Any path not matched above falls through to index.html.
     # We explicitly disable caching for index.html so that the browser always 
     # checks for the latest hashed JS/CSS filenames.
+    # Public pages have a prerendered copy in /_seo/ with their own title,
+    # description and canonical (vite-plugins/seoPages.ts); serve it first.
+    location = / {
+        try_files /_seo/index.html /index.html;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+    }
+
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri /_seo$uri.html $uri/ /index.html;
         add_header Cache-Control "no-store, no-cache, must-revalidate";
     }
 
