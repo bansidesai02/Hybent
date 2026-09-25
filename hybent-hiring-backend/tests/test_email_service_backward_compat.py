@@ -61,13 +61,35 @@ def test_send_email_with_account_routes_through_org_provider_instead():
     mock_send_resend.assert_not_called()
 
 
-def test_send_email_with_account_returns_false_on_provider_failure():
+def test_send_email_falls_back_to_platform_sender_when_the_users_mailbox_fails():
+    """A revoked token or changed SMTP password on the user's own mailbox must
+    not lose the candidate's email — it goes out from the platform sender."""
     fake_account = MagicMock(provider="smtp", email_address="recruiting@acme.com")
 
-    with patch("app.services.email_accounts_service.get_provider") as mock_get_provider:
+    with patch("app.services.email_accounts_service.get_provider") as mock_get_provider, \
+         patch.object(settings, "resend_api_key", ""), \
+         patch.object(settings, "smtp_user", "platform@hybent.com"), \
+         patch.object(settings, "smtp_password", "pw"), \
+         patch("app.services.email_service._send_smtp") as platform_send:
         mock_get_provider.return_value.send.side_effect = Exception("smtp auth failed")
         result = email_service.send_email(
             "candidate@example.com", "Subject", "<p>Body</p>", email_account=fake_account
         )
 
-    assert result is False
+    assert result is True
+    platform_send.assert_called_once_with("candidate@example.com", "Subject", "<p>Body</p>")
+
+
+def test_send_helpers_pass_the_users_mailbox_through():
+    fake_account = MagicMock(provider="smtp", email_address="rec@acme.com")
+    with patch("app.services.email_service.send_email") as send:
+        email_service.send_interview_invite(
+            candidate_email="c@x.com", candidate_name="C", round_name="R1", job_role="Dev",
+            company_name="Acme", scheduled_at="September 24, 2026 at 10:00 AM", meeting_link="https://meet",
+            email_account=fake_account,
+        )
+        email_service.send_rejection_email(
+            candidate_email="c@x.com", candidate_name="C", job_title="Dev", company_name="Acme",
+            email_account=fake_account,
+        )
+    assert [c.kwargs["email_account"] for c in send.call_args_list] == [fake_account, fake_account]

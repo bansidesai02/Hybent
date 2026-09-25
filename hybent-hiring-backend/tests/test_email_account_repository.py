@@ -1,65 +1,41 @@
-"""Repository tests: default resolution and single-default-per-org enforcement."""
+"""Repository tests: owner-scoped primary resolution and org isolation."""
 from app.models.email_account import EmailAccount, EmailAccountProvider
 from app.repositories.email_account import EmailAccountRepository
 
 
-async def test_get_default_for_org_returns_none_when_no_default(db_session, organization):
+async def test_get_primary_for_owner_prefers_the_flag_then_earliest_connected(db_session, organization, admin_user):
     repo = EmailAccountRepository(db_session)
-    db_session.add(
-        EmailAccount(
-            organization_id=organization.id,
-            provider=EmailAccountProvider.SMTP,
-            email_address="a@acme.com",
-            is_default=False,
-        )
-    )
-    await db_session.commit()
+    assert await repo.get_primary_for_owner(organization.id, admin_user.id) is None
 
-    assert await repo.get_default_for_org(organization.id) is None
-
-
-async def test_get_default_for_org_returns_the_flagged_account(db_session, organization):
-    repo = EmailAccountRepository(db_session)
-    default_account = EmailAccount(
-        organization_id=organization.id,
-        provider=EmailAccountProvider.SMTP,
-        email_address="default@acme.com",
-        is_default=True,
-    )
-    db_session.add(default_account)
-    db_session.add(
-        EmailAccount(
-            organization_id=organization.id,
-            provider=EmailAccountProvider.SMTP,
-            email_address="secondary@acme.com",
-            is_default=False,
-        )
-    )
-    await db_session.commit()
-    await db_session.refresh(default_account)
-
-    result = await repo.get_default_for_org(organization.id)
-    assert result is not None
-    assert result.id == default_account.id
-
-
-async def test_unset_other_defaults_clears_prior_default(db_session, organization):
-    repo = EmailAccountRepository(db_session)
-    first = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.SMTP, email_address="first@acme.com", is_default=True
-    )
-    second = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.SMTP, email_address="second@acme.com", is_default=False
-    )
+    first = EmailAccount(organization_id=organization.id, provider=EmailAccountProvider.SMTP,
+                         email_address="first@acme.com", connected_by_user_id=admin_user.id)
+    second = EmailAccount(organization_id=organization.id, provider=EmailAccountProvider.SMTP,
+                          email_address="second@acme.com", connected_by_user_id=admin_user.id, is_default=True)
     db_session.add_all([first, second])
     await db_session.commit()
-    await db_session.refresh(first)
-    await db_session.refresh(second)
+    assert (await repo.get_primary_for_owner(organization.id, admin_user.id)).id == second.id
 
-    await repo.unset_other_defaults(organization.id, except_id=second.id)
-    await db_session.refresh(first)
+    second.status = "disconnected"
+    await db_session.commit()
+    assert (await repo.get_primary_for_owner(organization.id, admin_user.id)).id == first.id
 
-    assert first.is_default is False
+
+async def test_unset_other_defaults_is_scoped_to_the_owner(db_session, organization, admin_user, second_admin_user):
+    repo = EmailAccountRepository(db_session)
+    mine = EmailAccount(organization_id=organization.id, provider=EmailAccountProvider.SMTP,
+                        email_address="mine@acme.com", connected_by_user_id=admin_user.id, is_default=True)
+    theirs = EmailAccount(organization_id=organization.id, provider=EmailAccountProvider.SMTP,
+                          email_address="theirs@acme.com", connected_by_user_id=second_admin_user.id, is_default=True)
+    db_session.add_all([mine, theirs])
+    await db_session.commit()
+
+    await repo.unset_other_defaults(organization.id, admin_user.id, except_id=None)
+    await db_session.commit()
+    await db_session.refresh(mine)
+    await db_session.refresh(theirs)
+
+    assert mine.is_default is False
+    assert theirs.is_default is True
 
 
 async def test_get_all_for_org_excludes_other_orgs(db_session, organization, other_organization):

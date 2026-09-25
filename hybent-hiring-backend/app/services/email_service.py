@@ -79,24 +79,26 @@ def send_email(to: str, subject: str, html_body: str, email_account: "EmailAccou
     """Send email via SMTP or print to console if SMTP not configured.
     Returns True if sent successfully (or fallback used), False otherwise.
 
-    `email_account` is optional and additive: when omitted (every existing call
-    site), behavior is unchanged — the platform's single global SMTP/Resend
-    account is used exactly as before. When a caller resolves and passes a
-    connected organization EmailAccount, the send is routed through that
-    account's own provider instead.
+    `email_account` is the mailbox of the user who triggered the email (see
+    EmailAccountsService.resolve_sender) — their own address as the sender.
+    None means the platform's default sender, as for system mail.
+
+    If sending through the user's mailbox fails (token revoked, SMTP password
+    changed), the email still goes out from the platform sender rather than
+    being lost — a candidate never misses an invite over a mailbox problem.
     """
     if email_account is not None:
         from app.services.email_accounts_service import get_provider
 
         try:
             get_provider(email_account.provider).send(email_account, to, subject, html_body)
-            logger.info(f"✅ Email sent via org account {email_account.email_address} → {to} | {subject}")
+            logger.info(f"✅ Email sent via {email_account.email_address} → {to} | {subject}")
             return True
         except Exception as e:
-            logger.error(
-                f"❌ Failed to send via org account {email_account.email_address}: {e}", exc_info=True
+            logger.warning(
+                f"⚠️ Sending via {email_account.email_address} failed ({e}); "
+                f"falling back to the platform sender for {to}"
             )
-            return False
 
     if not settings.resend_api_key and (not settings.smtp_user or not settings.smtp_password):
         # Console fallback — active when neither Resend nor SMTP is configured
@@ -386,6 +388,7 @@ def send_interviewer_invite(
     duration_minutes: int,
     interview_type: str,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Interview Scheduled: {candidate_name} — {round_name} | {job_role}"
     weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
@@ -404,7 +407,7 @@ def send_interviewer_invite(
         org_logo_url=org_logo_url,
         org_name=company_name
     )
-    send_email(interviewer_email, subject, html)
+    send_email(interviewer_email, subject, html, email_account=email_account)
 
 
 def send_interview_invite(
@@ -418,6 +421,7 @@ def send_interview_invite(
     duration_minutes: int = 60,
     interview_type: str = "video",
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Interview Invitation — {round_name} | {job_role} at {company_name}"
     weekday, month, day, year, time_str = _format_date_for_calendar(scheduled_at)
@@ -436,7 +440,7 @@ def send_interview_invite(
         org_logo_url=org_logo_url,
         org_name=company_name
     )
-    send_email(candidate_email, subject, html)
+    send_email(candidate_email, subject, html, email_account=email_account)
 
 
 def send_offer_email(
@@ -446,6 +450,7 @@ def send_offer_email(
     company_name: str,
     offer_url: str,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Offer Letter — {job_title} at {company_name}"
     content = f"""
@@ -458,7 +463,7 @@ def send_offer_email(
         
         <p style="font-size: 14px; color: #9689bb;">Please review and respond within the specified deadline.</p>
     """
-    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
+    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 
 
 def send_stage_update_email(
@@ -468,6 +473,7 @@ def send_stage_update_email(
     company_name: str,
     new_stage: str,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Application Update — {job_title} at {company_name}"
     stage_pretty = new_stage.replace('_', ' ').title()
@@ -482,7 +488,7 @@ def send_stage_update_email(
 
         <p style="font-size: 14px; color: #9689bb;">Thank you for your interest in joining our team. We will keep you updated on further progress.</p>
     """
-    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
+    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 
 
 def send_candidate_invite(
@@ -492,6 +498,7 @@ def send_candidate_invite(
     portal_url: str,
     org_logo_url: str | None = None,
     job_title: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> bool:
     subject = f"Join the {company_name} Candidate Portal - {candidate_name}"
     if job_title:
@@ -509,7 +516,7 @@ def send_candidate_invite(
             <a href="{portal_url}" class="button">Set Up Your Portal Profile</a>
         </div>
     """
-    return send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
+    return send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 
 
 def send_team_invite(
@@ -521,6 +528,7 @@ def send_team_invite(
     password: str,
     login_url: str,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"You've been invited to join {company_name}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
@@ -542,7 +550,7 @@ def send_team_invite(
             <a href="{login_url}" class="button">Complete Your Setup</a>
         </div>
     """
-    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name))
+    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 
 
 def send_rejection_email(
@@ -551,6 +559,7 @@ def send_rejection_email(
     job_title: str,
     company_name: str,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Update regarding your application with {company_name}"
     content = f"""
@@ -567,7 +576,7 @@ def send_rejection_email(
             <p style="font-size: 14px; color: #4C6FFF; font-weight: 700; margin: 4px 0 0 0;">{company_name}</p>
         </div>
     """
-    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
+    send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
  
  
 def send_interview_cancellation(
@@ -580,6 +589,7 @@ def send_interview_cancellation(
     scheduled_at: str,
     reason: str | None = None,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Interview Cancelled: {candidate_name} — {round_name} | {job_role}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
@@ -596,7 +606,7 @@ def send_interview_cancellation(
         {reason_html}
         <p style="margin-top: 40px; font-size: 13px; color: #94a3b8;">We will notify you if there are further updates regarding this position.</p>
     """
-    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name))
+    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
  
  
 def send_interview_reschedule(
@@ -610,6 +620,7 @@ def send_interview_reschedule(
     new_time: str,
     meeting_link: str,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Interview Rescheduled: {candidate_name} — {round_name} | {job_role}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
@@ -635,7 +646,7 @@ def send_interview_reschedule(
  
         <a href="{meeting_link}" class="button">Join Rescheduled Interview</a>
     """
-    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name))
+    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 
 
 def send_pre_screening_invite(
@@ -646,6 +657,7 @@ def send_pre_screening_invite(
     screening_url: str,
     expires_days: int = 7,
     org_logo_url: str | None = None,
+    email_account: "EmailAccount | None" = None,
 ) -> bool:
     subject = f"Pre-Screening Interview – {job_title} at {company_name}"
     fname = candidate_name.split()[0].title() if candidate_name else "Candidate"
@@ -666,7 +678,7 @@ def send_pre_screening_invite(
             <a href="{screening_url}" class="button">Start Pre-Screening</a>
         </div>
     """
-    return send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name))
+    return send_email(candidate_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 
 
 def send_password_reset_email(

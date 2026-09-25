@@ -8,12 +8,12 @@ import { Link } from 'react-router-dom'
 import { inboxApi } from '@/api/inbox'
 import { useAuth } from '@/hooks/useAuth'
 import type { EmailAttachment, EmailMessage, EmailMessageDetail } from '@/types'
-import { Badge, Button, Card, Dialog, EmptyState, PageHeader, Skeleton } from '@/components/hb'
+import { Badge, Button, Card, Dialog, EmptyState, PageHeader, Select, Skeleton } from '@/components/hb'
 
 /**
- * A resolved inbox for whoever is looking: admins/super admins see their
- * organization's primary (shared) mailbox; a recruiter sees their own single
- * personal one. Reading is Gmail-only for now — SMTP has no read protocol.
+ * The caller's own mailbox — never another member's. Their primary by
+ * default; an admin with several connected Gmail mailboxes can switch between
+ * them. Reading is Gmail-only for now — SMTP has no read protocol.
  *
  * Only applications are listed — mail that email ingestion turned into (or
  * matched to) a candidate. The rest of a mailbox is alerts and newsletters.
@@ -31,23 +31,25 @@ function plural(n: number, word: string) {
 }
 
 export default function InboxPage() {
-  const { isAdmin, basePath } = useAuth()
+  const { basePath } = useAuth()
   const queryClient = useQueryClient()
   const [openMessage, setOpenMessage] = useState<EmailMessage | null>(null)
+  /** One of the caller's own mailboxes; undefined = their primary. */
+  const [accountId, setAccountId] = useState<string | undefined>(undefined)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['inbox'],
-    queryFn: () => inboxApi.list().then((r) => r.data),
+    queryKey: ['inbox', accountId ?? 'primary'],
+    queryFn: () => inboxApi.list({ account_id: accountId }).then((r) => r.data),
   })
 
   const detailQuery = useQuery({
-    queryKey: ['inbox', 'message', openMessage?.id],
-    queryFn: () => inboxApi.get(openMessage!.id).then((r) => r.data),
+    queryKey: ['inbox', 'message', openMessage?.id, accountId],
+    queryFn: () => inboxApi.get(openMessage!.id, accountId).then((r) => r.data),
     enabled: !!openMessage,
   })
 
   const syncMutation = useMutation({
-    mutationFn: () => inboxApi.sync(),
+    mutationFn: () => inboxApi.sync(accountId),
     onSuccess: (res) => {
       toast.success(
         res.data.new_count > 0 ? `${res.data.new_count} new message(s)` : 'Inbox is up to date'
@@ -60,6 +62,7 @@ export default function InboxPage() {
   const account = data?.account
   const messages = data?.messages ?? []
   const isGmail = account?.provider === 'gmail'
+  const mailboxes = data?.mailboxes ?? []
 
   return (
     <div className="pb-hb-10">
@@ -68,20 +71,37 @@ export default function InboxPage() {
         title="Inbox"
         description={
           account
-            ? `${account.email_address}${isAdmin ? " — your organization's primary mailbox" : ' — your mailbox'}`
+            ? `${account.email_address} — only you can see this mailbox`
             : 'Connect a mailbox in Settings to see your inbox here.'
         }
         actions={
           account && isGmail ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              icon={<RefreshCw size={15} />}
-              onClick={() => syncMutation.mutate()}
-              loading={syncMutation.isPending}
-            >
-              Sync now
-            </Button>
+            <div className="flex items-center gap-2">
+              {mailboxes.length > 1 && (
+                <Select
+                  aria-label="Mailbox"
+                  value={account.id}
+                  onChange={(e) => {
+                    setOpenMessage(null)
+                    setAccountId(e.target.value)
+                  }}
+                  options={mailboxes.map((m) => ({
+                    value: m.id,
+                    label: m.is_default ? `${m.email_address} (primary)` : m.email_address,
+                  }))}
+                  fieldClassName="min-w-[220px]"
+                />
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={<RefreshCw size={15} />}
+                onClick={() => syncMutation.mutate()}
+                loading={syncMutation.isPending}
+              >
+                Sync now
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -96,11 +116,7 @@ export default function InboxPage() {
         <Card>
           <EmptyState
             title="No mailbox connected"
-            description={
-              isAdmin
-                ? "Connect an email account in Settings and mark it as your organization's default sender to see its inbox here."
-                : 'Connect your own mailbox in Settings to see your inbox here.'
-            }
+            description="Connect your Gmail in Settings to see the applications it receives here. Only you will see it."
           />
         </Card>
       ) : !isGmail ? (
@@ -178,7 +194,7 @@ export default function InboxPage() {
             <Skeleton className="h-40 w-full" rounded="md" />
           </div>
         ) : (
-          <MessageDetail detail={detailQuery.data} candidatesPath={`${basePath}/candidates`} />
+          <MessageDetail detail={detailQuery.data} candidatesPath={`${basePath}/candidates`} accountId={accountId} />
         )}
       </Dialog>
     </div>
@@ -186,7 +202,15 @@ export default function InboxPage() {
 }
 
 
-function MessageDetail({ detail, candidatesPath }: { detail: EmailMessageDetail; candidatesPath: string }) {
+function MessageDetail({
+  detail,
+  candidatesPath,
+  accountId,
+}: {
+  detail: EmailMessageDetail
+  candidatesPath: string
+  accountId?: string
+}) {
   const sender = detail.from_name
     ? `${detail.from_name} <${detail.from_address}>`
     : detail.from_address || 'Unknown sender'
@@ -246,7 +270,13 @@ function MessageDetail({ detail, candidatesPath }: { detail: EmailMessageDetail;
           </h3>
           <ul className="grid gap-2 sm:grid-cols-2">
             {detail.attachments.map((a) => (
-              <AttachmentRow key={a.index} messageId={detail.id} attachment={a} candidatesPath={candidatesPath} />
+              <AttachmentRow
+                key={a.index}
+                messageId={detail.id}
+                accountId={accountId}
+                attachment={a}
+                candidatesPath={candidatesPath}
+              />
             ))}
           </ul>
         </section>
@@ -279,10 +309,12 @@ function MessageDetail({ detail, candidatesPath }: { detail: EmailMessageDetail;
 
 function AttachmentRow({
   messageId,
+  accountId,
   attachment,
   candidatesPath,
 }: {
   messageId: string
+  accountId?: string
   attachment: EmailAttachment
   candidatesPath: string
 }) {
@@ -291,7 +323,7 @@ function AttachmentRow({
   const download = async () => {
     setDownloading(true)
     try {
-      const res = await inboxApi.downloadAttachment(messageId, attachment.index)
+      const res = await inboxApi.downloadAttachment(messageId, attachment.index, accountId)
       const url = URL.createObjectURL(res.data)
       const a = document.createElement('a')
       a.href = url

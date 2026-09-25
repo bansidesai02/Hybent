@@ -1,4 +1,4 @@
-"""API tests: org isolation, role enforcement, CRUD happy path."""
+"""API tests: mailboxes are private to their owner, org isolation, CRUD happy path."""
 from unittest.mock import patch
 
 SMTP_PAYLOAD = {
@@ -23,25 +23,32 @@ async def test_recruiter_can_connect_own_personal_smtp_account(client, recruiter
     assert response.status_code == 200
     body = response.json()["data"]
     assert body["scope"] == "personal"
-    assert body["is_default"] is False  # "default" is an org-shared-account concept only
+    assert body["is_default"] is True  # a recruiter's one mailbox is their sender
 
 
-async def test_recruiter_cannot_connect_a_second_personal_account(client, recruiter_headers):
+async def test_recruiter_never_has_more_than_one_mailbox(client, recruiter_headers):
+    """Connecting another address replaces their one mailbox."""
     with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
-        await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=recruiter_headers)
+        first = await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=recruiter_headers)
         second_payload = {**SMTP_PAYLOAD, "email_address": "second@acme.com"}
-        response = await client.post("/v1/email-accounts/smtp", json=second_payload, headers=recruiter_headers)
-    assert response.status_code == 400
-    assert "already have a personal mailbox" in response.json()["message"]
+        second = await client.post("/v1/email-accounts/smtp", json=second_payload, headers=recruiter_headers)
+    assert second.status_code == 200
+    assert second.json()["data"]["id"] == first.json()["data"]["id"]
+    listed = (await client.get("/v1/email-accounts", headers=recruiter_headers)).json()["data"]
+    assert [a["email_address"] for a in listed] == ["second@acme.com"]
 
 
-async def test_recruiter_cannot_manage_an_org_shared_account(client, admin_headers, recruiter_headers):
+async def test_nobody_can_manage_someone_elses_mailbox(client, admin_headers, recruiter_headers):
     with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
-        create_response = await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=admin_headers)
-    account_id = create_response.json()["data"]["id"]
+        admins = await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=admin_headers)
+        recruiters = await client.post(
+            "/v1/email-accounts/smtp", json={**SMTP_PAYLOAD, "email_address": "rec@gmail.com"}, headers=recruiter_headers
+        )
 
-    response = await client.delete(f"/v1/email-accounts/{account_id}", headers=recruiter_headers)
-    assert response.status_code == 403
+    # 404, not 403: another member's mailbox isn't theirs to know about.
+    r1 = await client.delete(f"/v1/email-accounts/{admins.json()['data']['id']}", headers=recruiter_headers)
+    r2 = await client.delete(f"/v1/email-accounts/{recruiters.json()['data']['id']}", headers=admin_headers)
+    assert (r1.status_code, r2.status_code) == (404, 404)
 
 
 async def test_admin_can_connect_smtp_account(client, admin_headers):
@@ -65,13 +72,13 @@ async def test_connect_smtp_with_bad_credentials_returns_400(client, admin_heade
     assert response.status_code == 400
 
 
-async def test_recruiter_can_list_accounts(client, admin_headers, recruiter_headers):
+async def test_list_never_shows_another_members_mailbox(client, admin_headers, recruiter_headers):
     with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
         await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=admin_headers)
 
     response = await client.get("/v1/email-accounts", headers=recruiter_headers)
     assert response.status_code == 200
-    assert len(response.json()["data"]) == 1
+    assert response.json()["data"] == []
 
 
 async def test_org_isolation_on_list(client, admin_headers, other_org_admin_headers):
@@ -92,13 +99,13 @@ async def test_org_isolation_on_mutation(client, admin_headers, other_org_admin_
     assert response.status_code == 404
 
 
-async def test_recruiter_cannot_set_default(client, admin_headers, recruiter_headers):
+async def test_cannot_make_another_members_mailbox_primary(client, admin_headers, recruiter_headers):
     with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
         create_response = await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=admin_headers)
     account_id = create_response.json()["data"]["id"]
 
     response = await client.post(f"/v1/email-accounts/{account_id}/set-default", headers=recruiter_headers)
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 async def test_full_crud_happy_path(client, admin_headers):

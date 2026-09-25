@@ -12,21 +12,30 @@ from app.services.email_inbox_service import EmailInboxService
 router = APIRouter(prefix="/v1/inbox", tags=["inbox"])
 
 
-async def _resolve_inbox_account(db: DB, current_user: CurrentUser):
-    accounts_service = EmailAccountsService(db)
-    account = await accounts_service.get_inbox_account(
-        current_user.organization_id, current_user.id, current_user.role
+async def _resolve_inbox_account(db: DB, current_user: CurrentUser, account_id: uuid.UUID | None = None):
+    """Always one of the caller's own mailboxes — their primary, or the one
+    they picked with `account_id`. Never another member's."""
+    return await EmailAccountsService(db).get_inbox_account(
+        current_user.organization_id, current_user.id, account_id
     )
-    return account
 
 
 @router.get("")
-async def list_inbox_messages(db: DB, current_user: CurrentUser, limit: int = 50, offset: int = 0):
-    account = await _resolve_inbox_account(db, current_user)
+async def list_inbox_messages(
+    db: DB, current_user: CurrentUser, limit: int = 50, offset: int = 0, account_id: uuid.UUID | None = None
+):
+    account = await _resolve_inbox_account(db, current_user, account_id)
+    # The caller's own readable mailboxes, for switching between them.
+    own = await EmailAccountsService(db).list_for_user(current_user.organization_id, current_user.id)
+    mailboxes = [
+        {"id": str(a.id), "email_address": a.email_address, "is_default": a.is_default}
+        for a in own
+        if a.provider == "gmail" and a.status == "connected"
+    ]
     if account is None:
         return APIResponse.success(
             message="No mailbox configured for your inbox yet.",
-            data={"account": None, "messages": []},
+            data={"account": None, "messages": [], "mailboxes": mailboxes},
         )
 
     inbox_service = EmailInboxService(db)
@@ -47,13 +56,14 @@ async def list_inbox_messages(db: DB, current_user: CurrentUser, limit: int = 50
         data={
             "account": {"id": str(account.id), "email_address": account.email_address, "provider": account.provider},
             "messages": rows,
+            "mailboxes": mailboxes,
         },
     )
 
 
 @router.post("/sync")
-async def sync_inbox(db: DB, current_user: CurrentUser):
-    account = await _resolve_inbox_account(db, current_user)
+async def sync_inbox(db: DB, current_user: CurrentUser, account_id: uuid.UUID | None = None):
+    account = await _resolve_inbox_account(db, current_user, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No mailbox configured for your inbox yet.")
     if account.provider != "gmail":
@@ -70,8 +80,10 @@ async def sync_inbox(db: DB, current_user: CurrentUser):
 
 
 @router.get("/{message_id}", response_model=EmailMessageDetail)
-async def get_inbox_message(message_id: uuid.UUID, db: DB, current_user: CurrentUser):
-    account = await _resolve_inbox_account(db, current_user)
+async def get_inbox_message(
+    message_id: uuid.UUID, db: DB, current_user: CurrentUser, account_id: uuid.UUID | None = None
+):
+    account = await _resolve_inbox_account(db, current_user, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No mailbox configured for your inbox yet.")
 
@@ -110,10 +122,12 @@ async def get_inbox_message(message_id: uuid.UUID, db: DB, current_user: Current
 
 
 @router.get("/{message_id}/attachments/{index}")
-async def download_inbox_attachment(message_id: uuid.UUID, index: int, db: DB, current_user: CurrentUser):
+async def download_inbox_attachment(
+    message_id: uuid.UUID, index: int, db: DB, current_user: CurrentUser, account_id: uuid.UUID | None = None
+):
     """Streams one attachment, fetched live from the provider — attachments are
     never stored at rest, same as bodies."""
-    account = await _resolve_inbox_account(db, current_user)
+    account = await _resolve_inbox_account(db, current_user, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No mailbox configured for your inbox yet.")
     try:

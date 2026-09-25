@@ -256,14 +256,11 @@ export default function RecruiterSettingsPage() {
           </Card>
         )}
 
-        {/* Organization's shared mailboxes — visible to everyone, manageable by
-            admins only (the component gates connect/disconnect/etc itself). */}
-        <EmailAccountsSection />
-
-        {/* A recruiter's own single mailbox — this page only ever renders for
-            exactly 'admin' or 'recruiter' (route-guarded), so !isAdmin here
-            unambiguously means recruiter. */}
-        {!isAdmin && <PersonalMailboxCard />}
+        {/* Mailboxes are private to whoever connects them. Admins may connect
+            several and choose a primary; a recruiter has exactly one. This page
+            only renders for 'admin' or 'recruiter' (route-guarded), so
+            !isAdmin here means recruiter. */}
+        {isAdmin ? <EmailAccountsSection /> : <PersonalMailboxCard />}
 
         {/* Common Section: Account Security */}
         <Card as="section">

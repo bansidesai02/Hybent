@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
 from app.services.email_service import send_team_invite
+from app.services.email_accounts_service import resolve_sender_for_user
 from app.core.config import settings
 
 router = APIRouter(prefix="/v1/users", tags=["users"])
@@ -103,6 +104,8 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
     org = org_res.scalar_one_or_none()
     company_name = org.name if org else "Hybent Hiring"
 
+    # From the inviting admin's own mailbox when they've connected one.
+    sender = await resolve_sender_for_user(db, current_user)
     try:
         send_team_invite(
             to_email=user.email,
@@ -113,6 +116,7 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
             password=data.password,
             login_url=f"{frontend_base}/login",
             org_logo_url=org.logo_url if org else None,
+            email_account=sender,
         )
     except Exception as e:
         logger.warning(f"Invite email failed for {user.email} (user still created): {e}")

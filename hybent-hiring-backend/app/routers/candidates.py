@@ -13,6 +13,7 @@ from app.schemas.candidate import CandidateOut, CandidateUpdate, CandidateCreate
 from app.utils.pagination import paginate
 from app.utils.permissions import UserRole, NotificationType, JobStatus, REJECTION_STAGES
 from app.tasks.notifications import notify_organization_roles, notify_candidate_stage_change
+from app.services.email_accounts_service import resolve_sender_for_user
 from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
@@ -465,6 +466,7 @@ async def invite_candidate(data: CandidateInvite, current_user: Annotated[User, 
         email=candidate.email,
         full_name=candidate.full_name,
         background_tasks=background_tasks,
+        email_account=await resolve_sender_for_user(db, current_user),
     )
     
     await log_activity(
@@ -575,7 +577,9 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
             candidate_name=candidate.full_name,
             job_title=candidate.current_title or "the applied position",
             company_name=company_name,
-            org_logo_url=org.logo_url if org else None
+            org_logo_url=org.logo_url if org else None,
+            # From the acting recruiter's own mailbox when they've connected one.
+            email_account=await resolve_sender_for_user(db, current_user),
         )
 
     await db.flush()
@@ -826,7 +830,9 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
             candidate_name=candidate.full_name,
             job_title=candidate.current_title or "the applied position",
             company_name=company_name,
-            org_logo_url=org.logo_url if org else None
+            org_logo_url=org.logo_url if org else None,
+            # From the acting recruiter's own mailbox when they've connected one.
+            email_account=await resolve_sender_for_user(db, current_user),
         )
 
     await db.flush()

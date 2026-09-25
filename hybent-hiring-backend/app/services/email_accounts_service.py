@@ -1,5 +1,5 @@
 """
-Orchestrates CRUD + connect/send for an organization's email accounts.
+Orchestrates connect/manage/send for users' own mailboxes.
 Encrypts secrets on write; never returns decrypted values to callers other
 than the provider send() calls themselves.
 """
@@ -17,9 +17,6 @@ from app.services.email_providers.gmail_provider import GmailProvider
 from app.services.email_providers.outlook_provider import OutlookProvider
 from app.services.email_providers.smtp_provider import SMTPProvider
 from app.utils import crypto
-from app.utils.permissions import UserRole
-
-_MANAGER_ROLES = {UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value}
 
 logger = logging.getLogger(__name__)
 
@@ -42,44 +39,111 @@ class EmailAccountsService:
         self.db = db
         self.repo = EmailAccountRepository(db)
 
-    async def list_for_org(self, organization_id: uuid.UUID, user_id: uuid.UUID, role: str) -> list[EmailAccount]:
-        """Every organization-shared account, plus the caller's own personal
-        one if they have it — never another user's personal mailbox."""
-        accounts = await self.repo.get_all_for_org(organization_id)
-        return [
-            a for a in accounts
-            if a.scope == EmailAccountScope.ORGANIZATION or a.connected_by_user_id == user_id
-        ]
+    # ── Ownership ──────────────────────────────────────────────────────────
+    # A mailbox belongs to the user who connected it (connected_by_user_id).
+    # Only that user sees it, manages it, sends from it or reads its inbox —
+    # whatever their role. Scope only decides how many they may connect.
+
+    async def list_for_user(self, organization_id: uuid.UUID, user_id: uuid.UUID) -> list[EmailAccount]:
+        return await self.repo.get_all_for_owner(organization_id, user_id)
+
+    async def get_owned(
+        self, account_id: uuid.UUID, organization_id: uuid.UUID, user_id: uuid.UUID
+    ) -> EmailAccount | None:
+        """The account, if it exists in this org *and* belongs to this user."""
+        account = await self.repo.get_by_id_and_org(account_id, organization_id)
+        if account is None or account.connected_by_user_id != user_id:
+            return None
+        return account
 
     async def get_for_org(self, account_id: uuid.UUID, organization_id: uuid.UUID) -> EmailAccount | None:
         return await self.repo.get_by_id_and_org(account_id, organization_id)
 
-    async def _find_existing_for_connect(
-        self, organization_id: uuid.UUID, connected_by_user_id: uuid.UUID, email_address: str, scope: str
+    def can_manage(self, account: EmailAccount, user_id: uuid.UUID) -> bool:
+        return account.connected_by_user_id == user_id
+
+    # ── Connecting ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _wipe_credentials(account: EmailAccount) -> None:
+        account.access_token_encrypted = None
+        account.refresh_token_encrypted = None
+        account.token_expires_at = None
+        account.smtp_password_encrypted = None
+        account.last_error = None
+        account.is_default = False
+
+    async def _row_for_connect(
+        self, organization_id: uuid.UUID, user_id: uuid.UUID, email_address: str, scope: str
     ) -> EmailAccount | None:
-        """A personal account is identified by (org, owner) — a recruiter has at
-        most one, ever, and may swap its address on reconnect. An organization
-        account is identified by its address, same as before."""
+        """The existing row this connect should write into, or None for a new
+        one. Raises ValueError when the address is someone else's.
+
+        - Reconnect is always allowed, whatever the status (a mailbox in
+          `reauth_required`/`error` used to be refused as "already connected").
+        - A recruiter has one row: connecting again reconnects it or swaps its
+          address.
+        - An address another member has *actively* connected is refused.
+        - An address left behind by a *disconnected* row of someone else is
+          taken over — inserting a second row for it would violate the
+          one-address-per-org constraint (a 500 before)."""
+        address_row = await self.repo.get_by_org_and_address(organization_id, email_address)
+
         if scope == EmailAccountScope.PERSONAL:
-            existing = await self.repo.get_personal_account(organization_id, connected_by_user_id)
-            if existing is not None and existing.status != EmailAccountStatus.DISCONNECTED:
-                raise ValueError("You already have a personal mailbox connected — disconnect it first.")
+            mine = await self.repo.get_personal_account(organization_id, user_id)
         else:
-            existing = await self.repo.get_by_org_and_address(organization_id, email_address)
-            if existing is not None and existing.status != EmailAccountStatus.DISCONNECTED:
-                raise ValueError(f"An account for {email_address} is already connected")
+            mine = (
+                address_row
+                if address_row is not None
+                and address_row.connected_by_user_id == user_id
+                and address_row.scope == EmailAccountScope.ORGANIZATION
+                else None
+            )
 
-        # Regardless of scope, the address itself must not belong to a *different*,
-        # still-active row (DB also enforces this — this just gives a clean error).
-        address_owner = await self.repo.get_by_org_and_address(organization_id, email_address)
-        if (
-            address_owner is not None
-            and (existing is None or address_owner.id != existing.id)
-            and address_owner.status != EmailAccountStatus.DISCONNECTED
-        ):
-            raise ValueError(f"An account for {email_address} is already connected")
+        if address_row is None or (mine is not None and address_row.id == mine.id):
+            return mine
 
-        return existing
+        if address_row.status != EmailAccountStatus.DISCONNECTED:
+            if address_row.connected_by_user_id == user_id:
+                raise ValueError(f"You've already connected {email_address}.")
+            raise ValueError(f"{email_address} is already connected by another member of your organization.")
+
+        # A stale, disconnected row holds the address. It keeps that mailbox's
+        # synced history, so take it over rather than deleting it.
+        if mine is not None:
+            # A recruiter moving their one mailbox onto that address: retire
+            # their old row first (unowned, so the one-per-recruiter index is
+            # free), flushed before the takeover claims the address.
+            self._wipe_credentials(mine)
+            mine.status = EmailAccountStatus.DISCONNECTED
+            mine.connected_by_user_id = None
+            self.db.add(mine)
+            await self.db.flush()
+
+        self._wipe_credentials(address_row)
+        address_row.display_name = None
+        return address_row
+
+    async def _save_connected(self, account: EmailAccount, is_new: bool, user_id: uuid.UUID) -> EmailAccount:
+        """Mark connected and settle the owner's primary: their first
+        connected mailbox becomes it; otherwise the current primary stays."""
+        account.status = EmailAccountStatus.CONNECTED
+        account.last_error = None
+        account.last_synced_at = datetime.now(timezone.utc)
+
+        if not account.is_default:
+            others = [
+                a for a in await self.repo.get_all_for_owner(account.organization_id, user_id)
+                if a.id != account.id
+            ]
+            has_live_primary = any(a.is_default and a.status == EmailAccountStatus.CONNECTED for a in others)
+            if not has_live_primary:
+                await self.repo.unset_other_defaults(account.organization_id, user_id, except_id=account.id)
+                account.is_default = True
+
+        if is_new:
+            return await self.repo.create(account)
+        return await self.repo.update(account, {})
 
     async def connect_smtp(
         self,
@@ -88,15 +152,33 @@ class EmailAccountsService:
         payload: EmailAccountCreateSMTP,
         scope: str = EmailAccountScope.ORGANIZATION,
     ) -> EmailAccount:
-        existing = await self._find_existing_for_connect(
-            organization_id, connected_by_user_id, payload.email_address, scope
-        )
-        is_new = existing is None
-        account = existing or EmailAccount(
-            organization_id=organization_id,
+        # Verify the credentials on a throwaway object first, so a bad
+        # password leaves the database untouched — no rollback needed (one
+        # would expire every object in the session, the caller's user too).
+        probe = EmailAccount(
             provider=EmailAccountProvider.SMTP,
-            scope=scope,
+            email_address=payload.email_address,
+            smtp_host=payload.smtp_host,
+            smtp_port=payload.smtp_port,
+            smtp_username=payload.smtp_username,
+            smtp_password_encrypted=crypto.encrypt(payload.smtp_password),
+            use_tls=payload.use_tls,
         )
+        try:
+            get_provider(EmailAccountProvider.SMTP).send(
+                probe,
+                to=payload.email_address,
+                subject="Hybent Hiring — email account connected",
+                html_body="<p>This mailbox is now connected to your account on Hybent Hiring.</p>",
+            )
+        except Exception as e:
+            logger.warning(f"SMTP account verification failed for {payload.email_address}: {e}")
+            raise ValueError(f"Could not verify SMTP credentials: {e}") from e
+
+        existing = await self._row_for_connect(organization_id, connected_by_user_id, payload.email_address, scope)
+        is_new = existing is None
+        account = existing or EmailAccount(organization_id=organization_id, scope=scope)
+        account.provider = EmailAccountProvider.SMTP
         account.email_address = payload.email_address
         account.connected_by_user_id = connected_by_user_id
         account.scope = scope
@@ -104,34 +186,9 @@ class EmailAccountsService:
         account.smtp_host = payload.smtp_host
         account.smtp_port = payload.smtp_port
         account.smtp_username = payload.smtp_username
-        account.smtp_password_encrypted = crypto.encrypt(payload.smtp_password)
+        account.smtp_password_encrypted = probe.smtp_password_encrypted
         account.use_tls = payload.use_tls
-
-        if is_new:
-            account.is_default = (
-                scope == EmailAccountScope.ORGANIZATION
-                and await self.repo.count_organization_scoped(organization_id) == 0
-            )
-
-        # Verify the credentials actually work before persisting anything.
-        try:
-            get_provider(EmailAccountProvider.SMTP).send(
-                account,
-                to=payload.email_address,
-                subject="Hybent Hiring — email account connected",
-                html_body="<p>This mailbox is now connected to your organization on Hybent Hiring.</p>",
-            )
-        except Exception as e:
-            logger.warning(f"SMTP account verification failed for {payload.email_address}: {e}")
-            raise ValueError(f"Could not verify SMTP credentials: {e}") from e
-
-        account.status = EmailAccountStatus.CONNECTED
-        account.last_error = None
-        account.last_synced_at = datetime.now(timezone.utc)
-
-        if not is_new:
-            return await self.repo.update(account, {})
-        return await self.repo.create(account)
+        return await self._save_connected(account, is_new, connected_by_user_id)
 
     async def upsert_gmail(
         self,
@@ -142,81 +199,103 @@ class EmailAccountsService:
         access_token: str | None,
         scope: str = EmailAccountScope.ORGANIZATION,
     ) -> EmailAccount:
-        existing = await self._find_existing_for_connect(organization_id, connected_by_user_id, email_address, scope)
+        if not refresh_token:
+            # Google returns a refresh token only on first consent. Without
+            # one, only the owner's own existing row for this very address
+            # still has a usable token — checked before anything is changed.
+            current = await self.repo.get_by_org_and_address(organization_id, email_address)
+            if not (
+                current is not None
+                and current.connected_by_user_id == connected_by_user_id
+                and current.refresh_token_encrypted
+            ):
+                raise ValueError(
+                    "Google did not return a refresh token — remove Hybent's access in your "
+                    "Google account settings and connect again."
+                )
+
+        existing = await self._row_for_connect(organization_id, connected_by_user_id, email_address, scope)
         is_new = existing is None
-        account = existing or EmailAccount(
-            organization_id=organization_id,
-            connected_by_user_id=connected_by_user_id,
-            provider=EmailAccountProvider.GMAIL,
-            scope=scope,
-        )
+        account = existing or EmailAccount(organization_id=organization_id, scope=scope)
+        account.provider = EmailAccountProvider.GMAIL
         account.email_address = email_address
         account.connected_by_user_id = connected_by_user_id
         account.scope = scope
-
-        if is_new:
-            account.is_default = (
-                scope == EmailAccountScope.ORGANIZATION
-                and await self.repo.count_organization_scoped(organization_id) == 0
-            )
-
         if refresh_token:
             account.refresh_token_encrypted = crypto.encrypt(refresh_token)
-        account.status = EmailAccountStatus.CONNECTED
-        account.last_error = None
-        account.last_synced_at = datetime.now(timezone.utc)
+        return await self._save_connected(account, is_new, connected_by_user_id)
 
-        if not is_new:
-            return await self.repo.update(account, {})
-        return await self.repo.create(account)
+    # ── Primary sender ─────────────────────────────────────────────────────
 
-    async def set_default(self, account_id: uuid.UUID, organization_id: uuid.UUID) -> EmailAccount:
-        account = await self.repo.get_by_id_and_org(account_id, organization_id)
+    async def set_default(self, account_id: uuid.UUID, organization_id: uuid.UUID, user_id: uuid.UUID) -> EmailAccount:
+        """Make one of the caller's own mailboxes their primary sender."""
+        account = await self.get_owned(account_id, organization_id, user_id)
         if account is None:
             raise ValueError("Email account not found")
-        if account.scope != EmailAccountScope.ORGANIZATION:
-            raise ValueError("Only organization-shared accounts can be set as default")
-        await self.repo.unset_other_defaults(organization_id, except_id=account_id)
-        account.is_default = True
+        if account.status != EmailAccountStatus.CONNECTED:
+            raise ValueError("Reconnect this mailbox before making it your primary")
+        await self.repo.unset_other_defaults(organization_id, user_id, except_id=account_id)
         return await self.repo.update(account, {"is_default": True})
 
-    def can_manage(self, account: EmailAccount, user_id: uuid.UUID, role: str) -> bool:
-        """Admins/super admins manage any org-scoped account; a recruiter may
-        only ever manage their own personal one."""
-        if role in _MANAGER_ROLES:
-            return True
-        return account.scope == EmailAccountScope.PERSONAL and account.connected_by_user_id == user_id
+    async def resolve_sender(self, organization_id: uuid.UUID, user_id: uuid.UUID | None) -> EmailAccount | None:
+        """The mailbox email triggered by this user goes out from: their
+        connected primary. None means the platform's default sender."""
+        if user_id is None:
+            return None
+        return await self.repo.get_primary_for_owner(organization_id, user_id)
 
-    async def get_inbox_account(self, organization_id: uuid.UUID, user_id: uuid.UUID, role: str) -> EmailAccount | None:
-        """Which account's inbox this user sees: admins/super admins get the
-        org's primary (shared) mailbox; a recruiter gets their own personal one."""
-        if role in _MANAGER_ROLES:
-            return await self.repo.get_default_for_org(organization_id)
-        return await self.repo.get_personal_account(organization_id, user_id)
+    async def get_inbox_account(
+        self, organization_id: uuid.UUID, user_id: uuid.UUID, account_id: uuid.UUID | None = None
+    ) -> EmailAccount | None:
+        """The mailbox whose inbox this user is looking at — only ever one of
+        their own. An explicit `account_id` picks among them; otherwise their
+        primary, preferring one that can actually be read (Gmail)."""
+        if account_id is not None:
+            return await self.get_owned(account_id, organization_id, user_id)
+        owned = await self.repo.get_all_for_owner(organization_id, user_id)
+        connected = [a for a in owned if a.status == EmailAccountStatus.CONNECTED]
+        primary = next((a for a in connected if a.is_default), connected[0] if connected else None)
+        if primary is not None and primary.provider == EmailAccountProvider.GMAIL:
+            return primary
+        return next((a for a in connected if a.provider == EmailAccountProvider.GMAIL), primary)
 
     async def update(
-        self, account_id: uuid.UUID, organization_id: uuid.UUID, display_name: str | None, is_default: bool | None
+        self,
+        account_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        user_id: uuid.UUID,
+        display_name: str | None,
+        is_default: bool | None,
     ) -> EmailAccount:
-        account = await self.repo.get_by_id_and_org(account_id, organization_id)
+        account = await self.get_owned(account_id, organization_id, user_id)
         if account is None:
             raise ValueError("Email account not found")
 
         if is_default:
-            return await self.set_default(account_id, organization_id)
+            account = await self.set_default(account_id, organization_id, user_id)
 
-        fields: dict = {}
         if display_name is not None:
-            fields["display_name"] = display_name
-        return await self.repo.update(account, fields) if fields else account
+            account = await self.repo.update(account, {"display_name": display_name})
+        return account
 
-    async def disconnect(self, account_id: uuid.UUID, organization_id: uuid.UUID) -> EmailAccount:
-        account = await self.repo.get_by_id_and_org(account_id, organization_id)
+    async def disconnect(self, account_id: uuid.UUID, organization_id: uuid.UUID, user_id: uuid.UUID) -> EmailAccount:
+        """Disconnect one of the caller's mailboxes. If it was their primary,
+        their next connected mailbox takes over."""
+        account = await self.get_owned(account_id, organization_id, user_id)
         if account is None:
             raise ValueError("Email account not found")
-        return await self.repo.update(account, {"status": EmailAccountStatus.DISCONNECTED, "is_default": False})
+        was_primary = account.is_default
+        account = await self.repo.update(account, {"status": EmailAccountStatus.DISCONNECTED, "is_default": False})
+        if was_primary:
+            successor = await self.repo.get_primary_for_owner(organization_id, user_id)
+            if successor is not None:
+                await self.repo.update(successor, {"is_default": True})
+        return account
 
-    async def test_send(self, account_id: uuid.UUID, organization_id: uuid.UUID, to_email: str) -> None:
-        account = await self.repo.get_by_id_and_org(account_id, organization_id)
+    async def test_send(
+        self, account_id: uuid.UUID, organization_id: uuid.UUID, user_id: uuid.UUID, to_email: str
+    ) -> None:
+        account = await self.get_owned(account_id, organization_id, user_id)
         if account is None:
             raise ValueError("Email account not found")
         try:
@@ -254,12 +333,15 @@ class EmailAccountsService:
             fields["last_error"] = error
         await self.repo.update(account, fields)
 
-    async def resolve_account_for_org(
-        self, organization_id: uuid.UUID, preferred_account_id: uuid.UUID | None = None
-    ) -> EmailAccount | None:
-        """preferred (if connected & belongs to org) → org default → None."""
-        if preferred_account_id is not None:
-            preferred = await self.repo.get_by_id_and_org(preferred_account_id, organization_id)
-            if preferred is not None and preferred.status == EmailAccountStatus.CONNECTED:
-                return preferred
-        return await self.repo.get_default_for_org(organization_id)
+
+async def resolve_sender_for_user(db: AsyncSession, user) -> EmailAccount | None:
+    """The mailbox email triggered by `user` should be sent from — their own
+    primary — or None for the platform sender. Never raises: a lookup problem
+    just means the platform sender is used."""
+    if user is None or getattr(user, "id", None) is None:
+        return None
+    try:
+        return await EmailAccountsService(db).resolve_sender(user.organization_id, user.id)
+    except Exception as e:
+        logger.warning(f"Could not resolve sender mailbox for user {getattr(user, 'id', None)}: {e}")
+        return None

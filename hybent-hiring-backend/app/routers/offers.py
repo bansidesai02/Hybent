@@ -11,6 +11,7 @@ from app.schemas.offer import OfferCreate, OfferUpdate, OfferOut, OfferRespondRe
 from app.services.offer_generator import generate_offer_html, generate_offer_pdf
 from app.services.storage_service import save_offer_pdf
 from app.services.email_service import send_offer_email
+from app.services.email_accounts_service import resolve_sender_for_user
 from app.utils.permissions import OfferStatus
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
@@ -155,13 +156,15 @@ async def send_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB):
     org = (await db.execute(select(Organization).where(Organization.id == current_user.organization_id))).scalar_one_or_none()
 
     if candidate and org:
+        sender = await resolve_sender_for_user(db, current_user)
         send_offer_email(
             candidate_email=candidate.email,
             candidate_name=candidate.full_name,
             job_title=offer.position_title,
             company_name=org.name,
             offer_url=offer.pdf_url or f"http://localhost:8000/v1/offers/{offer_id}",
-            org_logo_url=org.logo_url if org else None
+            org_logo_url=org.logo_url if org else None,
+            email_account=sender,
         )
 
     offer.status = OfferStatus.SENT

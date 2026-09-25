@@ -22,18 +22,25 @@ class EmailAccountStatus:
 
 
 class EmailAccountScope:
-    """organization: admin-connected, shared, org can have many, one is_default
-    (the "primary"). personal: recruiter-connected, exactly one per recruiter,
-    never has is_default set (there's only ever one)."""
+    """How many mailboxes the owner may connect — not who can see them.
+
+    organization: connected by an admin/super admin, who may connect many.
+    personal: connected by a recruiter, exactly one per recruiter.
+
+    Either way a mailbox is private to its owner (connected_by_user_id): only
+    they see it, manage it and read its inbox."""
     ORGANIZATION = "organization"
     PERSONAL = "personal"
 
 
 class EmailAccount(Base):
-    """A mailbox connected to an organization for sending recruiting email.
+    """A mailbox a user connected, for sending their recruiting email and for
+    resume ingestion.
 
-    An organization may connect multiple mailboxes (Gmail / Outlook / custom SMTP);
-    exactly one may be flagged as the org's default sender at a time.
+    Owned by `connected_by_user_id` and visible only to that user.
+    `is_default` marks the owner's **primary** — the sender for email they
+    trigger. Each owner has at most one (enforced below); a recruiter's single
+    mailbox is always their primary.
     """
 
     __tablename__ = "email_accounts"
@@ -48,6 +55,13 @@ class EmailAccount(Base):
             unique=True,
             postgresql_where=text("scope = 'personal'"),
         ),
+        # One primary per owner (migration 041).
+        Index(
+            "uq_email_accounts_one_primary_per_owner",
+            "organization_id", "connected_by_user_id",
+            unique=True,
+            postgresql_where=text("is_default"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -58,9 +72,11 @@ class EmailAccount(Base):
     email_address: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=EmailAccountStatus.CONNECTED)
+    # The owner's primary sender — see class docstring.
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     scope: Mapped[str] = mapped_column(String(20), nullable=False, default=EmailAccountScope.ORGANIZATION)
 
+    # The owner. Only this user sees or manages the mailbox.
     connected_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

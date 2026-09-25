@@ -21,7 +21,7 @@ async def test_inbox_empty_when_nothing_connected(client, recruiter_headers):
     assert response.json()["data"]["messages"] == []
 
 
-async def test_admin_inbox_resolves_org_primary(client, admin_headers):
+async def test_admin_inbox_resolves_their_own_primary(client, admin_headers):
     with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
         await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=admin_headers)
 
@@ -31,7 +31,7 @@ async def test_admin_inbox_resolves_org_primary(client, admin_headers):
 
 
 async def test_recruiter_inbox_resolves_own_personal_account(client, recruiter_headers, admin_headers):
-    # The org's shared account should NOT show up as the recruiter's inbox.
+    # An admin's mailbox never shows up as the recruiter's inbox.
     with patch("app.services.email_providers.smtp_provider.SMTPProvider.send", return_value=None):
         await client.post("/v1/email-accounts/smtp", json=SMTP_PAYLOAD, headers=admin_headers)
         personal_payload = {**SMTP_PAYLOAD, "email_address": "mine@acme.com"}
@@ -51,12 +51,12 @@ async def test_sync_rejects_non_gmail_account(client, admin_headers):
     assert "Gmail" in response.json()["message"]
 
 
-async def test_sync_and_list_gmail_inbox(client, admin_headers, db_session, organization):
+async def test_sync_and_list_gmail_inbox(client, admin_headers, db_session, organization, admin_user):
     from app.models.email_account import EmailAccount, EmailAccountProvider
 
     account = EmailAccount(
         organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
-        email_address="gmail@acme.com", is_default=True,
+        email_address="gmail@acme.com", is_default=True, connected_by_user_id=admin_user.id,
         refresh_token_encrypted=crypto.encrypt("refresh-token"),
     )
     db_session.add(account)
@@ -95,13 +95,13 @@ async def test_sync_and_list_gmail_inbox(client, admin_headers, db_session, orga
     assert messages[0]["candidate_count"] == 1
 
 
-async def test_get_message_detail_fetches_body(client, admin_headers, db_session, organization):
+async def test_get_message_detail_fetches_body(client, admin_headers, db_session, organization, admin_user):
     from app.models.email_account import EmailAccount, EmailAccountProvider
     from app.models.email_message import EmailMessage
 
     account = EmailAccount(
         organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
-        email_address="gmail@acme.com", is_default=True,
+        email_address="gmail@acme.com", is_default=True, connected_by_user_id=admin_user.id,
         refresh_token_encrypted=crypto.encrypt("refresh-token"),
     )
     db_session.add(account)
@@ -128,14 +128,14 @@ async def test_get_message_detail_fetches_body(client, admin_headers, db_session
     assert data["is_read"] is True
 
 
-async def test_message_detail_has_headers_attachments_and_candidates(client, admin_headers, db_session, organization):
+async def test_message_detail_has_headers_attachments_and_candidates(client, admin_headers, db_session, organization, admin_user):
     from app.models.candidate import Candidate
     from app.models.email_account import EmailAccount, EmailAccountProvider
     from app.models.email_message import EmailIngestionStatus, EmailMessage
 
     account = EmailAccount(
         organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
-        email_address="gmail@acme.com", is_default=True,
+        email_address="gmail@acme.com", is_default=True, connected_by_user_id=admin_user.id,
         refresh_token_encrypted=crypto.encrypt("refresh-token"),
     )
     db_session.add(account)
@@ -182,3 +182,58 @@ async def test_message_detail_has_headers_attachments_and_candidates(client, adm
     assert download.headers["content-type"] == "application/pdf"
     assert "alice.pdf" in download.headers["content-disposition"]
     assert missing.status_code == 404
+
+
+async def test_another_admins_inbox_is_private(client, db_session, organization, admin_user, second_admin_user):
+    """Two admins, one mailbox: only its owner sees it, lists it or opens its
+    messages — even when asking for it by id."""
+    from app.models.email_account import EmailAccount, EmailAccountProvider
+    from app.models.email_message import EmailIngestionStatus, EmailMessage
+    from tests.conftest import auth_headers
+
+    account = EmailAccount(
+        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="owner@acme.com",
+        is_default=True, connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+    )
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = EmailMessage(
+        organization_id=organization.id, email_account_id=account.id, provider_message_id="m1",
+        subject="Resume", ingestion_status=EmailIngestionStatus.CREATED,
+    )
+    db_session.add(message)
+    await db_session.commit()
+    await db_session.refresh(message)
+
+    owner, other = auth_headers(admin_user), auth_headers(second_admin_user)
+
+    assert (await client.get("/v1/inbox", headers=owner)).json()["data"]["account"]["id"] == str(account.id)
+    other_view = (await client.get("/v1/inbox", headers=other)).json()["data"]
+    assert other_view["account"] is None and other_view["messages"] == [] and other_view["mailboxes"] == []
+    asked = (await client.get("/v1/inbox", params={"account_id": str(account.id)}, headers=other)).json()["data"]
+    assert asked["account"] is None
+    detail = await client.get(f"/v1/inbox/{message.id}", params={"account_id": str(account.id)}, headers=other)
+    assert detail.status_code == 404
+
+
+async def test_admin_can_switch_between_their_own_mailboxes(client, db_session, organization, admin_user, admin_headers):
+    from app.models.email_account import EmailAccount, EmailAccountProvider
+
+    first = EmailAccount(
+        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="one@acme.com",
+        is_default=True, connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+    )
+    second = EmailAccount(
+        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="two@acme.com",
+        connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+    )
+    db_session.add_all([first, second])
+    await db_session.commit()
+    await db_session.refresh(second)
+
+    default_view = (await client.get("/v1/inbox", headers=admin_headers)).json()["data"]
+    assert default_view["account"]["email_address"] == "one@acme.com"
+    assert sorted(m["email_address"] for m in default_view["mailboxes"]) == ["one@acme.com", "two@acme.com"]
+    switched = (await client.get("/v1/inbox", params={"account_id": str(second.id)}, headers=admin_headers)).json()["data"]
+    assert switched["account"]["email_address"] == "two@acme.com"

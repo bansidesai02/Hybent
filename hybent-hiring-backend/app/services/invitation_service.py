@@ -24,8 +24,11 @@ async def create_invitation(
     organization_id: uuid.UUID,
     email: str,
     full_name: str,
-    background_tasks: BackgroundTasks | None = None
+    background_tasks: BackgroundTasks | None = None,
+    email_account=None,
 ) -> CandidateInvitation:
+    """`email_account`: the inviting user's mailbox to send from (see
+    resolve_sender_for_user); None sends from the platform address."""
     # Check if candidate exists in org
     result = await db.execute(
         select(Candidate).where(
@@ -67,7 +70,8 @@ async def create_invitation(
         company_name=company_name,
         portal_url=portal_url,
         org_logo_url=organization.logo_url if organization else None,
-        job_title=candidate.applied_job_title if candidate else None
+        job_title=candidate.applied_job_title if candidate else None,
+        email_account=email_account,
     )
 
     if background_tasks is not None:

@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast'
 import { Mail, Plug, SendHorizonal, Unplug } from 'lucide-react'
 
 import { emailAccountsApi, type ConnectSmtpPayload } from '@/api/emailAccounts'
+import { useMailboxOAuthResult } from './useMailboxOAuthResult'
 import {
   Badge,
   Button,
@@ -19,9 +20,9 @@ import {
 } from '@/components/hb'
 
 /**
- * A recruiter's own single mailbox — distinct from the organization's shared
- * accounts in EmailAccountsSection. Exactly one may ever be connected, so
- * there's no list, no context menu, no "set default" (meaningless with one).
+ * A recruiter's one mailbox. Exactly one may be connected; it is their
+ * sender for every email they trigger, and only they can see it or its
+ * inbox. Connecting a different address replaces it.
  */
 
 const EMPTY_SMTP_FORM: ConnectSmtpPayload = {
@@ -62,6 +63,7 @@ function statusLabel(status: string) {
 
 export function PersonalMailboxCard() {
   const queryClient = useQueryClient()
+  useMailboxOAuthResult()
   const [connectDialogOpen, setConnectDialogOpen] = useState(false)
   const [reconnectMode, setReconnectMode] = useState(false)
   const [smtpForm, setSmtpForm] = useState<ConnectSmtpPayload>(EMPTY_SMTP_FORM)
@@ -70,12 +72,12 @@ export function PersonalMailboxCard() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['email-accounts'] })
 
-  // Same cache key as EmailAccountsSection — one shared fetch, filtered per-consumer.
-  const { data: allAccounts, isLoading } = useQuery({
+  // The API returns only the caller's own mailboxes — for a recruiter, one.
+  const { data: accounts, isLoading } = useQuery({
     queryKey: ['email-accounts'],
     queryFn: () => emailAccountsApi.list().then((r) => r.data),
   })
-  const account = allAccounts?.find((a) => a.scope === 'personal') ?? null
+  const account = accounts?.[0] ?? null
   const needsReconnect = account && (account.status === 'disconnected' || account.status === 'reauth_required')
 
   const closeConnectDialog = () => {
@@ -157,7 +159,7 @@ export function PersonalMailboxCard() {
     <Card as="section">
       <CardHeader
         title="Your email"
-        subtitle="Connect your own mailbox to send and receive candidate email as yourself."
+        subtitle="Email you send to candidates goes out from this mailbox, and its applications show in your Gmail Inbox. Only you can see it."
         icon={
           <IconTile size="sm">
             <Mail />
@@ -168,7 +170,7 @@ export function PersonalMailboxCard() {
       {!account ? (
         <EmptyState
           title="No mailbox connected"
-          description="Connect Gmail or a custom SMTP account — you can only connect one, but you can reconnect a different one anytime."
+          description="Until you connect one, your emails go out from the platform's default address. You can connect one mailbox — connecting a different one later replaces it."
           action={{ label: 'Connect account', onClick: () => setConnectDialogOpen(true) }}
         />
       ) : (

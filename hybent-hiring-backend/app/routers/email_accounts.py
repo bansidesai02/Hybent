@@ -19,15 +19,16 @@ from app.schemas.response import APIResponse
 from app.services.email_accounts_service import EmailAccountsService
 from app.services.email_providers import gmail_provider
 from app.utils.permissions import UserRole
+from app.utils.security import create_oauth_state, decode_oauth_state
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/email-accounts", tags=["email-accounts"])
 
-# Admins/super admins connect org-shared mailboxes; recruiters connect their
-# own single personal mailbox. All three may therefore hit the connect
-# endpoints — what differs is the `scope` assigned to the resulting account
-# and what they're allowed to do to an *existing* account (see can_manage()).
+# Every mailbox is private to the user who connected it. Admins/super admins
+# may connect several and pick a primary; a recruiter connects exactly one.
+# All three may hit the connect endpoints — the role only decides the
+# account's `scope` (how many are allowed), never who can see it.
 EmailAccountsConnector = Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.RECRUITER))]
 
 SETTINGS_PATH = {
@@ -44,7 +45,8 @@ def _scope_for_role(role: str) -> str:
 @router.get("", response_model=list[EmailAccountRead])
 async def list_email_accounts(db: DB, current_user: CurrentUser):
     service = EmailAccountsService(db)
-    accounts = await service.list_for_org(current_user.organization_id, current_user.id, current_user.role)
+    # Only the caller's own mailboxes — never another member's.
+    accounts = await service.list_for_user(current_user.organization_id, current_user.id)
     return APIResponse.success(
         message="Email accounts retrieved.",
         data=[EmailAccountRead.model_validate(a) for a in accounts],
@@ -69,9 +71,10 @@ async def connect_smtp_account(payload: EmailAccountCreateSMTP, db: DB, current_
 async def gmail_authorize(current_user: EmailAccountsConnector):
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(status_code=400, detail="Gmail integration is not configured")
-    # Role travels in `state` so the callback knows both which settings page to
-    # redirect back to, and which scope (org vs personal) to assign the account.
-    state = f"{current_user.organization_id}:{current_user.id}:{current_user.role}"
+    # Signed and short-lived, so the callback can trust who started the flow.
+    # It used to be a plain "org:user:role" string anyone could edit to attach
+    # a mailbox to another user or claim admin scope.
+    state = create_oauth_state(str(current_user.id), str(current_user.organization_id))
     return APIResponse.success(
         message="Gmail auth URL generated.",
         data={"auth_url": gmail_provider.build_authorize_url(state)},
@@ -86,30 +89,43 @@ async def gmail_callback(
     code: str | None = Query(None),
     error: str | None = Query(None),
 ):
-    role = state.split(":")[-1]
-    settings_path = SETTINGS_PATH.get(role, SETTINGS_PATH[UserRole.ADMIN.value])
+    # Who started the flow comes from the signed state; their role — and so
+    # the scope and the page to return to — from the database, never the URL.
+    user = None
+    try:
+        claims = decode_oauth_state(state)
+        user = await db.get(User, uuid.UUID(claims["sub"]))
+        if user is None or str(user.organization_id) != claims.get("org"):
+            user = None
+    except Exception:
+        logger.warning("Rejected Gmail OAuth callback with an invalid or expired state")
 
-    if error or not code:
+    role = user.role if user else UserRole.ADMIN.value
+    settings_path = SETTINGS_PATH.get(role, SETTINGS_PATH[UserRole.ADMIN.value])
+    if user is None or error or not code:
         return RedirectResponse(url=f"{settings.frontend_url}{settings_path}?error=email_account_auth_failed")
 
     try:
-        organization_id_str, user_id_str, _role = state.split(":", 2)
-        organization_id = uuid.UUID(organization_id_str)
-        user_id = uuid.UUID(user_id_str)
-
         tokens = await gmail_provider.exchange_code(code)
         service = EmailAccountsService(db)
         await service.upsert_gmail(
-            organization_id,
-            user_id,
+            user.organization_id,
+            user.id,
             tokens["email_address"],
             tokens.get("refresh_token"),
             tokens.get("access_token"),
             scope=_scope_for_role(role),
         )
         return RedirectResponse(url=f"{settings.frontend_url}{settings_path}?success=email_account_connected")
+    except ValueError as e:
+        # A readable reason (address owned by another member, no refresh
+        # token) — shown to the user instead of a generic failure.
+        from urllib.parse import quote
+        return RedirectResponse(
+            url=f"{settings.frontend_url}{settings_path}?error=email_account_auth_failed&reason={quote(str(e))}"
+        )
     except Exception:
-        logger.exception("Gmail OAuth callback failed for state=%r", state)
+        logger.exception("Gmail OAuth callback failed for user %s", user.id)
         return RedirectResponse(url=f"{settings.frontend_url}{settings_path}?error=email_account_auth_failed")
 
 
@@ -119,11 +135,11 @@ async def outlook_authorize(current_user: EmailAccountsConnector):
 
 
 async def _get_manageable_account(service: EmailAccountsService, account_id: uuid.UUID, current_user: User):
-    account = await service.get_for_org(account_id, current_user.organization_id)
+    """Only the owner may act on a mailbox. Someone else's is a 404, not a
+    403 — its existence isn't theirs to know."""
+    account = await service.get_owned(account_id, current_user.organization_id, current_user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="Email account not found")
-    if not service.can_manage(account, current_user.id, current_user.role):
-        raise HTTPException(status_code=403, detail="You don't have permission to manage this account")
     return account
 
 
@@ -135,7 +151,7 @@ async def update_email_account(
     await _get_manageable_account(service, account_id, current_user)
     try:
         account = await service.update(
-            account_id, current_user.organization_id, payload.display_name, payload.is_default
+            account_id, current_user.organization_id, current_user.id, payload.display_name, payload.is_default
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -146,7 +162,7 @@ async def update_email_account(
 async def disconnect_email_account(account_id: uuid.UUID, db: DB, current_user: CurrentUser):
     service = EmailAccountsService(db)
     await _get_manageable_account(service, account_id, current_user)
-    await service.disconnect(account_id, current_user.organization_id)
+    await service.disconnect(account_id, current_user.organization_id, current_user.id)
     return APIResponse.success(message="Email account disconnected.")
 
 
@@ -155,7 +171,7 @@ async def set_default_email_account(account_id: uuid.UUID, db: DB, current_user:
     service = EmailAccountsService(db)
     await _get_manageable_account(service, account_id, current_user)
     try:
-        account = await service.set_default(account_id, current_user.organization_id)
+        account = await service.set_default(account_id, current_user.organization_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return APIResponse.success(message="Default email account updated.", data=EmailAccountRead.model_validate(account))
@@ -166,7 +182,7 @@ async def test_send_email_account(account_id: uuid.UUID, db: DB, current_user: C
     service = EmailAccountsService(db)
     await _get_manageable_account(service, account_id, current_user)
     try:
-        await service.test_send(account_id, current_user.organization_id, current_user.email)
+        await service.test_send(account_id, current_user.organization_id, current_user.id, current_user.email)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

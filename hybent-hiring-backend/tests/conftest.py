@@ -115,6 +115,17 @@ async def recruiter_user(db_session, organization) -> User:
 
 
 @pytest_asyncio.fixture
+async def second_admin_user(db_session, organization) -> User:
+    """Another admin in the same org — for mailbox privacy between members."""
+    return await _make_user(db_session, organization, UserRole.ADMIN.value)
+
+
+@pytest_asyncio.fixture
+async def second_recruiter_user(db_session, organization) -> User:
+    return await _make_user(db_session, organization, UserRole.RECRUITER.value)
+
+
+@pytest_asyncio.fixture
 async def other_org_admin(db_session, other_organization) -> User:
     return await _make_user(db_session, other_organization, UserRole.ADMIN.value)
 

@@ -61,3 +61,31 @@ def decode_access_token(token: str) -> dict[str, Any]:
     if payload.get("type") != "access":
         raise JWTError("Not an access token")
     return payload
+
+
+OAUTH_STATE_TYPE = "gmail_oauth"
+OAUTH_STATE_TTL_MINUTES = 10
+
+
+def create_oauth_state(user_id: str, organization_id: str) -> str:
+    """Signed, short-lived `state` for the mailbox OAuth round-trip.
+
+    Carries only who started the flow. Its own `type` means it can never be
+    accepted as an access token (decode_access_token rejects it), and the
+    callback reads the user's role from the database, never from here.
+    """
+    payload = {
+        "sub": user_id,
+        "org": organization_id,
+        "type": OAUTH_STATE_TYPE,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=OAUTH_STATE_TTL_MINUTES),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+
+
+def decode_oauth_state(state: str) -> dict[str, Any]:
+    """Raises JWTError when the state is forged, expired or not an OAuth state."""
+    payload = jwt.decode(state, settings.secret_key, algorithms=[settings.algorithm])
+    if payload.get("type") != OAUTH_STATE_TYPE:
+        raise JWTError("Not an OAuth state")
+    return payload

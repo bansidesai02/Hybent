@@ -2503,11 +2503,19 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
                 if jr:
                     job_title = jr[0]
 
+            # From the Copilot user's own mailbox when they've connected one.
+            from app.services.email_accounts_service import EmailAccountsService
+            try:
+                sender = await EmailAccountsService(db).resolve_sender(oid, uid)
+            except Exception:
+                sender = None
+
             send_interview_invite(
                 candidate_email=c.email, candidate_name=c.full_name,
                 round_name=title, job_role=job_title, company_name=org.name,
                 scheduled_at=time_str, meeting_link=cal["meeting_link"],
-                duration_minutes=60, interview_type="video", org_logo_url=org.logo_url
+                duration_minutes=60, interview_type="video", org_logo_url=org.logo_url,
+                email_account=sender,
             )
 
             for u in interviewer_ids:
@@ -2515,7 +2523,8 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
                     interviewer_email=u.email, interviewer_name=u.full_name,
                     candidate_name=c.full_name, round_name=title, job_role=job_title,
                     company_name=org.name, scheduled_at=time_str, meeting_link=cal["meeting_link"],
-                    duration_minutes=60, interview_type="video", org_logo_url=org.logo_url
+                    duration_minutes=60, interview_type="video", org_logo_url=org.logo_url,
+                    email_account=sender,
                 )
 
             notify_interview_team.delay(

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import {
   Mail,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react'
 
 import { emailAccountsApi, type ConnectSmtpPayload } from '@/api/emailAccounts'
-import { useAuth } from '@/hooks/useAuth'
+import { useMailboxOAuthResult } from './useMailboxOAuthResult'
 import type { EmailAccount } from '@/types'
 import {
   Badge,
@@ -32,11 +31,11 @@ import {
 } from '@/components/hb'
 
 /**
- * Connected mailboxes for the organization ("recruiting@acme.com", say),
- * used to send candidate/recruiter email instead of the platform's shared
- * default sender. Admin-only to manage; the API also allows any org member
- * to list them read-only, but there is nothing useful for a non-admin to do
- * here, so the whole section stays behind `isAdmin` in the parent page.
+ * An admin's (or super admin's) own mailboxes. They may connect several and
+ * pick one as their **primary** — the address email they send goes out from.
+ * Private to them: the API returns only the caller's own mailboxes, so other
+ * admins and recruiters never see these. Recruiters get PersonalMailboxCard,
+ * with exactly one mailbox, instead.
  */
 
 const EMPTY_SMTP_FORM: ConnectSmtpPayload = {
@@ -81,10 +80,7 @@ function providerLabel(provider: EmailAccount['provider']) {
 
 export function EmailAccountsSection() {
   const queryClient = useQueryClient()
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const { isAdmin, isSuperAdmin } = useAuth()
-  const canManage = isAdmin || isSuperAdmin
+  useMailboxOAuthResult()
 
   const [connectDialogOpen, setConnectDialogOpen] = useState(false)
   const [reconnectMode, setReconnectMode] = useState(false)
@@ -95,33 +91,11 @@ export function EmailAccountsSection() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['email-accounts'] })
 
-  // Shared, unfiltered query — PersonalMailboxCard reads the same cache key
-  // and filters for its own scope, so filtering happens per-consumer, not here.
-  const { data: allAccounts, isLoading } = useQuery({
+  // Only ever the caller's own mailboxes — the API filters by owner.
+  const { data: accounts, isLoading } = useQuery({
     queryKey: ['email-accounts'],
     queryFn: () => emailAccountsApi.list().then((r) => r.data),
   })
-  // Personal (recruiter-owned) mailboxes get their own card — this section is
-  // the organization's shared senders only.
-  const accounts = allAccounts?.filter((a) => a.scope === 'organization')
-
-  // Gmail OAuth lands back here via `${FRONTEND_URL}/hiring/admin/settings?...`
-  useEffect(() => {
-    const success = searchParams.get('success')
-    const error = searchParams.get('error')
-    if (success === 'email_account_connected') {
-      toast.success('Gmail account connected')
-      invalidate()
-    } else if (error === 'email_account_auth_failed') {
-      toast.error('Could not connect the Gmail account. Please try again.')
-    } else {
-      return
-    }
-    searchParams.delete('success')
-    searchParams.delete('error')
-    setSearchParams(searchParams, { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
 
   const connectSmtpMutation = useMutation({
     mutationFn: (data: ConnectSmtpPayload) => emailAccountsApi.connectSmtp(data),
@@ -138,10 +112,10 @@ export function EmailAccountsSection() {
   const setDefaultMutation = useMutation({
     mutationFn: (id: string) => emailAccountsApi.setDefault(id),
     onSuccess: () => {
-      toast.success('Default sender updated')
+      toast.success('Primary mailbox updated')
       invalidate()
     },
-    onError: () => toast.error('Failed to set default account'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Could not change your primary mailbox'),
   })
 
   const disconnectMutation = useMutation({
@@ -222,7 +196,7 @@ export function EmailAccountsSection() {
         ...(!contextMenu.account.is_default && !needsReconnect(contextMenu.account)
           ? [
               {
-                label: 'Set as default',
+                label: 'Make primary',
                 icon: <Star size={14} aria-hidden />,
                 onSelect: () => setDefaultMutation.mutate(contextMenu.account.id),
               },
@@ -247,35 +221,25 @@ export function EmailAccountsSection() {
   return (
     <Card as="section">
       <CardHeader
-        title="Email accounts"
-        subtitle={
-          canManage
-            ? 'Connect mailboxes to send candidate and recruiter email from your own address instead of the platform default.'
-            : "Your organization's connected sender mailboxes. Ask an admin to add or manage one."
-        }
+        title="Your mailboxes"
+        subtitle="Email you send to candidates and your team goes out from your primary mailbox. Only you can see these."
         icon={
           <IconTile size="sm">
             <Mail />
           </IconTile>
         }
         action={
-          canManage ? (
-            <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => setConnectDialogOpen(true)}>
-              Connect account
-            </Button>
-          ) : undefined
+          <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => setConnectDialogOpen(true)}>
+            Connect account
+          </Button>
         }
       />
 
       {isLoading ? null : !accounts || accounts.length === 0 ? (
         <EmptyState
           title="No mailboxes connected"
-          description={
-            canManage
-              ? "Emails currently send from the platform's default address. Connect Gmail or a custom SMTP mailbox to send as your own team instead."
-              : "Emails currently send from the platform's default address. No organization mailbox has been connected yet."
-          }
-          action={canManage ? { label: 'Connect account', onClick: () => setConnectDialogOpen(true) } : undefined}
+          description="Your emails currently go out from the platform's default address. Connect Gmail or a custom SMTP mailbox to send as yourself."
+          action={{ label: 'Connect account', onClick: () => setConnectDialogOpen(true) }}
         />
       ) : (
         <ul className="space-y-3">
@@ -291,7 +255,7 @@ export function EmailAccountsSection() {
                     <p className="truncate text-hb-sm font-semibold text-hb-text">
                       {account.display_name || account.email_address}
                     </p>
-                    {account.is_default && <Badge tone="brand">Default</Badge>}
+                    {account.is_default && <Badge tone="brand">Primary</Badge>}
                     <Badge tone={statusTone(account.status)} dot>
                       {statusLabel(account.status)}
                     </Badge>
@@ -303,21 +267,19 @@ export function EmailAccountsSection() {
                     <p className="mt-0.5 truncate text-hb-xs text-hb-error">{account.last_error}</p>
                   )}
                 </div>
-                {canManage && needsReconnect(account) && (
+                {needsReconnect(account) && (
                   <Button size="sm" variant="ghost" icon={<Plug size={14} />} onClick={() => handleReconnect(account)}>
                     Reconnect
                   </Button>
                 )}
-                {canManage && (
-                  <button
-                    type="button"
-                    onClick={(e) => setContextMenu({ x: e.clientX, y: e.clientY, account })}
-                    aria-label={`More actions for ${account.email_address}`}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-full border border-hb-border bg-hb-surface-2/80 text-hb-muted transition-all duration-hb hover:border-hb-blue/40 hover:bg-hb-blue/10 hover:text-hb-blue focus-visible:outline-none focus-visible:shadow-hb-ring"
-                  >
-                    <MoreHorizontal size={15} aria-hidden />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => setContextMenu({ x: e.clientX, y: e.clientY, account })}
+                  aria-label={`More actions for ${account.email_address}`}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-hb-full border border-hb-border bg-hb-surface-2/80 text-hb-muted transition-all duration-hb hover:border-hb-blue/40 hover:bg-hb-blue/10 hover:text-hb-blue focus-visible:outline-none focus-visible:shadow-hb-ring"
+                >
+                  <MoreHorizontal size={15} aria-hidden />
+                </button>
               </div>
             </li>
           ))}

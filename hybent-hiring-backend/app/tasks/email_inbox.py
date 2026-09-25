@@ -1,10 +1,10 @@
 import logging
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 
 from app.core.celery_app import celery_app
 from app.core.database import AsyncSessionLocal, run_async
-from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountScope, EmailAccountStatus
+from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountStatus
 from app.services.email_inbox_service import EmailInboxService
 
 logger = logging.getLogger(__name__)
@@ -12,13 +12,12 @@ logger = logging.getLogger(__name__)
 
 async def _sync_all_inboxes_async():
     async with AsyncSessionLocal() as db:
-        # Only the accounts that actually back someone's inbox view: an org's
-        # primary (admin/super_admin) or a recruiter's personal mailbox.
+        # Every connected Gmail mailbox is its owner's inbox — an admin can
+        # switch between all of theirs, not just the primary.
         result = await db.execute(
             select(EmailAccount).where(
                 EmailAccount.provider == EmailAccountProvider.GMAIL,
                 EmailAccount.status == EmailAccountStatus.CONNECTED,
-                or_(EmailAccount.is_default == True, EmailAccount.scope == EmailAccountScope.PERSONAL),  # noqa: E712
             )
         )
         accounts = result.scalars().all()

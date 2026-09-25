@@ -38,6 +38,7 @@ from app.schemas.pre_screening import (
 from app.services import pre_screening_service as svc
 from app.services.ai.ai_evaluator import transcribe_audio
 from app.services.email_service import send_pre_screening_invite
+from app.services.email_accounts_service import resolve_sender_for_user
 from app.services.storage_service import save_audio
 
 logger = logging.getLogger(__name__)
@@ -214,6 +215,7 @@ async def create_session(
         job_title=job.title if job else (candidate.applied_job_title or "the role"),
         screening_url=screening_url,
         org_logo_url=org_logo,
+        email_account=await resolve_sender_for_user(db, current_user),
     )
 
     return {

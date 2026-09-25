@@ -10,6 +10,7 @@ from app.models.application import Application
 from app.models.job import Job
 from app.schemas.interview import InterviewCreate, InterviewUpdate, InterviewOut
 from app.services.calendar_service import create_calendar_event, cancel_calendar_event
+from app.services.email_accounts_service import resolve_sender_for_user
 from app.services.email_service import (
     send_interview_invite, 
     send_interviewer_invite,
@@ -239,7 +240,9 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
                 "user_email": u.email,
             })
 
-    # Send invite email to candidate and panelists
+    # Send invite email to candidate and panelists — from the scheduler's
+    # own mailbox when they've connected one.
+    sender = await resolve_sender_for_user(db, current_user)
     if org:
         tz = zoneinfo.ZoneInfo(org.timezone or "Asia/Kolkata")
         local_time = data.scheduled_at.astimezone(tz)
@@ -259,6 +262,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
             duration_minutes=data.duration_minutes,
             interview_type=data.interview_type,
             org_logo_url=org.logo_url if org else None,
+            email_account=sender,
         )
         
         for p_out in panelist_out:
@@ -274,6 +278,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
                 duration_minutes=data.duration_minutes,
                 interview_type=data.interview_type,
                 org_logo_url=org.logo_url if org else None,
+                email_account=sender,
             )
 
     await log_activity(
@@ -436,6 +441,7 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
         # Fetch job title/role using robust helper
         job_role = await _get_job_role(db, interview.application_id, interview.candidate_id)
 
+        sender = await resolve_sender_for_user(db, current_user)
         cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
         if cand:
             send_interview_reschedule(
@@ -446,7 +452,8 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
                 company_name=org.name if org else "the team",
                 old_time=old_time_str, new_time=new_time_str,
                 meeting_link=interview.meeting_link,
-                org_logo_url=org.logo_url if org else None
+                org_logo_url=org.logo_url if org else None,
+                email_account=sender,
             )
         
         panelists_result = await db.execute(select(InterviewPanelist).where(InterviewPanelist.interview_id == interview.id))
@@ -461,7 +468,8 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
                     company_name=org.name if org else "the team",
                     old_time=old_time_str, new_time=new_time_str,
                     meeting_link=interview.meeting_link,
-                    org_logo_url=org.logo_url if org else None
+                    org_logo_url=org.logo_url if org else None,
+                    email_account=sender,
                 )
 
     # Audit log — RESCHEDULE takes priority when time changed, else UPDATE
@@ -519,6 +527,7 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
     # Fetch job title/role using robust helper
     job_role = await _get_job_role(db, interview.application_id, interview.candidate_id)
 
+    sender = await resolve_sender_for_user(db, current_user)
     cand = (await db.execute(select(Candidate).where(Candidate.id == interview.candidate_id))).scalar_one_or_none()
     if cand:
         send_interview_cancellation(
@@ -528,7 +537,8 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
             job_role=job_role,
             company_name=org.name if org else "the team",
             scheduled_at=time_str, reason=reason,
-            org_logo_url=org.logo_url if org else None
+            org_logo_url=org.logo_url if org else None,
+            email_account=sender,
         )
     
     panelists_result = await db.execute(select(InterviewPanelist).where(InterviewPanelist.interview_id == interview.id))
@@ -542,7 +552,8 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
                 job_role=job_role,
                 company_name=org.name if org else "the team",
                 scheduled_at=time_str, reason=reason,
-                org_logo_url=org.logo_url if org else None
+                org_logo_url=org.logo_url if org else None,
+                email_account=sender,
             )
 
     # Trigger system notification
