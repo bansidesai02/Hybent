@@ -21,6 +21,17 @@ def _claimable_status():
     )
 
 
+def _stale_processing(stale_cutoff: datetime):
+    """"processing" with no live worker behind it: the lock is older than the
+    cutoff, or missing altogether. A missing lock used to compare as NULL —
+    neither stale nor fresh — so such a message was never selected nor
+    claimed again and stayed "processing" forever."""
+    return (EmailMessage.ingestion_status == EmailIngestionStatus.PROCESSING) & or_(
+        EmailMessage.ingestion_locked_at.is_(None),
+        EmailMessage.ingestion_locked_at < stale_cutoff,
+    )
+
+
 class EmailMessageRepository(BaseRepository[EmailMessage]):
     def __init__(self, db: AsyncSession):
         super().__init__(EmailMessage, db)
@@ -88,14 +99,26 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
                     # they were never *selected*, so the email stayed stuck in
                     # "processing" forever. Candidates it already made are
                     # skipped on resume (see _candidate_from_earlier_attempt).
-                    (EmailMessage.ingestion_status == EmailIngestionStatus.PROCESSING)
-                    & (EmailMessage.ingestion_locked_at < stale_cutoff),
+                    _stale_processing(stale_cutoff),
                 ),
             )
             .order_by(EmailMessage.received_at)
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def status_counts(self, email_account_id: uuid.UUID) -> dict[str, int]:
+        """How many of this mailbox's messages sit in each ingestion status —
+        logged per run, so it's visible when an email isn't being evaluated
+        because an earlier run already gave it a final status."""
+        from sqlalchemy import func
+
+        result = await self.db.execute(
+            select(EmailMessage.ingestion_status, func.count())
+            .where(EmailMessage.email_account_id == email_account_id)
+            .group_by(EmailMessage.ingestion_status)
+        )
+        return {(status or "unprocessed"): count for status, count in result.all()}
 
     async def link_first_candidate(self, message_id: uuid.UUID, candidate_id: uuid.UUID) -> None:
         """Record the message's first candidate as soon as it exists — not
@@ -134,8 +157,7 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
                 EmailMessage.id == message_id,
                 or_(
                     _claimable_status(),
-                    (EmailMessage.ingestion_status == EmailIngestionStatus.PROCESSING)
-                    & (EmailMessage.ingestion_locked_at < stale_cutoff),
+                    _stale_processing(stale_cutoff),
                 ),
             )
             .values(

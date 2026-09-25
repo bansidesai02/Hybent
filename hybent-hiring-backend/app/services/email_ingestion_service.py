@@ -110,6 +110,34 @@ class MemoryPause(Exception):
     """A message was paused to relieve memory; stop the rest of the batch."""
 
 
+# Evidence an email is a job application, used only to decide whether a
+# resume we *couldn't read* is worth keeping for review — readable documents
+# are judged on their content instead.
+_APPLICATION_WORDS = re.compile(
+    r"\b(cv|resume|résumé|biodata|bio-data|curriculum|application|applying|apply|candidate|candidature|"
+    r"job|position|opening|vacancy|role|hiring|interview|referral|refer|profile|fresher|experienced)\b",
+    re.IGNORECASE,
+)
+# Automated senders: statements, alerts, receipts. Never applicants.
+_AUTOMATED_SENDER = re.compile(
+    r"^(no-?reply|do-?not-?reply|alerts?|notifications?|notify|mailer-daemon|postmaster|"
+    r"newsletters?|updates|statements?|billing|invoices?|support|info|marketing)[._+-]|"
+    r"^(no-?reply|alerts?|notifications?|statements?|mailer-daemon)@|_alerts@",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_an_application(filename: str, subject: str | None, body: str | None, from_address: str | None) -> bool:
+    """Whether an unreadable attachment is plausibly a resume someone sent in:
+    the file is named like one, or the email reads like an application —
+    and it didn't come from an automated sender."""
+    if from_address and _AUTOMATED_SENDER.search(from_address):
+        return False
+    if _APPLICATION_WORDS.search(re.sub(r"[_\-.]+", " ", filename or "")):
+        return True
+    return bool(_APPLICATION_WORDS.search(f"{subject or ''} {(body or '')[:2000]}"))
+
+
 _FILENAME_NOISE = re.compile(
     r"\b(cv|resume|résumé|curriculum|vitae|updated|final|latest|new|copy|profile|scan|scanned|document|doc|file|img|image|attachment)\b|\(\d+\)|\d{2,}",
     re.IGNORECASE,
@@ -131,7 +159,8 @@ class NotAResume(Exception):
     identified as not a resume (by app.services.ai.resume_parser's content
     validation) — distinct from a transient parsing/infra failure, so the
     message can be marked SKIPPED_NOT_RESUME instead of FAILED, and no
-    placeholder candidate gets created from it."""
+    placeholder candidate gets created from it. Its message, when given, is
+    the reason shown next to the file in the Inbox."""
 
 
 class TransientParseError(Exception):
@@ -180,6 +209,21 @@ def _is_resume_document_type(attachment: dict) -> bool:
     return filename.endswith(RESUME_FILE_EXTENSIONS)
 
 
+def _why_not_a_candidate_file(attachment: dict) -> str | None:
+    """Why _select_attachments passes over this attachment (None = it qualifies)."""
+    if not attachment.get("filename"):
+        return "no filename (inline image / body part)"
+    if not _is_resume_document_type(attachment):
+        return f"not a PDF/DOC/DOCX ({attachment.get('mime_type')})"
+    if attachment.get("size", 0) and attachment["size"] > settings.max_file_size_bytes:
+        return f"too large ({attachment['size']} bytes > {settings.max_file_size_bytes})"
+    return None
+
+
+def _describe(attachment: dict) -> str:
+    return f"{attachment.get('filename') or '(no name)'} [{attachment.get('mime_type')}, {attachment.get('size', 0)} B]"
+
+
 def _select_attachments(attachments: list[dict]) -> list[dict]:
     """Every attachment that looks like a genuine resume attempt (has a
     filename, is a resume-shaped document type, is within the size limit),
@@ -226,6 +270,15 @@ class EmailApplicationIngestionService:
 
         counts = {"created": 0, "matched_existing": 0, "skipped": 0, "failed": 0}
         messages = await self.repo.get_unprocessed(account.id)
+        # Messages already given a final status by an earlier run are not
+        # evaluated again — the breakdown shows whether a "missing" email
+        # was simply decided before.
+        logger.info(
+            f"[ingest] {account.email_address}: {len(messages)} message(s) to evaluate; "
+            f"all messages by status: {await self.repo.status_counts(account.id)}"
+        )
+        for m in messages:
+            logger.info(f"[ingest]   queued msg={m.id} from={m.from_address} subject={m.subject!r} status={m.ingestion_status}")
         for i, message in enumerate(messages):
             if i:
                 await asyncio.sleep(PARSE_SPACING_SECONDS)
@@ -254,6 +307,7 @@ class EmailApplicationIngestionService:
         recording the retry, so process_account can stop its batch."""
         claimed = await self.repo.claim_for_processing(message.id)
         if not claimed:
+            logger.info(f"[ingest] msg={message.id}: not claimed — another run holds it or it was already processed")
             return None
         await self.db.commit()
         # The claim bumped ingestion_attempts in SQL; read it back.
@@ -263,6 +317,7 @@ class EmailApplicationIngestionService:
         try:
             full = gmail_provider.get_message_full(account, message.provider_message_id)
         except Exception as e:
+            logger.warning(f"[ingest] msg={message.id}: fetching the email from Gmail failed: {type(e).__name__}: {e}")
             # A Gmail/network failure says nothing about the email itself —
             # retry it like a transient parse failure until attempts run out.
             status = EmailIngestionStatus.FAILED if final_attempt else EmailIngestionStatus.RETRY_PENDING
@@ -274,13 +329,27 @@ class EmailApplicationIngestionService:
         message.has_attachments = bool(attachments)
 
         qualifying = _select_attachments(attachments)
+        logger.info(
+            f"[ingest] msg={message.id} gmail={message.provider_message_id} "
+            f"from={full.get('from_address') or message.from_address} subject={(full.get('subject') or message.subject)!r} "
+            f"attempt={message.ingestion_attempts}: {len(attachments)} attachment(s): "
+            f"{[_describe(a) for a in attachments]}; resume candidates: {[a['filename'] for a in qualifying]}"
+        )
+        for a in attachments:
+            reason = _why_not_a_candidate_file(a)
+            if reason:
+                logger.info(f"[ingest] msg={message.id}   ignoring {_describe(a)}: {reason}")
         if not qualifying:
+            logger.info(f"[ingest] msg={message.id} → skipped_not_resume (no PDF/DOC/DOCX attachment)")
             await self.repo.mark_result(message.id, EmailIngestionStatus.SKIPPED_NOT_RESUME)
             await self.db.commit()
             return "skipped"
 
         from_name = full.get("from_name") or message.from_name
         from_address = full.get("from_address") or message.from_address
+        # Subject and body — evidence for whether an unreadable file is an
+        # application at all (see _looks_like_an_application).
+        email_text = " ".join(filter(None, [full.get("subject") or message.subject, full.get("body_text")]))
         # With several resumes attached the sender is a referrer or agency,
         # not the candidate — their name and address must not stand in for
         # any one applicant's.
@@ -306,6 +375,7 @@ class EmailApplicationIngestionService:
             # same message — don't re-parse or spend credits on it again.
             done = await self._candidate_from_earlier_attempt(message, filename)
             if done:
+                logger.info(f"[ingest] msg={message.id}   {filename}: already created earlier as candidate {done.id} — skipping")
                 created.append(done.id)
                 continue
 
@@ -331,11 +401,14 @@ class EmailApplicationIngestionService:
                     candidate_id, status = await self._ingest_resume(
                         account, message, filename, attachment["mime_type"], file_bytes,
                         from_name, from_address, multi=multi, final_attempt=final_attempt,
+                        email_text=email_text,
                     )
-            except NotAResume:
-                note(filename, "Not a resume")
+            except NotAResume as e:
+                logger.info(f"[ingest] msg={message.id}   {filename}: skipped — {e or 'not a resume'}")
+                note(filename, str(e) or "Not a resume")
                 continue
             except TransientParseError as e:
+                logger.info(f"[ingest] msg={message.id}   {filename}: temporary failure, will retry — {e}")
                 retry = True
                 errors.append(f"{filename}: {e}")
                 note(filename, "Waiting to retry — AI parsing temporarily failed")
@@ -354,12 +427,15 @@ class EmailApplicationIngestionService:
                 await self.repo.link_first_candidate(message.id, candidate_id)
             await self.db.commit()
             if status == EmailIngestionStatus.CREATED:
+                logger.info(f"[ingest] msg={message.id}   {filename}: created candidate {candidate_id}")
                 created.append(candidate_id)
                 await self._announce_candidate(account, candidate_id)
             elif status == EmailIngestionStatus.MATCHED_EXISTING:
+                logger.info(f"[ingest] msg={message.id}   {filename}: matched existing candidate {candidate_id} — no new candidate")
                 matched.append(candidate_id)
                 note(filename, "Already a candidate")
             else:
+                logger.info(f"[ingest] msg={message.id}   {filename}: skipped — rejected as not a resume")
                 note(filename, "Not a resume")
 
             # Heavy PDFs (and OCR) add up over a big batch. Stop *between*
@@ -384,7 +460,9 @@ class EmailApplicationIngestionService:
         error = "\n".join(notes + ([""] + errors if errors else []))[:4000] or None
         first_candidate = (created or matched or [None])[0]
 
+        summary = f"created={len(created)} matched={len(matched)} errors={len(errors)} notes={len(notes)}"
         if retry:
+            logger.info(f"[ingest] msg={message.id} → retry_pending ({summary})")
             await self.repo.mark_result(
                 message.id, EmailIngestionStatus.RETRY_PENDING, candidate_id=first_candidate, error=error
             )
@@ -402,6 +480,7 @@ class EmailApplicationIngestionService:
         else:
             status, outcome = EmailIngestionStatus.SKIPPED_NOT_RESUME, "skipped"
 
+        logger.info(f"[ingest] msg={message.id} → {status} ({summary})")
         await self.repo.mark_result(message.id, status, candidate_id=first_candidate, error=error)
         await self.db.commit()
         return outcome
@@ -449,6 +528,7 @@ class EmailApplicationIngestionService:
         *,
         multi: bool = False,
         final_attempt: bool = True,
+        email_text: str | None = None,
     ) -> tuple[uuid.UUID | None, str]:
         """Create (or match) the candidate for one resume attachment.
 
@@ -457,6 +537,10 @@ class EmailApplicationIngestionService:
         `final_attempt`: on a transient parse failure, fall back to a
         header-only candidate instead of raising TransientParseError."""
         organization_id = account.organization_id
+
+        # The real sender, kept for judging unreadable files even when the
+        # headers below stop standing in for the applicant.
+        sender_address = from_address
 
         # With several resumes the sender is not the applicant — only their
         # own resumes identify them.
@@ -469,6 +553,10 @@ class EmailApplicationIngestionService:
         if header_email:
             existing = await self._find_existing_candidate(organization_id, header_email)
             if existing:
+                logger.info(
+                    f"[ingest] msg={message.id}   {filename}: sender {header_email} is already candidate "
+                    f"{existing.id} ({existing.full_name}) — matched without parsing"
+                )
                 return await self._link_duplicate(message, existing, account, from_address, from_name)
 
         # A resume mislabeled with a generic/wrong content-type (some mail
@@ -489,21 +577,34 @@ class EmailApplicationIngestionService:
 
         unreadable = False
         try:
-            from app.services.ai.resume_parser import UnreadableDocumentError, parse_resume
+            from app.services.ai.resume_parser import (
+                ProtectedDocumentError, UnreadableDocumentError, parse_resume,
+            )
             parsed = await parse_resume(
                 file_bytes, mime_type, filename,
                 background_tasks=None, user_id=None, organization_id=organization_id,
             )
+        except ProtectedDocumentError:
+            # Locked with a password just to open it: bank/broker/exchange
+            # statements (e.g. NSE's, locked with a PAN), almost never a resume.
+            # These were being kept "for review" as a candidate named after
+            # the sender.
+            logger.info(f"Message {message.id}: {filename} is password-protected; skipping")
+            raise NotAResume("Password-protected PDF — skipped")
         except UnreadableDocumentError:
-            # No text even after OCR (a very poor scan, a photo, a protected
-            # file). Unlike a confident "not a resume", nothing is known about
-            # the content — it used to be dropped as not-a-resume, silently
-            # losing real applications. Keep it for a human to open instead.
+            # No text even after OCR (a very poor scan, a photo). Nothing is
+            # known about the content, so keep it for a human — but only when
+            # the email plausibly is an application; an alert or statement
+            # from an automated sender must not become a "candidate".
+            if not _looks_like_an_application(filename, message.subject, email_text, sender_address):
+                logger.info(f"Message {message.id}: {filename} is unreadable and not an application; skipping")
+                raise NotAResume("Couldn't be read, and the email doesn't look like an application")
             logger.info(f"Message {message.id}: {filename} is unreadable; keeping it for manual review")
             parsed = dict(_EMPTY_PARSED_RESUME)
             unreadable = True
         except HTTPException as e:
             if e.status_code == 400:
+                logger.info(f"[ingest] msg={message.id}   {filename}: parser rejected it — {e.detail}")
                 # parse_resume's own content check confidently rejected this
                 # (too short, unsupported format, or failed the "is this
                 # actually a resume" classifier) — respect that instead of
@@ -530,6 +631,10 @@ class EmailApplicationIngestionService:
 
         existing = await self._find_existing_candidate(organization_id, email)
         if existing:
+            logger.info(
+                f"[ingest] msg={message.id}   {filename}: resume email {email} is already candidate "
+                f"{existing.id} ({existing.full_name}) — matched"
+            )
             return await self._link_duplicate(message, existing, account, from_address, from_name)
 
         candidate_skills_list = parsed.get("skills") or []

@@ -829,3 +829,84 @@ async def test_memory_pause_keeps_progress_and_continues_next_run(db_session, or
         select(func.count()).select_from(Candidate).where(Candidate.source_email_message_id == message.id)
     )).scalar()
     assert count == 3
+
+
+# ─── Statements and alerts must not become candidates ──────────────────────
+
+async def _ingest_single(db_session, organization, *, from_address, subject, filename, parse_error, body="Please see attached"):
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = EmailMessage(
+        organization_id=organization.id, email_account_id=account.id, provider_message_id="m-alert",
+        from_address=from_address, from_name=from_address.split("@")[0], subject=subject,
+    )
+    db_session.add(message)
+    await db_session.commit()
+    await db_session.refresh(message)
+    payload = {
+        "body_text": body, "body_html": None, "from_name": message.from_name, "from_address": from_address,
+        "subject": subject,
+        "attachments": [{"filename": filename, "mime_type": "application/pdf", "size": 100, "inline_data": "x"}],
+    }
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=payload), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch("app.services.ai.resume_parser.parse_resume", new=AsyncMock(side_effect=parse_error)):
+        outcome = await EmailApplicationIngestionService(db_session).process_message(account, message)
+    await db_session.refresh(message)
+    return outcome, message
+
+
+async def test_password_protected_statement_is_skipped_not_made_a_candidate(db_session, organization):
+    """The NSE case: a PAN-locked statement became a candidate named "nse_alerts"."""
+    from app.services.ai.resume_parser import ProtectedDocumentError
+
+    outcome, message = await _ingest_single(
+        db_session, organization, from_address="nse_alerts@nse.co.in", subject="Funds/Securities Balance",
+        filename="Statement.pdf", parse_error=ProtectedDocumentError(),
+    )
+    assert outcome == "skipped"
+    assert message.ingestion_result_candidate_id is None
+    assert "Statement.pdf\tPassword-protected PDF — skipped" in message.ingestion_error
+
+
+async def test_unreadable_file_from_an_automated_sender_is_skipped(db_session, organization):
+    from app.services.ai.resume_parser import UnreadableDocumentError
+
+    outcome, message = await _ingest_single(
+        db_session, organization, from_address="alerts@bank.com", subject="Your monthly statement",
+        filename="statement.pdf", parse_error=UnreadableDocumentError(),
+    )
+    assert outcome == "skipped"
+    assert message.ingestion_result_candidate_id is None
+
+
+async def test_unreadable_file_in_an_application_email_is_kept_for_review(db_session, organization):
+    from app.services.ai.resume_parser import UnreadableDocumentError
+
+    outcome, message = await _ingest_single(
+        db_session, organization, from_address="priya@gmail.com", subject="Application for Backend Developer",
+        filename="scan_0001.pdf", parse_error=UnreadableDocumentError(), body="Please find my resume attached.",
+    )
+    assert outcome == "created"
+    candidate = await db_session.get(Candidate, message.ingestion_result_candidate_id)
+    assert candidate.pipeline_stage == "needs_review"
+    assert "couldn't be read automatically" in candidate.hr_notes
+
+
+async def test_processing_with_no_lock_time_is_resumed_not_stuck(db_session, organization):
+    """The production "Cv" email: status "processing" with no lock time — the
+    staleness check compared NULL and never matched, so it sat forever."""
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+    message.ingestion_status = EmailIngestionStatus.PROCESSING
+    message.ingestion_locked_at = None
+    await db_session.commit()
+
+    repo = EmailMessageRepository(db_session)
+    assert message in await repo.get_unprocessed(account.id)
+    assert await repo.claim_for_processing(message.id) is True

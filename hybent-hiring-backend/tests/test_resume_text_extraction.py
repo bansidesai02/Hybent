@@ -53,3 +53,43 @@ async def test_unreadable_pdf_raises_unreadable_not_plain_not_a_resume():
 def test_ocr_skipped_cleanly_when_tesseract_missing():
     with patch("pytesseract.get_tesseract_version", side_effect=OSError("tesseract not found")):
         assert rp._pdf_text_ocr(b"%PDF") == ""
+
+
+def _locked_pdf(password="ABCDE1234F") -> bytes:
+    """A one-page PDF that needs a password to open, like an NSE statement."""
+    import io
+    import pypdfium2 as pdfium
+    from PyPDF2 import PdfReader, PdfWriter
+
+    doc = pdfium.PdfDocument.new()
+    doc.new_page(612, 792)
+    plain = io.BytesIO()
+    doc.save(plain)
+    doc.close()
+    writer = PdfWriter()
+    for page in PdfReader(io.BytesIO(plain.getvalue())).pages:
+        writer.add_page(page)
+    writer.encrypt(password)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+async def test_password_protected_pdf_is_reported_as_protected_not_unreadable():
+    locked = _locked_pdf()
+    assert rp.is_password_protected_pdf(locked) is True
+    with pytest.raises(rp.ProtectedDocumentError) as exc:
+        await rp.parse_resume(locked, "application/pdf", "Statement.pdf")
+    assert not isinstance(exc.value, rp.UnreadableDocumentError)
+    assert "password-protected" in exc.value.detail
+
+
+def test_an_ordinary_pdf_is_not_password_protected():
+    import io
+    import pypdfium2 as pdfium
+
+    doc = pdfium.PdfDocument.new()
+    doc.new_page(612, 792)
+    buf = io.BytesIO()
+    doc.save(buf)
+    assert rp.is_password_protected_pdf(buf.getvalue()) is False

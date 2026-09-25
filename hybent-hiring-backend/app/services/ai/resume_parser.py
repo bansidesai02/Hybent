@@ -50,6 +50,16 @@ class NotAResumeError(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
+class ProtectedDocumentError(NotAResumeError):
+    """The PDF is locked with a password needed just to open it. Resumes are
+    practically never sent like that; bank, broker and exchange statements
+    (locked with a PAN or date of birth) routinely are — so email ingestion
+    skips these rather than keeping them for review."""
+
+    def __init__(self):
+        super().__init__("This PDF is password-protected — remove the password and upload it again.")
+
+
 class UnreadableDocumentError(NotAResumeError):
     """No text could be extracted, even with OCR — a very poor scan, a photo,
     or a password-protected file. Distinct from "read it, and it isn't a
@@ -277,6 +287,18 @@ _PDF_EXTRACTORS = (
     ("pypdf2", _pdf_text_pypdf2),
     ("ocr", _pdf_text_ocr),
 )
+
+
+def is_password_protected_pdf(content: bytes) -> bool:
+    """True when the PDF needs a password just to be opened. Owner-password
+    PDFs ("protected" against editing, readable by anyone) return False."""
+    try:
+        from PyPDF2 import PdfReader
+
+        reader = PdfReader(io.BytesIO(content))
+        return bool(reader.is_encrypted) and not reader.decrypt("")
+    except Exception:
+        return False
 
 
 def extract_text_from_pdf(content: bytes) -> str:
@@ -806,6 +828,9 @@ async def parse_resume(
         raise NotAResumeError()
 
     if not text or len(text.strip()) < MIN_TEXT_CHARS:
+        if file_type == "pdf" and is_password_protected_pdf(file_content):
+            logger.info(f"Resume {filename!r} is a password-protected PDF")
+            raise ProtectedDocumentError()
         logger.warning(f"Could not extract usable text from resume {filename!r} ({len((text or '').strip())} chars)")
         raise UnreadableDocumentError()
 
