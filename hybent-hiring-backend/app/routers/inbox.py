@@ -98,6 +98,13 @@ async def get_inbox_message(
     # which is how each attachment finds the candidate it became.
     by_filename = {c.resume_filename: c for c in candidates if c.source_email_message_id == message.id}
 
+    # Per-attachment outcomes recorded by ingestion: "filename<TAB>reason" lines.
+    outcomes = {
+        line.split("\t", 1)[0]: line.split("\t", 1)[1]
+        for line in (message.ingestion_error or "").splitlines()
+        if "\t" in line
+    }
+
     detail = EmailMessageDetail.model_validate(message)
     detail.candidate_count = len(candidates)
     detail.body_html = body.get("body_html")
@@ -114,6 +121,7 @@ async def get_inbox_message(
             size=a.get("size") or 0,
             candidate_id=str(by_filename[a["filename"]].id) if a["filename"] in by_filename else None,
             candidate_name=by_filename[a["filename"]].full_name if a["filename"] in by_filename else None,
+            outcome=None if a["filename"] in by_filename else outcomes.get(a["filename"]),
         )
         for i, a in enumerate(body.get("attachments") or [])
     ]

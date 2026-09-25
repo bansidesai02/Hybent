@@ -50,6 +50,20 @@ class NotAResumeError(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
+class UnreadableDocumentError(NotAResumeError):
+    """No text could be extracted, even with OCR — a very poor scan, a photo,
+    or a password-protected file. Distinct from "read it, and it isn't a
+    resume": nothing is known about the content, so email ingestion keeps the
+    file for a human to review instead of discarding it. Still a
+    NotAResumeError (400) for manual upload, with a message that says why."""
+
+    def __init__(self):
+        super().__init__(
+            "We couldn't read any text from this file — it may be a low-quality scan or "
+            "password-protected. Try a text-based PDF or DOCX."
+        )
+
+
 # ─── Pydantic schema ────────────────────────────────────────────────────────────
 
 def _drop_nulls(data):
@@ -178,19 +192,115 @@ Return ONLY a valid JSON object with this exact structure (use null if not found
 
 # ─── Text extraction ─────────────────────────────────────────────────────────────
 
-def extract_text_from_pdf(content: bytes) -> str:
-    """Extract text using pdfplumber — preserves layout, handles tables and multi-column."""
+# Below this many characters a document has no usable text layer — it is a
+# scan, a photo, or protected — and the next extractor (finally OCR) is tried.
+MIN_TEXT_CHARS = 150
+
+# OCR is the slow path (~1-3s a page), so it stops after the first pages; a
+# resume's identity, experience and skills are on page one or two anyway.
+OCR_MAX_PAGES = 5
+OCR_DPI = 200
+
+
+def _pdf_text_pdfplumber(content: bytes) -> str:
+    """Layout-preserving; handles tables and multi-column resumes best."""
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        parts = [page.extract_text(x_tolerance=3, y_tolerance=3) or "" for page in pdf.pages]
+    return "\n".join(p for p in parts if p).strip()
+
+
+def _pdf_text_pdfium(content: bytes) -> str:
+    """Chrome's PDF engine (a pdfplumber dependency) — opens many files
+    pdfminer chokes on (odd exporters, broken xref tables)."""
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(content)
     try:
-        with pdfplumber.open(io.BytesIO(content)) as pdf:
-            text = ""
-            for page in pdf.pages:
-                page_text = page.extract_text(x_tolerance=3, y_tolerance=3)
-                if page_text:
-                    text += page_text + "\n"
-        return text.strip()
+        parts = []
+        for page in pdf:
+            textpage = page.get_textpage()
+            parts.append(textpage.get_text_range())
+            textpage.close()
+            page.close()
+        return "\n".join(parts).strip()
+    finally:
+        pdf.close()
+
+
+def _pdf_text_pypdf2(content: bytes) -> str:
+    """Also opens PDFs that are encrypted with only an owner password (no
+    password needed to read) — common for resumes exported "protected"."""
+    from PyPDF2 import PdfReader
+
+    reader = PdfReader(io.BytesIO(content))
+    if reader.is_encrypted:
+        reader.decrypt("")
+    return "\n".join((page.extract_text() or "") for page in reader.pages).strip()
+
+
+_ocr_unavailable_logged = False
+
+
+def _pdf_text_ocr(content: bytes) -> str:
+    """Tesseract OCR over page images, for scanned or image-only resumes.
+    Pages are rendered with pypdfium2 — no extra system packages beyond
+    tesseract itself (installed in the Dockerfile)."""
+    global _ocr_unavailable_logged
+    try:
+        import pytesseract
+        pytesseract.get_tesseract_version()
     except Exception as e:
-        logger.error(f"pdfplumber extraction failed: {e}")
+        if not _ocr_unavailable_logged:
+            logger.warning(f"OCR unavailable (tesseract not installed?): {type(e).__name__}: {e}")
+            _ocr_unavailable_logged = True
         return ""
+
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(content)
+    try:
+        parts = []
+        for index in range(min(len(pdf), OCR_MAX_PAGES)):
+            page = pdf[index]
+            # Grayscale at 200 DPI: accurate enough for print, ~4MB a page.
+            image = page.render(scale=OCR_DPI / 72, grayscale=True).to_pil()
+            parts.append(pytesseract.image_to_string(image, lang="eng"))
+            page.close()
+        return "\n".join(parts).strip()
+    finally:
+        pdf.close()
+
+
+_PDF_EXTRACTORS = (
+    ("pdfplumber", _pdf_text_pdfplumber),
+    ("pdfium", _pdf_text_pdfium),
+    ("pypdf2", _pdf_text_pypdf2),
+    ("ocr", _pdf_text_ocr),
+)
+
+
+def extract_text_from_pdf(content: bytes) -> str:
+    """Extract a resume PDF's text, trying each extractor in turn until one
+    yields a usable amount: three text-layer readers, then OCR for scans.
+
+    Every failure is logged with its exception type — pdfminer's errors often
+    have an empty message, which is why failures used to log as just
+    "pdfplumber extraction failed: " with no clue what went wrong."""
+    best = ""
+    for name, extract in _PDF_EXTRACTORS:
+        try:
+            text = extract(content)
+        except Exception as e:
+            logger.warning(f"PDF text extraction via {name} failed: {type(e).__name__}: {str(e) or 'no message'}")
+            continue
+        if len(text) >= MIN_TEXT_CHARS:
+            if name != "pdfplumber":
+                logger.info(f"PDF text extracted via {name} ({len(text)} chars)")
+            return text
+        if len(text) > len(best):
+            best = text
+    logger.warning(f"No extractor found a usable text layer in this PDF (best: {len(best)} chars)")
+    return best
 
 
 def extract_text_from_docx(content: bytes) -> str:
@@ -695,9 +805,9 @@ async def parse_resume(
         logger.warning(f"Unsupported resume format or content type: {content_type}")
         raise NotAResumeError()
 
-    if not text or len(text.strip()) < 150:
-        logger.warning("Could not extract text or text too short from resume")
-        raise NotAResumeError()
+    if not text or len(text.strip()) < MIN_TEXT_CHARS:
+        logger.warning(f"Could not extract usable text from resume {filename!r} ({len((text or '').strip())} chars)")
+        raise UnreadableDocumentError()
 
     # Perform strict document validation
     if groq_client:

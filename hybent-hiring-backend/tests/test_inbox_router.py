@@ -237,3 +237,50 @@ async def test_admin_can_switch_between_their_own_mailboxes(client, db_session, 
     assert sorted(m["email_address"] for m in default_view["mailboxes"]) == ["one@acme.com", "two@acme.com"]
     switched = (await client.get("/v1/inbox", params={"account_id": str(second.id)}, headers=admin_headers)).json()["data"]
     assert switched["account"]["email_address"] == "two@acme.com"
+
+
+async def test_partly_processed_email_still_shows_with_per_file_outcomes(
+    client, db_session, organization, admin_user, admin_headers
+):
+    """5 of 9 done, the rest retrying: it used to vanish from the Inbox until
+    every attachment finished."""
+    from app.models.candidate import Candidate
+    from app.models.email_account import EmailAccount, EmailAccountProvider
+    from app.models.email_message import EmailIngestionStatus, EmailMessage
+
+    account = EmailAccount(
+        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="me@acme.com",
+        is_default=True, connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+    )
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = EmailMessage(
+        organization_id=organization.id, email_account_id=account.id, provider_message_id="m1",
+        subject="Profiles", ingestion_status=EmailIngestionStatus.RETRY_PENDING,
+        ingestion_error="scan.pdf\tWaiting to retry — AI parsing temporarily failed\ninvoice.pdf\tNot a resume",
+    )
+    db_session.add(message)
+    await db_session.commit()
+    await db_session.refresh(message)
+    good = Candidate(organization_id=organization.id, email="a@x.com", full_name="A", source="email",
+                     source_email_message_id=message.id, resume_filename="a.pdf")
+    db_session.add(good)
+    await db_session.commit()
+    await db_session.refresh(good)
+    message.ingestion_result_candidate_id = good.id
+    await db_session.commit()
+
+    listed = (await client.get("/v1/inbox", headers=admin_headers)).json()["data"]["messages"]
+    assert [(m["subject"], m["ingestion_status"], m["candidate_count"]) for m in listed] == [("Profiles", "retry_pending", 1)]
+
+    full = {"body_text": "hi", "attachments": [
+        {"filename": n, "mime_type": "application/pdf", "size": 1, "inline_data": "eA"} for n in ("a.pdf", "scan.pdf", "invoice.pdf")
+    ]}
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=full):
+        detail = (await client.get(f"/v1/inbox/{message.id}", headers=admin_headers)).json()["data"]
+    assert [(a["filename"], a["candidate_name"], a["outcome"]) for a in detail["attachments"]] == [
+        ("a.pdf", "A", None),
+        ("scan.pdf", None, "Waiting to retry — AI parsing temporarily failed"),
+        ("invoice.pdf", None, "Not a resume"),
+    ]

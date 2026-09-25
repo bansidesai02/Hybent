@@ -27,6 +27,7 @@ Candidate.source_email_message_id/source_email_account_id and in the
 AuditLog `details`, so it's still clear this wasn't a manual upload.
 """
 import asyncio
+import gc
 import logging
 import re
 import uuid
@@ -73,6 +74,56 @@ MAX_RESUMES_PER_EMAIL = 10
 # Spacing between AI parses within a batch, so ingestion doesn't trip the
 # provider's rate limit on its own.
 PARSE_SPACING_SECONDS = 0.5
+
+# Pause a message (keeping its progress) and end the batch once the container
+# uses this share of its memory limit, so the next run continues with a fresh
+# worker instead of the container being killed mid-PDF. On Render's free plan
+# the API, the Celery worker and beat share one 512Mi container.
+MEMORY_PAUSE_FRACTION = 0.80
+# Fallback when the container limit isn't visible: this process's own RSS.
+MEMORY_PAUSE_RSS_MB = 350
+
+
+def _memory_pressure() -> tuple[bool, str]:
+    """(over the pause threshold?, human-readable usage). Uses the cgroup v2
+    container figures (what an out-of-memory kill is judged on) when present,
+    else this process's resident memory."""
+    try:
+        with open("/sys/fs/cgroup/memory.current") as f:
+            used = int(f.read())
+        with open("/sys/fs/cgroup/memory.max") as f:
+            raw = f.read().strip()
+        if raw != "max":
+            limit = int(raw)
+            return used >= limit * MEMORY_PAUSE_FRACTION, f"container {used >> 20}/{limit >> 20} MiB"
+    except (OSError, ValueError):
+        pass
+    try:
+        import psutil
+        rss = psutil.Process().memory_info().rss
+        return rss >= MEMORY_PAUSE_RSS_MB << 20, f"process {rss >> 20} MiB"
+    except Exception:
+        return False, "unknown"
+
+
+class MemoryPause(Exception):
+    """A message was paused to relieve memory; stop the rest of the batch."""
+
+
+_FILENAME_NOISE = re.compile(
+    r"\b(cv|resume|résumé|curriculum|vitae|updated|final|latest|new|copy|profile|scan|scanned|document|doc|file|img|image|attachment)\b|\(\d+\)|\d{2,}",
+    re.IGNORECASE,
+)
+
+
+def _name_from_filename(filename: str) -> str | None:
+    """'Aman_Kariyania CV (1).pdf' -> 'Aman Kariyania'. The best available
+    name when the resume itself can't be read and the sender isn't the
+    applicant (several resumes in one email)."""
+    stem = re.sub(r"\.[A-Za-z0-9]{2,5}$", "", filename or "")
+    words = _FILENAME_NOISE.sub(" ", re.sub(r"[_\-.]+", " ", stem)).split()
+    name = " ".join(w.capitalize() if w.islower() or w.isupper() else w for w in words)
+    return name or None
 
 
 class NotAResume(Exception):
@@ -186,6 +237,11 @@ class EmailApplicationIngestionService:
                 counts["retry"] = counts.get("retry", 0) + 1
                 logger.warning(f"AI credits exhausted for {account.email_address}; deferring the rest of this batch")
                 break
+            except MemoryPause:
+                counts["paused"] = counts.get("paused", 0) + 1
+                # Let the worker child be recycled (--max-memory-per-child
+                # acts between tasks) before taking on more.
+                raise
             except Exception as e:
                 logger.warning(f"Email ingestion failed for message {message.id} on {account.email_address}: {e}")
         return counts
@@ -233,6 +289,13 @@ class EmailApplicationIngestionService:
         created: list[uuid.UUID] = []
         matched: list[uuid.UUID] = []
         errors: list[str] = []
+        # Why each attachment that didn't become a new candidate didn't —
+        # stored on the message and shown next to the file in the Inbox, so a
+        # "5 of 9 resumes" email is explainable instead of silent.
+        notes: list[str] = []
+
+        def note(filename: str, reason: str) -> None:
+            notes.append(f"{filename}\t{reason}")
         retry = False
         credits_exhausted = False
 
@@ -248,12 +311,14 @@ class EmailApplicationIngestionService:
 
             if credits_exhausted:
                 retry = True
+                note(filename, "Waiting to retry — AI credits exhausted")
                 continue
 
             try:
                 file_bytes = gmail_provider.get_attachment_content(account, message.provider_message_id, attachment)
             except Exception as e:
                 errors.append(f"{filename}: attachment fetch failed: {e}")
+                note(filename, "Waiting to retry — couldn't download it" if not final_attempt else "Couldn't download it")
                 if not final_attempt:
                     retry = True
                 continue
@@ -268,28 +333,55 @@ class EmailApplicationIngestionService:
                         from_name, from_address, multi=multi, final_attempt=final_attempt,
                     )
             except NotAResume:
+                note(filename, "Not a resume")
                 continue
             except TransientParseError as e:
                 retry = True
                 errors.append(f"{filename}: {e}")
+                note(filename, "Waiting to retry — AI parsing temporarily failed")
                 if isinstance(e, CreditsExhausted):
                     credits_exhausted = True
                 continue
             except Exception as e:
                 logger.exception(f"Email ingestion failed to create candidate from {filename} on message {message.id}")
                 errors.append(f"{filename}: {e}")
+                note(filename, "Failed to process")
                 continue
 
             # Commit per attachment, so a later failure can't roll back a
             # candidate that was already created successfully.
+            if status in (EmailIngestionStatus.CREATED, EmailIngestionStatus.MATCHED_EXISTING):
+                await self.repo.link_first_candidate(message.id, candidate_id)
             await self.db.commit()
             if status == EmailIngestionStatus.CREATED:
                 created.append(candidate_id)
                 await self._announce_candidate(account, candidate_id)
             elif status == EmailIngestionStatus.MATCHED_EXISTING:
                 matched.append(candidate_id)
+                note(filename, "Already a candidate")
+            else:
+                note(filename, "Not a resume")
 
-        error = "\n".join(errors)[:2000] or None
+            # Heavy PDFs (and OCR) add up over a big batch. Stop *between*
+            # attachments before the container is killed mid-file; every run
+            # still finishes at least one attachment, so it always progresses.
+            is_last = attachment is qualifying[-1]
+            over, usage = _memory_pressure()
+            if over and not is_last:
+                logger.warning(
+                    f"Pausing message {message.id} after {filename} to free memory ({usage}); "
+                    "continuing on the next run"
+                )
+                gc.collect()
+                await self.repo.pause_for_next_run(
+                    message.id, "\n".join(notes + ["", f"Paused to free memory ({usage}); continuing next run"])
+                )
+                await self.db.commit()
+                raise MemoryPause(usage)
+
+        # Per-file outcomes (tab-separated, read back by the Inbox) — kept
+        # alongside the raw errors for debugging.
+        error = "\n".join(notes + ([""] + errors if errors else []))[:4000] or None
         first_candidate = (created or matched or [None])[0]
 
         if retry:
@@ -395,12 +487,21 @@ class EmailApplicationIngestionService:
             # "candidate."
             return None, EmailIngestionStatus.SKIPPED_NOT_RESUME
 
+        unreadable = False
         try:
-            from app.services.ai.resume_parser import parse_resume
+            from app.services.ai.resume_parser import UnreadableDocumentError, parse_resume
             parsed = await parse_resume(
                 file_bytes, mime_type, filename,
                 background_tasks=None, user_id=None, organization_id=organization_id,
             )
+        except UnreadableDocumentError:
+            # No text even after OCR (a very poor scan, a photo, a protected
+            # file). Unlike a confident "not a resume", nothing is known about
+            # the content — it used to be dropped as not-a-resume, silently
+            # losing real applications. Keep it for a human to open instead.
+            logger.info(f"Message {message.id}: {filename} is unreadable; keeping it for manual review")
+            parsed = dict(_EMPTY_PARSED_RESUME)
+            unreadable = True
         except HTTPException as e:
             if e.status_code == 400:
                 # parse_resume's own content check confidently rejected this
@@ -418,7 +519,7 @@ class EmailApplicationIngestionService:
         except Exception as e:
             parsed = self._parse_failed(message, filename, e, final_attempt)
 
-        full_name = parsed.get("full_name") or from_name or "Unknown Candidate"
+        full_name = parsed.get("full_name") or from_name or _name_from_filename(filename) or "Unknown Candidate"
         email = parsed.get("email") or from_address
         if not email:
             clean_name = re.sub(r"[^a-zA-Z0-9]", "", full_name.lower()) or "applicant"
@@ -485,6 +586,12 @@ class EmailApplicationIngestionService:
             match_score=score,
             score_breakdown=breakdown,
             parsed_data=parsed,
+            hr_notes=(
+                f"Added from email, but the attached resume ({filename}) couldn't be read automatically "
+                "— it may be a low-quality scan or password-protected. Open the resume file to review "
+                "and fill in the details."
+                if unreadable else None
+            ),
         )
         apply_experience_fields(candidate, parsed)
         self.db.add(candidate)

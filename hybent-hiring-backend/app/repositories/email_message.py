@@ -39,9 +39,17 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
     ) -> list[EmailMessage]:
         query = select(EmailMessage).where(EmailMessage.email_account_id == email_account_id)
         if resumes_only:
-            # Only mail the ingestion pass turned into (or matched to) a
-            # candidate — the rest of a mailbox is newsletters and alerts.
-            query = query.where(EmailMessage.ingestion_status.in_(RESUME_STATUSES))
+            # Mail the ingestion pass turned into (or matched to) a candidate —
+            # the rest of a mailbox is newsletters and alerts. Includes
+            # messages still retrying some attachments (or that failed on the
+            # rest) once they've produced a candidate: an email with 5 of 9
+            # resumes done used to vanish from the Inbox while it retried.
+            query = query.where(
+                or_(
+                    EmailMessage.ingestion_status.in_(RESUME_STATUSES),
+                    EmailMessage.ingestion_result_candidate_id.is_not(None),
+                )
+            )
         result = await self.db.execute(
             query
             .order_by(desc(EmailMessage.received_at))
@@ -59,23 +67,60 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
         )
         return result.scalar_one_or_none()
 
-    async def get_unprocessed(self, email_account_id: uuid.UUID, limit: int = 25) -> list[EmailMessage]:
+    async def get_unprocessed(
+        self, email_account_id: uuid.UUID, limit: int = 25, stale_after_minutes: int = 15
+    ) -> list[EmailMessage]:
         """Messages on this account not yet through the auto-candidate-
         ingestion pass. Whether a message actually has an attachment worth
         acting on isn't known until its full body is fetched (Gmail's cheap
         metadata format doesn't expose attachment parts) — so this can't
         pre-filter on has_attachments; that column is set as a side effect of
         processing, for display purposes, not as a query filter here."""
+        stale_cutoff = datetime.now(timezone.utc) - timedelta(minutes=stale_after_minutes)
         result = await self.db.execute(
             select(EmailMessage)
             .where(
                 EmailMessage.email_account_id == email_account_id,
-                _claimable_status(),
+                or_(
+                    _claimable_status(),
+                    # A worker died mid-message (e.g. the container ran out of
+                    # memory). claim_for_processing already reclaims these, but
+                    # they were never *selected*, so the email stayed stuck in
+                    # "processing" forever. Candidates it already made are
+                    # skipped on resume (see _candidate_from_earlier_attempt).
+                    (EmailMessage.ingestion_status == EmailIngestionStatus.PROCESSING)
+                    & (EmailMessage.ingestion_locked_at < stale_cutoff),
+                ),
             )
             .order_by(EmailMessage.received_at)
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def link_first_candidate(self, message_id: uuid.UUID, candidate_id: uuid.UUID) -> None:
+        """Record the message's first candidate as soon as it exists — not
+        only at the end — so the Inbox shows the email while its remaining
+        attachments are still being processed (or if the worker dies)."""
+        await self.db.execute(
+            update(EmailMessage)
+            .where(EmailMessage.id == message_id, EmailMessage.ingestion_result_candidate_id.is_(None))
+            .values(ingestion_result_candidate_id=candidate_id)
+        )
+
+    async def pause_for_next_run(self, message_id: uuid.UUID, notes: str | None) -> None:
+        """Hand a half-done message back for the next run without using up an
+        attempt — a memory pause isn't a failure. Progress is kept: attachments
+        already turned into candidates are skipped next time."""
+        await self.db.execute(
+            update(EmailMessage)
+            .where(EmailMessage.id == message_id)
+            .values(
+                ingestion_status=None,
+                ingestion_attempts=EmailMessage.ingestion_attempts - 1,
+                ingestion_locked_at=None,
+                ingestion_error=notes,
+            )
+        )
 
     async def claim_for_processing(self, message_id: uuid.UUID, stale_after_minutes: int = 15) -> bool:
         """Atomically claim a message for ingestion processing. Returns True if

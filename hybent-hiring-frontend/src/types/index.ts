@@ -140,6 +140,8 @@ export interface EmailAttachment {
   /** The candidate created from this attachment, when there is one. */
   candidate_id: string | null
   candidate_name: string | null
+  /** Why it didn't become a candidate, e.g. "Not a resume". */
+  outcome?: string | null
 }
 
 export interface EmailCandidateLink {

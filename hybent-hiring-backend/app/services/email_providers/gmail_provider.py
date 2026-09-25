@@ -3,6 +3,9 @@ Gmail provider: OAuth connect (mirrors app.routers.calendar's manual-httpx flow,
 reusing the same Google OAuth client, scoped to gmail.send) + send via Gmail API.
 """
 import base64
+import hashlib
+import threading
+import time
 import logging
 import re
 from email.mime.text import MIMEText
@@ -71,6 +74,34 @@ async def exchange_code(code: str) -> dict:
         }
 
 
+# Access tokens last ~1 hour; reuse them instead of refreshing before every
+# Gmail request (ingestion used to do a token round-trip per message, ~2.5s
+# each, and risked Google's rate limits). Keyed by a hash of the refresh
+# token, so a reconnected mailbox never reuses its old token. Per-process.
+_TOKEN_CACHE: dict[str, tuple[str, float]] = {}
+_TOKEN_CACHE_LOCK = threading.Lock()
+_TOKEN_EXPIRY_MARGIN_SECONDS = 120
+
+
+def _cache_key(refresh_token: str) -> str:
+    return hashlib.sha256(refresh_token.encode()).hexdigest()
+
+
+def _cached_access_token(refresh_token: str) -> str:
+    key = _cache_key(refresh_token)
+    with _TOKEN_CACHE_LOCK:
+        cached = _TOKEN_CACHE.get(key)
+    if cached and cached[1] > time.monotonic():
+        return cached[0]
+    return _refresh_access_token_sync(refresh_token)
+
+
+def _forget_access_token(refresh_token: str) -> None:
+    """Drop a cached token Google rejected (revoked early), so the next call refreshes."""
+    with _TOKEN_CACHE_LOCK:
+        _TOKEN_CACHE.pop(_cache_key(refresh_token), None)
+
+
 def _refresh_access_token_sync(refresh_token: str) -> str:
     response = httpx.post(
         "https://oauth2.googleapis.com/token",
@@ -83,8 +114,16 @@ def _refresh_access_token_sync(refresh_token: str) -> str:
         timeout=10,
     )
     if response.status_code != 200:
+        _forget_access_token(refresh_token)
         raise ValueError(f"Failed to refresh Gmail access token: {response.text}")
-    return response.json()["access_token"]
+    body = response.json()
+    expires_in = float(body.get("expires_in") or 3600)
+    with _TOKEN_CACHE_LOCK:
+        _TOKEN_CACHE[_cache_key(refresh_token)] = (
+            body["access_token"],
+            time.monotonic() + max(0.0, expires_in - _TOKEN_EXPIRY_MARGIN_SECONDS),
+        )
+    return body["access_token"]
 
 
 class GmailProvider(EmailProvider):
@@ -92,7 +131,7 @@ class GmailProvider(EmailProvider):
         if not account.refresh_token_encrypted:
             raise ValueError("Gmail account has no refresh token — reconnect required")
         refresh_token = crypto.decrypt(account.refresh_token_encrypted)
-        access_token = _refresh_access_token_sync(refresh_token)
+        access_token = _cached_access_token(refresh_token)
 
         mime_message = MIMEText(html_body, "html", "utf-8")
         mime_message["to"] = to
@@ -106,6 +145,8 @@ class GmailProvider(EmailProvider):
             json={"raw": raw},
             timeout=10,
         )
+        if response.status_code == 401:
+            _forget_access_token(refresh_token)
         if response.status_code >= 400:
             raise ValueError(f"Gmail API send failed: {response.text}")
 
@@ -121,7 +162,18 @@ class GmailProvider(EmailProvider):
 def _get_access_token(account: EmailAccount) -> str:
     if not account.refresh_token_encrypted:
         raise ValueError("Gmail account has no refresh token — reconnect required")
-    return _refresh_access_token_sync(crypto.decrypt(account.refresh_token_encrypted))
+    return _cached_access_token(crypto.decrypt(account.refresh_token_encrypted))
+
+
+def _gmail_get(account: EmailAccount, url: str, **kwargs) -> httpx.Response:
+    """GET against the Gmail API with the cached access token, retrying once
+    with a fresh token if Google rejects the cached one."""
+    refresh_token = crypto.decrypt(account.refresh_token_encrypted) if account.refresh_token_encrypted else None
+    response = httpx.get(url, headers={"Authorization": f"Bearer {_get_access_token(account)}"}, **kwargs)
+    if response.status_code == 401 and refresh_token:
+        _forget_access_token(refresh_token)
+        response = httpx.get(url, headers={"Authorization": f"Bearer {_get_access_token(account)}"}, **kwargs)
+    return response
 
 
 def _header(headers: list[dict], name: str) -> str | None:
@@ -146,12 +198,9 @@ def _parse_from_header(value: str | None) -> tuple[str | None, str | None]:
 def list_recent_messages(account: EmailAccount, max_results: int = 30) -> list[dict]:
     """Inbox message metadata (id, threadId, from, subject, snippet, received_at) —
     no bodies, kept cheap for periodic syncing."""
-    access_token = _get_access_token(account)
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    list_response = httpx.get(
+    list_response = _gmail_get(
+        account,
         f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages",
-        headers=headers,
         params={"maxResults": max_results, "labelIds": "INBOX"},
         timeout=10,
     )
@@ -161,9 +210,9 @@ def list_recent_messages(account: EmailAccount, max_results: int = 30) -> list[d
     message_ids = [m["id"] for m in list_response.json().get("messages", [])]
     results = []
     for message_id in message_ids:
-        detail_response = httpx.get(
+        detail_response = _gmail_get(
+            account,
             f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages/{message_id}",
-            headers=headers,
             params={"format": "metadata", "metadataHeaders": ["From", "Subject", "To"]},
             timeout=10,
         )
@@ -250,11 +299,10 @@ def get_attachment_content(account: EmailAccount, provider_message_id: str, atta
 def get_attachment_bytes(account: EmailAccount, provider_message_id: str, attachment_id: str) -> bytes:
     """Fetch one attachment's raw bytes for a message whose data wasn't
     inlined in the full-message payload (large attachments)."""
-    access_token = _get_access_token(account)
-    response = httpx.get(
+    response = _gmail_get(
+        account,
         f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}"
         f"/messages/{provider_message_id}/attachments/{attachment_id}",
-        headers={"Authorization": f"Bearer {access_token}"},
         timeout=15,
     )
     if response.status_code >= 400:
@@ -266,10 +314,9 @@ def get_attachment_bytes(account: EmailAccount, provider_message_id: str, attach
 def get_message_full(account: EmailAccount, provider_message_id: str) -> dict:
     """Fetch a single message's full body + attachment metadata live — bodies
     are never stored at rest."""
-    access_token = _get_access_token(account)
-    response = httpx.get(
+    response = _gmail_get(
+        account,
         f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages/{provider_message_id}",
-        headers={"Authorization": f"Bearer {access_token}"},
         params={"format": "full"},
         timeout=10,
     )

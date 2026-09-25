@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.celery_app import celery_app
 from app.core.database import AsyncSessionLocal, run_async
 from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountStatus
-from app.services.email_ingestion_service import EmailApplicationIngestionService
+from app.services.email_ingestion_service import EmailApplicationIngestionService, MemoryPause
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,12 @@ async def _process_email_ingestion_async():
                 counts = await ingestion_service.process_account(account)
                 for key, value in counts.items():
                     totals[key] = totals.get(key, 0) + value
+            except MemoryPause as e:
+                # Memory is running high: end this run here so the worker can
+                # be recycled; the paused message continues on the next run.
+                totals["paused"] = totals.get("paused", 0) + 1
+                logger.warning(f"Email ingestion paused to free memory ({e}); remaining work continues next run")
+                break
             except Exception as e:
                 logger.warning(f"Email ingestion failed for account {account.email_address}: {e}")
 

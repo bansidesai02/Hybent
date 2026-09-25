@@ -173,6 +173,7 @@ export default function InboxPage() {
                     {!!message.candidate_count && (
                       <Badge tone="success">{plural(message.candidate_count, 'candidate')}</Badge>
                     )}
+                    {message.ingestion_status === 'retry_pending' && <Badge tone="warning">Retrying</Badge>}
                     {!message.is_read && <Badge tone="info">New</Badge>}
                   </div>
                 </button>
@@ -352,6 +353,13 @@ function AttachmentRow({
               <Link to={`${candidatesPath}?openId=${attachment.candidate_id}`} className="text-hb-blue hover:underline">
                 {attachment.candidate_name || 'View candidate'}
               </Link>
+            </>
+          ) : attachment.outcome ? (
+            <>
+              {' · '}
+              <span className={attachment.outcome.startsWith('Waiting') ? 'text-hb-warning' : undefined}>
+                {attachment.outcome}
+              </span>
             </>
           ) : null}
         </p>

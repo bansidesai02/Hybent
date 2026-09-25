@@ -644,3 +644,188 @@ async def test_gmail_fetch_failure_is_retried_not_terminal(db_session, organizat
          patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
          patch("app.services.ai.resume_parser.parse_resume", new=AsyncMock(return_value=parsed)):
         assert await service.process_message(account, message) == "created"
+
+
+# ─── Unreadable resumes are kept for review, not dropped ───────────────────
+
+async def test_unreadable_resume_becomes_a_needs_review_candidate(db_session, organization):
+    """Even OCR found no text (bad scan, protected file). It used to be marked
+    not-a-resume and dropped; now a human gets it, named from the filename."""
+    from app.services.ai.resume_parser import UnreadableDocumentError
+
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+
+    parse = _parse_by_filename({
+        "Priya Sharma Resume.pdf": UnreadableDocumentError(),
+        "bob.pdf": _empty_parsed(full_name="Bob", email="bob@x.com"),
+    })
+    with patch("app.services.email_providers.gmail_provider.get_message_full",
+               return_value=_multi_resume_payload("Priya Sharma Resume.pdf", "bob.pdf")), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch("app.services.ai.resume_parser.parse_resume", new=parse):
+        outcome = await EmailApplicationIngestionService(db_session).process_message(account, message)
+
+    assert outcome == "created"
+    from sqlalchemy import select
+    unreadable = (await db_session.execute(
+        select(Candidate).where(Candidate.resume_filename == "Priya Sharma Resume.pdf")
+    )).scalar_one()
+    assert unreadable.full_name == "Priya Sharma"  # not the sender — several resumes in this email
+    assert unreadable.email.endswith("@hybent.temp")
+    assert unreadable.pipeline_stage == "needs_review"
+    assert "couldn't be read automatically" in unreadable.hr_notes
+
+
+async def test_every_attachment_outcome_is_recorded(db_session, organization):
+    """An email where only some PDFs become candidates says why for each of the rest."""
+    from fastapi import HTTPException
+
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    db_session.add(Candidate(organization_id=organization.id, email="dup@x.com", full_name="Dup"))
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+
+    parse = _parse_by_filename({
+        "good.pdf": _empty_parsed(full_name="Good", email="good@x.com"),
+        "invoice.pdf": HTTPException(status_code=400, detail="Invalid document."),
+        "dup.pdf": _empty_parsed(full_name="Dup", email="dup@x.com"),
+        "later.pdf": HTTPException(status_code=429, detail="rate limited"),
+    })
+    with patch("app.services.email_providers.gmail_provider.get_message_full",
+               return_value=_multi_resume_payload("good.pdf", "invoice.pdf", "dup.pdf", "later.pdf")), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch("app.services.ai.resume_parser.parse_resume", new=parse):
+        assert await EmailApplicationIngestionService(db_session).process_message(account, message) == "retry"
+
+    await db_session.refresh(message)
+    outcomes = dict(line.split("\t", 1) for line in message.ingestion_error.splitlines() if "\t" in line)
+    assert outcomes == {
+        "invoice.pdf": "Not a resume",
+        "dup.pdf": "Already a candidate",
+        "later.pdf": "Waiting to retry — AI parsing temporarily failed",
+    }
+    assert message.ingestion_result_candidate_id is not None  # good.pdf
+
+
+# ─── Crash recovery and memory pauses ──────────────────────────────────────
+
+async def test_email_left_processing_by_a_dead_worker_is_resumed(db_session, organization):
+    """The production "Cv" email: 5 of 9 done, then the worker died, leaving
+    it in "processing" — which get_unprocessed never selected again."""
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+    message.ingestion_status = EmailIngestionStatus.PROCESSING
+    message.ingestion_attempts = 1
+    message.ingestion_locked_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+    db_session.add(Candidate(organization_id=organization.id, email="a@x.com", full_name="A",
+                             source="email", source_email_message_id=message.id, resume_filename="a.pdf"))
+    await db_session.commit()
+
+    repo = EmailMessageRepository(db_session)
+    assert message in await repo.get_unprocessed(account.id)
+
+    parse = _parse_by_filename({"b.pdf": _empty_parsed(full_name="B", email="b@x.com")})
+    with patch("app.services.email_providers.gmail_provider.get_message_full",
+               return_value=_multi_resume_payload("a.pdf", "b.pdf")), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch("app.services.ai.resume_parser.parse_resume", new=parse):
+        assert await EmailApplicationIngestionService(db_session).process_message(account, message) == "created"
+
+    assert parse.await_count == 1  # a.pdf was not parsed again
+    await db_session.refresh(message)
+    assert message.ingestion_status == EmailIngestionStatus.CREATED
+
+
+async def test_a_fresh_processing_lock_is_left_alone(db_session, organization):
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+    message.ingestion_status = EmailIngestionStatus.PROCESSING
+    message.ingestion_locked_at = datetime.now(timezone.utc)
+    await db_session.commit()
+    assert await EmailMessageRepository(db_session).get_unprocessed(account.id) == []
+
+
+async def test_first_candidate_is_linked_while_the_email_is_still_processing(db_session, organization):
+    """So the email shows in the Inbox mid-run — and still does if the worker dies."""
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+
+    seen_mid_run = []
+    real_parse = _parse_by_filename({
+        "a.pdf": _empty_parsed(full_name="A", email="a@x.com"),
+        "b.pdf": _empty_parsed(full_name="B", email="b@x.com"),
+    })
+
+    async def parse(file_bytes, mime_type, filename, **kwargs):
+        if filename == "b.pdf":
+            row = (await db_session.execute(
+                EmailMessage.__table__.select().where(EmailMessage.id == message.id)
+            )).mappings().one()
+            seen_mid_run.append((row["ingestion_status"], row["ingestion_result_candidate_id"]))
+        return await real_parse(file_bytes, mime_type, filename, **kwargs)
+
+    with patch("app.services.email_providers.gmail_provider.get_message_full",
+               return_value=_multi_resume_payload("a.pdf", "b.pdf")), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch("app.services.ai.resume_parser.parse_resume", new=AsyncMock(side_effect=parse)):
+        await EmailApplicationIngestionService(db_session).process_message(account, message)
+
+    status_mid_run, linked_mid_run = seen_mid_run[0]
+    assert status_mid_run == EmailIngestionStatus.PROCESSING
+    assert linked_mid_run is not None
+
+
+async def test_memory_pause_keeps_progress_and_continues_next_run(db_session, organization):
+    from app.services.email_ingestion_service import MemoryPause
+
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = await _make_message(db_session, organization, account)
+    payload = _multi_resume_payload("a.pdf", "b.pdf", "c.pdf")
+    parse = _parse_by_filename({
+        n: _empty_parsed(full_name=n[0].upper(), email=f"{n[0]}@x.com") for n in ("a.pdf", "b.pdf", "c.pdf")
+    })
+    service = EmailApplicationIngestionService(db_session)
+
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=payload), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch("app.services.ai.resume_parser.parse_resume", new=parse), \
+         patch("app.services.email_ingestion_service._memory_pressure", return_value=(True, "container 420/512 MiB")):
+        with pytest.raises(MemoryPause):
+            await service.process_message(account, message)
+
+    await db_session.refresh(message)
+    assert parse.await_count == 1  # stopped after one attachment
+    assert message.ingestion_status is None  # picked up again next run
+    assert message.ingestion_attempts == 0  # a pause doesn't use up an attempt
+    assert message.ingestion_result_candidate_id is not None  # visible in the Inbox meanwhile
+
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=payload), \
+         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
+         patch("app.services.ai.resume_parser.parse_resume", new=parse), \
+         patch("app.services.email_ingestion_service._memory_pressure", return_value=(False, "ok")):
+        assert await service.process_message(account, message) == "created"
+
+    assert parse.await_count == 3  # the other two, once each
+    from sqlalchemy import func, select
+    count = (await db_session.execute(
+        select(func.count()).select_from(Candidate).where(Candidate.source_email_message_id == message.id)
+    )).scalar()
+    assert count == 3

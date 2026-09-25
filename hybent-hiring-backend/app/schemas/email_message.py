@@ -28,6 +28,8 @@ class EmailAttachment(OrmSchema):
     # The candidate created from this attachment, when there is one.
     candidate_id: str | None = None
     candidate_name: str | None = None
+    # Why it didn't become a candidate ("Not a resume", "Waiting to retry …").
+    outcome: str | None = None
 
 
 class EmailCandidateLink(OrmSchema):
