@@ -7,7 +7,6 @@ from sqlalchemy.orm import selectinload
 from app.schemas.demo import DemoRequest
 from app.services.email_service import send_demo_request_email
 from app.schemas.response import APIResponse
-from seed_interviewer_demo import seed as run_interviewer_seed
 
 from app.dependencies import DB
 from app.models.organization import Organization
@@ -150,14 +149,3 @@ async def demo_request(request: DemoRequest):
         return APIResponse.success(message="Demo request submitted successfully. We will get back to you soon!")
     except Exception as e:
         return APIResponse.error(message=f"Failed to submit demo request: {str(e)}", status_code=500)
-
-@router.get("/seed-demo")
-async def trigger_seed_demo(secret: str | None = None):
-    """Trigger DB seeding of recruiter, candidate, and interview demo data."""
-    if secret != "brainerhub":
-        return APIResponse.error(message="Invalid secret key. Access denied.", status_code=403)
-    try:
-        await run_interviewer_seed()
-        return APIResponse.success(message="Demo data (recruiter, candidates, interviews) seeded successfully on the main database.")
-    except Exception as e:
-        return APIResponse.error(message=f"Failed to seed demo data: {str(e)}", status_code=500)

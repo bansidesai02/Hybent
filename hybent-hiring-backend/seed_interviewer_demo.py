@@ -5,7 +5,7 @@ Run: python seed_interviewer_demo.py
 Populates data for:
 - 3 Job Positions from JDs
 - 10 Candidates from Resumes (with full profiles)
-- Interviews scheduled for 'interviewer@brainerhub.com'
+- Interviews scheduled for 'interviewer@example.com'
 - Scorecards and Mock Resumes
 """
 import asyncio
@@ -46,11 +46,11 @@ async def seed():
         print("\n🌱 HireOn — Seeding Enhanced Interviewer Demo Data...\n")
 
         # 1. Organization
-        org_result = await db.execute(text("SELECT id FROM organizations WHERE slug = 'brainerhub'"))
+        org_result = await db.execute(text("SELECT id FROM organizations WHERE slug = 'democo'"))
         org_id = org_result.scalar()
         
         if org_id:
-            print(f"  - Cleaning up existing demo data for Brainerhub...")
+            print(f"  - Cleaning up existing demo data for Demo Co...")
             await db.execute(text(f"DELETE FROM scorecards WHERE organization_id = '{org_id}'"))
             await db.execute(text(f"DELETE FROM interview_panelists WHERE interview_id IN (SELECT id FROM interviews WHERE organization_id = '{org_id}')"))
             await db.execute(text(f"DELETE FROM interviews WHERE organization_id = '{org_id}'"))
@@ -61,8 +61,8 @@ async def seed():
             print(f"  ✓ Cleanup Complete")
         else:
             org = Organization(
-                name="Brainerhub",
-                slug="brainerhub",
+                name="Demo Co",
+                slug="democo",
                 industry="Technology",
                 size="51-200",
                 is_active=True,

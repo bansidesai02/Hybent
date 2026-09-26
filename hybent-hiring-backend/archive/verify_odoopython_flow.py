@@ -8,7 +8,7 @@ def main():
     print("Logging in...")
     login_resp = client.post(
         "http://localhost:8000/v1/auth/login",
-        json={"email": "recruiter@brainerhub.com", "password": "password123"}
+        json={"email": "recruiter@example.com", "password": "password123"}
     )
     if login_resp.status_code != 200:
         print("Login failed:", login_resp.text)

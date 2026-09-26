@@ -6,7 +6,7 @@ import sys
 import os
 
 # Add the backend path to sys.path so we can import app modules
-sys.path.append(r"e:\BrainerHub Internship\hybent-hiring-ai\hybent-hiring-backend")
+sys.path.append(r"e:\\projects\\hybent-hiring-ai\hybent-hiring-backend")
 
 from app.core.database import AsyncSessionLocal
 from app.models.user import User

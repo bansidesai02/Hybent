@@ -2,7 +2,7 @@ import os
 import shutil
 import re
 
-frontend_dir = r"e:\BrainerHub Internship\hybent-hiring-ai\hybent-hiring-frontend\src"
+frontend_dir = r"e:\\projects\\hybent-hiring-ai\hybent-hiring-frontend\src"
 
 moves = [
     ("pages/interviewer", "modules/interviewer/pages"),

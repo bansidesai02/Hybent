@@ -1,11 +1,11 @@
 
 --- USERS ---
-ID: 7705f117-57c3-49e4-9aa8-b0527752ebf1 | Email: recruiter2@brainerhub.com | Role: recruiter | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
-ID: 373207f9-0501-4a05-aaca-81ff056d2dae | Email: interviewer2@brainerhub.com | Role: interviewer | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
+ID: 7705f117-57c3-49e4-9aa8-b0527752ebf1 | Email: recruiter2@example.com | Role: recruiter | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
+ID: 373207f9-0501-4a05-aaca-81ff056d2dae | Email: interviewer2@example.com | Role: interviewer | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
 ID: 3a7c45d4-3434-4fb0-bace-4f1ee57b5c77 | Email: sarah.chen@gmail.com | Role: candidate | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
-ID: caa6ca0a-a7ce-48c3-ac5c-55a916ef0d24 | Email: interviewer@brainerhub.com | Role: interviewer | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
-ID: 64712601-a809-44d8-8a58-745a670ca836 | Email: recruiter@brainerhub.com | Role: recruiter | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
-ID: 4c66de66-884a-482c-a7df-af291e6a5c80 | Email: admin@brainerhub.com | Role: admin | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
+ID: caa6ca0a-a7ce-48c3-ac5c-55a916ef0d24 | Email: interviewer@example.com | Role: interviewer | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
+ID: 64712601-a809-44d8-8a58-745a670ca836 | Email: recruiter@example.com | Role: recruiter | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
+ID: 4c66de66-884a-482c-a7df-af291e6a5c80 | Email: admin@example.com | Role: admin | OrgID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Active: True
 
 --- ORGANIZATIONS ---
-ID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Name: Brainerhub | Slug: brainerhub
+ID: 3d4674e3-1eb3-4c1c-8e61-e6ce963003f6 | Name: Demo Co | Slug: democo

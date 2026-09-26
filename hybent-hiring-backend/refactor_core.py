@@ -1,7 +1,7 @@
 import os
 import re
 
-backend_dir = r"e:\BrainerHub Internship\hybent-hiring-ai\hybent-hiring-backend"
+backend_dir = r"e:\\projects\\hybent-hiring-ai\hybent-hiring-backend"
 core_dir = os.path.join(backend_dir, "app", "core")
 os.makedirs(core_dir, exist_ok=True)
 

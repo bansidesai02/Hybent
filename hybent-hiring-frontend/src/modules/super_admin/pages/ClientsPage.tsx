@@ -415,7 +415,7 @@ export default function ClientsPage() {
               required
               value={wizardData.name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="e.g. Brainerhub Solutions"
+              placeholder="e.g. Acme Corp"
             />
             <Input
               label="Workspace subdomain"

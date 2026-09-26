@@ -19,7 +19,7 @@ async def check_user_org():
             print(f" - ID: {o.id}, Name: '{o.name}', Slug: '{o.slug}'")
 
         # Check user
-        user_res = await db.execute(select(User).where(User.email == 'admin@brainerhub.com'))
+        user_res = await db.execute(select(User).where(User.email == 'admin@example.com'))
         user = user_res.scalar_one_or_none()
         if user:
             print(f"User found: {user.full_name}, Org ID: {user.organization_id}")
@@ -30,7 +30,7 @@ async def check_user_org():
             else:
                 print("User's Org ID NOT FOUND in organizations table!")
         else:
-            print("User admin@brainerhub.com not found")
+            print("User admin@example.com not found")
 
 if __name__ == "__main__":
     asyncio.run(check_user_org())

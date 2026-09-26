@@ -16,8 +16,8 @@ async def seed():
     print("Starting database seeding...")
     async with AsyncSessionLocal() as db:
         # Create Org
-        org_name = "BrainerHub"
-        org_slug = "brainerhub"
+        org_name = "Demo Co"
+        org_slug = "democo"
         
         result = await db.execute(select(Organization).where(Organization.slug == org_slug))
         org = result.scalar_one_or_none()
@@ -31,7 +31,7 @@ async def seed():
             print(f"ℹ️ Organization '{org_name}' already exists.")
         
         # Create Admin
-        email = "admin@brainerhub.com"
+        email = "admin@example.com"
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         

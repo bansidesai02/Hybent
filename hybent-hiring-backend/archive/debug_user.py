@@ -11,7 +11,7 @@ async def check_user():
         result = await db.execute(
             select(User)
             .options(selectinload(User.organization))
-            .where(User.email == "admin@brainerhub.com")
+            .where(User.email == "admin@example.com")
         )
         user = result.scalar_one_or_none()
         if user:

@@ -259,7 +259,7 @@ async def seed():
         db.add_all([starter_plan, pro_plan, ent_plan])
         await db.flush()
 
-        # ── Company Subscription for Brainerhub ──────────────────────────────
+        # ── Company Subscription for Demo Co ──────────────────────────────
         sub = CompanySubscription(
             organization_id=org.id,
             plan_id=pro_plan.id,
@@ -270,7 +270,7 @@ async def seed():
         )
         db.add(sub)
 
-        # ── Company Feature Flags for Brainerhub ─────────────────────────────
+        # ── Company Feature Flags for Demo Co ─────────────────────────────
         for key, val in pro_plan.features.items():
             db.add(CompanyFeatureFlag(
                 organization_id=org.id,
@@ -278,7 +278,7 @@ async def seed():
                 is_enabled=val
             ))
 
-        # ── Company Usage for Brainerhub ─────────────────────────────────────
+        # ── Company Usage for Demo Co ─────────────────────────────────────
         db.add_all([
             CompanyUsage(organization_id=org.id, metric_key="users_count", metric_value=42),
             CompanyUsage(organization_id=org.id, metric_key="jobs_count", metric_value=18),
@@ -377,7 +377,7 @@ async def seed():
 
         await db.commit()
         print(f"  ✓ Users: 9 created (2 super admins, 2 admins, 2 recruiters, 2 interviewers, 1 candidate)")
-        print(f"  ✓ Subscription plans & Brainerhub Pro subscription seeded")
+        print(f"  ✓ Subscription plans & Demo Co Pro subscription seeded")
 
         print("\n" + "=" * 55)
         print("✅  Seed complete! Users loaded.")

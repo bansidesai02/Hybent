@@ -11,11 +11,11 @@ from app.models.organization import Organization
 
 async def check_user_org():
     async with get_session_factory()() as db:
-        user_result = await db.execute(select(User).where(User.email == 'admin@brainerhub.com'))
+        user_result = await db.execute(select(User).where(User.email == 'admin@example.com'))
         user = user_result.scalar_one_or_none()
         
         if not user:
-            print("User admin@brainerhub.com not found")
+            print("User admin@example.com not found")
             users = (await db.execute(select(User.email).limit(5))).scalars().all()
             print(f"Other users in DB: {users}")
             return

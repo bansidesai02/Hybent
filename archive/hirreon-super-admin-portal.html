@@ -633,7 +633,7 @@ tr.row-click:hover td{background:var(--surface-2)}
     <div class="modal-body">
       <div style="display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:14px">
         <div class="avatar-circle" style="background:var(--info-text);width:36px;height:36px;font-size:12px">PS</div>
-        <div><div style="font-weight:600;font-size:13px">Priya Shah</div><div style="font-size:11.5px;color:var(--text-secondary)">HR / Recruiter · priya@brainhub.in</div></div>
+        <div><div style="font-weight:600;font-size:13px">Priya Shah</div><div style="font-size:11.5px;color:var(--text-secondary)">HR / Recruiter · priya@example.com</div></div>
       </div>
       <div class="alert alert-warning"><i class="ti ti-shield-lock"></i><span class="alert-msg">This session will be fully logged. Destructive actions are blocked during impersonation.</span></div>
       <div class="field"><label>Reason for impersonation <span class="req">*</span></label><input type="text" placeholder="e.g. Support ticket #4821"></div>
@@ -650,7 +650,7 @@ tr.row-click:hover td{background:var(--surface-2)}
    MOCK DATA — replace these with real API calls to your backend
    ===================================================================== */
 const CLIENTS = [
-  {id:'brainhub', name:'BrainerHub', initials:'BH', color:'#534AB7', domain:'brainhub.hirreon.com',
+  {id:'democo', name:'Demo Co', initials:'DC', color:'#534AB7', domain:'demo.hirreon.com',
    plan:'Pro', status:'active', users:42, userLimit:50, jobs:18, jobLimit:20, interviews:134,
    mrr:24000, location:'Ahmedabad, IN', industry:'IT Services', size:'51–200',
    renewal:'19 Jun 2026', timezone:'IST (UTC+5:30)', since:'12 Jan 2024',
@@ -673,21 +673,21 @@ const CLIENTS = [
 ];
 
 const USERS = [
-  {name:'Rahul Mehta', email:'rahul@brainhub.in', role:'Admin', client:'BrainerHub', online:true},
-  {name:'Priya Shah', email:'priya@brainhub.in', role:'HR', client:'BrainerHub', online:true},
-  {name:'Arjun Kumar', email:'arjun@brainhub.in', role:'Interviewer', client:'BrainerHub', online:false},
-  {name:'Neha Patel', email:'neha@brainhub.in', role:'HR', client:'BrainerHub', online:true},
-  {name:'Siddharth Kore', email:'sid@brainhub.in', role:'Candidate', client:'BrainerHub', online:false},
+  {name:'Rahul Mehta', email:'rahul@example.com', role:'Admin', client:'Demo Co', online:true},
+  {name:'Priya Shah', email:'priya@example.com', role:'HR', client:'Demo Co', online:true},
+  {name:'Arjun Kumar', email:'arjun@example.com', role:'Interviewer', client:'Demo Co', online:false},
+  {name:'Neha Patel', email:'neha@example.com', role:'HR', client:'Demo Co', online:true},
+  {name:'Siddharth Kore', email:'sid@example.com', role:'Candidate', client:'Demo Co', online:false},
   {name:'Karan Singh', email:'karan@nexhire.com', role:'Admin', client:'NexHire', online:true},
   {name:'Divya Rao', email:'divya@nexhire.com', role:'HR', client:'NexHire', online:false},
 ];
 
 const ACTIVITY = [
-  {icon:'ti-user-plus', color:'purple', text:'New HR user <strong>Priya Shah</strong> added to BrainerHub', time:'2 min ago', client:'BrainerHub', type:'user'},
-  {icon:'ti-briefcase', color:'teal', text:'Job posting <strong>Senior React Dev</strong> published', time:'18 min ago', client:'BrainerHub', type:'job'},
+  {icon:'ti-user-plus', color:'purple', text:'New HR user <strong>Priya Shah</strong> added to Demo Co', time:'2 min ago', client:'Demo Co', type:'user'},
+  {icon:'ti-briefcase', color:'teal', text:'Job posting <strong>Senior React Dev</strong> published', time:'18 min ago', client:'Demo Co', type:'job'},
   {icon:'ti-credit-card', color:'amber', text:'NexHire upgraded from Pro → Enterprise plan', time:'2 hrs ago', client:'NexHire', type:'billing'},
   {icon:'ti-alert-circle', color:'red', text:'StaffReady suspended — payment failed 3 months', time:'Yesterday', client:'StaffReady', type:'billing'},
-  {icon:'ti-user-bolt', color:'purple', text:'Super Admin impersonated <strong>Priya Shah</strong>', time:'Yesterday', client:'BrainerHub', type:'impersonation'},
+  {icon:'ti-user-bolt', color:'purple', text:'Super Admin impersonated <strong>Priya Shah</strong>', time:'Yesterday', client:'Demo Co', type:'impersonation'},
 ];
 
 const COLOR_MAP = {purple:'#534AB7', teal:'#0F6E56', amber:'#854F0B', red:'#A32D2D', blue:'#185FA5'};
@@ -967,10 +967,10 @@ function flagCell(c, key){
    AUDIT LOG
    ===================================================================== */
 const AUDIT_LOG = [
-  {action:'Super Admin started impersonation of Priya Shah', client:'BrainerHub', actor:'Super Admin', time:'Today 3:41 PM', type:'impersonation'},
-  {action:'Viewed job listing "Senior React Dev"', client:'BrainerHub', actor:'Super Admin (as Priya Shah)', time:'Today 3:42 PM', type:'impersonation'},
-  {action:'New HR user Priya Shah added', client:'BrainerHub', actor:'Rahul Mehta', time:'Today 1:05 PM', type:'user'},
-  {action:'Job "Backend Engineer" published', client:'BrainerHub', actor:'Priya Shah', time:'Today 11:20 AM', type:'job'},
+  {action:'Super Admin started impersonation of Priya Shah', client:'Demo Co', actor:'Super Admin', time:'Today 3:41 PM', type:'impersonation'},
+  {action:'Viewed job listing "Senior React Dev"', client:'Demo Co', actor:'Super Admin (as Priya Shah)', time:'Today 3:42 PM', type:'impersonation'},
+  {action:'New HR user Priya Shah added', client:'Demo Co', actor:'Rahul Mehta', time:'Today 1:05 PM', type:'user'},
+  {action:'Job "Backend Engineer" published', client:'Demo Co', actor:'Priya Shah', time:'Today 11:20 AM', type:'job'},
   {action:'NexHire upgraded Pro → Enterprise', client:'NexHire', actor:'Super Admin', time:'Yesterday', type:'billing'},
   {action:'StaffReady suspended — payment failed', client:'StaffReady', actor:'System', time:'Yesterday', type:'billing'},
 ];

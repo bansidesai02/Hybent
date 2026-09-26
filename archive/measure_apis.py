@@ -32,7 +32,7 @@ def main():
     
     # 1. Login
     login_body = {
-        "email": "admin@brainerhub.com",
+        "email": "admin@example.com",
         "password": "password123"
     }
     print(f"\n--- Testing Login API ---")

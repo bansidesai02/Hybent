@@ -1055,7 +1055,6 @@ Here is a list of common recruiting/technical terms you should correct:
 - node / nodejs / node js -> NodeJS
 - fastapi / fast api -> FastAPI
 - python / java / devops -> Python / Java / DevOps
-- brainerhub / brainer hub -> BrainerHub
 - hybent_hiring / hire on / hire-on -> Hybent Hiring
 - ahmedabad -> Ahmedabad
 - resume / cv -> Resume / CV
