@@ -168,13 +168,19 @@ export type HybentAuthShellProps = {
    * design system, two codepaths and 880 lines to keep in sync.
    */
   eyebrow?: string
+  /**
+   * Optional panel beside the card — context for a page that is more than a
+   * form (the access-request page's "what happens next"). Stacks under the
+   * card on narrow screens.
+   */
+  aside?: ReactNode
 }
 
 /**
  * Background, glass card and animated border light. Every auth page renders its
  * form as `children` and inherits the rest.
  */
-export function HybentAuthShell({ title, subtitle, children, wide, eyebrow }: HybentAuthShellProps) {
+export function HybentAuthShell({ title, subtitle, children, wide, eyebrow, aside }: HybentAuthShellProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [reduced, setReduced] = useState(false)
 
@@ -218,6 +224,8 @@ export function HybentAuthShell({ title, subtitle, children, wide, eyebrow }: Hy
        grid, so the backdrop here is the homepage's, not a look-alike. */
     <div className="hlp hb-site hb-surface" data-reduced={reduced ? 'true' : undefined}>
       <main className="hlp-stage">
+        <div className={aside ? 'hlp-split' : 'hlp-solo'}>
+        {aside && <aside className="hlp-aside">{aside}</aside>}
         <section
           className={`hlp-card${wide ? ' hlp-card--wide' : ''}`}
           ref={cardRef}
@@ -253,6 +261,7 @@ export function HybentAuthShell({ title, subtitle, children, wide, eyebrow }: Hy
             <span className="hlp-beam hlp-beam--l" />
           </span>
         </section>
+        </div>
       </main>
     </div>
   )
