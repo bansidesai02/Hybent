@@ -356,40 +356,47 @@ async def _reset_expired_credits_async():
     from datetime import datetime, timezone, timedelta
     from app.core.database import AsyncSessionLocal
     from app.models.organization_ai_credits import OrganizationAICredits
+    from app.models.user_ai_credits import UserAICredits
+    from app.services.ai_credit_service import AICreditsService
+    from app.services.ai_metering import clear_blocked
     from app.tasks.notifications import notify_organization_roles
-    from sqlalchemy import select
+    from sqlalchemy import select, update
 
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
-        # Select all credits that have expired
         query = select(OrganizationAICredits).where(OrganizationAICredits.reset_at <= now)
-        result = await db.execute(query)
-        expired_credits = result.scalars().all()
+        expired_credits = (await db.execute(query)).scalars().all()
 
         for org_credits in expired_credits:
-            old_allowed = org_credits.allowed_credits
+            # Start the new period from the plan (or super-admin override);
+            # purchased top-ups carry over.
+            monthly = await AICreditsService.resync_monthly_allowance(db, org_credits)
             org_credits.used_credits = 0
-            # Set new reset_at 30 days from previous reset_at
-            org_credits.reset_at = org_credits.reset_at + timedelta(days=30)
-            
-            # Reset warning flags
+            while org_credits.reset_at <= now:
+                org_credits.reset_at = org_credits.reset_at + timedelta(days=30)
+
             org_credits.warning_0_sent = False
             org_credits.warning_5_sent = False
             org_credits.warning_10_sent = False
             org_credits.warning_25_sent = False
             org_credits.warning_50_sent = False
-            
             db.add(org_credits)
-            logger.info(f"Reset AI credits for organization {org_credits.organization_id} to {old_allowed}")
 
-            # Notify organization roles
+            await db.execute(
+                update(UserAICredits)
+                .where(UserAICredits.organization_id == org_credits.organization_id)
+                .values(used_credits=0, daily_used=0)
+            )
+            clear_blocked(organization_id=org_credits.organization_id)
+            logger.info(f"Reset AI credits for organization {org_credits.organization_id} to {monthly}")
+
             notify_organization_roles.delay(
                 str(org_credits.organization_id),
                 ["admin", "recruiter"],
                 "ai_credits_reset",
-                "Monthly AI Credits Reset",
-                f"Your organization's AI credits have been reset. Remaining quota: {old_allowed:,} credits.",
-                {"reset_quota": old_allowed}
+                "Monthly AI credits reset",
+                f"Your organization's AI credits have been reset: {monthly:,} credits for this month.",
+                {"reset_quota": monthly}
             )
 
         await db.commit()

@@ -84,6 +84,10 @@ async def lifespan(app: FastAPI):
     logger.info("Hybent Hiring API shutting down")
 
 
+# Charge every Gemini call to the org/user in scope (app/services/ai_metering.py).
+from app.services.ai_metering import install_gemini_metering  # noqa: E402
+install_gemini_metering()
+
 app = FastAPI(
     title="Hybent Hiring API",
     description="AI-powered recruitment automation platform",

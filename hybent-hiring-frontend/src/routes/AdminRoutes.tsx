@@ -23,6 +23,7 @@ const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
 const TeamManagementPage = lazy(() => import('@/modules/admin/pages/TeamManagementPage'))
 
 const AuditLogsPage = lazy(() => import('@/modules/admin/pages/AuditLogsPage'))
+const BillingPage = lazy(() => import('@/modules/admin/pages/BillingPage'))
 const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePage'))
 const RecruiterProfilePage = lazy(() => import('@/modules/recruiter/pages/RecruiterProfilePage'))
 
@@ -53,6 +54,7 @@ export default function AdminRoutes() {
         <Route path="teams" element={<TeamManagementPage />} />
         <Route path="pre-screening/:sessionId" element={<PreScreeningReviewPage />} />
         <Route path="ai-credits" element={<AICreditsPage />} />
+        <Route path="billing" element={<BillingPage />} />
         <Route path="inbox" element={<InboxPage />} />
       </Route>
     </Routes>

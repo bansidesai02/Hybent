@@ -6,6 +6,7 @@ from app.core.celery_app import celery_app
 from app.core.database import AsyncSessionLocal, run_async
 from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountStatus
 from app.services.email_ingestion_service import EmailApplicationIngestionService, MemoryPause
+from app.services.ai_metering import ai_scope
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,9 @@ async def _process_email_ingestion_async():
         totals = {"created": 0, "matched_existing": 0, "skipped": 0, "failed": 0}
         for account in accounts:
             try:
-                counts = await ingestion_service.process_account(account)
+                # Charge AI parsing/scoring to the mailbox's org and owner.
+                async with ai_scope(account.organization_id, account.connected_by_user_id):
+                    counts = await ingestion_service.process_account(account)
                 for key, value in counts.items():
                     totals[key] = totals.get(key, 0) + value
             except MemoryPause as e:

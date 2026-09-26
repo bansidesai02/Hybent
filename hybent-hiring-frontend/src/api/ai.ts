@@ -38,6 +38,12 @@ export const aiApi = {
     axios.get('/v1/ai/credits/usage-by-feature'),
   getUsageOverTime: () =>
     axios.get('/v1/ai/credits/usage-over-time'),
-  buyCredits: (amount: number) =>
-    axios.post('/v1/ai/credits/buy', { amount }),
+  /** Admin only. Emails the Hybent team, who invoice and add the credits. */
+  requestTopup: (credits: number) =>
+    axios.post('/v1/ai/credits/request-topup', { credits }),
+  /** Admin only. Each staff member's monthly limit and usage. */
+  getUserCreditLimits: () =>
+    axios.get('/v1/ai/credits/users'),
+  setUserCreditLimit: (userId: string, monthlyLimit: number) =>
+    axios.put(`/v1/ai/credits/users/${userId}`, { monthly_limit: monthlyLimit }),
 }

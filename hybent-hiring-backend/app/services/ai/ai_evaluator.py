@@ -14,6 +14,7 @@ from typing import Optional
 from fastapi import BackgroundTasks
 from app.core.config import settings
 from app.services.ai_usage_tracker import log_ai_usage
+from app.services.ai_metering import ai_feature
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ if settings.gemini_api_key:
 # Configure Groq fallback
 groq_client = Groq(api_key=settings.groq_api_key, timeout=30.0) if settings.groq_api_key else None
 
+@ai_feature("image_generation")
 async def generate_image_hf(
     prompt: str,
     background_tasks: Optional[BackgroundTasks] = None,
@@ -126,6 +128,7 @@ Keep all descriptions objective, professional, and HR-friendly.
 Return ONLY strictly valid JSON. No markdown backticks.
 """
 
+@ai_feature("interview_evaluation")
 async def evaluate_interview_notes(
     raw_notes: str,
     background_tasks: Optional[BackgroundTasks] = None,
@@ -230,6 +233,7 @@ def parse_json_response(text: str):
         return json.loads(text.strip())
 
 
+@ai_feature("speech_to_text")
 async def transcribe_audio(
     audio_data: bytes,
     filename: str = "audio.webm",
@@ -482,6 +486,7 @@ Interviewer Scorecards:
 """
 
 
+@ai_feature("feedback_summary")
 async def generate_combined_feedback_summary(
     scorecards: list[dict],
     background_tasks: Optional[BackgroundTasks] = None,
@@ -617,6 +622,7 @@ Return ONLY a valid JSON object with this exact structure:
 User Prompt:
 """
 
+@ai_feature("candidate_prep")
 async def generate_prep_materials(
     job_title: str,
     job_description: str,
@@ -704,6 +710,7 @@ async def generate_prep_materials(
                 organization_id=organization_id
             )
 
+@ai_feature("jd_generation")
 async def generate_jd_from_prompt(
     user_prompt: str,
     background_tasks: Optional[BackgroundTasks] = None,
@@ -848,6 +855,7 @@ STYLE_GUIDELINES = {
 }
 
 
+@ai_feature("linkedin_post")
 async def generate_linkedin_post(
     job_data: dict,
     background_tasks: Optional[BackgroundTasks] = None,
@@ -960,6 +968,7 @@ Guidelines:
 - Output ONLY the final image generation prompt. No conversational text.
 """
 
+@ai_feature("image_prompt")
 async def generate_image_prompt(
     job_data: dict,
     background_tasks: Optional[BackgroundTasks] = None,
@@ -1065,6 +1074,7 @@ Format rules:
 3. If the input is empty or silent, return an empty string.
 """
 
+@ai_feature("transcript_cleanup")
 async def clean_speech_transcript(
     text: str,
     background_tasks: Optional[BackgroundTasks] = None,

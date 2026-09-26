@@ -19,6 +19,7 @@ from app.services import elasticsearch_service as es_service
 from app.services.email_service import send_team_invite
 from app.services.email_accounts_service import resolve_sender_for_user
 from app.core.config import settings
+from app.services import billing_service
 
 router = APIRouter(prefix="/v1/users", tags=["users"])
 
@@ -81,6 +82,9 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
     
     # Ensure role is saved as a clean string value
     role_str = data.role.value if hasattr(data.role, 'value') else str(data.role)
+
+    # Admins and recruiters take a paid seat.
+    await billing_service.ensure_seat_available(db, current_user.organization_id, role_str)
     
     user = User(
         organization_id=current_user.organization_id,
@@ -273,6 +277,18 @@ async def update_user(user_id: uuid.UUID, data: UserUpdate, current_user: AdminU
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Moving someone into an admin/recruiter seat, or reactivating them in
+    # one, needs a free seat.
+    old_role = getattr(user.role, "value", user.role)
+    new_role = getattr(data.role, "value", data.role) if data.role is not None else old_role
+    becomes_active = data.is_active if data.is_active is not None else user.is_active
+    if becomes_active:
+        await billing_service.ensure_seat_available(
+            db, current_user.organization_id, new_role,
+            previous_role=old_role if user.is_active else None,
+        )
+
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(user, field, value)
     await db.commit()

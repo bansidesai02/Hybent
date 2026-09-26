@@ -20,6 +20,7 @@ from fastapi import BackgroundTasks, HTTPException
 
 from app.core.config import settings
 from app.services.ai_usage_tracker import log_ai_usage
+from app.services.ai_metering import ai_feature
 
 logger = logging.getLogger(__name__)
 
@@ -806,6 +807,7 @@ def _verify_is_resume_with_llm(text: str) -> bool:
 
 # ─── Public API ──────────────────────────────────────────────────────────────────
 
+@ai_feature("resume_parsing")
 async def parse_resume(
     file_content: bytes, 
     content_type: str, 
@@ -873,6 +875,7 @@ async def parse_resume(
         return _regex_fallback(text)
 
 
+@ai_feature("jd_parsing")
 async def parse_jd(
     file_bytes: bytes, 
     content_type: str,
@@ -956,6 +959,7 @@ async def parse_jd(
                 organization_id=organization_id
             )
 
+@ai_feature("match_summary")
 async def generate_match_summary(
     candidate_data: dict, 
     job_title: str, 

@@ -232,37 +232,29 @@ async def seed():
 
 
         # ── Seed Subscription Plans ───────────────────────────────────────────
-        starter_plan = SubscriptionPlan(
-            name="Starter",
-            price_monthly=8000.0,
-            price_yearly=80000.0,
-            max_users=20,
-            max_jobs=10,
-            features={"ai": False, "video": False, "bulk": True, "domain": False, "analytics": False}
-        )
-        pro_plan = SubscriptionPlan(
-            name="Pro",
-            price_monthly=24000.0,
-            price_yearly=240000.0,
-            max_users=50,
-            max_jobs=20,
-            features={"ai": True, "video": True, "bulk": True, "domain": False, "analytics": False}
-        )
-        ent_plan = SubscriptionPlan(
-            name="Enterprise",
-            price_monthly=60000.0,
-            price_yearly=600000.0,
-            max_users=999,
-            max_jobs=999,
-            features={"ai": True, "video": True, "bulk": True, "domain": True, "analytics": True}
-        )
-        db.add_all([starter_plan, pro_plan, ent_plan])
+        # The published plans (hybent.com/pricing): every plan includes
+        # 1 admin + 2 recruiter seats and 10,000 AI credits a month.
+        plan_features = {"ai": True, "video": True, "bulk": True, "domain": False, "analytics": True}
+
+        def _plan(name, term, price, order):
+            return SubscriptionPlan(
+                name=name, price_monthly=price, price_yearly=price * 12,
+                max_users=3, max_jobs=999, features=plan_features, ai_credits_monthly=10000,
+                term_months=term, currency="USD", included_admins=1, included_recruiters=2,
+                sort_order=order,
+            )
+
+        standard_plan = _plan("Standard", 1, 69.0, 1)
+        six_month_plan = _plan("6 months", 6, 66.0, 2)
+        twelve_month_plan = _plan("12 months", 12, 62.0, 3)
+        custom_plan = _plan("Custom", None, 0.0, 4)
+        db.add_all([standard_plan, six_month_plan, twelve_month_plan, custom_plan])
         await db.flush()
 
         # ── Company Subscription for Demo Co ──────────────────────────────
         sub = CompanySubscription(
             organization_id=org.id,
-            plan_id=pro_plan.id,
+            plan_id=standard_plan.id,
             status="active",
             billing_cycle="monthly",
             current_period_start=ago(days=15),
@@ -271,7 +263,7 @@ async def seed():
         db.add(sub)
 
         # ── Company Feature Flags for Demo Co ─────────────────────────────
-        for key, val in pro_plan.features.items():
+        for key, val in standard_plan.features.items():
             db.add(CompanyFeatureFlag(
                 organization_id=org.id,
                 flag_key=key,
@@ -313,12 +305,13 @@ async def seed():
         db.add_all(rules)
 
         # ── Seed OrganizationAICredits ────────────────────────────────────────
-        # 1 August 2026 as reset date matching example request
-        reset_date = datetime(2026, 8, 1, 0, 0, tzinfo=timezone.utc)
+        # 1 credit = $0.001 of provider cost; every plan includes 10,000/month.
+        reset_date = datetime.now(timezone.utc) + timedelta(days=30)
         org_credits = OrganizationAICredits(
             organization_id=org.id,
-            allowed_credits=100000,
-            used_credits=32450,
+            allowed_credits=10000,
+            used_credits=3245,
+            purchased_credits=0,
             reset_at=reset_date
         )
         db.add(org_credits)
@@ -377,7 +370,7 @@ async def seed():
 
         await db.commit()
         print(f"  ✓ Users: 9 created (2 super admins, 2 admins, 2 recruiters, 2 interviewers, 1 candidate)")
-        print(f"  ✓ Subscription plans & Demo Co Pro subscription seeded")
+        print(f"  ✓ Subscription plans & Demo Co Standard subscription seeded")
 
         print("\n" + "=" * 55)
         print("✅  Seed complete! Users loaded.")

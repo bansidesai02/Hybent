@@ -1,9 +1,17 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Response, BackgroundTasks
+import asyncio
+import html
 import logging
-from app.dependencies import DB, require_recruiter, require_interviewer_or_above
+import uuid
+from app.dependencies import DB, require_admin, require_recruiter
 from app.services.ai import ai_evaluator
 from app.services import jd_pdf_generator
-from app.services.ai_credit_service import AICreditsService
+from app.services.ai_credit_service import AICreditsService, TOPUP_PACKS, TOPUP_REQUEST_EMAIL, daily_limit_for
+from app.services import ai_pricing
+from app.services.ai_metering import clear_blocked
+from app.services.email_service import send_email
+from app.models.organization import Organization
+from app.models.user_ai_credits import UserAICredits
 from app.schemas.response import APIResponse
 from app.models.user import User
 from typing import Annotated
@@ -16,7 +24,7 @@ router = APIRouter(prefix="/v1/ai", tags=["ai"])
 async def evaluate_notes(
     db: DB,
     background_tasks: BackgroundTasks,
-    current_user: Annotated[User, Depends(require_interviewer_or_above)],
+    current_user: Annotated[User, Depends(require_recruiter)],
     raw_notes: str = Body(..., embed=True)
 ):
     """
@@ -254,36 +262,54 @@ async def ai_health_check(current_user: Annotated[User, Depends(require_recruite
     return APIResponse.success(message="AI diagnostics complete.", data=result)
 
 
+def _warning_level(org_credits) -> str:
+    if org_credits.warning_0_sent:
+        return "critical"
+    if org_credits.warning_5_sent:
+        return "danger"
+    if org_credits.warning_10_sent:
+        return "warning"
+    if org_credits.warning_25_sent:
+        return "low"
+    return "info"
+
+
 @router.get("/credits/balance")
 async def get_credits_balance(
     db: DB,
     current_user: Annotated[User, Depends(require_recruiter)]
 ):
-    """
-    Get current credit balance, warning thresholds, and reset timestamp.
-    """
+    """The organization's pool (monthly allowance + purchased top-ups), the
+    caller's own monthly/daily limit, and the top-up packs on offer."""
     org_credits = await AICreditsService.get_or_create_org_credits(db, current_user.organization_id)
-    remaining = max(0, org_credits.allowed_credits - org_credits.used_credits)
-    
-    # Calculate warning level
-    warning_level = "info"
-    if org_credits.warning_0_sent:
-        warning_level = "critical"
-    elif org_credits.warning_5_sent:
-        warning_level = "danger"
-    elif org_credits.warning_10_sent:
-        warning_level = "warning"
-    elif org_credits.warning_25_sent:
-        warning_level = "low"
-        
+    monthly_remaining = max(0, org_credits.allowed_credits - org_credits.used_credits)
+    purchased = max(0, org_credits.purchased_credits or 0)
+
+    mine = None
+    row = await AICreditsService.get_or_create_user_credits(db, current_user.organization_id, current_user.id)
+    if row is not None:
+        mine = {
+            "monthly_limit": row.monthly_limit,
+            "used_credits": row.used_credits,
+            "remaining_credits": max(0, row.monthly_limit - row.used_credits),
+            "daily_limit": daily_limit_for(row.monthly_limit),
+            "daily_used": AICreditsService.user_daily_used(row),
+        }
+    await db.commit()
+
     return APIResponse.success(
         message="Credits balance retrieved successfully.",
         data={
             "allowed_credits": org_credits.allowed_credits,
             "used_credits": org_credits.used_credits,
-            "remaining_credits": remaining,
+            "monthly_remaining": monthly_remaining,
+            "purchased_credits": purchased,
+            "remaining_credits": monthly_remaining + purchased,
             "reset_at": org_credits.reset_at,
-            "warning_level": warning_level
+            "warning_level": _warning_level(org_credits),
+            "my": mine,
+            "credit_price_usd": ai_pricing.CREDIT_PRICE_USD,
+            "topup_packs": [{"credits": c, "price_usd": p} for c, p in TOPUP_PACKS],
         }
     )
 
@@ -408,49 +434,137 @@ async def get_usage_over_time(
     )
 
 @router.post("/credits/buy")
-async def buy_credits(
-    db: DB,
-    current_user: Annotated[User, Depends(require_recruiter)],
-    payload: dict = Body(...)
-):
-    """
-    Simulate purchasing additional credits.
-    """
-    amount = payload.get("amount")
-    if not amount or not isinstance(amount, int) or amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid credits amount. Must be a positive integer.")
-        
-    org_credits = await AICreditsService.get_or_create_org_credits(db, current_user.organization_id)
-    
-    # Add credits
-    org_credits.allowed_credits += amount
-    
-    # Clear warning flags
-    org_credits.warning_0_sent = False
-    org_credits.warning_5_sent = False
-    org_credits.warning_10_sent = False
-    org_credits.warning_25_sent = False
-    org_credits.warning_50_sent = False
-    
-    db.add(org_credits)
-    await db.commit()
-    
-    # Send purchase confirmation notification
-    from app.tasks.notifications import notify_organization_roles
-    notify_organization_roles.delay(
-        str(current_user.organization_id),
-        ["admin", "recruiter"],
-        "system",
-        "Credits Purchased Successfully",
-        f"Your organization successfully purchased {amount:,} AI credits. New limit: {org_credits.allowed_credits:,} credits.",
-        {"added_credits": amount, "new_allowed_credits": org_credits.allowed_credits}
+async def buy_credits(current_user: Annotated[User, Depends(require_recruiter)]):
+    """Retired: this used to add any amount of credits for free. Top-ups are
+    requested with /credits/request-topup and added by Hybent once paid."""
+    raise HTTPException(
+        status_code=410,
+        detail="Credits can't be added from here. Ask your admin to request a top-up.",
     )
-    
+
+
+@router.post("/credits/request-topup")
+async def request_topup(
+    db: DB,
+    current_user: Annotated[User, Depends(require_admin)],
+    payload: dict = Body(...),
+):
+    """Admin asks Hybent for a top-up pack; the team invoices and adds it."""
+    credits = payload.get("credits")
+    pack = next(((c, p) for c, p in TOPUP_PACKS if c == credits), None)
+    if pack is None:
+        raise HTTPException(status_code=400, detail="Choose one of the available top-up packs.")
+
+    org = await db.get(Organization, current_user.organization_id)
+    org_name = org.name if org else str(current_user.organization_id)
+    body = (
+        f"<p><b>{html.escape(org_name)}</b> requested an AI credit top-up.</p>"
+        f"<p>Pack: {pack[0]:,} credits (${pack[1]:,.2f})<br/>"
+        f"Requested by: {html.escape(current_user.full_name or '')} &lt;{html.escape(current_user.email)}&gt;<br/>"
+        f"Organization ID: {current_user.organization_id}</p>"
+        "<p>Add the credits from the super-admin panel once payment is received.</p>"
+    )
+    sent = await asyncio.to_thread(
+        send_email, TOPUP_REQUEST_EMAIL, f"AI credit top-up request: {org_name} ({pack[0]:,} credits)", body
+    )
+    if not sent:
+        raise HTTPException(status_code=502, detail="We couldn't send your request. Please email info@hybent.com.")
+
     return APIResponse.success(
-        message=f"Successfully added {amount:,} credits to organization.",
+        message="Top-up requested. The Hybent team will contact you to complete it.",
+        data={"credits": pack[0], "price_usd": pack[1]},
+    )
+
+
+# Seats that use AI and have a credit limit.
+STAFF_ROLES = ("admin", "recruiter")
+
+
+@router.get("/credits/users")
+async def list_user_credit_limits(
+    db: DB,
+    current_user: Annotated[User, Depends(require_admin)],
+):
+    """Every staff member's monthly AI credit limit and usage this period."""
+    users = (await db.execute(
+        select(User)
+        .where(User.organization_id == current_user.organization_id)
+        .where(User.role.in_(STAFF_ROLES))
+        .where(User.is_active.is_(True))
+        .order_by(User.full_name)
+    )).scalars().all()
+    org_credits = await AICreditsService.get_or_create_org_credits(db, current_user.organization_id)
+
+    items = []
+    for u in users:
+        row = await AICreditsService.get_or_create_user_credits(db, current_user.organization_id, u.id)
+        if row is None:
+            continue
+        items.append({
+            "user_id": str(u.id),
+            "full_name": u.full_name,
+            "email": u.email,
+            "role": getattr(u.role, "value", u.role),
+            "monthly_limit": row.monthly_limit,
+            "used_credits": row.used_credits,
+            "daily_limit": daily_limit_for(row.monthly_limit),
+            "daily_used": AICreditsService.user_daily_used(row),
+        })
+    await db.commit()
+
+    return APIResponse.success(
+        message="User credit limits retrieved.",
         data={
-            "allowed_credits": org_credits.allowed_credits,
-            "used_credits": org_credits.used_credits,
-            "remaining_credits": max(0, org_credits.allowed_credits - org_credits.used_credits)
-        }
+            "items": items,
+            "allocated": sum(i["monthly_limit"] for i in items),
+            "pool": org_credits.allowed_credits + max(0, org_credits.purchased_credits or 0),
+        },
+    )
+
+
+@router.put("/credits/users/{user_id}")
+async def set_user_credit_limit(
+    user_id: uuid.UUID,
+    db: DB,
+    current_user: Annotated[User, Depends(require_admin)],
+    payload: dict = Body(...),
+):
+    """Set one user's monthly limit. Raising a limit can't take the total
+    past the organization's pool; lowering one is always allowed."""
+    limit = payload.get("monthly_limit")
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 0:
+        raise HTTPException(status_code=400, detail="monthly_limit must be a whole number of credits (0 or more).")
+
+    target = await db.get(User, user_id)
+    if not target or target.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=404, detail="User not found")
+    row = await AICreditsService.get_or_create_user_credits(db, current_user.organization_id, user_id)
+    if row is None:
+        raise HTTPException(status_code=400, detail="This user has no personal AI credit limit.")
+
+    org_credits = await AICreditsService.get_or_create_org_credits(db, current_user.organization_id)
+    pool = org_credits.allowed_credits + max(0, org_credits.purchased_credits or 0)
+    others = (await db.execute(
+        select(func.coalesce(func.sum(UserAICredits.monthly_limit), 0))
+        .join(User, User.id == UserAICredits.user_id)
+        .where(UserAICredits.organization_id == current_user.organization_id)
+        .where(UserAICredits.user_id != user_id)
+        .where(User.is_active.is_(True))
+        .where(User.role.in_(STAFF_ROLES))
+    )).scalar() or 0
+    # Default limits can add up to more than the pool (large teams); any
+    # change that doesn't raise the total is still allowed.
+    if others + limit > pool and limit > row.monthly_limit:
+        raise HTTPException(
+            status_code=400,
+            detail=f"That would allocate {others + limit:,} credits, more than the organization's {pool:,}. "
+                   f"The most you can give this user is {max(0, pool - others):,}.",
+        )
+
+    row.monthly_limit = limit
+    await db.commit()
+    clear_blocked(user_id=user_id)
+    return APIResponse.success(
+        message="Credit limit updated.",
+        data={"user_id": str(user_id), "monthly_limit": limit, "daily_limit": daily_limit_for(limit)},
     )

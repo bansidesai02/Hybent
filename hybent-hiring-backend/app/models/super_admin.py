@@ -15,6 +15,16 @@ class SubscriptionPlan(Base):
     price_yearly: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     max_users: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
     max_jobs: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    # AI credits the organization's shared pool gets each month (1 credit =
+    # $0.001 of provider cost; see app/services/ai_pricing.py).
+    ai_credits_monthly: Mapped[int] = mapped_column(Integer, nullable=False, default=10000, server_default="10000")
+    # Commitment term in months (1, 6, 12). None = Custom (priced by sales).
+    # `price_monthly` is the per-month rate in `currency` for that term.
+    term_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD", server_default="USD")
+    included_admins: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    included_recruiters: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     features: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)  # {"ai": true, "video": true, etc.}
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -27,7 +37,11 @@ class CompanySubscription(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, nullable=False)
     plan_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("subscription_plans.id", ondelete="RESTRICT"), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active, pending, suspended, expired
-    billing_cycle: Mapped[str] = mapped_column(String(50), nullable=False, default="monthly")  # monthly, yearly
+    billing_cycle: Mapped[str] = mapped_column(String(50), nullable=False, default="monthly")  # monthly, 6_months, yearly, custom
+    # Seats bought on top of the plan's included ones, per role
+    # (billing_service.EXTRA_SEATS has their price and AI credits).
+    extra_admin_seats: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    extra_recruiter_seats: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     trial_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

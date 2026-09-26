@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.services.ai_metering import ai_feature
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +155,7 @@ def chunk_parsed_resume(full_name: str, parsed_data: Optional[dict]) -> list[dic
 
 # ── Embedding ─────────────────────────────────────────────────────────────────
 
+@ai_feature("resume_search")
 async def embed_text(text_content: str, task_type: str = "RETRIEVAL_DOCUMENT") -> Optional[list[float]]:
     """
     Embed text via Gemini. Returns None on any failure or missing

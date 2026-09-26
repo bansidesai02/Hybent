@@ -77,10 +77,11 @@ const FLAG_INFO: Record<string, { title: string; desc: string }> = {
   analytics: { title: 'Advanced export', desc: 'Report downloads.' },
 }
 
+/** Plan prices are USD (hybent.com/pricing). */
 const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('en-IN', {
+  new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'INR',
+    currency: 'USD',
     maximumFractionDigits: 0,
   }).format(val)
 

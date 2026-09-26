@@ -54,10 +54,11 @@ import {
  * that read as a legend.
  */
 
+/** Plan prices are USD (hybent.com/pricing). */
 const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('en-IN', {
+  new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'INR',
+    currency: 'USD',
     maximumFractionDigits: 0,
   }).format(val)
 

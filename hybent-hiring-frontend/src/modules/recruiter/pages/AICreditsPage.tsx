@@ -1,10 +1,11 @@
 import { useEffect, useId, useState } from 'react'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
-import { AlertTriangle, Coins, CreditCard, Download, History, TrendingUp, Wallet } from 'lucide-react'
+import { AlertTriangle, Coins, CreditCard, Download, History, TrendingUp, User as UserIcon, Users, Wallet } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
 import { aiApi } from '@/api/ai'
+import { useAuthStore } from '@/store/authStore'
 import {
   Button,
   Card,
@@ -31,6 +32,10 @@ import {
 /**
  * AI credits, usage and top-up.
  *
+ * One credit is $0.001 of provider cost, priced from what each AI call
+ * actually used. The organization shares a monthly pool (plus any purchased
+ * top-ups); each person has a monthly limit within it, and a daily cap.
+ *
  * Rebuilt on the design system in phase 6. The breakdown chart used to colour
  * each feature from a nine-entry hex map with a seven-entry fallback, so a
  * feature's colour changed whenever the ranking shifted and none of the hues
@@ -47,21 +52,19 @@ const CREDIT_WARNINGS: Record<string, { tone: 'error' | 'warning'; message: stri
   critical: {
     tone: 'error',
     message:
-      "Critical Alert: Your organization's AI Credits are exhausted! All AI features have been disabled. Click 'Buy AI Credits' above to restore operations.",
+      "This month's AI credits are used up. AI features are paused until an admin requests a top-up or the monthly reset.",
   },
   danger: {
     tone: 'error',
-    message:
-      'Credits Almost Finished! Only 5% of your monthly AI credits are remaining. Please purchase additional credits to prevent interruption.',
+    message: "Only 5% of this month's AI credits remain. An admin can request a top-up to avoid interruption.",
   },
   warning: {
     tone: 'warning',
-    message:
-      'Low AI Credits: Only 10% remaining. Consider upgrading your plan or buying additional credits.',
+    message: "Only 10% of this month's AI credits remain.",
   },
   low: {
     tone: 'warning',
-    message: 'Warning: Only 25% AI Credits Remaining.',
+    message: "Only 25% of this month's AI credits remain.",
   },
 }
 
@@ -78,7 +81,6 @@ const PROVIDER_OPTIONS = [
   { value: 'huggingface', label: 'HuggingFace' },
 ]
 
-const CREDIT_PACKS = [20000, 50000, 100000]
 
 /** `jd_generation` → `Jd Generation`. */
 function formatFeatureName(name: string) {
@@ -88,6 +90,8 @@ function formatFeatureName(name: string) {
 export default function AICreditsPage() {
   const chart = useChartTheme()
   const packGroupId = useId()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
 
   const [balance, setBalance] = useState<any>(null)
   const [history, setHistory] = useState<any[]>([])
@@ -104,9 +108,14 @@ export default function AICreditsPage() {
 
   // Modals and loading states
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false)
-  const [buyAmount, setBuyAmount] = useState(50000)
+  const [buyAmount, setBuyAmount] = useState(20000)
   const [isBuying, setIsBuying] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Admin: team credit limits
+  const [team, setTeam] = useState<{ items: any[]; allocated: number; pool: number } | null>(null)
+  const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({})
+  const [savingLimit, setSavingLimit] = useState<string | null>(null)
 
   // Fetch all dashboard data
   const fetchData = async () => {
@@ -123,6 +132,7 @@ export default function AICreditsPage() {
       if (timeRes.data) setUsageOverTime(timeRes.data)
 
       await fetchHistory(1)
+      if (isAdmin) await fetchTeam()
     } catch (error: any) {
       toast.error('Failed to load AI credits data.')
       console.error(error)
@@ -143,6 +153,36 @@ export default function AICreditsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch history:', error)
+    }
+  }
+
+  const fetchTeam = async () => {
+    try {
+      const res = await aiApi.getUserCreditLimits()
+      if (res.data) {
+        setTeam(res.data)
+        setLimitDrafts({})
+      }
+    } catch (error) {
+      console.error('Failed to fetch team credit limits:', error)
+    }
+  }
+
+  const saveLimit = async (userId: string) => {
+    const value = parseInt(limitDrafts[userId] ?? '', 10)
+    if (Number.isNaN(value) || value < 0) {
+      toast.error('Enter a whole number of credits.')
+      return
+    }
+    try {
+      setSavingLimit(userId)
+      await aiApi.setUserCreditLimit(userId, value)
+      toast.success('Credit limit updated.')
+      await fetchTeam()
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Could not update the limit.')
+    } finally {
+      setSavingLimit(null)
     }
   }
 
@@ -172,25 +212,21 @@ export default function AICreditsPage() {
     return matchesSearch && matchesStatus && matchesProvider
   })
 
-  // Handle Buy Credits submission
+  // Top-up request (admin): Hybent invoices and adds the credits.
   const handleBuyCredits = async () => {
-    if (buyAmount <= 0) {
-      toast.error('Please enter a valid credit amount.')
-      return
-    }
-
     try {
       setIsBuying(true)
-      await aiApi.buyCredits(buyAmount)
-      toast.success(`Successfully purchased ${buyAmount.toLocaleString()} AI credits!`)
+      await aiApi.requestTopup(buyAmount)
+      toast.success('Top-up requested. The Hybent team will contact you to complete it.')
       setIsBuyModalOpen(false)
-      fetchData() // Refetch to update all charts/balances
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to purchase credits.')
+      toast.error(error.response?.data?.message || 'Could not send the top-up request.')
     } finally {
       setIsBuying(false)
     }
   }
+
+  const packs: Array<{ credits: number; price_usd: number }> = balance?.topup_packs || []
 
   // Export logs to CSV
   const handleCSVExport = () => {
@@ -342,11 +378,13 @@ export default function AICreditsPage() {
       <PageHeader
         eyebrow="Billing"
         title="AI credits & usage"
-        description="Monitor credits consumption, usage logs, and billing cycles."
+        description="Your organization's monthly AI credit pool, your own limit, and where credits go."
         actions={
-          <Button icon={<CreditCard size={16} />} onClick={() => setIsBuyModalOpen(true)}>
-            Buy AI credits
-          </Button>
+          isAdmin ? (
+            <Button icon={<CreditCard size={16} />} onClick={() => setIsBuyModalOpen(true)}>
+              Request top-up
+            </Button>
+          ) : undefined
         }
       />
 
@@ -375,35 +413,74 @@ export default function AICreditsPage() {
 
         {loading && !balance ? (
           <div className="grid gap-hb-4 md:grid-cols-3">
-            <StatCard label="Quota allowed (monthly)" value="—" icon={<Coins />} loading />
-            <StatCard label="Credits consumed" value="—" icon={<TrendingUp />} loading />
-            <StatCard label="Remaining balance" value="—" icon={<Wallet />} loading />
+            <StatCard label="Monthly credits" value="—" icon={<Coins />} loading />
+            <StatCard label="Used this month" value="—" icon={<TrendingUp />} loading />
+            <StatCard label="Remaining" value="—" icon={<Wallet />} loading />
           </div>
         ) : (
           balance && (
             <div className="space-y-hb-4">
               <div className="grid gap-hb-4 md:grid-cols-3">
                 <StatCard
-                  label="Quota allowed (monthly)"
+                  label="Monthly credits"
                   value={balance.allowed_credits.toLocaleString()}
                   icon={<Coins />}
                 />
                 <StatCard
-                  label="Credits consumed"
+                  label="Used this month"
                   value={balance.used_credits.toLocaleString()}
                   icon={<TrendingUp />}
                 />
                 <StatCard
-                  label="Remaining balance"
+                  label={balance.purchased_credits > 0
+                    ? `Remaining (incl. ${balance.purchased_credits.toLocaleString()} purchased)`
+                    : 'Remaining'}
                   value={balance.remaining_credits.toLocaleString()}
                   icon={<Wallet />}
                 />
               </div>
 
+              {balance.my && (
+                <Card padding="compact">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <IconTile size="sm">
+                      <UserIcon />
+                    </IconTile>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-hb-label uppercase text-hb-muted">Your limit this month</p>
+                      <p className="text-hb-sm text-hb-text">
+                        <span className="font-mono tabular-nums">{balance.my.used_credits.toLocaleString()}</span>
+                        {' of '}
+                        <span className="font-mono tabular-nums">{balance.my.monthly_limit.toLocaleString()}</span>
+                        {' credits used · today '}
+                        <span className="font-mono tabular-nums">{balance.my.daily_used.toLocaleString()}</span>
+                        {' / '}
+                        <span className="font-mono tabular-nums">{balance.my.daily_limit.toLocaleString()}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2.5">
+                    <Meter
+                      value={balance.my.used_credits}
+                      max={Math.max(1, balance.my.monthly_limit)}
+                      size="sm"
+                      aria-label="Your monthly AI credit limit used"
+                      tone={
+                        balance.my.used_credits >= balance.my.monthly_limit
+                          ? 'error'
+                          : balance.my.used_credits >= balance.my.monthly_limit * 0.75
+                            ? 'warning'
+                            : 'brand'
+                      }
+                    />
+                  </div>
+                </Card>
+              )}
+
               <Card padding="compact">
                 <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-mono text-hb-label uppercase text-hb-muted">
-                    Quota consumed this cycle
+                    Organization pool used this month
                   </span>
                   <span className="text-hb-sm text-hb-muted">
                     {remainingPercent === null ? (
@@ -506,6 +583,110 @@ export default function AICreditsPage() {
           )}
         </div>
 
+        {isAdmin && team && (
+          <section aria-labelledby="team-limits-heading">
+            <div className="mb-hb-4 flex flex-wrap items-center gap-3">
+              <IconTile size="sm">
+                <Users />
+              </IconTile>
+              <h2 id="team-limits-heading" className="font-display text-hb-h3 text-hb-text">
+                Team credit limits
+              </h2>
+              <div className="flex-1" />
+              <span className="text-hb-sm text-hb-muted">
+                <span className="font-mono tabular-nums text-hb-text">{team.allocated.toLocaleString()}</span>
+                {' of '}
+                <span className="font-mono tabular-nums text-hb-text">{team.pool.toLocaleString()}</span>
+                {' credits allocated'}
+              </span>
+            </div>
+            <DataTable
+              columns={[
+                {
+                  key: 'user',
+                  header: 'Member',
+                  cardTitle: true,
+                  cell: (m: any) => <CellStack primary={m.full_name} secondary={`${m.email} · ${m.role}`} />,
+                },
+                {
+                  key: 'used',
+                  header: 'Used this month',
+                  cell: (m: any) => (
+                    <div className="min-w-[140px]">
+                      <span className="font-mono text-hb-sm tabular-nums text-hb-text">
+                        {m.used_credits.toLocaleString()} / {m.monthly_limit.toLocaleString()}
+                      </span>
+                      <div className="mt-1">
+                        <Meter
+                          value={m.used_credits}
+                          max={Math.max(1, m.monthly_limit)}
+                          size="sm"
+                          aria-label={`${m.full_name} credits used`}
+                          tone={m.used_credits >= m.monthly_limit ? 'error' : 'brand'}
+                        />
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'daily',
+                  header: 'Today',
+                  cell: (m: any) => (
+                    <span className="font-mono text-hb-xs tabular-nums text-hb-muted">
+                      {m.daily_used.toLocaleString()} / {m.daily_limit.toLocaleString()}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'limit',
+                  header: 'Monthly limit',
+                  align: 'right',
+                  cell: (m: any) => {
+                    const draft = limitDrafts[m.user_id]
+                    const dirty = draft !== undefined && draft !== String(m.monthly_limit)
+                    return (
+                      <div className="flex items-center justify-end gap-2">
+                        <Input
+                          aria-label={`Monthly limit for ${m.full_name}`}
+                          type="number"
+                          min={0}
+                          step={500}
+                          value={draft ?? String(m.monthly_limit)}
+                          onChange={(e) => setLimitDrafts((d) => ({ ...d, [m.user_id]: e.target.value }))}
+                          fieldClassName="w-[120px]"
+                        />
+                        <Button
+                          size="sm"
+                          variant={dirty ? 'primary' : 'ghost'}
+                          disabled={!dirty}
+                          loading={savingLimit === m.user_id}
+                          onClick={() => saveLimit(m.user_id)}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    )
+                  },
+                },
+              ]}
+              rows={team.items}
+              rowKey={(m: any) => m.user_id}
+              caption="Team AI credit limits"
+              empty={{ title: 'No team members yet', description: 'Invited teammates appear here.' }}
+            />
+            {team.allocated > team.pool && (
+              <p role="status" className="mt-2 text-hb-sm text-hb-warning">
+                Limits add up to more than the organization&apos;s {team.pool.toLocaleString()} credits. The shared
+                pool still caps total use, so lower some limits to guarantee each person their share.
+              </p>
+            )}
+            <p className="mt-2 text-hb-xs text-hb-muted">
+              Each person can use up to a fifth of their monthly limit in one day. Raising a limit can&apos;t take
+              the total past the organization&apos;s credits.
+            </p>
+          </section>
+        )}
+
         <section aria-labelledby="credits-history-heading">
           <div className="mb-hb-4 flex flex-wrap items-center gap-3">
             <IconTile size="sm">
@@ -583,8 +764,8 @@ export default function AICreditsPage() {
       <Dialog
         open={isBuyModalOpen}
         onClose={() => setIsBuyModalOpen(false)}
-        title="Purchase AI credits"
-        description="Simulate adding additional credits to your organization balance. The request will automatically process and update dashboard charts."
+        title="Request an AI credit top-up"
+        description="Choose a pack. We'll send the request to the Hybent team, who will invoice you and add the credits. Purchased credits don't expire at the monthly reset."
         size="sm"
         footer={
           <>
@@ -594,10 +775,10 @@ export default function AICreditsPage() {
             <Button
               size="sm"
               loading={isBuying}
-              disabled={buyAmount <= 0}
+              disabled={!packs.some((p) => p.credits === buyAmount)}
               onClick={handleBuyCredits}
             >
-              {isBuying ? 'Processing…' : 'Confirm purchase'}
+              {isBuying ? 'Sending…' : 'Request top-up'}
             </Button>
           </>
         }
@@ -608,29 +789,24 @@ export default function AICreditsPage() {
               Select pack
             </p>
             <div className="mt-2 grid grid-cols-3 gap-2">
-              {CREDIT_PACKS.map((amt) => (
+              {packs.map((pack) => (
                 <Button
-                  key={amt}
+                  key={pack.credits}
                   size="sm"
                   fullWidth
-                  variant={buyAmount === amt ? 'primary' : 'ghost'}
-                  aria-pressed={buyAmount === amt}
-                  onClick={() => setBuyAmount(amt)}
+                  variant={buyAmount === pack.credits ? 'primary' : 'ghost'}
+                  aria-pressed={buyAmount === pack.credits}
+                  onClick={() => setBuyAmount(pack.credits)}
                 >
-                  +{amt.toLocaleString()}
+                  {pack.credits.toLocaleString()} · ${pack.price_usd}
                 </Button>
               ))}
             </div>
           </div>
-
-          <Input
-            label="Custom credit amount"
-            type="number"
-            min={1000}
-            step={5000}
-            value={buyAmount}
-            onChange={(e) => setBuyAmount(Math.max(0, parseInt(e.target.value) || 0))}
-          />
+          <p className="text-hb-xs text-hb-muted">
+            Need a different amount or more seats? Email{' '}
+            <a className="underline" href="mailto:info@hybent.com">info@hybent.com</a>.
+          </p>
         </div>
       </Dialog>
     </div>

@@ -40,6 +40,7 @@ from app.services.ai.ai_evaluator import transcribe_audio
 from app.services.email_service import send_pre_screening_invite
 from app.services.email_accounts_service import resolve_sender_for_user
 from app.services.storage_service import save_audio
+from app.services.ai_metering import ai_scope
 
 logger = logging.getLogger(__name__)
 
@@ -349,10 +350,12 @@ async def take_session(token: str, db: DB):
     # If language is non-English, translate questions (cached re-translation on re-fetch)
     translated: list[ScreeningQuestion] = []
     if session.language and session.language != "english":
-        raw_translated = await svc.translate_questions(
-            questions=[q.model_dump() for q in questions],
-            language=session.language,
-        )
+        # Public (no staff login): charge the inviting organization.
+        async with ai_scope(session.organization_id):
+            raw_translated = await svc.translate_questions(
+                questions=[q.model_dump() for q in questions],
+                language=session.language,
+            )
         translated = [ScreeningQuestion(**q) for q in raw_translated]
 
     return PublicSessionOut(
@@ -497,6 +500,7 @@ async def upload_response(
 
     session_language = session.language or "english"
     whisper_lang = svc.WHISPER_LANGUAGE_MAP.get(session_language, "en")
+    org_id = session.organization_id
 
     # Async transcription — run in background after response is sent
     async def _transcribe(
@@ -508,12 +512,14 @@ async def upload_response(
     ):
         from app.core.database import get_session_factory
         try:
-            result = await transcribe_audio(
-                audio_data=data,
-                filename=filename,
-                content_type=ctype,
-                language=lang,
-            )
+            # Public (no staff login): charge the inviting organization.
+            async with ai_scope(org_id):
+                result = await transcribe_audio(
+                    audio_data=data,
+                    filename=filename,
+                    content_type=ctype,
+                    language=lang,
+                )
             transcript_text = result.get("text", "")
             async with get_session_factory()() as async_db:
                 r_res = await async_db.execute(

@@ -4,8 +4,11 @@ import time
 import os
 from groq import Groq, RateLimitError, APIStatusError
 from app.core.config import settings
+from app.services import ai_metering
 
 logger = logging.getLogger(__name__)
+
+ai_metering.install_gemini_metering()
 
 
 def _load_keys() -> list[str]:
@@ -136,6 +139,13 @@ class SafeCompletions:
         # 2. Determine keys to try — every configured key, healthy ones first
         keys_to_try = _ordered_keys()
 
+        # Metering: refuse calls for pools known to be spent, then charge the
+        # scope's org/user for what the successful call consumed.
+        scope = ai_metering.current_scope()
+        ai_metering.ensure_not_blocked(scope)
+        feature_name = ai_metering.current_feature()
+        started = time.perf_counter()
+
         last_exception = None
 
         for key in keys_to_try:
@@ -147,7 +157,13 @@ class SafeCompletions:
 
                     logger.info(f"Attempting Groq completion with model={model} and key={key[:12] if key else 'None'}...")
                     client = Groq(api_key=key)
-                    return client.chat.completions.create(*args, **kwargs)
+                    response = client.chat.completions.create(*args, **kwargs)
+                    if kwargs.get("stream"):
+                        return ai_metering.MeteredGroqStream(
+                            response, model, started, scope, feature_name, ai_metering.prompt_chars(kwargs)
+                        )
+                    ai_metering.record_groq_completion(response, model, started, scope)
+                    return response
                 except (RateLimitError, APIStatusError) as e:
                     last_exception = e
                     status_code = getattr(e, "status_code", None)
@@ -208,6 +224,10 @@ class SafeTranscriptions:
 
         keys_to_try = _ordered_keys()
 
+        scope = ai_metering.current_scope()
+        ai_metering.ensure_not_blocked(scope)
+        started = time.perf_counter()
+
         last_exception = None
 
         for key in keys_to_try:
@@ -216,7 +236,14 @@ class SafeTranscriptions:
                     if "model" in kwargs or requested_model:
                         kwargs["model"] = model
                     client = Groq(api_key=key)
-                    return client.audio.transcriptions.create(*args, **kwargs)
+                    response = client.audio.transcriptions.create(*args, **kwargs)
+                    ai_metering.record_usage(
+                        "groq", model,
+                        audio_seconds=ai_metering.estimate_audio_seconds(response, kwargs),
+                        duration_ms=(time.perf_counter() - started) * 1000,
+                        scope=scope,
+                    )
+                    return response
                 except (RateLimitError, APIStatusError) as e:
                     last_exception = e
                     status_code = getattr(e, "status_code", None)

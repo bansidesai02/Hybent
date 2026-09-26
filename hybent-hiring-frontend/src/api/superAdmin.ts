@@ -20,6 +20,26 @@ export interface ClientUpdatePayload {
   location?: string
   is_active?: boolean
   plan_name?: string
+  /** $15/month and +1,500 AI credits each. */
+  extra_admin_seats?: number
+  /** $10/month and +1,000 AI credits each. */
+  extra_recruiter_seats?: number
+}
+
+export interface PlanInfo {
+  id: string
+  name: string
+  term_months: number | null
+  is_custom: boolean
+  price_monthly: number
+  currency: string
+  billed_amount: number | null
+  billed_label: string
+  discount_pct: number | null
+  included_admins: number
+  included_recruiters: number
+  ai_credits_monthly: number
+  subscribers?: number
 }
 
 export interface PlatformSettingsPayload {
@@ -34,8 +54,34 @@ export interface PlatformSettingsPayload {
   primary_color?: string
 }
 
+export interface OrgAICredits {
+  organization_id: string
+  organization_name: string
+  plan: string | null
+  monthly_credits: number | null
+  custom_monthly_credits: number | null
+  used_credits: number
+  purchased_credits: number
+  reset_at: string | null
+  provider_cost_usd: number
+  credits_value_usd: number
+}
+
+export interface OrgAICreditsUpdate {
+  /** Custom monthly allowance; null returns the org to its plan's allowance. */
+  monthly_credits?: number | null
+  /** Paid top-up credits to add. */
+  add_purchased?: number
+}
+
 export const superAdminApi = {
   getDashboard: () => api.get<any>('/v1/super-admin/dashboard').then(res => res.data),
+
+  getPlans: () => api.get<PlanInfo[]>('/v1/super-admin/plans').then(res => res.data),
+
+  getAICredits: () => api.get<OrgAICredits[]>('/v1/super-admin/ai-credits').then(res => res.data),
+  updateAICredits: (orgId: string, payload: OrgAICreditsUpdate) =>
+    api.put<any>(`/v1/super-admin/organizations/${orgId}/ai-credits`, payload).then(res => res.data),
   
   getClients: () => api.get<any[]>('/v1/super-admin/clients').then(res => res.data),
   

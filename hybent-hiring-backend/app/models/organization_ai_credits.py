@@ -12,8 +12,15 @@ class OrganizationAICredits(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
     )
+    # Monthly allowance (from the plan, or `custom_monthly_credits` when a
+    # super admin has set one) and how much of it this period has used.
     allowed_credits: Mapped[int] = mapped_column(Integer, default=0)
     used_credits: Mapped[int] = mapped_column(Integer, default=0)
+    # Super-admin override of the plan's monthly allowance (Custom plans).
+    custom_monthly_credits: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Bought top-up credits. Not reset monthly; spent only once the monthly
+    # allowance is used up.
+    purchased_credits: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     reset_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     
     # Warning flags to prevent double notifications in the current cycle

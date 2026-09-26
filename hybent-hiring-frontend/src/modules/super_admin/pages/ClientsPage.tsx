@@ -50,10 +50,14 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'error'> = {
 
 const STATUS_FILTERS = ['active', 'pending', 'suspended'] as const
 
+/* The published plans (hybent.com/pricing). Each includes 1 admin + 2
+   recruiter seats and 10,000 AI credits a month; the term sets the billing
+   cycle. */
 const PLANS = [
-  { name: 'Starter', price: '₹8k/mo', desc: '20 users / 10 jobs' },
-  { name: 'Pro', price: '₹24k/mo', desc: '50 users / 20 jobs' },
-  { name: 'Enterprise', price: '₹60k/mo', desc: 'Unlimited' },
+  { name: 'Standard', price: '$69/mo', desc: 'Billed monthly' },
+  { name: '6 months', price: '$66/mo', desc: 'Billed $396 every 6 months' },
+  { name: '12 months', price: '$62/mo', desc: 'Billed $744 per year' },
+  { name: 'Custom', price: 'Custom', desc: 'Priced by sales' },
 ]
 
 const FEATURE_FLAGS = [
@@ -69,11 +73,6 @@ const SIZE_OPTIONS = ['1–10', '11–50', '51–200', '201–1000', '1000+'].ma
   label: v,
 }))
 
-const CYCLE_OPTIONS = [
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly (discounted)' },
-]
-
 const EMPTY_WIZARD = {
   name: '',
   slug: '',
@@ -81,8 +80,7 @@ const EMPTY_WIZARD = {
   size: '11–50',
   location: 'Ahmedabad, IN',
   admin_email: '',
-  plan_name: 'Pro',
-  billing_cycle: 'monthly',
+  plan_name: 'Standard',
   trial_days: 14,
   flags: { ai: true, video: true, bulk: true, domain: false, analytics: false },
 }
@@ -447,7 +445,7 @@ export default function ClientsPage() {
           <div className="space-y-hb-4">
             <fieldset>
               <legend className="mb-2 text-hb-sm font-semibold text-hb-text">Plan</legend>
-              <div className="grid gap-2.5 sm:grid-cols-3">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 {PLANS.map((p) => {
                   const selected = wizardData.plan_name === p.name
                   return (
@@ -473,12 +471,6 @@ export default function ClientsPage() {
             </fieldset>
 
             <div className="grid gap-hb-4 sm:grid-cols-2">
-              <Select
-                label="Billing cycle"
-                options={CYCLE_OPTIONS}
-                value={wizardData.billing_cycle}
-                onChange={(e) => setWizardData((p) => ({ ...p, billing_cycle: e.target.value }))}
-              />
               <Input
                 label="Trial days"
                 type="number"

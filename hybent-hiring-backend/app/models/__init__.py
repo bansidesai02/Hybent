@@ -19,6 +19,7 @@ from app.models.email_account import EmailAccount
 from app.models.email_message import EmailMessage
 from app.models.ai_usage import AIUsage
 from app.models.organization_ai_credits import OrganizationAICredits
+from app.models.user_ai_credits import UserAICredits
 from app.models.ai_credit_rule import AICreditRule
 from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 from app.models.candidate_resume_chunk import CandidateResumeChunk
@@ -37,7 +38,7 @@ __all__ = [
     "Application", "Interview", "InterviewPanelist", "Scorecard",
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
     "OtherOffer", "JobReferral", "CandidateDocument", "Message", "EmailAccount", "EmailMessage",
-    "AIUsage", "OrganizationAICredits", "AICreditRule", "CopilotConversation", "CopilotMessage",
+    "AIUsage", "OrganizationAICredits", "UserAICredits", "AICreditRule", "CopilotConversation", "CopilotMessage",
     "CandidateResumeChunk", "ImportBatch",
     "UserPreference", "DesignationChangeLog",
     "PreScreeningSession", "PreScreeningResponse",

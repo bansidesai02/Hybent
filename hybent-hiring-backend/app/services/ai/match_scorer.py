@@ -19,6 +19,7 @@ from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
 from fastapi import BackgroundTasks
 from app.core.config import settings
 from app.services.ai_usage_tracker import log_ai_usage
+from app.services.ai_metering import ai_feature
 
 logger = logging.getLogger(__name__)
 
@@ -551,6 +552,7 @@ async def _evaluate_candidate_match_gemini(prompt: str) -> Optional[dict]:
     return None
 
 
+@ai_feature("candidate_matching")
 async def evaluate_candidate_match(
     candidate_data: dict,
     candidate_skills: list[str],

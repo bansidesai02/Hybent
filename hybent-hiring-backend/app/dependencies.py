@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.user import User
+from app.services.ai_metering import bind_request_scope
 from app.utils.permissions import UserRole, RECRUITER_ROLES, INTERVIEWER_ROLES, ADMIN_ONLY
 from app.utils.security import decode_access_token
 
@@ -67,6 +68,9 @@ async def get_current_user(
             raise credentials_exception
         user.is_impersonating = bool(impersonator_id)
         user.impersonator_id = impersonator_id
+        # AI calls made while serving this request are charged to this
+        # user's organization and credit limit (app/services/ai_metering.py).
+        bind_request_scope(user.organization_id, user.id, user.role)
     except HTTPException:
         raise  # re-raise 401/403 as-is, don't swallow them
     except Exception as db_err:

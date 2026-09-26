@@ -135,9 +135,13 @@ function InviteDialog({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           error={errors.password?.message}
           {...register('password')}
         />
+        <p className="text-hb-xs text-hb-muted">
+          Admins and recruiters use a seat on your plan; interviewers don&apos;t.
+        </p>
         {mutation.isError && (
           <p role="alert" className="text-hb-sm text-hb-error">
-            Failed to invite user. The email may already be registered.
+            {(mutation.error as any)?.response?.data?.message ||
+              'Failed to invite user. The email may already be registered.'}
           </p>
         )}
       </form>
@@ -170,7 +174,7 @@ export default function TeamManagementPage() {
       toast.success(is_active ? 'User activated' : 'User deactivated')
       setToggleTarget(null)
     },
-    onError: () => toast.error('Failed to update user status'),
+    onError: (error: any) => toast.error(error?.response?.data?.message || 'Failed to update user status'),
   })
 
   const deleteMutation = useMutation({

@@ -66,8 +66,8 @@ class ClientCreate(BaseModel):
     size: str | None = None
     location: str | None = None
     admin_email: EmailStr
-    plan_name: str = "Pro"  # Starter, Pro, Enterprise
-    billing_cycle: str = "monthly"  # monthly, yearly
+    plan_name: str = "Standard"  # Standard, 6 months, 12 months, Custom
+    billing_cycle: str | None = None  # derived from the plan's term
     trial_days: int = 14
     flags: dict[str, bool] | None = None
 
@@ -79,6 +79,8 @@ class ClientUpdate(BaseModel):
     location: str | None = None
     is_active: bool | None = None
     plan_name: str | None = None
+    extra_admin_seats: int | None = None
+    extra_recruiter_seats: int | None = None
 
 
 class GlobalUserOut(BaseModel):

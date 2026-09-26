@@ -1,111 +1,295 @@
+import math
 import uuid
 import logging
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.models.organization_ai_credits import OrganizationAICredits
-from app.models.ai_credit_rule import AICreditRule
+from app.models.user_ai_credits import UserAICredits
 from app.models.ai_usage import AIUsage
 from app.models.super_admin import CompanySubscription
+from app.models.user import User
+from app.services import ai_pricing, billing_service
 from app.utils.exceptions import InsufficientCreditsException
 from app.tasks.notifications import notify_organization_roles
 
 logger = logging.getLogger(__name__)
 
-class AICreditsService:
-    @staticmethod
-    async def get_or_create_org_credits(db: AsyncSession, organization_id: uuid.UUID) -> OrganizationAICredits:
-        """
-        Retrieve organization credits. If they don't exist, create default balance 
-        based on their subscription plan.
-        """
-        query = select(OrganizationAICredits).where(OrganizationAICredits.organization_id == organization_id)
-        result = await db.execute(query)
-        org_credits = result.scalar_one_or_none()
+# 1 credit = $0.001 of provider cost (see ai_pricing). Every plan includes
+# this many credits a month unless the plan or a super admin says otherwise.
+DEFAULT_ORG_MONTHLY_CREDITS = 10_000
 
+# Each seat's default share of the pool. Only admins and recruiters use AI
+# (see ai_metering.NO_AI_ROLES); super admins are Hybent staff with no
+# personal limit.
+ROLE_DEFAULT_LIMITS = {"admin": 1_000, "recruiter": 4_500}
+UNLIMITED_ROLES = {"super_admin"}
+
+# A user can spend at most this share of their monthly limit in one day.
+DAILY_LIMIT_FRACTION = 0.2
+
+# Top-up packs (credits, USD). Priced at CREDIT_PRICE_USD, the 2x markup.
+TOPUP_PACKS = [(5_000, 10.0), (20_000, 40.0), (50_000, 100.0)]
+TOPUP_REQUEST_EMAIL = "info@hybent.com"
+
+
+def daily_limit_for(monthly_limit: int) -> int:
+    return max(1, math.ceil(monthly_limit * DAILY_LIMIT_FRACTION))
+
+
+class AICreditsService:
+    # ── Pools ────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def plan_monthly_credits(db: AsyncSession, organization_id: uuid.UUID) -> tuple[int, CompanySubscription | None]:
+        sub = (await db.execute(
+            select(CompanySubscription).where(CompanySubscription.organization_id == organization_id)
+        )).scalar_one_or_none()
+        monthly = DEFAULT_ORG_MONTHLY_CREDITS
+        if sub and sub.plan and sub.plan.ai_credits_monthly is not None:
+            monthly = sub.plan.ai_credits_monthly
+        # Extra admin seats add 1,500 credits each, recruiter seats 1,000.
+        monthly += billing_service.extra_seat_credits(sub)
+        return monthly, sub
+
+    @classmethod
+    async def get_or_create_org_credits(
+        cls, db: AsyncSession, organization_id: uuid.UUID, for_update: bool = False
+    ) -> OrganizationAICredits:
+        """The organization's credit pool, created on first use with the
+        plan's monthly allowance."""
+        query = select(OrganizationAICredits).where(OrganizationAICredits.organization_id == organization_id)
+        if for_update:
+            query = query.with_for_update()
+        org_credits = (await db.execute(query)).scalar_one_or_none()
         if org_credits:
             return org_credits
 
-        # Initialize credits based on subscription plan
-        sub_query = (
-            select(CompanySubscription)
-            .where(CompanySubscription.organization_id == organization_id)
-        )
-        sub_result = await db.execute(sub_query)
-        sub = sub_result.scalar_one_or_none()
-
-        allowed_credits = 50000  # Default Starter
-        if sub and sub.plan:
-            plan_name = sub.plan.name.lower()
-            if "pro" in plan_name or "professional" in plan_name:
-                allowed_credits = 100000
-            elif "enterprise" in plan_name:
-                allowed_credits = 250000
-
+        monthly, sub = await cls.plan_monthly_credits(db, organization_id)
         reset_at = datetime.now(timezone.utc) + timedelta(days=30)
-        if sub and sub.current_period_end:
+        if sub and sub.current_period_end and sub.current_period_end > datetime.now(timezone.utc):
             reset_at = sub.current_period_end
 
         org_credits = OrganizationAICredits(
             organization_id=organization_id,
-            allowed_credits=allowed_credits,
+            allowed_credits=monthly,
             used_credits=0,
-            reset_at=reset_at
+            purchased_credits=0,
+            reset_at=reset_at,
         )
         db.add(org_credits)
         await db.flush()
-        logger.info(f"Initialized AI credits for organization {organization_id}: {allowed_credits} credits.")
+        logger.info(f"Initialized AI credits for organization {organization_id}: {monthly} credits/month.")
         return org_credits
 
     @staticmethod
-    async def get_rule(db: AsyncSession, feature: str) -> AICreditRule:
-        """
-        Get credit rule for the feature. If not found, return a default fixed rule (10 credits).
-        """
-        query = select(AICreditRule).where(AICreditRule.feature == feature)
-        result = await db.execute(query)
-        rule = result.scalar_one_or_none()
-        
-        if not rule:
-            logger.warning(f"Credit rule not found for feature: {feature}. Using fallback rule.")
-            # Fallback rule
-            rule = AICreditRule(
-                feature=feature,
-                cost_type="fixed",
-                fixed_cost=10
-            )
-        return rule
+    def org_remaining(org_credits: OrganizationAICredits) -> int:
+        monthly_left = max(0, org_credits.allowed_credits - org_credits.used_credits)
+        return monthly_left + max(0, org_credits.purchased_credits or 0)
+
+    @staticmethod
+    async def user_role(db: AsyncSession, user_id: uuid.UUID) -> str | None:
+        role = (await db.execute(select(User.role).where(User.id == user_id))).scalar_one_or_none()
+        return getattr(role, "value", role)
 
     @classmethod
-    async def check_credits_available(cls, db: AsyncSession | None, organization_id: uuid.UUID, feature: str):
-        """
-        Verify if organization has enough credits.
-        Raises InsufficientCreditsException if credits are exhausted or insufficient.
-        """
+    async def get_or_create_user_credits(
+        cls, db: AsyncSession, organization_id: uuid.UUID, user_id: uuid.UUID, for_update: bool = False
+    ) -> UserAICredits | None:
+        """The user's share of the pool, created on first use. Members in the
+        plan's included seats get their role's default; anyone beyond them is
+        in an extra seat and gets that seat's credits (admin 1,500, recruiter
+        1,000). Either way it's capped at what's still unallocated. None for
+        roles without a limit."""
+        query = select(UserAICredits).where(UserAICredits.user_id == user_id)
+        if for_update:
+            query = query.with_for_update()
+        row = (await db.execute(query)).scalar_one_or_none()
+        if row:
+            return row
+
+        role = await cls.user_role(db, user_id)
+        if role not in ROLE_DEFAULT_LIMITS:
+            return None
+
+        org_credits = await cls.get_or_create_org_credits(db, organization_id)
+        allocated = (await db.execute(
+            select(func.coalesce(func.sum(UserAICredits.monthly_limit), 0))
+            .join(User, User.id == UserAICredits.user_id)
+            .where(UserAICredits.organization_id == organization_id, User.is_active.is_(True))
+            .where(User.role.in_(tuple(ROLE_DEFAULT_LIMITS)))
+        )).scalar() or 0
+        unallocated = max(0, org_credits.allowed_credits - allocated)
+
+        default = ROLE_DEFAULT_LIMITS[role]
+        sub = (await db.execute(
+            select(CompanySubscription).where(CompanySubscription.organization_id == organization_id)
+        )).scalar_one_or_none()
+        if sub and sub.plan:
+            included = sub.plan.included_admins if role == "admin" else sub.plan.included_recruiters
+            same_role_with_limits = (await db.execute(
+                select(func.count())
+                .select_from(UserAICredits)
+                .join(User, User.id == UserAICredits.user_id)
+                .where(UserAICredits.organization_id == organization_id, User.is_active.is_(True))
+                .where(User.role == role)
+            )).scalar() or 0
+            if same_role_with_limits >= included:
+                default = billing_service.EXTRA_SEATS[role][1]
+
+        row = UserAICredits(
+            organization_id=organization_id,
+            user_id=user_id,
+            monthly_limit=min(default, unallocated),
+            used_credits=0,
+            daily_used=0,
+            daily_date=None,
+        )
+        db.add(row)
+        await db.flush()
+        return row
+
+    @staticmethod
+    def user_daily_used(row: UserAICredits) -> int:
+        today = datetime.now(timezone.utc).date()
+        return row.daily_used if row.daily_date == today else 0
+
+    # ── Checks ───────────────────────────────────────────────────────────────
+
+    @classmethod
+    async def check_credits_available(
+        cls,
+        db: AsyncSession | None,
+        organization_id: uuid.UUID | None,
+        feature: str | None = None,
+        user_id: uuid.UUID | None = None,
+    ):
+        """Raise InsufficientCreditsException before an AI call if the
+        organization's pool, or the user's monthly or daily limit, is spent.
+        The user defaults to the current AI scope's user."""
         if not organization_id:
             return
+        if user_id is None:
+            from app.services.ai_metering import current_scope
+            scope = current_scope()
+            if scope and scope.organization_id == organization_id:
+                user_id = scope.user_id
 
         if db is None:
             async with AsyncSessionLocal() as session:
-                return await cls.check_credits_available(session, organization_id, feature)
+                await cls.check_credits_available(session, organization_id, feature, user_id)
+                await session.commit()
+                return
 
         org_credits = await cls.get_or_create_org_credits(db, organization_id)
-        rule = await cls.get_rule(db, feature)
-
-        remaining = org_credits.allowed_credits - org_credits.used_credits
-
-        # If remaining is 0 or less, reject all AI features
-        if remaining <= 0:
+        if cls.org_remaining(org_credits) <= 0:
             raise InsufficientCreditsException(
-                "Your organization has exhausted its AI Credits. Please purchase additional credits or upgrade your subscription."
+                "Your organization has used all of its AI credits for this month. "
+                "Ask your admin to buy a top-up, or wait for the monthly reset."
             )
 
-        # For fixed cost features, check if we have enough for the action
-        if rule.cost_type == "fixed" and remaining < rule.fixed_cost:
-            raise InsufficientCreditsException(
-                f"Insufficient AI credits to perform this action. Required: {rule.fixed_cost}, Remaining: {remaining}."
-            )
+        if user_id:
+            from app.services.ai_metering import NO_AI_MESSAGE, NO_AI_ROLES
+            if await cls.user_role(db, user_id) in NO_AI_ROLES:
+                raise InsufficientCreditsException(NO_AI_MESSAGE)
+            row = await cls.get_or_create_user_credits(db, organization_id, user_id)
+            if row is not None:
+                if row.used_credits >= row.monthly_limit:
+                    raise InsufficientCreditsException(
+                        f"You've used your monthly AI credit limit ({row.monthly_limit:,} credits). "
+                        "Ask your admin to raise your limit."
+                    )
+                if cls.user_daily_used(row) >= daily_limit_for(row.monthly_limit):
+                    raise InsufficientCreditsException(
+                        f"You've reached today's AI credit limit ({daily_limit_for(row.monthly_limit):,} credits). "
+                        "It resets at midnight UTC."
+                    )
+
+    # ── Charging ─────────────────────────────────────────────────────────────
+
+    @classmethod
+    async def charge(
+        cls,
+        db: AsyncSession | None,
+        *,
+        organization_id: uuid.UUID | None,
+        user_id: uuid.UUID | None,
+        feature: str,
+        provider: str,
+        model: str,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        audio_seconds: float | None = None,
+        cost_usd: float | None = None,
+        duration_ms: float = 0.0,
+    ) -> int:
+        """Deduct credits for one completed AI call, priced from what it
+        actually consumed, and log it to AIUsage. Monthly credits are spent
+        first, then purchased ones. Returns the credits deducted."""
+        if not organization_id:
+            return 0
+
+        if db is None:
+            async with AsyncSessionLocal() as session:
+                return await cls.charge(
+                    session, organization_id=organization_id, user_id=user_id, feature=feature,
+                    provider=provider, model=model, prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens, audio_seconds=audio_seconds,
+                    cost_usd=cost_usd, duration_ms=duration_ms,
+                )
+
+        if cost_usd is None:
+            if audio_seconds is not None:
+                cost_usd = ai_pricing.audio_cost_usd(model, audio_seconds)
+            else:
+                cost_usd = ai_pricing.text_cost_usd(model, prompt_tokens, completion_tokens)
+        credits = ai_pricing.credits_for_cost(cost_usd)
+
+        org_credits = await cls.get_or_create_org_credits(db, organization_id, for_update=True)
+        used_before = org_credits.used_credits
+        monthly_left = max(0, org_credits.allowed_credits - org_credits.used_credits)
+        from_monthly = min(credits, monthly_left)
+        from_purchased = min(credits - from_monthly, max(0, org_credits.purchased_credits or 0))
+        # A call that started with credits left can overshoot; the overshoot
+        # is recorded against the monthly allowance.
+        overdraft = credits - from_monthly - from_purchased
+        org_credits.used_credits += from_monthly + overdraft
+        org_credits.purchased_credits = (org_credits.purchased_credits or 0) - from_purchased
+
+        if user_id:
+            row = await cls.get_or_create_user_credits(db, organization_id, user_id, for_update=True)
+            if row is not None:
+                today = datetime.now(timezone.utc).date()
+                row.used_credits += credits
+                if row.daily_date == today:
+                    row.daily_used += credits
+                else:
+                    row.daily_date = today
+                    row.daily_used = credits
+
+        db.add(AIUsage(
+            organization_id=organization_id,
+            user_id=user_id,
+            provider=provider,
+            model=model,
+            feature=feature,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+            credits_used=credits,
+            cost=round(cost_usd, 6),
+            duration_ms=duration_ms,
+            status="success",
+        ))
+        await db.flush()
+        logger.info(f"Charged {credits} credits (${cost_usd:.5f}) for {feature} via {model} (Org: {organization_id})")
+
+        await cls._check_and_trigger_alerts(
+            db, org_credits, used_before, org_credits.used_credits, org_credits.allowed_credits
+        )
+        await db.commit()
+        return credits
 
     @classmethod
     async def deduct_credits(
@@ -121,76 +305,13 @@ class AICreditsService:
         audio_duration_sec: float = 0.0,
         duration_ms: float = 0.0
     ) -> int:
-        """
-        Calculate and deduct credits, log the usage, check warning levels, and send notifications.
-        Returns the credits deducted.
-        """
-        if not organization_id:
-            return 0
-
-        if db is None:
-            async with AsyncSessionLocal() as session:
-                return await cls.deduct_credits(
-                    session, organization_id, user_id, feature, provider, model,
-                    prompt_tokens, completion_tokens, audio_duration_sec, duration_ms
-                )
-
-        org_credits = await cls.get_or_create_org_credits(db, organization_id)
-        rule = await cls.get_rule(db, feature)
-
-        # Calculate cost
-        credits_used = 0
-        if rule.cost_type == "fixed":
-            credits_used = rule.fixed_cost
-        elif rule.cost_type == "dynamic":
-            if feature == "speech_to_text":
-                if audio_duration_sec <= 0:
-                    audio_duration_sec = max(5.0, duration_ms / 1000.0)
-                credits_used = int(audio_duration_sec * rule.audio_cost_per_second)
-            else:
-                # Token-based dynamic cost
-                input_cost = (prompt_tokens / 1000.0) * rule.token_input_cost_per_1k
-                output_cost = (completion_tokens / 1000.0) * rule.token_output_cost_per_1k
-                credits_used = int(input_cost + output_cost)
-
-        # Ensure we always deduct at least 1 credit for successful calls
-        credits_used = max(1, credits_used)
-
-        total_tokens = prompt_tokens + completion_tokens
-        # Estimated cost in USD
-        estimated_cost = round((total_tokens / 1000.0) * 0.0015, 4) if total_tokens > 0 else 0.0
-
-        # Update balance
-        used_before = org_credits.used_credits
-        org_credits.used_credits += credits_used
-        used_after = org_credits.used_credits
-        allowed = org_credits.allowed_credits
-
-        # Save usage log
-        usage = AIUsage(
-            organization_id=organization_id,
-            user_id=user_id,
-            provider=provider,
-            model=model,
-            feature=feature,
-            prompt_tokens=prompt_tokens,
+        """Backward-compatible entry point; prices the call like charge()."""
+        return await cls.charge(
+            db, organization_id=organization_id, user_id=user_id, feature=feature,
+            provider=provider, model=model, prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            credits_used=credits_used,
-            cost=estimated_cost,
-            duration_ms=duration_ms,
-            status="success"
+            audio_seconds=audio_duration_sec or None, duration_ms=duration_ms,
         )
-        db.add(usage)
-        await db.flush()
-
-        logger.info(f"Deducted {credits_used} credits for {feature} (Org: {organization_id})")
-
-        # Check and trigger alerts
-        await cls._check_and_trigger_alerts(db, org_credits, used_before, used_after, allowed)
-
-        await db.commit()
-        return credits_used
 
     @classmethod
     async def log_failed_request(
@@ -204,9 +325,7 @@ class AICreditsService:
         error_detail: str,
         duration_ms: float = 0.0
     ):
-        """
-        Log failed request to AIUsage with 0 credits deducted.
-        """
+        """Log a failed request to AIUsage with 0 credits deducted."""
         if not organization_id:
             return
 
@@ -235,6 +354,18 @@ class AICreditsService:
         await db.commit()
         logger.info(f"Logged failed AI request for {feature} (Org: {organization_id})")
 
+    # ── Admin operations ─────────────────────────────────────────────────────
+
+    @classmethod
+    async def resync_monthly_allowance(cls, db: AsyncSession, org_credits: OrganizationAICredits) -> int:
+        """Set the monthly allowance from the super-admin override or the plan."""
+        if org_credits.custom_monthly_credits is not None:
+            monthly = org_credits.custom_monthly_credits
+        else:
+            monthly, _ = await cls.plan_monthly_credits(db, org_credits.organization_id)
+        org_credits.allowed_credits = monthly
+        return monthly
+
     @staticmethod
     async def _check_and_trigger_alerts(
         db: AsyncSession,
@@ -249,14 +380,19 @@ class AICreditsService:
         pct_remaining_before = ((allowed - used_before) / allowed) * 100
         pct_remaining_after = ((allowed - used_after) / allowed) * 100
         org_id_str = str(org_credits.organization_id)
+        purchased = max(0, org_credits.purchased_credits or 0)
 
-        # Trigger conditions
+        exhausted_msg = (
+            f"Your monthly AI credits are used up. {purchased:,} purchased credits remain."
+            if purchased > 0 else
+            "Your organization has used all of its AI credits for this month. Buy a top-up or wait for the monthly reset."
+        )
         alerts = [
-            (0, "warning_0_sent", "Critical: AI Credits Exhausted", "Your organization has exhausted its AI Credits. Please purchase additional credits or upgrade your subscription."),
-            (5, "warning_5_sent", "Credits Almost Finished", "AI Credits Almost Finished! Only 5% credits remaining."),
-            (10, "warning_10_sent", "Low AI Credits", "Low AI Credits: Only 10% remaining."),
-            (25, "warning_25_sent", "Low Credits Warning", "Only 25% AI Credits Remaining."),
-            (50, "warning_50_sent", "AI Quota Consumed", "50% of your monthly AI credits have been consumed.")
+            (0, "warning_0_sent", "Monthly AI credits used up", exhausted_msg),
+            (5, "warning_5_sent", "AI credits almost used up", "Only 5% of this month's AI credits remain."),
+            (10, "warning_10_sent", "Low AI credits", "Only 10% of this month's AI credits remain."),
+            (25, "warning_25_sent", "AI credits running low", "Only 25% of this month's AI credits remain."),
+            (50, "warning_50_sent", "Half of monthly AI credits used", "50% of this month's AI credits have been used."),
         ]
 
         roles_to_notify = ["admin", "recruiter"]
@@ -265,14 +401,12 @@ class AICreditsService:
             sent_flag = getattr(org_credits, flag_name)
             if not sent_flag and pct_remaining_after <= threshold and pct_remaining_before > threshold:
                 setattr(org_credits, flag_name, True)
-                
-                # Enqueue background task to notify all admins/recruiters in organization
                 notify_organization_roles.delay(
                     org_id_str,
                     roles_to_notify,
                     "ai_credits_warning",
                     title,
                     message,
-                    {"remaining_pct": pct_remaining_after, "remaining_credits": max(0, allowed - used_after)}
+                    {"remaining_pct": pct_remaining_after, "remaining_credits": max(0, allowed - used_after) + purchased}
                 )
                 logger.info(f"Triggered alert for threshold {threshold}% remaining for Org {org_id_str}")

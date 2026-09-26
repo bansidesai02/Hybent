@@ -21,6 +21,7 @@ from app.schemas.super_admin import (
 from app.schemas.response import APIResponse
 from app.utils.security import create_access_token, hash_password
 from app.utils.permissions import UserRole
+from app.services import billing_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/super-admin", tags=["super-admin"])
@@ -135,6 +136,15 @@ async def list_clients(db: DB, current_user: SuperAdminUser):
         select(User.organization_id, func.count(User.id)).where(User.organization_id.in_(org_ids)).group_by(User.organization_id)
     )).all())
 
+    # Paid seats: active admins and recruiters (interviewers and candidates don't use one).
+    seats_counts = dict((await db.execute(
+        select(User.organization_id, func.count(User.id))
+        .where(User.organization_id.in_(org_ids))
+        .where(User.is_active.is_(True))
+        .where(User.role.in_(("admin", "recruiter")))
+        .group_by(User.organization_id)
+    )).all())
+
     jobs_counts = dict((await db.execute(
         select(Job.organization_id, func.count(Job.id)).where(Job.organization_id.in_(org_ids)).group_by(Job.organization_id)
     )).all())
@@ -160,19 +170,27 @@ async def list_clients(db: DB, current_user: SuperAdminUser):
     clients_list = []
     for org in orgs:
         # Default limits
-        plan_name = "Starter"
+        plan_name = "No plan"
         sub_status = "pending"
         mrr = 0.0
-        users_limit = 20
-        jobs_limit = 10
+        users_limit = 0
+        jobs_limit = 0
+        term_months = None
+        extra_seats = {"admin": 0, "recruiter": 0}
+        period_end = None
 
         if org.id in subs_map:
             sub, plan = subs_map[org.id]
             plan_name = plan.name
             sub_status = sub.status
-            mrr = plan.price_monthly if sub.billing_cycle == "monthly" else (plan.price_yearly / 12)
-            users_limit = plan.max_users
+            # Per-month rate for the plan's term, plus extra admin ($15) and
+            # recruiter ($10) seats.
+            mrr = billing_service.monthly_revenue(plan, sub)
+            extra_seats = billing_service.extra_seat_counts(sub)
+            users_limit = plan.included_admins + plan.included_recruiters + sum(extra_seats.values())
             jobs_limit = plan.max_jobs
+            term_months = plan.term_months
+            period_end = sub.current_period_end
 
         users_cnt = users_counts.get(org.id, 0)
         jobs_cnt = jobs_counts.get(org.id, 0)
@@ -193,10 +211,15 @@ async def list_clients(db: DB, current_user: SuperAdminUser):
             "is_active": org.is_active,
             "created_at": org.created_at,
             "plan": plan_name,
+            "term_months": term_months,
+            "extra_admin_seats": extra_seats["admin"],
+            "extra_recruiter_seats": extra_seats["recruiter"],
+            "current_period_end": period_end,
             "status": sub_status if org.is_active else "suspended",
             "mrr": mrr,
             "users_count": users_cnt,
             "users_limit": users_limit,
+            "seats_used": seats_counts.get(org.id, 0),
             "jobs_count": jobs_cnt,
             "jobs_limit": jobs_limit,
             "flags": flags
@@ -245,37 +268,19 @@ async def create_client(data: ClientCreate, db: DB, current_user: SuperAdminUser
     db.add(admin)
     await db.flush()
 
-    # Fetch/create subscription plan
-    plan_name = data.plan_name.capitalize()
-    plan_res = await db.execute(
-        select(SubscriptionPlan).where(SubscriptionPlan.name == plan_name)
-    )
-    plan = plan_res.scalar_one_or_none()
+    # Subscription plan (Standard, 6 months, 12 months, Custom)
+    plan = await billing_service.find_plan(db, data.plan_name)
     if not plan:
-        # Create default plan if missing
-        limits = {"Starter": (20, 10, 8000.0), "Pro": (50, 20, 24000.0), "Enterprise": (999, 999, 60000.0)}
-        users_lim, jobs_lim, price = limits.get(plan_name, (20, 10, 8000.0))
-        plan = SubscriptionPlan(
-            name=plan_name,
-            price_monthly=price,
-            price_yearly=price * 10,  # 10 months for annual
-            max_users=users_lim,
-            max_jobs=jobs_lim,
-            features={"ai": True, "video": True, "bulk": True, "domain": False, "analytics": False}
-        )
-        db.add(plan)
-        await db.flush()
+        raise HTTPException(status_code=400, detail=f"Unknown plan '{data.plan_name}'.")
+    plan_name = plan.name
 
-    # Create Company Subscription
     sub = CompanySubscription(
         organization_id=org.id,
         plan_id=plan.id,
         status="active",
-        billing_cycle=data.billing_cycle,
-        current_period_start=datetime.now(timezone.utc),
-        current_period_end=datetime.now(timezone.utc) + timedelta(days=365 if data.billing_cycle == "yearly" else 30),
         trial_end=datetime.now(timezone.utc) + timedelta(days=data.trial_days) if data.trial_days > 0 else None
     )
+    billing_service.assign_plan(sub, plan)
     db.add(sub)
 
     # Setup Feature Flags
@@ -319,19 +324,37 @@ async def update_client(client_id: uuid.UUID, data: ClientUpdate, db: DB, curren
     if data.is_active is not None:
         org.is_active = data.is_active
 
-    # Plan Update
-    if data.plan_name:
-        plan_res = await db.execute(
-            select(SubscriptionPlan).where(SubscriptionPlan.name == data.plan_name)
-        )
-        plan = plan_res.scalar_one_or_none()
-        if plan:
-            sub_res = await db.execute(
-                select(CompanySubscription).where(CompanySubscription.organization_id == org.id)
-            )
-            sub = sub_res.scalar_one_or_none()
-            if sub:
-                sub.plan_id = plan.id
+    # Plan and seats
+    seat_changes = {
+        "extra_admin_seats": data.extra_admin_seats,
+        "extra_recruiter_seats": data.extra_recruiter_seats,
+    }
+    if data.plan_name or any(v is not None for v in seat_changes.values()):
+        sub = (await db.execute(
+            select(CompanySubscription).where(CompanySubscription.organization_id == org.id)
+        )).scalar_one_or_none()
+        if data.plan_name:
+            plan = await billing_service.find_plan(db, data.plan_name)
+            if not plan:
+                raise HTTPException(status_code=400, detail=f"Unknown plan '{data.plan_name}'.")
+            if sub is None:
+                sub = CompanySubscription(organization_id=org.id, plan_id=plan.id, status="active")
+                db.add(sub)
+            billing_service.assign_plan(sub, plan)
+        for field, value in seat_changes.items():
+            if value is None:
+                continue
+            if value < 0 or sub is None:
+                raise HTTPException(status_code=400, detail="Extra seats need a plan and must be 0 or more.")
+            setattr(sub, field, value)
+
+        # The plan and extra seats (admin +1,500, recruiter +1,000) set the AI pool.
+        from app.services.ai_credit_service import AICreditsService
+        from app.services.ai_metering import clear_blocked
+        await db.flush()
+        org_credits = await AICreditsService.get_or_create_org_credits(db, org.id)
+        await AICreditsService.resync_monthly_allowance(db, org_credits)
+        clear_blocked(organization_id=org.id)
 
     await log_super_admin_action(
         db=db,
@@ -870,3 +893,112 @@ async def impersonate_user(user_id: uuid.UUID, payload: ImpersonationStartReques
             "impersonator_id": str(current_user.id)
         }
     })
+
+
+# ── Plans ────────────────────────────────────────────────────────────────────
+
+@router.get("/plans")
+async def list_plans(db: DB, current_user: SuperAdminUser):
+    """The published plans and how many organizations are on each."""
+    plans = await billing_service.list_plans(db)
+    counts = dict((await db.execute(
+        select(CompanySubscription.plan_id, func.count()).group_by(CompanySubscription.plan_id)
+    )).all())
+    std = billing_service.standard_price(plans)
+    return APIResponse.success(
+        message="Plans retrieved.",
+        data=[{**billing_service.plan_to_dict(p, std), "subscribers": counts.get(p.id, 0)} for p in plans],
+    )
+
+
+# ── AI credits ───────────────────────────────────────────────────────────────
+
+@router.get("/ai-credits")
+async def list_ai_credits(db: DB, current_user: SuperAdminUser):
+    """Every organization's AI credit pool for the current period, with the
+    provider cost behind it and what those credits are worth to the client."""
+    from app.models.organization_ai_credits import OrganizationAICredits
+    from app.models.ai_usage import AIUsage
+    from app.services import ai_pricing
+
+    rows = (await db.execute(
+        select(Organization, OrganizationAICredits, SubscriptionPlan.name)
+        .outerjoin(OrganizationAICredits, OrganizationAICredits.organization_id == Organization.id)
+        .outerjoin(CompanySubscription, CompanySubscription.organization_id == Organization.id)
+        .outerjoin(SubscriptionPlan, SubscriptionPlan.id == CompanySubscription.plan_id)
+        .order_by(Organization.name)
+    )).all()
+
+    items = []
+    for org, credits, plan_name in rows:
+        period_start = (credits.reset_at - timedelta(days=30)) if credits else None
+        cost = 0.0
+        if period_start:
+            cost = (await db.execute(
+                select(func.coalesce(func.sum(AIUsage.cost), 0.0))
+                .where(AIUsage.organization_id == org.id)
+                .where(AIUsage.status == "success")
+                .where(AIUsage.created_at >= period_start)
+            )).scalar() or 0.0
+        used = credits.used_credits if credits else 0
+        items.append({
+            "organization_id": str(org.id),
+            "organization_name": org.name,
+            "plan": plan_name,
+            "monthly_credits": credits.allowed_credits if credits else None,
+            "custom_monthly_credits": credits.custom_monthly_credits if credits else None,
+            "used_credits": used,
+            "purchased_credits": credits.purchased_credits if credits else 0,
+            "reset_at": credits.reset_at if credits else None,
+            "provider_cost_usd": round(float(cost), 4),
+            "credits_value_usd": round(used * ai_pricing.CREDIT_PRICE_USD, 2),
+        })
+    return APIResponse.success(message="AI credits retrieved.", data=items)
+
+
+@router.put("/organizations/{org_id}/ai-credits")
+async def update_ai_credits(org_id: uuid.UUID, db: DB, current_user: SuperAdminUser, payload: dict):
+    """Set a custom monthly allowance (`monthly_credits`; null returns to the
+    plan's), and/or add paid top-up credits (`add_purchased`)."""
+    from app.services.ai_credit_service import AICreditsService
+    from app.services.ai_metering import clear_blocked
+
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    credits = await AICreditsService.get_or_create_org_credits(db, org_id, for_update=True)
+
+    if "monthly_credits" in payload:
+        monthly = payload["monthly_credits"]
+        if monthly is not None and (not isinstance(monthly, int) or isinstance(monthly, bool) or monthly < 0):
+            raise HTTPException(status_code=400, detail="monthly_credits must be a whole number (0 or more) or null.")
+        credits.custom_monthly_credits = monthly
+        await AICreditsService.resync_monthly_allowance(db, credits)
+
+    add = payload.get("add_purchased", 0)
+    if not isinstance(add, int) or isinstance(add, bool) or add < 0:
+        raise HTTPException(status_code=400, detail="add_purchased must be a whole number (0 or more).")
+    credits.purchased_credits = (credits.purchased_credits or 0) + add
+
+    if AICreditsService.org_remaining(credits) > 0:
+        credits.warning_0_sent = False
+    await db.commit()
+    clear_blocked(organization_id=org_id)
+
+    if add:
+        from app.tasks.notifications import notify_organization_roles
+        notify_organization_roles.delay(
+            str(org_id), ["admin"], "system", "AI credits added",
+            f"{add:,} AI credits were added to your organization.",
+            {"added_credits": add},
+        )
+    logger.info(f"Super admin {current_user.id} updated AI credits for org {org_id}: {payload}")
+    return APIResponse.success(
+        message="AI credits updated.",
+        data={
+            "monthly_credits": credits.allowed_credits,
+            "custom_monthly_credits": credits.custom_monthly_credits,
+            "purchased_credits": credits.purchased_credits,
+            "used_credits": credits.used_credits,
+        },
+    )

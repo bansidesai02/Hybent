@@ -102,6 +102,7 @@ export function getNavSections(
         items: [
           { to: '/hiring/super-admin/clients', label: 'All clients', icon: Building2 },
           { to: '/hiring/super-admin/billing', label: 'Billing & plans', icon: CreditCard },
+          { to: '/hiring/super-admin/ai-credits', label: 'AI credits', icon: Coins },
         ],
       },
       {
@@ -157,6 +158,7 @@ export function getNavSections(
     { to: '/hiring/admin/teams', label: 'Team', icon: UsersRound },
     { to: '/hiring/admin/audit', label: 'Audit Logs', icon: ScrollText },
     { to: '/hiring/admin/ai-credits', label: 'AI Credits', icon: Coins },
+    { to: '/hiring/admin/billing', label: 'Billing', icon: CreditCard },
   ]
 
   const recruiterWorkspace: NavItem[] = [

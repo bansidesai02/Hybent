@@ -16,6 +16,7 @@ from fastapi import BackgroundTasks
 from app.core.config import settings
 from app.services.groq_client import SafeGroq as Groq, get_best_groq_model
 from app.services.ai_usage_tracker import log_ai_usage
+from app.services.ai_metering import ai_feature
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,7 @@ def _fallback_questions(job_title: str) -> list[dict]:
     ]
 
 
+@ai_feature("pre_screening_questions")
 async def generate_questions(
     job_title: str,
     job_description: str,
@@ -216,6 +218,7 @@ async def generate_questions(
             )
 
 
+@ai_feature("pre_screening_summary")
 async def generate_session_summary(
     candidate_name: str,
     job_title: str,
@@ -332,6 +335,7 @@ Return ONLY this JSON structure:
 """
 
 
+@ai_feature("translation")
 async def translate_questions(
     questions: list[dict],
     language: str,

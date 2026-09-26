@@ -31,6 +31,7 @@ from app.services.ai.copilot_router import (
 )
 from app.services.ai import resume_rag
 from app.services.ai.match_scorer import evaluate_candidate_match, get_experience_years_for_skill
+from app.services.ai_metering import ai_feature
 
 logger = logging.getLogger(__name__)
 
@@ -2800,6 +2801,7 @@ WRITE_TOOLS = {"schedule_meeting", "update_candidate_stage", "db_update"}
 
 # ── Main Streaming Chat Service ───────────────────────────────────────────────
 
+@ai_feature("ai_copilot")
 async def stream_copilot_chat(
     user_message: str,
     history: list[dict],
@@ -2851,23 +2853,11 @@ async def stream_copilot_chat(
     finally:
         from app.services.ai.copilot_intelligence import is_jd_creation_intent
         is_jd = is_jd_creation_intent(user_message)
+        # Successful turns are charged by ai_metering from each Groq/Gemini
+        # call's real token usage; only failures are logged here.
         if not is_jd and not approved_tool_call:
             duration_ms = (time.time() - start_time) * 1000
-            if status == "success":
-                prompt_tokens = len(user_message) // 4 + 200
-                completion_tokens = len(full_text) // 4
-                await AICreditsService.deduct_credits(
-                    db=db,
-                    organization_id=organization_id,
-                    user_id=user_id,
-                    feature="ai_copilot",
-                    provider="Groq",
-                    model=GROQ_MODEL,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    duration_ms=duration_ms
-                )
-            else:
+            if status != "success":
                 await AICreditsService.log_failed_request(
                     db=db,
                     organization_id=organization_id,

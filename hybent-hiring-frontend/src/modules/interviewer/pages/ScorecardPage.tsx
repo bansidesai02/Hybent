@@ -19,6 +19,7 @@ import {
 import { interviewsApi } from '@/api/interviews'
 import { scorecardsApi } from '@/api/scorecards'
 import { aiApi } from '@/api/ai'
+import { useAuthStore } from '@/store/authStore'
 import { formatDate, formatDateTime } from '@/utils/formatters'
 import type { Scorecard } from '@/types'
 import {
@@ -266,13 +267,20 @@ export default function ScorecardPage() {
 
   /* The live room writes raw notes to localStorage. On first mount they are run
      through the AI summariser once — the ref guards against StrictMode's double
-     invoke firing a second paid call. */
+     invoke firing a second paid call. AI features are for admins and
+     recruiters only, so interviewers keep their raw notes. */
+  const role = useAuthStore((s) => s.user?.role)
+  const canUseAI = role === 'admin' || role === 'recruiter'
   const summarised = useRef(false)
   useEffect(() => {
     const raw = localStorage.getItem(`hybent_hiring_notes_${interviewId}`)
     if (!raw || summarised.current) return
 
     summarised.current = true
+    if (!canUseAI) {
+      setNotes(raw)
+      return
+    }
     setNotes('Summarising your live notes…')
     setAiLoading(true)
 
@@ -293,7 +301,7 @@ export default function ScorecardPage() {
         toast.error('Could not summarise — using your raw notes')
       })
       .finally(() => setAiLoading(false))
-  }, [interviewId])
+  }, [interviewId, canUseAI])
 
   const counts = {
     notes: wordCount(notes),

@@ -65,6 +65,7 @@ const PLANS: Plan[] = [
 
 const INCLUDED = [
   '1 admin + 2 recruiter seats',
+  '10,000 AI credits every month',
   'AI resume parsing & screening',
   'AI match scoring',
   'Pipeline & interview scheduling',
@@ -84,8 +85,12 @@ const PRICING_FAQ = [
     a: 'Every plan includes the full Hybent Hiring product with 1 admin seat and 2 recruiter seats. The 1, 6 and 12 month plans differ only in commitment term and monthly rate.',
   },
   {
+    q: 'What are AI credits?',
+    a: 'AI features such as resume parsing, match scoring, pre-screening and the copilot use AI credits. Every plan includes 10,000 credits a month, shared by your team, which covers heavy daily use for an admin and two recruiters. If you need more, your admin can request a top-up: 5,000 credits for $10.',
+  },
+  {
     q: 'How do additional seats work?',
-    a: 'Need more than 2 recruiters? Additional seats can be added to any plan. Contact us and we will size them to your team.',
+    a: 'Need more people? An extra admin seat is $15 a month and adds 1,500 AI credits to your monthly pool; an extra recruiter seat is $10 a month and adds 1,000. Your admin can request seats from the Billing page, or contact us. Interviewers don\'t need a seat.',
   },
   {
     q: 'How are the 6 and 12 month plans billed?',
@@ -160,7 +165,7 @@ export default function PricingPage() {
           </div>
 
           <p className="price-note" data-rv="up">
-            Need more than 2 recruiters? Additional seats are available on any plan &mdash;{' '}
+            Need more people? Extra admin seats are $15/month (+1,500 AI credits), recruiter seats $10/month (+1,000) &mdash;{' '}
             <a href={SITE.contact}>contact us</a>.
           </p>
         </div>
