@@ -15,6 +15,8 @@ type Plan = {
   name: string
   term: string
   price: string | null
+  /** Standard monthly rate, struck through on discounted terms. */
+  was?: string
   billed: string
   save?: string
   featured?: boolean
@@ -25,7 +27,7 @@ const PLANS: Plan[] = [
   {
     id: '1m',
     name: 'Standard',
-    term: '1 month',
+    term: 'Billed monthly',
     price: '69',
     billed: 'Billed $69 monthly',
     cta: { label: 'Get started', href: `${AUTH.register}?plan=1m` },
@@ -35,6 +37,7 @@ const PLANS: Plan[] = [
     name: '6 months',
     term: '6-month term',
     price: '66',
+    was: '69',
     billed: 'Billed $396 every 6 months',
     save: 'Save 5%',
     cta: { label: 'Get started', href: `${AUTH.register}?plan=6m` },
@@ -44,6 +47,7 @@ const PLANS: Plan[] = [
     name: '12 months',
     term: '12-month term',
     price: '62',
+    was: '69',
     billed: 'Billed $744 per year',
     save: 'Save 10%',
     featured: true,
@@ -60,15 +64,16 @@ const PLANS: Plan[] = [
 ]
 
 const INCLUDED = [
-  'Resume parsing and AI screening',
-  'AI match scoring against live roles',
-  'Pipeline and interview scheduling',
-  'Hiring analytics and reports',
+  '1 admin + 2 recruiter seats',
+  'AI resume parsing & screening',
+  'AI match scoring',
+  'Pipeline & interview scheduling',
+  'Hiring analytics',
 ]
 
 const CUSTOM_INCLUDED = [
   'Everything in the standard plans',
-  'Seat count sized to your team',
+  'Seats sized to your team',
   'Tailored onboarding',
   'Invoicing on your terms',
 ]
@@ -114,49 +119,42 @@ export default function PricingPage() {
         <div className="wrap">
           <div className="price-grid">
             {PLANS.map((plan, i) => (
-              <article
-                key={plan.id}
-                className={`price-card${plan.featured ? ' price-card--featured' : ''}`}
-                data-rv="up"
-                data-delay={i * 70}
-              >
-                {plan.featured && <span className="price-card__flag">Best value</span>}
+              <article key={plan.id} className="price-card" data-rv="up" data-delay={i * 60}>
                 <div className="price-card__head">
-                  <h2 className="h-sm">{plan.name}</h2>
-                  {plan.save && <span className="price-card__save">{plan.save}</span>}
+                  <h2 className="price-card__name">{plan.name}</h2>
+                  {plan.featured ? (
+                    <span className="price-card__tag">Best value</span>
+                  ) : (
+                    plan.save && <span className="price-card__save">{plan.save}</span>
+                  )}
                 </div>
-                <p className="price-card__term">{plan.term}</p>
 
-                <div className="price-card__price">
+                <p className="price-card__amount">
                   {plan.price ? (
                     <>
-                      <span className="price-card__cur">$</span>
-                      <b>{plan.price}</b>
-                      <span className="price-card__per">/ month</span>
+                      <b>${plan.price}</b>
+                      <span>/month</span>
+                      {plan.was && <s>${plan.was}</s>}
                     </>
                   ) : (
                     <b className="price-card__talk">Let&rsquo;s talk</b>
                   )}
-                </div>
-                <p className="price-card__billed">{plan.billed}</p>
-
-                <p className="price-card__seats">
-                  {plan.price ? '1 admin + 2 recruiters included' : 'Seats sized to your team'}
+                </p>
+                <p className="price-card__billed">
+                  {plan.billed}
+                  {plan.featured && plan.save && <> &middot; <em>{plan.save}</em></>}
                 </p>
 
-                <ul className="feat-list">
+                <a className="btn btn-ghost price-card__cta" href={plan.cta.href}>
+                  {plan.cta.label}
+                </a>
+
+                <p className="price-card__inc">Includes</p>
+                <ul className="price-card__list">
                   {(plan.price ? INCLUDED : CUSTOM_INCLUDED).map((item) => (
                     <li key={item}><Check />{item}</li>
                   ))}
                 </ul>
-
-                <a
-                  className={`btn ${plan.featured ? 'btn-primary' : 'btn-ghost'} price-card__cta`}
-                  href={plan.cta.href}
-                >
-                  {plan.cta.label}
-                  {plan.featured && <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>}
-                </a>
               </article>
             ))}
           </div>
