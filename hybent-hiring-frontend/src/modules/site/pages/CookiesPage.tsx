@@ -547,8 +547,8 @@ export default function CookiesPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <strong style={{ color: '#0f172a' }}>Data Protection Office Email:</strong>{' '}
-                    <a href="mailto:privacy@hybent.com" style={{ color: 'var(--violet, #6c47ff)', fontWeight: 600 }}>
-                      privacy@hybent.com
+                    <a href="mailto:info@hybent.com" style={{ color: 'var(--violet, #6c47ff)', fontWeight: 600 }}>
+                      info@hybent.com
                     </a>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

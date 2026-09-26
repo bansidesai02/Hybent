@@ -94,7 +94,7 @@ const FOLLOWUP_MAP: Record<string, string[]> = {
   products: ['Try Hybent Hiring', 'Explore Recruiter Copilot', 'Book live demo'],
   pricing: ['Request a quote', 'Contact our team', 'Book a consultation'],
   estimate: ['Summarize my requirements', 'Book a consultation call', 'See case studies'],
-  meeting: ['Book demo now', 'Email contact@hybent.com', 'Explore services'],
+  meeting: ['Book demo now', 'Email info@hybent.com', 'Explore services'],
   default: ['Estimate project cost', 'Read our FAQs', 'Book a meeting'],
 }
 

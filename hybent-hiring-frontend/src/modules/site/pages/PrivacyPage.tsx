@@ -565,7 +565,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <p style={{ marginTop: '20px', fontSize: '0.9rem', color: '#4b5563', lineHeight: 1.6 }}>
-                  To exercise any of these rights, please email us at <a href="mailto:privacy@hybent.com" style={{ color: '#4C6FFF', textDecoration: 'underline' }}>privacy@hybent.com</a>. Requests are verified and fulfilled promptly without charge.
+                  To exercise any of these rights, please email us at <a href="mailto:info@hybent.com" style={{ color: '#4C6FFF', textDecoration: 'underline' }}>info@hybent.com</a>. Requests are verified and fulfilled promptly without charge.
                 </p>
               </article>
 
@@ -716,7 +716,7 @@ export default function PrivacyPage() {
                   </div>
                   <div className="policy-contact__item">
                     <span className="mono">Privacy email</span>
-                    <a href="mailto:privacy@hybent.com">privacy@hybent.com</a>
+                    <a href="mailto:info@hybent.com">info@hybent.com</a>
                   </div>
                   <div className="policy-contact__item">
                     <span className="mono">Website</span>
@@ -725,7 +725,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div style={{ marginTop: '24px' }}>
-                  <a className="btn btn-primary" href="mailto:privacy@hybent.com">
+                  <a className="btn btn-primary" href="mailto:info@hybent.com">
                     Email the privacy team
                     <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
                   </a>

@@ -489,7 +489,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <p style={{ marginTop: '20px', fontSize: '0.9rem', color: '#4b5563', lineHeight: 1.6 }}>
-                  To exercise any of these rights, please email us at <a href="mailto:privacy@hybent.com" style={{ color: '#4C6FFF', textDecoration: 'underline' }}>privacy@hybent.com</a>. Requests are verified and fulfilled promptly without charge.
+                  To exercise any of these rights, please email us at <a href="mailto:info@hybent.com" style={{ color: '#4C6FFF', textDecoration: 'underline' }}>info@hybent.com</a>. Requests are verified and fulfilled promptly without charge.
                 </p>
               </article>
 
@@ -670,8 +670,8 @@ export default function PrivacyPage() {
                     <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>
                       Official Email
                     </span>
-                    <a href="mailto:privacy@hybent.com" style={{ color: '#22CFFF', fontWeight: 600, textDecoration: 'none' }}>
-                      privacy@hybent.com
+                    <a href="mailto:info@hybent.com" style={{ color: '#22CFFF', fontWeight: 600, textDecoration: 'none' }}>
+                      info@hybent.com
                     </a>
                   </div>
 
