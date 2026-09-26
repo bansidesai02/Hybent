@@ -217,6 +217,7 @@ export function GlobalNav({
               </li>
               <SolutionsMegaMenu />
               <li><a className="navlink" href="/customers" data-nav="customers">Customers</a></li>
+              <li><a className="navlink" href="/pricing" data-nav="pricing">Pricing</a></li>
               <li className="has-mega">
                 <a className="navlink" href="/about" aria-haspopup="true" aria-expanded="false" data-nav="about careers contact security faq">Company <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
                 <div className="mega mega--sm">
@@ -284,6 +285,7 @@ export function GlobalNav({
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Explore</p>
         <a href="/solutions">Solutions Overview</a>
         <a href="/customers">Customers</a>
+        <a href="/pricing">Pricing</a>
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Company</p>
         <a href="/about">About</a>
         <a href="/security">Security</a>

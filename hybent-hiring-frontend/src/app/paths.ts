@@ -23,6 +23,7 @@ export const SITE = {
   hireTalent: '/hire-talent',
   security: '/security',
   customers: '/customers',
+  pricing: '/pricing',
   about: '/about',
   faq: '/faq',
   careers: '/careers',

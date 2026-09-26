@@ -55,6 +55,11 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     description:
       'What Hybent Hiring is built to change, how we support customers through go-live, and the systems it connects to.',
   },
+  pricing: {
+    title: 'Pricing — Hybent Hiring plans | HYBENT',
+    description:
+      'Hybent Hiring from $62/month. Every plan includes 1 admin and 2 recruiter seats; save 5% on 6 months or 10% on 12 months. Custom plans available.',
+  },
   about: {
     title: 'About HYBENT — mission, vision and story',
     description:

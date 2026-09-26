@@ -21,6 +21,7 @@ const SecurityPage = lazy(() => import('@/modules/site/pages/SecurityPage'))
 const CustomersPage = lazy(() => import('@/modules/site/pages/CustomersPage'))
 const AboutPage = lazy(() => import('@/modules/site/pages/AboutPage'))
 const FaqPage = lazy(() => import('@/modules/site/pages/FaqPage'))
+const PricingPage = lazy(() => import('@/modules/site/pages/PricingPage'))
 const CareersPage = lazy(() => import('@/modules/site/pages/CareersPage'))
 const ContactPage = lazy(() => import('@/modules/site/pages/ContactPage'))
 const PrivacyPage = lazy(() => import('@/modules/site/pages/PrivacyPage'))
@@ -105,6 +106,7 @@ export default function AppRoutes() {
         <Route path="/hire-talent/:section?" element={<HireTalentPage />} />
         <Route path="/security/:section?" element={<SecurityPage />} />
         <Route path="/customers/:section?" element={<CustomersPage />} />
+        <Route path="/pricing/:section?" element={<PricingPage />} />
         <Route path="/about/:section?" element={<AboutPage />} />
         <Route path="/faq/:section?" element={<FaqPage />} />
         <Route path="/careers/:section?" element={<CareersPage />} />

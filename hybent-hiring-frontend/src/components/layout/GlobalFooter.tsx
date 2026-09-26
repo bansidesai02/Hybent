@@ -41,7 +41,7 @@ export function GlobalFooter() {
             <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
           <div><h5>More</h5><ul>
             <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li>
-            <li><a href="/customers">Customers</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
+            <li><a href="/customers">Customers</a></li><li><a href="/pricing">Pricing</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
         </div>
 
         <div className="footer__tag"><img className="t-dark" src="/hybent/tagline-dark.png" alt="Where vision meets innovation" /><img className="t-light" src="/hybent/tagline-light.png" alt="Where vision meets innovation" /></div>
