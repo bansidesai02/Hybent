@@ -3,15 +3,26 @@ RewriteBase /
 
 # Public pages have a prerendered copy of index.html in /_seo/ carrying their
 # own title, description and canonical (vite-plugins/seoPages.ts). Serve it so
-# crawlers see the right head without running JS. If a copy is missing these
-# rules don't match and the plain SPA fallback below takes over.
-RewriteRule ^$ /_seo/index.html [L]
-RewriteCond %{DOCUMENT_ROOT}/_seo/$1.html -f
-RewriteRule ^(.+?)/?$ /_seo/$1.html [L]
-# Deep-linked sections (/about/timeline) share their page's head.
-RewriteCond %{DOCUMENT_ROOT}/_seo/$1.html -f
-RewriteRule ^([^/]+)/[^/]+/?$ /_seo/$1.html [L]
+# crawlers see the right head without running JS.
+#
+# Existence is checked only through %{REQUEST_FILENAME}, never
+# %{DOCUMENT_ROOT}, which does not point at the site folder on every host.
+# Each [L] rewrite re-runs these rules on the new path, so a missing copy
+# falls through to the plain SPA shell on the next pass.
 
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.html [L]
+RewriteRule ^$ /_seo/index.html [L]
+
+# Real files and folders (assets, sitemap, the /_seo/ copies) are served as-is.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# /pricing -> /_seo/pricing.html. The lookahead tests the rewritten path, not
+# %{REQUEST_URI}, which some servers leave at the original URL between passes.
+RewriteRule ^(?!_seo/)(.+?)/?$ /_seo/$1.html [L]
+
+# No copy for a deep-linked section (/about/timeline): use its page's copy.
+RewriteRule ^_seo/([^/]+)/[^/]+\.html$ /_seo/$1.html [L]
+
+# No copy at all (login, app routes): the plain SPA shell.
+RewriteRule ^ /index.html [L]
