@@ -160,21 +160,8 @@ async def _send_system_notification_async(user_id: str, org_id: str, type: str, 
                 logger.error(f"Failed to broadcast notification via WS: {e}")
 
 
-        # 2. Firebase push notification (Always send if persist=False for Chat, or for structural alerts)
-        try:
-            push_data = {"id": notification_id, "type": type}
-            if data:
-                for k, v in data.items():
-                    if v is not None:
-                        push_data[str(k)] = str(v)
-            await ws_manager.send_push_notification(
-                user_id=user_id,
-                title=title,
-                body=message,
-                data=push_data,
-            )
-        except Exception as e:
-            logger.error(f"Failed to send FCM push notification: {e}")
+        # Notifications are shown only inside Hybent (bell panel + in-app
+        # toasts over the WebSocket). No Firebase/browser push is sent.
 
 
 @celery_app.task

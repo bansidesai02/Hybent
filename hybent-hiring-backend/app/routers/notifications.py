@@ -129,18 +129,15 @@ async def mark_all_read(current_user: CurrentUser, db: DB):
 
 @router.post("/fcm-token")
 async def save_fcm_token(current_user: CurrentUser, db: DB, payload: dict):
-    """Save the browser's FCM registration token for the current user."""
-    token = payload.get("token", "").strip()
-    if not token:
-        raise HTTPException(status_code=422, detail="token is required")
-
+    """Retired: browser push notifications are off (notifications live in
+    the in-app bell panel). Kept so pages cached from before still get a
+    success, but the token is dropped and any stored one cleared."""
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
-    if user:
-        user.fcm_token = token
+    if user and user.fcm_token:
+        user.fcm_token = None
         await db.commit()
-
-    return APIResponse.success(message="FCM token saved.")
+    return APIResponse.success(message="Browser push notifications are turned off.")
 
 
 @router.delete("/{notification_id}")
