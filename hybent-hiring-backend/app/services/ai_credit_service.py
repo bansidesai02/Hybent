@@ -20,10 +20,13 @@ logger = logging.getLogger(__name__)
 # this many credits a month unless the plan or a super admin says otherwise.
 DEFAULT_ORG_MONTHLY_CREDITS = 10_000
 
-# Each seat's default share of the pool. Only admins and recruiters use AI
+# Each included seat's default share of the pool: the plan's 1 admin + 2
+# recruiters come to 4,000 + 2 x 3,000 = the 10,000 monthly credits. Members
+# in extra seats get that seat's credits instead (billing_service.EXTRA_SEATS).
+# Only admins and recruiters use AI
 # (see ai_metering.NO_AI_ROLES); super admins are Hybent staff with no
 # personal limit.
-ROLE_DEFAULT_LIMITS = {"admin": 1_000, "recruiter": 4_500}
+ROLE_DEFAULT_LIMITS = {"admin": 4_000, "recruiter": 3_000}
 UNLIMITED_ROLES = {"super_admin"}
 
 # A user can spend at most this share of their monthly limit in one day.
@@ -36,6 +39,15 @@ TOPUP_REQUEST_EMAIL = "info@hybent.com"
 
 def daily_limit_for(monthly_limit: int) -> int:
     return max(1, math.ceil(monthly_limit * DAILY_LIMIT_FRACTION))
+
+
+def _take_whole(remainder: float | None, exact: float) -> tuple[int, float]:
+    """Add a call's exact credits to a carried fraction; return the whole
+    credits now due and the fraction left over."""
+    total = (remainder or 0.0) + exact
+    # Tolerance so float noise (0.9999999) doesn't hold back a whole credit.
+    whole = math.floor(total + 1e-9)
+    return whole, max(0.0, total - whole)
 
 
 class AICreditsService:
@@ -206,6 +218,12 @@ class AICreditsService:
                         "It resets at midnight UTC."
                     )
 
+        # The database is the source of truth: a pool that passed here isn't
+        # spent any more (top-up, raised limit, reset), so drop any stale
+        # "spent" flag this process remembered for it.
+        from app.services.ai_metering import clear_blocked
+        clear_blocked(organization_id=organization_id, user_id=user_id)
+
     # ── Charging ─────────────────────────────────────────────────────────────
 
     @classmethod
@@ -223,12 +241,17 @@ class AICreditsService:
         audio_seconds: float | None = None,
         cost_usd: float | None = None,
         duration_ms: float = 0.0,
-    ) -> int:
-        """Deduct credits for one completed AI call, priced from what it
-        actually consumed, and log it to AIUsage. Monthly credits are spent
-        first, then purchased ones. Returns the credits deducted."""
+    ) -> float:
+        """Charge one completed AI call for exactly what it consumed and log
+        it to AIUsage.
+
+        A call costs cost / $0.001 credits, usually a fraction (an embedding
+        is ~0.01). Fractions carry on the org's and user's balances and only
+        whole credits come off, so a hundred tiny calls cost one credit rather
+        than a hundred. Monthly credits are spent first, then purchased ones.
+        Returns the exact (fractional) credits for the call."""
         if not organization_id:
-            return 0
+            return 0.0
 
         if db is None:
             async with AsyncSessionLocal() as session:
@@ -244,9 +267,10 @@ class AICreditsService:
                 cost_usd = ai_pricing.audio_cost_usd(model, audio_seconds)
             else:
                 cost_usd = ai_pricing.text_cost_usd(model, prompt_tokens, completion_tokens)
-        credits = ai_pricing.credits_for_cost(cost_usd)
+        exact = ai_pricing.exact_credits(cost_usd)
 
         org_credits = await cls.get_or_create_org_credits(db, organization_id, for_update=True)
+        credits, org_credits.credit_remainder = _take_whole(org_credits.credit_remainder, exact)
         used_before = org_credits.used_credits
         monthly_left = max(0, org_credits.allowed_credits - org_credits.used_credits)
         from_monthly = min(credits, monthly_left)
@@ -260,13 +284,14 @@ class AICreditsService:
         if user_id:
             row = await cls.get_or_create_user_credits(db, organization_id, user_id, for_update=True)
             if row is not None:
+                user_credits, row.credit_remainder = _take_whole(row.credit_remainder, exact)
                 today = datetime.now(timezone.utc).date()
-                row.used_credits += credits
+                row.used_credits += user_credits
                 if row.daily_date == today:
-                    row.daily_used += credits
+                    row.daily_used += user_credits
                 else:
                     row.daily_date = today
-                    row.daily_used = credits
+                    row.daily_used = user_credits
 
         db.add(AIUsage(
             organization_id=organization_id,
@@ -277,19 +302,22 @@ class AICreditsService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=prompt_tokens + completion_tokens,
-            credits_used=credits,
+            credits_used=round(exact, 6),
             cost=round(cost_usd, 6),
             duration_ms=duration_ms,
             status="success",
         ))
         await db.flush()
-        logger.info(f"Charged {credits} credits (${cost_usd:.5f}) for {feature} via {model} (Org: {organization_id})")
+        logger.info(
+            f"Charged {exact:.4f} credits (${cost_usd:.5f}) for {feature} via {model} "
+            f"({credits} whole credit(s) deducted; Org: {organization_id})"
+        )
 
         await cls._check_and_trigger_alerts(
             db, org_credits, used_before, org_credits.used_credits, org_credits.allowed_credits
         )
         await db.commit()
-        return credits
+        return exact
 
     @classmethod
     async def deduct_credits(

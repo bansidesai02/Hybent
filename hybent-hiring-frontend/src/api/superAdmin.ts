@@ -1,4 +1,5 @@
 import api from './axios'
+import type { Payment, PaymentLine } from './billing'
 
 export interface ClientCreatePayload {
   name: string
@@ -11,6 +12,43 @@ export interface ClientCreatePayload {
   billing_cycle?: string
   trial_days?: number
   flags?: Record<string, boolean>
+  admin_name?: string
+  /** Sell the plan through a Stripe payment link: the workspace and admin
+      stay inactive until it's paid (no trial). */
+  collect_payment?: boolean
+  extra_admin_seats?: number
+  extra_recruiter_seats?: number
+  /** Custom plans only: the agreed price and term. */
+  custom_amount_usd?: number
+  custom_term_months?: number
+  send_payment_email?: boolean
+}
+
+export interface ClientCreateResult {
+  org_id: string
+  /** Set when the client pays by link. */
+  payment?: Payment
+  emailed?: boolean
+}
+
+/** A plan payment link: the plan plus extra seats, or a Custom plan's agreed price. */
+export interface PaymentLinkPayload {
+  plan_name: string
+  extra_admin_seats?: number
+  extra_recruiter_seats?: number
+  custom_amount_usd?: number
+  custom_term_months?: number
+  send_email?: boolean
+}
+
+export interface PaymentQuote {
+  term_months: number
+  /** Renews every term through Stripe; false for a one-off Custom payment. */
+  recurring: boolean
+  amount_usd: number
+  lines: PaymentLine[]
+  /** Stripe is configured, so links can be created. */
+  payments_enabled: boolean
 }
 
 export interface ClientUpdatePayload {
@@ -86,7 +124,18 @@ export const superAdminApi = {
   getClients: () => api.get<any[]>('/v1/super-admin/clients').then(res => res.data),
   
   createClient: (payload: ClientCreatePayload) => 
-    api.post<{ org_id: string }>('/v1/super-admin/clients', payload).then(res => res.data),
+    api.post<ClientCreateResult>('/v1/super-admin/clients', payload).then(res => res.data),
+
+  quotePaymentLink: (payload: PaymentLinkPayload) =>
+    api.post<PaymentQuote>('/v1/super-admin/payments/quote', payload, { skipLoader: true }).then(res => res.data),
+  createPaymentLink: (clientId: string, payload: PaymentLinkPayload) =>
+    api.post<Payment & { emailed: boolean }>(`/v1/super-admin/clients/${clientId}/payment-links`, payload).then(res => res.data),
+  getPayments: (organizationId?: string) =>
+    api.get<Payment[]>('/v1/super-admin/payments', { params: organizationId ? { organization_id: organizationId } : {} }).then(res => res.data),
+  cancelPayment: (paymentId: string) =>
+    api.post<Payment>(`/v1/super-admin/payments/${paymentId}/cancel`).then(res => res.data),
+  resendPayment: (paymentId: string) =>
+    api.post<any>(`/v1/super-admin/payments/${paymentId}/resend`).then(res => res.data),
   
   updateClient: (clientId: string, payload: ClientUpdatePayload) => 
     api.put<any>(`/v1/super-admin/clients/${clientId}`, payload).then(res => res.data),

@@ -36,12 +36,14 @@ class CompanySubscription(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, nullable=False)
     plan_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("subscription_plans.id", ondelete="RESTRICT"), nullable=False)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active, pending, suspended, expired
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active, pending (awaiting first payment), past_due, suspended, expired
     billing_cycle: Mapped[str] = mapped_column(String(50), nullable=False, default="monthly")  # monthly, 6_months, yearly, custom
     # Seats bought on top of the plan's included ones, per role
     # (billing_service.EXTRA_SEATS has their price and AI credits).
     extra_admin_seats: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     extra_recruiter_seats: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Set when the subscription is paid through Stripe and renews there.
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     trial_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

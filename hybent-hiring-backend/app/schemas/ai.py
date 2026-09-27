@@ -25,5 +25,5 @@ class AIUsageRecord(BaseModel):
     prompt_tokens: int = Field(0, ge=0)
     completion_tokens: int = Field(0, ge=0)
     total_tokens: int = Field(0, ge=0)
-    credits_used: int = Field(0, ge=0)
+    credits_used: float = Field(0.0, ge=0.0)
     duration_ms: float = Field(0.0, ge=0.0)

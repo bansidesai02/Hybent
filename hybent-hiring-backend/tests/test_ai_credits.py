@@ -36,12 +36,10 @@ def test_credit_is_a_tenth_of_a_cent_sold_at_double():
     assert ai_pricing.CREDIT_PRICE_USD == 2 * ai_pricing.CREDIT_COST_USD
 
 
-def test_credits_round_up_and_never_zero():
-    assert ai_pricing.credits_for_cost(0) == 1
-    assert ai_pricing.credits_for_cost(0.0001) == 1
-    assert ai_pricing.credits_for_cost(0.001) == 1
-    assert ai_pricing.credits_for_cost(0.0011) == 2
-    assert ai_pricing.credits_for_cost(0.0042) == 5
+def test_exact_credits_are_cost_over_a_tenth_of_a_cent():
+    assert ai_pricing.exact_credits(0) == 0
+    assert ai_pricing.exact_credits(0.00001) == pytest.approx(0.01)
+    assert ai_pricing.exact_credits(0.0042) == pytest.approx(4.2)
 
 
 def test_text_cost_uses_model_price():
@@ -72,8 +70,8 @@ async def test_new_org_gets_ten_thousand_credits(db_session, organization):
 async def test_user_defaults_follow_role(db_session, organization, admin_user, recruiter_user, super_admin_user):
     admin_row = await AICreditsService.get_or_create_user_credits(db_session, organization.id, admin_user.id)
     rec_row = await AICreditsService.get_or_create_user_credits(db_session, organization.id, recruiter_user.id)
-    assert admin_row.monthly_limit == 1_000
-    assert rec_row.monthly_limit == 4_500
+    assert admin_row.monthly_limit == 4_000
+    assert rec_row.monthly_limit == 3_000
     assert await AICreditsService.get_or_create_user_credits(db_session, organization.id, super_admin_user.id) is None
 
 
@@ -136,16 +134,41 @@ async def test_charge_prices_real_usage_and_logs_it(db_session, organization, re
         feature="resume_parsing", provider="groq", model="openai/gpt-oss-120b",
         prompt_tokens=4000, completion_tokens=1500,
     )
-    # $0.0015 → 2 credits
-    assert credits == 2
+    # $0.0015 → exactly 1.5 credits: 1 deducted now, 0.5 carried.
+    assert credits == pytest.approx(1.5)
     pool = await AICreditsService.get_or_create_org_credits(db_session, organization.id)
-    assert pool.used_credits == 2
+    assert pool.used_credits == 1 and pool.credit_remainder == pytest.approx(0.5)
     row = await AICreditsService.get_or_create_user_credits(db_session, organization.id, recruiter_user.id)
-    assert row.used_credits == 2 and row.daily_used == 2
+    assert row.used_credits == 1 and row.daily_used == 1 and row.credit_remainder == pytest.approx(0.5)
     usage = (await db_session.execute(select(AIUsage))).scalars().one()
-    assert usage.credits_used == 2
+    assert usage.credits_used == pytest.approx(1.5)
     assert usage.cost == pytest.approx(0.0015)
     assert usage.feature == "resume_parsing"
+
+    # The next half credit completes the second whole one.
+    await AICreditsService.charge(
+        db_session, organization_id=organization.id, user_id=recruiter_user.id,
+        feature="resume_parsing", provider="groq", model="x", cost_usd=0.0005,
+    )
+    await db_session.refresh(pool)
+    await db_session.refresh(row)
+    assert pool.used_credits == 2 and pool.credit_remainder == pytest.approx(0.0, abs=1e-6)
+    assert row.used_credits == 2
+
+
+async def test_tiny_calls_add_up_instead_of_costing_a_credit_each(db_session, organization, recruiter_user):
+    # 100 embedding calls at $0.00001 = $0.001 = one credit in total.
+    for _ in range(100):
+        await AICreditsService.charge(
+            db_session, organization_id=organization.id, user_id=recruiter_user.id,
+            feature="resume_search", provider="gemini", model="gemini-embedding-001", cost_usd=0.00001,
+        )
+    pool = await AICreditsService.get_or_create_org_credits(db_session, organization.id)
+    row = await AICreditsService.get_or_create_user_credits(db_session, organization.id, recruiter_user.id)
+    assert pool.used_credits == 1
+    assert row.used_credits == 1
+    logged = (await db_session.execute(select(AIUsage.credits_used))).scalars().all()
+    assert sum(logged) == pytest.approx(1.0)
 
 
 async def test_monthly_credits_spent_before_purchased(db_session, organization):
@@ -252,6 +275,28 @@ async def test_calls_refused_once_pool_known_spent(monkeypatch):
         ai_metering.ensure_not_blocked()
 
 
+async def test_passing_db_check_clears_stale_block(db_session, organization, recruiter_user):
+    # A worker remembered the user as over their daily limit; an admin then
+    # reset it. The next DB check passes and must lift the stale flag.
+    ai_metering.mark_blocked("user", recruiter_user.id, "over today's limit")
+    await AICreditsService.check_credits_available(db_session, organization.id, "x", user_id=recruiter_user.id)
+    async with ai_metering.ai_scope(organization.id, recruiter_user.id):
+        ai_metering.ensure_not_blocked()
+
+
+async def test_resume_parse_does_not_fall_back_when_out_of_credits(monkeypatch):
+    # Out of credits must reach the caller (email ingestion retries later),
+    # not become a regex-parsed candidate.
+    from app.services.ai import resume_parser
+    from app.services.groq_client import SafeGroq
+    monkeypatch.setattr(resume_parser, "groq_client", SafeGroq(api_key="gsk_test"))
+    org_id = uuid.uuid4()
+    ai_metering.mark_blocked("org", org_id, "out of credits")
+    async with ai_metering.ai_scope(org_id):
+        with pytest.raises(InsufficientCreditsException):
+            resume_parser._call_groq_with_retry("John Doe\\nSoftware Engineer\\nPython, React")
+
+
 async def test_blocks_expire(monkeypatch):
     org_id = uuid.uuid4()
     ai_metering.mark_blocked("org", org_id, "out", until=time.time() - 1)
@@ -279,8 +324,8 @@ async def test_balance_reports_pool_and_my_limit(client, recruiter_user, recruit
     data = res.json()["data"]
     assert data["allowed_credits"] == 10_000
     assert data["remaining_credits"] == 10_000
-    assert data["my"]["monthly_limit"] == 4_500
-    assert data["my"]["daily_limit"] == 900
+    assert data["my"]["monthly_limit"] == 3_000
+    assert data["my"]["daily_limit"] == 600
     assert [p["credits"] for p in data["topup_packs"]] == [5_000, 20_000, 50_000]
 
 
@@ -306,12 +351,13 @@ async def test_topup_request_is_admin_only(client, recruiter_headers, admin_head
 async def test_admin_sets_limits_within_pool(client, admin_user, recruiter_user, admin_headers):
     listing = await client.get("/v1/ai/credits/users", headers=admin_headers)
     assert listing.status_code == 200
-    assert listing.json()["data"]["allocated"] == 1_000 + 4_500
+    assert listing.json()["data"]["allocated"] == 4_000 + 3_000
 
-    ok = await client.put(f"/v1/ai/credits/users/{recruiter_user.id}", headers=admin_headers, json={"monthly_limit": 8_000})
+    # 10,000 - the admin's 4,000 leaves 6,000 for this recruiter.
+    ok = await client.put(f"/v1/ai/credits/users/{recruiter_user.id}", headers=admin_headers, json={"monthly_limit": 6_000})
     assert ok.status_code == 200
 
-    too_much = await client.put(f"/v1/ai/credits/users/{recruiter_user.id}", headers=admin_headers, json={"monthly_limit": 9_500})
+    too_much = await client.put(f"/v1/ai/credits/users/{recruiter_user.id}", headers=admin_headers, json={"monthly_limit": 6_500})
     assert too_much.status_code == 400
 
     # Lowering is always allowed.
@@ -322,10 +368,10 @@ async def test_admin_sets_limits_within_pool(client, admin_user, recruiter_user,
 async def test_lowering_allowed_when_defaults_exceed_pool(
     client, admin_user, recruiter_user, second_recruiter_user, admin_headers
 ):
-    # 1,000 + 4,500 + 4,500 + a third recruiter would pass 10,000; simulate by
+    # 4,000 + 3,000 + 3,000 fills 10,000 exactly; simulate a full pool by
     # listing (creates rows) then checking a decrease still works.
     await client.get("/v1/ai/credits/users", headers=admin_headers)
-    res = await client.put(f"/v1/ai/credits/users/{recruiter_user.id}", headers=admin_headers, json={"monthly_limit": 4_000})
+    res = await client.put(f"/v1/ai/credits/users/{recruiter_user.id}", headers=admin_headers, json={"monthly_limit": 2_500})
     assert res.status_code == 200
 
 

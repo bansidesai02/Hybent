@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from_name: str = "Hybent Hiring"
+    # The address every platform email is sent from and replied to, whether
+    # it goes out over SMTP or Resend. SMTP_USER is only the login: it must be
+    # this mailbox, or an account allowed to send as it (e.g. a Gmail "Send
+    # mail as" alias), or the provider rewrites the From.
+    email_from_address: str = "info@hybent.com"
     resend_api_key: str = ""
 
     # ── Google Calendar ────────────────────────────────────────────────────────
@@ -75,6 +80,12 @@ class Settings(BaseSettings):
     # Reuses the same Google OAuth client as Calendar (google_client_id/secret above) —
     # just register this additional redirect URI on that same OAuth client.
     gmail_redirect_uri: str = "http://localhost:8000/v1/email-accounts/gmail/callback"
+
+    # ── Stripe (payments) ──────────────────────────────────────────────────────
+    # Without a secret key, payments fall back to emailed requests that the
+    # Hybent team invoices by hand.
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
 
     # ── Storage ────────────────────────────────────────────────────────────────
     upload_dir: str = "uploads"
@@ -122,6 +133,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def stripe_enabled(self) -> bool:
+        return bool(self.stripe_secret_key.strip())
 
     @property
     def max_file_size_bytes(self) -> int:

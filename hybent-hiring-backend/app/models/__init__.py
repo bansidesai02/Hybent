@@ -32,6 +32,7 @@ from app.models.super_admin import (
     CompanyUsage, SuperAdminAuditLog, ImpersonationLog,
     PlatformSetting, BillingTransaction
 )
+from app.models.payment import Payment
 
 __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
@@ -42,7 +43,7 @@ __all__ = [
     "CandidateResumeChunk", "ImportBatch",
     "UserPreference", "DesignationChangeLog",
     "PreScreeningSession", "PreScreeningResponse",
-    "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag",
+    "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag", "Payment",
     "CompanyUsage", "SuperAdminAuditLog", "ImpersonationLog",
     "PlatformSetting", "BillingTransaction"
 ]

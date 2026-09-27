@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, ForeignKey, Integer, Boolean
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -21,6 +21,9 @@ class OrganizationAICredits(Base):
     # Bought top-up credits. Not reset monthly; spent only once the monthly
     # allowance is used up.
     purchased_credits: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    # Fraction of a credit charged but not yet deducted (tiny calls such as
+    # embeddings cost ~0.01 credits; whole credits come off as they add up).
+    credit_remainder: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     reset_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     
     # Warning flags to prevent double notifications in the current cycle

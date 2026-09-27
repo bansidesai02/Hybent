@@ -65,7 +65,10 @@ async def client(db_session):
 
     app.dependency_overrides[get_db] = _override_get_db
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    # Its own client IP per test, so the rate limiter's per-IP window
+    # (120 requests/minute, shared through Redis) doesn't fail later tests.
+    ip = f"10.{uuid.uuid4().int % 250}.{uuid.uuid4().int % 250}.{uuid.uuid4().int % 250}"
+    async with AsyncClient(transport=transport, base_url="http://test", headers={"X-Forwarded-For": ip}) as ac:
         yield ac
     app.dependency_overrides.clear()
 

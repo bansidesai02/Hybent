@@ -656,6 +656,12 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .field textarea:focus{outline:none;border-color:rgba(76,111,255,.6);background:rgba(255,255,255,.055);box-shadow:0 0 0 4px rgba(76,111,255,.12)}
 .hb-site .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238D97AD' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 15px center}
 .hb-site .form-note{font-size:.78rem;color:var(--dim);line-height:1.6}
+.hb-site .field__req{color:var(--error);font-weight:600}
+.hb-site .field__opt{color:var(--dim);opacity:.75;letter-spacing:.12em}
+.hb-site .field__err{font-size:.8rem;color:var(--error);line-height:1.4}
+.hb-site .field input[aria-invalid="true"],
+.hb-site .field textarea[aria-invalid="true"]{border-color:rgba(255,107,129,.7)}
+.hb-site .btn[disabled]{opacity:.65;cursor:progress}
 .hb-site .contact-item{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--border)}
 .hb-site .contact-item:last-child{border-bottom:0}
 .hb-site .contact-item b{display:block;font-size:.92rem;margin-bottom:3px}
@@ -915,6 +921,8 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 [data-theme="classic"] .hb-site .field textarea::placeholder,
 [data-theme="classic"] .hb-site .news__form input::placeholder{color:#97A1B4}
 [data-theme="classic"] .hb-site .toast{color:#0F7A56}
+.hb-site .toast.toast--error,
+[data-theme="classic"] .hb-site .toast.toast--error{color:var(--error)}
 
 /* Careers, map, footer */
 [data-theme="classic"] .hb-site .role{background:#fff;border-color:rgba(11,18,32,.09)}

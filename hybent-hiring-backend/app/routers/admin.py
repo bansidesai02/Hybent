@@ -298,7 +298,7 @@ async def test_email(
             <h2 style="color:#4C6FFF;margin-top:0;">✅ SMTP is Working!</h2>
             <p style="color:#3c4043;">This test email was sent from the Hybent Hiring backend to confirm that SMTP is correctly configured.</p>
             <table style="width:100%;border-collapse:collapse;margin-top:16px;">
-                <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">From</td><td style="padding:6px 0;font-size:13px;">{settings.smtp_user}</td></tr>
+                <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">From</td><td style="padding:6px 0;font-size:13px;">{settings.email_from_address} (signed in as {settings.smtp_user})</td></tr>
                 <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">To</td><td style="padding:6px 0;font-size:13px;">{target_email}</td></tr>
                 <tr><td style="padding:6px 0;color:#70757a;font-size:13px;">SMTP Host</td><td style="padding:6px 0;font-size:13px;">{settings.smtp_host}:{settings.smtp_port}</td></tr>
             </table>
@@ -309,7 +309,7 @@ async def test_email(
 
     return APIResponse.success(
         message=f"Test email triggered to {target_email}. Check backend logs for delivery status.",
-        data={"smtp_user": settings.smtp_user, "smtp_host": settings.smtp_host, "recipient": target_email}
+        data={"from": settings.email_from_address, "smtp_user": settings.smtp_user, "smtp_host": settings.smtp_host, "recipient": target_email}
     )
 
 

@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime, timezone
-from sqlalchemy import Date, DateTime, ForeignKey, Integer
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
@@ -27,6 +27,8 @@ class UserAICredits(Base):
     used_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     daily_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     daily_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Fraction of a credit charged but not yet counted against the limits.
+    credit_remainder: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

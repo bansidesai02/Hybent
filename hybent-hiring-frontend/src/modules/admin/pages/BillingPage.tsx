@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Check, Coins, CreditCard, Users } from 'lucide-react'
+import { Check, Coins, CreditCard, Receipt, Users } from 'lucide-react'
 
-import { billingApi, type SeatRole } from '@/api/billing'
+import { billingApi, redirectToCheckout, type SeatRole } from '@/api/billing'
 import type { PlanInfo } from '@/api/superAdmin'
 import {
   Badge,
@@ -20,23 +20,42 @@ import {
 /**
  * An organization admin's subscription: plan, seats, renewal and AI credits.
  *
- * Plans aren't self-serve — no payment is taken on the site — so changing
- * plan or seats sends a request to the Hybent team (info@hybent.com), who
- * invoice and apply it.
+ * Extra seats are paid online with Stripe (for the rest of the current term;
+ * they then renew with the plan). Plans aren't self-serve, so changing plan,
+ * removing seats, or adding seats when online payment isn't available sends a
+ * request to the Hybent team (info@hybent.com), who invoice and apply it.
+ *
+ * Stripe Checkout returns here with `?checkout=success&session_id=…`; the page
+ * confirms the payment with the server so the seats show straight away.
  */
 
 const formatUsd = (val: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val)
+const formatUsdCents = (val: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(val)
 
 type SeatCounts = Record<SeatRole, number>
 type Request = { plan?: PlanInfo; seats?: SeatCounts } | null
+
+const PAYMENT_KIND_LABEL: Record<string, string> = {
+  subscription: 'Plan',
+  seats: 'Extra seats',
+  topup: 'AI credits',
+  renewal: 'Renewal',
+}
 
 const SEAT_ROLES: SeatRole[] = ['admin', 'recruiter']
 const ROLE_LABEL: Record<SeatRole, string> = { admin: 'admin', recruiter: 'recruiter' }
 
 export default function BillingPage() {
   const { data, isLoading } = useQuery({ queryKey: ['billing'], queryFn: () => billingApi.get() })
+  const { data: payments } = useQuery({ queryKey: ['billing-payments'], queryFn: () => billingApi.payments() })
+  const queryClient = useQueryClient()
+  const [params, setParams] = useSearchParams()
+  const handledReturn = useRef(false)
   const [request, setRequest] = useState<Request>(null)
+  const [buySeats, setBuySeats] = useState<SeatCounts | null>(null)
+  const [redirecting, setRedirecting] = useState(false)
   const [seatDrafts, setSeatDrafts] = useState<Partial<Record<SeatRole, string>>>({})
   const [note, setNote] = useState('')
   const [sending, setSending] = useState(false)
@@ -62,6 +81,55 @@ export default function BillingPage() {
   const seatDraftValid = !Number.isNaN(draft.admin) && !Number.isNaN(draft.recruiter)
   const seatDraftChanged = seatDraftValid &&
     (draft.admin !== currentExtra.admin || draft.recruiter !== currentExtra.recruiter)
+
+  // Back from Stripe Checkout: apply the payment now rather than waiting for the webhook.
+  useEffect(() => {
+    const outcome = params.get('checkout')
+    if (!outcome || handledReturn.current) return
+    handledReturn.current = true
+    const sessionId = params.get('session_id')
+    setParams({}, { replace: true })
+    if (outcome === 'canceled') {
+      toast('Payment cancelled. Nothing was charged.')
+      return
+    }
+    if (!sessionId) return
+    billingApi
+      .confirmCheckout(sessionId)
+      .then((payment) => {
+        if (payment.status === 'paid') toast.success(`Payment received: ${payment.description}.`)
+        else toast('Your payment is processing. The seats appear as soon as Stripe confirms it.')
+      })
+      .catch(() => toast.error('We couldn’t confirm the payment yet. Refresh in a minute.'))
+      .finally(() => {
+        queryClient.invalidateQueries({ queryKey: ['billing'] })
+        queryClient.invalidateQueries({ queryKey: ['billing-payments'] })
+      })
+  }, [params, setParams, queryClient])
+
+  // Seats can be paid online when Stripe is on and the plan isn't Custom;
+  // removing seats is still a request (it takes effect at renewal).
+  const seatPricesNow = data?.payments_enabled ? data.seat_prices_now : null
+  const seatsToAdd: SeatCounts = {
+    admin: Math.max(0, (draft.admin || 0) - currentExtra.admin),
+    recruiter: Math.max(0, (draft.recruiter || 0) - currentExtra.recruiter),
+  }
+  const removesSeats = seatDraftValid && (draft.admin < currentExtra.admin || draft.recruiter < currentExtra.recruiter)
+  const canPaySeats = !!seatPricesNow && seatDraftChanged && !removesSeats
+  const proratedCost = (add: SeatCounts) =>
+    Math.max(0.5, SEAT_ROLES.reduce((sum, role) => sum + add[role] * (seatPricesNow?.[role] ?? 0), 0))
+
+  const startSeatCheckout = async () => {
+    if (!buySeats) return
+    try {
+      setRedirecting(true)
+      const { url } = await billingApi.checkoutSeats(buySeats)
+      redirectToCheckout(url)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Could not start the payment.')
+      setRedirecting(false)
+    }
+  }
 
   const seatCost = (counts: SeatCounts) =>
     SEAT_ROLES.reduce((sum, role) => sum + counts[role] * (prices?.[role].price_usd ?? 0), 0)
@@ -117,7 +185,11 @@ export default function BillingPage() {
       <PageHeader
         eyebrow="Billing"
         title="Plan & billing"
-        description="Your plan, seats, renewal date and AI credits. To change your plan or seats, send a request and the Hybent team will set it up."
+        description={
+          data?.payments_enabled
+            ? 'Your plan, seats, renewal date and AI credits. Add seats and buy AI credits here; to change your plan, send a request and the Hybent team will set it up.'
+            : 'Your plan, seats, renewal date and AI credits. To change your plan or seats, send a request and the Hybent team will set it up.'
+        }
       />
 
       <div className="space-y-hb-6">
@@ -147,7 +219,13 @@ export default function BillingPage() {
                 )}
                 {sub.current_period_end && (
                   <p className="mt-3 text-hb-sm text-hb-text">
-                    Renews {new Date(sub.current_period_end).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {data?.stripe_managed ? 'Renews automatically' : 'Renews'}{' '}
+                    {new Date(sub.current_period_end).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                )}
+                {sub.status === 'past_due' && (
+                  <p role="status" className="mt-1 text-hb-xs text-hb-warning">
+                    Your last payment failed. Stripe will retry; check the email from Stripe to update your card.
                   </p>
                 )}
                 {sub.trial_end && new Date(sub.trial_end) > new Date() && (
@@ -317,13 +395,99 @@ export default function BillingPage() {
                   fieldClassName="w-[230px]"
                 />
               ))}
-              <Button size="sm" disabled={!seatDraftChanged} onClick={() => setRequest({ seats: draft })}>
-                Request seats
-              </Button>
+              {canPaySeats ? (
+                <Button size="sm" onClick={() => setBuySeats(seatsToAdd)}>
+                  Add seats · {formatUsdCents(proratedCost(seatsToAdd))}
+                </Button>
+              ) : (
+                <Button size="sm" disabled={!seatDraftChanged} onClick={() => setRequest({ seats: draft })}>
+                  Request seats
+                </Button>
+              )}
             </div>
+            {seatPricesNow && sub.current_period_end && (
+              <p className="mt-3 text-hb-xs text-hb-muted">
+                New seats are charged for the rest of this term (until{' '}
+                {new Date(sub.current_period_end).toLocaleDateString()}), then renew with your plan. Removing seats is a
+                request to the Hybent team.
+              </p>
+            )}
+          </Card>
+        )}
+
+        {payments && payments.length > 0 && (
+          <Card padding="loose">
+            <div className="flex items-center gap-3">
+              <IconTile size="sm">
+                <Receipt />
+              </IconTile>
+              <h2 className="font-display text-hb-h3 text-hb-text">Payments</h2>
+            </div>
+            <ul className="mt-hb-4 divide-y divide-hb-border">
+              {payments.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5 text-hb-sm">
+                  <span className="min-w-0">
+                    <span className="text-hb-text">{p.description}</span>
+                    <span className="ml-2 text-hb-xs text-hb-muted">{PAYMENT_KIND_LABEL[p.kind] ?? p.kind}</span>
+                  </span>
+                  <span className="flex items-baseline gap-3">
+                    <span className="text-hb-xs text-hb-muted">
+                      {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : ''}
+                    </span>
+                    <span className="font-mono tabular-nums text-hb-text">{formatUsdCents(p.amount_usd)}</span>
+                    {p.receipt_url && (
+                      <a href={p.receipt_url} target="_blank" rel="noreferrer" className="text-hb-xs font-semibold text-hb-blue hover:underline">
+                        Invoice
+                      </a>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Card>
         )}
       </div>
+
+      <Dialog
+        open={!!buySeats}
+        onClose={() => setBuySeats(null)}
+        title="Add seats"
+        description="You'll pay securely with Stripe. The seats are added as soon as the payment goes through."
+        size="sm"
+        footer={
+          <>
+            <Button variant="quiet" size="sm" onClick={() => setBuySeats(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" loading={redirecting} onClick={startSeatCheckout}>
+              Continue to payment
+            </Button>
+          </>
+        }
+      >
+        {buySeats && (
+          <div className="space-y-2 pb-2 text-hb-sm">
+            {SEAT_ROLES.filter((role) => buySeats[role] > 0).map((role) => (
+              <p key={role} className="flex justify-between gap-3 text-hb-text">
+                <span>
+                  {buySeats[role]} extra {ROLE_LABEL[role]} seat{buySeats[role] === 1 ? '' : 's'}
+                </span>
+                <span className="font-mono tabular-nums">{formatUsdCents(buySeats[role] * (seatPricesNow?.[role] ?? 0))}</span>
+              </p>
+            ))}
+            <p className="flex justify-between gap-3 border-t border-hb-border pt-2 font-semibold text-hb-text">
+              <span>Due now</span>
+              <span className="font-mono tabular-nums">{formatUsdCents(proratedCost(buySeats))}</span>
+            </p>
+            <p className="text-hb-xs text-hb-muted">
+              Covers the rest of this term{sub?.current_period_end ? ` (until ${new Date(sub.current_period_end).toLocaleDateString()})` : ''}.
+              {data?.stripe_managed
+                ? ` From then on each seat renews with your plan (${formatUsd(seatCost(buySeats))}/month more), adding ${seatCredits(buySeats).toLocaleString()} AI credits a month.`
+                : ` Adds ${seatCredits(buySeats).toLocaleString()} AI credits a month.`}
+            </p>
+          </div>
+        )}
+      </Dialog>
 
       <Dialog
         open={!!request}

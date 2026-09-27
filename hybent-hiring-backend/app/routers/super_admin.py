@@ -1,5 +1,6 @@
 import uuid
 import logging
+import secrets
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select, func, text
@@ -21,7 +22,7 @@ from app.schemas.super_admin import (
 from app.schemas.response import APIResponse
 from app.utils.security import create_access_token, hash_password
 from app.utils.permissions import UserRole
-from app.services import billing_service
+from app.services import billing_service, payment_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/super-admin", tags=["super-admin"])
@@ -215,7 +216,7 @@ async def list_clients(db: DB, current_user: SuperAdminUser):
             "extra_admin_seats": extra_seats["admin"],
             "extra_recruiter_seats": extra_seats["recruiter"],
             "current_period_end": period_end,
-            "status": sub_status if org.is_active else "suspended",
+            "status": sub_status if org.is_active or sub_status == "pending" else "suspended",
             "mrr": mrr,
             "users_count": users_cnt,
             "users_limit": users_limit,
@@ -244,44 +245,67 @@ async def create_client(data: ClientCreate, db: DB, current_user: SuperAdminUser
     if email_check:
         raise HTTPException(status_code=400, detail="Admin email is already registered.")
 
-    # Create Organization
-    org = Organization(
-        name=data.name,
-        slug=data.slug,
-        industry=data.industry,
-        size=data.size,
-        is_active=True
-    )
-    db.add(org)
-    await db.flush()
-
-    # Create Admin User
-    admin = User(
-        organization_id=org.id,
-        email=data.admin_email,
-        full_name=data.name + " Admin",
-        hashed_password=hash_password("password123"),  # default password
-        role=UserRole.ADMIN.value,
-        is_active=True,
-        is_verified=True
-    )
-    db.add(admin)
-    await db.flush()
-
     # Subscription plan (Standard, 6 months, 12 months, Custom)
     plan = await billing_service.find_plan(db, data.plan_name)
     if not plan:
         raise HTTPException(status_code=400, detail=f"Unknown plan '{data.plan_name}'.")
     plan_name = plan.name
+    if data.collect_payment:
+        payment_service.require_stripe()
+        # Checked before anything is created, so a bad quote leaves no half-made client.
+        payment_service.subscription_quote(
+            plan, data.extra_admin_seats, data.extra_recruiter_seats,
+            data.custom_amount_usd, data.custom_term_months,
+        )
+
+    # When the client pays by link, the organization and admin stay inactive
+    # until Stripe confirms the payment; the admin then sets a password from
+    # the welcome email.
+    active = not data.collect_payment
+    org = Organization(
+        name=data.name,
+        slug=data.slug,
+        industry=data.industry,
+        size=data.size,
+        is_active=active
+    )
+    db.add(org)
+    await db.flush()
+
+    admin = User(
+        organization_id=org.id,
+        email=data.admin_email,
+        full_name=(data.admin_name or "").strip() or data.name + " Admin",
+        hashed_password=hash_password(secrets.token_urlsafe(24) if data.collect_payment else "password123"),
+        role=UserRole.ADMIN.value,
+        is_active=active,
+        is_verified=True
+    )
+    db.add(admin)
+    await db.flush()
 
     sub = CompanySubscription(
         organization_id=org.id,
         plan_id=plan.id,
-        status="active",
-        trial_end=datetime.now(timezone.utc) + timedelta(days=data.trial_days) if data.trial_days > 0 else None
+        status="pending" if data.collect_payment else "active",
+        trial_end=(
+            datetime.now(timezone.utc) + timedelta(days=data.trial_days)
+            if data.trial_days > 0 and not data.collect_payment else None
+        ),
     )
     billing_service.assign_plan(sub, plan)
     db.add(sub)
+
+    payment = None
+    if data.collect_payment:
+        payment = await payment_service.create_subscription_link(
+            db, org, plan, current_user,
+            extra_admin_seats=data.extra_admin_seats,
+            extra_recruiter_seats=data.extra_recruiter_seats,
+            custom_amount_usd=data.custom_amount_usd,
+            custom_term_months=data.custom_term_months,
+            activate_user_id=admin.id,
+        )
 
     # Setup Feature Flags
     default_flags = data.flags or {"ai": True, "video": True, "bulk": True, "domain": False, "analytics": False}
@@ -304,7 +328,18 @@ async def create_client(data: ClientCreate, db: DB, current_user: SuperAdminUser
     )
 
     await db.commit()
-    return APIResponse.success(message="Client created successfully.", data={"org_id": str(org.id)})
+    if payment is None:
+        return APIResponse.success(message="Client created successfully.", data={"org_id": str(org.id)})
+
+    emailed = data.send_payment_email and await payment_service.email_payment_link(db, payment, data.admin_email)
+    return APIResponse.success(
+        message="Client created. They'll be activated once the payment link is paid.",
+        data={
+            "org_id": str(org.id),
+            "payment": payment_service.payment_to_dict(payment, org.name),
+            "emailed": bool(emailed),
+        },
+    )
 
 
 @router.put("/clients/{client_id}")
@@ -432,7 +467,11 @@ async def activate_client(client_id: uuid.UUID, db: DB, current_user: SuperAdmin
         select(CompanySubscription).where(CompanySubscription.organization_id == org.id)
     )
     sub = sub_res.scalar_one_or_none()
+    welcome = []
     if sub:
+        if sub.status == "pending":
+            # Was waiting on a payment link; paid some other way.
+            welcome = await payment_service.activate_without_payment(db, org.id)
         sub.status = "active"
 
     await log_super_admin_action(
@@ -446,6 +485,8 @@ async def activate_client(client_id: uuid.UUID, db: DB, current_user: SuperAdmin
     )
 
     await db.commit()
+    for user in welcome:
+        await payment_service.send_welcome(db, user)
     return APIResponse.success(message="Client activated successfully.")
 
 
