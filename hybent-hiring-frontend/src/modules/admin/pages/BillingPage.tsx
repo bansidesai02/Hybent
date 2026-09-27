@@ -344,9 +344,8 @@ export default function BillingPage() {
                       p.is_custom
                         ? 'Seats and credits sized to your team'
                         : `${p.included_admins} admin + ${p.included_recruiters} recruiter seats`,
-                      p.is_custom
-                        ? 'Tailored onboarding and invoicing'
-                        : `${p.ai_credits_monthly.toLocaleString()} AI credits a month`,
+                      'Recruiter Copilot',
+                      p.is_custom ? 'Tailored onboarding and invoicing' : 'AI parsing, screening and match scoring',
                     ].map((feat) => (
                       <li key={feat} className="flex items-start gap-2 text-hb-sm text-hb-muted">
                         <Check size={15} aria-hidden className="mt-0.5 shrink-0 text-hb-success" />

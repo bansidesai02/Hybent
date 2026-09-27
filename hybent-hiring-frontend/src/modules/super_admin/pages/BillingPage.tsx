@@ -384,9 +384,10 @@ export default function BillingPage() {
 
               <ul className="mt-hb-4 space-y-2.5 border-t border-hb-border pt-hb-4">
                 {(p.is_custom
-                  ? ['Seats and price set per client', 'AI credits set on the AI credits page', 'Tailored onboarding and invoicing']
+                  ? ['Seats and price set per client', 'Recruiter Copilot', 'AI credits set on the AI credits page', 'Tailored onboarding and invoicing']
                   : [
                       `${p.included_admins} admin + ${p.included_recruiters} recruiter seats`,
+                      'Recruiter Copilot',
                       `${p.ai_credits_monthly.toLocaleString()} AI credits a month`,
                       'Extra admin seat: $15/month, +1,500 credits',
                       'Extra recruiter seat: $10/month, +1,000 credits',

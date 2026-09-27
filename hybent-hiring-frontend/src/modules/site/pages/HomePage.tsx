@@ -102,20 +102,33 @@ export default function HomePage() {
             <h2 className="h-lg">Hybent Hiring. AI-Powered Recruitment Platform.</h2>
             <p className="lead">Hybent Hiring holds your entire recruitment pipeline in one place — resume parsing, AI screening, interview management, recruiter copilot, and candidate portal.</p>
           </div>
-          <div className="grid g1" style={{ maxWidth: '880px', margin: '0 auto' }}>
-            <article className="card" data-rv="up"><div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
-              <div style={{ marginBottom: '22px' }}>
-                <AiRecruitmentWorkflowAnimation />
+          <div className="product-stack" style={{ maxWidth: '880px', margin: '0 auto' }}>
+            {/* The pipeline animation, on its own. */}
+            <div className="card card--flat" data-rv="up"><div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
+              <AiRecruitmentWorkflowAnimation />
+            </div>
+
+            {/* The product itself, with the section's only calls to action. */}
+            <article className="card card--flat product-card" data-rv="up" data-delay="80" aria-labelledby="hybent-hiring-card-title">
+              <div className="product-card__body">
+                <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
+                <div>
+                  <h3 className="h-sm product-card__title" id="hybent-hiring-card-title">
+                    Hybent Hiring <span className="badge badge--live"><i className="dot dot--pulse"></i>Live</span>
+                  </h3>
+                  <p className="small">Our AI recruitment platform, with your whole hiring pipeline in one place.</p>
+                  <ul className="product-card__tags" aria-label="What's included">
+                    {['Resume parsing', 'AI screening', 'Interview management', 'Recruiter copilot', 'Candidate portal'].map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
-              <h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Hybent Hiring <span className="badge badge--live"><i className="dot dot--pulse"></i>Live</span></h3>
-              <p className="small">Our AI recruitment platform. Resume parsing, AI screening, interview management, recruiter copilot and a candidate portal in one pipeline.</p>
-              <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/products/hiring">Explore Hybent Hiring <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
+              <div className="product-card__actions">
+                <a className="btn btn-primary" href="/products/hiring">Explore Hybent Hiring <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="btn btn-ghost" href="/contact">Book a demo</a>
+              </div>
             </article>
-          </div>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "32px", justifyContent: "center" }} data-rv="up">
-            <a className="btn btn-primary" href="/products/hiring">Explore Hybent Hiring <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a className="btn btn-ghost" href="/contact">Book a demo</a>
           </div>
         </div>
       </section>
