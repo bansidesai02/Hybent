@@ -97,4 +97,30 @@ jobs:
           remote_path: ${{ secrets.HOSTINGER_REMOTE_PATH || secrets.FTP_REMOTE_PATH || 'public_html' }}
           sftp_only: true
 
+      # The `./dist/*` glob above skips dotfiles, so .htaccess (the SPA fallback
+      # and the per-page SEO rewrites) never reached the server. Send it on its own.
+      - name: Upload .htaccess (SSH Key)
+        if: ${{ env.SSH_KEY_SET != '' }}
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.HOSTINGER_HOST || secrets.FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_USERNAME || secrets.FTP_USERNAME }}
+          ssh_private_key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT || secrets.FTP_PORT || '65002' }}
+          local_path: './dist/.htaccess'
+          remote_path: ${{ secrets.HOSTINGER_REMOTE_PATH || secrets.FTP_REMOTE_PATH || 'public_html' }}
+          sftp_only: true
+
+      - name: Upload .htaccess (Password)
+        if: ${{ env.SSH_KEY_SET == '' && env.PASSWORD_SET != '' }}
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.HOSTINGER_HOST || secrets.FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_USERNAME || secrets.FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_PASSWORD || secrets.FTP_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_PORT || secrets.FTP_PORT || '65002' }}
+          local_path: './dist/.htaccess'
+          remote_path: ${{ secrets.HOSTINGER_REMOTE_PATH || secrets.FTP_REMOTE_PATH || 'public_html' }}
+          sftp_only: true
+
 
