@@ -10,7 +10,6 @@ Prices are USD per 1M tokens (text) or per hour (audio), from the providers'
 public pricing pages as of 2026-09. Update this table when they change.
 """
 import logging
-import math
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +76,9 @@ def audio_cost_usd(model: str | None, audio_seconds: float) -> float:
     return max(MIN_AUDIO_SECONDS, audio_seconds or 0.0) / 3600 * rate
 
 
-def credits_for_cost(cost_usd: float) -> int:
-    """Credits to deduct for a call that cost us `cost_usd`. Always at
-    least 1, so no successful call is free."""
-    if cost_usd <= 0:
-        return 1
-    return max(1, math.ceil(round(cost_usd / CREDIT_COST_USD, 6)))
+def exact_credits(cost_usd: float) -> float:
+    """Credits for a call that cost us `cost_usd`, not rounded: tiny calls
+    (embeddings, ~$0.00001) are a fraction of a credit. AICreditsService
+    carries the fractions and deducts whole credits as they add up, so the
+    2x markup holds for every call size."""
+    return max(0.0, cost_usd) / CREDIT_COST_USD

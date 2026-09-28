@@ -53,7 +53,7 @@ function notifIcon(type: NotificationType): ReactNode {
 function NotificationBellComponent() {
   const [open, setOpen] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)
-  const { markRead, markAllRead } = useNotifications({ enablePush: open })
+  const { markRead, markAllRead } = useNotifications()
   const { notifications } = useNotificationStore()
 
   // `markRead`/`markAllRead` are bare `mutation.mutate` functions (the hook

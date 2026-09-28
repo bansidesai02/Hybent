@@ -4,7 +4,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { ArrowLeft, ArrowRight, Building2, Check, Plus } from 'lucide-react'
 
-import { superAdminApi } from '@/api/superAdmin'
+import { superAdminApi, type ClientCreatePayload, type PlanInfo } from '@/api/superAdmin'
+import type { Payment } from '@/api/billing'
+import { PaymentLinkCreatedDialog, PaymentLinkFields } from '../components/PaymentLinkFields'
+import { EMPTY_PAYMENT_LINK, toPaymentLinkPayload, type PaymentLinkDraft } from '../components/paymentLink'
 import {
   Badge,
   Button,
@@ -80,9 +83,13 @@ const EMPTY_WIZARD = {
   size: '11–50',
   location: 'Ahmedabad, IN',
   admin_email: '',
+  admin_name: '',
   plan_name: 'Standard',
   trial_days: 14,
   flags: { ai: true, video: true, bulk: true, domain: false, analytics: false },
+  /** After a demo the client pays a Stripe link; off = set up by hand (trial / invoiced). */
+  collect_payment: true,
+  payment: EMPTY_PAYMENT_LINK as PaymentLinkDraft,
 }
 
 type WizardData = typeof EMPTY_WIZARD
@@ -127,6 +134,12 @@ export default function ClientsPage() {
     queryKey: ['super-admin', 'clients'],
     queryFn: () => superAdminApi.getClients(),
   })
+  const { data: plans } = useQuery({
+    queryKey: ['super-admin', 'plans'],
+    queryFn: () => superAdminApi.getPlans(),
+  })
+  const planList = (plans ?? []) as PlanInfo[]
+  const [createdLink, setCreatedLink] = useState<{ orgId: string; payment: Payment; emailed: boolean } | null>(null)
 
   const resetWizard = () => {
     setWizardStep(1)
@@ -134,13 +147,34 @@ export default function ClientsPage() {
   }
 
   const createClientMutation = useMutation({
-    mutationFn: (payload: WizardData) => superAdminApi.createClient(payload),
+    mutationFn: (wizard: WizardData) => {
+      const { payment, collect_payment, ...rest } = wizard
+      const isCustom = !!planList.find((p) => p.name === wizard.plan_name)?.is_custom
+      const payload: ClientCreatePayload = { ...rest, collect_payment }
+      if (collect_payment) {
+        const link = toPaymentLinkPayload({ ...payment, plan_name: wizard.plan_name }, isCustom)
+        Object.assign(payload, {
+          extra_admin_seats: link.extra_admin_seats,
+          extra_recruiter_seats: link.extra_recruiter_seats,
+          custom_amount_usd: link.custom_amount_usd,
+          custom_term_months: link.custom_term_months,
+          trial_days: 0,
+        })
+      }
+      return superAdminApi.createClient(payload)
+    },
     onSuccess: (data) => {
-      toast.success('Client onboarded successfully')
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'clients'] })
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'payments'] })
       setIsWizardOpen(false)
       resetWizard()
+      if (data?.payment) {
+        toast.success('Client created. They’re activated once the payment link is paid.')
+        setCreatedLink({ orgId: data.org_id, payment: data.payment, emailed: !!data.emailed })
+        return
+      }
+      toast.success('Client onboarded successfully')
       if (data && data.org_id) {
         navigate(`/hiring/super-admin/clients/${data.org_id}`)
       }
@@ -372,7 +406,7 @@ export default function ClientsPage() {
               loading={createClientMutation.isPending}
               icon={wizardStep === 4 ? <Check size={14} /> : <ArrowRight size={14} />}
             >
-              {wizardStep === 4 ? 'Complete' : 'Next'}
+              {wizardStep === 4 ? (wizardData.collect_payment ? 'Create & send link' : 'Complete') : 'Next'}
             </Button>
           </>
         }
@@ -470,17 +504,33 @@ export default function ClientsPage() {
               </div>
             </fieldset>
 
-            <div className="grid gap-hb-4 sm:grid-cols-2">
-              <Input
-                label="Trial days"
-                type="number"
-                min={0}
-                value={wizardData.trial_days}
-                onChange={(e) =>
-                  setWizardData((p) => ({ ...p, trial_days: Number(e.target.value) }))
-                }
+            <Switch
+              label="Collect payment with Stripe"
+              description="Send the client a payment link. Their workspace and admin are activated once it's paid."
+              checked={wizardData.collect_payment}
+              onChange={(next) => setWizardData((p) => ({ ...p, collect_payment: next }))}
+            />
+
+            {wizardData.collect_payment ? (
+              <PaymentLinkFields
+                draft={{ ...wizardData.payment, plan_name: wizardData.plan_name }}
+                onChange={(next) => setWizardData((p) => ({ ...p, payment: next }))}
+                plans={planList}
+                showPlan={false}
               />
-            </div>
+            ) : (
+              <div className="grid gap-hb-4 sm:grid-cols-2">
+                <Input
+                  label="Trial days"
+                  type="number"
+                  min={0}
+                  value={wizardData.trial_days}
+                  onChange={(e) =>
+                    setWizardData((p) => ({ ...p, trial_days: Number(e.target.value) }))
+                  }
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -515,6 +565,12 @@ export default function ClientsPage() {
               The primary administrative account for this workspace.
             </p>
             <Input
+              label="Admin name"
+              value={wizardData.admin_name}
+              onChange={(e) => setWizardData((p) => ({ ...p, admin_name: e.target.value }))}
+              placeholder="e.g. Priya Shah"
+            />
+            <Input
               label="Admin email address"
               type="email"
               required
@@ -522,15 +578,30 @@ export default function ClientsPage() {
               onChange={(e) => setWizardData((p) => ({ ...p, admin_email: e.target.value }))}
               placeholder="e.g. hr@company.com"
               description={
-                <>
-                  A temporary password of <code className="font-mono text-hb-cyan">password123</code>{' '}
-                  is created. They are prompted to reset it on first sign-in.
-                </>
+                wizardData.collect_payment ? (
+                  'The payment link is emailed here. Once it’s paid, they get an email to set their password.'
+                ) : (
+                  <>
+                    A temporary password of <code className="font-mono text-hb-cyan">password123</code>{' '}
+                    is created. They are prompted to reset it on first sign-in.
+                  </>
+                )
               }
             />
           </div>
         )}
       </Dialog>
+
+      <PaymentLinkCreatedDialog
+        payment={createdLink?.payment ?? null}
+        emailed={!!createdLink?.emailed}
+        closeLabel="Open client"
+        onClose={() => {
+          const orgId = createdLink?.orgId
+          setCreatedLink(null)
+          if (orgId) navigate(`/hiring/super-admin/clients/${orgId}`)
+        }}
+      />
     </div>
   )
 }

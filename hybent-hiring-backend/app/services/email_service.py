@@ -2,11 +2,13 @@
 Email service using Gmail SMTP.
 Falls back to console print if SMTP credentials are not configured.
 """
+import html
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 from dateutil import parser as date_parser
 
 from app.core.config import settings
@@ -22,16 +24,17 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
     import email.utils
     import re
 
+    sender = settings.email_from_address
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_user}>"
+    msg["From"] = email.utils.formataddr((settings.smtp_from_name, sender))
     msg["To"] = to
-    msg["Reply-To"] = settings.smtp_user
-    msg["Message-ID"] = email.utils.make_msgid(domain=settings.smtp_user.split("@")[-1])
+    msg["Reply-To"] = sender
+    msg["Message-ID"] = email.utils.make_msgid(domain=sender.split("@")[-1])
     msg["Date"] = email.utils.formatdate(localtime=True)
     msg["MIME-Version"] = "1.0"
     msg["X-Mailer"] = "Hybent Hiring Platform"
-    msg["List-Unsubscribe"] = f"<mailto:{settings.smtp_user}?subject=unsubscribe>"
+    msg["List-Unsubscribe"] = f"<mailto:{sender}?subject=unsubscribe>"
 
     # Plain text fallback — Gmail penalizes HTML-only emails
     plain_text = re.sub(r"<[^>]+>", "", html_body)
@@ -44,7 +47,8 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
         server.starttls()
         server.ehlo()
         server.login(settings.smtp_user, settings.smtp_password)
-        server.sendmail(settings.smtp_user, to, msg.as_string())
+        # Envelope sender is the From address too, so bounces go to it.
+        server.sendmail(sender, to, msg.as_string())
 
 
 
@@ -57,8 +61,8 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": f"{settings.smtp_from_name} <info@hybent.com>",
-        "reply_to": "info@hybent.com",
+        "from": f"{settings.smtp_from_name} <{settings.email_from_address}>",
+        "reply_to": settings.email_from_address,
         "to": to,
         "subject": subject,
         "html": html_body
@@ -709,11 +713,25 @@ def send_demo_request_email(
     team_size: str,
     monthly_hires: str,
     hiring_challenge: str
-) -> None:
-    """Send demo request notification to Hybent Hiring admin."""
-    subject = f"New Demo Request: {first_name} {last_name} from {company_name}"
+) -> bool:
+    """Send demo request notification to Hybent Hiring admin. Returns
+    whether it was sent.
+
+    Every value comes from a public form, so it's HTML-escaped in the body
+    and stripped of line breaks in the subject."""
+    def one_line(value: str) -> str:
+        return " ".join(str(value).split())
+
+    subject = f"New Demo Request: {one_line(first_name)} {one_line(last_name)} from {one_line(company_name)}"
     recipient = "info@hybent.com"
-    
+    e = {k: html.escape(str(v)) for k, v in {
+        "first_name": first_name, "last_name": last_name, "work_email": work_email,
+        "company_name": company_name, "team_size": team_size,
+        "monthly_hires": monthly_hires, "hiring_challenge": hiring_challenge,
+    }.items()}
+    # The mailto target is URL-encoded as well as escaped for the attribute.
+    mailto = html.escape(quote(str(work_email), safe="@.+-_"))
+
     content = f"""
         <h1 style="font-size: 20px; font-weight: 500; color: #3c4043; margin: 0 0 24px 0; border-bottom: 1px solid #dadce0; padding-bottom: 20px;">
             Demo Request Details
@@ -721,26 +739,26 @@ def send_demo_request_email(
         
         <div class="section-title">Organization Details</div>
         <div class="section-value">
-            <b>{first_name} {last_name}</b><br/>
-            <a href="mailto:{work_email}" style="color: #4C6FFF; text-decoration: none;">{work_email}</a>
+            <b>{e["first_name"]} {e["last_name"]}</b><br/>
+            <a href="mailto:{mailto}" style="color: #4C6FFF; text-decoration: none;">{e["work_email"]}</a>
         </div>
         
         <div class="section-title">Organization</div>
-        <div class="section-value">{company_name}</div>
+        <div class="section-value">{e["company_name"]}</div>
         
         <div class="section-title">Scale</div>
         <div class="section-value">
-            Team Size: {team_size}<br/>
-            Monthly Hires: {monthly_hires}
+            Team Size: {e["team_size"]}<br/>
+            Monthly Hires: {e["monthly_hires"]}
         </div>
         
         <div class="section-title">Hiring Challenge</div>
-        <div class="section-value" style="font-style: italic; color: #70757a;">
-            "{hiring_challenge}"
+        <div class="section-value" style="font-style: italic; color: #70757a; white-space: pre-wrap;">
+            "{e["hiring_challenge"]}"
         </div>
 
         <div class="button-wrap">
-            <a href="mailto:{work_email}" class="button">Connect to Organization</a>
+            <a href="mailto:{mailto}" class="button">Connect to Organization</a>
         </div>
     """
-    send_email(recipient, subject, _get_base_template(content, org_name="Hybent Hiring"))
+    return send_email(recipient, subject, _get_base_template(content, org_name="Hybent Hiring"))

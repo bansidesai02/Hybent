@@ -70,6 +70,16 @@ class ClientCreate(BaseModel):
     billing_cycle: str | None = None  # derived from the plan's term
     trial_days: int = 14
     flags: dict[str, bool] | None = None
+    admin_name: str | None = None
+    # Sell the plan through a Stripe payment link: the organization and its
+    # admin stay inactive until the client pays (no trial).
+    collect_payment: bool = False
+    extra_admin_seats: int = 0
+    extra_recruiter_seats: int = 0
+    # Custom plans only: the agreed price for the term.
+    custom_amount_usd: float | None = None
+    custom_term_months: int | None = None
+    send_payment_email: bool = True
 
 
 class ClientUpdate(BaseModel):

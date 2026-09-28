@@ -48,6 +48,9 @@ const HybentCreatePasswordRoute = lazy(() => import('@/modules/site/pages/Hybent
 const OnboardingPage = lazy(() => import('@/modules/portal/pages/candidate/OnboardingPage'))
 const PreScreeningPage = lazy(() => import('@/modules/portal/pages/candidate/PreScreeningPage'))
 
+/* ── Plan payment link a client pays after a demo (/pay/<token>) ──────────── */
+const PayPage = lazy(() => import('@/modules/billing/pages/PayPage'))
+
 /* ── Public, no-login apply link (e.g. attached to a LinkedIn post) ───────── */
 const PublicApplyPage = lazy(() => import('@/modules/apply/pages/PublicApplyPage'))
 
@@ -138,6 +141,7 @@ export default function AppRoutes() {
 
       {/* ── Token-gated candidate flows ── */}
       <Route path="/onboarding/:token" element={<OnboardingPage />} />
+      <Route path="/pay/:token" element={<PayPage />} />
       <Route path="/pre-screening/:token" element={<PreScreeningPage />} />
 
       {/* ── Public apply link — no login required to view or submit ── */}

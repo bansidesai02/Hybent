@@ -126,13 +126,14 @@ const CANDIDATES: CandidateProfile[] = [
 
 export function AiRecruitmentWorkflowAnimation() {
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [scanState, setScanState] = useState<'p1_parsing' | 'p2_scoring' | 'p3_dispatching' | 'complete'>('p1_parsing')
+  const [scanState, setScanState] = useState<'p1_parsing' | 'p2_scoring' | 'p3_dispatching' | 'p4_copilot' | 'complete'>('p1_parsing')
   const [animatedScore, setAnimatedScore] = useState(0)
   const [visibleSkillsCount, setVisibleSkillsCount] = useState(0)
   const [visibleChecklistCount, setVisibleChecklistCount] = useState(0)
   const [scheduledState, setScheduledState] = useState<Record<string, boolean>>({})
   const [isPaused, setIsPaused] = useState(false)
   const [scanKey, setScanKey] = useState(0)
+  const [copilotChars, setCopilotChars] = useState(0)
 
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const candidate = CANDIDATES[selectedIndex]
@@ -144,6 +145,7 @@ export function AiRecruitmentWorkflowAnimation() {
     setAnimatedScore(0)
     setVisibleSkillsCount(0)
     setVisibleChecklistCount(0)
+    setCopilotChars(0)
     setScheduledState((prev) => ({ ...prev, [targetCandidate.id]: false }))
 
     const activeTimers: NodeJS.Timeout[] = []
@@ -190,10 +192,10 @@ export function AiRecruitmentWorkflowAnimation() {
       const t3 = setTimeout(() => setVisibleChecklistCount(3), 1200)
       activeTimers.push(t1, t2, t3)
 
-      // Auto-dispatch Google Meet invite
+      // Auto-dispatch Google Meet invite, then hand over to the Copilot (phase 4)
       const t4 = setTimeout(() => {
         setScheduledState((prev) => ({ ...prev, [targetCandidate.id]: true }))
-        setScanState('complete')
+        setScanState('p4_copilot')
       }, 1800)
       activeTimers.push(t4)
     }, 4200)
@@ -221,6 +223,45 @@ export function AiRecruitmentWorkflowAnimation() {
     const cleanup = startScanSequence(CANDIDATES[selectedIndex])
     return cleanup
   }, [selectedIndex, scanKey])
+
+  // ── STAGE 04: the Recruiter Copilot, after the autopilot has acted ──
+  // Nothing shows until phase 4 starts; then the recruiter's question types
+  // in, the Copilot "thinks", and its answer types out.
+  const firstName = candidate.name.replace(/^Dr\.\s+/, '').split(' ')[0]
+  const topCriterion = candidate.criteriaScores.reduce((a, b) => (b.score > a.score ? b : a))
+  const copilotQuestion = `Give me a summary of ${candidate.name}`
+  const copilotAnswer =
+    `${firstName} is a ${candidate.matchScore}% match for ${candidate.role}, strongest on ` +
+    `${topCriterion.label.toLowerCase()} (${topCriterion.score}%). Interview: ${candidate.suggestedSlot}. ` +
+    `Which round should ${firstName} move to?`
+  // The Copilot's real [SUGGEST:...] stage choices.
+  const copilotSuggestions = ['Technical Round', 'HR Round', 'Practical Round']
+  const THINKING = 44 // pause between question and answer (~0.6s), in typing steps
+  const copilotTotal = copilotQuestion.length + THINKING + copilotAnswer.length
+  const questionShown = copilotQuestion.slice(0, copilotChars)
+  const answerChars = Math.max(0, copilotChars - copilotQuestion.length - THINKING)
+  // Question types into the input, then it's sent and the Copilot thinks.
+  const copilotTyping = scanState === 'p4_copilot' && copilotChars < copilotQuestion.length
+  const copilotSent = scanState === 'p4_copilot' && copilotChars >= copilotQuestion.length
+  const copilotThinking = copilotSent && answerChars === 0
+  const copilotDone = scanState === 'complete'
+  const copilotActive = scanState === 'p4_copilot'
+
+  useEffect(() => {
+    if (scanState !== 'p4_copilot') return
+    const timer = setInterval(() => {
+      setCopilotChars((n) => Math.min(copilotTotal, n + 2))
+    }, 26)
+    return () => clearInterval(timer)
+  }, [scanState, copilotTotal])
+
+  // The sequence is complete once the answer has finished typing.
+  useEffect(() => {
+    if (scanState === 'p4_copilot' && copilotChars >= copilotTotal) {
+      const t = setTimeout(() => setScanState('complete'), 300)
+      return () => clearTimeout(t)
+    }
+  }, [scanState, copilotChars, copilotTotal])
 
   // Auto-play loop runner
   useEffect(() => {
@@ -289,6 +330,10 @@ export function AiRecruitmentWorkflowAnimation() {
           0% { top: 0%; }
           100% { top: 100%; }
         }
+        @keyframes copilot-dot {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+          40% { transform: translateY(-4px); opacity: 1; }
+        }
         @keyframes pulse-anim {
           0% { opacity: 0.5; }
           50% { opacity: 1; }
@@ -296,12 +341,14 @@ export function AiRecruitmentWorkflowAnimation() {
         }
       `}} />
 
-      {/* Top Window Header */}
+      {/* Top Window Header (wraps on phones so the status badge never overflows) */}
       <div
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: '8px',
           padding: '10px 16px',
           borderBottom: `1px solid ${border}`,
           background: 'rgba(241, 245, 249, 0.75)',
@@ -327,7 +374,7 @@ export function AiRecruitmentWorkflowAnimation() {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
           <span
             style={{
               display: 'inline-flex',
@@ -358,6 +405,8 @@ export function AiRecruitmentWorkflowAnimation() {
               ? 'EVALUATING MATCH SCORE...'
               : scanState === 'p3_dispatching'
               ? 'AUTOPILOT SCHEDULING...'
+              : scanState === 'p4_copilot'
+              ? 'COPILOT BRIEFING...'
               : 'AI ENGINE VERIFIED'}
           </span>
 
@@ -454,12 +503,12 @@ export function AiRecruitmentWorkflowAnimation() {
         </div>
       </div>
 
-      {/* Simulator 3-Column Compact Grid */}
+      {/* Simulator: four stages in a 2 x 2 grid (one column on phones, see .wf-grid) */}
       <div
+        className="wf-grid"
         style={{
           padding: '16px 18px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: '14px',
           alignItems: 'stretch',
         }}
@@ -868,6 +917,132 @@ export function AiRecruitmentWorkflowAnimation() {
             )}
           </div>
         </div>
+
+        {/* ── STAGE 04: Recruiter Copilot ── */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: copilotActive ? '1px solid #7C5CFF' : copilotDone ? '1px solid rgba(124, 92, 255, 0.35)' : `1px solid ${border}`,
+            borderRadius: '8px',
+            padding: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            boxShadow: copilotActive ? '0 0 16px rgba(124, 92, 255, 0.18)' : 'none',
+            transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Laser Scanning Line */}
+          {copilotActive && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: `linear-gradient(90deg, transparent, #7C5CFF, ${blue}, transparent)`,
+                boxShadow: '0 0 12px #7C5CFF',
+                animation: 'scanline-anim 1s ease-in-out infinite alternate',
+                zIndex: 10,
+              }}
+            />
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              04 · RECRUITER COPILOT
+            </span>
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                color: copilotDone ? success : copilotActive ? '#7C5CFF' : dim,
+                fontWeight: 700,
+              }}
+            >
+              {copilotDone ? 'RECRUITER BRIEFED' : copilotActive ? (copilotThinking ? 'THINKING...' : 'BRIEFING...') : 'AWAITING ACTIONS'}
+            </span>
+          </div>
+
+          {/* A small copy of the in-app Copilot widget (CopilotWidget.tsx): same
+              header, empty state, starter prompts, bubbles, typing dots,
+              suggestion chips and input bar. */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden', background: '#FFFFFF' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', borderBottom: `1px solid ${border}`, background: '#F8FAFC', fontSize: '0.74rem', fontWeight: 600, color: '#0F172A' }}>
+              <span style={{ background: `linear-gradient(135deg, ${cyan}, ${blue}, #7C5CFF)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '0.9rem' }}>✦</span>
+              <span>Recruiter Copilot</span>
+              {copilotThinking && <span style={{ fontSize: '0.66rem', fontWeight: 400, color: 'rgba(76, 111, 255, 0.5)' }}>thinking...</span>}
+            </div>
+
+            <div style={{ flex: 1, padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '150px' }}>
+              {copilotSent || copilotDone ? (
+                <>
+                  <div style={{ alignSelf: 'flex-end', maxWidth: '90%', background: `linear-gradient(135deg, ${blue}, #7C5CFF)`, color: '#FFFFFF', fontWeight: 500, borderRadius: '12px 12px 3px 12px', padding: '6px 10px', fontSize: '0.72rem', lineHeight: 1.45 }}>
+                    {copilotQuestion}
+                  </div>
+                  {copilotThinking ? (
+                    <div style={{ alignSelf: 'flex-start', display: 'flex', gap: '4px', background: '#F1F5F9', border: `1px solid ${border}`, borderRadius: '12px 12px 12px 3px', padding: '9px 12px' }}>
+                      {[0, 0.2, 0.4].map((delay) => (
+                        <span key={delay} style={{ width: '5px', height: '5px', borderRadius: '50%', background: blue, animation: `copilot-dot 1.2s ${delay}s infinite ease-in-out` }} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ alignSelf: 'flex-start', maxWidth: '95%', background: '#F1F5F9', border: `1px solid ${border}`, borderRadius: '12px 12px 12px 3px', padding: '7px 10px', fontSize: '0.72rem', lineHeight: 1.5, color: '#0F172A' }}>
+                      {copilotDone ? copilotAnswer : copilotAnswer.slice(0, answerChars)}
+                      {copilotActive && <span style={{ color: blue }}>▍</span>}
+                      {copilotDone && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '7px' }}>
+                          {copilotSuggestions.map((label) => (
+                            <span key={label} style={{ borderRadius: '999px', border: `1px solid ${border}`, background: '#FFFFFF', padding: '3px 9px', fontSize: '0.66rem', fontWeight: 500, color: '#0891B2' }}>
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* The widget's empty state, as a recruiter sees it before asking */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '4px' }}>
+                  <span style={{ background: `linear-gradient(135deg, ${cyan}, ${blue}, #7C5CFF)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.3rem', lineHeight: 1 }}>✦</span>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0F172A' }}>Your Recruiter AI Copilot</span>
+                  <span style={{ fontSize: '0.66rem', color: dim, lineHeight: 1.4 }}>Ask me anything — candidates, jobs, interviews, offers, or pipeline stats.</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '5px', width: '100%', marginTop: '6px' }}>
+                    {[
+                      { icon: '🔍', title: 'Search Talent' },
+                      { icon: '📊', title: 'Analytics' },
+                      { icon: '📅', title: 'Interviews' },
+                      { icon: '⚡', title: 'Pipeline' },
+                    ].map((item) => (
+                      <span key={item.title} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: '6px', padding: '5px 7px', fontSize: '0.66rem', fontWeight: 600, color: '#334155', textAlign: 'left' }}>
+                        <span>{item.icon}</span>{item.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Input bar: the question types in here, then it's sent */}
+            <div style={{ display: 'flex', gap: '6px', padding: '7px 8px', borderTop: `1px solid ${border}`, background: '#F8FAFC' }}>
+              <div style={{ flex: 1, minWidth: 0, background: '#FFFFFF', border: `1px solid ${copilotTyping ? blue : border}`, borderRadius: '6px', padding: '5px 8px', fontSize: '0.7rem', color: copilotTyping ? '#0F172A' : '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'border-color 0.2s ease' }}>
+                {copilotTyping ? (
+                  <>
+                    {questionShown}
+                    <span style={{ color: blue }}>▍</span>
+                  </>
+                ) : (
+                  'How can I help you?'
+                )}
+              </div>
+              <span aria-hidden="true" style={{ flex: 'none', width: '26px', borderRadius: '6px', background: `linear-gradient(135deg, ${blue}, #7C5CFF)`, color: '#FFFFFF', display: 'grid', placeItems: 'center', fontSize: '0.7rem', opacity: copilotTyping || copilotActive ? 1 : 0.5 }}>➤</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Bottom Metrics Bar */}
@@ -890,6 +1065,7 @@ export function AiRecruitmentWorkflowAnimation() {
           <span>⏱️ <strong>Screening:</strong> 0.6s</span>
           <span>🎯 <strong>Precision:</strong> {scanState === 'p1_parsing' ? '...' : `${candidate.matchScore}% Match`}</span>
           <span>📅 <strong>Scheduling:</strong> 1-Click Zero Emails</span>
+          <span>✦ <strong>Copilot:</strong> {copilotDone ? 'Briefed' : copilotActive ? 'Briefing...' : 'Standing by'}</span>
         </div>
         <span style={{ color: blue, fontWeight: 600 }}>Interactive Autopilot Live Simulator</span>
       </div>

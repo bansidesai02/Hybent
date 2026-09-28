@@ -221,7 +221,7 @@ export function useSiteBehaviours(routeKey: string) {
         form.removeEventListener('submit', onSubmit)
       })
     }
-    wireForm('contactForm', 'contactToast', 'cf-email')
+    // The contact form is a React component (components/ContactForm) that really sends.
     wireForm('newsForm', 'newsToast', 'nf-email')
 
     /* ---------- FAQ: one open at a time ---------- */

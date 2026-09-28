@@ -20,6 +20,9 @@ EXTRA_SEATS = {
     "recruiter": (10.0, 1_000),
 }
 
+# Most extra seats of one role an organization can have.
+MAX_EXTRA_SEATS = 100
+
 # Roles that take a paid seat. Interviewers and candidates don't.
 SEAT_ROLES = ("admin", "recruiter")
 

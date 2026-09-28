@@ -1,3 +1,4 @@
+import { ContactForm } from '../components/ContactForm'
 import { SiteView } from '../components/SiteView'
 
 export default function ContactPage() {
@@ -28,31 +29,7 @@ export default function ContactPage() {
             </div>
 
             <div className="card" data-rv="right" style={{ padding: "clamp(24px,3vw,36px)" }}>
-              <form id="contactForm" noValidate>
-                <div className="grid g2" style={{ gap: "16px" }}>
-                  <div className="field"><label htmlFor="cf-name">Full name</label><input id="cf-name" name="name" type="text" placeholder="Ananya Shah" required /></div>
-                  <div className="field"><label htmlFor="cf-email">Work email</label><input id="cf-email" name="email" type="email" placeholder="ananya@company.com" required /></div>
-                </div>
-                <div className="grid g2" style={{ gap: "16px", marginTop: "16px" }}>
-                  <div className="field"><label htmlFor="cf-phone">Phone number</label><input id="cf-phone" name="phone" type="tel" placeholder="+1 (555) 000-0000" /></div>
-                  <div className="field"><label htmlFor="cf-company">Company</label><input id="cf-company" name="company" type="text" placeholder="Company name" /></div>
-                </div>
-                <div className="grid g2" style={{ gap: "16px", marginTop: "16px" }}>
-                  <div className="field"><label htmlFor="cf-country">Country</label><input id="cf-country" name="country" type="text" placeholder="e.g. United States" /></div>
-                  <div className="field"><label htmlFor="cf-location">Location</label><input id="cf-location" name="location" type="text" placeholder="e.g. San Francisco, CA" /></div>
-                </div>
-                <div className="field" style={{ marginTop: "16px" }}>
-                  <label htmlFor="cf-referrer">How did you hear about us?</label>
-                  <input id="cf-referrer" name="referrer" type="text" placeholder="Google, LinkedIn, Word of mouth..." />
-                </div>
-                <div className="field" style={{ marginTop: "16px" }}>
-                  <label htmlFor="cf-msg">Message</label>
-                  <textarea id="cf-msg" name="message" placeholder="We hire around 200 people a year and lose two weeks of every search in screening…"></textarea>
-                </div>
-                <button className="btn btn-primary btn-lg" type="submit" style={{ width: "100%", marginTop: "22px" }}>Send message <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></button>
-                <p className="toast" id="contactToast" role="status">Thanks — we have your message and will reply within one business day.</p>
-                <p className="form-note" style={{ marginTop: "14px" }}>By sending this you agree to our privacy policy. We will never sell your details, and one email is all it takes to be removed from our systems.</p>
-              </form>
+              <ContactForm />
             </div>
             <div className="figrow" data-rv="up">
               <div className="figpanel figpanel--stack"><p className="mono" style={{ marginBottom: "14px", color: "var(--dim)" }}>What happens after you send it</p>

@@ -1,9 +1,9 @@
 """An organization admin's view of their own subscription.
 
-Admins can see their plan, seats, renewal date and AI credits, and ask for a
-different plan or more recruiter seats. Plans aren't self-serve (no payment
-is taken on the site): a request emails the Hybent team, who invoice and
-apply it from the super-admin panel.
+Admins can see their plan, seats, renewal date and AI credits. Extra seats
+are bought online with Stripe (routers/payments.py); a different plan, fewer
+seats, or seats when online payments are off are requests that email the
+Hybent team, who apply them from the super-admin panel.
 """
 import asyncio
 import html
@@ -18,7 +18,8 @@ from app.models.organization import Organization
 from app.models.super_admin import CompanySubscription
 from app.models.user import User
 from app.schemas.response import APIResponse
-from app.services import billing_service
+from app.core.config import settings
+from app.services import billing_service, payment_service
 from app.services.ai_credit_service import AICreditsService
 from app.services.email_service import send_email
 
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/billing", tags=["billing"])
 
-MAX_EXTRA_SEATS = 100
+MAX_EXTRA_SEATS = billing_service.MAX_EXTRA_SEATS
 
 
 @router.get("")
@@ -66,6 +67,11 @@ async def get_billing(db: DB, current_user: Annotated[User, Depends(require_admi
             "plans": [billing_service.plan_to_dict(p, std) for p in plans],
             "extra_seats": billing_service.extra_seat_pricing(),
             "monthly_total_usd": billing_service.monthly_revenue(sub.plan, sub) if sub and sub.plan else None,
+            # Online payments: extra seats cost this much each for the rest
+            # of the term (None when they can't be bought online).
+            "payments_enabled": settings.stripe_enabled,
+            "seat_prices_now": payment_service.prorated_seat_prices(sub) if settings.stripe_enabled else None,
+            "stripe_managed": bool(sub and sub.stripe_subscription_id),
         },
     )
 

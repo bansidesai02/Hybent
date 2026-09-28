@@ -21,6 +21,7 @@ from fastapi import BackgroundTasks, HTTPException
 from app.core.config import settings
 from app.services.ai_usage_tracker import log_ai_usage
 from app.services.ai_metering import ai_feature
+from app.utils.exceptions import InsufficientCreditsException
 
 logger = logging.getLogger(__name__)
 
@@ -651,6 +652,11 @@ def _call_groq_with_retry(
             ]
             return result
 
+        except InsufficientCreditsException:
+            # Out of credits isn't a parse failure: retrying won't help, and
+            # the regex fallback would create a low-quality candidate. Let the
+            # caller decide (email ingestion retries on the next run).
+            raise
         except Exception as e:
             status = "failure"
             last_error = str(e)
@@ -863,6 +869,8 @@ async def parse_resume(
         if result:
             return result
         return _regex_fallback(text)
+    except InsufficientCreditsException:
+        raise
     except Exception as e:
         error_msg = str(e).lower()
         if "rate balance" in error_msg or "429" in error_msg:
