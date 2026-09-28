@@ -695,8 +695,30 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .socials a{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;border:1px solid var(--border);color:var(--muted);transition:all .3s}
 .hb-site .socials a:hover{color:#fff;border-color:var(--border-strong);background:rgba(255,255,255,.06);transform:translateY(-2px)}
 .hb-site .socials svg{width:16px;height:16px}
-.hb-site .footer__tag{display:flex;justify-content:center;padding-bottom:34px}
-.hb-site .footer__tag img{height:26px;opacity:.8}
+.hb-site .footer__tag{
+  display:flex;flex-wrap:wrap;justify-content:center;column-gap:.42em;row-gap:.1em;padding-bottom:34px;
+  font-family:var(--f-display);font-weight:700;font-size:clamp(1.15rem,2.2vw,1.55rem);
+  letter-spacing:.07em;line-height:1.3;color:var(--text);opacity:.85;text-align:center
+}
+.hb-site .footer__tag span{display:inline-block}
+/* Brand gradient split across the two key words, with a sheen layer parked
+   off to the left that sweeps across once after the reveal. */
+.hb-site .footer__tag .tag-vision,
+.hb-site .footer__tag .tag-innovation{
+  background-image:linear-gradient(100deg,transparent 42%,rgba(255,255,255,.7) 50%,transparent 58%),var(--tag-grad);
+  background-size:260% 100%,100% 100%;background-position:130% 0,0 0;background-repeat:no-repeat;
+  -webkit-background-clip:text;background-clip:text;color:transparent
+}
+.hb-site .footer__tag .tag-vision{--tag-grad:linear-gradient(90deg,var(--cyan),var(--blue))}
+.hb-site .footer__tag .tag-innovation{--tag-grad:linear-gradient(90deg,var(--violet),var(--magenta))}
+.hb-site .footer__tag.armed span{opacity:0;transform:translateY(.55em);transition:opacity .7s cubic-bezier(.2,.8,.3,1),transform .8s cubic-bezier(.2,.8,.3,1)}
+.hb-site .footer__tag.armed span:nth-child(2){transition-delay:.12s}
+.hb-site .footer__tag.armed span:nth-child(3){transition-delay:.24s}
+.hb-site .footer__tag.armed span:nth-child(4){transition-delay:.36s}
+.hb-site .footer__tag.armed.in span{opacity:1;transform:none}
+.hb-site .footer__tag.in .tag-vision{animation:tagSheen 1.3s cubic-bezier(.4,0,.2,1) .75s both}
+.hb-site .footer__tag.in .tag-innovation{animation:tagSheen 1.3s cubic-bezier(.4,0,.2,1) .95s both}
+@keyframes tagSheen{from{background-position:130% 0,0 0}to{background-position:-30% 0,0 0}}
 
 /* ============================ RESPONSIVE ============================ */
 @media (max-width:1080px){

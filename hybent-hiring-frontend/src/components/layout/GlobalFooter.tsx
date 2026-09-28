@@ -1,4 +1,29 @@
+import { useLayoutEffect, useRef } from 'react'
+
 export function GlobalFooter() {
+  const tagRef = useRef<HTMLParagraphElement>(null)
+
+  /* Tagline reveals word by word the first time it scrolls into view. The
+     footer renders outside SiteView too, so it can't rely on useSiteBehaviours'
+     [data-rv] observer. Armed before paint so it stays visible without JS. */
+  useLayoutEffect(() => {
+    const el = tagRef.current
+    if (!el) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduce || !('IntersectionObserver' in window)) return
+    el.classList.add('armed')
+    const io = new IntersectionObserver(
+      ([en]) => {
+        if (!en.isIntersecting) return
+        el.classList.add('in')
+        io.disconnect()
+      },
+      { threshold: 0.6 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
   return (
     /* Same scoping contract as the global nav: design tokens, no page surface. */
     <div className="hb-site hb-chrome">
@@ -37,14 +62,16 @@ export function GlobalFooter() {
             <li><a href="/hire-talent">Hire Talent</a></li>
           </ul></div>
           <div><h5>Company</h5><ul>
-            <li><a href="/about">About</a></li><li><a href="/about/timeline">Our story</a></li><li><a href="/careers">Careers</a></li>
+            <li><a href="/about">About</a></li><li><a href="/about/story">Our story</a></li><li><a href="/careers">Careers</a></li>
             <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
           <div><h5>More</h5><ul>
             <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li>
             <li><a href="/customers">Customers</a></li><li><a href="/pricing">Pricing</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
         </div>
 
-        <div className="footer__tag"><img className="t-dark" src="/hybent/tagline-dark.png" alt="Where vision meets innovation" /><img className="t-light" src="/hybent/tagline-light.png" alt="Where vision meets innovation" /></div>
+        <p className="footer__tag" ref={tagRef}>
+          <span>Where</span> <span className="tag-vision">vision</span> <span>meets</span> <span className="tag-innovation">innovation</span>
+        </p>
 
         <div className="footer__bottom">
           <p>© 2026 HYBENT. All rights reserved.</p>
