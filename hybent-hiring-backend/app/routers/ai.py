@@ -3,6 +3,7 @@ import asyncio
 import html
 import logging
 import uuid
+from app.core.config import settings
 from app.dependencies import DB, require_admin, require_recruiter
 from app.services.ai import ai_evaluator
 from app.services import jd_pdf_generator
@@ -310,6 +311,9 @@ async def get_credits_balance(
             "my": mine,
             "credit_price_usd": ai_pricing.CREDIT_PRICE_USD,
             "topup_packs": [{"credits": c, "price_usd": p} for c, p in TOPUP_PACKS],
+            # Top-ups are paid online with Stripe when it's configured;
+            # otherwise they're requested by email.
+            "payments_enabled": settings.stripe_enabled,
         }
     )
 
@@ -394,9 +398,10 @@ async def get_usage_by_feature(
     result = await db.execute(query)
     rows = result.all()
     
+    # Per-call credits are fractional; round the totals for display.
     data = {}
     for feature, total_credits in rows:
-        data[feature] = total_credits or 0
+        data[feature] = round(total_credits or 0, 2)
         
     return APIResponse.success(
         message="Usage by feature retrieved successfully.",
@@ -425,7 +430,7 @@ async def get_usage_over_time(
     for dt, total_credits in rows:
         data.append({
             "date": str(dt),
-            "credits": total_credits or 0
+            "credits": round(total_credits or 0, 2)
         })
         
     return APIResponse.success(

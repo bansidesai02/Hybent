@@ -67,14 +67,8 @@ export function useWebSocket() {
                 }}
               />
             ), { id: `ws-notif-${msg.data.id || Date.now()}`, duration: 5000 })
-
-            // Trigger Native browser popup (visible when in another app)
-            if (Notification.permission === 'granted') {
-              new Notification(msg.data.title || 'Hybent Hiring Notification', {
-                body: msg.data.message || '',
-                icon: '/favicon.svg',
-              })
-            }
+            // Notifications stay inside Hybent (this toast and the bell panel);
+            // no browser/OS pop-ups.
           }
           if (msg.event === 'candidate_ingested' && msg.data) {
             // Sent by email ingestion after the candidate is committed, to
@@ -122,35 +116,10 @@ export function useWebSocket() {
 
             addActivity(msg.data)
 
-            // Generate fallback text if activity 'message' is missing on the raw event
-            let activityMessage = msg.data.message;
-            if (!activityMessage) {
-              const resType = msg.data.resource_type || 'Resource';
-              const action = msg.data.action || 'updated';
-              activityMessage = `${resType.charAt(0).toUpperCase() + resType.slice(1)} was ${action.toLowerCase()}`;
-            }
-
-            const enhancedPayload = { ...msg.data, message: activityMessage };
-
-            // Skip noisy notifications like simply viewing a candidate profile
-            const isViewAction =
-              (msg.data.action && typeof msg.data.action === 'string' && ['view', 'viewed'].includes(msg.data.action.toLowerCase().trim())) ||
-              (activityMessage && typeof activityMessage === 'string' && activityMessage.toLowerCase().includes('was view'));
-
-            if (!isViewAction) {
-              // Trigger WhatsApp-style popup (in-app)
-              toast.custom((t) => (
-                <ActivityToast t={t} payload={enhancedPayload} />
-              ), { id: `activity-${msg.data.id || Date.now()}`, duration: 5000 })
-
-              // Trigger Native browser popup (visible when in another app)
-              if (Notification.permission === 'granted') {
-                new Notification('New Activity', {
-                  body: activityMessage,
-                  icon: '/favicon.svg',
-                })
-              }
-            }
+            // Activity events only refresh data and the activity feed. They are
+            // raw audit-log entries ("candidate resume_view", "candidate create"),
+            // not notifications, so they never pop up; real notifications
+            // arrive as the 'notification' event above and in the bell panel.
 
             // Invalidate queries based on resource type
             const resourceType = msg.data.resource_type
@@ -218,21 +187,6 @@ export function useWebSocket() {
                 }
               )
 
-              // Trigger Native browser popup for chat specifically
-              if (Notification.permission === 'granted' && document.hidden) {
-                let avatarUrl = msg.data.sender_avatar;
-                if (!avatarUrl) {
-                  const encodedName = encodeURIComponent(msg.data.sender_name || 'User');
-                  avatarUrl = `https://ui-avatars.com/api/?name=${encodedName}&background=6c47ff&color=fff&size=128`;
-                } else if (avatarUrl.startsWith('/')) {
-                  avatarUrl = window.location.origin + avatarUrl;
-                }
-
-                new Notification(`Message from ${msg.data.sender_name}`, {
-                  body: msg.data.content,
-                  icon: avatarUrl,
-                })
-              }
             }
           }
 

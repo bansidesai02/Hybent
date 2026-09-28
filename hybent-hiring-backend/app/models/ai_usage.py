@@ -27,7 +27,9 @@ class AIUsage(Base):
     prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    credits_used: Mapped[int] = mapped_column(Integer, default=0)
+    # Exact credits for this call (cost / $0.001), often a fraction; the
+    # balances deduct whole credits as fractions add up.
+    credits_used: Mapped[float] = mapped_column(Float, default=0.0)
     cost: Mapped[float | None] = mapped_column(Float, nullable=True)
     
     # Performance & Status

@@ -1,10 +1,12 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
 import { AlertTriangle, Coins, CreditCard, Download, History, TrendingUp, User as UserIcon, Users, Wallet } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
 import { aiApi } from '@/api/ai'
+import { billingApi, redirectToCheckout } from '@/api/billing'
 import { useAuthStore } from '@/store/authStore'
 import {
   Button,
@@ -52,11 +54,11 @@ const CREDIT_WARNINGS: Record<string, { tone: 'error' | 'warning'; message: stri
   critical: {
     tone: 'error',
     message:
-      "This month's AI credits are used up. AI features are paused until an admin requests a top-up or the monthly reset.",
+      "This month's AI credits are used up. AI features are paused until an admin buys a top-up or the monthly reset.",
   },
   danger: {
     tone: 'error',
-    message: "Only 5% of this month's AI credits remain. An admin can request a top-up to avoid interruption.",
+    message: "Only 5% of this month's AI credits remain. An admin can buy a top-up to avoid interruption.",
   },
   warning: {
     tone: 'warning',
@@ -85,6 +87,12 @@ const PROVIDER_OPTIONS = [
 /** `jd_generation` → `Jd Generation`. */
 function formatFeatureName(name: string) {
   return name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/** A call's exact credits: often a fraction (an embedding is ~0.01). */
+function formatCredits(value: number) {
+  if (value > 0 && value < 0.01) return '<0.01'
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
 export default function AICreditsPage() {
@@ -190,6 +198,30 @@ export default function AICreditsPage() {
     fetchData()
   }, [])
 
+  // Back from Stripe Checkout: add the credits now rather than waiting for the webhook.
+  const [params, setParams] = useSearchParams()
+  const handledReturn = useRef(false)
+  useEffect(() => {
+    const outcome = params.get('checkout')
+    if (!outcome || handledReturn.current) return
+    handledReturn.current = true
+    const sessionId = params.get('session_id')
+    setParams({}, { replace: true })
+    if (outcome === 'canceled') {
+      toast('Payment cancelled. Nothing was charged.')
+      return
+    }
+    if (!sessionId) return
+    billingApi
+      .confirmCheckout(sessionId)
+      .then((payment) => {
+        if (payment.status === 'paid') toast.success(`Payment received: ${payment.description} added.`)
+        else toast('Your payment is processing. The credits appear as soon as Stripe confirms it.')
+      })
+      .catch(() => toast.error('We couldn’t confirm the payment yet. Refresh in a minute.'))
+      .finally(() => fetchData())
+  }, [params, setParams])
+
   // Refetch history when page changes
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -212,18 +244,24 @@ export default function AICreditsPage() {
     return matchesSearch && matchesStatus && matchesProvider
   })
 
-  // Top-up request (admin): Hybent invoices and adds the credits.
+  // Top-ups (admin) are paid with Stripe Checkout. Without online payments
+  // it's a request: Hybent invoices and adds the credits.
+  const payOnline = !!balance?.payments_enabled
   const handleBuyCredits = async () => {
     try {
       setIsBuying(true)
+      if (payOnline) {
+        const { url } = await billingApi.checkoutTopup(buyAmount)
+        redirectToCheckout(url)
+        return
+      }
       await aiApi.requestTopup(buyAmount)
       toast.success('Top-up requested. The Hybent team will contact you to complete it.')
       setIsBuyModalOpen(false)
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Could not send the top-up request.')
-    } finally {
-      setIsBuying(false)
+      toast.error(error.response?.data?.message || (payOnline ? 'Could not start the payment.' : 'Could not send the top-up request.'))
     }
+    setIsBuying(false)
   }
 
   const packs: Array<{ credits: number; price_usd: number }> = balance?.topup_packs || []
@@ -354,7 +392,7 @@ export default function AICreditsPage() {
       align: 'right',
       cell: (item) => (
         <span className="font-mono font-semibold tabular-nums text-hb-text">
-          {item.credits_used.toLocaleString()}
+          {formatCredits(item.credits_used)}
         </span>
       ),
     },
@@ -382,7 +420,7 @@ export default function AICreditsPage() {
         actions={
           isAdmin ? (
             <Button icon={<CreditCard size={16} />} onClick={() => setIsBuyModalOpen(true)}>
-              Request top-up
+              {payOnline ? 'Buy credits' : 'Request top-up'}
             </Button>
           ) : undefined
         }
@@ -764,8 +802,12 @@ export default function AICreditsPage() {
       <Dialog
         open={isBuyModalOpen}
         onClose={() => setIsBuyModalOpen(false)}
-        title="Request an AI credit top-up"
-        description="Choose a pack. We'll send the request to the Hybent team, who will invoice you and add the credits. Purchased credits don't expire at the monthly reset."
+        title={payOnline ? 'Buy AI credits' : 'Request an AI credit top-up'}
+        description={
+          payOnline
+            ? "Choose a pack and pay securely with Stripe. The credits are added as soon as the payment goes through. Purchased credits don't expire at the monthly reset."
+            : "Choose a pack. We'll send the request to the Hybent team, who will invoice you and add the credits. Purchased credits don't expire at the monthly reset."
+        }
         size="sm"
         footer={
           <>
@@ -778,7 +820,7 @@ export default function AICreditsPage() {
               disabled={!packs.some((p) => p.credits === buyAmount)}
               onClick={handleBuyCredits}
             >
-              {isBuying ? 'Sending…' : 'Request top-up'}
+              {payOnline ? 'Continue to payment' : isBuying ? 'Sending…' : 'Request top-up'}
             </Button>
           </>
         }

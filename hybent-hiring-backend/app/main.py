@@ -60,9 +60,15 @@ async def lifespan(app: FastAPI):
     # ── SMTP health check ─────────────────────────────────────────────────────────
     if settings.smtp_user and settings.smtp_password:
         logger.info(
-            f"✅ SMTP configured: {settings.smtp_user} "
-            f"via {settings.smtp_host}:{settings.smtp_port}"
+            f"✅ SMTP configured: sending as {settings.email_from_address} "
+            f"(login {settings.smtp_user} via {settings.smtp_host}:{settings.smtp_port})"
         )
+        if settings.smtp_user.lower() != settings.email_from_address.lower() and not settings.resend_api_key:
+            logger.warning(
+                f"⚠️  SMTP login {settings.smtp_user} differs from EMAIL_FROM_ADDRESS {settings.email_from_address}. "
+                "Unless that account may send as it (e.g. a verified Gmail 'Send mail as' alias), "
+                "the provider will rewrite the From or recipients may flag the mail as spam."
+            )
     else:
         logger.warning(
             "⚠️  SMTP not configured — SMTP_USER or SMTP_PASSWORD is missing from env.\n"

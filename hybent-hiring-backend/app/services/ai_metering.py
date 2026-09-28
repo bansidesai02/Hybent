@@ -34,7 +34,6 @@ import uuid
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
 
 from app.utils.exceptions import InsufficientCreditsException
 
@@ -203,12 +202,6 @@ def ensure_not_blocked(scope: AIScope | None = None) -> None:
             _blocked.pop(key, None)
 
 
-def _seconds_until_utc_midnight() -> float:
-    now = datetime.now(timezone.utc)
-    tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    return (tomorrow - now).total_seconds()
-
-
 # ── Recording usage ──────────────────────────────────────────────────────────
 
 def record_usage(
@@ -289,10 +282,11 @@ async def _refresh_blocks(scope: AIScope) -> None:
                                  f"You've used your monthly AI credit limit ({row.monthly_limit:,} credits). "
                                  "Ask your admin to raise your limit.")
                 elif AICreditsService.user_daily_used(row) >= daily_limit_for(row.monthly_limit):
+                    # Default TTL, not "until midnight": an admin may raise the
+                    # limit, and other processes only notice on re-check.
                     mark_blocked("user", scope.user_id,
                                  f"You've reached today's AI credit limit ({daily_limit_for(row.monthly_limit):,} credits). "
-                                 "It resets at midnight UTC.",
-                                 until=time.time() + _seconds_until_utc_midnight())
+                                 "It resets at midnight UTC.")
         await db.commit()
 
 

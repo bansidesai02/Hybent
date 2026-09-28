@@ -538,6 +538,25 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .chip:hover{border-color:var(--border-strong);transform:translateY(-2px);background:rgba(255,255,255,.06)}
 .hb-site .chip svg{width:15px;height:15px;color:var(--cyan)}
 
+/* Home: the pipeline animation's four stages, 2 x 2 */
+.hb-site .wf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:640px){.hb-site .wf-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Home: the product card below the pipeline animation */
+.hb-site .product-stack{display:grid;gap:16px}
+.hb-site .product-card{display:flex;flex-direction:column;gap:22px;padding:clamp(22px,3vw,32px)}
+.hb-site .product-card__body{display:flex;align-items:flex-start;gap:18px;min-width:0}
+.hb-site .product-card__body .icon-tile{flex:none}
+.hb-site .product-card__title{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:2px 0 6px}
+.hb-site .product-card__tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
+.hb-site .product-card__tags li{padding:4px 11px;border-radius:var(--r-full);border:1px solid var(--border);font-size:.78rem;color:var(--muted);line-height:1.4}
+/* Buttons sit below the content, divided off, side by side. */
+.hb-site .product-card__actions{display:flex;flex-wrap:wrap;gap:10px;padding-top:20px;border-top:1px solid var(--border)}
+.hb-site .product-card__actions .btn{justify-content:center}
+@media (max-width:520px){
+  .hb-site .product-card__actions .btn{flex:1 1 100%}
+}
+
 /* ============================ ECOSYSTEM MAP (signature) ============================ */
 .hb-site .eco{
   position:relative;border-radius:var(--r-xl);border:1px solid var(--border);overflow:hidden;
@@ -656,6 +675,12 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .field textarea:focus{outline:none;border-color:rgba(76,111,255,.6);background:rgba(255,255,255,.055);box-shadow:0 0 0 4px rgba(76,111,255,.12)}
 .hb-site .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238D97AD' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 15px center}
 .hb-site .form-note{font-size:.78rem;color:var(--dim);line-height:1.6}
+.hb-site .field__req{color:var(--error);font-weight:600}
+.hb-site .field__opt{color:var(--dim);opacity:.75;letter-spacing:.12em}
+.hb-site .field__err{font-size:.8rem;color:var(--error);line-height:1.4}
+.hb-site .field input[aria-invalid="true"],
+.hb-site .field textarea[aria-invalid="true"]{border-color:rgba(255,107,129,.7)}
+.hb-site .btn[disabled]{opacity:.65;cursor:progress}
 .hb-site .contact-item{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--border)}
 .hb-site .contact-item:last-child{border-bottom:0}
 .hb-site .contact-item b{display:block;font-size:.92rem;margin-bottom:3px}
@@ -915,6 +940,8 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 [data-theme="classic"] .hb-site .field textarea::placeholder,
 [data-theme="classic"] .hb-site .news__form input::placeholder{color:#97A1B4}
 [data-theme="classic"] .hb-site .toast{color:#0F7A56}
+.hb-site .toast.toast--error,
+[data-theme="classic"] .hb-site .toast.toast--error{color:var(--error)}
 
 /* Careers, map, footer */
 [data-theme="classic"] .hb-site .role{background:#fff;border-color:rgba(11,18,32,.09)}

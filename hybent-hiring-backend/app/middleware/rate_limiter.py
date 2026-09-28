@@ -57,7 +57,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip health check endpoints, OPTIONS preflight, and static assets
         path = request.url.path
-        if request.method == "OPTIONS" or path in ["/", "/health", "/docs", "/openapi.json", "/redoc"] or path.startswith("/static/"):
+        if request.method == "OPTIONS" or path in ["/", "/health", "/docs", "/openapi.json", "/redoc", "/v1/stripe/webhook"] or path.startswith("/static/"):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else "127.0.0.1"

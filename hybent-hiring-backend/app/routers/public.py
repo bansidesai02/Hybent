@@ -1,11 +1,14 @@
+import asyncio
+import html
+import logging
 import uuid
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.schemas.demo import DemoRequest
-from app.services.email_service import send_demo_request_email
+from app.schemas.demo import ContactRequest, DemoRequest
+from app.services.email_service import send_demo_request_email, send_email
 from app.schemas.response import APIResponse
 
 from app.dependencies import DB
@@ -21,6 +24,9 @@ from app.utils.permissions import ApplicationStage, NotificationType, UserRole
 from app.tasks.notifications import notify_organization_roles
 
 router = APIRouter(prefix="/public", tags=["Public"])
+logger = logging.getLogger(__name__)
+
+CONTACT_EMAIL = "info@hybent.com"
 
 
 async def _get_active_job_or_404(db: DB, org_slug: str, job_id: uuid.UUID) -> Job:
@@ -145,15 +151,59 @@ async def apply_to_public_job(
 async def demo_request(request: DemoRequest):
     """Handle public demo requests from the landing page."""
     try:
-        send_demo_request_email(
+        sent = await asyncio.to_thread(
+            send_demo_request_email,
             first_name=request.first_name,
             last_name=request.last_name,
             work_email=request.work_email,
             company_name=request.company_name,
             team_size=request.team_size,
             monthly_hires=request.monthly_hires,
-            hiring_challenge=request.hiring_challenge
+            hiring_challenge=request.hiring_challenge,
         )
-        return APIResponse.success(message="Demo request submitted successfully. We will get back to you soon!")
-    except Exception as e:
-        return APIResponse.error(message=f"Failed to submit demo request: {str(e)}", status_code=500)
+    except Exception:
+        logger.exception("Demo request email failed.")
+        sent = False
+    if not sent:
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't submit your request. Please try again, or email info@hybent.com.",
+        )
+    return APIResponse.success(message="Demo request submitted successfully. We will get back to you soon!")
+
+
+@router.post("/contact")
+async def contact(request: ContactRequest):
+    """The hybent.com/contact form: emails the message to the Hybent team."""
+    if request.website:
+        # Honeypot filled in: a bot. Look successful so it doesn't retry.
+        logger.info("Contact form honeypot triggered; message dropped.")
+        return APIResponse.success(message="Thanks. We have your message and will reply within one business day.")
+
+    optional = [
+        ("Phone", request.phone),
+        ("Company", request.company),
+        ("Country", request.country),
+        ("Location", request.location),
+        ("How they heard about us", request.referrer),
+    ]
+    details = "".join(
+        f"<tr><td style=\"padding:4px 16px 4px 0;color:#70757a\">{label}</td><td>{html.escape(value)}</td></tr>"
+        for label, value in optional if value
+    )
+    email = html.escape(request.email)
+    body = (
+        f"<p><b>{html.escape(request.name)}</b> &lt;<a href=\"mailto:{email}\">{email}</a>&gt; "
+        "sent a message from hybent.com/contact.</p>"
+        + (f"<table>{details}</table>" if details else "")
+        + f"<p style=\"white-space:pre-wrap\">{html.escape(request.message)}</p>"
+        f"<p><a href=\"mailto:{email}\">Reply to {html.escape(request.name)}</a></p>"
+    )
+    subject = f"Contact form: {request.name}" + (f" ({request.company})" if request.company else "")
+    sent = await asyncio.to_thread(send_email, CONTACT_EMAIL, subject, body)
+    if not sent:
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't send your message. Please email info@hybent.com directly.",
+        )
+    return APIResponse.success(message="Thanks. We have your message and will reply within one business day.")

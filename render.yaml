@@ -40,6 +40,12 @@ services:
         generateValue: true
       - key: GROQ_API_KEY
         sync: false
+      - key: EMAIL_FROM_ADDRESS
+        value: info@hybent.com
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: MISTRAL_API_KEY
