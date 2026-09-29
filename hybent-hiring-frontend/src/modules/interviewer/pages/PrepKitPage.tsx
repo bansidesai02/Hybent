@@ -318,7 +318,7 @@ export default function PrepKitPage() {
                     onClick={openResume}
                     className="w-full"
                   >
-                    View résumé
+                    View resume
                   </Button>
                 )}
               </div>

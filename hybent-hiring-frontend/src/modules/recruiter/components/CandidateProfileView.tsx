@@ -48,7 +48,7 @@ interface CandidateProfileViewProps {
   isInviting?: boolean
 }
 
-/** Opens the résumé, refreshing the signed URL when the file lives in storage. */
+/** Opens the resume, refreshing the signed URL when the file lives in storage. */
 async function openResume(candidate: Candidate) {
   if (candidate.resume_storage_path) {
     try {
@@ -57,7 +57,7 @@ async function openResume(candidate: Candidate) {
       if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
     } catch {
       /* A signed URL can only be refreshed server-side; nothing useful to retry. */
-      window.alert('Could not load the résumé. Please try again.')
+      window.alert('Could not load the resume. Please try again.')
     }
     return
   }

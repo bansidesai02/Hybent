@@ -153,7 +153,7 @@ export default function PortalPrepHub() {
           <Card padding="loose" className="flex flex-col items-center gap-3 text-center">
             <Sparkles size={32} aria-hidden className="animate-pulse text-hb-cyan" />
             <p className="text-hb-body font-semibold text-hb-text">
-              Analyzing your résumé and generating personalized prep questions…
+              Analyzing your resume and generating personalized prep questions…
             </p>
             <p className="text-hb-sm text-hb-muted">This might take a few seconds.</p>
           </Card>
@@ -227,7 +227,7 @@ export default function PortalPrepHub() {
             <EmptyState
               icon={<Sparkles />}
               title="No prep materials available"
-              description="Prep questions are generated once your application has a résumé attached."
+              description="Prep questions are generated once your application has a resume attached."
             />
           </Card>
         )}

@@ -108,8 +108,8 @@ const MONTH_MAP: Record<string, number> = {
 }
 
 /**
- * Turns one résumé experience entry's raw `duration` string (as parsed
- * verbatim off the résumé, e.g. "June 2024 - June 2026", "Jan 2020 - Present",
+ * Turns one resume experience entry's raw `duration` string (as parsed
+ * verbatim off the resume, e.g. "June 2024 - June 2026", "Jan 2020 - Present",
  * "3 years 2 months") into a compact badge: "X Year Y Month" when the role
  * ran a year or more, just "Y Month" under a year (no "0 Year" prefix), or
  * null when nothing parseable is there — mirrors the same duration parsing
@@ -139,7 +139,7 @@ export function formatExperienceDuration(duration: string | null | undefined): s
   return formatYearsMonths(Math.floor(totalMonths / 12), totalMonths % 12)
 }
 
-/* One date inside a résumé duration string. Résumés write these many ways:
+/* One date inside a resume duration string. Resumes write these many ways:
    "Jan 2020", "January, 2020", "Apr - 2021", "Sept2020", "06/2024", "2019". */
 const DATE_TOKEN =
   /\b(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s,.'\u2019/-]*((?:19|20)\d{2})|(0?[1-9]|1[0-2])\s*[/.-]\s*((?:19|20)\d{2})|((?:19|20)\d{2}))\b/gi

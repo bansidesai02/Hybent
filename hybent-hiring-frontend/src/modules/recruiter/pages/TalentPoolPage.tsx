@@ -336,7 +336,7 @@ export default function TalentPoolPage() {
             ) : !hasMatches ? (
               <p className="py-8 text-center text-hb-sm text-hb-muted">
                 No active jobs, or nobody in the pool clears the match threshold yet. Post a job and
-                upload résumés to see matches here.
+                upload resumes to see matches here.
               </p>
             ) : current?.candidates?.length ? (
               current.candidates.map((candidate: any) => (

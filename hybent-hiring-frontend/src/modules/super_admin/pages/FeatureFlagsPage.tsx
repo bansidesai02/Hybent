@@ -25,7 +25,7 @@ import {
  */
 
 const FLAGS = [
-  { key: 'ai', title: 'AI scoring engine', short: 'AI scoring', desc: 'Deep AI screening of candidate résumés.' },
+  { key: 'ai', title: 'AI scoring engine', short: 'AI scoring', desc: 'Deep AI screening of candidate resumes.' },
   { key: 'video', title: 'Video interviews', short: 'Video', desc: 'Candidates recording asynchronous answers.' },
   { key: 'bulk', title: 'Bulk Excel import', short: 'Bulk import', desc: 'Uploading candidate rosters as a sheet.' },
   { key: 'domain', title: 'Custom subdomain', short: 'Custom domain', desc: 'Branded host URLs for the applicant portal.' },

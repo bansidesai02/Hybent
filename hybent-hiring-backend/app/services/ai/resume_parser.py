@@ -79,10 +79,10 @@ class UnreadableDocumentError(NotAResumeError):
 # ─── Pydantic schema ────────────────────────────────────────────────────────────
 
 def _drop_nulls(data):
-    """The LLM writes `null` for anything a résumé leaves out — a role with
+    """The LLM writes `null` for anything a resume leaves out — a role with
     no dates, a missing name. Let those fall back to the field's default
     instead of failing validation: one null used to reject the whole parse,
-    and the résumé then silently degraded to the regex fallback (no
+    and the resume then silently degraded to the regex fallback (no
     experience, no education, the name read as "Resume")."""
     if isinstance(data, dict):
         return {k: v for k, v in data.items() if v is not None}
@@ -432,7 +432,7 @@ def _detect_file_type(file_content: bytes, content_type: str, filename: str = ""
 
 # ─── Years experience calculation ────────────────────────────────────────────────
 
-# One date inside a résumé duration string. Résumés write these many ways:
+# One date inside a resume duration string. Resumes write these many ways:
 # "Jan 2020", "January, 2020", "Apr - 2021", "Sept2020", "06/2024", "2019".
 _MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
            "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}

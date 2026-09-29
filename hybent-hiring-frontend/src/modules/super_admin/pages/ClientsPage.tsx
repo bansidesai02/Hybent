@@ -64,7 +64,7 @@ const PLANS = [
 ]
 
 const FEATURE_FLAGS = [
-  { key: 'ai', title: 'AI scoring engine', desc: 'Deep AI screening on incoming résumé attachments.' },
+  { key: 'ai', title: 'AI scoring engine', desc: 'Deep AI screening on incoming resume attachments.' },
   { key: 'video', title: 'Video interviews', desc: 'Setting up and recording video rounds.' },
   { key: 'bulk', title: 'Bulk candidate import', desc: 'Importing candidate sheets via the Excel/CSV parser.' },
   { key: 'domain', title: 'Custom subdomain', desc: 'Hosting the applicant portal on the organisation’s own URL.' },

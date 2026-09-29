@@ -70,7 +70,7 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'error'> = {
 }
 
 const FLAG_INFO: Record<string, { title: string; desc: string }> = {
-  ai: { title: 'AI scoring engine', desc: 'Screen résumés via AI.' },
+  ai: { title: 'AI scoring engine', desc: 'Screen resumes via AI.' },
   video: { title: 'Video interviews', desc: 'Record video rounds.' },
   bulk: { title: 'Bulk candidate import', desc: 'Sheet upload parser support.' },
   domain: { title: 'Custom subdomain', desc: 'Custom host URL routing.' },

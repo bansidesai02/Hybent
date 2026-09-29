@@ -17,7 +17,7 @@ interface CustomerTestimonial {
 const CUSTOMER_TESTIMONIALS: CustomerTestimonial[] = [
   {
     id: 'apex-financial',
-    quote: 'Screening used to take a full week per engineering role. Hybent reads every résumé against strict compliance and architecture rubrics, delivering shortlists our hiring managers can trust immediately.',
+    quote: 'Screening used to take a full week per engineering role. Hybent reads every resume against strict compliance and architecture rubrics, delivering shortlists our hiring managers can trust immediately.',
     author: 'Marcus Vance',
     role: 'VP of Talent Acquisition',
     company: 'Apex Financial Technologies',
@@ -398,7 +398,7 @@ export default function CustomersPage() {
                 </svg>
                 <b>Speed</b>
               </div>
-              <h4>Take the hours out of manual résumé review</h4>
+              <h4>Take the hours out of manual resume review</h4>
               <p className="small">Every application is parsed on arrival and scored against one rubric, so recruiters spend their time on the shortlist instead of the pile behind it.</p>
               <ul>
                 <li><strong>74%</strong><span>Faster time to shortlist</span></li>

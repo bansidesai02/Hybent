@@ -49,7 +49,7 @@ const SECTIONS: Array<{ title: string; items: SettingItem[] }> = [
   {
     title: 'Privacy & data',
     items: [
-      { label: 'Profile visibility', sub: 'Control who can view your résumé', icon: <Eye /> },
+      { label: 'Profile visibility', sub: 'Control who can view your resume', icon: <Eye /> },
       { label: 'Data export', sub: 'Download a copy of your application data', icon: <Download /> },
       {
         label: 'Delete account',

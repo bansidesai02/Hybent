@@ -7,7 +7,7 @@ import { Badge } from './Badge'
 /**
  * File drop target.
  *
- * The job-description and résumé uploads each built one of these from a
+ * The job-description and resume uploads each built one of these from a
  * `<div onClick>` with a hidden input, so neither was reachable by keyboard —
  * you could see the control and not use it. This is a real `<button>` wrapping
  * a real `<input type="file">`, which gets keyboard, focus ring and the mobile

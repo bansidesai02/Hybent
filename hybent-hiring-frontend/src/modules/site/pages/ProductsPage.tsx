@@ -30,7 +30,7 @@ export default function ProductsPage() {
                     <i className="dot dot--pulse"></i>Live
                   </span>
                 </div>
-                <p className="lead" style={{ fontSize: "1.02rem" }}>Hiring breaks in the handoffs — sourcing to screening, screening to interview, interview to offer. Hybent Hiring holds the whole pipeline in one place and puts AI on the work people do least consistently by hand: reading every résumé against the same standard, keeping scorecards comparable, and never leaving a candidate waiting on an answer.</p>
+                <p className="lead" style={{ fontSize: "1.02rem" }}>Hiring breaks in the handoffs — sourcing to screening, screening to interview, interview to offer. Hybent Hiring holds the whole pipeline in one place and puts AI on the work people do least consistently by hand: reading every resume against the same standard, keeping scorecards comparable, and never leaving a candidate waiting on an answer.</p>
                 <ul className="feat-list">
                   <li><svg aria-hidden="true"><use href="#i-check" /></svg><span><b>Resume parsing &amp; talent database.</b> Every CV structured on arrival and searchable for the next role, not buried in an inbox.</span></li>
                   <li><svg aria-hidden="true"><use href="#i-check" /></svg><span><b>AI screening.</b> Every applicant scored against the same rubric, with the evidence attached to the score.</span></li>
