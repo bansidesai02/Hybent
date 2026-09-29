@@ -1,5 +1,7 @@
 import { SiteView } from '../components/SiteView'
 import { AiRecruitmentWorkflowAnimation } from '../components/AiRecruitmentWorkflowAnimation'
+import { AskAiSection } from '../components/AskAiSection'
+import { TypedLabel } from '../components/TypedLabel'
 
 export default function HomePage() {
   return (
@@ -46,11 +48,11 @@ export default function HomePage() {
                 <path className="spark" d="M50 50 L46 92" />
               </svg>
               <div className="lattice__core"><img src="/hybent/hybent-mark.png" alt="HYBENT platform core" /></div>
-              <a href="/products/hiring" className="node node--live" style={{ left: "18%", top: "26%", textDecoration: "none", cursor: "pointer" }}><i></i>Hybent Hiring</a>
-              <div className="node" style={{ left: "84%", top: "30%" }}><i></i>IT Services</div>
-              <div className="node" style={{ left: "88%", top: "68%" }}><i></i>Custom Software</div>
-              <div className="node" style={{ left: "46%", top: "92%" }}><i></i>Hire Talent</div>
-              <div className="node" style={{ left: "14%", top: "62%" }}><i></i>Web & Mobile Apps</div>
+              <a href="/products/hiring" className="node node--live" style={{ left: "18%", top: "26%", textDecoration: "none", cursor: "pointer" }}><i></i><TypedLabel text="Hybent Hiring" /></a>
+              <div className="node" style={{ left: "84%", top: "30%" }}><i></i><TypedLabel text="IT Services" order={1} /></div>
+              <div className="node" style={{ left: "88%", top: "68%" }}><i></i><TypedLabel text="Custom Software" order={2} /></div>
+              <div className="node" style={{ left: "46%", top: "92%" }}><i></i><TypedLabel text="Hire Talent" order={3} /></div>
+              <div className="node" style={{ left: "14%", top: "62%" }}><i></i><TypedLabel text="Web & Mobile Apps" order={4} /></div>
             </div>
           </div>
         </div>
@@ -375,6 +377,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      <AskAiSection />
 
       <section className="section">
         <div className="wrap">

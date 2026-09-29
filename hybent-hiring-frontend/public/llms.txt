@@ -1,0 +1,47 @@
+# HYBENT
+
+> HYBENT (hybent.com) is an AI-powered software company from Ahmedabad, India. It builds intelligent software products that simplify business operations using AI, and delivers custom software and IT services. Its first product, Hybent Hiring, is an AI recruitment platform that is live in production today.
+
+HYBENT is written in capitals in copy; "Hybent" is the same company.
+
+## Hybent Hiring (AI recruitment platform)
+
+- Holds the whole hiring pipeline in one place: AI resume parsing, AI screening, AI match scoring, pipeline and interview scheduling, interview management, a Recruiter Copilot, a candidate portal and hiring analytics.
+- AI works inside the workflow (parse, screen, rank, draft) and every AI suggestion can be explained. Recruiters stay in control of every decision.
+- Candidate data is never used to train models shared with other customers. Account-specific tuning is opt-in, documented and reversible.
+- Data can be exported in open formats from the admin console at any time, with no fee and no notice period.
+- Security: encryption, role-based access, audit logging and responsible AI controls built into the platform.
+- Available to teams in any region.
+
+### Pricing
+
+- Every plan includes 1 admin and 2 recruiter seats.
+- Standard: $69 per month, billed monthly.
+- 6-month term: $66 per month (save 5%), billed $396 every 6 months.
+- 12-month term: $62 per month (save 10%), billed $744 per year.
+- Custom: additional seats and custom terms through the sales team.
+
+## Services
+
+- Custom software engineering: web, mobile and AI software, with a first release typically in 4–8 weeks.
+- Enterprise IT services, cloud architecture and AI integration.
+- Hire Talent: dedicated, pre-vetted software developers, AI engineers and tech leads.
+
+## Company
+
+- Headquarters: Ahmedabad, India (engineering, product and design). Distributed team on IST core hours.
+- Founder: Bansi Desai. Co-Founder: Yash Desai.
+- Principles: honest timelines, AI with accountability, partners not vendors.
+- Contact: info@hybent.com or https://hybent.com/contact
+
+## Key pages
+
+- [Home](https://hybent.com/): what HYBENT builds
+- [Hybent Hiring](https://hybent.com/products/hiring): the AI recruitment platform
+- [Pricing](https://hybent.com/pricing): Hybent Hiring plans
+- [Services](https://hybent.com/services): custom software and IT services
+- [Hire Talent](https://hybent.com/hire-talent): dedicated engineers
+- [Security](https://hybent.com/security): security and compliance
+- [About](https://hybent.com/about): company, team and story
+- [FAQ](https://hybent.com/faq): common questions
+- [Contact](https://hybent.com/contact): talk to the team
