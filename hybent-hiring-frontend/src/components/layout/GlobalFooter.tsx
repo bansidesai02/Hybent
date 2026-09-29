@@ -1,4 +1,79 @@
+import { useLayoutEffect, useRef, type CSSProperties } from 'react'
+
+/* --d orders each letter's entrance: "Where" types in left to right, "meets"
+   bursts out from its middle, and the two brand words ignite outward from
+   "meets" — "vision" right to left, "innovation" left to right. */
+const TAGLINE = [
+  { word: 'Where', kind: 'where', order: (i: number) => i },
+  { word: 'vision', kind: 'vision', order: (i: number) => 5 - i },
+  { word: 'meets', kind: 'meets', order: (i: number) => Math.abs(i - 2) },
+  { word: 'innovation', kind: 'innovation', order: (i: number) => i },
+]
+
 export function GlobalFooter() {
+  const tagRef = useRef<HTMLParagraphElement>(null)
+
+  /* Tagline choreography, played once the first time it scrolls into view:
+     two points travel a hairline from either end and meet under "meets",
+     which sparks the brand words alight. The footer renders outside SiteView
+     too, so it can't rely on useSiteBehaviours' [data-rv] observer. Armed
+     before paint so it stays visible without JS. */
+  useLayoutEffect(() => {
+    const el = tagRef.current
+    if (!el) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduce || !('IntersectionObserver' in window)) return
+
+    const meets = el.querySelector<HTMLElement>('.tag-meets')
+    const measure = () => {
+      el.style.setProperty('--w', `${el.offsetWidth}px`)
+      if (meets) el.style.setProperty('--mx', `${meets.offsetLeft + meets.offsetWidth / 2}px`)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+
+    el.classList.add('armed')
+    const io = new IntersectionObserver(
+      ([en]) => {
+        if (!en.isIntersecting) return
+        el.classList.add('in')
+        io.disconnect()
+      },
+      { threshold: 0.6 }
+    )
+    io.observe(el)
+
+    // Letters near the cursor lift and glow, falling off over ~70px.
+    const cleanups = [() => io.disconnect(), () => ro.disconnect()]
+    if (window.matchMedia('(pointer:fine)').matches) {
+      const chars = Array.from(el.querySelectorAll<HTMLElement>('.ch'))
+      let frame = 0
+      const onMove = (e: PointerEvent) => {
+        cancelAnimationFrame(frame)
+        frame = requestAnimationFrame(() => {
+          chars.forEach((c) => {
+            const r = c.getBoundingClientRect()
+            const lift = Math.max(0, 1 - Math.abs(e.clientX - (r.left + r.width / 2)) / 70)
+            c.style.setProperty('--lift', lift.toFixed(3))
+          })
+        })
+      }
+      const onLeave = () => {
+        cancelAnimationFrame(frame)
+        chars.forEach((c) => c.style.removeProperty('--lift'))
+      }
+      el.addEventListener('pointermove', onMove)
+      el.addEventListener('pointerleave', onLeave)
+      cleanups.push(() => {
+        cancelAnimationFrame(frame)
+        el.removeEventListener('pointermove', onMove)
+        el.removeEventListener('pointerleave', onLeave)
+      })
+    }
+    return () => cleanups.forEach((fn) => fn())
+  }, [])
+
   return (
     /* Same scoping contract as the global nav: design tokens, no page surface. */
     <div className="hb-site hb-chrome">
@@ -37,14 +112,33 @@ export function GlobalFooter() {
             <li><a href="/hire-talent">Hire Talent</a></li>
           </ul></div>
           <div><h5>Company</h5><ul>
-            <li><a href="/about">About</a></li><li><a href="/about/timeline">Our story</a></li><li><a href="/careers">Careers</a></li>
+            <li><a href="/about">About</a></li><li><a href="/about/story">Our story</a></li><li><a href="/careers">Careers</a></li>
             <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
           <div><h5>More</h5><ul>
             <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li>
             <li><a href="/customers">Customers</a></li><li><a href="/pricing">Pricing</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
         </div>
 
-        <div className="footer__tag"><img className="t-dark" src="/hybent/tagline-dark.png" alt="Where vision meets innovation" /><img className="t-light" src="/hybent/tagline-light.png" alt="Where vision meets innovation" /></div>
+        <p className="footer__tag" ref={tagRef}>
+          <span className="tag-sr">Where vision meets innovation</span>
+          <span className="tag-line" aria-hidden="true">
+            {TAGLINE.map(({ word, kind, order }) => (
+              <span key={word} className={`tag-word tag-${kind}`}>
+                {Array.from(word, (ch, i) => (
+                  <span key={i} className="ch" style={{ '--d': order(i), '--p': i / (word.length - 1) } as CSSProperties}>
+                    {ch}
+                  </span>
+                ))}
+              </span>
+            ))}
+          </span>
+          <span className="tag-rail" aria-hidden="true">
+            <i className="tag-rail__l" /><i className="tag-rail__r" />
+            <i className="tag-dot tag-dot--l" /><i className="tag-dot tag-dot--r" />
+            <i className="tag-pulse" />
+          </span>
+          <i className="tag-spark" aria-hidden="true" />
+        </p>
 
         <div className="footer__bottom">
           <p>© 2026 HYBENT. All rights reserved.</p>

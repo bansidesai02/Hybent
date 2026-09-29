@@ -781,7 +781,7 @@ export default function AllTalentListPage() {
             description={
               hasFilters
                 ? 'Try a broader search, or clear the filters to see everyone.'
-                : 'Import candidates or upload résumés to start building your database.'
+                : 'Import candidates or upload resumes to start building your database.'
             }
             action={
               hasFilters

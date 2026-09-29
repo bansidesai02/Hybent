@@ -65,8 +65,11 @@ async def apply_to_public_job(
     db: DB,
     full_name: str = Form(...),
     email: str = Form(...),
-    phone: str | None = Form(None),
+    phone: str = Form(...),
     linkedin_url: str | None = Form(None),
+    current_ctc: str = Form(...),
+    expected_ctc: str = Form(...),
+    notice_period: str = Form(...),
     resume: UploadFile = File(...),
 ):
     """
@@ -75,6 +78,26 @@ async def apply_to_public_job(
     Candidate (no portal login) and an Application tied to this job; a
     recruiter can later invite the candidate to the portal separately.
     """
+    # Sized to their columns (phone 50, LinkedIn 500, CTC 100, notice period
+    # 50). Everything is required except the LinkedIn profile.
+    phone, linkedin_url = phone.strip(), (linkedin_url or "").strip() or None
+    current_ctc, expected_ctc, notice_period = (
+        current_ctc.strip(), expected_ctc.strip(), notice_period.strip()
+    )
+    if not phone:
+        raise HTTPException(status_code=400, detail="Please fill in your phone number.")
+    if not 7 <= sum(ch.isdigit() for ch in phone) <= 15 or len(phone) > 50:
+        raise HTTPException(status_code=400, detail="Please enter a valid phone number.")
+    if linkedin_url and ("linkedin.com/" not in linkedin_url.lower() or len(linkedin_url) > 500):
+        raise HTTPException(status_code=400, detail="Please enter a valid LinkedIn profile link.")
+    if not (current_ctc and expected_ctc and notice_period):
+        raise HTTPException(
+            status_code=400,
+            detail="Please fill in your current CTC, expected CTC and notice period.",
+        )
+    if len(current_ctc) > 100 or len(expected_ctc) > 100 or len(notice_period) > 50:
+        raise HTTPException(status_code=400, detail="CTC or notice period is too long.")
+
     job = await _get_active_job_or_404(db, org_slug, job_id)
     email = email.strip().lower()
 
@@ -106,6 +129,16 @@ async def apply_to_public_job(
         )).scalar_one_or_none()
         if existing_application:
             raise HTTPException(status_code=409, detail="You have already applied to this job.")
+
+    # Kept current on a returning candidate too — what they enter now is the
+    # latest they have told us. The *_salary columns mirror the CTC ones, as
+    # the candidate update endpoint keeps them.
+    candidate.phone = phone
+    if linkedin_url:  # optional — a blank one must not wipe a profile we already have
+        candidate.linkedin_url = linkedin_url
+    candidate.current_ctc = candidate.current_salary = current_ctc
+    candidate.expected_ctc = candidate.expected_salary = expected_ctc
+    candidate.notice_period_days = notice_period
 
     # Production → Supabase Storage; local/Docker → Cloudinary (or local disk)
     if settings.use_supabase_resume_storage:

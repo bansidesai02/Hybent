@@ -180,7 +180,7 @@ export default function OnboardingPage() {
             <h2 className="mb-1 text-hb-sm font-semibold text-hb-text">What's next?</h2>
             <p className="text-hb-sm leading-relaxed text-hb-muted">
               Once you set your password, you are logged in automatically to complete your profile
-              and upload your latest résumé.
+              and upload your latest resume.
             </p>
           </div>
 

@@ -21,7 +21,7 @@ RewriteRule ^ - [L]
 # %{REQUEST_URI}, which some servers leave at the original URL between passes.
 RewriteRule ^(?!_seo/)(.+?)/?$ /_seo/$1.html [L]
 
-# No copy for a deep-linked section (/about/timeline): use its page's copy.
+# No copy for a deep-linked section (/about/story): use its page's copy.
 RewriteRule ^_seo/([^/]+)/[^/]+\.html$ /_seo/$1.html [L]
 
 # No copy at all (login, app routes): the plain SPA shell.

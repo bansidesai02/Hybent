@@ -40,7 +40,7 @@ import {
  * routes they point at also had no `:interviewId` segment until phase 8; both
  * halves are fixed.
  *
- * The résumé viewer was a hand-rolled `createPortal` overlay with its own
+ * The resume viewer was a hand-rolled `createPortal` overlay with its own
  * Escape handler, scroll lock and `#fff`/`#111`/`#f5f5f5` palette. It is a
  * `Dialog` now, which brings focus trapping the original never had.
  */
@@ -244,7 +244,7 @@ function ResumeDialog({
   loading: boolean
   onClose: () => void
 }) {
-  /* A stored résumé needs a freshly signed URL, so it opens in a new tab
+  /* A stored resume needs a freshly signed URL, so it opens in a new tab
      rather than an iframe. A legacy direct URL can be previewed inline. */
   const openResume = async () => {
     if (!candidate) return
@@ -254,7 +254,7 @@ function ResumeDialog({
         const data = (res.data as any)?.data ?? res.data
         if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
       } catch {
-        window.alert('Could not load the résumé. Please try again.')
+        window.alert('Could not load the resume. Please try again.')
       }
       return
     }
@@ -272,7 +272,7 @@ function ResumeDialog({
       open={!!interview}
       onClose={onClose}
       size="xl"
-      title={`${interview?.candidate_name ?? 'Candidate'} — résumé`}
+      title={`${interview?.candidate_name ?? 'Candidate'} — resume`}
       description={
         candidate?.current_title
           ? `${candidate.current_title}${
@@ -294,8 +294,8 @@ function ResumeDialog({
         ) : !hasResume ? (
           <EmptyState
             icon={<FileText />}
-            title="No résumé uploaded"
-            description="This candidate has not uploaded a résumé yet."
+            title="No resume uploaded"
+            description="This candidate has not uploaded a resume yet."
           />
         ) : candidate?.resume_url && !candidate.resume_storage_path ? (
           <iframe
@@ -309,7 +309,7 @@ function ResumeDialog({
           />
         ) : (
           <p className="py-10 text-center text-hb-sm text-hb-muted">
-            This résumé is stored securely. Open it in a new tab to view it.
+            This resume is stored securely. Open it in a new tab to view it.
           </p>
         )}
       </div>

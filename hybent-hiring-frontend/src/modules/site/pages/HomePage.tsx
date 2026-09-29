@@ -347,7 +347,7 @@ export default function HomePage() {
             <p className="lead" style={{ marginTop: "16px" }}>We are at the beginning of a long build. Hybent Hiring, our AI recruitment platform, is live today. Everything that follows will share the same platform, the same data model and the same design language — so each product makes the one before it more useful. We started with hiring because it is where every company's next decade begins.</p>
             <div style={{ display: "flex", gap: "12px", marginTop: "32px", flexWrap: "wrap" }}>
               <a className="btn btn-ghost" href="/platform/ecosystem">How the platform works</a>
-              <a className="link-arrow" href="/about/timeline" style={{ alignSelf: "center", marginLeft: "6px" }}>Our story <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+              <a className="link-arrow" href="/about/story" style={{ alignSelf: "center", marginLeft: "6px" }}>Our story <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </div>
           </div>
           <div className="grid g2" data-rv="right">

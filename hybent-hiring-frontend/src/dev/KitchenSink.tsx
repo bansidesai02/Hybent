@@ -215,7 +215,7 @@ function Gallery() {
             placeholder="React, TypeScript, Node"
           />
           <Dropzone
-            title="Drop a résumé"
+            title="Drop a resume"
             description="PDF or Word. Hybent AI extracts the skills and experience."
             formats={['PDF', 'DOCX', 'TXT']}
             onFiles={(files) => window.alert(`${files.length} file(s) — demo only`)}

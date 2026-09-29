@@ -64,7 +64,7 @@ const MODE: Record<HubMode, ModeConfig> = {
   prepkit: {
     icon: <Brain />,
     title: 'Prep kit',
-    subtitle: "Open AI-generated questions tailored to the candidate's résumé.",
+    subtitle: "Open AI-generated questions tailored to the candidate's resume.",
     filter: (i) => i.status === 'scheduled',
     scopeNote: 'Upcoming only',
     ctaLabel: () => 'Open prep kit',

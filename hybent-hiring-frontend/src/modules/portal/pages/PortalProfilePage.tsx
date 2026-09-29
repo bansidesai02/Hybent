@@ -22,14 +22,14 @@ import {
 } from '@/components/hb'
 
 /**
- * The candidate's own profile: identity, compensation, availability, résumé,
+ * The candidate's own profile: identity, compensation, availability, resume,
  * skills.
  *
  * Rebuilt on the design system in phase 7. Beyond appearance:
  *
  * - Every validation failure and outcome was a `window.alert`/`window.confirm`
  *   (five of them). Toasts and a `ConfirmDialog` now.
- * - The résumé drop target was a hand-rolled `.upload-zone` div with a click
+ * - The resume drop target was a hand-rolled `.upload-zone` div with a click
  *   handler — not focusable, not announced. It is the design system's
  *   `Dropzone`, which is a real button.
  * - Skills were a chip row with an inline `<input className="skill-tag add">`;
@@ -470,7 +470,7 @@ export default function PortalProfilePage() {
                 className="mb-hb-4 flex w-full items-center gap-2.5 rounded-hb-md border border-hb-success/25 bg-hb-success/8 px-4 py-3 text-left text-hb-sm font-semibold text-hb-success transition-colors duration-hb hover:bg-hb-success/12 focus-visible:outline-none focus-visible:shadow-hb-ring"
               >
                 <FileText size={15} aria-hidden className="shrink-0" />
-                {profile?.resume_filename || 'View current résumé'}
+                {profile?.resume_filename || 'View current resume'}
               </button>
             )}
 
@@ -486,11 +486,11 @@ export default function PortalProfilePage() {
             <Dropzone
               onFiles={(files) => handleResumeFile(files[0])}
               accept=".pdf,.doc,.docx"
-              title="Drop your résumé here"
+              title="Drop your resume here"
               description="Parsed automatically to fill your profile."
               formats={['PDF', 'DOC', 'DOCX']}
               busy={uploadMutation.isPending}
-              busyLabel="Uploading & parsing résumé…"
+              busyLabel="Uploading & parsing resume…"
             />
 
             <div className="mt-hb-5">

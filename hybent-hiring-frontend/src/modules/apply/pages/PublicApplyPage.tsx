@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { AlertTriangle, CheckCircle2, Loader2, MapPin } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Loader2, MapPin } from 'lucide-react'
+import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
 
 import { publicApi } from '@/api/public'
@@ -22,6 +23,19 @@ const JOB_TYPE_LABEL: Record<string, string> = {
   internship: 'Internship',
   freelance: 'Freelance',
 }
+
+/* A fixed list rather than free text: Copilot's "immediate joiners" and
+   "notice under N days" searches read "immediate" or the number of days out
+   of this value. */
+const NOTICE_PERIOD_OPTIONS = [
+  'Immediate',
+  '15 days',
+  '30 days',
+  '45 days',
+  '60 days',
+  '90 days',
+  'More than 90 days',
+]
 
 interface PublicJob {
   id: string
@@ -67,6 +81,9 @@ export default function PublicApplyPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [linkedinUrl, setLinkedinUrl] = useState('')
+  const [currentCtc, setCurrentCtc] = useState('')
+  const [expectedCtc, setExpectedCtc] = useState('')
+  const [noticePeriod, setNoticePeriod] = useState('')
   const [resume, setResume] = useState<File | null>(null)
 
   useEffect(() => {
@@ -86,15 +103,28 @@ export default function PublicApplyPage() {
 
   const [handleSubmit, isSubmitting] = useAsyncAction(async () => {
     if (!orgSlug || !jobId) return
-    if (!fullName.trim() || !email.trim()) return toast.error('Please fill in your name and email.')
-    if (!resume) return toast.error('Please attach your résumé.')
+    if (!fullName.trim() || !email.trim() || !phone.trim()) {
+      return toast.error('Please fill in your name, email and phone.')
+    }
+    const phoneDigits = phone.replace(/\D/g, '').length
+    if (phoneDigits < 7 || phoneDigits > 15) return toast.error('Please enter a valid phone number.')
+    if (linkedinUrl.trim() && !/linkedin\.com\//i.test(linkedinUrl)) {
+      return toast.error('Please enter your LinkedIn profile link, e.g. linkedin.com/in/yourname.')
+    }
+    if (!currentCtc.trim() || !expectedCtc.trim() || !noticePeriod) {
+      return toast.error('Please fill in your current CTC, expected CTC and notice period.')
+    }
+    if (!resume) return toast.error('Please attach your resume.')
 
     try {
       await publicApi.apply(orgSlug, jobId, {
         full_name: fullName.trim(),
         email: email.trim(),
-        phone: phone.trim() || undefined,
+        phone: phone.trim(),
         linkedin_url: linkedinUrl.trim() || undefined,
+        current_ctc: currentCtc.trim(),
+        expected_ctc: expectedCtc.trim(),
+        notice_period: noticePeriod,
         resume,
       })
       setSubmitted(true)
@@ -222,20 +252,83 @@ export default function PublicApplyPage() {
             />
             <Input
               label="Phone"
+              type="tel"
+              required
+              maxLength={50}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="Optional"
+              placeholder="+91 90000 00000"
             />
             <Input
               label="LinkedIn profile"
+              maxLength={500}
               value={linkedinUrl}
               onChange={(e) => setLinkedinUrl(e.target.value)}
-              placeholder="Optional"
+              placeholder="Optional — linkedin.com/in/yourname"
             />
           </div>
 
+          <div className="grid gap-hb-4 sm:grid-cols-2">
+            <Input
+              label="Current CTC"
+              required
+              maxLength={100}
+              value={currentCtc}
+              onChange={(e) => setCurrentCtc(e.target.value)}
+              placeholder="e.g. ₹6,00,000"
+            />
+            <Input
+              label="Expected CTC"
+              required
+              maxLength={100}
+              value={expectedCtc}
+              onChange={(e) => setExpectedCtc(e.target.value)}
+              placeholder="e.g. ₹8,00,000"
+            />
+          </div>
+
+          {/* Chips rather than a <select>: seven short options read at a
+              glance and take one tap, where the native dropdown opened the
+              platform's unstyled list. Real radios underneath, so arrow keys
+              and screen readers work as for any radio group. */}
+          <fieldset>
+            <legend className="mb-2 font-mono text-hb-label uppercase text-hb-dim">
+              Notice period
+              <span className="ml-1 text-hb-error" aria-hidden>*</span>
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {NOTICE_PERIOD_OPTIONS.map((option) => (
+                <label key={option} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="notice_period"
+                    value={option}
+                    required
+                    checked={noticePeriod === option}
+                    onChange={() => setNoticePeriod(option)}
+                    className="peer sr-only"
+                  />
+                  <span
+                    className={clsx(
+                      'inline-flex h-10 items-center gap-1.5 rounded-hb-full border px-4',
+                      'font-body text-hb-sm font-semibold whitespace-nowrap',
+                      'transition-all duration-hb ease-hb',
+                      'border-hb-border bg-hb-surface text-hb-muted',
+                      'hover:border-hb-border-strong hover:text-hb-text',
+                      'peer-checked:border-hb-blue/50 peer-checked:bg-hb-blue/10 peer-checked:text-hb-blue',
+                      'peer-focus-visible:border-hb-blue/60 peer-focus-visible:shadow-hb-ring'
+                    )}
+                  >
+                    {noticePeriod === option && <Check size={14} aria-hidden />}
+                    {option}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
           <Dropzone
-            title={resume ? resume.name : 'Upload your résumé'}
+            title={resume ? resume.name : 'Upload your resume'}
             description={resume ? 'Click to replace' : 'Drag & drop or click to browse'}
             formats={['PDF', 'DOC', 'DOCX']}
             accept=".pdf,.doc,.docx"

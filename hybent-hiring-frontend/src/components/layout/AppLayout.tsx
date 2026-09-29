@@ -65,7 +65,7 @@ export default function AppLayout() {
     })
   }, [metaKey, isServiceDetail])
 
-  /* Land on the top of the view, or on a deep-linked section (/about/timeline). */
+  /* Land on the top of the view, or on a deep-linked section (/about/story). */
   useEffect(() => {
     const root = document.documentElement
     const previous = root.style.scrollBehavior

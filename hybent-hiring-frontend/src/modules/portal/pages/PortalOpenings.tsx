@@ -150,7 +150,7 @@ export default function PortalOpenings() {
         title="Confirm application"
         description={
           applyTarget
-            ? `You are about to apply for ${applyTarget.title}. Your current résumé and profile will be submitted to the recruiter.`
+            ? `You are about to apply for ${applyTarget.title}. Your current resume and profile will be submitted to the recruiter.`
             : undefined
         }
         size="sm"
@@ -174,7 +174,7 @@ export default function PortalOpenings() {
       >
         <p className="flex items-start gap-2.5 rounded-hb-md border border-hb-warning/25 bg-hb-warning/8 px-3.5 py-3 text-hb-xs text-hb-text">
           <Lightbulb size={15} aria-hidden className="mt-0.5 shrink-0 text-hb-warning" />
-          Make sure your résumé is up to date in your profile before applying.
+          Make sure your resume is up to date in your profile before applying.
         </p>
       </Dialog>
 
@@ -260,7 +260,7 @@ export default function PortalOpenings() {
           />
 
           <Input
-            label="Upload résumé (optional)"
+            label="Upload resume (optional)"
             name="resume"
             type="file"
             accept=".pdf,.doc,.docx"

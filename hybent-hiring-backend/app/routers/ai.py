@@ -103,7 +103,7 @@ async def test_gemini():
                 models.append(m.name)
         
         # Try a very basic model first
-        test_model = 'gemini-1.5-flash' if 'models/gemini-1.5-flash' in models else (models[0] if models else 'gemini-pro')
+        test_model = ai_evaluator.GEMINI_MODEL
         
         model = genai.GenerativeModel(test_model)
         response = await model.generate_content_async("Say hello")
@@ -159,6 +159,11 @@ async def generate_linkedin_post(
 
     # Pre-check credits
     await AICreditsService.check_credits_available(db, current_user.organization_id, "linkedin_post_generation")
+
+    # The company name comes from the recruiter's org, never the request body —
+    # a post names the company in its opening line.
+    org = await db.get(Organization, current_user.organization_id)
+    data = {**data, "company_name": org.name if org else None}
 
     result = await ai_evaluator.generate_linkedin_post(
         data,
@@ -223,11 +228,11 @@ async def generate_image(
 
     if not result or "error" in result:
         status_code = 500
-        if result.get("error") == "warming_up":
+        # A missing server key is a 503, not a 401 — the frontend reads any 401
+        # as an expired session and would try to refresh the login.
+        if result.get("error") in ("warming_up", "no_key"):
             status_code = 503
-        elif result.get("error") == "no_key":
-            status_code = 401
-            
+
         raise HTTPException(
             status_code=status_code, 
             detail=result.get("detail", "AI image generation failed.")
