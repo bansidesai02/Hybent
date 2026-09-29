@@ -18,8 +18,16 @@ export const aiApi = {
     experience_level?: string | null
     skills_required?: string[]
     description?: string
-    tone?: string
+    responsibilities?: string | null
+    requirements?: string | null
+    benefits?: string | null
+    min_experience_years?: number | null
+    openings?: number
+    is_remote?: boolean
+    application_deadline?: string | null
     apply_url?: string
+    /** Formats already used for this draft — the next one avoids them. */
+    recent_styles?: string[]
   }) => axios.post('/v1/ai/generate-linkedin-post', data),
 
   generateImagePrompt: (data: {
