@@ -1,16 +1,38 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, type CSSProperties } from 'react'
+
+/* --d orders each letter's entrance: "Where" types in left to right, "meets"
+   bursts out from its middle, and the two brand words ignite outward from
+   "meets" — "vision" right to left, "innovation" left to right. */
+const TAGLINE = [
+  { word: 'Where', kind: 'where', order: (i: number) => i },
+  { word: 'vision', kind: 'vision', order: (i: number) => 5 - i },
+  { word: 'meets', kind: 'meets', order: (i: number) => Math.abs(i - 2) },
+  { word: 'innovation', kind: 'innovation', order: (i: number) => i },
+]
 
 export function GlobalFooter() {
   const tagRef = useRef<HTMLParagraphElement>(null)
 
-  /* Tagline reveals word by word the first time it scrolls into view. The
-     footer renders outside SiteView too, so it can't rely on useSiteBehaviours'
-     [data-rv] observer. Armed before paint so it stays visible without JS. */
+  /* Tagline choreography, played once the first time it scrolls into view:
+     two points travel a hairline from either end and meet under "meets",
+     which sparks the brand words alight. The footer renders outside SiteView
+     too, so it can't rely on useSiteBehaviours' [data-rv] observer. Armed
+     before paint so it stays visible without JS. */
   useLayoutEffect(() => {
     const el = tagRef.current
     if (!el) return
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduce || !('IntersectionObserver' in window)) return
+
+    const meets = el.querySelector<HTMLElement>('.tag-meets')
+    const measure = () => {
+      el.style.setProperty('--w', `${el.offsetWidth}px`)
+      if (meets) el.style.setProperty('--mx', `${meets.offsetLeft + meets.offsetWidth / 2}px`)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+
     el.classList.add('armed')
     const io = new IntersectionObserver(
       ([en]) => {
@@ -21,7 +43,35 @@ export function GlobalFooter() {
       { threshold: 0.6 }
     )
     io.observe(el)
-    return () => io.disconnect()
+
+    // Letters near the cursor lift and glow, falling off over ~70px.
+    const cleanups = [() => io.disconnect(), () => ro.disconnect()]
+    if (window.matchMedia('(pointer:fine)').matches) {
+      const chars = Array.from(el.querySelectorAll<HTMLElement>('.ch'))
+      let frame = 0
+      const onMove = (e: PointerEvent) => {
+        cancelAnimationFrame(frame)
+        frame = requestAnimationFrame(() => {
+          chars.forEach((c) => {
+            const r = c.getBoundingClientRect()
+            const lift = Math.max(0, 1 - Math.abs(e.clientX - (r.left + r.width / 2)) / 70)
+            c.style.setProperty('--lift', lift.toFixed(3))
+          })
+        })
+      }
+      const onLeave = () => {
+        cancelAnimationFrame(frame)
+        chars.forEach((c) => c.style.removeProperty('--lift'))
+      }
+      el.addEventListener('pointermove', onMove)
+      el.addEventListener('pointerleave', onLeave)
+      cleanups.push(() => {
+        cancelAnimationFrame(frame)
+        el.removeEventListener('pointermove', onMove)
+        el.removeEventListener('pointerleave', onLeave)
+      })
+    }
+    return () => cleanups.forEach((fn) => fn())
   }, [])
 
   return (
@@ -70,7 +120,24 @@ export function GlobalFooter() {
         </div>
 
         <p className="footer__tag" ref={tagRef}>
-          <span>Where</span> <span className="tag-vision">vision</span> <span>meets</span> <span className="tag-innovation">innovation</span>
+          <span className="tag-sr">Where vision meets innovation</span>
+          <span className="tag-line" aria-hidden="true">
+            {TAGLINE.map(({ word, kind, order }) => (
+              <span key={word} className={`tag-word tag-${kind}`}>
+                {Array.from(word, (ch, i) => (
+                  <span key={i} className="ch" style={{ '--d': order(i), '--p': i / (word.length - 1) } as CSSProperties}>
+                    {ch}
+                  </span>
+                ))}
+              </span>
+            ))}
+          </span>
+          <span className="tag-rail" aria-hidden="true">
+            <i className="tag-rail__l" /><i className="tag-rail__r" />
+            <i className="tag-dot tag-dot--l" /><i className="tag-dot tag-dot--r" />
+            <i className="tag-pulse" />
+          </span>
+          <i className="tag-spark" aria-hidden="true" />
         </p>
 
         <div className="footer__bottom">
