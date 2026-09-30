@@ -468,36 +468,49 @@ export function AiRecruitmentWorkflowAnimation() {
           </button>
 
           {/* Candidate Switcher Dots */}
-          <div className='flex items-center gap-1 ml-1'>
+          {/* Each dot sits in a 24px-tall hit area so it can be tapped;
+              the visible pill keeps its original size. */}
+          <div className='flex items-center ml-1'>
             {CANDIDATES.map((c, i) => (
               <button
                 key={c.id}
                 onClick={() => handleReScan(i)}
                 title={`${c.name} (${c.overallScore}%)`}
                 aria-label={`View Candidate ${c.name}`}
+                className='grid place-items-center'
                 style={{
-                  width: candidateIndex === i ? '20px' : '7px',
-                  height: '7px',
-                  borderRadius: '4px',
+                  minWidth: candidateIndex === i ? '28px' : '22px',
+                  height: '24px',
                   border: 'none',
-                  background:
-                    candidateIndex === i
-                      ? 'linear-gradient(90deg, #4C6FFF, #22CFFF)'
-                      : 'rgba(148, 163, 184, 0.35)',
+                  background: 'transparent',
                   cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.3, 1)',
                   padding: 0,
+                  transition: 'min-width 0.3s cubic-bezier(0.2, 0.8, 0.3, 1)',
                 }}
-              />
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: 'block',
+                    width: candidateIndex === i ? '20px' : '7px',
+                    height: '7px',
+                    borderRadius: '4px',
+                    background:
+                      candidateIndex === i
+                        ? 'linear-gradient(90deg, #4C6FFF, #22CFFF)'
+                        : 'rgba(148, 163, 184, 0.35)',
+                    transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.3, 1)',
+                  }}
+                />
+              </button>
             ))}
           </div>
         </div>
       </div>
 
       {/* ── Main Dynamic Stage Area ── */}
-      <div className='flex flex-col justify-center relative px-4.5 py-5'
+      <div className='hbwf-stage flex flex-col justify-center relative px-4.5 py-5'
         style={{
-          minHeight: '230px',
           opacity: isTransitioning ? 0 : 1,
           transform: isTransitioning ? 'translateY(4px)' : 'translateY(0)',
           transition: 'opacity 0.2s ease, transform 0.2s ease',
@@ -878,7 +891,7 @@ export function AiRecruitmentWorkflowAnimation() {
             {/* Key Strengths & Missing Criteria */}
             <div className='grid gap-2'
               style={{
-                gridTemplateColumns: '1fr 1fr',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                 fontSize: '0.72rem',
               }}
             >
@@ -1222,6 +1235,14 @@ export function AiRecruitmentWorkflowAnimation() {
 
       {/* Embedded Micro-Animation Keyframes */}
       <style>{`
+        /* The four stages differ in height. Reserving the tallest one keeps
+           the card, and the page below it, still while the demo cycles.
+           Heights were measured across all candidates and stages; they are
+           keyed to the widget's own width, which depends on the grid. */
+        .hybent-live-wf { container: hbwf / inline-size; }
+        .hybent-live-wf .hbwf-stage { min-height: 432px; }
+        @container hbwf (max-width: 360px) { .hybent-live-wf .hbwf-stage { min-height: 460px; } }
+        @container hbwf (max-width: 300px) { .hybent-live-wf .hbwf-stage { min-height: 504px; } }
         @keyframes hbScanLine {
           0% { transform: translateY(0); opacity: 0.8; }
           50% { transform: translateY(58px); opacity: 1; }

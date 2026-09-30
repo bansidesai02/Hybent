@@ -166,11 +166,6 @@ main,footer,header{position:relative;z-index:2}
 .btn .arw{transition:transform .3s cubic-bezier(.2,.8,.3,1)}
 .btn:hover .arw{transform:translateX(4px)}
 
-@media (max-width:480px){
-  .btn {font-size: 0.75rem;}
-}
-
-
 .link-arrow{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:.93rem;color:var(--text)}
 .link-arrow svg{transition:transform .3s}
 .link-arrow:hover{color:var(--cyan)}
@@ -642,7 +637,8 @@ main,footer,header{position:relative;z-index:2}
   .hero__grid{grid-template-columns:1fr;gap:52px}
   .lattice{max-width:460px;top:0}
   .split,.flagship__in{grid-template-columns:1fr;gap:36px}
-  .g4,.soon-grid{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .soon-grid{grid-template-columns:repeat(3,1fr)}
   .footer__top{grid-template-columns:1fr 1fr 1fr}
   .footer__brand{grid-column:1/-1}
   .mock{transform:none}
@@ -1473,4 +1469,197 @@ section > .figrow{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--
 @media (prefers-reduced-motion:reduce){
   .navlink::before,.nav__cta .btn-primary::after{display:none}
   .drawer > *{opacity:1;transform:none}
+}
+
+
+/* ============================================================
+   RESPONSIVE PASS — phones, tablets, laptops, large screens
+   Appended only. Tiers used below:
+     ≤360 small phone · ≤640 phone · 641–860 tablet portrait
+     861–1080 tablet landscape / small laptop · ≥1081 laptop
+     ≥1600 large desktop · short landscape phones
+     (hover:none) — any touch screen, whatever its width
+   ============================================================ */
+
+/* ---------- Safe areas ----------
+   index.html sets viewport-fit=cover, so on notched phones the page runs
+   under the notch and the home indicator unless it pads itself clear. */
+.wrap,section > .figrow{
+  padding-left:max(var(--pad),env(safe-area-inset-left));
+  padding-right:max(var(--pad),env(safe-area-inset-right));
+}
+.drawer{
+  padding-left:max(var(--pad),env(safe-area-inset-left));
+  padding-right:max(var(--pad),env(safe-area-inset-right));
+  padding-bottom:calc(40px + env(safe-area-inset-bottom));
+  overscroll-behavior:contain;
+}
+.footer__bottom{padding-bottom:calc(34px + env(safe-area-inset-bottom))}
+
+/* ---------- Touch ---------- */
+a,button,summary{-webkit-tap-highlight-color:transparent}
+
+@media (hover:none){
+  /* A tap leaves :hover applied until the next tap elsewhere, which froze
+     cards and buttons mid-lift. Colour changes stay; movement goes. */
+  .card:hover,.soon:hover,.role:hover,.chip:hover,.mod:hover,.mock__row:hover,
+  .tab:hover,.btn:hover,.btn-primary:hover,.btn-ghost:hover,.navlink:hover,
+  .mega__item:hover,.theme-btn:hover,.burger:hover,.socials a:hover,
+  .nav__cta .btn-primary:hover,.nav__cta .btn-quiet:hover,
+  .drawer a:hover,.drawer .drawer__cta a:hover{transform:none}
+  .card:hover .icon-tile,.soon:hover .icon-tile,.mega__item:hover .icon-tile,
+  .role:hover .arw,.btn:hover .arw,.link-arrow:hover svg{transform:none}
+  .btn:active{transform:translateY(1px) scale(.99)}
+  .footer li a{display:inline-block;padding-block:3px}
+  .footer li a:hover{padding-left:0}
+  /* Panels open from the tap handler in HeaderNav only; iOS keeps :hover
+     on the last tapped element, which would pin a panel open. */
+  .has-mega:not(.is-open) .mega{opacity:0;visibility:hidden;pointer-events:none}
+  .has-mega:not(.is-open) .chev{transform:none}
+}
+
+/* ---------- Button rows ---------- */
+.btn-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+
+/* ---------- Mega menu ----------
+   The Products panel is 720px wide; centred on a trigger that sits near
+   the left of the bar it ran off screen on 1280–1366px laptops. It now
+   opens from its trigger's left edge. The open selector has to out-rank
+   `.has-mega.is-open .mega`. */
+.nav__links > li:first-child .mega{left:-8px;transform:translate(0,12px) scale(.985)}
+.nav__links > li:first-child:is(:hover,:focus-within,.is-open) .mega{transform:none}
+
+/* ---------- Grids ---------- */
+@media (min-width:641px) and (max-width:860px){
+  /* three cards in two columns: the odd one out takes the full row */
+  .g3:not(.feature-grid) > :last-child:nth-child(odd){grid-column:1/-1}
+}
+@media (min-width:481px) and (max-width:640px){
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ---------- Home: products grid with the live demo ---------- */
+.feature-card__demo{margin-bottom:20px}
+@media (max-width:1080px){
+  .feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .feature-grid > .feature-card{
+    grid-column:1/-1;display:grid;align-items:center;
+    grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,4vw,40px);
+  }
+  .feature-card__demo{margin-bottom:0}
+}
+@media (max-width:640px){
+  .feature-grid{grid-template-columns:1fr}
+  .feature-grid > .feature-card{display:block}
+  .feature-card__demo{margin-bottom:20px}
+}
+
+/* ---------- Home: hero ---------- */
+.node{left:var(--x,50%);top:var(--y,50%)}
+.hero h1{text-wrap:balance}
+.hero h1 .rot span{white-space:nowrap}
+
+/* ---------- Home: flow diagram, phone version ---------- */
+.flow-steps{display:none}
+
+/* ---------- Drawer ---------- */
+.drawer__group > .mono{margin:0 0 4px;color:var(--dim)}
+.drawer__group:first-child > .mono{margin-top:6px}
+.drawer__group + .drawer__group{margin-top:22px}
+@media (min-width:641px) and (max-width:1080px){
+  .drawer{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;
+    column-gap:clamp(24px,5vw,56px);row-gap:28px;
+  }
+  .drawer__group + .drawer__group{margin-top:0}
+  .drawer .drawer__cta{grid-column:1/-1;flex-direction:row;margin-top:4px}
+  .drawer .drawer__cta a{flex:1}
+}
+
+/* ---------- Phones ---------- */
+@media (max-width:640px){
+  /* rhythm */
+  .section{padding-block:clamp(52px,12vw,72px)}
+  .section--tight{padding-block:44px}
+  .section--tight-pt-none{padding-top:0}
+  .section--tight-py-none{padding-block:0}
+  .card{padding:20px}
+  .stat{padding:22px 20px}
+  .stat b{font-size:clamp(1.7rem,6vw,2.1rem)}
+  .cta-band{padding:24px 20px}
+  .btn-row > .btn{flex:1 1 100%}
+
+  /* hero */
+  .hero{padding-top:calc(var(--nav-h) + 36px)}
+  .hero h1{font-size:clamp(1.75rem,8.2vw,2.7rem)}
+  .lattice{max-width:min(300px,84vw)}
+  .node{
+    font-size:10px;
+    left:calc(50% + (var(--x,50%) - 50%) * .82);
+    top:calc(50% + (var(--y,50%) - 50%) * .9);
+  }
+  .hero__orb{filter:blur(60px)}
+  .orb-a{width:300px;height:300px;top:-80px;left:-110px}
+  .orb-b{width:320px;height:320px;top:-40px;right:-130px}
+  .orb-c{width:300px;height:300px;bottom:-150px;left:30%}
+
+  /* flow diagram: the SVG's labels are unreadable at this width */
+  .figpanel--flow > .fig{display:none}
+  .flow-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
+  .flow-steps li{
+    display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 12px;
+    border-radius:12px;border:1px solid var(--border);background:var(--surface-2);
+    font-family:var(--f-display);font-size:.92rem;font-weight:600;letter-spacing:-.01em;
+  }
+  .flow-steps b{font-family:var(--f-mono);font-size:10.5px;font-weight:500;letter-spacing:.1em;color:var(--dim)}
+  .flow-steps em{
+    margin-left:auto;padding:2px 7px;border-radius:var(--r-full);
+    font-style:normal;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;
+    color:var(--cyan);border:1px solid rgba(34,207,255,.35);
+  }
+  .flow-steps .is-done{
+    background:linear-gradient(135deg,rgba(34,207,255,.10),rgba(168,85,247,.10));
+    border-color:var(--border-strong);
+  }
+
+  /* 16px keeps iOS from zooming the page when a field is focused */
+  .field input,.field select,.field textarea,.news__form input{font-size:16px}
+
+  /* a blurred backdrop on every card makes scrolling stutter on
+     mid-range phones; the dark view gets a denser fill instead */
+  .card{backdrop-filter:none;-webkit-backdrop-filter:none;
+    background:linear-gradient(168deg,rgba(255,255,255,.07),rgba(255,255,255,.03))}
+}
+
+/* ---------- Small phones ---------- */
+@media (max-width:480px){
+  /* long labels wrap onto two lines instead of running out of the pill */
+  .btn{white-space:normal;height:auto;min-height:var(--bh);padding-block:10px;line-height:1.25}
+  .nav__cta .btn{white-space:nowrap;height:var(--bh);padding-block:0}
+  .g4{grid-template-columns:1fr}
+}
+@media (max-width:360px){
+  .flow-steps{gap:8px}
+  .flow-steps li{padding:10px;gap:8px;font-size:.86rem}
+}
+
+/* ---------- Large screens ---------- */
+@media (min-width:1600px){
+  :root{--maxw:1360px}
+  .hero__grid{gap:88px}
+  .lattice{max-width:560px}
+}
+
+/* ---------- Short landscape phones ---------- */
+@media (max-height:500px) and (orientation:landscape){
+  :root{--nav-h:60px}
+  .hero{padding-top:calc(var(--nav-h) + 28px);padding-bottom:40px}
+  .hero h1{font-size:clamp(1.9rem,5vw,2.6rem)}
+  .lattice{max-width:240px}
+  .drawer{padding-top:14px}
+  .drawer a{padding:10px;font-size:1.05rem}
+}
+@media (max-height:500px) and (orientation:landscape) and (min-width:641px){
+  /* side by side, so the headline and the lattice share the one screen */
+  .hero__grid{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:24px}
 }

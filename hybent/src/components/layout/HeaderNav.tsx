@@ -71,11 +71,28 @@ export function HeaderNav({
         }
       }
 
+      /* Touch has no hover: the first tap on a trigger opens its panel, the
+         second follows the link. The state is read on pointerdown because
+         touch browsers fire a synthetic mouseenter (which opens the panel)
+         before the click arrives. */
+      let tapToOpen = false
+      const onPointerDown = (e: PointerEvent) => {
+        tapToOpen = e.pointerType !== 'mouse' && !item.classList.contains('is-open')
+      }
+      const onTriggerClick = (e: MouseEvent) => {
+        if (!tapToOpen) return
+        tapToOpen = false
+        e.preventDefault()
+        open()
+      }
+
       item.addEventListener('mouseenter', open)
       item.addEventListener('mouseleave', closeSoon)
       item.addEventListener('focusin', open)
       item.addEventListener('focusout', onFocusOut)
       item.addEventListener('keydown', onKeyDown)
+      trigger?.addEventListener('pointerdown', onPointerDown)
+      trigger?.addEventListener('click', onTriggerClick)
       cleanups.push(() => {
         window.clearTimeout(timer)
         item.removeEventListener('mouseenter', open)
@@ -83,12 +100,18 @@ export function HeaderNav({
         item.removeEventListener('focusin', open)
         item.removeEventListener('focusout', onFocusOut)
         item.removeEventListener('keydown', onKeyDown)
+        trigger?.removeEventListener('pointerdown', onPointerDown)
+        trigger?.removeEventListener('click', onTriggerClick)
       })
     })
 
+    /* A click outside closes every panel; following a link inside a panel
+       closes it too, since touch screens never send the mouseleave. */
     const onDocClick = (e: MouseEvent) => {
-      const inside = (e.target as Element)?.closest?.('.has-mega')
-      items.forEach((item) => item !== inside && closeMega(item))
+      const target = e.target as Element
+      const inside = target?.closest?.('.has-mega')
+      const followed = target?.closest?.('.mega a')
+      items.forEach((item) => (followed || item !== inside) && closeMega(item))
     }
     document.addEventListener('click', onDocClick)
 
@@ -97,6 +120,18 @@ export function HeaderNav({
       document.removeEventListener('click', onDocClick)
     }
   }, [])
+
+  /* ---------- Drawer closes once the full nav is back ----------
+     Rotating a tablet past 1080px hides the burger; an open drawer (and its
+     body scroll lock) would otherwise be left with no way to close it. */
+  useEffect(() => {
+    const wide = window.matchMedia('(min-width: 1081px)')
+    const onChange = () => {
+      if (wide.matches) onCloseDrawer()
+    }
+    wide.addEventListener('change', onChange)
+    return () => wide.removeEventListener('change', onChange)
+  }, [onCloseDrawer])
 
   /* ---------- Escape closes the drawer ---------- */
   useEffect(() => {
@@ -260,24 +295,32 @@ export function HeaderNav({
           if ((e.target as HTMLElement).tagName === 'A') onCloseDrawer()
         }}
       >
-        <p className="mono" style={{ margin: '6px 0 4px', color: 'var(--dim)' }}>Products</p>
-        <a href="/products">Hybent Hiring</a>
-        <a href="/platform">Platform</a>
-        <a href="/ai">AI Capabilities</a>
-        <a href="/products/roadmap">Roadmap</a>
-        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Solutions</p>
-        <a href="/services">Services</a>
-        <a href="/industries">Industries</a>
-        <a href="/hire-talent">Hire Talent</a>
-        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Explore</p>
-        <a href="/solutions">Solutions Overview</a>
-        <a href="/customers">Customers</a>
-        <a href="/resources">Resources</a>
-        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Company</p>
-        <a href="/about">About</a>
-        <a href="/security">Security</a>
-        <a href="/careers">Careers</a>
-        <a href="/contact">Contact</a>
+        <div className="drawer__group">
+          <p className="mono">Products</p>
+          <a href="/products">Hybent Hiring</a>
+          <a href="/platform">Platform</a>
+          <a href="/ai">AI Capabilities</a>
+          <a href="/products/roadmap">Roadmap</a>
+        </div>
+        <div className="drawer__group">
+          <p className="mono">Solutions</p>
+          <a href="/services">Services</a>
+          <a href="/industries">Industries</a>
+          <a href="/hire-talent">Hire Talent</a>
+        </div>
+        <div className="drawer__group">
+          <p className="mono">Explore</p>
+          <a href="/solutions">Solutions Overview</a>
+          <a href="/customers">Customers</a>
+          <a href="/resources">Resources</a>
+        </div>
+        <div className="drawer__group">
+          <p className="mono">Company</p>
+          <a href="/about">About</a>
+          <a href="/security">Security</a>
+          <a href="/careers">Careers</a>
+          <a href="/contact">Contact</a>
+        </div>
         <div className="drawer__cta">
           <a className="btn btn-ghost btn-lg" href="/contact">Log in</a>
           <a className="btn btn-primary btn-lg" href="/contact" onPointerDown={onRipple}>Get started</a>
