@@ -1290,8 +1290,7 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 .hb-site .ab-sec--last{padding-bottom:clamp(56px,6vw,88px)}
 .hb-site .ab-head{max-width:760px;margin-bottom:clamp(22px,2.8vw,36px)}
 .hb-site .ab-head .eyebrow,
-.hb-site .ab-story .eyebrow,
-.hb-site .ab-where .eyebrow{margin-bottom:14px}
+.hb-site .ab-story .eyebrow{margin-bottom:14px}
 .hb-site .ab-card{
   position:relative;overflow:hidden;border-radius:var(--r-lg);
   background:var(--surface);border:1px solid var(--border);
@@ -1353,19 +1352,6 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 .hb-site .ab-person__name{margin-top:8px;font-size:clamp(1.25rem,1.8vw,1.55rem)}
 .hb-site .ab-person__bio{margin-top:8px;font-size:.93rem;line-height:1.6;color:var(--muted)}
 
-/* Where we are: milestones and base side by side in one panel */
-.hb-site .ab-where{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-.hb-site .ab-where > div{padding:clamp(24px,3vw,40px)}
-.hb-site .ab-where__base{border-left:1px solid var(--border)}
-.hb-site .ab-where .region{padding:11px 0}
-.hb-site .ab-where .region b{min-width:152px}
-.hb-site .ab-miles{display:grid;gap:16px;margin-top:20px}
-.hb-site .ab-miles li{display:flex;align-items:flex-start;gap:14px}
-.hb-site .ab-miles__tick{flex:none;display:grid;place-items:center;width:26px;height:26px;margin-top:2px;border-radius:8px;color:#fff;background:var(--grad-diag)}
-.hb-site .ab-miles__tick svg{width:13px;height:13px}
-.hb-site .ab-miles li > span:last-child{font-size:.88rem;line-height:1.55;color:var(--muted)}
-.hb-site .ab-miles b{display:block;font-family:var(--f-display);font-weight:600;font-size:.98rem;color:var(--text)}
-
 /* Closing CTA: one row */
 .hb-site .ab-cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:24px 40px;padding:clamp(28px,3.6vw,48px)}
 
@@ -1378,13 +1364,10 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 @media (max-width:860px){
   .hb-site .ab-offer,
   .hb-site .ab-principles,
-  .hb-site .ab-team,
-  .hb-site .ab-where{grid-template-columns:1fr}
-  .hb-site .ab-where__base{border-left:0;border-top:1px solid var(--border)}
+  .hb-site .ab-team{grid-template-columns:1fr}
 }
 @media (max-width:640px){
   .hb-site .ab-person{grid-template-columns:104px minmax(0,1fr);gap:16px;padding:14px}
-  .hb-site .ab-where .region b{min-width:110px}
   .hb-site .ab-facts dd{font-size:.92rem}
   .hb-site .ab-cta .btn{width:100%}
 }
