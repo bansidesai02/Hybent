@@ -73,7 +73,7 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
   careers: {
     title: 'Careers — build the platform everything else stands on | HYBENT',
     description:
-      'Join HYBENT early enough to shape the platform. Open roles in engineering, design, sales and customer success in Ahmedabad and remote.',
+      'Join HYBENT early enough to shape the platform. See how we work and send us your resume — we are based in Ahmedabad, India.',
   },
   contact: {
     title: 'Contact HYBENT — talk to the team',

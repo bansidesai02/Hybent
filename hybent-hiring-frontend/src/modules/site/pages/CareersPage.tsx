@@ -1,4 +1,15 @@
+import { CAREERS_OPEN } from '@/app/paths'
 import { SiteView } from '../components/SiteView'
+
+const CAREERS_EMAIL = 'info@hybent.com'
+
+/* The public apply link of the Hybent Hiring job that collects careers
+   resumes (e.g. "General Application"), as copied from the Jobs page. Unset,
+   the button falls back to email. */
+const CAREERS_APPLY_URL: string | undefined = import.meta.env.VITE_CAREERS_APPLY_URL
+const RESUME_HREF = CAREERS_APPLY_URL
+  ? `${CAREERS_APPLY_URL}${CAREERS_APPLY_URL.includes('?') ? '&' : '?'}source=careers_page`
+  : `mailto:${CAREERS_EMAIL}?subject=Careers%20%E2%80%94%20Resume`
 
 export default function CareersPage() {
   return (
@@ -16,18 +27,29 @@ export default function CareersPage() {
 
       <section className="section section--tight-pt-none" id="careers">
         <div className="wrap">    <div style={{ marginBottom: "clamp(28px,4vw,48px)" }} data-rv="up"><img className="shot shot--art" src="/hybent/shot-art.webp" width="760" height="1013" alt="Illustration of an AI-assisted software workspace with analytics, tasks and team members" loading="lazy" decoding="async" /></div>
-          <div className="grid" style={{ gap: "12px" }} data-rv="up">
-            <a className="role" href="/contact"><span><h4>Full-Stack Engineer, Hybent Hiring</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a className="role" href="/contact"><span><h4>AI/ML Engineer, Screening &amp; Parsing</h4><p className="mono">Ahmedabad or Remote · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a className="role" href="/contact"><span><h4>Product Designer</h4><p className="mono">Ahmedabad or Remote · Design</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a className="role" href="/contact"><span><h4>Founding Account Executive</h4><p className="mono">Ahmedabad · Hybrid · Sales</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a className="role" href="/contact"><span><h4>Customer Success Manager</h4><p className="mono">Ahmedabad or Remote · Customer</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a className="role" href="/contact"><span><h4>QA &amp; Release Engineer</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-          </div>
-          <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginTop: "26px" }} data-rv="up">
-            <a className="btn btn-primary" href="/contact">See all open roles <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a className="btn btn-ghost" href="/contact">Join our talent network</a>
-          </div>
+          {CAREERS_OPEN ? (
+            <>
+              <div className="grid" style={{ gap: "12px" }} data-rv="up">
+                <a className="role" href="/contact"><span><h4>Full-Stack Engineer, Hybent Hiring</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href="/contact"><span><h4>AI/ML Engineer, Screening &amp; Parsing</h4><p className="mono">Ahmedabad or Remote · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href="/contact"><span><h4>Product Designer</h4><p className="mono">Ahmedabad or Remote · Design</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href="/contact"><span><h4>Founding Account Executive</h4><p className="mono">Ahmedabad · Hybrid · Sales</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href="/contact"><span><h4>Customer Success Manager</h4><p className="mono">Ahmedabad or Remote · Customer</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href="/contact"><span><h4>QA &amp; Release Engineer</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+              </div>
+              <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginTop: "26px" }} data-rv="up">
+                <a className="btn btn-primary" href="/contact">See all open roles <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="btn btn-ghost" href="/contact">Join our talent network</a>
+              </div>
+            </>
+          ) : (
+            <div className="card" style={{ padding: "clamp(24px,3vw,36px)" }} data-rv="up">
+              <span className="chip" style={{ background: "rgba(34,207,255,0.12)", color: "var(--cyan)", fontWeight: 600 }}>Roles opening soon</span>
+              <h3 className="h-sm" style={{ marginTop: "16px" }}>No open roles right now</h3>
+              <p className="lead" style={{ marginTop: "12px", maxWidth: "60ch" }}>Specific roles will be listed here as they open. Upload your resume today, and we'll reach out first when a role matches your skills.</p>
+              <a className="btn btn-primary" href={RESUME_HREF} style={{ marginTop: "24px" }}>Send your resume <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            </div>
+          )}
         </div>
       </section>
 

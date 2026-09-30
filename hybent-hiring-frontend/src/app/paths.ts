@@ -37,6 +37,13 @@ export const SITE = {
  */
 export const SHOW_CUSTOMERS = false
 
+/**
+ * No specific roles are open at launch. While false, /careers shows a
+ * "roles opening soon" block with a resume email instead of the role list.
+ * Flip to true once the roles on that page are real.
+ */
+export const CAREERS_OPEN = false
+
 /** Marketing surface for each product that lives inside the Hybent site. */
 export const PRODUCTS = {
   hiring: '/products/hiring',
