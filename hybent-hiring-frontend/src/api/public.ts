@@ -20,6 +20,8 @@ export const publicApi = {
       expected_ctc: string
       notice_period: string
       resume: File
+      /** Where the link was opened from, e.g. `careers_page`. Defaults to LinkedIn. */
+      source?: string
     }
   ) => {
     const form = new FormData()
@@ -31,6 +33,7 @@ export const publicApi = {
     form.append('expected_ctc', data.expected_ctc)
     form.append('notice_period', data.notice_period)
     form.append('resume', data.resume)
+    if (data.source) form.append('source', data.source)
     return axios.post(`/api/public/jobs/${orgSlug}/${jobId}/apply`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

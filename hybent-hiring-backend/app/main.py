@@ -99,8 +99,11 @@ app = FastAPI(
     description="AI-powered recruitment automation platform",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # The interactive docs map every endpoint for anyone who finds them, so
+    # they are only served outside production.
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
 
 perf_logger = logging.getLogger("api_performance")

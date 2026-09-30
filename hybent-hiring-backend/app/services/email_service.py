@@ -255,7 +255,7 @@ def _get_calendar_invite_template(
     when: str,
     organizer: str,
     guests: list[str],
-    meeting_link: str,
+    meeting_link: str | None,
     date_month: str,
     date_day: str,
     date_weekday: str,
@@ -268,6 +268,19 @@ def _get_calendar_invite_template(
     # Ensure meeting link is clickable by adding protocol if missing
     if meeting_link and not meeting_link.startswith('http'):
         meeting_link = 'https://' + meeting_link
+
+    if meeting_link:
+        join_html = f"""<a href="{meeting_link}" class="btn-blue">Join with Google Meet</a>
+
+                    <div class="meet-link">
+                        <b>Meeting link</b><br/>
+                        <a href="{meeting_link}">{meeting_link.replace('https://', '')}</a>
+                    </div>"""
+    else:
+        join_html = """<div class="meet-link">
+                        <b>Meeting link</b><br/>
+                        The meeting link will be shared by the recruiter before the interview.
+                    </div>"""
 
     guests_html = "".join([f'<div style="margin-bottom: 4px;">{g}</div>' for g in guests])
     
@@ -321,7 +334,6 @@ def _get_calendar_invite_template(
                 </div>
                 <div class="header-info">
                     <h1 class="event-title">{title}</h1>
-                    <a href="#" class="calendar-link">View on Google Calendar</a>
                     <div style="font-size: 13px; color: #70757a; margin-top: 8px;">
                         {date_weekday}, {date_month} {date_day}, {date_year}
                     </div>
@@ -338,12 +350,7 @@ def _get_calendar_invite_template(
                         {guests_html}
                     </div>
 
-                    <a href="{meeting_link}" class="btn-blue">Join with Google Meet</a>
-                    
-                    <div class="meet-link">
-                        <b>Meeting link</b><br/>
-                        <a href="{meeting_link}">{meeting_link.replace('https://', '')}</a>
-                    </div>
+                    {join_html}
                 </div>
                 <div style="clear: both;"></div>
             </div>
@@ -388,7 +395,7 @@ def send_interviewer_invite(
     job_role: str,
     company_name: str,
     scheduled_at: str,
-    meeting_link: str,
+    meeting_link: str | None,
     duration_minutes: int,
     interview_type: str,
     org_logo_url: str | None = None,
@@ -402,7 +409,7 @@ def send_interviewer_invite(
         when=scheduled_at,
         organizer=f"{company_name} Recruiting",
         guests=[interviewer_email, candidate_name],
-        meeting_link=meeting_link or "#",
+        meeting_link=meeting_link,
         date_month=month,
         date_day=day,
         date_weekday=weekday,
@@ -421,7 +428,7 @@ def send_interview_invite(
     job_role: str,
     company_name: str,
     scheduled_at: str,
-    meeting_link: str,
+    meeting_link: str | None,
     duration_minutes: int = 60,
     interview_type: str = "video",
     org_logo_url: str | None = None,
@@ -435,7 +442,7 @@ def send_interview_invite(
         when=scheduled_at,
         organizer=f"{company_name} Recruiting",
         guests=[candidate_email],
-        meeting_link=meeting_link or "#",
+        meeting_link=meeting_link,
         date_month=month,
         date_day=day,
         date_weekday=weekday,
@@ -622,12 +629,14 @@ def send_interview_reschedule(
     company_name: str,
     old_time: str,
     new_time: str,
-    meeting_link: str,
+    meeting_link: str | None,
     org_logo_url: str | None = None,
     email_account: "EmailAccount | None" = None,
 ) -> None:
     subject = f"Interview Rescheduled: {candidate_name} — {round_name} | {job_role}"
     fname = to_name.split()[0].title() if to_name else "Team Member"
+    link_text = meeting_link or "Will be shared by the recruiter before the interview."
+    join_button = f'<a href="{meeting_link}" class="button">Join Rescheduled Interview</a>' if meeting_link else ""
     
     content = f"""
         <h2 class="title">Interview Rescheduled</h2>
@@ -644,11 +653,11 @@ def send_interview_reschedule(
             </div>
             <div>
                 <div class="info-label">Meeting URL</div>
-                <div style="font-size: 14px; font-weight: 600; word-break: break-all; color: #4C6FFF;">{meeting_link}</div>
+                <div style="font-size: 14px; font-weight: 600; word-break: break-all; color: #4C6FFF;">{link_text}</div>
             </div>
         </div>
  
-        <a href="{meeting_link}" class="button">Join Rescheduled Interview</a>
+        {join_button}
     """
     send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 

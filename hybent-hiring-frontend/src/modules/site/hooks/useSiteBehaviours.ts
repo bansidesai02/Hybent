@@ -195,35 +195,6 @@ export function useSiteBehaviours(routeKey: string) {
       })
     }
 
-    /* ---------- Forms (demo handlers) ---------- */
-    const wireForm = (formId: string, toastId: string, emailId: string) => {
-      const form = document.getElementById(formId) as HTMLFormElement | null
-      const toast = document.getElementById(toastId)
-      if (!form || !toast) return
-      let hideTimer: number | undefined
-      const onSubmit = (e: Event) => {
-        e.preventDefault()
-        const email = document.getElementById(emailId) as HTMLInputElement | null
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.value)) {
-          email.focus()
-          email.style.borderColor = 'rgba(255,107,129,.7)'
-          return
-        }
-        if (email) email.style.borderColor = ''
-        toast.classList.add('on')
-        form.reset()
-        window.clearTimeout(hideTimer)
-        hideTimer = window.setTimeout(() => toast.classList.remove('on'), 5000)
-      }
-      form.addEventListener('submit', onSubmit)
-      cleanups.push(() => {
-        window.clearTimeout(hideTimer)
-        form.removeEventListener('submit', onSubmit)
-      })
-    }
-    // The contact form is a React component (components/ContactForm) that really sends.
-    wireForm('newsForm', 'newsToast', 'nf-email')
-
     /* ---------- FAQ: one open at a time ---------- */
     const faqs = Array.from(document.querySelectorAll<HTMLDetailsElement>('.faq details'))
     faqs.forEach((d) => {

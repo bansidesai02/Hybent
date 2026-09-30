@@ -12,7 +12,7 @@ const STORAGE_KEY = 'hybent_cookie_consent'
 export function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false)
   const [showCustomizer, setShowCustomizer] = useState(false)
-  const [analytics, setAnalytics] = useState(true)
+  const [analytics, setAnalytics] = useState(false)
   const [marketing, setMarketing] = useState(false)
 
   useEffect(() => {
@@ -156,7 +156,7 @@ export function CookieBanner() {
                   margin: 0,
                 }}
               >
-                HYBENT uses essential cookies to ensure security, performance, and authentication across our AI recruitment platform. We also use optional analytics cookies to improve our services.{' '}
+                HYBENT uses essential cookies to ensure security, performance, and authentication across our AI recruitment platform. We do not use analytics or marketing cookies today.{' '}
                 <a
                   href="/cookies"
                   style={{

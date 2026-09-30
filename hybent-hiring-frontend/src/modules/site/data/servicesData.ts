@@ -818,7 +818,7 @@ export const SERVICES_DATA: Record<string, ServiceDetail> = {
         industry: 'Enterprise HR Tech',
         challenge: 'Blocked from closing Fortune 500 deals due to lack of a verified VPAT and keyboard navigation flaws.',
         solution: 'Conducted full manual screen reader audit, remediated 120+ issues, and produced a certified VPAT 2.4 report.',
-        outcome: 'Unblocked $2.4M in enterprise enterprise contracts and passed third-party client security reviews.',
+        outcome: 'Unblocked $2.4M in enterprise contracts and passed third-party client security reviews.',
       },
       {
         title: 'Healthcare Patient Portal Usability Overhaul',
@@ -1465,13 +1465,13 @@ export const SERVICES_DATA: Record<string, ServiceDetail> = {
     categoryLabel: 'Grow & Scale',
     badge: 'Vetted Senior Engineers',
     summary:
-      'Scale your engineering organization on-demand with pre-vetted top 1% software developers, cloud architects, QA leads, and AI engineers integrated into your daily workflow.',
-    heroHeadline: 'Scale Engineering Capacity with Top 1% Dedicated Talent',
+      'Scale your engineering organization on-demand with pre-vetted software developers, cloud architects, QA leads, and AI engineers integrated into your daily workflow.',
+    heroHeadline: 'Scale Engineering Capacity with Vetted Dedicated Talent',
     heroSubheadline:
-      'Eliminate months of hiring friction. We embed rigorously vetted senior full-stack developers, cloud architects, and data engineers directly into your sprint cycles within 48 to 72 hours.',
+      'Eliminate months of hiring friction. We embed rigorously vetted senior full-stack developers, cloud architects, and data engineers directly into your sprint cycles.',
     primaryCta: 'Request Talent Profiles',
     secondaryCta: 'Explore Tech Specializations',
-    trustChips: ['Top 1% Vetted Talent', '48-Hour Onboarding', 'Zero Recruitment Fees', 'Timezone Aligned'],
+    trustChips: ['Vetted Senior Talent', 'Fast Onboarding', 'Zero Recruitment Fees', 'Timezone Aligned'],
     visualType: 'staff-pod',
 
     challenges: [
@@ -1501,20 +1501,20 @@ export const SERVICES_DATA: Record<string, ServiceDetail> = {
       {
         title: 'Rigorous 4-Stage Technical Vetting',
         description: 'Every engineer passes live coding assessments, system architecture evaluations, and deep behavioral interviews.',
-        metric: 'Top 1%',
-        metricLabel: 'Acceptance Rate',
+        metric: '4-Stage',
+        metricLabel: 'Technical Vetting',
       },
       {
-        title: 'Rapid 48-Hour Team Onboarding',
-        description: 'Review hand-picked candidate profiles within 24 hours and interview them within 48 hours for immediate deployment.',
-        metric: '48h',
-        metricLabel: 'Average Time to Deploy',
+        title: 'Rapid Team Onboarding',
+        description: 'Review hand-picked candidate profiles shortly after a discovery call and interview them on your own schedule.',
+        metric: 'Fast',
+        metricLabel: 'Shortlist to Start',
       },
       {
-        title: 'Risk-Free 2-Week Trial Period',
-        description: 'Evaluate your augmented engineer directly inside your codebase for two weeks with zero financial commitment if unsatisfied.',
-        metric: '14-Day',
-        metricLabel: 'Risk-Free Evaluation Window',
+        title: 'Flexible Engagement Terms',
+        description: 'Start with one engineer on a well-scoped piece of work, then scale the team up or down as your roadmap changes.',
+        metric: 'Flexible',
+        metricLabel: 'Scale Up or Down',
       },
     ],
 
@@ -1688,12 +1688,12 @@ export const SERVICES_DATA: Record<string, ServiceDetail> = {
       {
         question: 'How fast can we interview and onboard developers?',
         answer:
-          'We typically provide tailored, pre-vetted candidate resumes within 24 to 48 hours. Once you complete your interview and select a candidate, they can start within 3 to 5 business days.',
+          'After a short discovery call we share tailored, pre-vetted candidate profiles for you to interview. Start dates are agreed with you once you select a candidate.',
       },
       {
         question: 'What happens if a developer is not the right fit for our team?',
         answer:
-          'We offer a 14-day risk-free trial period. If you are not completely satisfied with an engineer’s performance or cultural fit within the first two weeks, we will replace them immediately at zero additional cost.',
+          'Tell us early. We review the fit with you and, where it makes sense, propose another engineer. Replacement terms are agreed in your engagement contract.',
       },
       {
         question: 'Do the augmented developers work exclusively on our project?',
@@ -1722,7 +1722,7 @@ export const SERVICES_DATA: Record<string, ServiceDetail> = {
     seo: {
       title: 'IT Staff Augmentation & Dedicated Engineers | HYBENT',
       description:
-        'Scale your engineering team with top 1% pre-vetted software developers, cloud architects, and AI engineers. Onboard within 48 hours with zero recruiting fees.',
+        'Scale your engineering team with pre-vetted software developers, cloud architects, and AI engineers. Fast onboarding with zero recruiting fees.',
       keywords: ['IT staff augmentation', 'hire dedicated developers', 'remote software engineers', 'tech staffing services', 'embedded engineering pods', 'hire React developers'],
     },
   },

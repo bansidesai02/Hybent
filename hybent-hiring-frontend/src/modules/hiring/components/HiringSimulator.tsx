@@ -237,7 +237,7 @@ export function HiringSimulator() {
 
   return (
     <div
-      className="card card--flat"
+      className="card card--flat sim-shell"
       style={{
         width: '100%',
         maxWidth: '920px',
@@ -266,20 +266,23 @@ export function HiringSimulator() {
         }
       `}} />
 
-      {/* Top Window Chrome Bar */}
+      {/* Top Window Chrome Bar (wraps on phones so the status badge never overflows) */}
       <div
+        className="sim-bar"
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: '8px',
           padding: '10px 16px',
           borderBottom: '1px solid var(--border)',
           background: 'rgba(241, 245, 249, 0.75)',
           backdropFilter: 'blur(10px)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', gap: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: '5px', flex: 'none' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF5F56', display: 'inline-block' }} />
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFBD2E', display: 'inline-block' }} />
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#27C93F', display: 'inline-block' }} />
@@ -291,13 +294,17 @@ export function HiringSimulator() {
               color: '#475569',
               fontWeight: 600,
               marginLeft: '6px',
+              minWidth: 0,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             hybent-hiring://autopilot.simulator
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
           <span
             style={{
               display: 'inline-flex',
@@ -311,12 +318,14 @@ export function HiringSimulator() {
               padding: '2px 8px',
               borderRadius: '20px',
               fontWeight: 600,
+              whiteSpace: 'nowrap',
             }}
           >
             <span
               style={{
                 width: '5px',
                 height: '5px',
+                flex: 'none',
                 borderRadius: '50%',
                 background: scanState !== 'complete' ? cyan : success,
                 animation: scanState !== 'complete' ? 'pulse-anim-sim 0.6s infinite' : 'none',

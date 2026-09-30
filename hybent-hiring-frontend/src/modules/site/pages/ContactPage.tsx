@@ -81,22 +81,6 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
-
-      <section className="section section--tight">
-        <div className="wrap">
-          <div className="news" data-rv="scale">
-            <p className="eyebrow" style={{ justifyContent: "center" }}><span className="bars"><i></i><i></i><i></i></span><span>The build log</span></p>
-            <h2 className="h-md" style={{ maxWidth: "22ch", marginInline: "auto" }}>Watch the ecosystem get built</h2>
-            <p className="lead center" style={{ marginTop: "16px", maxWidth: "52ch" }}>One email a month: what shipped, what slipped, and what we learned building it. No campaigns, no drip sequences.</p>
-            <form className="news__form" id="newsForm" noValidate>
-              <label htmlFor="nf-email" className="visually-hidden" style={{ position: "absolute", left: "-9999px" }}>Email address</label>
-              <input id="nf-email" type="email" placeholder="you@company.com" required />
-              <button className="btn btn-primary" type="submit">Subscribe</button>
-            </form>
-            <p className="toast" id="newsToast" role="status">You are on the list. The next issue goes out at the start of the month.</p>
-          </div>
-        </div>
-      </section>
     </SiteView>
   )
 }

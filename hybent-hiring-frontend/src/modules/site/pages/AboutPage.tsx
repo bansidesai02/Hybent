@@ -42,20 +42,6 @@ const TEAM = [
   },
 ]
 
-const MILESTONES = [
-  { title: 'First product live', text: 'Hybent Hiring is in production with our earliest customers' },
-  { title: 'AI-first development', text: 'Every product built on the same AI and platform foundation' },
-  { title: 'Growing team, growing ecosystem', text: 'Hiring engineers and designers to build what comes after Hybent Hiring' },
-]
-
-const REGIONS = [
-  { place: 'Ahmedabad, India', note: 'Headquarters · engineering, product & design' },
-  { place: 'India', note: 'Our primary market today' },
-  { place: 'Remote', note: 'Distributed team on IST core hours' },
-  { place: 'Worldwide', note: 'Hybent Hiring is available to teams in any region' },
-  { place: 'Expansion', note: 'EMEA and Americas presence — planned' },
-]
-
 const Bars = () => <span className="bars"><i></i><i></i><i></i></span>
 
 export default function AboutPage() {
@@ -174,34 +160,6 @@ export default function AboutPage() {
                 </div>
               </article>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="section ab-sec" id="base">
-        <div className="wrap">
-          <div className="ab-card ab-where" data-rv="up">
-            <div>
-              <p className="eyebrow"><Bars /><span>Where we are</span></p>
-              <h2 className="h-md">Company milestones</h2>
-              <ul className="ab-miles">
-                {MILESTONES.map((m) => (
-                  <li key={m.title}>
-                    <span className="ab-miles__tick"><svg aria-hidden="true"><use href="#i-check" /></svg></span>
-                    <span><b>{m.title}</b>{m.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="ab-where__base">
-              <p className="eyebrow"><Bars /><span>Our base</span></p>
-              <h2 className="h-md">Built in India, for teams anywhere</h2>
-              <div style={{ marginTop: "14px" }}>
-                {REGIONS.map((r) => (
-                  <div className="region" key={r.place}><b>{r.place}</b><span>{r.note}</span></div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </section>

@@ -97,8 +97,8 @@ const ALL_SERVICES: ServiceItem[] = [
     title: 'IT Staff Augmentation Services',
     category: 'grow',
     categoryLabel: 'Grow & Scale',
-    description: 'Pre-vetted top 1% engineering talent, on-demand skill matching, rapid onboarding, and seamless team integration.',
-    highlights: ['Top 1% Talent', 'Rapid Onboarding', 'Timezone Aligned'],
+    description: 'Pre-vetted engineering talent, on-demand skill matching, rapid onboarding, and seamless team integration.',
+    highlights: ['Vetted Talent', 'Rapid Onboarding', 'Timezone Aligned'],
     iconSvg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -439,7 +439,7 @@ export default function ServicesPage() {
               <em>Enterprise Reliability</em>
             </div>
             <div className="card card--flat stat" style={{ padding: "18px 20px" }}>
-              <b>Top 1%</b>
+              <b>Vetted</b>
               <span>Senior Talent</span>
               <em>Engineers &amp; Architects</em>
             </div>

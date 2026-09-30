@@ -1,4 +1,9 @@
+import type { CSSProperties } from 'react'
 import { AiRecruitmentWorkflowAnimation } from '../components/ui/AiRecruitmentWorkflowAnimation'
+
+/* Lattice nodes are placed through custom properties rather than left/top,
+   so the phone layout can pull them towards the core from the stylesheet. */
+const at = (x: string, y: string) => ({ '--x': x, '--y': y }) as CSSProperties
 
 export default function HomePage() {
   return (
@@ -41,11 +46,11 @@ export default function HomePage() {
                 <path className="spark" d="M50 50 L46 92" />
               </svg>
               <div className="lattice__core"><img src="/assets/hybent-mark.png" alt="HYBENT platform core" /></div>
-              <div className="node node--live" style={{ left: "18%", top: "26%" }}><i></i>Hybent Hiring</div>
-              <div className="node" style={{ left: "84%", top: "30%" }}><i></i>CRM · soon</div>
-              <div className="node" style={{ left: "14%", top: "62%" }}><i></i>HRMS · soon</div>
-              <div className="node" style={{ left: "88%", top: "68%" }}><i></i>ERP · soon</div>
-              <div className="node" style={{ left: "46%", top: "92%" }}><i></i>Analytics · soon</div>
+              <div className="node node--live" style={at("18%", "26%")}><i></i>Hybent Hiring</div>
+              <div className="node" style={at("84%", "30%")}><i></i>CRM · soon</div>
+              <div className="node" style={at("14%", "62%")}><i></i>HRMS · soon</div>
+              <div className="node" style={at("88%", "68%")}><i></i>ERP · soon</div>
+              <div className="node" style={at("46%", "92%")}><i></i>Analytics · soon</div>
             </div>
           </div>
         </div>
@@ -96,16 +101,18 @@ export default function HomePage() {
             <h2 className="h-lg">Start with hiring. Build on one platform.</h2>
             <p className="lead">Hybent Hiring is live and carrying real hiring work today. Underneath it sits the platform every product we ship after this one will stand on.</p>
           </div>
-          <div className="grid g3">
-            <article className="card" data-rv="up">
+          <div className="grid g3 feature-grid">
+            <article className="card feature-card" data-rv="up">
               <div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
-              <div style={{ marginBottom: '20px' }}>
+              <div className="feature-card__demo">
                 <AiRecruitmentWorkflowAnimation />
               </div>
-              <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
-              <h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Hybent Hiring <span className="badge badge--live"><i className="dot dot--pulse"></i>Live</span></h3>
-              <p className="small">Our AI recruitment platform. Resume parsing, AI screening, interview management, recruiter copilot and a candidate portal in one pipeline.</p>
-              <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/products">Explore Hybent Hiring <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
+              <div className="feature-card__body">
+                <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
+                <h3 className="h-sm" style={{ margin: "16px 0 8px" }}>Hybent Hiring <span className="badge badge--live"><i className="dot dot--pulse"></i>Live</span></h3>
+                <p className="small">Our AI recruitment platform. Resume parsing, AI screening, interview management, recruiter copilot and a candidate portal in one pipeline.</p>
+                <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/products">Explore Hybent Hiring <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
+              </div>
             </article>
             <article className="card" data-rv="up" data-delay="90"><div className="card__glow" style={{ top: "-40px", right: "-40px" }}></div>
               <svg className="fig fig--thumb" role="img" aria-label="Platform layer stack: products, intelligence, services, data" viewBox="0 0 300 140" width="300" height="140">
@@ -148,7 +155,7 @@ export default function HomePage() {
               <p style={{ marginTop: "18px" }}><a className="link-arrow" href="/products/roadmap">View the roadmap <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a></p>
             </article>
           </div>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "32px" }} data-rv="up">
+          <div className="btn-row" style={{ marginTop: "32px" }} data-rv="up">
             <a className="btn btn-primary" href="/products">View all products <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             <a className="btn btn-ghost" href="/contact">Book a demo</a>
           </div>
@@ -201,7 +208,7 @@ export default function HomePage() {
 
       <section className="section section--tight-pt-none" id="company">
         <div className="wrap figrow" data-rv="up">
-          <div className="figpanel"><svg className="fig" role="img" aria-label="How Hybent Hiring processes an application: apply, parse, screen, shortlist, interview, offer" viewBox="0 0 700 190" width="700" height="190">
+          <div className="figpanel figpanel--flow"><svg className="fig" role="img" aria-label="How Hybent Hiring processes an application: apply, parse, screen, shortlist, interview, offer" viewBox="0 0 700 190" width="700" height="190">
             <line x1="60" y1="86" x2="646" y2="86" stroke="var(--border)" strokeWidth="1.6" />
             <g>
 
@@ -244,7 +251,19 @@ export default function HomePage() {
             <g fontFamily="IBM Plex Mono" fontSize="7.5" letterSpacing="1" fill="var(--cyan)" textAnchor="middle">
               <text x="182" y="34">AI</text><text x="304" y="34">AI</text><text x="548" y="34">AI</text>
             </g>
-          </svg></div>
+          </svg>
+            {/* Phone layout of the same flow. The diagram's labels are too
+                small to read once it is scaled to a phone's width, so only
+                one of the two is displayed at any size. */}
+            <ol className="flow-steps" aria-label="How Hybent Hiring processes an application">
+              <li><b>01</b>Apply</li>
+              <li><b>02</b>Parse<em>AI</em></li>
+              <li><b>03</b>Screen<em>AI</em></li>
+              <li><b>04</b>Shortlist</li>
+              <li><b>05</b>Interview<em>AI</em></li>
+              <li className="is-done"><b>06</b>Offer</li>
+            </ol>
+          </div>
         </div>
         <div className="wrap split pt-12">
           <div data-rv="left">
@@ -252,7 +271,7 @@ export default function HomePage() {
             <h2 className="h-lg">Enterprise software should remove work, not quietly create more of it.</h2>
             <p className="lead" style={{ marginTop: "24px" }}>HYBENT is an enterprise software company with a single purpose: build intelligent products that simplify how businesses operate, using AI that sits inside the work rather than alongside it.</p>
             <p className="lead" style={{ marginTop: "16px" }}>We are at the beginning of a long build. Hybent Hiring, our AI recruitment platform, is live today. Everything that follows will share the same platform, the same data model and the same design language — so each product makes the one before it more useful. We started with hiring because it is where every company's next decade begins.</p>
-            <div style={{ display: "flex", gap: "12px", marginTop: "32px", flexWrap: "wrap" }}>
+            <div className="btn-row" style={{ marginTop: "32px" }}>
               <a className="btn btn-ghost" href="/platform/ecosystem">How the platform works</a>
               <a className="link-arrow" href="/about/timeline" style={{ alignSelf: "center", marginLeft: "6px" }}>Our story <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </div>
@@ -294,7 +313,7 @@ export default function HomePage() {
                 <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Get started</span></p>
                 <h2 className="h-lg">See what Hybent Hiring does to your pipeline</h2>
                 <p className="lead" style={{ marginTop: "18px" }}>A working demo on your own roles, not a slide deck. Tell us how you hire today and we will show you the difference in twenty minutes.</p>
-                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "30px" }}>
+                <div className="btn-row" style={{ marginTop: "30px" }}>
                   <a className="btn btn-primary btn-lg" href="/contact">Book a demo <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
                   <a className="btn btn-ghost btn-lg" href="/products">Explore Hybent Hiring</a>
                 </div>

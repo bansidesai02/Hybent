@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { AlertTriangle, Check, CheckCircle2, Loader2, MapPin } from 'lucide-react'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
@@ -72,6 +72,8 @@ function Prose({ title, body }: { title: string; body: string }) {
 
 export default function PublicApplyPage() {
   const { orgSlug, jobId } = useParams<{ orgSlug: string; jobId: string }>()
+  // `?source=careers_page` from the Hybent careers page; the backend ignores unknown values.
+  const source = useSearchParams()[0].get('source') || undefined
   const [job, setJob] = useState<PublicJob | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -126,6 +128,7 @@ export default function PublicApplyPage() {
         expected_ctc: expectedCtc.trim(),
         notice_period: noticePeriod,
         resume,
+        source,
       })
       setSubmitted(true)
     } catch (err: any) {

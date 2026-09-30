@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 
 CONTACT_EMAIL = "info@hybent.com"
 
+# Where a shared apply link was opened from. Links were built for LinkedIn
+# posts, so anything missing or unknown is recorded as LinkedIn.
+PUBLIC_APPLY_SOURCES = {"linkedin", "careers_page"}
+
 
 async def _get_active_job_or_404(db: DB, org_slug: str, job_id: uuid.UUID) -> Job:
     org = (await db.execute(
@@ -71,6 +75,7 @@ async def apply_to_public_job(
     expected_ctc: str = Form(...),
     notice_period: str = Form(...),
     resume: UploadFile = File(...),
+    source: str | None = Form(None),
 ):
     """
     Public, unauthenticated job application — the destination of shareable
@@ -97,6 +102,8 @@ async def apply_to_public_job(
         )
     if len(current_ctc) > 100 or len(expected_ctc) > 100 or len(notice_period) > 50:
         raise HTTPException(status_code=400, detail="CTC or notice period is too long.")
+    if source not in PUBLIC_APPLY_SOURCES:
+        source = "linkedin"
 
     job = await _get_active_job_or_404(db, org_slug, job_id)
     email = email.strip().lower()
@@ -116,7 +123,7 @@ async def apply_to_public_job(
             full_name=full_name,
             phone=phone,
             linkedin_url=linkedin_url,
-            source="linkedin",
+            source=source,
         )
         db.add(candidate)
         await db.flush()
@@ -164,7 +171,7 @@ async def apply_to_public_job(
         job_id=job.id,
         candidate_id=candidate.id,
         stage=ApplicationStage.APPLIED,
-        source="linkedin",
+        source=source,
     )
     db.add(application)
     await db.commit()
@@ -174,7 +181,8 @@ async def apply_to_public_job(
         [UserRole.ADMIN, UserRole.RECRUITER],
         NotificationType.APPLICATION_RECEIVED,
         "New Job Application",
-        f"{candidate.full_name} has applied to '{job.title}' via a shared application link.",
+        f"{candidate.full_name} has applied to '{job.title}' via "
+        + ("the careers page." if source == "careers_page" else "a shared application link."),
         {"candidate_id": str(candidate.id), "job_id": str(job.id)},
     )
 

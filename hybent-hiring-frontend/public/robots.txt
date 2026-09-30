@@ -9,6 +9,7 @@ Disallow: /verify-email
 Disallow: /create-password
 Disallow: /onboarding/
 Disallow: /pre-screening/
+Disallow: /pay/
 Disallow: /dev/
 
 Sitemap: https://hybent.com/sitemap.xml
