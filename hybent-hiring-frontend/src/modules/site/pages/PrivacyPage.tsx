@@ -594,11 +594,11 @@ export default function PrivacyPage() {
                 </p>
 
                 <ul style={{ color: 'var(--text, #374151)', lineHeight: 1.7, paddingLeft: '20px' }}>
-                  <li style={{ marginBottom: '8px' }}><strong>Cloud Infrastructure Providers:</strong> Secure multi-region hosting and CDN delivery (e.g. AWS, Cloudflare).</li>
-                  <li style={{ marginBottom: '8px' }}><strong>Analytics Services:</strong> Website performance monitoring and aggregated usage analytics.</li>
+                  <li style={{ marginBottom: '8px' }}><strong>Cloud Infrastructure Providers:</strong> Application hosting (Render), managed PostgreSQL database (Supabase) and website hosting (Hostinger).</li>
+                  <li style={{ marginBottom: '8px' }}><strong>AI Model Providers:</strong> Resume parsing and candidate evaluation are processed through third-party AI model APIs (Google Gemini, Groq and Mistral AI).</li>
                   <li style={{ marginBottom: '8px' }}><strong>Email &amp; Communication Delivery:</strong> Enterprise email API routing for system notifications and support responses.</li>
-                  <li style={{ marginBottom: '8px' }}><strong>Authentication &amp; Identity:</strong> Secure identity management services (where implemented).</li>
-                  <li><strong>Payment Processing:</strong> PCI-DSS compliant payment gateways (if implemented in future expansions).</li>
+                  <li style={{ marginBottom: '8px' }}><strong>Authentication &amp; Identity:</strong> Google sign-in and Google Calendar, when you choose to connect them.</li>
+                  <li><strong>Payment Processing:</strong> Subscription payments are processed by Stripe, a PCI-DSS compliant payment gateway. We do not store card details.</li>
                 </ul>
               </article>
 

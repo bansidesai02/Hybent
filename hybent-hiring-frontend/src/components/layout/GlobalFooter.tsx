@@ -1,6 +1,15 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { SHOW_CUSTOMERS } from '@/app/paths'
 
+/* Only accounts that exist get an icon: an empty url hides it, and with no
+   urls at all the whole row is left out rather than linking back home. */
+const SOCIAL_LINKS = [
+  { label: 'LinkedIn', icon: 'i-in', url: '' },
+  { label: 'X', icon: 'i-x', url: '' },
+  { label: 'GitHub', icon: 'i-gh', url: '' },
+  { label: 'YouTube', icon: 'i-yt', url: '' },
+].filter((link) => link.url)
+
 /* --d orders each letter's entrance: "Where" types in left to right, "meets"
    bursts out from its middle, and the two brand words ignite outward from
    "meets" — "vision" right to left, "innovation" left to right. */
@@ -97,12 +106,13 @@ export function GlobalFooter() {
           <div className="footer__brand">
             <img className="wm t-dark" src="/hybent/hybent-wordmark-dark.png" alt="HYBENT" /><img className="wm t-light" src="/hybent/hybent-wordmark-light.png" alt="HYBENT" />
             <p className="small" style={{ maxWidth: "34ch" }}>Intelligent enterprise software, built AI-first. Headquartered in Ahmedabad, India.</p>
-            <div className="socials" style={{ marginTop: "22px" }}>
-              <a href="/" aria-label="LinkedIn"><svg aria-hidden="true"><use href="#i-in" /></svg></a>
-              <a href="/" aria-label="X"><svg aria-hidden="true"><use href="#i-x" /></svg></a>
-              <a href="/" aria-label="GitHub"><svg aria-hidden="true"><use href="#i-gh" /></svg></a>
-              <a href="/" aria-label="YouTube"><svg aria-hidden="true"><use href="#i-yt" /></svg></a>
-            </div>
+            {SOCIAL_LINKS.length > 0 && (
+              <div className="socials" style={{ marginTop: "22px" }}>
+                {SOCIAL_LINKS.map((link) => (
+                  <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer" aria-label={link.label}><svg aria-hidden="true"><use href={`#${link.icon}`} /></svg></a>
+                ))}
+              </div>
+            )}
           </div>
           <div><h5>Products</h5><ul>
             <li><a href="/products/hiring">Hybent Hiring</a></li>

@@ -79,9 +79,9 @@ export default function PlatformPage() {
                 <hr className="rule" style={{ margin: "26px 0" }} />
                 <p className="mono" style={{ marginBottom: "18px" }}>Runs on</p>
                 <div className="eco__mods">
-                  <span className="mod">TypeScript</span><span className="mod">Go</span><span className="mod">Python</span>
-                  <span className="mod">PostgreSQL</span><span className="mod">Kafka</span><span className="mod">Redis</span>
-                  <span className="mod">Kubernetes</span><span className="mod">Terraform</span><span className="mod">OpenTelemetry</span>
+                  <span className="mod">TypeScript</span><span className="mod">React</span><span className="mod">Python</span>
+                  <span className="mod">FastAPI</span><span className="mod">PostgreSQL</span><span className="mod">Redis</span>
+                  <span className="mod">Celery</span><span className="mod">Docker</span><span className="mod">Supabase</span>
                 </div>
               </div>
                 <div className="card card--flat codecard" style={{ padding: "clamp(22px,2.6vw,30px)", marginTop: "16px" }}>

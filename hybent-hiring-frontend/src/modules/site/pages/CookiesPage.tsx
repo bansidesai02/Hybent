@@ -333,7 +333,7 @@ export default function CookiesPage() {
                     </div>
                     <h4 style={{ margin: '4px 0 8px', fontSize: '1.02rem', fontWeight: 700 }}>Analytics &amp; Performance</h4>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
-                      Collect aggregated, non-identifiable usage statistics to evaluate page load times, resume parsing performance speed, and feature engagement patterns.
+                      Collect aggregated, non-identifiable usage statistics to evaluate page load times, resume parsing performance speed, and feature engagement patterns. Not currently in use; we will update this policy and ask for consent before enabling them.
                     </p>
                   </div>
 
@@ -353,7 +353,7 @@ export default function CookiesPage() {
                     </div>
                     <h4 style={{ margin: '4px 0 8px', fontSize: '1.02rem', fontWeight: 700 }}>Marketing &amp; Communication</h4>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
-                      Enables targeted announcements regarding new product features, enterprise demo invites, and recruitment webinars tailored to your sector.
+                      Enables targeted announcements regarding new product features, enterprise demo invites, and recruitment webinars tailored to your sector. Not currently in use.
                     </p>
                   </div>
                 </div>
@@ -415,7 +415,7 @@ export default function CookiesPage() {
                     <strong style={{ color: '#0f172a' }}>Infrastructure &amp; Security Providers:</strong> Employed to detect rate limits, DDoS threats, and ensure continuous application availability.
                   </div>
                   <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <strong style={{ color: '#0f172a' }}>Product Analytics Platforms:</strong> Aggregated, non-identifiable usage data that helps us understand which features are working and which need improvement.
+                    <strong style={{ color: '#0f172a' }}>Product Analytics Platforms:</strong> Aggregated, non-identifiable usage data that helps us understand which features are working and which need improvement. Not currently in use.
                   </div>
                   <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <strong style={{ color: '#0f172a' }}>Customer Support Tooling:</strong> Powers live chat and help-desk widgets so support conversations and ticket history persist across your session.

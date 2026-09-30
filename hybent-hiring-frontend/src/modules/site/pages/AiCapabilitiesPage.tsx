@@ -24,7 +24,7 @@ export default function AiCapabilitiesPage() {
                 <p className="lead" style={{ marginTop: "22px" }}>Every HYBENT product is built AI-first. In Hybent Hiring that means parsing, screening, ranking and interview assistance happen inside the workflow — and every suggestion the system makes can be explained afterwards, in writing, to whoever asks.</p>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "30px" }}>
                   <a className="btn btn-primary" href="/contact">Talk to our AI team <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                  <a className="btn btn-ghost" href="/products">See it in Hybent Hiring</a>
+                  <a className="btn btn-ghost" href="/products/hiring">See it in Hybent Hiring</a>
                 </div>
               </div>
               <div className="grid" style={{ gap: "12px" }}>

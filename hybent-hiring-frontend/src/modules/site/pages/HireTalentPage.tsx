@@ -507,24 +507,24 @@ export default function HireTalentPage() {
             data-delay="220"
           >
             <div className="card card--flat stat" style={{ padding: "18px 20px" }}>
-              <b>Top 1%</b>
-              <span>Pre-Vetted Senior Engineers</span>
+              <b>Vetted</b>
+              <span>Pre-Screened Senior Engineers</span>
               <em>Rigorous Assessment</em>
             </div>
             <div className="card card--flat stat" style={{ padding: "18px 20px" }}>
-              <b>48 Hours</b>
-              <span>Average Time to Deploy</span>
-              <em>Immediate Availability</em>
+              <b>Fast</b>
+              <span>Shortlists After a Discovery Call</span>
+              <em>No Long Hiring Cycles</em>
             </div>
             <div className="card card--flat stat" style={{ padding: "18px 20px" }}>
-              <b>100%</b>
-              <span>Timezone Aligned</span>
+              <b>Aligned</b>
+              <span>Overlapping Working Hours</span>
               <em>Seamless Daily Collaboration</em>
             </div>
             <div className="card card--flat stat" style={{ padding: "18px 20px" }}>
-              <b>2 Weeks</b>
-              <span>Risk-Free Trial Period</span>
-              <em>Guaranteed Satisfaction</em>
+              <b>Flexible</b>
+              <span>Engagement Terms</span>
+              <em>Scale Up or Down</em>
             </div>
           </div>
         </div>
@@ -885,10 +885,10 @@ export default function HireTalentPage() {
               <span>Our Vetting Standard</span>
             </p>
             <h2 className="h-lg" style={{ marginTop: "12px" }}>
-              Only the top 1% make it through
+              Only vetted engineers make it through
             </h2>
             <p className="lead" style={{ marginTop: "14px", fontSize: "1.05rem" }}>
-              We evaluate hundreds of developers so you don&apos;t have to. Every engineer is pre-screened for technical depth, code quality, and fast communication.
+              We do the evaluation so you don&apos;t have to. Every engineer is pre-screened for technical depth, code quality, and fast communication.
             </p>
           </div>
 
@@ -927,9 +927,9 @@ export default function HireTalentPage() {
               <span className="icon-tile" style={{ width: "38px", height: "38px", borderRadius: "10px", marginBottom: "14px" }}>
                 <span style={{ fontFamily: "var(--f-mono)", fontWeight: 700, fontSize: "15px" }}>04</span>
               </span>
-              <h4 style={{ fontSize: "1.05rem", marginBottom: "8px" }}>2-Week Risk-Free Trial</h4>
+              <h4 style={{ fontSize: "1.05rem", marginBottom: "8px" }}>Start Small, Then Scale</h4>
               <p className="small" style={{ color: "var(--muted)" }}>
-                Start working with your developer immediately. If you&apos;re not 100% satisfied, you pay nothing.
+                Begin with one engineer on a well-scoped piece of work and grow the team once it is working for you.
               </p>
             </article>
           </div>
@@ -948,7 +948,7 @@ export default function HireTalentPage() {
               Ready to hire top engineers for your stack?
             </h2>
             <p className="lead" style={{ marginTop: "16px", maxWidth: "580px", margin: "16px auto 32px" }}>
-              Tell us what skills you need. We will match you with shortlisted, ready-to-interview candidates within 48 hours.
+              Tell us what skills you need. We will match you with shortlisted, ready-to-interview candidates after a short discovery call.
             </p>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", justifyContent: "center" }}>

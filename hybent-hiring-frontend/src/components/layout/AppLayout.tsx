@@ -13,6 +13,13 @@ import { applyPageMeta, routeMetaPath } from '@/app/seo'
 import '@/styles/hybent-site.css'
 
 /**
+ * The chatbot is held back at launch: it answers from canned keyword matches,
+ * not a model, and quoted project pricing to people asking what Hybent Hiring
+ * costs. Flip to true once it is wired to real answers.
+ */
+const SHOW_CHATBOT = false
+
+/**
  * The single shell every public surface renders inside — the Hybent company
  * site today, Hybent Hiring today, and any future product tomorrow.
  *
@@ -113,7 +120,7 @@ export default function AppLayout() {
         <Outlet />
       </main>
       <GlobalFooter />
-      <HybentChatbot />
+      {SHOW_CHATBOT && <HybentChatbot />}
       <CookieBanner />
     </div>
   )
