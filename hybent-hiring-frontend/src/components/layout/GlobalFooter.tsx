@@ -4,7 +4,7 @@ import { SHOW_CUSTOMERS } from '@/app/paths'
 /* Only accounts that exist get an icon: an empty url hides it, and with no
    urls at all the whole row is left out rather than linking back home. */
 const SOCIAL_LINKS = [
-  { label: 'LinkedIn', icon: 'i-in', url: '' },
+  { label: 'LinkedIn', icon: 'i-in', url: 'https://www.linkedin.com/company/hybent' },
   { label: 'X', icon: 'i-x', url: '' },
   { label: 'GitHub', icon: 'i-gh', url: '' },
   { label: 'YouTube', icon: 'i-yt', url: '' },
