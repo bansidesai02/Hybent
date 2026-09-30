@@ -30,6 +30,13 @@ export const SITE = {
   contact: '/contact',
 } as const
 
+/**
+ * The Customers page is held back at launch until there are customer stories
+ * to put on it. While false, its nav/footer links are hidden, /customers
+ * redirects home and it is left out of the sitemap. Flip to true to restore.
+ */
+export const SHOW_CUSTOMERS = false
+
 /** Marketing surface for each product that lives inside the Hybent site. */
 export const PRODUCTS = {
   hiring: '/products/hiring',

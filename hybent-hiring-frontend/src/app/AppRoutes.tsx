@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import { RequireAuth } from './RequireAuth'
 import { DashboardRedirect } from './DashboardRedirect'
+import { SHOW_CUSTOMERS } from './paths'
 
 /* ── Hybent — the company site ──────────────────────────────────────────────
    Split per view so a visitor landing on the homepage never downloads the
@@ -108,7 +109,11 @@ export default function AppRoutes() {
         <Route path="/industries/:section?" element={<IndustriesPage />} />
         <Route path="/hire-talent/:section?" element={<HireTalentPage />} />
         <Route path="/security/:section?" element={<SecurityPage />} />
-        <Route path="/customers/:section?" element={<CustomersPage />} />
+        {SHOW_CUSTOMERS ? (
+          <Route path="/customers/:section?" element={<CustomersPage />} />
+        ) : (
+          <Route path="/customers/*" element={<Navigate to="/" replace />} />
+        )}
         <Route path="/pricing/:section?" element={<PricingPage />} />
         <Route path="/about/:section?" element={<AboutPage />} />
         <Route path="/faq/:section?" element={<FaqPage />} />

@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
+import { SHOW_CUSTOMERS } from '@/app/paths'
 
 /* --d orders each letter's entrance: "Where" types in left to right, "meets"
    bursts out from its middle, and the two brand words ignite outward from
@@ -116,7 +117,7 @@ export function GlobalFooter() {
             <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
           <div><h5>More</h5><ul>
             <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li>
-            <li><a href="/customers">Customers</a></li><li><a href="/pricing">Pricing</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
+            {SHOW_CUSTOMERS && <li><a href="/customers">Customers</a></li>}<li><a href="/pricing">Pricing</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
         </div>
 
         <p className="footer__tag" ref={tagRef}>

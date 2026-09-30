@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
+import { SHOW_CUSTOMERS } from '../src/app/paths'
 import { ROUTE_META } from '../src/app/routeMeta'
 import { SITE_ORIGIN, routeMetaPath, serviceMeta, type PageMeta } from '../src/app/seo'
 import { SERVICES_DATA } from '../src/modules/site/data/servicesData'
@@ -17,7 +18,9 @@ import { SERVICES_DATA } from '../src/modules/site/data/servicesData'
 const SEO_DIR = '_seo'
 
 function publicPages(): PageMeta[] {
-  const sitePages = Object.entries(ROUTE_META).map(([key, meta]) => ({ ...meta, path: routeMetaPath(key) }))
+  const sitePages = Object.entries(ROUTE_META)
+    .filter(([key]) => SHOW_CUSTOMERS || key !== 'customers')
+    .map(([key, meta]) => ({ ...meta, path: routeMetaPath(key) }))
   const servicePages = Object.values(SERVICES_DATA).map(serviceMeta)
   return [...sitePages, ...servicePages]
 }
