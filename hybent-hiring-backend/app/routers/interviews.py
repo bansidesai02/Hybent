@@ -202,6 +202,8 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
         attendee_emails=attendee_emails,
         organizer_refresh_token=current_user.google_refresh_token,
     )
+    # A real Calendar link wins; otherwise keep the one the recruiter typed in.
+    meeting_link = cal["meeting_link"] or data.meeting_link
 
     interview = Interview(
         organization_id=current_user.organization_id,
@@ -214,7 +216,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
         duration_minutes=data.duration_minutes,
         location=data.location,
         notes=data.notes,
-        meeting_link=cal["meeting_link"],
+        meeting_link=meeting_link,
         calendar_event_id=cal.get("event_id"),
     )
     db.add(interview)
@@ -258,7 +260,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
             job_role=job_role,
             company_name=org.name,
             scheduled_at=time_str,
-            meeting_link=cal["meeting_link"],
+            meeting_link=meeting_link,
             duration_minutes=data.duration_minutes,
             interview_type=data.interview_type,
             org_logo_url=org.logo_url if org else None,
@@ -274,7 +276,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
                 job_role=job_role,
                 company_name=org.name,
                 scheduled_at=time_str,
-                meeting_link=cal["meeting_link"],
+                meeting_link=meeting_link,
                 duration_minutes=data.duration_minutes,
                 interview_type=data.interview_type,
                 org_logo_url=org.logo_url if org else None,

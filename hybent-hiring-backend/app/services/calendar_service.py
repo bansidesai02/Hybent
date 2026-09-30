@@ -1,6 +1,8 @@
 """
 Google Calendar service for interview scheduling.
-Falls back to a generated fake Meet link if credentials are not configured.
+Outside production, falls back to a generated fake Meet link if credentials are
+not configured. In production there is no fallback: a made-up meet.google.com
+URL does not open a real meeting, so candidates would be sent a dead link.
 """
 import random
 import string
@@ -19,6 +21,11 @@ def generate_fake_meet_link() -> str:
     """Generate a fake Google Meet link for dev/demo."""
     def rand(n): return "".join(random.choices(string.ascii_lowercase, k=n))
     return f"https://meet.google.com/{rand(3)}-{rand(4)}-{rand(3)}"
+
+
+def fallback_meet_link() -> str | None:
+    """The link to use when Google Calendar did not give us one."""
+    return None if settings.is_production else generate_fake_meet_link()
 
 
 def get_calendar_service(refresh_token: str | None = None):
@@ -49,15 +56,15 @@ async def create_calendar_event(
     Returns dict with {event_id, meeting_link}.
 
     If Google Calendar credentials are not configured or missing for the user,
-    returns a fake Meet link.
+    meeting_link comes from fallback_meet_link() (None in production).
     """
     service = get_calendar_service(organizer_refresh_token)
     
     if not service:
-        logger.info("Google Calendar not configured or no refresh token — using fake Meet link")
+        logger.info("Google Calendar not configured or no refresh token — using fallback Meet link")
         return {
             "event_id": None,
-            "meeting_link": generate_fake_meet_link(),
+            "meeting_link": fallback_meet_link(),
         }
 
     try:
@@ -90,7 +97,7 @@ async def create_calendar_event(
             sendUpdates="all"
         ).execute()
 
-        meet_link = created_event.get("hangoutLink", generate_fake_meet_link())
+        meet_link = created_event.get("hangoutLink") or fallback_meet_link()
         
         return {
             "event_id": created_event.get("id"),
@@ -101,7 +108,7 @@ async def create_calendar_event(
         logger.error(f"Google Calendar event creation failed: {e}")
         return {
             "event_id": None,
-            "meeting_link": generate_fake_meet_link(),
+            "meeting_link": fallback_meet_link(),
         }
 
 
