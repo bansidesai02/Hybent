@@ -815,7 +815,9 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 @media (max-width:1080px){
   .hb-site .nav__links{display:none}
   .hb-site .burger{display:flex}
-  .hb-site .hero__grid{grid-template-columns:1fr;gap:52px}
+  /* minmax(0,…): a plain 1fr track can't shrink below its widest nowrap
+     rotator word, which pushed the whole hero column past the screen edge. */
+  .hb-site .hero__grid{grid-template-columns:minmax(0,1fr);gap:52px}
   .hb-site .lattice{max-width:460px;top:0}
   .hb-site .split,
 .hb-site .flagship__in{grid-template-columns:1fr;gap:36px}
@@ -835,6 +837,10 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 }
 @media (max-width:640px){
   .hb-site{--nav-h:64px}
+  /* The rotator words are nowrap, so the headline has to scale with the
+     screen: the longest one ("how you innovate.") is ~8.6em wide and must
+     fit inside the 20px side gutters. */
+  .hb-site .hero h1{font-size:clamp(1.75rem,calc((100vw - 40px) / 8.8),2.7rem)}
   .hb-site .g2,
 .hb-site .g3,
 .hb-site .g4,
@@ -2069,5 +2075,44 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================================
+   PHONE FIXES
+   ============================================================================ */
+
+/* ---------- Nothing may widen the page -------------------------------------
+   index.css clips horizontal overflow on <body> only. Desktop browsers honour
+   that, but Android Chrome still lays the page out wider than the screen when
+   something sticks out, then zooms it out to fit: the sections end short of
+   the right edge and a pale strip shows beside them. Clipping on <html> as
+   well as <body> keeps the layout at exactly the screen's width. `clip`, not
+   `hidden`, so neither element becomes a scroll container (sticky elements
+   and window scrolling behave as before). Scoped to pages that render the
+   site, so the product app is untouched. */
+html:has(.hb-site),
+html:has(.hb-site) body{overflow-x:clip}
+
+/* ---------- Gradient fills with a transparent border -----------------------
+   A background is painted under the border, but a gradient is sized to the
+   padding box by default, so it repeats in the 1px border ring: the pill's
+   right-hand colour showed on its left edge and vice versa. Sizing every
+   background to the border box removes the seam on all pills and buttons
+   (category tabs, pricing CTAs, selected tabs) at once. `!important` because
+   the `background` shorthand — including inline styles — resets the origin. */
+.hb-site *,
+.hb-site *::before,
+.hb-site *::after{background-origin:border-box !important}
+
+/* ---------- Demo widgets sit flush on phones --------------------------------
+   Both demos are complete windows with their own frame; the card padding put
+   a second frame around them, and on a phone the inset window chrome read as
+   broken. */
+@media (max-width:640px){
+  .hb-site .card.demo-shell{padding:0;border:0;background:none;box-shadow:none;
+    backdrop-filter:none;-webkit-backdrop-filter:none}
+  [data-theme="classic"] .hb-site .card.demo-shell{background:none;box-shadow:none}
+  .hb-site .card.demo-shell > .card__glow{display:none}
+  .hb-site .card.sim-shell{padding:0}
 }
 

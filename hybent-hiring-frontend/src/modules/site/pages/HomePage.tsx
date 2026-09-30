@@ -106,7 +106,7 @@ export default function HomePage() {
           </div>
           <div className="product-stack" style={{ maxWidth: '880px', margin: '0 auto' }}>
             {/* The pipeline animation, on its own. */}
-            <div className="card card--flat" data-rv="up"><div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
+            <div className="card card--flat demo-shell" data-rv="up"><div className="card__glow" style={{ top: "-40px", left: "-40px" }}></div>
               <AiRecruitmentWorkflowAnimation />
             </div>
 

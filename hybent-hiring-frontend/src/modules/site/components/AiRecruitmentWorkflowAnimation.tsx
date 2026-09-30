@@ -355,8 +355,8 @@ export function AiRecruitmentWorkflowAnimation() {
           backdropFilter: 'blur(10px)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', gap: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: '5px', flex: 'none' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF5F56', display: 'inline-block' }} />
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFBD2E', display: 'inline-block' }} />
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#27C93F', display: 'inline-block' }} />
@@ -368,6 +368,10 @@ export function AiRecruitmentWorkflowAnimation() {
               color: '#475569',
               fontWeight: 600,
               marginLeft: '6px',
+              minWidth: 0,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             hybent-hiring://autopilot.simulator
@@ -388,12 +392,14 @@ export function AiRecruitmentWorkflowAnimation() {
               padding: '2px 8px',
               borderRadius: '20px',
               fontWeight: 600,
+              whiteSpace: 'nowrap',
             }}
           >
             <span
               style={{
                 width: '5px',
                 height: '5px',
+                flex: 'none',
                 borderRadius: '50%',
                 background: scanState !== 'complete' ? cyan : success,
                 animation: scanState !== 'complete' ? 'pulse-anim 0.6s infinite' : 'none',
