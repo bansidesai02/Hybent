@@ -41,3 +41,14 @@ class ContactRequest(BaseModel):
             v = v.strip()
             return v or None
         return v
+
+
+class AssistantTurn(BaseModel):
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str = Field(..., min_length=1, max_length=4000)
+
+
+class AssistantRequest(BaseModel):
+    """The hybent.com chatbot. The visitor's conversation so far, oldest
+    first, ending with their new message."""
+    messages: list[AssistantTurn] = Field(..., min_length=1, max_length=40)
