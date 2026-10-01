@@ -13,11 +13,10 @@ import { applyPageMeta, routeMetaPath } from '@/app/seo'
 import '@/styles/hybent-site.css'
 
 /**
- * The chatbot is held back at launch: it answers from canned keyword matches,
- * not a model, and quoted project pricing to people asking what Hybent Hiring
- * costs. Flip to true once it is wired to real answers.
+ * Hybent AI answers from the site's content via /api/public/assistant
+ * (backend: app/services/ai/site_assistant.py). Set to false to hide it.
  */
-const SHOW_CHATBOT = false
+const SHOW_CHATBOT = true
 
 /**
  * The single shell every public surface renders inside — the Hybent company
