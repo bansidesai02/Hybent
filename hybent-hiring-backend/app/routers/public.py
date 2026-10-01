@@ -3,11 +3,11 @@ import html
 import logging
 import uuid
 
-from fastapi import APIRouter, Form, HTTPException, UploadFile, File
+from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.schemas.demo import ContactRequest, DemoRequest
+from app.schemas.demo import AssistantRequest, ContactRequest, DemoRequest
 from app.services.email_service import send_demo_request_email, send_email
 from app.schemas.response import APIResponse
 
@@ -22,6 +22,7 @@ from app.services import supabase_storage_service
 from app.services.storage_service import save_resume
 from app.utils.permissions import ApplicationStage, NotificationType, UserRole
 from app.tasks.notifications import notify_organization_roles
+from app.services.ai import site_assistant
 
 router = APIRouter(prefix="/public", tags=["Public"])
 logger = logging.getLogger(__name__)
@@ -248,3 +249,17 @@ async def contact(request: ContactRequest):
             detail="We couldn't send your message. Please email info@hybent.com directly.",
         )
     return APIResponse.success(message="Thanks. We have your message and will reply within one business day.")
+
+
+@router.post("/assistant")
+async def assistant(body: AssistantRequest, request: Request):
+    """Hybent AI, the hybent.com chatbot: answers visitor questions from the site's content."""
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    if site_assistant.rate_limited(ip):
+        raise HTTPException(status_code=429, detail="Too many messages. Please wait a minute and try again.")
+
+    history = [t.model_dump() for t in body.messages][-12:]
+    if history[-1]["role"] != "user":
+        raise HTTPException(status_code=422, detail="The last message must be from the visitor.")
+    reply, followups = await site_assistant.answer(history)
+    return APIResponse.success(message="ok", data={"reply": reply, "followups": followups})
