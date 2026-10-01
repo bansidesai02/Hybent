@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import re
 import logging
@@ -2621,73 +2622,7 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
             new_label = new_stage.replace("_", " ").title()
             return f"✅ **{c.full_name}** has been moved from **{old_label}** → **{new_label}**."
 
-        # ── db_update ─────────────────────────────────────────────────────
-        if name == "db_update":
-            table_name = args.get("table_name")
-            record_id = args.get("record_id")
-            update_data = args.get("update_data")
-
-            if not table_name or not record_id or not update_data:
-                return "❌ Missing table_name, record_id, or update_data."
-
-            allowed_tables = ["candidates", "users", "jobs", "interviews", "applications"]
-            if table_name not in allowed_tables:
-                return f"❌ Updates to table '{table_name}' are not allowed."
-
-            # Columns the AI is never allowed to touch, even though the caller's
-            # own row is already org-scoped by the WHERE clause below. Without
-            # this, the LLM (or a prompt-injected message) could re-parent a row
-            # to another organization_id, grant itself/another user role="admin",
-            # or overwrite hashed_password/tokens — none of which "update this
-            # candidate's phone number" style requests ever need.
-            UNIVERSALLY_FORBIDDEN_COLUMNS = {
-                "id", "organization_id", "created_at", "updated_at", "is_deleted", "deleted_at",
-            }
-            TABLE_FORBIDDEN_COLUMNS = {
-                "users": {
-                    "hashed_password", "role", "is_active", "is_verified", "mfa_enabled",
-                    "provider", "google_id", "google_refresh_token", "linkedin_access_token",
-                    "email", "fcm_token",
-                },
-                "candidates": {
-                    "user_id", "created_by_id", "import_batch_id", "imported_by_id", "imported_at",
-                    "resume_url", "resume_storage_path", "parsed_data", "match_score", "score_breakdown",
-                    "source_email_message_id", "source_email_account_id",
-                },
-                "jobs": {"created_by_id"},
-                "interviews": {"scheduled_by_id", "calendar_event_id"},
-                "applications": {"job_id", "candidate_id"},
-            }
-            forbidden_columns = UNIVERSALLY_FORBIDDEN_COLUMNS | TABLE_FORBIDDEN_COLUMNS.get(table_name, set())
-
-            set_clauses = []
-            params = {
-                "rid": uuid.UUID(record_id) if isinstance(record_id, str) else record_id,
-                "oid": uuid.UUID(organization_id) if isinstance(organization_id, str) else organization_id
-            }
-
-            for k, v in update_data.items():
-                if not re.match(r"^[a-zA-Z0-9_]+$", k):
-                    return f"❌ Invalid column name: {k}"
-                if k in forbidden_columns:
-                    return f"❌ Updating column '{k}' is not allowed."
-                if isinstance(v, str):
-                    try:
-                        v = uuid.UUID(v)
-                    except ValueError:
-                        pass
-                set_clauses.append(f"{k} = :{k}")
-                params[k] = v
-
-            sql = (
-                f"UPDATE {table_name} SET {', '.join(set_clauses)}, updated_at = NOW()"
-                f" WHERE id = :rid AND organization_id = :oid"
-            )
-            await db.execute(text(sql), params)
-            await db.commit()
-            return f"✅ Successfully updated {table_name} record."
-
-        return "Write tool executed."
+        return "❌ Unknown action."
 
     except Exception as e:
         try:
@@ -2714,7 +2649,7 @@ def extract_hallucinated_tool_call(text_content: str) -> Optional[tuple[str, dic
     """
     known_tools = [
         "search_candidates", "search_users", "search_jobs",
-        "schedule_meeting", "db_update", "update_candidate_stage",
+        "schedule_meeting", "update_candidate_stage",
         "get_pipeline_summary", "get_analytics", "search_interviews",
         "get_candidates_for_job"
     ]
@@ -2796,7 +2731,7 @@ READ_TOOLS = {
     "get_candidates_for_job"
 }
 
-WRITE_TOOLS = {"schedule_meeting", "update_candidate_stage", "db_update"}
+WRITE_TOOLS = {"schedule_meeting", "update_candidate_stage"}
 
 
 # ── Main Streaming Chat Service ───────────────────────────────────────────────
@@ -2998,11 +2933,18 @@ async def _stream_copilot_chat_impl(
 
     # ── 1. Handle Approved Tool Execution ─────────────────────────────────
     if approved_tool_call:
-        name = approved_tool_call.get("name")
-        args = approved_tool_call.get("args", {})
-        result_text = await execute_write_tool(name, args, oid_str, uid_str, db)
+        # Run the action the server staged when it asked for approval — never
+        # the name/args the browser sends back, which a user could rewrite.
+        ctx = await _load_last_context(db, conversation_id, organization_id, user_id) or {}
+        pending = ctx.get("pending_action") or {}
+        if pending and approved_tool_call.get("id") == pending.get("id") and pending.get("tool") in WRITE_TOOLS:
+            result_text = await execute_write_tool(pending["tool"], dict(pending.get("args") or {}), oid_str, uid_str, db)
+            _COPILOT_CACHE.clear()  # cached reads are stale after a write
+        else:
+            result_text = "That action is no longer waiting for approval. Please ask me again and I'll prepare it fresh."
+        ctx.pop("pending_action", None)
         conversation_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, result_text
+            db, organization_id, user_id, conversation_id, user_message, result_text, last_context=ctx
         )
         yield sse("meta", {"conversation_id": conversation_id})
         yield sse("chunk", {"content": result_text})
@@ -3035,7 +2977,7 @@ async def _stream_copilot_chat_impl(
         yield sse("done", {})
         return
 
-    last_context = await _load_last_context(db, conversation_id) or {}
+    last_context = await _load_last_context(db, conversation_id, organization_id, user_id) or {}
     # A page_context candidate/job (recruiter is actively viewing that page)
     # is a fresher signal than whatever was last discussed in chat, so it
     # takes priority. This also finally makes use of page_context.job_id,
@@ -3254,12 +3196,13 @@ async def _stream_copilot_chat_impl(
 
                 # Require approval for write operations
                 reply = "I've prepared this action. Please review and approve to proceed."
-                conversation_id = await _save_conversation_to_db(
-                    db, organization_id, user_id, conversation_id, user_message, reply
+                conversation_id, action_id = await _stage_pending_action(
+                    db, organization_id, user_id, conversation_id, user_message, reply, tool_call_name, args
                 )
+                yield sse("meta", {"conversation_id": conversation_id})
                 yield sse("approval", {
                     "conversation_id": conversation_id,
-                    "pending_tool_call": {"name": tool_call_name, "args": args, "id": tool_call_id},
+                    "pending_tool_call": {"name": tool_call_name, "args": args, "id": action_id},
                     "reply": reply
                 })
                 yield sse("done", {})
@@ -3287,12 +3230,13 @@ async def _stream_copilot_chat_impl(
                         yield sse("done", {})
                         return
                     reply = "I've prepared this action. Please review and approve to proceed."
-                    conversation_id = await _save_conversation_to_db(
-                        db, organization_id, user_id, conversation_id, user_message, reply
+                    conversation_id, action_id = await _stage_pending_action(
+                        db, organization_id, user_id, conversation_id, user_message, reply, h_name, h_args
                     )
+                    yield sse("meta", {"conversation_id": conversation_id})
                     yield sse("approval", {
                         "conversation_id": conversation_id,
-                        "pending_tool_call": {"name": h_name, "args": h_args},
+                        "pending_tool_call": {"name": h_name, "args": h_args, "id": action_id},
                         "reply": reply
                     })
                     yield sse("done", {})
@@ -3326,18 +3270,24 @@ async def _stream_copilot_chat_impl(
 
 # ── Conversation Persistence ──────────────────────────────────────────────────
 
-async def _load_last_context(db: AsyncSession, conversation_id: Optional[str]) -> Optional[dict]:
-    """Loads the structured follow-up context (last discussed candidate/job)
-    persisted on a conversation, for the router to resolve pronouns against."""
+async def _load_last_context(db: AsyncSession, conversation_id: Optional[str], organization_id, user_id) -> Optional[dict]:
+    """Loads the structured follow-up context (last discussed candidate/job,
+    pending action) persisted on the caller's own conversation."""
     if not conversation_id:
         return None
     from app.models.copilot_conversation import CopilotConversation
     try:
         res = await db.execute(
-            select(CopilotConversation).where(CopilotConversation.id == uuid.UUID(conversation_id))
+            select(CopilotConversation).where(
+                CopilotConversation.id == uuid.UUID(conversation_id),
+                CopilotConversation.organization_id == organization_id,
+                CopilotConversation.user_id == user_id,
+            )
         )
         conversation = res.scalar_one_or_none()
-        return conversation.last_context if conversation else None
+        # A copy: editing the stored dict in place would hide the change from
+        # SQLAlchemy and the edit (e.g. clearing a used approval) would be lost.
+        return copy.deepcopy(conversation.last_context) if conversation and conversation.last_context else None
     except Exception:
         return None
 
@@ -3358,7 +3308,9 @@ async def _save_conversation_to_db(
         try:
             res = await db.execute(
                 select(CopilotConversation).where(
-                    CopilotConversation.id == uuid.UUID(conversation_id)
+                    CopilotConversation.id == uuid.UUID(conversation_id),
+                    CopilotConversation.organization_id == organization_id,
+                    CopilotConversation.user_id == user_id,
                 )
             )
             conversation = res.scalar_one_or_none()
@@ -3383,3 +3335,18 @@ async def _save_conversation_to_db(
     db.add(CopilotMessage(conversation_id=conversation.id, role="assistant", content=assistant_reply))
     await db.commit()
     return str(conversation.id)
+
+
+async def _stage_pending_action(
+    db: AsyncSession, organization_id, user_id, conversation_id: Optional[str],
+    user_message: str, reply: str, tool_name: str, args: dict,
+) -> tuple[str, str]:
+    """Saves the write action awaiting approval on the conversation and
+    returns (conversation_id, action_id). Approval later runs exactly this."""
+    ctx = await _load_last_context(db, conversation_id, organization_id, user_id) or {}
+    action_id = uuid.uuid4().hex
+    ctx["pending_action"] = {"id": action_id, "tool": tool_name, "args": args}
+    conv_id = await _save_conversation_to_db(
+        db, organization_id, user_id, conversation_id, user_message, reply, last_context=ctx
+    )
+    return conv_id, action_id

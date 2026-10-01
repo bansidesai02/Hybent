@@ -1,4 +1,4 @@
-import axios from './axios'
+import axios, { refreshAccessToken } from './axios'
 import type { ChatMessage, PageContext } from '@/store/useCopilotStore'
 import { tokenStorage } from '@/utils/tokenStorage'
 import { getApiBaseUrl } from '@/config/api'
@@ -76,28 +76,44 @@ export const copilotApi = {
     }
   ) => {
     const apiHistory: ApiMessage[] = history.map(({ role, content }) => ({ role, content }))
-    const token = tokenStorage.getAccessToken()
     const BASE_URL = getApiBaseUrl()
-    
-    try {
-      const response = await fetch(`${BASE_URL}/v1/copilot/chat`, {
+    const body = JSON.stringify({
+      message,
+      history: apiHistory,
+      page_context: page_context ?? null,
+      conversation_id: conversation_id ?? null,
+      approved_tool_call: approved_tool_call ?? null,
+    })
+    const send = (token: string | null) =>
+      fetch(`${BASE_URL}/v1/copilot/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({
-          message,
-          history: apiHistory,
-          page_context: page_context ?? null,
-          conversation_id: conversation_id ?? null,
-          approved_tool_call: approved_tool_call ?? null,
-        }),
+        body,
         signal
       })
 
+    try {
+      let response = await send(tokenStorage.getAccessToken())
+
+      // This is a plain fetch, so the axios auto-refresh never sees its 401:
+      // refresh the expired access token here and retry once.
+      if (response.status === 401) {
+        try {
+          response = await send(await refreshAccessToken())
+        } catch {
+          throw new Error('Your session has expired. Please log in again.')
+        }
+      }
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
+        throw new Error(
+          response.status === 402 || response.status === 429
+            ? 'AI credits or request limit reached. Please try again later.'
+            : `Copilot couldn't respond (error ${response.status}). Please try again.`
+        )
       }
 
       if (!response.body) throw new Error("No response body")

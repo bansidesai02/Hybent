@@ -276,7 +276,7 @@ async def suggest_candidates(
         res = await db.execute(query)
         candidates = res.scalars().all()
         
-        data = [{"id": str(c.id), "full_name": c.full_name} for c in candidates]
+        data = [{"id": str(c.id), "full_name": c.full_name, "email": c.email} for c in candidates]
         return APIResponse.success(message="Candidate suggestions fetched.", data=data)
     except Exception as e:
         logger.error(f"Error in candidate suggestions: {e}")
