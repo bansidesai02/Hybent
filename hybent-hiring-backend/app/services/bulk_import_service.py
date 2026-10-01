@@ -15,6 +15,7 @@ from app.models.import_batch import ImportBatch
 from app.models.job import Job
 from app.utils.permissions import ApplicationStage, JobStatus
 from app.utils.json_sanitize import sanitize_json_data
+from app.utils.phone import normalize_phone
 import logging
 import time
 
@@ -414,12 +415,13 @@ class BulkImportService:
             return existing
         
         # Check by phone if provided
-        if phone and phone.strip():
+        phone = normalize_phone(phone)
+        if phone:
             existing = (
                 await db.execute(
                     select(Candidate).where(
                         Candidate.organization_id == organization_id,
-                        Candidate.phone == phone.strip()
+                        Candidate.phone == phone
                     )
                 )
             ).scalar_one_or_none()
@@ -689,7 +691,7 @@ class BulkImportService:
                     existing_phones = {}
                     for c in candidates_list:
                         if c.phone:
-                            existing_phones[c.phone.strip()] = c
+                            existing_phones[normalize_phone(c.phone) or c.phone] = c
 
             if import_job is None:
                 import_job = await BulkImportService._get_or_create_pool_job(
@@ -737,8 +739,8 @@ class BulkImportService:
                         
                         if not existing:
                             phone_val = parsed_data.get('phone')
-                            if phone_val and str(phone_val).strip():
-                                phone_key = str(phone_val).strip()
+                            phone_key = normalize_phone(phone_val) if phone_val else None
+                            if phone_key:
                                 if phone_key in existing_phones:
                                     existing = existing_phones[phone_key]
                         
@@ -771,7 +773,7 @@ class BulkImportService:
                         if candidate.email:
                             existing_emails[candidate.email.lower().strip()] = candidate
                         if candidate.phone:
-                            existing_phones[candidate.phone.strip()] = candidate
+                            existing_phones[candidate.phone] = candidate
 
                         # Assign candidate to designations via applications:
                         # 1) Global "Import Candidates" (reused forever)
@@ -910,7 +912,7 @@ class BulkImportService:
             if c.email:
                 existing_emails[c.email.lower().strip()] = c
             if c.phone:
-                existing_phones[c.phone.strip()] = c
+                existing_phones[normalize_phone(c.phone) or c.phone] = c
 
         import_job = await BulkImportService._get_or_create_pool_job(
             db=db,

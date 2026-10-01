@@ -17,10 +17,10 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
-import { resumesApi } from '@/api/resumes'
 import { jobsApi } from '@/api/jobs'
 import { candidatesApi } from '@/api/candidates'
 import type { Candidate, Job } from '@/types'
+import { useResumeUploadStore, type ScoringResult } from '@/store/resumeUploadStore'
 import {
   Badge,
   Button,
@@ -47,27 +47,6 @@ import {
  * background to the recruiter. The stack is dev-only.
  */
 
-interface ScoringResult {
-  final_score: number
-  skills_score: number
-  title_score: number
-  experience_score: number
-  education_score: number
-  matched_skills: string[]
-  missing_skills: string[]
-  shortlisted: boolean
-  reasoning: string
-}
-
-interface JobReq {
-  job_id?: string
-  role_title: string
-  min_experience: string
-  match_threshold: string
-  required_skills: string
-}
-
-type Stage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error' | 'duplicate' | 'rejected'
 
 const ANALYSIS_STEPS = [
   {
@@ -330,26 +309,28 @@ function UploadResume() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const [stage, setStage] = useState<Stage>('idle')
-  const [result, setResult] = useState<Candidate | null>(null)
-  const [scoring, setScoring] = useState<ScoringResult | null>(null)
-  const [completedSteps, setCompletedSteps] = useState(0)
-  const [error, setError] = useState('')
-  const [duplicate, setDuplicate] = useState<{ message: string; candidate_id: string } | null>(null)
-  const [rejection, setRejection] = useState<{
-    candidate_category: string
-    target_category: string
-    missing_skills: string[]
-    suggested_roles: string[]
-  } | null>(null)
+  const {
+    stage,
+    result,
+    scoring,
+    completedSteps,
+    error,
+    duplicate,
+    rejection,
+    jobReq,
+    setJobReq,
+    setError,
+    setResult,
+    setPageMounted,
+    reset,
+    startUpload,
+  } = useResumeUploadStore()
 
-  const [jobReq, setJobReq] = useState<JobReq>({
-    job_id: undefined,
-    role_title: '',
-    min_experience: '3',
-    match_threshold: '70',
-    required_skills: '',
-  })
+  /* Lets a run that finishes while the recruiter is elsewhere raise a toast. */
+  useEffect(() => {
+    setPageMounted(true)
+    return () => setPageMounted(false)
+  }, [setPageMounted])
 
   const { data: jobs } = useQuery({
     queryKey: ['active-jobs'],
@@ -386,16 +367,6 @@ function UploadResume() {
     if (jobs?.length === 1 && !jobReq.job_id) selectJob(jobs[0].id)
   }, [jobs, jobReq.job_id, selectJob])
 
-  const reset = () => {
-    setStage('idle')
-    setResult(null)
-    setScoring(null)
-    setCompletedSteps(0)
-    setError('')
-    setRejection(null)
-    setDuplicate(null)
-  }
-
   const handleFile = useCallback(
     async (file: File) => {
       const ext = file.name.split('.').pop()?.toLowerCase()
@@ -415,78 +386,9 @@ function UploadResume() {
         return
       }
 
-      setError('')
-      setCompletedSteps(0)
-      setStage('uploading')
-
-      try {
-        const { data } = await resumesApi.uploadAndCreate(file, {
-          job_id: jobReq.job_id,
-          role_title: jobReq.role_title,
-          required_skills: jobReq.required_skills,
-          min_experience: parseFloat(jobReq.min_experience) || 0,
-          match_threshold: parseFloat(jobReq.match_threshold) || 70,
-        })
-
-        /* The new candidate exists server-side now. Other recruiters' open
-           Candidates tabs already learn this via the activity websocket, but
-           that broadcast excludes the acting user's own connections — so the
-           uploader's own All Candidates tab needs this explicit invalidation
-           to show it without a manual refresh. */
-        queryClient.invalidateQueries({ queryKey: ['candidates'] })
-        queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
-        queryClient.invalidateQueries({ queryKey: ['all-talent-full'] })
-
-        setStage('analyzing')
-        /* The work is already done server-side; the steps are paced out so the
-           recruiter can read what the AI checked rather than seeing a flash. */
-        for (let i = 1; i <= ANALYSIS_STEPS.length; i++) {
-          await new Promise((r) => setTimeout(r, 500 + Math.random() * 300))
-          setCompletedSteps(i)
-        }
-
-        setResult(data)
-        setScoring(data.score_breakdown ?? null)
-        setStage('done')
-      } catch (err: any) {
-        const resp = err?.response
-
-        if (resp?.status === 409 && resp?.data?.details?.candidate_id) {
-          setDuplicate({
-            message: resp.data.message || 'This candidate is already in your database.',
-            candidate_id: resp.data.details.candidate_id,
-          })
-          setStage('duplicate')
-          return
-        }
-
-        const detail = resp?.data?.detail
-        if (resp?.status === 400 && detail?.type === 'role_mismatch') {
-          setRejection({
-            candidate_category: detail.candidate_category || 'Unknown',
-            target_category: detail.target_category || jobReq.role_title,
-            missing_skills: detail.missing_skills || [],
-            suggested_roles: detail.suggested_roles || [],
-          })
-          setError(detail.message || 'Role mismatch detected.')
-          setStage('rejected')
-          return
-        }
-
-        const message =
-          resp?.data?.message ||
-          (typeof detail === 'object' && detail?.message ? detail.message : null) ||
-          (typeof detail === 'string' ? detail : null) ||
-          err?.message ||
-          'Upload failed. Please try again.'
-
-        setError(message)
-        setStage(
-          resp?.status === 400 && message.startsWith('Upload Rejected') ? 'rejected' : 'error'
-        )
-      }
+      startUpload(file, queryClient)
     },
-    [jobReq]
+    [setError, startUpload, queryClient]
   )
 
   const isAnalysing = stage === 'uploading' || stage === 'analyzing'
