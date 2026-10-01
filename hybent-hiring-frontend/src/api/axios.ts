@@ -84,64 +84,81 @@ api.interceptors.response.use(
       }
 
       originalRequest._retry = true
-      isRefreshing = true
-
       try {
-        // Try cookie-based refresh first, then localStorage fallback
-        const refreshToken = tokenStorage.getRefreshToken()
-        const payload = refreshToken ? { refresh_token: refreshToken } : undefined
-
-        const { data } = await axios.post(
-          `${BASE_URL}/v1/auth/refresh`,
-          payload,
-          { 
-            withCredentials: true,
-            skipLoader: true // Don't show loader for refresh token calls
-          }
-        )
-
-        // Handle the new APIResponse format
-        const responseData = data.success !== undefined && data.data !== undefined ? data.data : data;
-
-        const newToken = responseData.access_token
-
-        // Update auth store
-        const { useAuthStore } = await import('@/store/authStore')
-        const rememberMe = useAuthStore.getState().rememberMe
-        tokenStorage.setTokens(newToken, responseData.refresh_token, rememberMe)
-        useAuthStore.getState().setTokens(newToken, responseData.refresh_token)
-
-        processQueue(null, newToken)
-
+        const newToken = await refreshAccessToken()
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newToken}`
         }
         return api(originalRequest)
-      } catch (refreshError: any) {
-        processQueue(refreshError, null)
-        
-        try {
-          const { useAuthStore } = await import('@/store/authStore')
-          
-          const status = refreshError?.response?.status
-          const detail: string = refreshError?.response?.data?.detail ||
-            refreshError?.response?.data?.message || ''
-
-          if (status === 403 || detail.toLowerCase().includes('inactive') || detail.toLowerCase().includes('not found')) {
-            useAuthStore.getState().setForcedLogout('account_deleted')
-          } else {
-            useAuthStore.getState().setForcedLogout('session_expired')
-          }
-        } catch (e) {}
-
+      } catch (refreshError) {
         return Promise.reject(refreshError)
-      } finally {
-        isRefreshing = false
       }
     }
 
     return Promise.reject(error)
   }
 )
+
+/**
+ * Exchange the refresh token for a new access token and store it. Concurrent
+ * callers wait for the one refresh in flight. Requests made outside axios
+ * (e.g. the Copilot's streaming fetch) call this themselves on a 401.
+ */
+export async function refreshAccessToken(): Promise<string> {
+  if (isRefreshing) {
+    return new Promise<string>((resolve, reject) => {
+      failedQueue.push({ resolve, reject })
+    })
+  }
+  isRefreshing = true
+  try {
+    // Try cookie-based refresh first, then localStorage fallback
+    const refreshToken = tokenStorage.getRefreshToken()
+    const payload = refreshToken ? { refresh_token: refreshToken } : undefined
+
+    const { data } = await axios.post(
+      `${BASE_URL}/v1/auth/refresh`,
+      payload,
+      {
+        withCredentials: true,
+        skipLoader: true // Don't show loader for refresh token calls
+      }
+    )
+
+    // Handle the new APIResponse format
+    const responseData = data.success !== undefined && data.data !== undefined ? data.data : data;
+
+    const newToken = responseData.access_token
+
+    // Update auth store
+    const { useAuthStore } = await import('@/store/authStore')
+    const rememberMe = useAuthStore.getState().rememberMe
+    tokenStorage.setTokens(newToken, responseData.refresh_token, rememberMe)
+    useAuthStore.getState().setTokens(newToken, responseData.refresh_token)
+
+    processQueue(null, newToken)
+    return newToken
+  } catch (refreshError: any) {
+    processQueue(refreshError, null)
+
+    try {
+      const { useAuthStore } = await import('@/store/authStore')
+
+      const status = refreshError?.response?.status
+      const detail: string = refreshError?.response?.data?.detail ||
+        refreshError?.response?.data?.message || ''
+
+      if (status === 403 || detail.toLowerCase().includes('inactive') || detail.toLowerCase().includes('not found')) {
+        useAuthStore.getState().setForcedLogout('account_deleted')
+      } else {
+        useAuthStore.getState().setForcedLogout('session_expired')
+      }
+    } catch (e) {}
+
+    throw refreshError
+  } finally {
+    isRefreshing = false
+  }
+}
 
 export default api

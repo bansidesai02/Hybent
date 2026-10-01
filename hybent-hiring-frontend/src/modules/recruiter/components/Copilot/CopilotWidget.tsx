@@ -164,7 +164,7 @@ interface CandidateCardData {
   salary?: string
 }
 
-function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardData; onViewProfile?: (name: string) => void }) {
+function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardData; onViewProfile?: (candidate: CandidateCardData) => void }) {
   const initials = candidate.name
     .split(' ')
     .map((n) => n[0])
@@ -219,13 +219,13 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
       className="w-full"
       role={onViewProfile ? 'button' : undefined}
       tabIndex={onViewProfile ? 0 : undefined}
-      onClick={onViewProfile ? () => onViewProfile(candidate.name) : undefined}
+      onClick={onViewProfile ? () => onViewProfile(candidate) : undefined}
       onKeyDown={
         onViewProfile
           ? (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                onViewProfile(candidate.name)
+                onViewProfile(candidate)
               }
             }
           : undefined
@@ -285,7 +285,7 @@ function CandidateCard({ candidate, onViewProfile }: { candidate: CandidateCardD
               trailingIcon={<ArrowRight size={13} />}
               onClick={(e) => {
                 e.stopPropagation()
-                onViewProfile(candidate.name)
+                onViewProfile(candidate)
               }}
             >
               View profile
@@ -1736,29 +1736,40 @@ export function CopilotWidget() {
     }
   }, [])
 
-  // Cards from the Copilot only ever carry a name (that's all the chat text
-  // reliably includes), so opening a profile means resolving that name to an
-  // id first via the same suggest endpoint the input's autocomplete already
-  // uses, then deep-linking with ?openId=<id> — the one mechanism that
-  // actually opens a candidate's profile (a plain ?search= query param was
-  // being set here before, but CandidatesPage never reads it).
-  const handleViewProfile = useCallback(async (name: string) => {
+  // Cards from the Copilot carry a name (and an email on detailed cards), so
+  // opening a profile means resolving that to an id first via the suggest
+  // endpoint, then deep-linking with ?openId=<id>. Match on email first, then
+  // the exact name including its capitalisation — "YASH DESAI" and
+  // "Yash Desai" can be two different records — and never guess between two
+  // candidates who share a name.
+  const handleViewProfile = useCallback(async (card: CandidateCardData) => {
+    const name = card.name
     try {
       const res = await candidatesApi.suggest(name)
-      const items = res.data || []
+      const items: Array<{ id: string; full_name?: string; email?: string }> = res.data || []
       if (items.length === 0) {
         toast.error(`Couldn't find "${name}" — try searching for them manually.`)
         return
       }
-      const exact = items.find((c: any) => c.full_name?.toLowerCase() === name.toLowerCase())
-      if (items.length > 1 && !exact) {
-        toast.error(`Multiple candidates match "${name}" — please search manually.`)
+      const byEmail = card.email
+        ? items.filter((c) => c.email?.toLowerCase() === card.email!.toLowerCase())
+        : []
+      const sameCase = items.filter((c) => c.full_name === name)
+      const anyCase = items.filter((c) => c.full_name?.toLowerCase() === name.toLowerCase())
+      const match =
+        byEmail.length === 1 ? byEmail[0]
+        : sameCase.length === 1 ? sameCase[0]
+        : anyCase.length === 1 ? anyCase[0]
+        : anyCase.length === 0 && items.length === 1 ? items[0]
+        : null
+      if (!match) {
+        toast.error(`More than one candidate is named "${name}" — open the right one from the Candidates page.`)
         return
       }
-      navigateToCandidate((exact ?? items[0]).id)
+      navigateToCandidate(match.id)
     } catch (err) {
       console.error('View profile error:', err)
-      toast.error('Could not open that candidate\'s profile.')
+      toast.error("Could not open that candidate's profile.")
     }
   }, [navigateToCandidate])
 
