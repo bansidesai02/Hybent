@@ -2,9 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import DateTime, ForeignKey, String, Text, ARRAY, Float, desc, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.database import Base
+from app.utils.phone import normalize_phone
 
 
 class Candidate(Base):
@@ -35,6 +36,12 @@ class Candidate(Base):
     linkedin_url: Mapped[str | None] = mapped_column(String(500))
     portfolio_url: Mapped[str | None] = mapped_column(String(500))
     github_url: Mapped[str | None] = mapped_column(String(500))
+
+    @validates("phone")
+    def _normalize_phone(self, _key, value):
+        # Every write path (parser, email ingestion, bulk import, manual edit)
+        # goes through here, so "+91-96649 57351" is stored as "+91 9664957351".
+        return normalize_phone(value)
 
     # Resume
     resume_url: Mapped[str | None] = mapped_column(String(500))
