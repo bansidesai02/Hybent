@@ -274,13 +274,35 @@ GitHub authenticates with short-lived OIDC tokens, so there are no AWS access ke
 8. **Next** → Policy name: `hybent-deploy` → **Create policy**.
 9. Copy the role's **ARN** from the top of the page — it looks like `arn:aws:iam::640031441258:role/hybent-github-deploy`. You need it in Part 7.
 
-**Check:** role → **Trust relationships** tab contains:
+10. **Fix the trust policy.** The wizard writes the subject as `repo:bansidesai02/Hybent:ref:refs/heads/main`, but this repo's GitHub tokens use the newer format with numeric owner and repository IDs, so the wizard's version never matches. Role → **Trust relationships** → **Edit trust policy** → replace with:
 
 ```json
-"token.actions.githubusercontent.com:sub": "repo:bansidesai02/Hybent:ref:refs/heads/main"
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::640031441258:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                },
+                "StringLike": {
+                    "token.actions.githubusercontent.com:sub": [
+                        "repo:bansidesai02@276602960/Hybent@1183041205:ref:refs/heads/main",
+                        "repo:bansidesai02/Hybent:ref:refs/heads/main"
+                    ]
+                }
+            }
+        }
+    ]
+}
 ```
 
-The owner and repo name are case-sensitive and must match GitHub exactly.
+`276602960` is the GitHub owner ID and `1183041205` the repository ID. If the repo is ever transferred or recreated, the repository ID changes and this policy must be updated.
 
 ---
 
@@ -577,8 +599,9 @@ All containers use `restart: always` and Docker starts at boot, so after `sudo r
 
 | Symptom | Likely cause / fix |
 |---|---|
-| Workflow fails at **configure-aws-credentials** with "Not authorized to perform sts:AssumeRoleWithWebIdentity" | Trust policy doesn't match: check owner/repo casing and that you pushed to `main` (Part 4.2 Check). Confirm `AWS_DEPLOY_ROLE_ARN` secret is the role ARN. |
-| Workflow fails at **Push image** with "denied" | ECR repo name/region differs from `hybent-backend` / `eu-north-1`, or the inline policy is missing. |
+| Workflow fails at **configure-aws-credentials** with "Not authorized to perform sts:AssumeRoleWithWebIdentity" | `AWS_DEPLOY_ROLE_ARN` must be the **hybent-github-deploy** ARN (not hybent-ec2-role), and the trust policy must use the ID-based subject from Part 4.2 step 10. Only runs from `main` are allowed. |
+| Workflow fails at **Push image** with "name unknown: The repository with name 'hybent-backend' does not exist" | Part 2 not done, or the repository was created in another region — it must be in Europe (Stockholm). |
+| Workflow fails at **Push image** with "denied" | The `hybent-deploy` inline policy is missing from `hybent-github-deploy`. |
 | Smoke test fails with an ImportError | Real code error — the same error would have crashed production. Fix and push again. |
 | Smoke test fails with "N migration heads" | Two branches each added a migration. Run `alembic merge heads -m "merge"` locally, commit, push. |
 | **Deploy** step: `InvalidInstanceId` | Instance isn't Online in SSM Fleet Manager — recheck Part 3 (role attached, `sudo systemctl restart amazon-ssm-agent`, then `sudo systemctl status amazon-ssm-agent`). |
