@@ -98,6 +98,9 @@ jobs:
           IMAGE_TAG: ${{ inputs.image_tag || needs.build.outputs.image_tag }}
         run: |
           set -euo pipefail
+          # A secret pasted with a trailing newline/space would make the instance
+          # ARN miss the IAM policy and SendCommand fail with AccessDenied.
+          INSTANCE_ID="$(printf '%s' "$INSTANCE_ID" | tr -d '[:space:]')"
           remote="sudo -u ec2-user -H bash -c 'cd ~/hybent && git fetch -q origin $DEPLOY_BRANCH && git reset -q --hard origin/$DEPLOY_BRANCH && bash deploy/deploy.sh $IMAGE_TAG'"
           jq -n --arg c "$remote" '{commands: [$c]}' > params.json
 
