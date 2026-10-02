@@ -11,8 +11,9 @@ import { SERVICES_DATA } from '../src/modules/site/data/servicesData'
  * the same index.html — one title, one description, no canonical — and search
  * engines saw every page as a duplicate of the homepage. After the build this
  * writes a copy of index.html per public page into dist/_seo/ with that page's
- * head filled in, plus a sitemap.xml listing the same pages. public/.htaccess
- * (and nginx.conf.template) serve the copy when one exists for the request.
+ * head filled in, plus a sitemap.xml listing the same pages, and fills the
+ * rewrite rules that serve those copies into dist/.htaccess.
+ * nginx.conf.template serves them with try_files instead.
  */
 
 const SEO_DIR = '_seo'
@@ -61,6 +62,25 @@ function sitemapXml(pages: PageMeta[], lastmod: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`
 }
 
+const HTACCESS_MARKER = '# @seo-pages'
+
+/**
+ * Apache/LiteSpeed rules sending each public page to its copy. Pages are
+ * listed explicitly rather than probed with -f: Hostinger's server can't be
+ * relied on to fall back cleanly when a guessed copy is missing.
+ */
+function htaccessRules(pages: PageMeta[]): string {
+  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const paths = pages.map((page) => page.path.slice(1)).filter(Boolean)
+  const topLevel = paths.filter((p) => !p.includes('/'))
+  const lines: string[] = []
+  if (pages.some((page) => page.path === '/')) lines.push('RewriteRule ^$ /_seo/index.html [L]')
+  lines.push(`RewriteRule ^(${paths.map(escape).join('|')})/?$ /_seo/$1.html [L]`)
+  // Deep-linked sections (/about/story) share their page's copy.
+  lines.push(`RewriteRule ^(${topLevel.map(escape).join('|')})/[^/]+/?$ /_seo/$1.html [L]`)
+  return lines.join('\n')
+}
+
 export function seoPages(): Plugin {
   let outDir = ''
   return {
@@ -79,6 +99,13 @@ export function seoPages(): Plugin {
       }
       const lastmod = new Date().toISOString().slice(0, 10)
       fs.writeFileSync(path.join(outDir, 'sitemap.xml'), sitemapXml(pages, lastmod))
+
+      const htaccessFile = path.join(outDir, '.htaccess')
+      const htaccess = fs.readFileSync(htaccessFile, 'utf-8')
+      if (!htaccess.includes(HTACCESS_MARKER)) {
+        throw new Error(`[seo-pages] public/.htaccess is missing the "${HTACCESS_MARKER}" marker`)
+      }
+      fs.writeFileSync(htaccessFile, htaccess.replace(HTACCESS_MARKER, htaccessRules(pages)))
     },
   }
 }

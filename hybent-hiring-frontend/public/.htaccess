@@ -1,28 +1,28 @@
 RewriteEngine On
 RewriteBase /
 
-# Public pages have a prerendered copy of index.html in /_seo/ carrying their
-# own title, description and canonical (vite-plugins/seoPages.ts). Serve it so
-# crawlers see the right head without running JS.
-#
-# Existence is checked only through %{REQUEST_FILENAME}, never
-# %{DOCUMENT_ROOT}, which does not point at the site folder on every host.
-# Each [L] rewrite re-runs these rules on the new path, so a missing copy
-# falls through to the plain SPA shell on the next pass.
+# After a rewrite the server runs these rules again on the new path. Stop on
+# the rewrite targets by matching the path itself: LiteSpeed (Hostinger) does
+# not always refresh %{REQUEST_FILENAME} between passes, so the -f check below
+# can miss them, and the request then went round again and ended on the
+# host's 404 page instead of the app.
+RewriteRule ^(index\.html|_seo/.+)$ - [L]
 
-RewriteRule ^$ /_seo/index.html [L]
-
-# Real files and folders (assets, sitemap, the /_seo/ copies) are served as-is.
+# Real files and folders (assets, sitemap) are served as-is.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# /pricing -> /_seo/pricing.html. The lookahead tests the rewritten path, not
-# %{REQUEST_URI}, which some servers leave at the original URL between passes.
-RewriteRule ^(?!_seo/)(.+?)/?$ /_seo/$1.html [L]
+# Public pages have a prerendered copy of index.html in /_seo/ carrying their
+# own title, description and canonical, so crawlers see the right head without
+# running JS. vite-plugins/seoPages.ts replaces the marker below with one rule
+# per page it writes, so a rule never points at a copy that doesn't exist.
+# @seo-pages
 
-# No copy for a deep-linked section (/about/story): use its page's copy.
-RewriteRule ^_seo/([^/]+)/[^/]+\.html$ /_seo/$1.html [L]
-
-# No copy at all (login, app routes): the plain SPA shell.
+# Everything else (sign-in, OAuth returns such as /hiring/recruiter/interviews,
+# every app route): the plain SPA shell.
 RewriteRule ^ /index.html [L]
+
+# Last resort if a rewrite is ever skipped: give the router the SPA shell
+# rather than showing the host's 404 page.
+ErrorDocument 404 /index.html
