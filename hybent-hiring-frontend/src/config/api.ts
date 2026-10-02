@@ -1,4 +1,4 @@
-export const PROD_BACKEND_URL = 'https://hybent-hiring-backend.onrender.com'
+export const PROD_BACKEND_URL = 'https://api.hybent.com'
 
 export function getApiBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_BASE_URL
