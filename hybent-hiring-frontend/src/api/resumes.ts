@@ -7,6 +7,8 @@ export interface JobRequirements {
   required_skills?: string   // comma-separated
   min_experience?: number
   match_threshold?: number
+  /** Parse and file the candidate without matching them against any job. */
+  skip_scoring?: boolean
 }
 
 export const resumesApi = {
@@ -26,6 +28,7 @@ export const resumesApi = {
     if (jobReqs?.required_skills) form.append('required_skills', jobReqs.required_skills)
     if (jobReqs?.min_experience != null) form.append('min_experience', String(jobReqs.min_experience))
     if (jobReqs?.match_threshold != null) form.append('match_threshold', String(jobReqs.match_threshold))
+    if (jobReqs?.skip_scoring) form.append('skip_scoring', 'true')
     return api.post<Candidate>('/v1/resumes/upload-and-create', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

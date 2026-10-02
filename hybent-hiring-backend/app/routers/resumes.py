@@ -119,6 +119,9 @@ async def upload_and_create(
     required_skills: str = Form(""),   # comma-separated
     min_experience: float = Form(0.0),
     match_threshold: float = Form(70.0),
+    # The recruiter chose to upload without a job: parse and file the
+    # candidate, but do not match or score them against anything.
+    skip_scoring: bool = Form(False),
 ):
     """Upload a resume, parse with AI, score against job requirements, create/update candidate."""
     file_content = await file.read()
@@ -182,7 +185,7 @@ async def upload_and_create(
         except ValueError:
             pass
 
-    target_title = job.title if job else role_title
+    target_title = "" if skip_scoring else (job.title if job else role_title)
             
     from app.utils.category import extract_core_category, extract_all_categories, detect_category_from_skills, get_missing_skills_hint, get_tech_keywords
     target_categories = extract_all_categories(target_title)
@@ -261,9 +264,13 @@ async def upload_and_create(
 
     
     is_real_job = job and getattr(job, "status", None) != "pool"
-    has_custom_requirements = bool(req_skills_list) or min_experience > 0 or bool(role_title)
+    # Minimum experience alone is not something to match against. Counting it
+    # used to score resumes uploaded with no job against the pool job above —
+    # titled from the candidate's own resume, with no skills — so every such
+    # upload came back a 100% match.
+    has_custom_requirements = bool(req_skills_list) or bool(role_title)
 
-    if is_real_job or has_custom_requirements:
+    if not skip_scoring and (is_real_job or has_custom_requirements):
         if not job or getattr(job, "status", None) == "pool":
             job = _JobReq(
                 title=role_title or (job.title if job else "Role"),

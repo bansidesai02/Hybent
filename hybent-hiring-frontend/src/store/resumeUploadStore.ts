@@ -63,6 +63,10 @@ const DEFAULT_JOB_REQ: JobReq = {
 
 interface ResumeUploadState {
   stage: UploadStage
+  /** The picked file, for the file card — the File itself is not kept. */
+  file: { name: string; size: number } | null
+  /** This run was uploaded without a job, so it was never matched or scored. */
+  unscored: boolean
   result: Candidate | null
   scoring: ScoringResult | null
   completedSteps: number
@@ -78,7 +82,7 @@ interface ResumeUploadState {
   setResult: (update: (prev: Candidate | null) => Candidate | null) => void
   setPageMounted: (mounted: boolean) => void
   reset: () => void
-  startUpload: (file: File, queryClient: QueryClient) => Promise<void>
+  startUpload: (file: File, queryClient: QueryClient, opts?: { skipScoring?: boolean }) => Promise<void>
 }
 
 /* Bumped on every new upload or reset, so a run that was superseded stops
@@ -87,6 +91,8 @@ let runId = 0
 
 export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
   stage: 'idle',
+  file: null,
+  unscored: false,
   result: null,
   scoring: null,
   completedSteps: 0,
@@ -106,6 +112,8 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
     runId++
     set({
       stage: 'idle',
+      file: null,
+      unscored: false,
       result: null,
       scoring: null,
       completedSteps: 0,
@@ -115,7 +123,7 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
     })
   },
 
-  startUpload: async (file, queryClient) => {
+  startUpload: async (file, queryClient, opts) => {
     const myRun = ++runId
     const isCurrent = () => myRun === runId
     const { jobReq } = get()
@@ -124,6 +132,8 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
       error: '',
       completedSteps: 0,
       stage: 'uploading',
+      file: { name: file.name, size: file.size },
+      unscored: !!opts?.skipScoring,
       result: null,
       scoring: null,
       duplicate: null,
@@ -137,13 +147,18 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
     }
 
     try {
-      const { data } = await resumesApi.uploadAndCreate(file, {
-        job_id: jobReq.job_id,
-        role_title: jobReq.role_title,
-        required_skills: jobReq.required_skills,
-        min_experience: parseFloat(jobReq.min_experience) || 0,
-        match_threshold: parseFloat(jobReq.match_threshold) || 70,
-      })
+      const { data } = await resumesApi.uploadAndCreate(
+        file,
+        opts?.skipScoring
+          ? { skip_scoring: true }
+          : {
+              job_id: jobReq.job_id,
+              role_title: jobReq.role_title,
+              required_skills: jobReq.required_skills,
+              min_experience: parseFloat(jobReq.min_experience) || 0,
+              match_threshold: parseFloat(jobReq.match_threshold) || 70,
+            }
+      )
 
       /* The new candidate exists server-side now. Other recruiters' open
          Candidates tabs already learn this via the activity websocket, but
