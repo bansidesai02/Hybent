@@ -1,0 +1,79 @@
+# Production stack on the EC2 instance. Images are built by GitHub Actions
+# (.github/workflows/backend-deploy.yml) and pulled from ECR — nothing is built
+# on the server. Started/updated only through deploy.sh.
+#
+# Server-only files next to this one (never committed):
+#   .env       BACKEND_IMAGE_REPO, BACKEND_IMAGE_TAG (written by deploy.sh), API_DOMAIN
+#   .env.prod  the app's environment variables (what used to live in Render)
+name: hybent
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+
+  backend:
+    image: ${BACKEND_IMAGE_REPO}:${BACKEND_IMAGE_TAG}
+    restart: always
+    env_file: .env.prod
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /app/uploads
+      PYTHONUNBUFFERED: "1"
+    # An explicit command is required: with none, entrypoint.sh falls back to
+    # its Render mode and starts Celery inside this container as well.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--workers", "2", "--loop", "uvloop", "--http", "httptools",
+              "--proxy-headers", "--forwarded-allow-ips", "*"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    depends_on: [redis]
+
+  worker:
+    image: ${BACKEND_IMAGE_REPO}:${BACKEND_IMAGE_TAG}
+    restart: always
+    env_file: .env.prod
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /app/uploads
+      SKIP_PRESTART: "true"
+      PYTHONUNBUFFERED: "1"
+    # -B runs beat inside this worker — keep exactly one worker container, or
+    # every scheduled task would fire once per container.
+    command: ["celery", "-A", "app.core.celery_app", "worker", "-B", "--loglevel=info",
+              "--concurrency=2", "--max-memory-per-child=300000"]
+    stop_grace_period: 60s
+    volumes:
+      - uploads:/app/uploads
+    depends_on: [redis, backend]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [backend]
+
+volumes:
+  redis_data:
+  uploads:
+  caddy_data:
+  caddy_config:

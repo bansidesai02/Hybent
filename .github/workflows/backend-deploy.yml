@@ -1,14 +1,129 @@
 name: Backend CD
 
+# Builds the backend image, pushes it to ECR, and deploys it to the EC2
+# instance through SSM Run Command (no inbound SSH needed from GitHub).
+# Setup and operations: deploy/DEPLOYMENT_GUIDE.md
+
 on:
   push:
-    branches: [ yash ]
+    branches: [ main ]
+    paths:
+      - 'hybent-hiring-backend/**'
+      - 'deploy/**'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Existing image tag (commit SHA) to redeploy / roll back to. Leave empty to build the current commit.'
+        required: false
+        default: ''
+
+concurrency:
+  group: backend-deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-north-1
+  ECR_REPOSITORY: hybent-backend
+  DEPLOY_BRANCH: main
 
 jobs:
+  build:
+    name: Build, test & push image
+    if: github.event_name == 'push' || inputs.image_tag == ''
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./hybent-hiring-backend
+          load: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        run: |
+          docker run --rm --entrypoint python \
+            -e APP_ENV=production -e SECRET_KEY=ci \
+            -e DATABASE_URL=postgresql+asyncpg://ci:ci@localhost:5432/ci \
+            -e REDIS_URL=redis://localhost:6379/0 \
+            "$IMAGE" -c "import app.main, app.core.celery_app; print('app imports OK')"
+
+          heads=$(docker run --rm --entrypoint alembic \
+            -e SECRET_KEY=ci -e DATABASE_URL=postgresql+asyncpg://ci:ci@localhost:5432/ci \
+            "$IMAGE" heads | grep -c '(head)')
+          if [ "$heads" -ne 1 ]; then
+            echo "::error::Alembic has $heads migration heads — merge them before deploying."
+            exit 1
+          fi
+
+      - name: Push image
+        run: docker push "${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+
   deploy:
-    name: Trigger Render Deploy
+    name: Deploy to EC2
+    needs: build
+    if: always() && (needs.build.result == 'success' || (needs.build.result == 'skipped' && inputs.image_tag != ''))
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy Hook
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run deploy.sh on the instance
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          IMAGE_TAG: ${{ inputs.image_tag || needs.build.outputs.image_tag }}
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          set -euo pipefail
+          remote="sudo -u ec2-user -H bash -c 'cd ~/hybent && git fetch -q origin $DEPLOY_BRANCH && git reset -q --hard origin/$DEPLOY_BRANCH && bash deploy/deploy.sh $IMAGE_TAG'"
+          jq -n --arg c "$remote" '{commands: [$c]}' > params.json
+
+          cmd_id=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy backend $IMAGE_TAG" \
+            --timeout-seconds 900 \
+            --parameters file://params.json \
+            --query Command.CommandId --output text)
+          echo "SSM command: $cmd_id"
+
+          status=Pending
+          for _ in $(seq 1 90); do
+            sleep 10
+            status=$(aws ssm get-command-invocation --command-id "$cmd_id" --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Pending|InProgress|Delayed) continue ;; *) break ;; esac
+          done
+
+          echo "----- output from the instance -----"
+          aws ssm get-command-invocation --command-id "$cmd_id" --instance-id "$INSTANCE_ID" \
+            --query StandardOutputContent --output text || true
+          echo "----- errors from the instance -----"
+          aws ssm get-command-invocation --command-id "$cmd_id" --instance-id "$INSTANCE_ID" \
+            --query StandardErrorContent --output text || true
+
+          echo "Final status: $status"
+          [ "$status" = "Success" ]
