@@ -998,10 +998,10 @@ function UploadResume() {
           if (pendingFile) startUpload(pendingFile, queryClient, { skipScoring: true })
           setPendingFile(null)
         }}
-        title="No job selected"
+        title="No role selected"
         description="The resume will be parsed and added to your talent database, but not matched or scored against a role. Upload anyway?"
         confirmLabel="Upload without matching"
-        cancelLabel="Choose a job"
+        cancelLabel="Choose a role"
       />
     </div>
   )
