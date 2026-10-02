@@ -284,6 +284,9 @@ export default {
         'drift-c':    'driftC 10s ease-in-out infinite alternate',
         'grow-width': 'growWidth 1.2s ease both',
         'fade-up':    'fadeUp 0.6s ease both',
+        /* Upload page: the idle résumé stack and the parse scan beam. */
+        'hb-float':   'hbFloat 4s ease-in-out infinite',
+        'hb-scan':    'hbScan 1.8s cubic-bezier(.4, 0, .2, 1) infinite',
       },
 
       keyframes: {
@@ -295,6 +298,8 @@ export default {
         driftB:       { from: { transform: 'translate(0,0) scale(1)' }, to: { transform: 'translate(-30px,50px) scale(1.05)' } },
         driftC:       { from: { transform: 'translate(0,0)' }, to: { transform: 'translate(60px,-40px)' } },
         growWidth:    { from: { width: '0%' } },
+        hbFloat:      { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-6px)' } },
+        hbScan:       { from: { transform: 'translateY(-100%)' }, to: { transform: 'translateY(160px)' } },
       },
     },
   },
