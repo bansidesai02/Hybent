@@ -1,8 +1,8 @@
 import type { ComponentType } from 'react'
 import {
-  Activity, Bot, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
-  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, ScrollText,
-  Settings, Sparkles, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
+  Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
+  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ScrollText,
+  Settings, Sparkle, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -171,6 +171,7 @@ export function getNavSections(
       label: 'Main',
       items: [
         { to: basePath, label: 'Overview', icon: LayoutDashboard, end: true },
+        { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: Sparkle, customActivePath: `${basePath}/copilot` },
         { to: `${basePath}/inbox`, label: 'Gmail Inbox', icon: Inbox },
         { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseBusiness },
         candidatesGroup(basePath, role, candidateBadge),
@@ -182,8 +183,7 @@ export function getNavSections(
     {
       label: 'Intelligence',
       items: [
-        { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: Bot, customActivePath: `${basePath}/copilot` },
-        { to: `${basePath}/analytics`, label: 'AI Insights', icon: Sparkles },
+        { to: `${basePath}/analytics`, label: 'AI Insights', icon: Lightbulb },
         { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: ChartColumn },
       ],
     },
