@@ -55,17 +55,48 @@ _invalid_keys: set[str] = set()
 # Models Groq said don't exist (404); skipped from then on.
 _missing_models: set[str] = set()
 
+# GPT-OSS first: it has a published self-serve price, so the 2x credit markup
+# is exact. The Llama models are Enterprise "Contact Sales" since 2026-08-26
+# and are charged at their last public rate, so they're fallbacks only.
+# groq/compound is deliberately absent: it bills built-in tool use (web
+# search, code execution) on top of tokens, which metering can't see.
 PREFERRED_TEXT_MODELS = [
-    "llama-3.3-70b-versatile",
     "openai/gpt-oss-120b",
     "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
     "qwen/qwen3.6-27b",
-    "groq/compound",
-    "groq/compound-mini",
     "llama-3.1-8b-instant",
-    "llama3-8b-8192",
-    "llama3-70b-8192"
 ]
+
+# GPT-OSS reasons before answering, and the reasoning counts against
+# max_tokens. Low effort keeps latency and cost close to a non-reasoning
+# model; the headroom stops a small max_tokens (e.g. a 20-token title) from
+# being spent entirely on reasoning and returning empty content.
+REASONING_DEFAULT_EFFORT = "low"
+REASONING_TOKEN_HEADROOM = 1024
+
+
+def _supports_reasoning_effort(model: str) -> bool:
+    return model.startswith("openai/gpt-oss")
+
+
+def _kwargs_for_model(kwargs: dict, model: str) -> dict:
+    """Per-model request arguments: reasoning settings only go to models that
+    accept them, since other models reject the request outright."""
+    call = dict(kwargs)
+    call["model"] = model
+    if _supports_reasoning_effort(model):
+        call.setdefault("reasoning_effort", REASONING_DEFAULT_EFFORT)
+        for key in ("max_tokens", "max_completion_tokens"):
+            if call.get(key):
+                call[key] = call[key] + REASONING_TOKEN_HEADROOM
+    else:
+        call.pop("reasoning_effort", None)
+    return call
+
+
+def _is_json_validation_error(e: Exception) -> bool:
+    return "json_validate_failed" in str(e) or "failed to validate json" in str(e).lower()
 
 PREFERRED_AUDIO_MODELS = [
     "whisper-large-v3-turbo",
@@ -151,13 +182,11 @@ class SafeCompletions:
         for key in keys_to_try:
             for model in models_to_try:
                 try:
-                    # Update kwargs with the model we are trying
-                    if "model" in kwargs or requested_model:
-                        kwargs["model"] = model
+                    call_kwargs = _kwargs_for_model(kwargs, model)
 
                     logger.info(f"Attempting Groq completion with model={model} and key={key[:12] if key else 'None'}...")
                     client = Groq(api_key=key)
-                    response = client.chat.completions.create(*args, **kwargs)
+                    response = client.chat.completions.create(*args, **call_kwargs)
                     if kwargs.get("stream"):
                         return ai_metering.MeteredGroqStream(
                             response, model, started, scope, feature_name, ai_metering.prompt_chars(kwargs)
@@ -184,6 +213,12 @@ class SafeCompletions:
                     if status_code == 429 or isinstance(e, RateLimitError):
                         logger.warning(f"Groq API key failed (status={status_code}, error={sanitize_error_msg(e)}). Retrying with fallback options...")
                         mark_key_failed(key)
+                        continue
+
+                    # JSON mode rejected this model's output; another model
+                    # usually produces valid JSON for the same prompt.
+                    if status_code == 400 and _is_json_validation_error(e):
+                        logger.warning(f"Groq JSON validation failed on {model}. Trying next model...")
                         continue
 
                     # For other APIStatusErrors, raise or retry next

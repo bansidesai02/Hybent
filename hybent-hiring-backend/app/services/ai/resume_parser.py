@@ -597,7 +597,7 @@ def _call_groq_with_retry(
     organization_id: Optional[uuid.UUID] = None
 ) -> Optional[dict]:
     """
-    Call Groq llama-3.3-70b-versatile, validate with Pydantic, retry once on failure.
+    Call Groq (best available model), validate with Pydantic, retry once on failure.
     Returns validated dict with years_experience calculated from dates.
     """
     last_error = None
@@ -671,7 +671,7 @@ def _call_groq_with_retry(
                     background_tasks.add_task(
                         log_ai_usage,
                         provider="Groq",
-                        model="llama-3.3-70b-versatile",
+                        model=get_best_groq_model(groq_client),
                         feature="resume_parsing",
                         prompt_tokens=p_tokens,
                         completion_tokens=c_tokens,
@@ -955,7 +955,7 @@ async def parse_jd(
             background_tasks.add_task(
                 log_ai_usage,
                 provider="Groq",
-                model="llama-3.3-70b-versatile",
+                model=get_best_groq_model(groq_client),
                 feature="jd_parsing",
                 prompt_tokens=p_tokens,
                 completion_tokens=c_tokens,
@@ -1044,7 +1044,7 @@ async def generate_match_summary(
             background_tasks.add_task(
                 log_ai_usage,
                 provider="Groq",
-                model="llama-3.3-70b-versatile",
+                model=get_best_groq_model(groq_client),
                 feature="match_summary",
                 prompt_tokens=p_tokens,
                 completion_tokens=c_tokens,

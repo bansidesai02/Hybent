@@ -377,6 +377,11 @@ html:has(.hb-app) body {
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: var(--hb-tracking-display);
+}
+
+/* Zero specificity, so a heading's own spacing utility (`mt-4` under an icon
+   tile) wins; at `.hb-app h2` strength this reset silently cancelled them. */
+:where(.hb-app) :where(h1, h2, h3, h4) {
   margin: 0;
 }
 

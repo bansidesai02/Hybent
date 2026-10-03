@@ -65,6 +65,32 @@ def test_invalid_key_is_skipped_after_one_try_and_then_never_used():
         assert calls == [("gsk_good", "openai/gpt-oss-120b")]
 
 
+def test_reasoning_settings_only_go_to_gpt_oss_with_token_headroom():
+    oss = gc._kwargs_for_model({"model": "x", "max_tokens": 20}, "openai/gpt-oss-120b")
+    assert oss["model"] == "openai/gpt-oss-120b"
+    assert oss["reasoning_effort"] == gc.REASONING_DEFAULT_EFFORT
+    assert oss["max_tokens"] == 20 + gc.REASONING_TOKEN_HEADROOM
+
+    llama = gc._kwargs_for_model({"max_tokens": 20, "reasoning_effort": "low"}, "llama-3.3-70b-versatile")
+    assert "reasoning_effort" not in llama
+    assert llama["max_tokens"] == 20
+
+
+def test_json_validation_failure_moves_to_the_next_model():
+    def behaviour(key, model):
+        if model == "openai/gpt-oss-120b":
+            response = httpx.Response(400, request=httpx.Request("POST", "https://api.groq.com/x"))
+            raise APIStatusError("json_validate_failed", response=response, body=None)
+        return "ok"
+
+    factory, calls = _fake_groq(behaviour)
+    with patch.object(gc, "Groq", side_effect=factory):
+        completions = gc.SafeCompletions(lambda: None)
+        assert completions.create(model="openai/gpt-oss-120b", messages=[],
+                                  response_format={"type": "json_object"}) == "ok"
+        assert calls == [("gsk_bad", "openai/gpt-oss-120b"), ("gsk_bad", "openai/gpt-oss-20b")]
+
+
 def test_models_lookup_tries_the_next_key_and_retires_an_invalid_one():
     good = MagicMock(api_key="gsk_good")
     good.models.list.return_value = MagicMock(data=[MagicMock(id="openai/gpt-oss-120b")])

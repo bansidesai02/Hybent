@@ -90,7 +90,7 @@ async def _generate_text_with_fallback(system_content: str, user_content: str, t
 
 # ── Models & Prompt ──────────────────────────────────────────────────────────
 
-GROQ_MODEL = "llama-3.3-70b-versatile"  # fallback label for credit-usage logging only
+GROQ_MODEL = "openai/gpt-oss-120b"  # label for failed-request logging only
 # NOTE: The main chat loop and intent router call get_best_groq_model() at request
 # time (same resilient multi-model/multi-key fallback used by resume_parser.py and
 # match_scorer.py) instead of pinning to a single model here. Historically this file
@@ -2890,7 +2890,7 @@ async def _stream_copilot_chat_impl(
         full_jd_text = ""
         try:
             jd_stream = client.chat.completions.create(
-                model=GROQ_MODEL,
+                model=get_best_groq_model(client),
                 messages=jd_messages,
                 stream=True,
                 temperature=0.3,

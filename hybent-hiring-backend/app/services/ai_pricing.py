@@ -7,7 +7,8 @@ Charges are computed from the tokens (or audio seconds) a call actually
 consumed, so the markup holds whichever model a fallback chain lands on.
 
 Prices are USD per 1M tokens (text) or per hour (audio), from the providers'
-public pricing pages as of 2026-09. Update this table when they change.
+public pricing pages as of 2026-10 (Groq: console.groq.com/docs/models).
+Update this table when they change.
 """
 import logging
 
@@ -26,7 +27,8 @@ TEXT_PRICES: dict[str, tuple[float, float]] = {
     "llama3-8b-8192": (0.05, 0.08),
     "openai/gpt-oss-120b": (0.15, 0.60),
     "openai/gpt-oss-20b": (0.075, 0.30),
-    "qwen/qwen3.6-27b": (0.80, 4.00),
+    "qwen/qwen3.6-27b": (0.60, 3.00),
+    "qwen/qwen3.8-27b": (0.80, 4.00),
     "groq/compound": (0.59, 0.79),
     "groq/compound-mini": (0.15, 0.60),
     # Gemini (paid tier)

@@ -1248,7 +1248,7 @@ async def generate_image_prompt(
 
         if settings.groq_api_key:
             provider = "Groq"
-            model_name = "llama-3.3-70b-versatile"
+            model_name = get_best_groq_model(groq_client)
             completion = groq_client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -1333,7 +1333,7 @@ async def clean_speech_transcript(
     try:
         if settings.groq_api_key and groq_client:
             provider = "Groq"
-            model_name = "llama-3.3-70b-versatile"
+            model_name = get_best_groq_model(groq_client)
             
             def _groq_clean():
                 return groq_client.chat.completions.create(
