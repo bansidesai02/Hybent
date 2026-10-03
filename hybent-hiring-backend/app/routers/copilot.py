@@ -12,6 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status, Up
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.core.config import settings
 from app.dependencies import DB, get_current_user
 from app.models.user import User
 from app.utils.permissions import RECRUITER_ROLES
@@ -23,6 +24,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/copilot", tags=["copilot"])
 
 ALLOWED_ROLES = {r.value for r in RECRUITER_ROLES}  # ADMIN + RECRUITER
+
+# Stop reverse proxies (nginx, Caddy, CDNs) from buffering the event stream.
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
 # ── Pydantic Schemas ──────────────────────────────────────────────────────────
@@ -38,6 +42,8 @@ class CopilotChatRequest(BaseModel):
     page_context: Optional[dict] = None
     conversation_id: Optional[str] = None  # ← link message to existing conversation
     approved_tool_call: Optional[dict] = None
+    # Agent v2: answer to a paused approval — {"action_id", "approved", "edits"?}
+    resume: Optional[dict] = None
 
 
 class CopilotChatResponse(BaseModel):
@@ -100,6 +106,35 @@ async def copilot_chat(
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
+    use_agent = settings.copilot_agent_v2_enabled_for(current_user.organization_id)
+    resume = body.resume
+    if use_agent:
+        from app.services.agents.copilot.service import resume_from_approved_tool_call, stream_copilot_agent
+
+        if body.approved_tool_call and resume is None:
+            resume = await resume_from_approved_tool_call(
+                db, current_user.organization_id, current_user.id, body.conversation_id, body.approved_tool_call,
+            )
+            # None: an approval staged by the legacy path — it runs there.
+            use_agent = resume is not None
+        if resume is not None and not body.conversation_id:
+            raise HTTPException(status_code=400, detail="conversation_id is required to resume.")
+
+    if use_agent:
+        generator = stream_copilot_agent(
+            user_message=body.message.strip(),
+            history=[m.model_dump() for m in body.history],
+            organization_id=current_user.organization_id,
+            db=db,
+            page_context=body.page_context,
+            background_tasks=background_tasks,
+            user_id=current_user.id,
+            conversation_id=body.conversation_id,
+            user_role=current_user.role,
+            resume=resume,
+        )
+        return StreamingResponse(generator, media_type="text/event-stream", headers=_SSE_HEADERS)
+
     generator = stream_copilot_chat(
         user_message=body.message.strip(),
         history=[m.model_dump() for m in body.history],
@@ -113,7 +148,7 @@ async def copilot_chat(
         user_role=current_user.role,
     )
 
-    return StreamingResponse(generator, media_type="text/event-stream")
+    return StreamingResponse(generator, media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
 @router.post("/transcribe")
@@ -296,7 +331,11 @@ async def delete_all_conversations(
             CopilotConversation.user_id == current_user.id,
         )
         await db.execute(stmt)
+        # Commit here: get_db() only commits when it sees writes, and a 2.0-style
+        # bulk delete doesn't register as one — it was silently rolled back.
+        await db.commit()
     except Exception as e:
+        await db.rollback()
         logger.error(f"Error deleting all conversations: {e}")
         raise HTTPException(status_code=500, detail="Database deletion failed.")
 

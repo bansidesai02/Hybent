@@ -55,6 +55,21 @@ class Settings(BaseSettings):
     huggingface_api_key: str = ""
     openai_api_key: str = ""
 
+    # ── Copilot agent v2 (LangGraph) ───────────────────────────────────────────
+    # COPILOT_AGENT_V2=true turns it on for every org; otherwise only the org
+    # ids in COPILOT_AGENT_V2_ORGS (comma-separated) get the new agent.
+    copilot_agent_v2: bool = False
+    copilot_agent_v2_orgs: str = ""
+    # Groq model for the agent loop; empty = the first available entry of
+    # PREFERRED_TEXT_MODELS. Pick it with tests/agents/test_copilot_agent_eval.py.
+    copilot_agent_model: str = ""
+
+    def copilot_agent_v2_enabled_for(self, organization_id) -> bool:
+        if self.copilot_agent_v2:
+            return True
+        allow = {o.strip() for o in self.copilot_agent_v2_orgs.split(",") if o.strip()}
+        return str(organization_id) in allow
+
     # ── Email (SMTP) ───────────────────────────────────────────────────────────
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587

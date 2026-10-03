@@ -57,6 +57,13 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Elasticsearch setup skipped: {exc}")
 
+    # LangGraph checkpointer for agent runs (Copilot v2) — only opened when
+    # the agent is enabled for someone. Falls back to in-memory on failure,
+    # so startup never depends on it.
+    from app.services.agents.checkpointer import init_checkpointer, close_checkpointer
+    if settings.copilot_agent_v2 or settings.copilot_agent_v2_orgs.strip():
+        await init_checkpointer()
+
     # ── SMTP health check ─────────────────────────────────────────────────────────
     if settings.smtp_user and settings.smtp_password:
         logger.info(
@@ -86,6 +93,7 @@ async def lifespan(app: FastAPI):
 
     # Close ES client
     await es_service.close()
+    await close_checkpointer()
     
     logger.info("Hybent Hiring API shutting down")
 
@@ -178,7 +186,21 @@ async def general_exception_handler(request: Request, exc: Exception):
     return APIResponse.error(message="An unexpected system error occurred. Please try again later.", status_code=500)
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
-app.add_middleware(GZipMiddleware, minimum_size=1024)
+class _GZipExceptStreams(GZipMiddleware):
+    """Gzip everything except Server-Sent Events. Starlette 0.37's gzip holds
+    a streamed body in the compressor until the stream ends, so the Copilot's
+    live steps and tokens all reached the browser at once."""
+
+    STREAM_PATHS = ("/v1/copilot/chat",)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path", "").rstrip("/") in self.STREAM_PATHS:
+            await self.app(scope, receive, send)
+            return
+        await super().__call__(scope, receive, send)
+
+
+app.add_middleware(_GZipExceptStreams, minimum_size=1024)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(AuditMiddleware)
 app.add_middleware(RateLimiterMiddleware, auth_limit=30, api_limit=120, window_seconds=60)

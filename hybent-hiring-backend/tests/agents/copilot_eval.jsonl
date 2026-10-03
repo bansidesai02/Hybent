@@ -1,0 +1,60 @@
+{"q": "Show me React developers", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Find Python candidates in Ahmedabad with 3+ years", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Need BDE", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Python developers 3+ yrs Ahmedabad", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Who was added this week?", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Immediate joiners for QA", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Freshers with Java", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Budget 10 LPA wale Node developers dikhao", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Python developers dikhao jo Pune mein hain", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Kitne candidates technical round mein hain?", "focus": null, "expect_any": ["search_candidates", "get_pipeline_summary", "get_analytics"]}
+{"q": "Show rejected candidates", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Senior engineers with 5+ years and AWS", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Find candidates named Priya", "focus": null, "expect_any": ["search_candidates", "get_candidate_details"]}
+{"q": "Koi Flutter developer hai kya?", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Who applied for the Python Developer job?", "focus": null, "expect_any": ["get_candidates_for_job"]}
+{"q": "MEAN stack role ke applicants batao", "focus": null, "expect_any": ["get_candidates_for_job"]}
+{"q": "Show active jobs", "focus": null, "expect_any": ["search_jobs"]}
+{"q": "Kaunsi jobs open hain abhi?", "focus": null, "expect_any": ["search_jobs"]}
+{"q": "How many candidates do we have?", "focus": null, "expect_any": ["get_analytics", "get_pipeline_summary"]}
+{"q": "Show pipeline breakdown", "focus": null, "expect_any": ["get_pipeline_summary", "get_analytics"]}
+{"q": "Offer acceptance rate kya hai?", "focus": null, "expect_any": ["get_analytics", "get_analytics_report", "get_offers"]}
+{"q": "What happened today?", "focus": null, "expect_any": ["get_analytics", "get_activity"]}
+{"q": "What's our average time to hire?", "focus": null, "expect_any": ["get_analytics_report"]}
+{"q": "Which source brings the best candidates?", "focus": null, "expect_any": ["get_analytics_report"]}
+{"q": "Interviewer performance report", "focus": null, "expect_any": ["get_analytics_report"]}
+{"q": "What interviews are tomorrow?", "focus": null, "expect_any": ["search_interviews"]}
+{"q": "Aaj ke interviews", "focus": null, "expect_any": ["search_interviews"]}
+{"q": "Is week kitne interviews scheduled hain?", "focus": null, "expect_any": ["search_interviews", "get_analytics"]}
+{"q": "How much Python experience does Ankit have?", "focus": null, "expect_any": ["ask_resume", "get_candidate_details", "search_candidates"]}
+{"q": "Ankit ka Python experience kitna hai?", "focus": null, "expect_any": ["ask_resume", "get_candidate_details", "search_candidates"]}
+{"q": "iska score kyu kam hai?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["explain_match_score"]}
+{"q": "Why is his match score low?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["explain_match_score"]}
+{"q": "Show his full profile", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["get_candidate_details"]}
+{"q": "Where has he used FastAPI?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["ask_resume"]}
+{"q": "Iske projects kya hain?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["get_candidate_details", "ask_resume"]}
+{"q": "Find candidates similar to him", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["find_similar_candidates"]}
+{"q": "Interview feedback for Ankit?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["get_interview_feedback"]}
+{"q": "Has he completed pre-screening?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["get_pre_screening_status"]}
+{"q": "Generate interview questions for him for Python Developer", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["get_interview_question_material"]}
+{"q": "Is there an offer for Ankit?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["get_offers"]}
+{"q": "What did I do on this candidate recently?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["get_activity"]}
+{"q": "Compare Ankit Parmar and Rahul Mehta", "focus": null, "expect_any": ["compare_candidates"]}
+{"q": "compare top 3 for MEAN Stack role", "focus": null, "expect_any": ["get_candidates_for_job", "search_candidates"]}
+{"q": "How does he fit the Python Developer job?", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar", "job_id": "22222222-2222-2222-2222-222222222222", "job_title": "Python Developer"}, "expect_any": ["explain_match_score"]}
+{"q": "Move Rahul Mehta to technical round selected", "focus": null, "expect_any": ["update_candidate_stage", "search_candidates"]}
+{"q": "Rahul ko HR round selected mein daal do", "focus": null, "expect_any": ["update_candidate_stage", "search_candidates"]}
+{"q": "Schedule Ankit's technical interview tomorrow 4pm with Priya", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["schedule_meeting"]}
+{"q": "Send him a pre-screening invite", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["send_pre_screening_invite"]}
+{"q": "Ankit ko pre-screening bhejo Python Developer ke liye", "focus": {"candidate_id": "11111111-1111-1111-1111-111111111111", "candidate_name": "Ankit Parmar"}, "expect_any": ["send_pre_screening_invite"]}
+{"q": "move rahul to interview and schedule tomorrow 4pm with Priya", "focus": null, "expect_any": ["update_candidate_stage", "schedule_meeting", "search_candidates"]}
+{"q": "Who are the interviewers on my team?", "focus": null, "expect_any": ["search_users", null]}
+{"q": "Schedule an interview", "focus": null, "expect_any": [null]}
+{"q": "Need developer", "focus": null, "expect_any": [null, "search_candidates"]}
+{"q": "Which AI model are you?", "focus": null, "expect_any": [null]}
+{"q": "How do I bulk import candidates?", "focus": null, "expect_any": [null]}
+{"q": "Thanks, that's all", "focus": null, "expect_any": [null]}
+{"q": "Move him to hired", "focus": null, "expect_any": [null, "update_candidate_stage"]}
+{"q": "Score?", "focus": null, "expect_any": [null]}
+{"q": "Find Python devs with 3+ years, compare the best 3, and book an interview with the strongest one tomorrow at 4 pm with Priya", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "Find the top React candidate and show their full profile", "focus": null, "expect_any": ["search_candidates"]}

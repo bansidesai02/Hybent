@@ -83,6 +83,14 @@ export function useCopilotChat(options?: UseCopilotChatOptions) {
               }
               useCopilotStore.getState().updateLastMessageContent(content)
             },
+            onStep: (step) => {
+              if (!messageAdded) {
+                messageAdded = true
+                setThinking(false)
+                addMessage({ role: 'assistant', content: '' })
+              }
+              useCopilotStore.getState().upsertLastMessageStep(step)
+            },
             onApproval: (data) => {
               if (!messageAdded) {
                 messageAdded = true
@@ -121,6 +129,7 @@ export function useCopilotChat(options?: UseCopilotChatOptions) {
         )
       } finally {
         setThinking(false)
+        useCopilotStore.getState().finishLastMessageSteps()
       }
     },
     [isThinking, pageContext, addMessage, setThinking, setConversationId, queryClient, options],

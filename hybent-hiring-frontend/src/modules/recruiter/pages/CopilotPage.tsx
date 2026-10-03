@@ -44,6 +44,7 @@ import {
 import { useCopilotConversations } from '@/modules/recruiter/components/Copilot/useCopilotConversations'
 import { useCopilotChat } from '@/modules/recruiter/components/Copilot/useCopilotChat'
 import { BotMessageContent } from '@/modules/recruiter/components/Copilot/CopilotMessageContent'
+import { CopilotSteps } from '@/modules/recruiter/components/Copilot/CopilotSteps'
 import {
   EXAMPLE_PROMPTS,
   COPILOT_STOPWORDS,
@@ -535,19 +536,29 @@ export default function CopilotPage() {
     [loadConversation, navigate, basePath, setPendingApproval],
   )
 
+  // Clear the open thread BEFORE changing the URL. Otherwise the store→URL
+  // effect still sees the old conversationId, navigates straight back to it
+  // and reloads it (the delete hasn't finished yet), so it stays on screen.
+  const leaveConversation = useCallback(() => {
+    startNewConversation()
+    setPendingApproval(null)
+    navigate(`${basePath}/copilot`, { replace: true })
+  }, [startNewConversation, setPendingApproval, navigate, basePath])
+
   const handleDelete = useCallback(
     (e: React.MouseEvent, id: string) => {
       deleteConversation(e, id)
-      if (id === conversationId) navigate(`${basePath}/copilot`, { replace: true })
+      if (id === conversationId) leaveConversation()
     },
-    [deleteConversation, conversationId, navigate, basePath],
+    [deleteConversation, conversationId, leaveConversation],
   )
 
   const handleClearAll = useCallback(() => {
     deleteAll()
     setConfirmClear(false)
-    navigate(`${basePath}/copilot`, { replace: true })
-  }, [deleteAll, navigate, basePath])
+    leaveConversation()
+    setHistoryOpen(false)
+  }, [deleteAll, leaveConversation])
 
   const handleViewProfile = useCallback((card: CandidateCardData) => {
     resolveAndNavigateToCandidateProfile(card)
@@ -659,7 +670,15 @@ export default function CopilotPage() {
                   ) : (
                     <AssistantRow key={msg.id}>
                       <div className="c-bot text-hb-sm leading-relaxed text-hb-text">
-                        <BotMessageContent content={msg.content} onSend={onSend} onViewProfile={handleViewProfile} />
+                        <CopilotSteps
+                          steps={msg.steps}
+                          startedAt={msg.startedAt}
+                          finishedAt={msg.finishedAt}
+                          hasContent={!!msg.content}
+                        />
+                        {msg.content && (
+                          <BotMessageContent content={msg.content} onSend={onSend} onViewProfile={handleViewProfile} />
+                        )}
                       </div>
                     </AssistantRow>
                   ),

@@ -1,7 +1,8 @@
 import axios, { refreshAccessToken } from './axios'
-import type { ChatMessage, PageContext } from '@/store/useCopilotStore'
+import type { ChatMessage, CopilotStep, PageContext } from '@/store/useCopilotStore'
 import { tokenStorage } from '@/utils/tokenStorage'
 import { getApiBaseUrl } from '@/config/api'
+import { createSmoothStream } from './smoothStream'
 
 // ── Response Types ────────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ export const copilotApi = {
     callbacks?: {
       onMeta?: (meta: any) => void
       onChunk?: (content: string) => void
+      onStep?: (step: CopilotStep) => void
       onApproval?: (approvalData: any) => void
       onDone?: () => void
       onError?: (err: any) => void
@@ -124,39 +126,43 @@ export const copilotApi = {
       const decoder = new TextDecoder("utf-8")
       let buffer = ""
 
+      // Text is revealed at a steady typewriter pace; steps / approval / done
+      // wait their turn behind it so the UI never runs ahead of the words.
+      const smooth = createSmoothStream((text) => callbacks?.onChunk?.(text))
+      signal?.addEventListener('abort', () => smooth.stop(), { once: true })
+
+      const dispatch = (raw: string) => {
+        if (!raw.trim()) return
+        let data: any
+        try {
+          data = JSON.parse(raw)
+        } catch (e) {
+          console.error("Failed to parse SSE chunk", e)
+          return
+        }
+        if (data.type === 'meta') callbacks?.onMeta?.(data)
+        else if (data.type === 'chunk') smooth.text(data.content)
+        else if (data.type === 'step') {
+          const { type: _type, ...step } = data
+          smooth.event(() => callbacks?.onStep?.(step as CopilotStep))
+        }
+        else if (data.type === 'approval') smooth.event(() => callbacks?.onApproval?.(data))
+        else if (data.type === 'done') smooth.event(() => callbacks?.onDone?.())
+      }
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n\n')
-        
         buffer = lines.pop() || ""
+        lines.forEach(dispatch)
+      }
+      dispatch(buffer)
 
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const data = JSON.parse(line)
-              if (data.type === 'meta' && callbacks?.onMeta) callbacks.onMeta(data)
-              else if (data.type === 'chunk' && callbacks?.onChunk) callbacks.onChunk(data.content)
-              else if (data.type === 'approval' && callbacks?.onApproval) callbacks.onApproval(data)
-              else if (data.type === 'done' && callbacks?.onDone) callbacks.onDone()
-            } catch (e) {
-              console.error("Failed to parse SSE chunk", e)
-            }
-          }
-        }
-      }
-      
-      if (buffer.trim()) {
-        try {
-           const data = JSON.parse(buffer)
-           if (data.type === 'meta' && callbacks?.onMeta) callbacks.onMeta(data)
-           else if (data.type === 'chunk' && callbacks?.onChunk) callbacks.onChunk(data.content)
-           else if (data.type === 'approval' && callbacks?.onApproval) callbacks.onApproval(data)
-           else if (data.type === 'done' && callbacks?.onDone) callbacks.onDone()
-        } catch(e) {}
-      }
+      // Callers treat "chatStream resolved" as "reply finished on screen".
+      await smooth.drain()
     } catch (err) {
       if (callbacks?.onError) callbacks.onError(err)
     }

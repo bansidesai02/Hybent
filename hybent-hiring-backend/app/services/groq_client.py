@@ -178,21 +178,27 @@ class SafeCompletions:
         started = time.perf_counter()
 
         last_exception = None
+        rate_limited = False
+
+        def attempt(key, model, max_retries):
+            call_kwargs = _kwargs_for_model(kwargs, model)
+            logger.info(f"Attempting Groq completion with model={model} and key={key[:12] if key else 'None'}...")
+            client = Groq(api_key=key, max_retries=max_retries)
+            response = client.chat.completions.create(*args, **call_kwargs)
+            if kwargs.get("stream"):
+                return ai_metering.MeteredGroqStream(
+                    response, model, started, scope, feature_name, ai_metering.prompt_chars(kwargs)
+                )
+            ai_metering.record_groq_completion(response, model, started, scope)
+            return response
 
         for key in keys_to_try:
             for model in models_to_try:
                 try:
-                    call_kwargs = _kwargs_for_model(kwargs, model)
-
-                    logger.info(f"Attempting Groq completion with model={model} and key={key[:12] if key else 'None'}...")
-                    client = Groq(api_key=key)
-                    response = client.chat.completions.create(*args, **call_kwargs)
-                    if kwargs.get("stream"):
-                        return ai_metering.MeteredGroqStream(
-                            response, model, started, scope, feature_name, ai_metering.prompt_chars(kwargs)
-                        )
-                    ai_metering.record_groq_completion(response, model, started, scope)
-                    return response
+                    # max_retries=0: on a 429 the SDK would otherwise sleep for
+                    # Groq's Retry-After (often ~20s) before we ever get to
+                    # rotate to another key/model, which is usually instant.
+                    return attempt(key, model, max_retries=0)
                 except (RateLimitError, APIStatusError) as e:
                     last_exception = e
                     status_code = getattr(e, "status_code", None)
@@ -211,6 +217,7 @@ class SafeCompletions:
 
                     # Rate limit: Groq limits per model, so try the next one
                     if status_code == 429 or isinstance(e, RateLimitError):
+                        rate_limited = True
                         logger.warning(f"Groq API key failed (status={status_code}, error={sanitize_error_msg(e)}). Retrying with fallback options...")
                         mark_key_failed(key)
                         continue
@@ -227,6 +234,7 @@ class SafeCompletions:
                     last_exception = e
                     err_str = str(e).lower()
                     if "rate limit" in err_str or "429" in err_str or "limit exceeded" in err_str or "authentication" in err_str or "api_key" in err_str:
+                        rate_limited = rate_limited or "auth" not in err_str
                         logger.warning(f"Groq API key failed (error={sanitize_error_msg(e)}). Retrying with fallback options...")
                         mark_key_failed(key)
                         continue
@@ -234,6 +242,15 @@ class SafeCompletions:
                         logger.warning(f"Groq model error: {sanitize_error_msg(e)}. Trying next model...")
                         continue
                     raise e
+
+        # Every key/model is rate-limited: last resort, wait out Retry-After
+        # once on the preferred key/model (the SDK honours the header).
+        if rate_limited and keys_to_try and models_to_try:
+            logger.warning("Groq: every key/model rate-limited; waiting for Retry-After once.")
+            try:
+                return attempt(keys_to_try[0], models_to_try[0], max_retries=2)
+            except Exception as e:
+                last_exception = e
 
         # If we exhausted everything, raise the last exception
         if last_exception:

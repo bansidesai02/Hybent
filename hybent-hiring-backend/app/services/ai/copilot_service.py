@@ -561,6 +561,25 @@ def _format_experience(c: dict) -> Optional[str]:
     return None
 
 
+def _compact_candidate(c: dict) -> dict:
+    """A candidate row trimmed to what an agent needs to reason about it —
+    ids for follow-up tool calls plus the fields recruiters filter on."""
+    out = {
+        "id": str(c["id"]) if c.get("id") else None,
+        "name": c.get("full_name"),
+        "title": c.get("current_title"),
+        "company": c.get("current_company"),
+        "location": c.get("location"),
+        "experience": _format_experience(c),
+        "skills": (c.get("skills") or [])[:6] if isinstance(c.get("skills"), list) else c.get("skills"),
+        "stage": c.get("pipeline_stage"),
+        "match_score": round(float(c["match_score"]), 1) if c.get("match_score") is not None else None,
+        "notice": c.get("notice_period_days"),
+        "expected_ctc": c.get("expected_salary") or c.get("expected_ctc"),
+    }
+    return {k: v for k, v in out.items() if v not in (None, "", [])}
+
+
 def _format_candidate_block(c: dict, detailed: bool) -> str:
     """One candidate as either a bare name line or a full emoji-field card."""
     if not detailed:
@@ -623,13 +642,39 @@ _SEARCH_LARGE_THRESHOLD = 20
 
 # ── Read Tool Executor ───────────────────────────────────────────────────────
 
-async def execute_read_tool(name: str, args: dict, organization_id: str, db: AsyncSession, user_message: Optional[str] = None) -> str:
-    """Execute read-only tools with caching."""
+async def execute_read_tool(
+    name: str, args: dict, organization_id: str, db: AsyncSession,
+    user_message: Optional[str] = None, sink: Optional[dict] = None,
+) -> str:
+    """Execute read-only tools with caching.
+
+    Returns the markdown shown to the recruiter. When `sink` is given (the
+    v2 agent), sink["data"] also receives a compact JSON-able version of the
+    result for the model to reason over.
+    """
     cache_key = f"{name}:{organization_id}:{json.dumps(args, sort_keys=True)}"
+    if sink is not None:
+        cache_key = f"v2:{cache_key}"
     cached = _cache_get(cache_key)
     if cached:
         logger.info(f"Copilot cache hit for tool: {name}")
-        return cached
+        if sink is None:
+            return cached
+        payload = json.loads(cached)
+        sink["data"] = payload.get("data")
+        return payload.get("text", "")
+
+    if sink is None:
+        sink = {}
+        want_data = False
+    else:
+        want_data = True
+
+    def _cache_result(text_val: str, ttl: int) -> None:
+        if want_data:
+            _cache_set(cache_key, json.dumps({"text": text_val, "data": sink.get("data")}, default=str), ttl=ttl)
+        else:
+            _cache_set(cache_key, text_val, ttl=ttl)
 
     try:
         result_text = ""
@@ -974,6 +1019,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             res_all = res.fetchall()
             logger.info("Copilot search found %d records (total matching: %d)", len(res_all), match_count)
 
+            sink["data"] = {"total": match_count, "candidates": []}
             if not res_all:
                 # Build descriptive no-results message with helpful suggestions
                 raw_q = args.get("query", "")
@@ -1015,7 +1061,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
 
                 if is_count_only:
                     result_text = f"{header}\n\n[SUGGEST:Show candidates]"
-                    _cache_set(cache_key, result_text, ttl=_CACHE_TTL_SEARCH)
+                    _cache_result(result_text, _CACHE_TTL_SEARCH)
                     return result_text
 
                 # ── AI Ranking: score each candidate post-fetch ────────────
@@ -1058,6 +1104,10 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 ranked_dicts = sorted(
                     (dict(r._mapping) for r in res_all), key=_score_candidate, reverse=True
                 )
+                sink["data"] = {
+                    "total": match_count,
+                    "candidates": [_compact_candidate(c) for c in ranked_dicts[:_SEARCH_SUBSET_SIZE]],
+                }
 
                 if match_count > _SEARCH_LARGE_THRESHOLD:
                     # Large result set — never dump into chat. Count + a real,
@@ -1129,6 +1179,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 """
                 res = await db.execute(text(sql), {"oid": organization_id})
                 row = dict(res.fetchone()._mapping)
+                sink["data"] = row
 
                 result_text = (
                     "📊 **Hiring Overview**\n\n"
@@ -1161,6 +1212,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                     label = stage.replace("_", " ").title()
                     stage_lines.append(f"  • **{label}**: {cnt}")
 
+                sink["data"] = {"total": total, "stages": {(r.pipeline_stage or "none"): r.cnt for r in rows}}
                 result_text = (
                     f"📊 **Pipeline Breakdown** (Total: {total} candidates)\n\n"
                     + "\n".join(stage_lines)
@@ -1185,6 +1237,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 """
                 res = await db.execute(text(sql), {"oid": organization_id})
                 row = dict(res.fetchone()._mapping)
+                sink["data"] = row
                 result_text = (
                     "📅 **Interview Statistics**\n\n"
                     f"📌 Today's scheduled interviews: **{row['today_count']}**\n"
@@ -1210,6 +1263,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 row = dict(res.fetchone()._mapping)
                 total = row["total_offered"] or 0
                 accept_rate = round((row["accepted"] / total * 100), 1) if total > 0 else 0
+                sink["data"] = {**row, "acceptance_rate_pct": accept_rate}
                 result_text = (
                     "🎯 **Offer Statistics**\n\n"
                     f"📤 Total Offers Extended: **{total}**\n"
@@ -1234,6 +1288,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 """
                 res = await db.execute(text(sql), {"oid": organization_id})
                 row = dict(res.fetchone()._mapping)
+                sink["data"] = row
                 result_text = (
                     "📋 **Today's Activity**\n\n"
                     f"👤 New candidates added: **{row['candidates_added']}**\n"
@@ -1275,7 +1330,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                     )
 
             sql = f"""
-                SELECT i.title, i.scheduled_at, i.status, i.meeting_link,
+                SELECT i.id, i.candidate_id, i.title, i.scheduled_at, i.status, i.meeting_link,
                        c.full_name AS candidate_name, c.email AS candidate_email,
                        c.current_title AS candidate_title
                 FROM interviews i
@@ -1286,6 +1341,13 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             """
             res = await db.execute(text(sql), params)
             rows = res.fetchall()
+            sink["data"] = [
+                {
+                    "id": str(r.id), "candidate_id": str(r.candidate_id), "candidate": r.candidate_name,
+                    "title": r.title, "scheduled_at": str(r.scheduled_at), "status": r.status,
+                }
+                for r in rows
+            ]
 
             if not rows:
                 result_text = "No interviews found matching your criteria."
@@ -1339,9 +1401,9 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             limit_val = 50 if detailed else 100
 
             sql = f"""
-                SELECT c.full_name, c.email, c.current_title, c.location,
+                SELECT c.id, c.full_name, c.email, c.current_title, c.location,
                        c.relevant_experience, c.experience_years, c.years_experience,
-                       c.skills, c.pipeline_stage, a.match_score, j.title AS job_title
+                       c.skills, c.pipeline_stage, a.match_score, j.id AS job_id, j.title AS job_title
                 FROM candidates c
                 JOIN applications a ON a.candidate_id = c.id
                 JOIN jobs j ON j.id = a.job_id
@@ -1352,6 +1414,12 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             """
             res = await db.execute(text(sql), {"oid": organization_id, "jt": f"%{job_title}%"})
             rows = res.fetchall()
+            sink["data"] = {
+                "job_id": str(rows[0].job_id) if rows else None,
+                "job_title": rows[0].job_title if rows else None,
+                "total": len(rows),
+                "candidates": [_compact_candidate(dict(r._mapping)) for r in rows[:_SEARCH_SUBSET_SIZE]],
+            }
 
             if not rows:
                 # Try to find if the job exists at all
@@ -1439,6 +1507,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                     buckets[bucket] += count
 
             total = sum(buckets.values())
+            sink["data"] = {"total": total, **buckets}
             bucket_emojis = {
                 "applied": "📥",
                 "screening": "🔍",
@@ -1471,6 +1540,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
             sql = f"SELECT full_name, email, role FROM users WHERE {' AND '.join(conds)} LIMIT 15"
             res = await db.execute(text(sql), params)
             res_all = res.fetchall()
+            sink["data"] = [{"name": r.full_name, "email": r.email, "role": r.role} for r in res_all]
 
             if not res_all:
                 result_text = "No team members found."
@@ -1503,12 +1573,19 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
                 params["jstatus"] = args["status"].lower()
 
             sql = (
-                "SELECT j.title, j.status, j.location, j.job_type, j.openings, j.skills_required,"
+                "SELECT j.id, j.title, j.status, j.location, j.job_type, j.openings, j.skills_required,"
                 " (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS application_count"
                 f" FROM jobs j WHERE {' AND '.join(conds)} ORDER BY j.created_at DESC LIMIT 15"
             )
             res = await db.execute(text(sql), params)
             res_all = res.fetchall()
+            sink["data"] = [
+                {
+                    "id": str(r.id), "title": r.title, "status": r.status, "location": r.location,
+                    "openings": r.openings, "applications": r.application_count,
+                }
+                for r in res_all
+            ]
 
             if not res_all:
                 result_text = "No job openings found."
@@ -1541,7 +1618,7 @@ async def execute_read_tool(name: str, args: dict, organization_id: str, db: Asy
         if result_text:
             # Use longer TTL for analytics/pipeline (less volatile)
             is_analytics = name in ("get_analytics", "get_pipeline_summary")
-            _cache_set(cache_key, result_text, ttl=_CACHE_TTL_ANALYTICS if is_analytics else _CACHE_TTL_SEARCH)
+            _cache_result(result_text, _CACHE_TTL_ANALYTICS if is_analytics else _CACHE_TTL_SEARCH)
         return result_text
 
     except Exception as e:
@@ -2343,6 +2420,20 @@ async def execute_routed_intent(
 
 # ── Write Tool Executor ──────────────────────────────────────────────────────
 
+def _prefer_exact(rows: list, name: str) -> list:
+    """Substring (ILIKE) lookups return 'HR Recruiter 2' for 'HR Recruiter';
+    when exactly one row matches the name (or email) exactly, it's the one."""
+    if len(rows) <= 1:
+        return rows
+    wanted = (name or "").strip().lower()
+    exact = [
+        r for r in rows
+        if (getattr(r, "full_name", "") or "").strip().lower() == wanted
+        or (getattr(r, "email", "") or "").strip().lower() == wanted
+    ]
+    return exact if len(exact) == 1 else rows
+
+
 async def execute_write_tool(name: str, args: dict, organization_id: str, user_id: str, db: AsyncSession) -> str:
     """Execute write/mutation tools."""
     try:
@@ -2388,7 +2479,7 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
                 text("SELECT id, full_name, email FROM candidates WHERE full_name ILIKE :n AND organization_id = :o"),
                 {"n": f"%{c_name}%", "o": oid}
             )
-            candidates = c_res.fetchall()
+            candidates = _prefer_exact(c_res.fetchall(), c_name)
             if not candidates:
                 return f"❌ Candidate '{c_name}' not found in the database."
             if len(candidates) > 1:
@@ -2420,7 +2511,7 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
                         ),
                         {"n": f"%{ivn}%", "o": oid}
                     )
-                    matches = u_res.fetchall()
+                    matches = _prefer_exact(u_res.fetchall(), ivn)
                     if not matches:
                         not_found_ivs.append(ivn)
                     elif len(matches) > 1:
@@ -2560,7 +2651,7 @@ async def execute_write_tool(name: str, args: dict, organization_id: str, user_i
                 ),
                 {"n": f"%{c_name}%", "o": oid}
             )
-            candidates = c_res.fetchall()
+            candidates = _prefer_exact(c_res.fetchall(), c_name)
             if not candidates:
                 return f"❌ Candidate '{c_name}' not found."
             if len(candidates) > 1:
@@ -3278,6 +3369,8 @@ async def _stream_copilot_chat_impl(
 
 # ── Conversation Persistence ──────────────────────────────────────────────────
 
+TITLE_MODEL = "llama-3.1-8b-instant"
+
 _TITLE_SYSTEM_PROMPT = (
     "You are a conversation-title generator for a recruiting AI assistant.\n"
     "Given the user's first message and the assistant's first reply, output a short title "
@@ -3318,7 +3411,10 @@ async def _generate_and_save_title(
                 _client = Groq(api_key=settings.groq_api_key)
                 resp = await asyncio.to_thread(
                     lambda: _client.chat.completions.create(
-                        model=get_best_groq_model(_client),
+                        # A 6-word title doesn't need a reasoning model; the
+                        # small one is ~10x cheaper. SafeGroq falls back down
+                        # PREFERRED_TEXT_MODELS if it's unavailable.
+                        model=TITLE_MODEL,
                         messages=[
                             {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
                             {"role": "user", "content": combined},

@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
 import { candidatesApi } from '@/api/candidates'
 import { useCopilotConversations } from './useCopilotConversations'
+import { CopilotSteps } from './CopilotSteps'
 import type { Candidate } from '@/types'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { Avatar, Badge, Button, Card } from '@/components/hb'
@@ -967,8 +968,10 @@ export function CopilotWidget() {
   }, [])
 
   const confirmClearAll = useCallback(async () => {
-    await deleteAll()
+    // Empty the open thread right away rather than after the server replies.
+    useCopilotStore.getState().startNewConversation()
     setShowClearConfirm(false)
+    await deleteAll()
   }, [deleteAll])
 
   const [pendingApproval, setPendingApproval] = useState<any>(null)
@@ -1052,6 +1055,14 @@ export function CopilotWidget() {
             }
             useCopilotStore.getState().updateLastMessageContent(content)
           },
+          onStep: (step) => {
+            if (!messageAdded) {
+              messageAdded = true
+              setThinking(false)
+              addMessage({ role: 'assistant', content: '' })
+            }
+            useCopilotStore.getState().upsertLastMessageStep(step)
+          },
           onApproval: (data) => {
             if (!messageAdded) {
               messageAdded = true
@@ -1091,6 +1102,7 @@ export function CopilotWidget() {
 
     } finally {
       setThinking(false)
+      useCopilotStore.getState().finishLastMessageSteps()
       // Re-focus textarea so user can immediately type the next message
       setTimeout(() => textareaRef.current?.focus(), 50)
     }
@@ -2253,7 +2265,15 @@ export function CopilotWidget() {
                               {msg.role === 'user' ? (
                                 msg.content
                               ) : (
-                                renderBotMessageContent(msg.content)
+                                <>
+                                  <CopilotSteps
+                                    steps={msg.steps}
+                                    startedAt={msg.startedAt}
+                                    finishedAt={msg.finishedAt}
+                                    hasContent={!!msg.content}
+                                  />
+                                  {msg.content && renderBotMessageContent(msg.content)}
+                                </>
                               )}
                             </div>
                           </div>
