@@ -1,4 +1,9 @@
 {$API_DOMAIN} {
-	encode gzip
+	# Compress everything except the Copilot's live event stream: gzip would
+	# hold its steps and tokens until the reply ends, so nothing streams.
+	@compressible not path /v1/copilot/chat
+	encode @compressible gzip
+
+	# Event streams (text/event-stream) are flushed to the client immediately.
 	reverse_proxy backend:8000
 }

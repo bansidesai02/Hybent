@@ -48,8 +48,9 @@ async def init_checkpointer() -> BaseCheckpointSaver:
             conninfo=_psycopg_dsn(),
             min_size=1,
             # Small on purpose — Supabase's pooler has a low connection
-            # ceiling, shared with the SQLAlchemy pool (app/core/database.py).
-            max_size=3,
+            # ceiling, shared with the SQLAlchemy pool (app/core/database.py),
+            # and each uvicorn worker opens its own pool.
+            max_size=2,
             open=False,
             # prepare_threshold=None: no server-side prepared statements, which
             # break behind PgBouncer-style poolers.
