@@ -2833,7 +2833,8 @@ async def _stream_copilot_chat_impl(
         # If empty, invalid, or incomplete, return helpful guidance or error
         if status in ("EMPTY", "INVALID", "INCOMPLETE"):
             saved_conv_id = await _save_conversation_to_db(
-                db, organization_id, user_id, conversation_id, user_message, validation_msg
+                db, organization_id, user_id, conversation_id, user_message, validation_msg,
+                background_tasks=background_tasks,
             )
             yield sse("meta", {"conversation_id": saved_conv_id})
             yield sse("chunk", {"content": validation_msg})
@@ -2926,7 +2927,8 @@ async def _stream_copilot_chat_impl(
         yield sse("chunk", {"content": cta_button})
 
         saved_conv_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, full_jd_text
+            db, organization_id, user_id, conversation_id, user_message, full_jd_text,
+            background_tasks=background_tasks,
         )
         yield sse("done", {})
         return
@@ -2944,7 +2946,8 @@ async def _stream_copilot_chat_impl(
             result_text = "That action is no longer waiting for approval. Please ask me again and I'll prepare it fresh."
         ctx.pop("pending_action", None)
         conversation_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, result_text, last_context=ctx
+            db, organization_id, user_id, conversation_id, user_message, result_text, last_context=ctx,
+            background_tasks=background_tasks,
         )
         yield sse("meta", {"conversation_id": conversation_id})
         yield sse("chunk", {"content": result_text})
@@ -2970,7 +2973,8 @@ async def _stream_copilot_chat_impl(
     # Greetings/help never touch retrieval or a classification LLM call.
     if is_greeting(user_message):
         saved_conv_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, GENERAL_HELP_REPLY
+            db, organization_id, user_id, conversation_id, user_message, GENERAL_HELP_REPLY,
+            background_tasks=background_tasks,
         )
         yield sse("meta", {"conversation_id": saved_conv_id})
         yield sse("chunk", {"content": GENERAL_HELP_REPLY})
@@ -3005,7 +3009,8 @@ async def _stream_copilot_chat_impl(
         if routed_reply is not None:
             new_context = build_last_context(resolved, last_context)
             saved_conv_id = await _save_conversation_to_db(
-                db, organization_id, user_id, conversation_id, user_message, routed_reply, last_context=new_context
+                db, organization_id, user_id, conversation_id, user_message, routed_reply, last_context=new_context,
+                background_tasks=background_tasks,
             )
             yield sse("meta", {"conversation_id": saved_conv_id})
             yield sse("chunk", {"content": routed_reply})
@@ -3187,7 +3192,8 @@ async def _stream_copilot_chat_impl(
                 if tool_call_name in ("schedule_meeting", "update_candidate_stage") and c_name in placeholder_names:
                     reply = "Please tell me the exact name or email of the candidate you want to perform this action for."
                     conversation_id = await _save_conversation_to_db(
-                        db, organization_id, user_id, conversation_id, user_message, reply
+                        db, organization_id, user_id, conversation_id, user_message, reply,
+                        background_tasks=background_tasks,
                     )
                     yield sse("meta", {"conversation_id": conversation_id})
                     yield sse("chunk", {"content": reply})
@@ -3223,7 +3229,8 @@ async def _stream_copilot_chat_impl(
                     if c_name in placeholder_names:
                         reply = "Please tell me the exact name of the candidate you want to update."
                         conversation_id = await _save_conversation_to_db(
-                            db, organization_id, user_id, conversation_id, user_message, reply
+                            db, organization_id, user_id, conversation_id, user_message, reply,
+                            background_tasks=background_tasks,
                         )
                         yield sse("meta", {"conversation_id": conversation_id})
                         yield sse("chunk", {"content": reply})
@@ -3244,7 +3251,8 @@ async def _stream_copilot_chat_impl(
 
         # ── 6. Save & Done ────────────────────────────────────────────────
         saved_conv_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, full_text
+            db, organization_id, user_id, conversation_id, user_message, full_text,
+            background_tasks=background_tasks,
         )
         # Only send meta again if conversation_id changed (new conversation was created)
         if saved_conv_id != conversation_id:
@@ -3269,6 +3277,94 @@ async def _stream_copilot_chat_impl(
 
 
 # ── Conversation Persistence ──────────────────────────────────────────────────
+
+_TITLE_SYSTEM_PROMPT = (
+    "You are a conversation-title generator for a recruiting AI assistant.\n"
+    "Given the user's first message and the assistant's first reply, output a short title "
+    "of AT MOST 6 words that captures the topic. Rules:\n"
+    "- No quotes, no punctuation at the end, title-case.\n"
+    "- Prefer nouns and short phrases: 'Schedule Interview Priya Sharma', 'Candidates for React Role'.\n"
+    "- Never start with 'The', 'A', 'An', 'How', 'What', 'Can'.\n"
+    "- Output ONLY the title — no explanation, no prefix like 'Title:'."
+)
+
+
+async def _generate_and_save_title(
+    conversation_id: str,
+    organization_id: str,
+    user_id: str,
+    user_message: str,
+    assistant_reply: str,
+) -> None:
+    """
+    Background task: generate a short AI title for a brand-new conversation
+    and persist it. Opens its own DB session so it runs safely after the
+    request session has been committed and closed.
+    Falls back silently to the existing 60-char title on any error.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.models.copilot_conversation import CopilotConversation
+
+    try:
+        user_snippet = user_message[:400]
+        reply_snippet = assistant_reply[:400]
+        combined = f"User: {user_snippet}\n\nAssistant: {reply_snippet}"
+
+        title: Optional[str] = None
+
+        # Groq-first
+        if settings.groq_api_key:
+            try:
+                _client = Groq(api_key=settings.groq_api_key)
+                resp = await asyncio.to_thread(
+                    lambda: _client.chat.completions.create(
+                        model=get_best_groq_model(_client),
+                        messages=[
+                            {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
+                            {"role": "user", "content": combined},
+                        ],
+                        temperature=0.2,
+                        max_tokens=20,
+                    )
+                )
+                raw = (resp.choices[0].message.content or "").strip().strip('"').strip("'")
+                if raw:
+                    title = raw[:100]
+            except Exception as e:
+                logger.warning(f"Groq title generation failed: {e}")
+
+        # Gemini fallback
+        if not title and genai is not None and settings.gemini_api_key:
+            try:
+                _model = genai.GenerativeModel(GEMINI_FALLBACK_MODEL)
+                response = await asyncio.to_thread(
+                    lambda: _model.generate_content(f"{_TITLE_SYSTEM_PROMPT}\n\n{combined}")
+                )
+                raw = (response.text or "").strip().strip('"').strip("'")
+                if raw:
+                    title = raw[:100]
+            except Exception as e:
+                logger.warning(f"Gemini title generation failed: {e}")
+
+        if not title:
+            return  # keep the 60-char fallback title
+
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(
+                select(CopilotConversation).where(
+                    CopilotConversation.id == uuid.UUID(conversation_id),
+                    CopilotConversation.organization_id == uuid.UUID(organization_id),
+                    CopilotConversation.user_id == uuid.UUID(user_id),
+                )
+            )
+            conv = res.scalar_one_or_none()
+            if conv:
+                conv.title = title
+                await db.commit()
+                logger.info(f"AI title set for conversation {conversation_id}: '{title}'")
+    except Exception as e:
+        logger.warning(f"Title generation background task failed: {e}")
+
 
 async def _load_last_context(db: AsyncSession, conversation_id: Optional[str], organization_id, user_id) -> Optional[dict]:
     """Loads the structured follow-up context (last discussed candidate/job,
@@ -3300,9 +3396,11 @@ async def _save_conversation_to_db(
     user_message: str,
     assistant_reply: str,
     last_context: Optional[dict] = None,
+    background_tasks: Optional[BackgroundTasks] = None,
 ) -> str:
     from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 
+    is_new = False
     conversation = None
     if conversation_id:
         try:
@@ -3318,7 +3416,9 @@ async def _save_conversation_to_db(
             pass
 
     if not conversation:
-        # Title: first 60 chars of user message, cleaned up
+        is_new = True
+        # Fallback title: first 60 chars of user message.
+        # A background task will overwrite this with an AI-generated title.
         title = user_message[:60].strip()
         conversation = CopilotConversation(
             organization_id=organization_id,
@@ -3334,7 +3434,21 @@ async def _save_conversation_to_db(
     db.add(CopilotMessage(conversation_id=conversation.id, role="user", content=user_message))
     db.add(CopilotMessage(conversation_id=conversation.id, role="assistant", content=assistant_reply))
     await db.commit()
-    return str(conversation.id)
+
+    conv_id_str = str(conversation.id)
+
+    # Schedule AI title generation only once, for brand-new conversations.
+    if is_new and background_tasks is not None:
+        background_tasks.add_task(
+            _generate_and_save_title,
+            conv_id_str,
+            str(organization_id),
+            str(user_id),
+            user_message,
+            assistant_reply,
+        )
+
+    return conv_id_str
 
 
 async def _stage_pending_action(

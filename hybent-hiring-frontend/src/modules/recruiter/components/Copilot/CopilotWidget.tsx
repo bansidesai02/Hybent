@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import toast from 'react-hot-toast'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useMessageStore } from '@/store/messageStore'
 import { useAuthStore } from '@/store/authStore'
@@ -10,6 +11,7 @@ import { aiApi } from '@/api/ai'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
 import { candidatesApi } from '@/api/candidates'
+import { useCopilotConversations } from './useCopilotConversations'
 import type { Candidate } from '@/types'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { Avatar, Badge, Button, Card } from '@/components/hb'
@@ -558,14 +560,29 @@ export function CopilotWidget() {
   } = useCopilotStore()
 
   const { activeChatRecipient } = useMessageStore()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isCopilotPage = location.pathname.includes('/copilot')
 
   const queryClient = useQueryClient()
 
+  // ── Shared conversation list (shared React Query cache with CopilotPage) ──
+  const {
+    conversations,
+    grouped,
+    isLoading: historyLoading,
+    convLoading,
+    refetch: refetchConversations,
+    loadConversation: loadConversationFromHook,
+    deleteConversation,
+    deletingConvId,
+    deleteAll,
+    clearingAll,
+    scheduleRefetchForNewTitle,
+  } = useCopilotConversations()
+
   const [input, setInput] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [conversations, setConversations] = useState<ConversationSummary[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const [convLoading, setConvLoading] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -730,7 +747,7 @@ export function CopilotWidget() {
   const [isFabDragging, setIsFabDragging] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -848,8 +865,11 @@ export function CopilotWidget() {
   }, [])
 
   // Auto-scroll
+  // Scroll the message list only — scrollIntoView would also scroll the
+  // shell's overflow-hidden ancestors behind the popup.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = messagesRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [messages, isThinking, isTranscribing])
 
   const keepInBounds = useCallback((pos: { x: number; y: number } | null, minimized: boolean) => {
@@ -921,83 +941,35 @@ export function CopilotWidget() {
     return () => window.removeEventListener('resize', handleResize)
   }, [position, isMinimized, keepInBounds, fabPosition, keepFabInBounds])
 
-  // Load history panel conversations
-  const loadHistory = useCallback(async () => {
-    setHistoryLoading(true)
-    try {
-      const res = await copilotApi.getConversations()
-      setConversations(res.data)
-    } catch { /* silent — history is non-critical */ }
-    finally { setHistoryLoading(false) }
-  }, [])
-
   const openHistory = useCallback(() => {
     setHistoryOpen(true)
-    loadHistory()
-  }, [loadHistory])
+    refetchConversations()
+  }, [refetchConversations])
 
-  // Load a past conversation into the chat
+  // Wrap hook's loadConversation so it also closes the history panel
   const loadConversation = useCallback(async (id: string) => {
-    setConvLoading(true)
-    try {
-      const res = await copilotApi.getConversation(id)
-      const mapped = res.data.messages.map((m) => ({
-        id: m.id,
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }))
-      setMessages(mapped)
-      setConversationId(id)
-      setHistoryOpen(false)
-    } catch { /* silent */ }
-    finally { setConvLoading(false) }
-  }, [setMessages, setConversationId])
+    await loadConversationFromHook(id)
+    setHistoryOpen(false)
+  }, [loadConversationFromHook])
 
   // Restore messages on mount/reload if conversationId is active but messages are cached empty
   useEffect(() => {
     if (conversationId && messages.length === 0) {
-      loadConversation(conversationId)
+      loadConversationFromHook(conversationId)
     }
-  }, [conversationId, messages.length, loadConversation])
-
-  // Delete a conversation
-  const [deletingConvId, setDeletingConvId] = useState<string | null>(null)
-  const deleteConversation = useCallback(async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    if (deletingConvId) return
-    setDeletingConvId(id)
-    try {
-      await copilotApi.deleteConversation(id)
-      setConversations((prev) => prev.filter((c) => c.id !== id))
-      // If active conversation is deleted, start fresh
-      if (conversationId === id) startNewConversation()
-    } catch { /* silent */ }
-    finally { setDeletingConvId(null) }
-  }, [conversationId, startNewConversation, deletingConvId])
+  }, [conversationId, messages.length, loadConversationFromHook])
 
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
-  // Clear all conversations
   const handleClearAll = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
     setShowClearConfirm(true)
   }, [])
 
-  const [clearingAll, setClearingAll] = useState(false)
   const confirmClearAll = useCallback(async () => {
-    if (clearingAll) return
-    setClearingAll(true)
-    try {
-      await copilotApi.deleteAllConversations()
-      setConversations([])
-      startNewConversation()
-    } catch (err) {
-      console.error('Error clearing chat history:', err)
-    } finally {
-      setClearingAll(false)
-      setShowClearConfirm(false)
-    }
-  }, [startNewConversation, clearingAll])
+    await deleteAll()
+    setShowClearConfirm(false)
+  }, [deleteAll])
 
   const [pendingApproval, setPendingApproval] = useState<any>(null)
 
@@ -1034,6 +1006,7 @@ export function CopilotWidget() {
 
     const historySnapshot = useCopilotStore.getState().messages
     const activeConvId = useCopilotStore.getState().conversationId
+    const wasNewConversation = !activeConvId
 
     addMessage({ role: 'user', content: isApproval ? '👍 Action Approved' : msg })
 
@@ -1066,7 +1039,10 @@ export function CopilotWidget() {
         controller.signal,
         {
           onMeta: (data) => {
-            if (data.conversation_id) setConversationId(data.conversation_id)
+            if (data.conversation_id) {
+              setConversationId(data.conversation_id)
+              if (wasNewConversation) scheduleRefetchForNewTitle()
+            }
           },
           onChunk: (content) => {
             if (!messageAdded) {
@@ -1118,7 +1094,7 @@ export function CopilotWidget() {
       // Re-focus textarea so user can immediately type the next message
       setTimeout(() => textareaRef.current?.focus(), 50)
     }
-  }, [isThinking, pageContext, addMessage, setThinking, setConversationId, queryClient])
+  }, [isThinking, pageContext, addMessage, setThinking, setConversationId, queryClient, scheduleRefetchForNewTitle])
 
   // ——— Focus management —————————————————————————————————————————————————
   // Auto-focus textarea when STT finishes and transcript is ready to send
@@ -1950,11 +1926,11 @@ export function CopilotWidget() {
     ? { height: '56px', maxHeight: '56px', overflow: 'hidden' }
     : {}
 
-  if (activeChatRecipient) {
+  if (activeChatRecipient || isCopilotPage) {
     return null
   }
 
-  const grouped = groupConversationsByDate(conversations)
+  // `grouped` comes from useCopilotConversations hook above
 
   return (
     <>
@@ -2049,6 +2025,20 @@ export function CopilotWidget() {
                   {isThinking && <span className="text-hb-xs font-normal text-hb-blue/40">thinking...</span>}
                 </div>
                 <div style={s.headerActions}>
+                  <button
+                    className="c-icon-btn"
+                    style={s.iconBtn}
+                    title="Open in full page"
+                    onClick={() => {
+                      const role = useAuthStore.getState().user?.role
+                      const base = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
+                      const dest = conversationId ? `${base}/copilot/${conversationId}` : `${base}/copilot`
+                      navigate(dest)
+                      close()
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                  </button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={openHistory} title="Chat history"><HistoryIcon /></button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={handleNewChat} title="New chat"><PlusIcon /></button>
                   <button className="c-icon-btn" style={s.iconBtn} onClick={close} title="Close"><CloseIcon /></button>
@@ -2187,7 +2177,7 @@ export function CopilotWidget() {
               ) : (
                 <>
                   {/* Chat Messages */}
-                  <div className="c-messages" style={s.messages}>
+                  <div ref={messagesRef} className="c-messages" style={s.messages}>
                     {convLoading ? (
                       <div style={{ ...s.loadingRow, flex: 1 }}>
                         <span className="c-dot" />&nbsp;<span className="c-dot" />&nbsp;<span className="c-dot" />
@@ -2363,7 +2353,6 @@ export function CopilotWidget() {
                             </div>
                           </div>
                         )}
-                        <div ref={messagesEndRef} />
                       </>
                     )}
                   </div>

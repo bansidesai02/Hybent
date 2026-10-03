@@ -350,7 +350,7 @@ function HbSidebarComponent({
           /* In the flex row on desktop, so widening it narrows the main
              column rather than covering it. */
           'group/sb fixed lg:static inset-y-0 left-0 z-[70] lg:z-auto',
-          'flex h-dvh h-screen lg:h-auto w-[248px] lg:w-14 flex-none flex-col overflow-x-hidden',
+          'flex h-dvh h-screen lg:h-full w-[248px] lg:w-14 flex-none flex-col overflow-x-hidden',
           'lg:hover:w-[232px] lg:has-[:focus-visible]:w-[232px]',
           /* Desktop: a floating panel, the same shape as the main column
              beside it (see AppShell) — rounded on every corner, bordered all

@@ -334,6 +334,16 @@
   background-repeat: no-repeat;
 }
 
+/* The shell is exactly one viewport tall and scrolls inside <main>, so the
+   document itself must never scroll or rubber-band — otherwise macOS bounces
+   the whole page and exposes the body background under the shell. */
+html:has(.hb-app),
+html:has(.hb-app) body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* The site's grid, from `.hb-surface::after`. 72px cells, faded out below the
    top by the same elliptical mask, so it reads as texture near the header and
    disappears behind dense content further down. The product had none of this,

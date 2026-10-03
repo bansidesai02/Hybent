@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import {
-  Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
+  Activity, Bot, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
   Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, ScrollText,
   Settings, Sparkles, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
@@ -182,6 +182,7 @@ export function getNavSections(
     {
       label: 'Intelligence',
       items: [
+        { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: Bot, customActivePath: `${basePath}/copilot` },
         { to: `${basePath}/analytics`, label: 'AI Insights', icon: Sparkles },
         { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: ChartColumn },
       ],

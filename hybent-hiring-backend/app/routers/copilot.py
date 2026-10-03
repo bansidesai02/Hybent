@@ -73,6 +73,7 @@ class ConversationDetail(BaseModel):
     created_at: str
     updated_at: str
     messages: list[ConversationMessageOut]
+    pending_tool_call: Optional[dict] = None  # restored from last_context.pending_action
 
 
 # ── Chat Endpoint ─────────────────────────────────────────────────────────────
@@ -249,11 +250,22 @@ async def get_conversation(
     )
     msgs = msgs_res.scalars().all()
 
+    # Restore any pending write-action awaiting approval
+    pending_tool_call: Optional[dict] = None
+    if conv.last_context and isinstance(conv.last_context.get("pending_action"), dict):
+        pa = conv.last_context["pending_action"]
+        pending_tool_call = {
+            "name": pa.get("tool"),
+            "args": pa.get("args"),
+            "id": pa.get("id"),
+        }
+
     return ConversationDetail(
         id=str(conv.id),
         title=conv.title,
         created_at=conv.created_at.isoformat(),
         updated_at=conv.updated_at.isoformat(),
+        pending_tool_call=pending_tool_call,
         messages=[
             ConversationMessageOut(
                 id=str(m.id),

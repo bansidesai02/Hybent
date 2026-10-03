@@ -125,8 +125,6 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
   const config = ROLE_CONFIG[activeRole] ?? FALLBACK
 
   return (
-    /* Desktop: sidebar and main column are two matching floating panels on
-       the app ground, separated by an even 8px gutter. */
     <div className="hb-app flex h-dvh h-screen overflow-hidden lg:gap-2 lg:p-2">
       {config.websocket && <RealtimeBridge />}
 
@@ -138,10 +136,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
         onCloseMobile={() => setDrawerOpen(false)}
       />
 
-      {/* No background of its own: the app ground, its glows and the grid
-          (`.hb-app` / `.hb-app::before` in tokens.css) must show through —
-          any fill here hides them. The panel is just its border and radius. */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden lg:rounded-hb-md lg:border lg:border-hb-border">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-hb-surface lg:rounded-hb-md lg:border lg:border-hb-border">
         <ImpersonationBanner />
         <HbTopbar
           onToggleMenu={() => setDrawerOpen((o) => !o)}
@@ -151,7 +146,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
         />
 
         {/* Dynamic page gutter: p-3 on tiny screens (320px-375px), scaling smoothly up to xl */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-hb-5 md:p-hb-8 xl:p-hb-12">
+        <main className="flex-1 overflow-y-auto overscroll-none p-3 sm:p-hb-5 md:p-hb-8 xl:p-hb-12">
           <div className="mx-auto w-full max-w-[1440px]">
             <Suspense fallback={<ContentFallback />}>
               <Outlet />

@@ -22,6 +22,7 @@ const RecruiterSettingsPage = lazy(() => import('@/modules/recruiter/pages/Recru
 const PreScreeningReviewPage = lazy(() => import('@/modules/recruiter/pages/PreScreeningReviewPage'))
 const AICreditsPage = lazy(() => import('@/modules/recruiter/pages/AICreditsPage'))
 const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
+const CopilotPage = lazy(() => import('@/modules/recruiter/pages/CopilotPage'))
 const TeamManagementPage = lazy(() => import('@/modules/admin/pages/TeamManagementPage')) // currently used in recruiter paths too
 
 export default function RecruiterRoutes() {
@@ -47,6 +48,8 @@ export default function RecruiterRoutes() {
         <Route path="pre-screening/:sessionId" element={<PreScreeningReviewPage />} />
         <Route path="ai-credits" element={<AICreditsPage />} />
         <Route path="inbox" element={<InboxPage />} />
+        <Route path="copilot" element={<CopilotPage />} />
+        <Route path="copilot/:conversationId" element={<CopilotPage />} />
       </Route>
     </Routes>
   )
