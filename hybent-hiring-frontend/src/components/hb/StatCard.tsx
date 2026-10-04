@@ -56,7 +56,8 @@ export function StatCard({
   return (
     <Card
       variant={onClick ? 'interactive' : 'flat'}
-      className={clsx('flex flex-col gap-4', className)}
+      /* Phones: compact tile (two to a row in StatGrid). */
+      className={clsx('flex flex-col gap-3 max-md:!p-4 md:gap-4', className)}
       onClick={onClick}
       {...(onClick
         ? {
@@ -72,7 +73,13 @@ export function StatCard({
         : {})}
     >
       <div className="flex items-start justify-between gap-3">
-        {icon ? <IconTile size="md">{icon}</IconTile> : <span />}
+        {icon ? (
+          <IconTile size="md" className="max-md:h-8 max-md:w-8 max-md:[&>svg]:h-[15px] max-md:[&>svg]:w-[15px]">
+            {icon}
+          </IconTile>
+        ) : (
+          <span />
+        )}
         {trend && TrendIcon && (
           <span
             className={clsx(
@@ -94,9 +101,9 @@ export function StatCard({
           /* Gradient-filled, exactly as the site paints `.stat b`. A row of
              stat cards is where the brand gradient does most of its work on a
              light Hybent page. */
-          <p className="hb-grad-text font-display text-hb-num">{value}</p>
+          <p className="hb-grad-text font-display text-[26px] leading-tight md:text-hb-num">{value}</p>
         )}
-        <p className="mt-1.5 font-mono text-hb-label uppercase text-hb-muted">{label}</p>
+        <p className="mt-1 font-mono text-hb-label uppercase leading-snug text-hb-muted md:mt-1.5">{label}</p>
       </div>
     </Card>
   )
@@ -120,7 +127,11 @@ export function StatGrid({
   return (
     <div
       className={clsx(
-        'grid gap-hb-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4',
+        // Two to a row even on phones: one full-width KPI per screen-height
+        // made a four-stat row take two screens of scrolling.
+        'grid gap-3 grid-cols-2 md:gap-hb-4 xl:grid-cols-4',
+        // An odd last tile spans the row instead of leaving a half-empty gap.
+        'max-md:[&>*:last-child:nth-child(odd)]:col-span-2',
         className
       )}
     >

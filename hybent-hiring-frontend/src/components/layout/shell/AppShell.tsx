@@ -1,14 +1,16 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { Outlet } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
+import { useNotificationStore } from '@/store/notificationStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useThemeStore } from '@/store/themeStore'
 import { SkeletonStats, Skeleton } from '@/components/hb'
 import { ImpersonationBanner } from '@/components/common/ImpersonationBanner'
 import { HbSidebar } from './HbSidebar'
 import { HbTopbar } from './HbTopbar'
-import type { NavSection } from './navConfig'
+import { HbBottomNav } from './HbBottomNav'
+import { activeNavLabel, getMobileTabs, getNavSections, type NavSection } from './navConfig'
 
 type TopbarMenuItem = { label: string; icon: ReactNode; path: string }
 
@@ -94,6 +96,53 @@ function useWorkspaceTheme() {
   }, [theme, hasHydrated])
 }
 
+/**
+ * iOS-style collapsing title: true once the page's own <h1> (its large title)
+ * has scrolled out from under the top bar, so the bar can show the name
+ * instead. Pages are lazy, so the h1 is looked for again as content arrives.
+ */
+function useTitleScrolledAway(mainRef: React.RefObject<HTMLElement>, routeKey: string) {
+  const [away, setAway] = useState(false)
+  // The h1's visible text ("Hybent" on a client page), so the bar shows the
+  // page's own title rather than its menu section ("All clients").
+  const [text, setText] = useState('')
+
+  useEffect(() => {
+    const main = mainRef.current
+    if (!main) return
+    setAway(false)
+    setText('')
+    let io: IntersectionObserver | null = null
+    let watched: Element | null = null
+
+    const attach = () => {
+      const h1 = main.querySelector('h1')
+      if (!h1 || h1 === watched) return
+      io?.disconnect()
+      watched = h1
+      io = new IntersectionObserver(([entry]) => {
+        setAway(!entry.isIntersecting)
+        // innerText skips display:none parts (e.g. a desktop-only longer title).
+        setText((h1 as HTMLElement).innerText.replace(/\s+/g, ' ').trim())
+      }, {
+        root: main,
+        threshold: 0,
+      })
+      io.observe(h1)
+    }
+
+    attach()
+    const mo = new MutationObserver(attach)
+    mo.observe(main, { childList: true, subtree: true })
+    return () => {
+      mo.disconnect()
+      io?.disconnect()
+    }
+  }, [mainRef, routeKey])
+
+  return { away, text }
+}
+
 /** Mirrors a dashboard's shape — stat row then a wide panel — so the page does
     not reflow when the real content arrives. */
 function ContentFallback() {
@@ -117,12 +166,32 @@ export interface AppShellProps {
 }
 
 export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellProps) {
-  const { user } = useAuth()
+  const { user, basePath } = useAuth()
+  const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
   useWorkspaceTheme()
 
   const activeRole = (role ?? user?.role ?? 'recruiter') as UserRole
   const config = ROLE_CONFIG[activeRole] ?? FALLBACK
+
+  /* Phone chrome: the tab bar's destinations and the top bar's title come
+     from the same nav the sidebar renders. */
+  const notifications = useNotificationStore((s) => s.notifications)
+  const candidateBadge = useMemo(
+    () => notifications.filter((n) => !n.is_read && (n.type === 'application_received' || n.type === 'stage_changed')).length,
+    [notifications],
+  )
+  const navSections = useMemo(
+    () => sections ?? getNavSections(activeRole, candidateBadge, 0),
+    [sections, activeRole, candidateBadge],
+  )
+  const mobileTabs = useMemo(
+    () => getMobileTabs(activeRole, basePath, navSections),
+    [activeRole, basePath, navSections],
+  )
+  const { away: titleAway, text: h1Text } = useTitleScrolledAway(mainRef, location.pathname)
+  const pageTitle = h1Text || activeNavLabel(navSections, location.pathname)
 
   return (
     /* Desktop: sidebar and main column are two matching floating panels on
@@ -145,20 +214,30 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
         <ImpersonationBanner />
         <HbTopbar
           onToggleMenu={() => setDrawerOpen((o) => !o)}
+          mobileTitle={pageTitle}
+          showMobileTitle={titleAway}
           search={topbar?.search}
           messages={topbar?.messages}
           menuItems={topbar?.menuItems}
         />
 
-        {/* Dynamic page gutter: p-3 on tiny screens (320px-375px), scaling smoothly up to xl */}
-        <main className="flex-1 overflow-y-auto overscroll-none p-3 sm:p-hb-5 md:p-hb-8 xl:p-hb-12">
-          <div className="mx-auto w-full max-w-[1440px]">
+        {/* Page gutter: 16px on phones, scaling up to xl. Below lg the bottom
+            padding also clears the tab bar (--hb-mobile-nav, tokens.css). */}
+        <main
+          ref={mainRef}
+          className="flex-1 overflow-y-auto overscroll-none px-4 pt-4 pb-[calc(var(--hb-mobile-nav)+1.5rem)] sm:px-hb-5 sm:pt-hb-5 md:px-hb-8 md:pt-hb-8 lg:p-hb-8 xl:p-hb-12"
+        >
+          {/* overflow-x-clip: a stray wide element can't make the whole page
+              wobble sideways on a phone; wide content scrolls in its own box. */}
+          <div className="mx-auto w-full max-w-[1440px] overflow-x-clip">
             <Suspense fallback={<ContentFallback />}>
               <Outlet />
             </Suspense>
           </div>
         </main>
       </div>
+
+      <HbBottomNav tabs={mobileTabs} onMore={() => setDrawerOpen((o) => !o)} moreOpen={drawerOpen} />
 
       {(config.chat || config.copilot) && (
         <Suspense fallback={null}>

@@ -82,8 +82,13 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 /** Full-viewport centring: this page has no app shell around it. */
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="hb-app flex min-h-screen items-start justify-center px-4 py-8">
-      <Card padding="loose" className="w-full max-w-[640px]">
+    /* Phones: the interview fills the screen like an app screen (no floating
+       card frame), with room for the notch and home indicator. */
+    <div className="hb-app flex min-h-dvh items-start justify-center sm:px-4 sm:py-8">
+      <Card
+        padding="loose"
+        className="w-full max-w-[640px] max-sm:min-h-dvh max-sm:rounded-none max-sm:border-0 max-sm:pb-[calc(22px+env(safe-area-inset-bottom))] max-sm:pt-[calc(22px+env(safe-area-inset-top))] max-sm:shadow-none"
+      >
         {children}
       </Card>
     </div>

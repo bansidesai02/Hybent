@@ -216,26 +216,28 @@ export default function OverviewPage() {
             `role="button"` div that reimplements Enter and Space. The `<a>` is
             the only focusable thing in the card, so the whole tile is one tab
             stop and middle-click opens it in a new tab. */}
-        <ul className="grid grid-cols-1 gap-hb-4 md:grid-cols-2 xl:grid-cols-4">
+        {/* Phones: a 2×2 grid of app-style tiles (icon over label) rather than
+            four full-width rows that filled the whole first screen. */}
+        <ul className="grid grid-cols-2 gap-3 md:gap-hb-4 xl:grid-cols-4">
           {QUICK_ACTIONS.map((a) => (
             <Card
               key={a.label}
               as="li"
               variant="interactive"
               padding="compact"
-              className="group flex items-center gap-3"
+              className="group flex flex-col items-start gap-2.5 max-md:active:bg-hb-surface-2 md:flex-row md:items-center md:gap-3"
             >
               <IconTile>{a.icon}</IconTile>
               <Link
                 to={`${basePath}${a.to}`}
-                className="text-hb-body font-semibold text-hb-text after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:shadow-hb-ring"
+                className="text-hb-sm font-semibold leading-snug text-hb-text md:text-hb-body after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:shadow-hb-ring"
               >
                 {a.label}
               </Link>
               <ArrowRight
                 size={15}
                 aria-hidden
-                className="ml-auto shrink-0 text-hb-dim transition-transform duration-hb ease-hb group-hover:translate-x-1"
+                className="ml-auto hidden shrink-0 text-hb-dim transition-transform duration-hb ease-hb group-hover:translate-x-1 md:block"
               />
             </Card>
           ))}

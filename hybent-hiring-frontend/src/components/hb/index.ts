@@ -47,6 +47,7 @@ export {
   ToolbarSearch,
   ToolbarSpacer,
   ToolbarSelection,
+  ToolbarFilters,
   FilterChips,
 } from './Toolbar'
 export { Tabs, TabPanel, type TabItem } from './Tabs'

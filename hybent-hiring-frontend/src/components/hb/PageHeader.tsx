@@ -39,7 +39,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header className={clsx('mb-hb-6', className)}>
+    <header className={clsx('mb-5 md:mb-hb-6', className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav aria-label="Breadcrumb" className="mb-3">
           <ol className="flex flex-wrap items-center gap-1.5 text-hb-xs text-hb-muted">
@@ -71,25 +71,28 @@ export function PageHeader({
 
       {/* The title block arrives rather than snaps — the site opens every page
           this way, and it sets the tempo for everything that follows. */}
-      <Reveal as="div" className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <Reveal as="div" className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
         <div className="min-w-0">
           {eyebrow && (
             /* The site's `.eyebrow`: 11.5px mono at .22em, not the 10px/.16em
                of `text-hb-label`. The wider tracking is what makes it read as
                a Hybent kicker rather than a generic caption. */
-            <p className="mb-3 font-mono text-hb-eyebrow uppercase text-hb-muted">{eyebrow}</p>
+            /* Phones drop the kicker: the top bar already says where you are. */
+            <p className="mb-3 hidden font-mono text-hb-eyebrow uppercase text-hb-muted md:block">{eyebrow}</p>
           )}
-          <h1 className="font-display text-hb-display text-hb-text">{title}</h1>
+          {/* Phones get an app-sized large title (26px), not the desktop hero. */}
+          <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-hb-text md:text-hb-display">{title}</h1>
           {description && (
             /* The site's `.lead`, at 62ch — the measure it sets for the same
                role. It was `hb-body` at 14px, which put the page's opening
                sentence at table-cell size. */
-            <p className="mt-3 max-w-[62ch] text-hb-lead text-hb-muted">{description}</p>
+            <p className="mt-1.5 line-clamp-2 max-w-[62ch] text-hb-sm text-hb-muted md:mt-3 md:line-clamp-none md:text-hb-lead">{description}</p>
           )}
         </div>
 
         {actions && (
-          <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>
+          /* Phones: actions sit in one row under the title, sharing the width. */
+          <div className="flex shrink-0 flex-wrap items-center gap-2 max-md:[&>*]:flex-1 max-md:[&>*]:justify-center">{actions}</div>
         )}
       </Reveal>
     </header>

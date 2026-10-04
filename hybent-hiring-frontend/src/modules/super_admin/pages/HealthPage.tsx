@@ -65,13 +65,14 @@ export default function HealthPage() {
       />
 
       <div className="space-y-hb-5">
-        <div className="grid gap-hb-4 md:grid-cols-3">
+        {/* Phones: two gauges per row (the third spans), not three screen-tall cards. */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-hb-4 max-md:[&>*:last-child:nth-child(odd)]:col-span-2">
           {isLoading
             ? RESOURCES.map((r) => <Skeleton key={r.key} className="h-[176px] w-full" rounded="md" />)
             : RESOURCES.map((r) => {
                 const value = (health as any)?.[r.key] ?? r.fallback
                 return (
-                  <Card key={r.key} padding="default" className="flex flex-col items-center gap-3">
+                  <Card key={r.key} padding="default" className="flex flex-col items-center gap-3 max-md:!p-4">
                     <ScoreRing
                       score={value}
                       size={104}

@@ -29,9 +29,27 @@ const PIPELINE_STAGES = ['applied', 'screening', 'interview', 'interviewed', 'of
 function StageBar({ stage }: { stage: string }) {
   const currentIdx = PIPELINE_STAGES.indexOf(stage as (typeof PIPELINE_STAGES)[number])
 
+  const shownIdx = Math.max(currentIdx, 0)
+
   return (
-    <div className="-mx-2 overflow-x-auto px-2 pb-1 sm:mx-0 sm:px-0">
-      <ol className="flex min-w-[520px] items-start md:min-w-0" aria-label="Pipeline stages">
+    <div className="pb-1">
+      {/* Phones: one compact progress line per card instead of a 520px
+          stepper that scrolled sideways inside every card. */}
+      <div className="md:hidden">
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <span className="text-hb-sm font-semibold capitalize text-hb-text">{stageLabel(PIPELINE_STAGES[shownIdx])}</span>
+          <span className="font-mono text-hb-micro uppercase text-hb-dim">
+            Step {shownIdx + 1} of {PIPELINE_STAGES.length}
+          </span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-hb-border" aria-hidden>
+          <div
+            className="h-full rounded-full bg-hb-grad"
+            style={{ width: `${((shownIdx + 1) / PIPELINE_STAGES.length) * 100}%` }}
+          />
+        </div>
+      </div>
+      <ol className="hidden items-start md:flex" aria-label="Pipeline stages">
         {PIPELINE_STAGES.map((s, i) => {
           const done = i < currentIdx
           const active = i === currentIdx

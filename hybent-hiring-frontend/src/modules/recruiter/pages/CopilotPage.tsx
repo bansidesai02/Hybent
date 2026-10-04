@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 
 import { useFillShell } from '@/hooks/useFillShell'
+import { PHONE_QUERY, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useAuthStore } from '@/store/authStore'
 import { candidatesApi } from '@/api/candidates'
@@ -326,6 +327,7 @@ function ApprovalCard({
 // ── Composer ──────────────────────────────────────────────────────────────────
 
 function Composer({ onSend, isThinking }: { onSend: (text: string) => void; isThinking: boolean }) {
+  const isPhone = useMediaQuery(PHONE_QUERY)
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [candidateSuggestions, setCandidateSuggestions] = useState<{ candidate: any; matchedWord: string }[]>([])
@@ -423,8 +425,9 @@ function Composer({ onSend, isThinking }: { onSend: (text: string) => void; isTh
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about candidates, jobs, interviews or your pipeline…"
+            placeholder={isPhone ? 'Message Copilot…' : 'Ask about candidates, jobs, interviews or your pipeline…'}
             aria-label="Message Copilot"
+            enterKeyHint="send"
             rows={1}
             disabled={isThinking}
             className="max-h-40 min-h-[36px] flex-1 resize-none overflow-y-auto bg-transparent py-2 text-hb-sm text-hb-text placeholder:text-hb-muted focus:outline-none disabled:opacity-60"
@@ -600,10 +603,13 @@ export default function CopilotPage() {
     <div className="flex h-full min-h-0 flex-col">
       <header className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <IconTile size="sm">
+          <IconTile size="sm" className="hidden sm:grid">
             <Sparkles />
           </IconTile>
-          <h1 className="truncate font-display text-hb-h3 text-hb-text">Recruiter Copilot</h1>
+          <h1 className="truncate font-display text-[22px] font-semibold text-hb-text sm:text-hb-h3">
+            <span className="sm:hidden">Copilot</span>
+            <span className="hidden sm:inline">Recruiter Copilot</span>
+          </h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button
@@ -612,11 +618,13 @@ export default function CopilotPage() {
             icon={<History size={14} />}
             onClick={() => setHistoryOpen(true)}
             className="lg:hidden"
+            aria-label="Chat history"
           >
-            History
+            <span className="hidden sm:inline">History</span>
           </Button>
-          <Button size="sm" icon={<MessageSquarePlus size={14} />} onClick={handleNewChat}>
-            New chat
+          <Button size="sm" icon={<MessageSquarePlus size={14} />} onClick={handleNewChat} aria-label="New chat">
+            <span className="hidden sm:inline">New chat</span>
+            <span className="sm:hidden">New</span>
           </Button>
         </div>
       </header>
@@ -636,7 +644,7 @@ export default function CopilotPage() {
 
         {/* Thread */}
         <Card padding="none" as="section" className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex shrink-0 items-center gap-3 border-b border-hb-border px-5 py-4 sm:px-6">
+          <div className="flex shrink-0 items-center gap-3 border-b border-hb-border px-4 py-3 sm:px-6 sm:py-4">
             <h2 className="min-w-0 flex-1 truncate font-display text-hb-h3 text-hb-text">{activeTitle}</h2>
             {isThinking && (
               <span className="shrink-0 text-hb-xs text-hb-muted">Thinking…</span>

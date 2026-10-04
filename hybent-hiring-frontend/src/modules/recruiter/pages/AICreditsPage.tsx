@@ -27,6 +27,7 @@ import {
   StatusPill,
   Toolbar,
   ToolbarSearch,
+  ToolbarFilters,
   axisProps,
   useChartTheme,
 } from '@/components/hb'
@@ -450,7 +451,7 @@ export default function AICreditsPage() {
         )}
 
         {loading && !balance ? (
-          <div className="grid gap-hb-4 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-hb-4 max-md:[&>*:last-child:nth-child(odd)]:col-span-2">
             <StatCard label="Monthly credits" value="—" icon={<Coins />} loading />
             <StatCard label="Used this month" value="—" icon={<TrendingUp />} loading />
             <StatCard label="Remaining" value="—" icon={<Wallet />} loading />
@@ -458,7 +459,7 @@ export default function AICreditsPage() {
         ) : (
           balance && (
             <div className="space-y-hb-4">
-              <div className="grid gap-hb-4 md:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-hb-4 max-md:[&>*:last-child:nth-child(odd)]:col-span-2">
                 <StatCard
                   label="Monthly credits"
                   value={balance.allowed_credits.toLocaleString()}
@@ -751,6 +752,7 @@ export default function AICreditsPage() {
               placeholder="Search user or feature…"
               aria-label="Search consumption logs"
             />
+            <ToolbarFilters activeCount={[statusFilter !== 'all', providerFilter !== 'all'].filter(Boolean).length} onReset={() => { setStatusFilter('all'); setProviderFilter('all') }}>
             <Select
               aria-label="Filter logs by status"
               value={statusFilter}
@@ -765,6 +767,7 @@ export default function AICreditsPage() {
               options={PROVIDER_OPTIONS}
               fieldClassName="w-[165px]"
             />
+            </ToolbarFilters>
           </Toolbar>
 
           <DataTable

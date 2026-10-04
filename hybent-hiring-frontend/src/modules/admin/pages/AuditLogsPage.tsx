@@ -19,6 +19,7 @@ import {
   Pagination,
   Toolbar,
   ToolbarSearch,
+  ToolbarFilters,
 } from '@/components/hb'
 
 /**
@@ -284,6 +285,7 @@ export default function AuditLogsPage() {
           placeholder="Search by user name…"
           aria-label="Search audit logs by user name"
         />
+        <ToolbarFilters activeCount={[dateFrom, dateTo].filter(Boolean).length} onReset={() => { setDateFrom(''); setDateTo('') }}>
         <Input
           type="date"
           value={dateFrom}
@@ -291,7 +293,7 @@ export default function AuditLogsPage() {
           aria-label="Filter from date"
           fieldClassName="w-auto"
         />
-        <span aria-hidden className="text-hb-sm text-hb-dim">
+        <span aria-hidden className="hidden text-hb-sm text-hb-dim md:inline">
           to
         </span>
         <Input
@@ -301,6 +303,7 @@ export default function AuditLogsPage() {
           aria-label="Filter to date"
           fieldClassName="w-auto"
         />
+        </ToolbarFilters>
       </Toolbar>
 
       <div className="mb-hb-4 space-y-2">

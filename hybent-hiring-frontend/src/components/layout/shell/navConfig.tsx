@@ -198,3 +198,66 @@ export function getNavSections(
     },
   ]
 }
+
+/* ── Mobile ─────────────────────────────────────────────────────────────────
+   Below lg the workspace is a phone app: a bottom tab bar with the role's
+   four everyday destinations plus "More" (the full menu, as a drawer). The
+   tabs are picked from the role's own nav by path, so they can never point
+   somewhere the sidebar doesn't — and a role whose nav lacks one of them
+   (e.g. a custom portal nav) just falls back to its first items. */
+
+const MOBILE_TAB_PATHS: Partial<Record<UserRole, (base: string) => string[]>> = {
+  recruiter: (b) => [b, `${b}/candidates`, `${b}/pipeline`, `${b}/copilot`],
+  admin: (b) => [b, `${b}/candidates`, `${b}/pipeline`, `${b}/copilot`],
+  interviewer: () => [
+    '/hiring/interviewer',
+    '/hiring/interviewer/interviews',
+    '/hiring/interviewer/scorecard-hub',
+    '/hiring/interviewer/prep-kit-hub',
+  ],
+  super_admin: () => [
+    '/hiring/super-admin',
+    '/hiring/super-admin/clients',
+    '/hiring/super-admin/users',
+    '/hiring/super-admin/analytics',
+  ],
+}
+
+/** Shorter labels for the tab bar, where ~70px is all a label gets. */
+const MOBILE_TAB_LABELS: Record<string, string> = {
+  'My Candidates': 'Candidates',
+  'All Candidates': 'Candidates',
+  'Recruiter Copilot': 'Copilot',
+  'My Interviews': 'Interviews',
+  'All clients': 'Clients',
+  'All users': 'Users',
+  'Application Journey': 'Journey',
+  'Job Openings': 'Jobs',
+  'Preparation Hub': 'Prep',
+  'Offers & Documents': 'Offers',
+}
+
+export function flattenNav(sections: NavSection[]): NavItem[] {
+  return sections.flatMap((s) => s.items.flatMap((e) => (isGroup(e) ? e.items : [e])))
+}
+
+export function getMobileTabs(role: UserRole, basePath: string, sections: NavSection[]): NavItem[] {
+  const items = flattenNav(sections.filter((s) => !s.pinned))
+  const wanted = MOBILE_TAB_PATHS[role]?.(basePath) ?? []
+  const picked = wanted
+    .map((path) => items.find((i) => i.to === path))
+    .filter((i): i is NavItem => Boolean(i))
+  const tabs = picked.length === 4 ? picked : items.slice(0, 4)
+  return tabs.map((t) => ({ ...t, label: MOBILE_TAB_LABELS[t.label] ?? t.label }))
+}
+
+/** The nav label for the current route — the mobile top bar's title. */
+export function activeNavLabel(sections: NavSection[], pathname: string): string | undefined {
+  const items = flattenNav(sections)
+  const exact = items.find((i) => i.to === pathname)
+  if (exact) return exact.label
+  // Deepest prefix match, ignoring workspace index routes (they'd match everything).
+  return items
+    .filter((i) => !i.end && pathname.startsWith(i.customActivePath ?? i.to))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.label
+}

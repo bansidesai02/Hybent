@@ -853,6 +853,13 @@
   color: var(--text-mid);
   margin-bottom: 1.5rem;
 }
+/* Phones: the shell already pads the page — don't pad it twice. */
+@media (max-width: 767.98px) {
+  .profile-page-wrapper { padding: 0 0 1rem; }
+  .profile-page-title { font-size: 26px; line-height: 1.2; }
+  .profile-page-subtitle { margin-bottom: 1rem; }
+  .profile-card { padding: 1.25rem; gap: 1.25rem; }
+}
 .profile-card {
   background: var(--card-bg);
   border-radius: 16px;
