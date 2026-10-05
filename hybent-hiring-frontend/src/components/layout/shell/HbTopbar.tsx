@@ -482,7 +482,7 @@ function HbTopbarComponent({
                   </Link>
                 ))}
 
-                {(install.canPrompt || install.iosManual) && (
+                {install.available && (
                   <button
                     type="button"
                     role="menuitem"

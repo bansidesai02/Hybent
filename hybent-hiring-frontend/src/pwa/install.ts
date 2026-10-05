@@ -45,6 +45,19 @@ export function isIOS(): boolean {
   return /iPhone|iPad|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1)
 }
 
+/** Which manual install steps apply when there's no native install dialog. */
+export type InstallPlatform = 'ios-safari' | 'ios-other' | 'android' | 'desktop' | 'unsupported'
+
+export function installPlatform(): InstallPlatform {
+  if (typeof navigator === 'undefined') return 'unsupported'
+  const ua = navigator.userAgent
+  if (isIOS()) return /CriOS|FxiOS|EdgiOS/.test(ua) ? 'ios-other' : 'ios-safari'
+  if (/Android/.test(ua)) return /Firefox/.test(ua) ? 'unsupported' : 'android'
+  // Desktop: Chrome, Edge, Opera and Brave can install; Firefox and Safari can't.
+  if (/Edg\/|Chrome\//.test(ua) && !/Firefox/.test(ua)) return 'desktop'
+  return 'unsupported'
+}
+
 export function useInstallPrompt() {
   const [, force] = useState(0)
   useEffect(() => {
@@ -60,10 +73,15 @@ export function useInstallPrompt() {
   return {
     /** Already running as the installed app. */
     standalone,
-    /** Android/Chrome: a native install dialog is available. */
+    /** Show "Install app" at all: anywhere except inside the installed app.
+        Chrome only offers its dialog after some engagement (a tap and ~30s
+        on the site), so the entry point can't wait for it. */
+    available: !standalone,
+    /** A native install dialog is ready (Chrome / Edge / Android). */
     canPrompt: !standalone && deferred !== null,
-    /** iOS Safari: install is manual (Share → Add to Home Screen). */
+    /** iOS: install is always manual (Share → Add to Home Screen). */
     iosManual: !standalone && ios,
+    platform: installPlatform(),
     async promptInstall(): Promise<boolean> {
       if (!deferred) return false
       await deferred.prompt()
