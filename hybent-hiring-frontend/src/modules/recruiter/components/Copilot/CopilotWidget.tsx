@@ -1,6 +1,4 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useCopilotStore } from '@/store/useCopilotStore'
@@ -13,6 +11,7 @@ import type { ConversationSummary } from '@/api/copilot'
 import { candidatesApi } from '@/api/candidates'
 import { useCopilotConversations } from './useCopilotConversations'
 import { CopilotSteps } from './CopilotSteps'
+import { CopilotMarkdown } from './CopilotMarkdown'
 import type { Candidate } from '@/types'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { Avatar, Badge, Button, Card } from '@/components/hb'
@@ -1870,8 +1869,8 @@ export function CopilotWidget() {
     if (parts.length <= 1) {
       return (
         <div className="flex w-full flex-col items-start">
-          <div className="copilot-markdown w-full">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
+          <div className="w-full min-w-0">
+            <CopilotMarkdown>{cleanContent}</CopilotMarkdown>
           </div>
           {isJD ? (
             <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
@@ -1893,9 +1892,7 @@ export function CopilotWidget() {
           const trimmedPart = part.trim()
           if (!trimmedPart) return null
           return (
-            <div key={idx} className="copilot-markdown">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{trimmedPart}</ReactMarkdown>
-            </div>
+            <CopilotMarkdown key={idx}>{trimmedPart}</CopilotMarkdown>
           )
         })}
         {isJD ? (

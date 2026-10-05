@@ -1130,22 +1130,52 @@
 .copilot-markdown table {
   width: 100%;
   border-collapse: collapse;
-  margin: 8px 0;
   font-size: 0.85em;
 }
 .copilot-markdown th, .copilot-markdown td {
-  border: 1px solid rgb(var(--hb-border));
-  padding: 6px 10px;
+  border-bottom: 1px solid var(--hb-border);
+  padding: 8px 12px;
   text-align: left;
+  vertical-align: top;
 }
 .copilot-markdown th {
   background: rgb(var(--hb-surface-2));
   font-weight: 600;
   color: rgb(var(--hb-text));
+  white-space: nowrap;
 }
+.copilot-markdown tbody tr:last-child td { border-bottom: 0; }
+.copilot-markdown tbody tr:nth-child(even) td { background: rgb(var(--hb-surface-2) / 0.45); }
+/* First column is the row's label (an attribute or a candidate). */
+.copilot-markdown tbody td:first-child { font-weight: 600; color: rgb(var(--hb-text)); }
 .copilot-markdown h1, .copilot-markdown h2, .copilot-markdown h3 {
   font-weight: 700;
   color: rgb(var(--hb-text));
   margin: 10px 0 6px;
 }
 .copilot-markdown h1:first-child, .copilot-markdown h2:first-child, .copilot-markdown h3:first-child { margin-top: 0; }
+
+/* ── Copilot page replies (CopilotMarkdown) ─────────────────────────────── */
+/* Nothing in a reply may widen the chat: long emails, URLs and code wrap. */
+.copilot-markdown { overflow-wrap: anywhere; min-width: 0; }
+.copilot-markdown h1, .copilot-markdown h2 { font-size: 1.05rem; }
+.copilot-markdown h3 { font-size: 0.95rem; }
+.copilot-markdown .cm-lead { font-size: 1.02rem; line-height: 1.4; margin-bottom: 10px; }
+.copilot-markdown hr { border: 0; border-top: 1px solid var(--hb-border); margin: 12px 0; }
+.copilot-markdown blockquote {
+  margin: 10px 0; padding: 8px 12px; border-left: 3px solid rgb(var(--hb-blue));
+  background: rgb(var(--hb-blue) / 0.06); border-radius: 0 8px 8px 0; color: rgb(var(--hb-muted));
+}
+.copilot-markdown pre {
+  margin: 8px 0; padding: 10px 12px; border-radius: 8px; background: rgb(var(--hb-surface-2));
+  white-space: pre-wrap; word-break: break-word; font-size: 0.82em;
+}
+.copilot-markdown pre code { background: none; padding: 0; }
+/* Tables follow the chat's own width (container query), not the screen's:
+   a real table when there's room, one card per row when it's narrow. */
+.copilot-markdown .cm-table { container-type: inline-size; }
+.copilot-markdown .cm-table-cards { display: none; }
+@container (max-width: 520px) {
+  .copilot-markdown .cm-table-wide { display: none; }
+  .copilot-markdown .cm-table-cards { display: grid; }
+}

@@ -61,6 +61,23 @@ export function CookieBanner() {
 
   return (
     <div className="hb-site">
+      {/* Phones: inline styles size this for desktop, so a small stylesheet
+          (!important beats inline) makes it a compact card above the home
+          indicator — it used to cover half the screen on first visit. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .cb-root { bottom: calc(8px + env(safe-area-inset-bottom)) !important; width: calc(100% - 16px) !important; padding: 16px !important; border-radius: 18px !important; }
+          .cb-root .cb-title { font-size: 15px !important; }
+          .cb-root .cb-desc { font-size: 13px !important; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+          .cb-root .cb-row { gap: 12px !important; }
+          .cb-root .cb-text { flex-basis: 100% !important; }
+          .cb-root .cb-actions { display: grid !important; grid-template-columns: 1fr 1fr; width: 100%; gap: 8px !important; }
+          .cb-root .cb-accept { grid-column: 1 / -1; order: -1; }
+          .cb-root .cb-actions button { padding: 11px 12px !important; font-size: 14px !important; }
+          .cb-root .cb-long { display: none; }
+        }
+        @media (min-width: 641px) { .cb-root .cb-short { display: none; } }
+      `}</style>
       {/* Backdrop overlay when granular customizer is open */}
       {showCustomizer && (
         <div
@@ -82,6 +99,7 @@ export function CookieBanner() {
         role="dialog"
         aria-labelledby="cookie-banner-title"
         aria-describedby="cookie-banner-desc"
+        className="cb-root"
         style={{
           position: 'fixed',
           bottom: '24px',
@@ -103,6 +121,7 @@ export function CookieBanner() {
         {!showCustomizer ? (
           /* Default Banner View */
           <div
+            className="cb-row"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -111,7 +130,7 @@ export function CookieBanner() {
               flexWrap: 'wrap',
             }}
           >
-            <div style={{ flex: '1 1 420px' }}>
+            <div className="cb-text" style={{ flex: '1 1 420px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                 <span
                   style={{
@@ -136,6 +155,7 @@ export function CookieBanner() {
                 </span>
                 <h3
                   id="cookie-banner-title"
+                  className="cb-title"
                   style={{
                     fontSize: '1.05rem',
                     fontWeight: 700,
@@ -149,6 +169,7 @@ export function CookieBanner() {
               </div>
               <p
                 id="cookie-banner-desc"
+                className="cb-desc"
                 style={{
                   fontSize: '0.88rem',
                   lineHeight: '1.5',
@@ -173,6 +194,7 @@ export function CookieBanner() {
 
             {/* Action Buttons */}
             <div
+              className="cb-actions"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -209,12 +231,13 @@ export function CookieBanner() {
                   fontWeight: 600,
                 }}
               >
-                Reject Non-Essential
+                <span className="cb-long">Reject Non-Essential</span>
+                <span className="cb-short">Reject</span>
               </button>
               <button
                 type="button"
                 onClick={handleAcceptAll}
-                className="btn btn-primary"
+                className="btn btn-primary cb-accept"
                 style={{
                   fontSize: '0.85rem',
                   padding: '9px 20px',

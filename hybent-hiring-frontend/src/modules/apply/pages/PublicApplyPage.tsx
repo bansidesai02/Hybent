@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { AlertTriangle, Check, CheckCircle2, Loader2, MapPin } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -78,6 +78,16 @@ export default function PublicApplyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  // Phones: a pinned "Apply now" bar until the form itself is on screen.
+  const formRef = useRef<HTMLDivElement>(null)
+  const [formInView, setFormInView] = useState(false)
+  useEffect(() => {
+    const el = formRef.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setFormInView(e.isIntersecting), { threshold: 0.05 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [job])
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -234,7 +244,7 @@ export default function PublicApplyPage() {
           {job.benefits && <Prose title="Benefits" body={job.benefits} />}
         </div>
 
-        <div className="space-y-hb-4 border-t border-hb-border pt-hb-5">
+        <div ref={formRef} className="scroll-mt-4 space-y-hb-4 border-t border-hb-border pt-hb-5">
           <h2 className="font-display text-hb-h3 text-hb-text">Apply for this role</h2>
 
           <div className="grid gap-hb-4 sm:grid-cols-2">
@@ -343,6 +353,20 @@ export default function PublicApplyPage() {
           </Button>
         </div>
       </Card>
+
+      {/* Phones: the form sits under a long description, so keep the way to
+          it in thumb reach until it's on screen. */}
+      {!formInView && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-hb-border bg-hb-surface/95 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md sm:hidden">
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          >
+            Apply now
+          </Button>
+        </div>
+      )}
     </Shell>
   )
 }
