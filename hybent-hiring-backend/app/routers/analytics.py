@@ -23,6 +23,22 @@ async def funnel(
     return APIResponse.success(message="Analytics funnel retrieved successfully.", data=await analytics_service.get_funnel(current_user.organization_id, job_id, db, user_id=user_id))
 
 
+@router.get("/insights")
+async def insights(
+    current_user: RecruiterUser,
+    db: DB,
+    job_id: uuid.UUID | None = Query(default=None),
+):
+    """Everything the AI Insights page shows, computed from live pipeline data."""
+    from app.services.insights_service import get_insights
+
+    user_id = current_user.id if current_user.role == "recruiter" else None
+    return APIResponse.success(
+        message="Insights retrieved successfully.",
+        data=await get_insights(current_user.organization_id, db, user_id=user_id, job_id=job_id),
+    )
+
+
 @router.get("/score-distribution")
 async def score_distribution(current_user: RecruiterUser, db: DB):
     # Depending on preference, this could also be user-isolated. 

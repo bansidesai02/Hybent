@@ -1,12 +1,9 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, ChartColumn, Sparkles } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
-import { analyticsApi } from '@/api/analytics'
-import { candidatesApi } from '@/api/candidates'
-import { talentPoolApi } from '@/api/talentPool'
+import { analyticsApi, type Insights } from '@/api/analytics'
 import { jobsApi } from '@/api/jobs'
 import { formatScore } from '@/utils/formatters'
 import { Badge, Button, Card, CardHeader, Meter, PageHeader, Select, Skeleton } from '@/components/hb'
@@ -14,20 +11,15 @@ import { Badge, Button, Card, CardHeader, Meter, PageHeader, Select, Skeleton } 
 /**
  * AI insights.
  *
- * Rebuilt on the design system in phase 6. Two things this page did that the
- * design system exists to prevent:
+ * Every number comes from one call, `GET /v1/analytics/insights`, computed
+ * from live applications. The page used to stitch together the overview,
+ * funnel and fairness endpoints plus 100 candidates fetched in the browser,
+ * and most of it never moved: rounds stored as `technical_round_selected`
+ * etc. were dropped from the funnel, time to hire was never computed, and
+ * Talent DB placeholder applications were counted as hiring activity.
  *
- * - The funnel bars were coloured violet / pink / teal / amber / emerald by
- *   index, so five steps of one funnel read as five unrelated metrics.
- * - The top-skills grid assigned each skill one of ten hardcoded colours by
- *   position, which meant the *same* skill changed colour whenever the ranking
- *   shifted. The count is the information; it is now shown.
+ * The job filter applies to the whole page, not only the funnel.
  */
-
-/** Stage and source names arrive as `hr_round`; the label slot title-cases them. */
-function StageMeter({ label, value }: { label: string; value: number }) {
-  return <Meter label={<span className="capitalize">{label}</span>} value={value} />
-}
 
 function MeterSkeleton({ rows = 4 }: { rows?: number }) {
   return (
@@ -39,56 +31,19 @@ function MeterSkeleton({ rows = 4 }: { rows?: number }) {
   )
 }
 
-/** Raw pipeline stages â†’ the five funnel buckets this page reports on. */
-const FUNNEL_BUCKETS: Array<{ name: string; stages: string[] }> = [
-  { name: 'Applied', stages: ['applied'] },
-  { name: 'Shortlisted', stages: ['screening', 'pre_screening'] },
-  { name: 'Screened', stages: ['technical_round', 'practical_round', 'techno_functional_round'] },
-  { name: 'Interviewed', stages: ['management_round', 'hr_round', 'interview'] },
-  { name: 'Final round', stages: ['interviewed', 'offer', 'hired'] },
-]
-
-function bucketFunnel(stages: Array<{ stage: string; count: number }> | undefined) {
-  if (!stages?.length) return []
-  const counts = FUNNEL_BUCKETS.map((b) => ({
-    name: b.name,
-    count: stages
-      .filter((s) => b.stages.includes(s.stage.toLowerCase()))
-      .reduce((sum, s) => sum + s.count, 0),
-  })).filter((b) => b.count > 0)
-
-  const total = counts.reduce((sum, b) => sum + b.count, 0)
-  return counts.map((b) => ({ ...b, percentage: total > 0 ? (b.count / total) * 100 : 0 }))
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="py-6 text-center text-hb-sm text-hb-muted">{children}</p>
 }
+
+const titleCase = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
 export default function AnalyticsPage() {
   const { basePath } = useAuth()
-  const navigate = useNavigate()
-  const [funnelJobId, setFunnelJobId] = useState('')
+  const [jobId, setJobId] = useState('')
 
-  const { data: overview, isLoading: overviewLoading } = useQuery({
-    queryKey: ['analytics', 'overview'],
-    queryFn: () => analyticsApi.overview().then((r: any) => r.data),
-  })
-
-  const { data: funnel, isLoading: funnelLoading } = useQuery({
-    queryKey: ['analytics', 'funnel', funnelJobId],
-    queryFn: () => analyticsApi.funnel(funnelJobId || undefined).then((r: any) => r.data),
-  })
-
-  const { data: talentStats } = useQuery({
-    queryKey: ['talent-pool', 'stats'],
-    queryFn: () => talentPoolApi.getStats().then((r: any) => r.data),
-  })
-
-  const { data: fairness, isLoading: fairnessLoading } = useQuery({
-    queryKey: ['analytics', 'fairness'],
-    queryFn: () => analyticsApi.fairness().then((r: any) => r.data),
-  })
-
-  const { data: candidatesData } = useQuery({
-    queryKey: ['candidates', 'top-skills'],
-    queryFn: () => candidatesApi.list({ limit: 100 }).then((r: any) => r.data),
+  const { data: insights, isLoading } = useQuery({
+    queryKey: ['analytics', 'insights', jobId],
+    queryFn: () => analyticsApi.insights(jobId || undefined).then((r: any) => r.data as Insights),
   })
 
   const { data: jobsData } = useQuery({
@@ -96,43 +51,8 @@ export default function AnalyticsPage() {
     queryFn: () => jobsApi.list({ limit: 100 }).then((r: any) => r.data),
   })
 
-  const topSkills = useMemo(() => {
-    if (!candidatesData?.items) return []
-    const counts: Record<string, number> = {}
-    candidatesData.items.forEach((c: any) => {
-      const skills: string[] = (c.skills?.length ? c.skills : c.parsed_data?.skills) ?? []
-      skills.forEach((s) => {
-        const clean = s?.trim()
-        if (clean) counts[clean] = (counts[clean] || 0) + 1
-      })
-    })
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12)
-  }, [candidatesData])
-
-  const funnelBuckets = useMemo(() => bucketFunnel(funnel?.stages), [funnel])
-
-  const summary = useMemo(() => {
-    if (!overview) return null
-    const title = overview.avg_match_score
-      ? `${formatScore(overview.avg_match_score)} average match score`
-      : overview.total_applications > 0
-        ? `${overview.total_applications} applications tracked`
-        : 'Pipeline intelligence active'
-
-    const parts: string[] = []
-    if (overview.avg_match_score) {
-      parts.push(`${formatScore(overview.avg_match_score)} average match score this month.`)
-    }
-    if (talentStats?.re_matched_count) {
-      parts.push(`${talentStats.re_matched_count} past candidates re-matched to new roles.`)
-    }
-    return {
-      title,
-      body: parts.join(' ') || 'Analytics are collected in real time as candidates apply.',
-    }
-  }, [overview, talentStats])
+  const d = insights
+  const hasPipeline = !!d?.total_applications
 
   return (
     <div className="pb-hb-10">
@@ -140,47 +60,78 @@ export default function AnalyticsPage() {
         eyebrow="Insights"
         title="AI insights"
         description="What Hybent AI has learned about your hiring pipeline."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              aria-label="Show insights for one job"
+              value={jobId}
+              onChange={(e) => setJobId(e.target.value)}
+              options={[
+                { value: '', label: 'All open positions' },
+                ...(jobsData?.items ?? []).map((j: any) => ({ value: j.id, label: j.title })),
+              ]}
+              fieldClassName="w-[200px]"
+            />
+            <Button
+              variant="ghost"
+              icon={<ChartColumn size={16} />}
+              trailingIcon={<ArrowRight size={14} />}
+              to={`${basePath}/reports`}
+            >
+              Reports &amp; Analytics
+            </Button>
+          </div>
+        }
       />
 
       <div className="space-y-hb-6">
-        {summary && !overviewLoading && (
-          <Card padding="loose" className="border-hb-border-strong bg-hb-grad-soft">
-            <p className="mb-2 inline-flex items-center gap-1.5 font-mono text-hb-label uppercase text-hb-cyan">
-              <Sparkles size={12} aria-hidden />
-              AI summary
-            </p>
-            <h2 className="font-display text-hb-h2 text-hb-text">{summary.title}</h2>
-            <p className="mt-2 max-w-2xl text-hb-body text-hb-muted">{summary.body}</p>
-          </Card>
-        )}
+        <Card padding="loose" className="border-hb-border-strong bg-hb-grad-soft">
+          <p className="mb-2 inline-flex items-center gap-1.5 font-mono text-hb-label uppercase text-hb-cyan">
+            <Sparkles size={12} aria-hidden />
+            AI summary
+          </p>
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-2/3" rounded="md" />
+              <Skeleton className="h-4 w-full" rounded="md" />
+            </div>
+          ) : (
+            <>
+              <h2 className="font-display text-hb-h2 text-hb-text">
+                {d?.avg_match_score != null
+                  ? `${formatScore(d.avg_match_score)} average match score`
+                  : hasPipeline
+                    ? `${d!.total_applications} applications tracked`
+                    : 'Waiting for pipeline activity'}
+              </h2>
+              <ul className="mt-3 max-w-3xl list-disc space-y-1 pl-5 text-hb-body text-hb-muted">
+                {(d?.highlights ?? []).map((h) => (
+                  <li key={h}>{h}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Card>
 
         <div className="grid gap-hb-6 lg:grid-cols-2">
           <Card padding="loose">
             <CardHeader
-              title="Hire probability by stage"
-              action={
-                <Select
-                  aria-label="Filter the funnel by job"
-                  value={funnelJobId}
-                  onChange={(e) => setFunnelJobId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Global pipeline' },
-                    ...(jobsData?.items ?? []).map((j: any) => ({ value: j.id, label: j.title })),
-                  ]}
-                  fieldClassName="w-[190px]"
-                />
-              }
+              title="Hiring funnel"
+              subtitle="Share of applications that reached each step"
             />
-            {funnelLoading ? (
-              <MeterSkeleton rows={5} />
-            ) : funnelBuckets.length === 0 ? (
-              <p className="py-6 text-center text-hb-sm text-hb-muted">
-                No pipeline data for this selection yet.
-              </p>
+            {isLoading ? (
+              <MeterSkeleton rows={6} />
+            ) : !hasPipeline ? (
+              <Empty>No pipeline data for this selection yet.</Empty>
             ) : (
               <div className="space-y-hb-4">
-                {funnelBuckets.map((b) => (
-                  <StageMeter key={b.name} label={b.name} value={b.percentage} />
+                {d!.funnel.map((f) => (
+                  <Meter
+                    key={f.step}
+                    label={f.step}
+                    value={f.percentage}
+                    valueLabel={`${f.count} · ${Math.round(f.percentage)}%`}
+                  />
                 ))}
               </div>
             )}
@@ -189,11 +140,15 @@ export default function AnalyticsPage() {
           <Card padding="loose">
             <CardHeader
               title="Top skills in the pipeline"
-              subtitle="Across your 100 most recent candidates"
+              subtitle={
+                d ? `Across ${d.candidates_in_scope.toLocaleString()} candidates` : undefined
+              }
             />
-            {topSkills.length > 0 ? (
+            {isLoading ? (
+              <MeterSkeleton rows={3} />
+            ) : d?.top_skills.length ? (
               <ul className="flex flex-wrap gap-1.5">
-                {topSkills.map(([skill, count]) => (
+                {d.top_skills.map(({ skill, count }) => (
                   <li key={skill}>
                     <Badge tone="info">
                       {skill}
@@ -203,9 +158,7 @@ export default function AnalyticsPage() {
                 ))}
               </ul>
             ) : (
-              <p className="py-6 text-center text-hb-sm text-hb-muted">
-                Analysing your candidate database for skill trends...
-              </p>
+              <Empty>No skills parsed from resumes yet.</Empty>
             )}
           </Card>
         </div>
@@ -214,11 +167,12 @@ export default function AnalyticsPage() {
           <Card padding="loose">
             <CardHeader
               title="Talent DB match"
-              action={<Badge tone="info">{talentStats?.re_matched_count ?? 0} found</Badge>}
+              action={<Badge tone="info">{d?.talent_matches ?? 0} found</Badge>}
             />
             <p className="text-hb-body text-hb-muted">
-              {talentStats?.re_matched_count ?? 0} candidates in your pool match a currently active
-              role. Re-engaging them can save weeks of sourcing.
+              {d?.talent_matches
+                ? `${d.talent_matches} candidates in your Talent DB score 60%+ for an open role but aren't in its pipeline yet. Re-engaging them can save weeks of sourcing.`
+                : 'No Talent DB candidates are waiting on an open role right now.'}
             </p>
             <Button
               className="mt-hb-4"
@@ -233,42 +187,56 @@ export default function AnalyticsPage() {
           <Card padding="loose">
             <CardHeader title="Average time to hire" />
             <p className="font-display text-hb-num text-hb-text">
-              {overview?.time_to_hire_days ? `${Math.round(overview.time_to_hire_days)} days` : '—'}
+              {d?.time_to_hire_days != null ? `${d.time_to_hire_days} days` : '—'}
             </p>
             <p className="mt-2 text-hb-body text-hb-muted">
-              {overview?.time_to_hire_days
-                ? 'From application to interview.'
-                : 'Not enough data to calculate yet.'}
+              {d?.time_to_hire_days != null
+                ? `From application to hire, across ${d.hires} hire${d.hires === 1 ? '' : 's'}.`
+                : 'Appears once a candidate is marked hired.'}
             </p>
           </Card>
         </div>
 
         <div className="grid gap-hb-6 lg:grid-cols-3">
           <Card padding="loose">
-            <CardHeader title="Pass rates by stage" action={<Badge tone="success">Fairness</Badge>} />
-            {fairnessLoading ? (
+            <CardHeader title="Pass rates by step" action={<Badge tone="success">Fairness</Badge>} />
+            {isLoading ? (
               <MeterSkeleton />
-            ) : !fairness?.pass_rates_by_stage?.length ? (
-              <p className="text-hb-sm text-hb-muted">No stage data available.</p>
+            ) : !d?.pass_rates.length ? (
+              <Empty>No stage data available.</Empty>
             ) : (
               <div className="space-y-hb-4">
-                {fairness.pass_rates_by_stage.map((s: any) => (
-                  <StageMeter key={s.stage} label={s.stage.replace(/_/g, ' ')} value={s.pass_rate} />
+                {d.pass_rates.map((p) => (
+                  <Meter
+                    key={p.to_step}
+                    label={`${p.from_step} → ${p.to_step}`}
+                    value={p.pass_rate}
+                    tone={p.entered >= 5 && p.pass_rate < 20 ? 'warning' : 'brand'}
+                  />
                 ))}
               </div>
             )}
           </Card>
 
           <Card padding="loose">
-            <CardHeader title="Hires by source" action={<Badge tone="success">Fairness</Badge>} />
-            {fairnessLoading ? (
+            <CardHeader
+              title="Source quality"
+              subtitle="Share reaching final interviews"
+              action={<Badge tone="success">Fairness</Badge>}
+            />
+            {isLoading ? (
               <MeterSkeleton />
-            ) : !fairness?.pass_rates_by_source?.length ? (
-              <p className="text-hb-sm text-hb-muted">No source data available.</p>
+            ) : !d?.sources.length ? (
+              <Empty>No source data available.</Empty>
             ) : (
               <div className="space-y-hb-4">
-                {fairness.pass_rates_by_source.map((s: any) => (
-                  <StageMeter key={s.source} label={s.source.replace(/_/g, ' ')} value={s.pass_rate} />
+                {d.sources.map((s) => (
+                  <Meter
+                    key={s.source}
+                    label={titleCase(s.source)}
+                    value={s.rate}
+                    valueLabel={`${Math.round(s.rate)}% of ${s.applications}`}
+                  />
                 ))}
               </div>
             )}
@@ -276,19 +244,17 @@ export default function AnalyticsPage() {
 
           <Card padding="loose">
             <CardHeader title="Interviewer bias" action={<Badge tone="brand">Calibration</Badge>} />
-            {fairnessLoading ? (
+            {isLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 3 }, (_, i) => (
                   <Skeleton key={i} className="h-14 w-full" rounded="md" />
                 ))}
               </div>
-            ) : !fairness?.interviewer_calibration_variance?.length ? (
-              <p className="text-hb-sm text-hb-muted">
-                Not enough interview data for calibration.
-              </p>
+            ) : !d?.interviewer_calibration.length ? (
+              <Empty>Not enough interview data for calibration.</Empty>
             ) : (
               <ul className="space-y-2">
-                {fairness.interviewer_calibration_variance.map((c: any) => (
+                {d.interviewer_calibration.map((c) => (
                   <li
                     key={c.interviewer_name}
                     className="flex items-center justify-between gap-3 rounded-hb-sm border border-hb-border bg-hb-surface-2 px-3.5 py-2.5"
@@ -301,9 +267,7 @@ export default function AnalyticsPage() {
                     </div>
                     {/* Variance is signed: harsh below the panel, generous above.
                         Both are worth flagging, so neither is "good". */}
-                    <Badge
-                      tone={Math.abs(c.variance) > 0.5 ? 'warning' : 'success'}
-                    >
+                    <Badge tone={Math.abs(c.variance) > 0.5 ? 'warning' : 'success'}>
                       {c.variance > 0 ? '+' : ''}
                       {c.variance}
                     </Badge>

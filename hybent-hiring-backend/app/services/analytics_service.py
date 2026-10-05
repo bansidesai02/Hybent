@@ -308,7 +308,19 @@ async def get_fairness_metrics(org_id: uuid.UUID, db: AsyncSession) -> FairnessM
         rate = round((row.finalists / row.total) * 100, 1) if row.total > 0 else 0.0
         pass_rates_source.append(SourcePassRate(source=source_name, pass_rate=rate))
 
-    # 3. Interviewer Calibration Variance
+    calibration = await interviewer_calibration(org_id, db)
+
+    return FairnessMetrics(
+        pass_rates_by_stage=pass_rates_stage,
+        pass_rates_by_source=pass_rates_source,
+        interviewer_calibration_variance=calibration
+    )
+
+
+async def interviewer_calibration(org_id: uuid.UUID, db: AsyncSession) -> list[InterviewerCalibration]:
+    """Each interviewer's average scorecard rating against the org's average."""
+    from app.models.user import User
+
     # We get avg rating for each interviewer, and also the global average rating.
     stmt_global_avg = select(func.avg(Scorecard.overall_rating)).where(Scorecard.organization_id == org_id)
     global_avg = (await db.execute(stmt_global_avg)).scalar()
@@ -333,10 +345,4 @@ async def get_fairness_metrics(org_id: uuid.UUID, db: AsyncSession) -> FairnessM
             global_avg_rating=round(global_avg, 2),
             variance=variance
         ))
-
-    return FairnessMetrics(
-        pass_rates_by_stage=pass_rates_stage,
-        pass_rates_by_source=pass_rates_source,
-        interviewer_calibration_variance=calibration
-    )
-
+    return calibration
