@@ -1,6 +1,6 @@
-import { type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { clsx } from 'clsx'
-import { Search, X } from 'lucide-react'
+import { Search, SlidersHorizontal, X } from 'lucide-react'
 
 /**
  * The search + filter + bulk-action bar above a list.
@@ -78,6 +78,77 @@ export function ToolbarSearch({
         </button>
       )}
     </div>
+  )
+}
+
+/**
+ * A list's filter controls (selects, date fields…).
+ *
+ * Desktop: rendered inline in the toolbar, exactly as if unwrapped.
+ * Phones: folded behind a "Filters" button — with a count of the filters in
+ * use — that expands them full-width under the search, so the list starts
+ * near the top of the screen instead of under a wall of dropdowns. Children
+ * render once either way (no duplicated inputs), only the layout changes.
+ */
+export function ToolbarFilters({
+  children,
+  activeCount = 0,
+  onReset,
+}: {
+  children: ReactNode
+  /** Filters currently narrowing the list — shown on the phone button. */
+  activeCount?: number
+  /** Shows a "Reset" action in the phone panel when filters are active. */
+  onReset?: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const panelId = useId()
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className={clsx(
+          'relative inline-flex h-10 shrink-0 items-center gap-2 rounded-hb-full border px-4 md:hidden',
+          'font-body text-hb-sm font-semibold transition-colors duration-hb',
+          open || activeCount > 0
+            ? 'border-hb-blue/40 bg-hb-blue/10 text-hb-text'
+            : 'border-hb-border bg-hb-surface text-hb-muted'
+        )}
+      >
+        <SlidersHorizontal size={15} aria-hidden />
+        Filters
+        {activeCount > 0 && (
+          <span className="grid h-5 min-w-5 place-items-center rounded-hb-full bg-hb-grad px-1 font-mono text-[10px] font-bold text-hb-on-brand">
+            {activeCount}
+          </span>
+        )}
+      </button>
+
+      <div
+        id={panelId}
+        className={clsx(
+          'md:contents',
+          open
+            ? 'grid w-full grid-cols-1 gap-3 rounded-hb-md border border-hb-border bg-hb-surface p-3 max-md:[&>*]:!w-full'
+            : 'hidden'
+        )}
+      >
+        {children}
+        {onReset && activeCount > 0 && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="h-10 rounded-hb-sm text-hb-sm font-semibold text-hb-blue md:hidden"
+          >
+            Reset filters
+          </button>
+        )}
+      </div>
+    </>
   )
 }
 

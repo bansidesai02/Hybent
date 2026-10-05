@@ -853,6 +853,13 @@
   color: var(--text-mid);
   margin-bottom: 1.5rem;
 }
+/* Phones: the shell already pads the page — don't pad it twice. */
+@media (max-width: 767.98px) {
+  .profile-page-wrapper { padding: 0 0 1rem; }
+  .profile-page-title { font-size: 26px; line-height: 1.2; }
+  .profile-page-subtitle { margin-bottom: 1rem; }
+  .profile-card { padding: 1.25rem; gap: 1.25rem; }
+}
 .profile-card {
   background: var(--card-bg);
   border-radius: 16px;
@@ -1093,52 +1100,192 @@
   animation: wobble 0.75s ease-in-out;
 }
 
-/* Copilot chat markdown.
-   ReactMarkdown emits plain <ul>/<li>/<table>/<strong> with no styling —
-   Tailwind's Preflight strips all default list/table appearance, so a
-   bulleted "what I need from you" reply rendered as unmarked, unindented
-   paragraph lines (no bullet, no spacing) instead of a scannable list.
-   This is the one place in the Copilot widget that needs typography rules
-   rather than one-off classNames, since the content is arbitrary Markdown
-   the model writes, not markup this file controls directly. */
-.copilot-markdown p { margin: 0 0 8px; line-height: 1.5; }
-.copilot-markdown p:last-child { margin-bottom: 0; }
-.copilot-markdown strong { font-weight: 700; color: rgb(var(--hb-text)); }
-.copilot-markdown ul, .copilot-markdown ol {
-  margin: 4px 0 10px;
-  padding-left: 20px;
+/* ── Copilot replies (CopilotMarkdown) ──────────────────────────────────────
+   The model writes arbitrary Markdown, and Tailwind's Preflight strips every
+   default list/table/heading style, so replies need real typography rules.
+   Shared by the full Copilot page and the floating popup.
+
+   Sizes follow the reply's own width (container query), not the screen's:
+   the page gets reading-size text and headings, the 400px popup and phones
+   a tighter scale. Nothing in a reply may widen the chat — long emails,
+   URLs and code wrap or scroll inside their own box. */
+.copilot-markdown {
+  --cm-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --cm-mono: "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --cm-body: 15px;
+  --cm-h1: 26px;
+  --cm-h2: 21px;
+  --cm-h3: 17px;
+  --cm-gap: 14px;
+  container-type: inline-size;
+  font-family: var(--cm-font);
+  font-size: var(--cm-body);
+  line-height: 1.7;
+  color: rgb(var(--hb-text));
+  overflow-wrap: anywhere;
+  min-width: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+.copilot-markdown > :first-child { margin-top: 0 !important; }
+.copilot-markdown > :last-child { margin-bottom: 0 !important; }
+
+.copilot-markdown p { margin: 0 0 var(--cm-gap); }
+.copilot-markdown strong { font-weight: 600; color: rgb(var(--hb-text)); }
+.copilot-markdown em { font-style: italic; }
+.copilot-markdown del { color: rgb(var(--hb-muted)); }
+.copilot-markdown .cm-lead { font-size: 1.07em; line-height: 1.5; margin-bottom: 12px; }
+
+/* Headings: clear steps, moderate weights, never shouting. */
+.copilot-markdown h1, .copilot-markdown h2, .copilot-markdown h3,
+.copilot-markdown h4, .copilot-markdown h5, .copilot-markdown h6 {
+  font-family: var(--cm-font);
+  color: rgb(var(--hb-text));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin: 1.6em 0 0.55em;
+}
+.copilot-markdown h1 { font-size: var(--cm-h1); letter-spacing: -0.02em; }
+.copilot-markdown h2 { font-size: var(--cm-h2); }
+.copilot-markdown h3 { font-size: var(--cm-h3); }
+.copilot-markdown h4, .copilot-markdown h5, .copilot-markdown h6 { font-size: 1em; }
+.copilot-markdown h1 + *, .copilot-markdown h2 + *, .copilot-markdown h3 + *, .copilot-markdown h4 + * { margin-top: 0; }
+
+/* Lists — nested lists step in with a lighter marker. */
+.copilot-markdown ul, .copilot-markdown ol { margin: 0 0 var(--cm-gap); padding-left: 1.5em; }
 .copilot-markdown ul { list-style: disc; }
 .copilot-markdown ol { list-style: decimal; }
-.copilot-markdown li { margin-bottom: 4px; line-height: 1.45; }
-.copilot-markdown li:last-child { margin-bottom: 0; }
-.copilot-markdown a { color: rgb(var(--hb-blue)); text-decoration: underline; text-underline-offset: 2px; }
-.copilot-markdown code {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.85em;
+.copilot-markdown ul ul { list-style: circle; }
+.copilot-markdown ul ul ul { list-style: square; }
+.copilot-markdown ol ol { list-style: lower-alpha; }
+.copilot-markdown li { margin: 0.3em 0; padding-left: 0.2em; }
+.copilot-markdown li::marker { color: rgb(var(--hb-dim)); }
+.copilot-markdown ol > li::marker { color: rgb(var(--hb-muted)); font-variant-numeric: tabular-nums; }
+.copilot-markdown li > ul, .copilot-markdown li > ol { margin: 0.3em 0 0.4em; }
+.copilot-markdown li > p { margin: 0 0 0.4em; }
+.copilot-markdown li > p:last-child { margin-bottom: 0; }
+
+/* GFM task lists: "- [ ] item" / "- [x] item". */
+.copilot-markdown ul:has(> li.task-list-item) { list-style: none; padding-left: 0.25em; }
+.copilot-markdown li.task-list-item { display: flex; align-items: baseline; gap: 0.6em; padding-left: 0; }
+.copilot-markdown li.task-list-item input[type='checkbox'] {
+  appearance: none; flex-shrink: 0; position: relative; top: 0.15em;
+  width: 1em; height: 1em; margin: 0; border-radius: 4px;
+  border: 1.5px solid rgb(var(--hb-dim)); background: rgb(var(--hb-surface));
+}
+.copilot-markdown li.task-list-item input[type='checkbox']:checked {
+  border-color: rgb(var(--hb-blue));
+  background: rgb(var(--hb-blue)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E") center / 80% no-repeat;
+}
+
+.copilot-markdown a {
+  color: rgb(var(--hb-blue));
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--hb-blue) / 0.35);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+.copilot-markdown a:hover { text-decoration-color: rgb(var(--hb-blue)); }
+
+.copilot-markdown blockquote {
+  margin: 0 0 var(--cm-gap);
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid rgb(var(--hb-blue) / 0.4);
+  color: rgb(var(--hb-muted));
+}
+.copilot-markdown blockquote p:last-child { margin-bottom: 0; }
+
+.copilot-markdown hr { border: 0; border-top: 1px solid var(--hb-border); margin: 1.5em 0; }
+
+/* Inline code — quiet, never a coloured pill. */
+.copilot-markdown :not(pre) > code {
+  font-family: var(--cm-mono);
+  font-size: 0.86em;
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
   background: rgb(var(--hb-surface-2));
-  border-radius: 4px;
-  padding: 1px 5px;
+  border: 1px solid var(--hb-border);
+  color: rgb(var(--hb-text));
+  overflow-wrap: anywhere;
 }
-.copilot-markdown table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-  font-size: 0.85em;
+
+/* Code blocks (see CodeBlock in CopilotMarkdown.tsx): a header with the
+   language and a copy button, then code that scrolls sideways inside its own
+   box instead of wrapping mid-token. */
+.copilot-markdown .cm-code {
+  margin: 0 0 var(--cm-gap);
+  border: 1px solid var(--hb-border);
+  border-radius: 10px;
+  background: rgb(var(--hb-surface-2));
+  overflow: hidden;
 }
+.copilot-markdown .cm-code-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--hb-border);
+  font-family: var(--cm-mono);
+  font-size: 11.5px;
+  color: rgb(var(--hb-muted));
+}
+.copilot-markdown .cm-code-copy {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 6px;
+  font-family: var(--cm-font); font-size: 12px; font-weight: 500;
+  color: rgb(var(--hb-muted));
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.copilot-markdown .cm-code-copy:hover { background: rgb(var(--hb-text) / 0.06); color: rgb(var(--hb-text)); }
+.copilot-markdown .cm-code pre {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  white-space: pre;
+  overflow-wrap: normal;
+  font-family: var(--cm-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  tab-size: 2;
+  color: rgb(var(--hb-text));
+}
+.copilot-markdown .cm-code pre code { font: inherit; background: none; border: 0; padding: 0; }
+
+/* Tables: a real table when there's room, one card per row when narrow. */
+.copilot-markdown .cm-table { margin: 0 0 var(--cm-gap); container-type: inline-size; }
+.copilot-markdown .cm-table-wide { overflow-x: auto; border: 1px solid var(--hb-border); border-radius: 10px; }
+.copilot-markdown table { width: 100%; border-collapse: collapse; font-size: 0.9em; line-height: 1.5; }
 .copilot-markdown th, .copilot-markdown td {
-  border: 1px solid rgb(var(--hb-border));
-  padding: 6px 10px;
+  padding: 9px 14px;
   text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--hb-border);
 }
 .copilot-markdown th {
   background: rgb(var(--hb-surface-2));
   font-weight: 600;
+  font-size: 0.92em;
   color: rgb(var(--hb-text));
+  white-space: nowrap;
 }
-.copilot-markdown h1, .copilot-markdown h2, .copilot-markdown h3 {
-  font-weight: 700;
-  color: rgb(var(--hb-text));
-  margin: 10px 0 6px;
+.copilot-markdown td { font-variant-numeric: tabular-nums; }
+.copilot-markdown tbody tr:last-child td { border-bottom: 0; }
+.copilot-markdown tbody tr { transition: background-color 0.12s ease; }
+.copilot-markdown tbody tr:hover td { background: rgb(var(--hb-surface-2) / 0.6); }
+/* First column is the row's label (an attribute or a candidate). */
+.copilot-markdown tbody td:first-child { font-weight: 500; color: rgb(var(--hb-text)); }
+.copilot-markdown .cm-table-cards { display: none; }
+@container (max-width: 520px) {
+  .copilot-markdown .cm-table-wide { display: none; }
+  .copilot-markdown .cm-table-cards { display: grid; }
 }
-.copilot-markdown h1:first-child, .copilot-markdown h2:first-child, .copilot-markdown h3:first-child { margin-top: 0; }
+
+/* Narrow replies — the popup, phones: a tighter scale. A container can't
+   query itself, so these restyle its children against .copilot-markdown. */
+@container (max-width: 560px) {
+  .copilot-markdown p, .copilot-markdown li, .copilot-markdown blockquote { font-size: 14px; line-height: 1.65; }
+  .copilot-markdown h1 { font-size: 20px; }
+  .copilot-markdown h2 { font-size: 17.5px; }
+  .copilot-markdown h3 { font-size: 15.5px; }
+  .copilot-markdown .cm-code pre { font-size: 12.5px; padding: 12px 14px; }
+}

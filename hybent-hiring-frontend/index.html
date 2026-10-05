@@ -11,9 +11,13 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FBFCFE" />
+    <!-- Installed app (Add to Home Screen): full-screen, its own name under the icon. -->
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Hybent" />
+    <meta name="application-name" content="Hybent" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Hybent | AI-Powered Software Products &amp; IT Services</title>
     <meta name="description" content="HYBENT builds intelligent software products that simplify business operations using AI. Hybent Hiring, our AI recruitment platform, is live today." />
@@ -72,6 +76,24 @@
         }
       })()
     </script>
+    <!-- Installed-app launch screen: the navbar's mark + wordmark on white,
+         shown only when opened as the installed app, from first paint until
+         React has rendered (src/pwa/bootScreen.ts fades it out). -->
+    <style>
+      #hb-boot { position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 8px; background: #FFFFFF;
+        transition: opacity .28s ease; }
+      #hb-boot[hidden] { display: none; }
+      #hb-boot.hb-boot-out { opacity: 0; pointer-events: none; }
+      /* Same size and spacing as Android's own launch screen draws the
+         maskable icon (pwa-maskable-*.png), so the hand-off doesn't jump. */
+      #hb-boot .hb-boot-mark { width: auto; height: 60px; }
+      #hb-boot .hb-boot-word { width: 96px; height: auto; }
+      #hb-boot .hb-boot-word-dark { display: none; }
+      [data-theme='dark'] #hb-boot { background: #0B0F17; }
+      [data-theme='dark'] #hb-boot .hb-boot-word-light { display: none; }
+      [data-theme='dark'] #hb-boot .hb-boot-word-dark { display: block; }
+    </style>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -82,6 +104,17 @@
     />
   </head>
   <body>
+    <div id="hb-boot" hidden aria-hidden="true">
+      <img class="hb-boot-mark" src="/hybent/hybent-mark-hd.png" alt="" width="260" height="313" />
+      <img class="hb-boot-word hb-boot-word-light" src="/hybent/hybent-wordmark-light-hd.png" alt="" width="900" height="99" />
+      <img class="hb-boot-word hb-boot-word-dark" src="/hybent/hybent-wordmark-dark-hd.png" alt="" width="900" height="99" />
+    </div>
+    <script>
+      (function () {
+        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true
+        if (standalone) document.getElementById('hb-boot').hidden = false
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

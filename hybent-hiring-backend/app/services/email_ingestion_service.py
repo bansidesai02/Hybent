@@ -52,6 +52,7 @@ from app.utils.category import detect_category_from_skills, extract_core_categor
 from app.utils.exceptions import InsufficientCreditsException
 from app.utils.job_matching import resolve_or_create_pool_job
 from app.websocket.manager import ws_manager
+from app.tasks.screening import enqueue_screening
 
 logger = logging.getLogger(__name__)
 
@@ -486,6 +487,7 @@ class EmailApplicationIngestionService:
                 message.id, EmailIngestionStatus.RETRY_PENDING, candidate_id=first_candidate, error=error
             )
             await self.db.commit()
+            enqueue_screening(created, account.organization_id)
             if credits_exhausted:
                 raise CreditsExhausted(error or "AI credits exhausted")
             return "retry"
@@ -502,6 +504,7 @@ class EmailApplicationIngestionService:
         logger.info(f"[ingest] msg={message.id} → {status} ({summary})")
         await self.repo.mark_result(message.id, status, candidate_id=first_candidate, error=error)
         await self.db.commit()
+        enqueue_screening(created, account.organization_id)
         return outcome
 
     async def _announce_candidate(self, account: EmailAccount, candidate_id: uuid.UUID) -> None:

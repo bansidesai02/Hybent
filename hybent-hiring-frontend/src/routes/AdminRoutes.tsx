@@ -18,6 +18,7 @@ const TalentPoolPage = lazy(() => import('@/modules/recruiter/pages/TalentPoolPa
 const AllTalentListPage = lazy(() => import('@/modules/recruiter/pages/AllTalentListPage'))
 const RecruiterSettingsPage = lazy(() => import('@/modules/recruiter/pages/RecruiterSettingsPage'))
 const PreScreeningReviewPage = lazy(() => import('@/modules/recruiter/pages/PreScreeningReviewPage'))
+const ScreeningPage = lazy(() => import('@/modules/recruiter/pages/ScreeningPage'))
 const AICreditsPage = lazy(() => import('@/modules/recruiter/pages/AICreditsPage'))
 const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
 const CopilotPage = lazy(() => import('@/modules/recruiter/pages/CopilotPage'))
@@ -49,6 +50,7 @@ export default function AdminRoutes() {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="talent-pool" element={<TalentPoolPage />} />
+        <Route path="screening" element={<ScreeningPage />} />
         <Route path="all-talent" element={<AllTalentListPage />} />
         {/* We omitted path="profile" element={<RecruiterProfilePage />} here since Admin uses AdminProfilePage */}
         <Route path="settings" element={<RecruiterSettingsPage />} />

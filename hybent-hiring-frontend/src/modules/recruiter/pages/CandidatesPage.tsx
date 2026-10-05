@@ -51,6 +51,7 @@ import {
   StatusPill,
   Toolbar,
   ToolbarSearch,
+  ToolbarFilters,
   statusDef,
   type Column,
 } from '@/components/hb'
@@ -583,6 +584,15 @@ export default function CandidatesPage() {
           aria-label="Search candidates"
         />
 
+        <ToolbarFilters
+          activeCount={[selectedJobId !== 'all', recruiterId !== 'all', dateFilter !== 'all'].filter(Boolean).length}
+          onReset={() => {
+            setSelectedJobId('all')
+            setRecruiterId('all')
+            setDateFilter('all')
+            setPage(1)
+          }}
+        >
         <Select
           label="Role"
           aria-label="Filter by role"
@@ -650,6 +660,7 @@ export default function CandidatesPage() {
             />
           </>
         )}
+        </ToolbarFilters>
       </Toolbar>
 
       <div className="mb-hb-4">

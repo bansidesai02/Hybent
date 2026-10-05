@@ -1,5 +1,8 @@
+import { useEffect, useRef, useState } from 'react'
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd'
+import { clsx } from 'clsx'
 import { KanbanColumn } from './KanbanColumn'
+import { stageLabel } from './stages'
 import type { PipelineData, ApplicationStage, KanbanCard } from '@/types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { candidatesApi } from '@/api/candidates'
@@ -16,6 +19,39 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ data, onCardClick }: KanbanBoardProps) {
   const queryClient = useQueryClient()
+
+  /* Phones: one stage per screen. The chip row jumps between stages and
+     follows the swipe, so you always know which stage you're looking at. */
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const chipsRef = useRef<HTMLDivElement>(null)
+  const [activeStage, setActiveStage] = useState<ApplicationStage>(STAGES[0])
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    const onScroll = () => {
+      const cols = Array.from(el.querySelectorAll<HTMLElement>('[data-stage]'))
+      const left = el.scrollLeft + 8
+      const current = cols.reduce((best, col) => (col.offsetLeft - el.offsetLeft <= left ? col : best), cols[0])
+      const stage = current?.dataset.stage as ApplicationStage | undefined
+      if (stage) setActiveStage(stage)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Keep the active chip in view as you swipe.
+  useEffect(() => {
+    chipsRef.current
+      ?.querySelector<HTMLElement>(`[data-chip="${activeStage}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+  }, [activeStage])
+
+  const jumpTo = (stage: ApplicationStage) => {
+    const el = scrollerRef.current
+    const col = el?.querySelector<HTMLElement>(`[data-stage="${stage}"]`)
+    if (el && col) el.scrollTo({ left: col.offsetLeft - el.offsetLeft, behavior: 'smooth' })
+  }
 
   const moveMutation = useMutation({
     mutationFn: ({ candidateId, stage }: { candidateId: string; stage: ApplicationStage }) =>
@@ -108,13 +144,47 @@ export function KanbanBoard({ data, onCardClick }: KanbanBoardProps) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-4 pb-4 w-full items-start overflow-x-auto scrollbar-thin">
+      {/* Stage switcher — phones only. */}
+      <div ref={chipsRef} role="tablist" aria-label="Pipeline stages" className="hb-scroll-x -mx-4 mb-3 gap-2 px-4 md:hidden">
+        {STAGES.map((stage) => {
+          const active = stage === activeStage
+          const count = data.stages[stage]?.length ?? 0
+          return (
+            <button
+              key={stage}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-chip={stage}
+              onClick={() => jumpTo(stage)}
+              className={clsx(
+                'flex h-9 items-center gap-1.5 whitespace-nowrap rounded-hb-full border px-3.5 text-hb-sm font-semibold transition-colors duration-hb',
+                active
+                  ? 'border-hb-blue/40 bg-hb-blue/10 text-hb-text'
+                  : 'border-hb-border bg-hb-surface text-hb-muted'
+              )}
+            >
+              {stageLabel(stage)}
+              <span className={clsx('font-mono text-hb-xs', active ? 'text-hb-blue' : 'text-hb-dim')}>{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div
+        ref={scrollerRef}
+        className="flex w-full snap-x snap-mandatory items-start gap-4 overflow-x-auto pb-4 scrollbar-thin md:snap-none"
+      >
         {STAGES.map((stage) => (
           <KanbanColumn
             key={stage}
             stage={stage}
             cards={data.stages[stage] ?? []}
             onCardClick={onCardClick}
+            stages={STAGES}
+            onMove={(card, to) => {
+              if (to !== stage) moveMutation.mutate({ candidateId: card.id, stage: to })
+            }}
           />
         ))}
       </div>

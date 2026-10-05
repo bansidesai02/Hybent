@@ -1,10 +1,11 @@
 import type { ComponentType } from 'react'
 import {
   Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
-  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ScrollText,
-  Settings, Sparkle, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
+  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, ScrollText,
+  Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
+import { CopilotSparkle } from '@/modules/recruiter/components/Copilot/CopilotSparkle'
 
 /**
  * The workspace navigation, as data.
@@ -59,20 +60,32 @@ export function isGroup(entry: NavEntry): entry is NavGroup {
 
 /* The Candidates group is shared by the recruiter and admin navs, which differ
    only in the first item's label. */
-function candidatesGroup(basePath: string, role: UserRole, badge?: number): NavGroup {
+/** The Candidate Screening Agent's review list (ScreeningPage). Shown only
+    when screening is on for the org, or something is still waiting there. */
+export interface ScreeningNav {
+  enabled: boolean
+  pending: number
+}
+
+function candidatesGroup(basePath: string, role: UserRole, badge?: number, screening?: ScreeningNav): NavGroup {
+  const showScreening = !!screening && (screening.enabled || screening.pending > 0)
   return {
     type: 'group',
     label: 'Candidates',
     icon: Users,
-    badge,
+    badge: (badge ?? 0) + (showScreening ? screening!.pending : 0) || undefined,
     subPaths: [
       `${basePath}/candidates`,
+      `${basePath}/screening`,
       `${basePath}/upload`,
       `${basePath}/jobs/new`,
       `${basePath}/talent-pool`,
     ],
     items: [
       { to: `${basePath}/candidates`, label: role === 'admin' ? 'All Candidates' : 'My Candidates', icon: Users },
+      ...(showScreening
+        ? [{ to: `${basePath}/screening`, label: 'To review', icon: ListChecks, badge: screening!.pending }]
+        : []),
       { to: `${basePath}/upload`, label: 'Upload Resume', icon: Upload },
       { to: `${basePath}/jobs/new`, label: 'Upload / Add JD', icon: FileText },
       { to: `${basePath}/talent-pool`, label: 'Talent DB', icon: Database },
@@ -83,7 +96,8 @@ function candidatesGroup(basePath: string, role: UserRole, badge?: number): NavG
 export function getNavSections(
   role: UserRole,
   candidateBadge: number,
-  _scheduleBadge: number
+  _scheduleBadge: number,
+  screening?: ScreeningNav
 ): NavSection[] {
   const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
 
@@ -171,10 +185,10 @@ export function getNavSections(
       label: 'Main',
       items: [
         { to: basePath, label: 'Overview', icon: LayoutDashboard, end: true },
-        { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: Sparkle, customActivePath: `${basePath}/copilot` },
+        { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: CopilotSparkle, customActivePath: `${basePath}/copilot` },
         { to: `${basePath}/inbox`, label: 'Gmail Inbox', icon: Inbox },
         { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseBusiness },
-        candidatesGroup(basePath, role, candidateBadge),
+        candidatesGroup(basePath, role, candidateBadge, screening),
         { to: `${basePath}/pipeline`, label: 'Pipeline', icon: SquareKanban },
         { to: `${basePath}/interviews`, label: 'Schedule', icon: CalendarDays },
         { to: `${basePath}/offers`, label: 'Offers', icon: Handshake },
@@ -197,4 +211,67 @@ export function getNavSections(
       items: [{ to: `${basePath}/settings`, label: 'Settings', icon: Settings }],
     },
   ]
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────────
+   Below lg the workspace is a phone app: a bottom tab bar with the role's
+   four everyday destinations plus "More" (the full menu, as a drawer). The
+   tabs are picked from the role's own nav by path, so they can never point
+   somewhere the sidebar doesn't — and a role whose nav lacks one of them
+   (e.g. a custom portal nav) just falls back to its first items. */
+
+const MOBILE_TAB_PATHS: Partial<Record<UserRole, (base: string) => string[]>> = {
+  recruiter: (b) => [b, `${b}/candidates`, `${b}/pipeline`, `${b}/copilot`],
+  admin: (b) => [b, `${b}/candidates`, `${b}/pipeline`, `${b}/copilot`],
+  interviewer: () => [
+    '/hiring/interviewer',
+    '/hiring/interviewer/interviews',
+    '/hiring/interviewer/scorecard-hub',
+    '/hiring/interviewer/prep-kit-hub',
+  ],
+  super_admin: () => [
+    '/hiring/super-admin',
+    '/hiring/super-admin/clients',
+    '/hiring/super-admin/users',
+    '/hiring/super-admin/analytics',
+  ],
+}
+
+/** Shorter labels for the tab bar, where ~70px is all a label gets. */
+const MOBILE_TAB_LABELS: Record<string, string> = {
+  'My Candidates': 'Candidates',
+  'All Candidates': 'Candidates',
+  'Recruiter Copilot': 'Copilot',
+  'My Interviews': 'Interviews',
+  'All clients': 'Clients',
+  'All users': 'Users',
+  'Application Journey': 'Journey',
+  'Job Openings': 'Jobs',
+  'Preparation Hub': 'Prep',
+  'Offers & Documents': 'Offers',
+}
+
+export function flattenNav(sections: NavSection[]): NavItem[] {
+  return sections.flatMap((s) => s.items.flatMap((e) => (isGroup(e) ? e.items : [e])))
+}
+
+export function getMobileTabs(role: UserRole, basePath: string, sections: NavSection[]): NavItem[] {
+  const items = flattenNav(sections.filter((s) => !s.pinned))
+  const wanted = MOBILE_TAB_PATHS[role]?.(basePath) ?? []
+  const picked = wanted
+    .map((path) => items.find((i) => i.to === path))
+    .filter((i): i is NavItem => Boolean(i))
+  const tabs = picked.length === 4 ? picked : items.slice(0, 4)
+  return tabs.map((t) => ({ ...t, label: MOBILE_TAB_LABELS[t.label] ?? t.label }))
+}
+
+/** The nav label for the current route — the mobile top bar's title. */
+export function activeNavLabel(sections: NavSection[], pathname: string): string | undefined {
+  const items = flattenNav(sections)
+  const exact = items.find((i) => i.to === pathname)
+  if (exact) return exact.label
+  // Deepest prefix match, ignoring workspace index routes (they'd match everything).
+  return items
+    .filter((i) => !i.end && pathname.startsWith(i.customActivePath ?? i.to))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.label
 }

@@ -215,7 +215,10 @@ export function DataTable<Row>({
       </div>
 
       {/* ── Cards, below md ──────────────────────────────────────────────── */}
-      <ul className={clsx('md:hidden grid gap-2.5', className)}>
+      {/* grid-cols-1 = minmax(0,1fr): a bare `grid` sizes its implicit column
+          to the widest card content (a row of stage pills), pushing every
+          card past the edge of a phone screen. */}
+      <ul className={clsx('md:hidden grid grid-cols-1 gap-2.5', className)}>
         {rows.map((row, i) => {
           const key = rowKey(row, i)
           const isSelected = selection?.selected.has(key) ?? false
@@ -223,7 +226,7 @@ export function DataTable<Row>({
           const bodyCols = columns.filter((c) => !c.cardTitle && !c.hideOnCard)
 
           return (
-            <li key={key}>
+            <li key={key} className="min-w-0">
               <div
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 role={onRowClick ? 'button' : undefined}
@@ -239,7 +242,7 @@ export function DataTable<Row>({
                     : undefined
                 }
                 className={clsx(
-                  'rounded-hb-md border bg-hb-surface p-4 transition-colors duration-hb',
+                  'rounded-hb-md border bg-hb-surface p-4 transition-colors duration-hb active:bg-hb-surface-2',
                   'focus-visible:outline-none focus-visible:shadow-hb-ring',
                   isSelected ? 'border-hb-blue/40 bg-hb-blue/5' : 'border-hb-border',
                   onRowClick && 'cursor-pointer'
@@ -268,7 +271,7 @@ export function DataTable<Row>({
                           <dt className="font-mono text-hb-label uppercase text-hb-muted shrink-0">
                             {col.header}
                           </dt>
-                          <dd className="text-hb-sm text-hb-text text-right min-w-0">
+                          <dd className="min-w-0 text-right text-hb-sm text-hb-text [overflow-wrap:anywhere] [&_*]:max-w-full [&>*]:inline-flex [&>*]:flex-wrap [&>*]:justify-end">
                             {col.cell(row, i)}
                           </dd>
                         </div>

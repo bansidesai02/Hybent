@@ -51,6 +51,7 @@ import {
   StatusPill,
   Toolbar,
   ToolbarSearch,
+  ToolbarFilters,
 } from '@/components/hb'
 
 /**
@@ -612,6 +613,7 @@ export default function AllTalentListPage() {
           placeholder="Search by name, skill or role…"
           aria-label="Search all talent"
         />
+        <ToolbarFilters activeCount={[recruiterId !== 'all', statusFilter != null && statusFilter !== 'all', dateFilter !== 'all'].filter(Boolean).length} onReset={() => { setRecruiterId('all'); setStatusFilter(undefined); setDateFilter('all') }}>
 
         <Select
           label="Added by"
@@ -679,6 +681,7 @@ export default function AllTalentListPage() {
             />
           </>
         )}
+        </ToolbarFilters>
       </Toolbar>
 
       {/* ── Designation tabs ──

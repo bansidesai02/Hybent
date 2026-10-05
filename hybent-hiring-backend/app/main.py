@@ -57,11 +57,12 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Elasticsearch setup skipped: {exc}")
 
-    # LangGraph checkpointer for agent runs (Copilot v2) — only opened when
+    # LangGraph checkpointer for agent runs (Copilot v2, Screening) — only opened when
     # the agent is enabled for someone. Falls back to in-memory on failure,
     # so startup never depends on it.
     from app.services.agents.checkpointer import init_checkpointer, close_checkpointer
-    if settings.copilot_agent_v2 or settings.copilot_agent_v2_orgs.strip():
+    if (settings.copilot_agent_v2 or settings.copilot_agent_v2_orgs.strip()
+            or settings.screening_agent or settings.screening_agent_orgs.strip()):
         await init_checkpointer()
 
     # ── SMTP health check ─────────────────────────────────────────────────────────

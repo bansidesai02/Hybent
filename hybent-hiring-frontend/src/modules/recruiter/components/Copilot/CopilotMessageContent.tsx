@@ -3,8 +3,6 @@
  * Shared Markdown + candidate-card rendering used by CopilotPage.
  * The widget keeps its own inline renderer for now (no behaviour change required).
  */
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import toast from 'react-hot-toast'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { useState } from 'react'
@@ -13,6 +11,7 @@ import { useAuthStore } from '@/store/authStore'
 import { aiApi } from '@/api/ai'
 import type { CandidateCardData } from './conversationUtils'
 import { parseCandidateCard } from './conversationUtils'
+import { CopilotMarkdown } from './CopilotMarkdown'
 
 // ── Stage colour helper ───────────────────────────────────────────────────────
 function getStageStyle(stageText?: string): React.CSSProperties {
@@ -285,8 +284,8 @@ export function BotMessageContent({
   if (parts.length <= 1) {
     return (
       <div className="flex w-full flex-col items-start">
-        <div className="copilot-markdown w-full">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
+        <div className="w-full min-w-0">
+          <CopilotMarkdown>{cleanContent}</CopilotMarkdown>
         </div>
         {isJD ? (
           <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
@@ -317,9 +316,7 @@ export function BotMessageContent({
         const trimmedPart = part.trim()
         if (!trimmedPart) return null
         return (
-          <div key={idx} className="copilot-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{trimmedPart}</ReactMarkdown>
-          </div>
+          <CopilotMarkdown key={idx}>{trimmedPart}</CopilotMarkdown>
         )
       })}
       {isJD && <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />}

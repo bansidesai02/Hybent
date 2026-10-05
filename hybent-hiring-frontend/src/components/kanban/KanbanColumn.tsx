@@ -3,7 +3,8 @@ import { clsx } from 'clsx'
 
 import { KanbanCard } from './KanbanCard'
 import type { KanbanCard as KanbanCardType, ApplicationStage } from '@/types'
-import { Badge, statusDef } from '@/components/hb'
+import { Badge } from '@/components/hb'
+import { stageLabel } from './stages'
 
 /**
  * One column of the pipeline board.
@@ -16,26 +17,29 @@ import { Badge, statusDef } from '@/components/hb'
  * on the board and in a table.
  */
 
-/** Board headings, where the pipeline stage names differ from the pill's. */
-const BOARD_LABEL: Partial<Record<ApplicationStage, string>> = {
-  screening: 'Shortlisted',
-  interview: 'In interview',
-  offer: 'Offer / hired',
-}
-
 export function KanbanColumn({
   stage,
   cards,
   onCardClick,
+  stages,
+  onMove,
 }: {
   stage: ApplicationStage
   cards: KanbanCardType[]
   onCardClick?: (card: KanbanCardType) => void
+  /** Every stage, for the phone "Move to…" picker on each card. */
+  stages?: ApplicationStage[]
+  onMove?: (card: KanbanCardType, stage: ApplicationStage) => void
 }) {
-  const label = BOARD_LABEL[stage] ?? statusDef(stage)?.label ?? stage
+  const label = stageLabel(stage)
 
   return (
-    <div className="flex min-w-[280px] shrink-0 flex-col rounded-hb-md border border-hb-border bg-hb-surface-2 sm:min-w-[250px] lg:min-w-[220px] lg:flex-1">
+    /* Phones: each column is one screen wide and snaps into place, so the
+       board swipes stage by stage instead of showing half a column. */
+    <div
+      data-stage={stage}
+      className="flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-hb-md border border-hb-border bg-hb-surface-2 md:w-auto md:min-w-[250px] lg:min-w-[220px] lg:flex-1"
+    >
       <div className="flex items-center gap-2 border-b border-hb-border px-3 py-2.5">
         <span className="text-hb-sm font-semibold text-hb-text">{label}</span>
         <Badge className="ml-auto">{cards.length}</Badge>
@@ -57,8 +61,14 @@ export function KanbanColumn({
                 card={card}
                 index={idx}
                 onClick={() => onCardClick?.(card)}
+                stage={stage}
+                stages={stages}
+                onMove={onMove}
               />
             ))}
+            {cards.length === 0 && !snapshot.isDraggingOver && (
+              <p className="px-2 py-6 text-center text-hb-xs text-hb-dim">No candidates in this stage</p>
+            )}
             {provided.placeholder}
           </div>
         )}

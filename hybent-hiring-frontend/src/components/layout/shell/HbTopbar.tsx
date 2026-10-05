@@ -2,15 +2,18 @@ import {
   lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState,
   type ReactNode,
 } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Briefcase, Calendar, Loader2, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
+  ArrowLeft, Briefcase, Calendar, Download, Loader2, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { globalSearch } from '@/api/search'
 import { useThemeStore } from '@/store/themeStore'
+import { useInstallPrompt } from '@/pwa/install'
+import { SHOW_INSTALL_EVENT } from './InstallAppCard'
 import type { SearchResult, SearchResults } from '@/types'
 
 const MessageInbox = lazy(() =>
@@ -32,6 +35,10 @@ const NotificationBell = lazy(() =>
 
 interface HbTopbarProps {
   onToggleMenu: () => void
+  /** Phone top bar title (the current nav item's label). */
+  mobileTitle?: string
+  /** True once the page's own large title has scrolled away (iOS pattern). */
+  showMobileTitle?: boolean
   /** Off in the candidate portal, which has no scoped search API. */
   search?: boolean
   /** Off in the candidate portal, which has no team messaging. */
@@ -68,6 +75,8 @@ function DeferredWidgets({ messages }: { messages: boolean }) {
 
 function HbTopbarComponent({
   onToggleMenu,
+  mobileTitle,
+  showMobileTitle = false,
   search = true,
   messages = true,
   menuItems: menuItemsOverride,
@@ -77,6 +86,7 @@ function HbTopbarComponent({
   const location = useLocation()
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
+  const install = useInstallPrompt()
 
   const [menuOpen, setMenuOpen] = useState(false)
   // Some avatar sources (a Google-account photo, chiefly) refuse to load for
@@ -87,6 +97,9 @@ function HbTopbarComponent({
   const [results, setResults] = useState<SearchResults | null>(null)
   const [searching, setSearching] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  // Phones: search is an icon that expands into a full-width field.
+  const [mobileSearch, setMobileSearch] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const searchRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -135,6 +148,7 @@ function HbTopbarComponent({
       if (e.key !== 'Escape') return
       setSearchOpen(false)
       setMenuOpen(false)
+      setMobileSearch(false)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -144,7 +158,24 @@ function HbTopbarComponent({
   useEffect(() => {
     setSearchOpen(false)
     setMenuOpen(false)
+    setMobileSearch(false)
   }, [location.pathname])
+
+  const openMobileSearch = () => {
+    // Render the field and focus it inside the same tap: iOS Safari only
+    // raises the keyboard for a focus() made synchronously in the gesture.
+    flushSync(() => {
+      setMobileSearch(true)
+      setSearchOpen(true)
+    })
+    searchInputRef.current?.focus()
+  }
+  const closeMobileSearch = () => {
+    setMobileSearch(false)
+    setSearchOpen(false)
+    setQuery('')
+    setResults(null)
+  }
 
   const onResultClick = useCallback(
     (result: SearchResult) => {
@@ -159,6 +190,7 @@ function HbTopbarComponent({
       setQuery('')
       setResults(null)
       setSearchOpen(false)
+      setMobileSearch(false)
     },
     [basePath, navigate]
   )
@@ -216,20 +248,71 @@ function HbTopbarComponent({
   }
 
   return (
-    <header className="flex h-hb-topbar flex-none items-center gap-2 sm:gap-3 border-b border-hb-border bg-hb-surface px-3 sm:px-hb-4 md:px-hb-6">
-      {/* Drawer toggle, below lg */}
+    <header className="relative box-content flex h-14 lg:h-hb-topbar flex-none items-center gap-2 sm:gap-3 border-b border-hb-border bg-hb-surface px-3 sm:px-hb-4 md:px-hb-6 pt-[env(safe-area-inset-top)]">
+      {/* Tablet-only drawer toggle (md→lg). Phones use the tab bar's "More". */}
       <button
         type="button"
         onClick={onToggleMenu}
         aria-label="Open navigation"
-        className="grid h-10 w-10 flex-none place-items-center rounded-hb-full border border-hb-border text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring lg:hidden"
+        className="hidden h-10 w-10 flex-none place-items-center rounded-hb-full border border-hb-border text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring md:grid lg:hidden"
       >
         <Menu size={18} aria-hidden />
       </button>
 
+      {/* Phone title: the brand mark while the page's own large title is in
+          view, then the page name once it scrolls away — like iOS. */}
+      {!mobileSearch && (
+        <div className="relative h-8 min-w-0 flex-1 md:hidden">
+          {/* Same mark + wordmark as the sidebar's brand row. */}
+          <span
+            className={clsx(
+              'absolute inset-y-0 left-0 flex items-center gap-2 transition-opacity duration-hb',
+              showMobileTitle && mobileTitle ? 'opacity-0' : 'opacity-100'
+            )}
+          >
+            <img src="/hybent/hybent-mark.png" alt="" className="h-7 w-7 flex-none object-contain" />
+            <img
+              src={theme === 'dark' ? '/hybent/hybent-wordmark-dark.png' : '/hybent/hybent-wordmark-light.png'}
+              alt="Hybent"
+              className="h-[16px] w-auto object-contain"
+            />
+          </span>
+          {mobileTitle && (
+            <span
+              aria-hidden={!showMobileTitle}
+              className={clsx(
+                'absolute inset-0 flex items-center truncate font-display text-[17px] font-semibold text-hb-text transition-opacity duration-hb',
+                showMobileTitle ? 'opacity-100' : 'opacity-0'
+              )}
+            >
+              {mobileTitle}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* ── Search ───────────────────────────────────────────────────────── */}
       {search && (
-      <div ref={searchRef} className="relative min-w-0 flex-1 max-w-[180px] xs:max-w-[240px] sm:max-w-[340px] md:max-w-[440px]">
+      <div
+        ref={searchRef}
+        className={clsx(
+          'relative min-w-0 flex-1',
+          mobileSearch
+            ? 'flex items-center gap-2'
+            : 'hidden md:block md:max-w-[440px]'
+        )}
+      >
+        {mobileSearch && (
+          <button
+            type="button"
+            onClick={closeMobileSearch}
+            aria-label="Close search"
+            className="grid h-10 w-10 flex-none place-items-center rounded-hb-full text-hb-muted active:bg-hb-muted/10 md:hidden"
+          >
+            <ArrowLeft size={20} aria-hidden />
+          </button>
+        )}
+        <div className="relative min-w-0 flex-1">
         <label htmlFor="workspace-search" className="sr-only">
           Search candidates, roles and interviews
         </label>
@@ -239,12 +322,14 @@ function HbTopbarComponent({
           className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hb-dim"
         />
         <input
+          ref={searchInputRef}
           id="workspace-search"
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setSearchOpen(true)}
           placeholder="Search candidates, roles, interviews…"
+          enterKeyHint="search"
           className={clsx(
             'h-10 w-full rounded-hb-full border border-hb-border bg-hb-surface-2 pl-11 pr-9',
             'font-body text-hb-sm text-hb-text placeholder:text-hb-dim',
@@ -263,6 +348,7 @@ function HbTopbarComponent({
             <X size={13} aria-hidden />
           </button>
         )}
+        </div>
 
         <AnimatePresence>
           {searchOpen && (query || results) && (
@@ -273,7 +359,7 @@ function HbTopbarComponent({
               transition={{ duration: 0.16, ease: [0.2, 0.8, 0.3, 1] }}
               role="region"
               aria-label="Search results"
-              className="absolute left-0 right-0 top-[calc(100%+8px)] z-[100] max-h-[460px] overflow-y-auto rounded-hb-md border border-hb-border bg-hb-elevated p-2 shadow-hb-3"
+              className="absolute left-0 right-0 top-[calc(100%+8px)] z-[100] max-h-[min(460px,calc(100dvh-140px))] overflow-y-auto rounded-hb-md border border-hb-border bg-hb-elevated p-2 shadow-hb-3"
             >
               {searching && (
                 <p aria-live="polite" className="p-8 text-center text-hb-sm text-hb-muted">
@@ -317,16 +403,26 @@ function HbTopbarComponent({
       </div>
       )}
 
-      <div className="flex-1" />
+      <div className="hidden flex-1 md:block" />
 
       {/* ── Right cluster ────────────────────────────────────────────────── */}
-      <div className="flex flex-none items-center gap-1.5 sm:gap-2">
+      <div className={clsx('flex flex-none items-center gap-1 sm:gap-2', mobileSearch && 'hidden md:flex')}>
+        {search && (
+          <button
+            type="button"
+            onClick={openMobileSearch}
+            aria-label="Search"
+            className="grid h-10 w-10 flex-none place-items-center rounded-hb-full text-hb-muted transition-colors duration-hb active:bg-hb-muted/10 focus-visible:outline-none focus-visible:shadow-hb-ring md:hidden"
+          >
+            <Search size={20} aria-hidden />
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          className="grid h-10 w-10 flex-none place-items-center rounded-hb-full border border-hb-border text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring"
+          className="hidden h-10 w-10 flex-none place-items-center rounded-hb-full border border-hb-border text-hb-muted transition-colors duration-hb hover:bg-hb-surface-2 hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring md:grid"
         >
           {theme === 'dark' ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
         </button>
@@ -341,7 +437,7 @@ function HbTopbarComponent({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-label="Account menu"
-            className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-xs font-bold text-hb-on-brand transition-transform duration-hb hover:scale-105 focus-visible:outline-none focus-visible:shadow-hb-ring"
+            className="grid h-9 w-9 md:h-10 md:w-10 place-items-center overflow-hidden rounded-full bg-hb-grad font-display text-hb-xs font-bold text-hb-on-brand transition-transform duration-hb hover:scale-105 focus-visible:outline-none focus-visible:shadow-hb-ring"
           >
             {user?.avatar_url && user.avatar_url !== brokenAvatarSrc ? (
               <img
@@ -385,6 +481,36 @@ function HbTopbarComponent({
                     {item.label}
                   </Link>
                 ))}
+
+                {install.available && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={async () => {
+                      setMenuOpen(false)
+                      if (install.canPrompt) await install.promptInstall()
+                      else window.dispatchEvent(new Event(SHOW_INSTALL_EVENT))
+                    }}
+                    className="mt-1 flex w-full items-center gap-2.5 rounded-hb-sm px-3 py-2.5 text-left text-hb-sm text-hb-text transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  >
+                    <span className="text-hb-dim">
+                      <Download size={15} aria-hidden />
+                    </span>
+                    Install app
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={toggleTheme}
+                  className="mt-1 flex w-full items-center gap-2.5 rounded-hb-sm px-3 py-2.5 text-left text-hb-sm text-hb-text transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none focus-visible:shadow-hb-ring md:hidden"
+                >
+                  <span className="text-hb-dim">
+                    {theme === 'dark' ? <Sun size={15} aria-hidden /> : <Moon size={15} aria-hidden />}
+                  </span>
+                  {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                </button>
 
                 <button
                   type="button"

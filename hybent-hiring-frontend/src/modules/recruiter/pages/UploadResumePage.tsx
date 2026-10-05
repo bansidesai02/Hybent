@@ -608,10 +608,15 @@ function UploadResume() {
     startUpload,
   } = useResumeUploadStore()
 
-  /* Lets a run that finishes while the recruiter is elsewhere raise a toast. */
+  /* Lets a run that finishes while the recruiter is elsewhere raise a toast.
+     Leaving the page also clears a finished run they've already seen, so
+     coming back starts fresh, ready for the next resume, instead of showing
+     the old result until a reload. A run still in flight is kept (it finishes
+     in the background), and so is one that finished while they were away,
+     until they've been back to see it. */
   useEffect(() => {
     setPageMounted(true)
-    return () => setPageMounted(false)
+    return () => useResumeUploadStore.getState().leavePage()
   }, [setPageMounted])
 
   const { data: jobs } = useQuery({

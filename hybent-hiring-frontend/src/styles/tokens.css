@@ -500,3 +500,51 @@ html:has(.hb-app) body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Mobile app foundations (workspace, below lg) ─────────────────────────────
+   Below 1024px the workspace runs as a phone app with a bottom tab bar
+   (HbBottomNav). Its height is published here so anything fixed to the
+   bottom — the page's own padding, the Copilot button — can clear it. */
+:root { --hb-mobile-nav: 0px; }
+@media (max-width: 1023.98px) {
+  .hb-app { --hb-mobile-nav: calc(64px + env(safe-area-inset-bottom)); }
+}
+
+.hb-app {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+/* No 300ms double-tap-zoom wait on anything tappable. */
+.hb-app :is(a, button, [role='button'], input, select, textarea, label, summary) {
+  touch-action: manipulation;
+}
+
+@media (max-width: 767.98px) {
+  /* iOS zooms the page into any field under 16px when it gets focus. */
+  .hb-app :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) {
+    font-size: 16px;
+  }
+  /* Momentum-scrolling rows of chips / tabs / columns, without a scrollbar. */
+  .hb-app .hb-scroll-x {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .hb-app .hb-scroll-x::-webkit-scrollbar { display: none; }
+  .hb-app .hb-scroll-x > * { scroll-snap-align: start; flex: none; }
+}
+
+/* Below lg the Copilot is a tab in the bottom bar, so its floating button
+   would only duplicate it — and cover card actions on every list. */
+@media (max-width: 1023.98px) {
+  .hb-app .c-fab { display: none !important; }
+}
+
+/* Grid children may shrink. A grid with no column template below a
+   breakpoint (`grid lg:grid-cols-2`) otherwise lets one wide child — a fixed
+   190px select, a long unbroken line — widen the whole card past a phone
+   screen. */
+.hb-app main .grid > * { min-width: 0; }

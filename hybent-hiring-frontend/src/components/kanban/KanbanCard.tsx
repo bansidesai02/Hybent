@@ -1,6 +1,8 @@
 import { Draggable } from '@hello-pangea/dnd'
-import type { KanbanCard as KanbanCardType } from '@/types'
+import { ArrowRightLeft } from 'lucide-react'
+import type { ApplicationStage, KanbanCard as KanbanCardType } from '@/types'
 import { Avatar, Badge } from '@/components/hb'
+import { stageLabel } from './stages'
 
 /**
  * One candidate on the pipeline board.
@@ -13,10 +15,16 @@ export function KanbanCard({
   card,
   index,
   onClick,
+  stage,
+  stages,
+  onMove,
 }: {
   card: KanbanCardType
   index: number
   onClick?: () => void
+  stage?: ApplicationStage
+  stages?: ApplicationStage[]
+  onMove?: (card: KanbanCardType, stage: ApplicationStage) => void
 }) {
   return (
     <Draggable draggableId={card.id} index={index}>
@@ -55,6 +63,30 @@ export function KanbanCard({
               <Avatar name={card.candidate_name} size="xs" />
             </div>
           </div>
+
+          {/* Phones: dragging across full-screen columns is clumsy, so a
+              native picker (iOS wheel / Android list) moves the card instead. */}
+          {stage && stages && onMove && (
+            <label
+              onClick={(e) => e.stopPropagation()}
+              className="relative mt-3 flex h-10 items-center justify-center gap-2 rounded-hb-sm border border-hb-border bg-hb-surface-2 text-hb-sm font-semibold text-hb-text active:bg-hb-muted/10 md:hidden"
+            >
+              <ArrowRightLeft size={15} aria-hidden className="text-hb-blue" />
+              Move to…
+              <select
+                aria-label={`Move ${card.candidate_name} to another stage`}
+                value={stage}
+                onChange={(e) => onMove(card, e.target.value as ApplicationStage)}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              >
+                {stages.map((s) => (
+                  <option key={s} value={s}>
+                    {stageLabel(s)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       )}
     </Draggable>

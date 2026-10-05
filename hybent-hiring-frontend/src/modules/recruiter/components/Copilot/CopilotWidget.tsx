@@ -1,6 +1,4 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import toast from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useCopilotStore } from '@/store/useCopilotStore'
@@ -13,6 +11,8 @@ import type { ConversationSummary } from '@/api/copilot'
 import { candidatesApi } from '@/api/candidates'
 import { useCopilotConversations } from './useCopilotConversations'
 import { CopilotSteps } from './CopilotSteps'
+import { CopilotMarkdown } from './CopilotMarkdown'
+import { CopilotSparkle } from './CopilotSparkle'
 import type { Candidate } from '@/types'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { Avatar, Badge, Button, Card } from '@/components/hb'
@@ -33,23 +33,25 @@ import { Avatar, Badge, Button, Card } from '@/components/hb'
    values directly.
    ---------------------------------------------------------------------------- */
 const s: Record<string, React.CSSProperties> = {
-  fab: { position: 'fixed', bottom: '80px', right: 'min(28px, 4vw)', width: '56px', height: '56px', borderRadius: '50%', background: 'var(--hb-grad-diag)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 34px -14px rgb(76 111 255 / .55)', zIndex: 9999, transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease', color: 'rgb(var(--hb-on-brand))', fontSize: '24px' },
-  panel: { position: 'fixed', bottom: '150px', right: 'min(28px, 4vw)', width: '400px', maxWidth: 'calc(100vw - min(56px, 8vw))', height: '600px', maxHeight: 'calc(100vh - 120px)', borderRadius: 'var(--hb-r-lg)', background: 'rgb(var(--hb-elevated))', border: '1px solid var(--hb-border)', boxShadow: 'var(--hb-sh-3)', display: 'flex', flexDirection: 'column', zIndex: 9998, overflow: 'hidden', animation: 'copilotSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)' },
+  fab: { position: 'fixed', bottom: 'max(80px, calc(var(--hb-mobile-nav) + 16px))', right: 'min(28px, 4vw)', width: '56px', height: '56px', borderRadius: '50%', background: 'var(--hb-grad-diag)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 34px -14px rgb(76 111 255 / .55)', zIndex: 9999, transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease', color: 'rgb(var(--hb-on-brand))', fontSize: '24px' },
+  panel: { position: 'fixed', bottom: 'max(150px, calc(var(--hb-mobile-nav) + 86px))', right: 'min(28px, 4vw)', width: '400px', maxWidth: 'calc(100vw - min(56px, 8vw))', height: '600px', maxHeight: 'min(calc(100vh - 120px), calc(100dvh - max(150px, calc(var(--hb-mobile-nav) + 86px)) - 64px))', borderRadius: 'var(--hb-r-lg)', background: 'rgb(var(--hb-elevated))', border: '1px solid var(--hb-border)', boxShadow: 'var(--hb-sh-3)', display: 'flex', flexDirection: 'column', zIndex: 9998, overflow: 'hidden', animation: 'copilotSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)' },
   header: { padding: '18px 22px', background: 'rgb(var(--hb-surface))', borderBottom: '1px solid var(--hb-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
   headerTitle: { color: 'rgb(var(--hb-text))', fontFamily: 'var(--hb-f-display)', fontWeight: 600, fontSize: '17px', display: 'flex', alignItems: 'center', gap: '10px' },
   headerActions: { display: 'flex', gap: '8px' },
   iconBtn: { background: 'rgb(var(--hb-surface-2))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-muted))', cursor: 'pointer', padding: '6px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   messages: { flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px' },
   userBubble: { background: 'var(--hb-grad-diag)', color: 'rgb(var(--hb-on-brand))', fontWeight: 500, borderRadius: '18px 18px 4px 18px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--hb-sh-1)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word' },
-  botBubble: { background: 'rgb(var(--hb-surface-2))', color: 'rgb(var(--hb-text))', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--hb-border)', boxShadow: 'var(--hb-sh-1)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word', overflow: 'hidden', minWidth: 0 },
+  /* Replies aren't bubbles — plain text on the panel, like ChatGPT / Claude;
+     only the recruiter's own messages sit in a bubble. */
+  botBubble: { color: 'rgb(var(--hb-text))', paddingTop: '5px', fontSize: '14px', lineHeight: 1.65, flex: 1, width: '100%', boxSizing: 'border-box', wordBreak: 'break-word', minWidth: 0 },
   thinkingBubble: { background: 'rgb(var(--hb-surface-2))', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--hb-border)', display: 'flex', alignItems: 'center', gap: '6px' },
   footer: { padding: '14px 16px', borderTop: '1px solid var(--hb-border)', display: 'flex', gap: '6px', alignItems: 'flex-end', flexShrink: 0, background: 'rgb(var(--hb-surface))' },
   input: { flex: 1, background: 'rgb(var(--hb-surface))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-text))', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
   sendBtn: { background: 'var(--hb-grad-diag)', border: 'none', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-on-brand))', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0, boxShadow: 'var(--hb-sh-1)' },
   emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '32px 24px', textAlign: 'center' },
-  /* The site's `.grad-text`, inline â€” the launcher's own glyph is the one place
-     in the panel the full gradient is allowed to shout. */
-  emptyIcon: { fontSize: '48px', background: 'var(--hb-grad)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+  /* The Copilot sparkle in the brand gradient — the one place in the panel
+     the full gradient is allowed to shout. */
+  emptyIcon: { display: 'flex' },
   emptyTitle: { color: 'rgb(var(--hb-text))', fontFamily: 'var(--hb-f-display)', fontWeight: 600, fontSize: '19px' },
   emptySubtitle: { color: 'rgb(var(--hb-muted))', fontSize: '14px', lineHeight: 1.6 },
   promptGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', width: '100%', marginTop: '16px' },
@@ -1870,8 +1872,8 @@ export function CopilotWidget() {
     if (parts.length <= 1) {
       return (
         <div className="flex w-full flex-col items-start">
-          <div className="copilot-markdown w-full">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
+          <div className="w-full min-w-0">
+            <CopilotMarkdown>{cleanContent}</CopilotMarkdown>
           </div>
           {isJD ? (
             <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
@@ -1893,9 +1895,7 @@ export function CopilotWidget() {
           const trimmedPart = part.trim()
           if (!trimmedPart) return null
           return (
-            <div key={idx} className="copilot-markdown">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{trimmedPart}</ReactMarkdown>
-            </div>
+            <CopilotMarkdown key={idx}>{trimmedPart}</CopilotMarkdown>
           )
         })}
         {isJD ? (
@@ -1965,11 +1965,6 @@ export function CopilotWidget() {
         .c-messages::-webkit-scrollbar,.c-hist-list::-webkit-scrollbar { width:5px; }
         .c-messages::-webkit-scrollbar-track,.c-hist-list::-webkit-scrollbar-track { background:transparent; }
         .c-messages::-webkit-scrollbar-thumb,.c-hist-list::-webkit-scrollbar-thumb { background:rgb(var(--hb-blue) / .35); border-radius:10px; }
-        .c-bot p{margin:0 0 10px 0;} .c-bot p:last-child{margin:0;} .c-bot ul,.c-bot ol{margin:6px 0 10px 20px;padding:0;} .c-bot li{margin:4px 0;}
-        .c-bot strong{color:rgb(var(--hb-text));font-weight:600;}
-        .c-bot code{background:rgb(var(--hb-surface-2));border-radius:6px;padding:2px 6px;font-size:13px;font-family:ui-monospace,monospace;color:rgb(var(--hb-magenta));border:1px solid var(--hb-border);}
-        .c-bot pre{background:rgb(var(--hb-surface-2));padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--hb-border);}
-        .c-bot pre code{background:transparent;border:none;padding:0;color:rgb(var(--hb-text));}
         @keyframes micPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--hb-error) / .4); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgb(var(--hb-error) / 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--hb-error) / 0); } }
         @keyframes recordBlink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         .c-blink { animation: recordBlink 1.5s infinite ease-in-out; }
@@ -1990,7 +1985,7 @@ export function CopilotWidget() {
         onTouchStart={handleFabTouchStart}
         aria-label="Open AI Copilot"
       >
-        {isOpen ? <CloseIcon /> : '✦'}
+        {isOpen ? <CloseIcon /> : <CopilotSparkle size={26} />}
       </button>
 
       {/* Panel */}
@@ -2032,7 +2027,7 @@ export function CopilotWidget() {
             ) : (
               <>
                 <div style={s.headerTitle}>
-                  <span className="hb-grad-text text-[18px]">✦</span>
+                  <CopilotSparkle size={20} gradient />
                   <span>Recruiter Copilot</span>
                   {isThinking && <span className="text-hb-xs font-normal text-hb-blue/40">thinking...</span>}
                 </div>
@@ -2196,7 +2191,7 @@ export function CopilotWidget() {
                       </div>
                     ) : messages.length === 0 ? (
                       <div style={s.emptyState}>
-                        <div style={s.emptyIcon}>✦</div>
+                        <div style={s.emptyIcon}><CopilotSparkle size={52} gradient /></div>
                         <div style={s.emptyTitle}>Your Recruiter AI Copilot</div>
                         <div style={s.emptySubtitle}>Ask me anything — candidates, jobs, interviews, offers, or pipeline stats.</div>
                         <div style={s.promptGrid}>
@@ -2256,7 +2251,7 @@ export function CopilotWidget() {
                                 fontSize: '14px', 
                                 flexShrink: 0 
                               }}>
-                                ✦
+                                <CopilotSparkle size={17} />
                               </div>
                             )}
                             
@@ -2292,7 +2287,7 @@ export function CopilotWidget() {
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              ✦
+                              <CopilotSparkle size={17} />
                             </div>
                             <div style={s.thinkingBubble}>
                               <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
@@ -2313,7 +2308,7 @@ export function CopilotWidget() {
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              ✦
+                              <CopilotSparkle size={17} />
                             </div>
                             <div style={{ ...s.thinkingBubble, background: 'rgb(var(--hb-blue) / .05)', borderColor: 'rgb(var(--hb-blue) / .35)' }}>
                               <span className="c-dot" style={{ animationDelay: '0s' }} /><span className="c-dot" style={{ animationDelay: '0.2s' }} /><span className="c-dot" style={{ animationDelay: '0.4s' }} />

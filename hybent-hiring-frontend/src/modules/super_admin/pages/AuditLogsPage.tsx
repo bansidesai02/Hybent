@@ -13,6 +13,7 @@ import {
   Select,
   Toolbar,
   ToolbarSearch,
+  ToolbarFilters,
 } from '@/components/hb'
 
 /**
@@ -141,6 +142,7 @@ export default function AuditLogsPage() {
           placeholder="Search this page…"
           aria-label="Search log entries on the current page"
         />
+        <ToolbarFilters activeCount={[filterClient !== 'all', filterType !== 'all'].filter(Boolean).length} onReset={() => { setFilterClient('all'); setFilterType('all') }}>
         <Select
           options={[
             { value: 'all', label: 'All clients' },
@@ -158,6 +160,7 @@ export default function AuditLogsPage() {
           aria-label="Filter by category"
           fieldClassName="w-auto"
         />
+        </ToolbarFilters>
       </Toolbar>
 
       <Card padding="none">

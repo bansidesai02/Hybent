@@ -23,6 +23,7 @@ export function useFillShell() {
     const prev = {
       mainOverflow:    main.style.overflow,
       mainPadding:     main.style.padding,
+      mainPadBottom:   main.style.paddingBottom,
       wrapperHeight:   wrapper?.style.height    ?? '',
       wrapperMinH:     wrapper?.style.minHeight ?? '',
       wrapperMaxWidth: wrapper?.style.maxWidth  ?? '',
@@ -30,6 +31,8 @@ export function useFillShell() {
 
     main.style.overflow = 'hidden'
     main.style.padding  = 'clamp(12px, 1.4vw, 20px)'
+    // Keep clear of the phone tab bar (--hb-mobile-nav is 0 on desktop).
+    main.style.paddingBottom = 'calc(clamp(12px, 1.4vw, 20px) + var(--hb-mobile-nav, 0px))'
     if (wrapper) {
       wrapper.style.height    = '100%'
       wrapper.style.minHeight = '0'
@@ -39,6 +42,7 @@ export function useFillShell() {
     return () => {
       main.style.overflow = prev.mainOverflow
       main.style.padding  = prev.mainPadding
+      main.style.paddingBottom = prev.mainPadBottom
       if (wrapper) {
         wrapper.style.height    = prev.wrapperHeight
         wrapper.style.minHeight = prev.wrapperMinH

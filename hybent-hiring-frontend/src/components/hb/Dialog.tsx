@@ -20,6 +20,11 @@ import { Button } from './Button'
 
 type Size = 'sm' | 'md' | 'lg' | 'xl'
 
+/* Large dialogs are whole screens of content; on a phone they open
+   full-screen (the standard iOS / Android pattern) instead of floating with
+   a 16px frame that only wastes width. Small confirms stay centred. */
+const FULLSCREEN_ON_PHONE: Record<Size, boolean> = { sm: false, md: false, lg: true, xl: true }
+
 const SIZE: Record<Size, string> = {
   sm: 'max-w-md',
   md: 'max-w-xl',
@@ -58,7 +63,12 @@ export function Dialog({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6">
+        <div
+          className={clsx(
+            'fixed inset-0 z-[1000] flex items-center justify-center sm:p-6',
+            FULLSCREEN_ON_PHONE[size] ? 'p-0' : 'p-4'
+          )}
+        >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -80,8 +90,11 @@ export function Dialog({
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.18, ease: [0.2, 0.8, 0.3, 1] }}
             className={clsx(
-              'relative w-full max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] flex flex-col',
-              'rounded-hb-lg border border-hb-border bg-hb-elevated shadow-hb-3',
+              'relative w-full sm:max-h-[calc(100dvh-3rem)] flex flex-col',
+              'border-hb-border bg-hb-elevated shadow-hb-3 sm:rounded-hb-lg sm:border',
+              FULLSCREEN_ON_PHONE[size]
+                ? 'max-sm:h-dvh max-sm:pt-[env(safe-area-inset-top)] max-sm:pb-[env(safe-area-inset-bottom)]'
+                : 'max-h-[calc(100dvh-2rem)] rounded-hb-lg border',
               'focus:outline-none overflow-hidden',
               SIZE[size],
               className

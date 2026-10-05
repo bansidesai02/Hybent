@@ -28,6 +28,8 @@ import {
 } from 'lucide-react'
 
 import { useFillShell } from '@/hooks/useFillShell'
+import { CopilotMark } from '@/modules/recruiter/components/Copilot/CopilotMark'
+import { PHONE_QUERY, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useAuthStore } from '@/store/authStore'
 import { candidatesApi } from '@/api/candidates'
@@ -217,10 +219,11 @@ function ConversationList({
 
 function Welcome({ onSend }: { onSend: (msg: string) => void }) {
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center py-8 text-center">
-      <IconTile size="lg">
-        <Sparkles />
-      </IconTile>
+    /* my-auto (not justify-center): centred when it fits, and when it's taller
+       than the thread it starts at the top instead of clipping the icon. */
+    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center py-4 text-center sm:py-8">
+      <div className="my-auto flex w-full flex-col items-center">
+      <CopilotMark size="lg" />
       <h2 className="mt-4 font-display text-hb-h3 text-hb-text">How can I help today?</h2>
       <p className="mt-2 max-w-[46ch] text-hb-sm text-hb-muted">
         Ask about candidates, open roles, interviews or your pipeline. I can also take actions for
@@ -252,17 +255,17 @@ function Welcome({ onSend }: { onSend: (msg: string) => void }) {
           </Card>
         ))}
       </div>
+      </div>
     </div>
   )
 }
 
 function AssistantRow({ children }: { children: ReactNode }) {
   return (
+    /* Phones: no avatar column, so replies (tables, cards) get the full width. */
     <div className="flex items-start gap-3">
-      <IconTile size="sm">
-        <Sparkles />
-      </IconTile>
-      <div className="min-w-0 flex-1 pt-1">{children}</div>
+      <CopilotMark size="sm" className="hidden sm:grid" />
+      <div className="min-w-0 flex-1 sm:pt-1">{children}</div>
     </div>
   )
 }
@@ -326,6 +329,7 @@ function ApprovalCard({
 // ── Composer ──────────────────────────────────────────────────────────────────
 
 function Composer({ onSend, isThinking }: { onSend: (text: string) => void; isThinking: boolean }) {
+  const isPhone = useMediaQuery(PHONE_QUERY)
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [candidateSuggestions, setCandidateSuggestions] = useState<{ candidate: any; matchedWord: string }[]>([])
@@ -423,8 +427,9 @@ function Composer({ onSend, isThinking }: { onSend: (text: string) => void; isTh
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about candidates, jobs, interviews or your pipeline…"
+            placeholder={isPhone ? 'Message Copilot…' : 'Ask about candidates, jobs, interviews or your pipeline…'}
             aria-label="Message Copilot"
+            enterKeyHint="send"
             rows={1}
             disabled={isThinking}
             className="max-h-40 min-h-[36px] flex-1 resize-none overflow-y-auto bg-transparent py-2 text-hb-sm text-hb-text placeholder:text-hb-muted focus:outline-none disabled:opacity-60"
@@ -508,10 +513,22 @@ export default function CopilotPage() {
   // Scroll the thread itself — scrollIntoView would also scroll the shell's
   // overflow-hidden ancestors, pushing the topbar off-screen with no way back.
   const threadRef = useRef<HTMLDivElement>(null)
+  const lastScrolledConv = useRef<string | null>(null)
   useEffect(() => {
     const el = threadRef.current
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-  }, [messages, isThinking])
+    if (!el) return
+    // An empty chat is the welcome screen: start at its top (the icon), not
+    // scrolled to the bottom with the top cut off.
+    if (messages.length === 0) {
+      el.scrollTo({ top: 0 })
+      return
+    }
+    // Opening a saved chat jumps to the latest message; new replies glide.
+    const key = conversationId ?? 'new'
+    const instant = lastScrolledConv.current !== key
+    lastScrolledConv.current = key
+    el.scrollTo({ top: el.scrollHeight, behavior: instant ? 'auto' : 'smooth' })
+  }, [messages, isThinking, conversationId])
 
   const onSend = useCallback((text: string) => handleSend(text, messages), [handleSend, messages])
 
@@ -600,10 +617,11 @@ export default function CopilotPage() {
     <div className="flex h-full min-h-0 flex-col">
       <header className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <IconTile size="sm">
-            <Sparkles />
-          </IconTile>
-          <h1 className="truncate font-display text-hb-h3 text-hb-text">Recruiter Copilot</h1>
+          <CopilotMark size="sm" />
+          <h1 className="truncate font-display text-[22px] font-semibold text-hb-text sm:text-hb-h3">
+            <span className="sm:hidden">Copilot</span>
+            <span className="hidden sm:inline">Recruiter Copilot</span>
+          </h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button
@@ -612,11 +630,13 @@ export default function CopilotPage() {
             icon={<History size={14} />}
             onClick={() => setHistoryOpen(true)}
             className="lg:hidden"
+            aria-label="Chat history"
           >
-            History
+            <span className="hidden sm:inline">History</span>
           </Button>
-          <Button size="sm" icon={<MessageSquarePlus size={14} />} onClick={handleNewChat}>
-            New chat
+          <Button size="sm" icon={<MessageSquarePlus size={14} />} onClick={handleNewChat} aria-label="New chat">
+            <span className="hidden sm:inline">New chat</span>
+            <span className="sm:hidden">New</span>
           </Button>
         </div>
       </header>
@@ -636,16 +656,16 @@ export default function CopilotPage() {
 
         {/* Thread */}
         <Card padding="none" as="section" className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex shrink-0 items-center gap-3 border-b border-hb-border px-5 py-4 sm:px-6">
+          <div className="flex shrink-0 items-center gap-3 border-b border-hb-border px-4 py-3 sm:px-6 sm:py-4">
             <h2 className="min-w-0 flex-1 truncate font-display text-hb-h3 text-hb-text">{activeTitle}</h2>
             {isThinking && (
               <span className="shrink-0 text-hb-xs text-hb-muted">Thinking…</span>
             )}
           </div>
 
-          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto overscroll-none px-4 py-6 sm:px-6">
+          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none px-3.5 py-4 sm:px-6 sm:py-6">
             {convLoading ? (
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
                 <Skeleton className="ml-auto h-10 w-2/5" rounded="md" />
                 <Skeleton className="h-20 w-4/5" rounded="md" />
                 <Skeleton className="ml-auto h-10 w-1/3" rounded="md" />
@@ -653,11 +673,11 @@ export default function CopilotPage() {
             ) : messages.length === 0 ? (
               <Welcome onSend={onSend} />
             ) : (
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
                 {messages.map((msg) =>
                   msg.role === 'user' ? (
                     <div key={msg.id} className="flex justify-end">
-                      <div className="max-w-[78%] break-words rounded-hb-md rounded-br-[6px] border border-hb-blue/20 bg-hb-blue/5 px-4 py-2.5 text-hb-sm text-hb-text">
+                      <div className="max-w-[85%] break-words rounded-hb-md sm:max-w-[78%] rounded-br-[6px] border border-hb-blue/20 bg-hb-blue/5 px-4 py-2.5 text-hb-sm text-hb-text">
                         {msg.content === '👍 Action Approved' ? (
                           <span className="flex items-center gap-1.5">
                             <Check size={14} /> Action approved
@@ -669,7 +689,7 @@ export default function CopilotPage() {
                     </div>
                   ) : (
                     <AssistantRow key={msg.id}>
-                      <div className="c-bot text-hb-sm leading-relaxed text-hb-text">
+                      <div className="text-hb-text">
                         <CopilotSteps
                           steps={msg.steps}
                           startedAt={msg.startedAt}
@@ -724,16 +744,6 @@ export default function CopilotPage() {
       />
 
       <style>{`
-        .c-bot p{margin:0 0 10px 0;} .c-bot p:last-child{margin:0;}
-        .c-bot ul,.c-bot ol{margin:6px 0 10px 20px;padding:0;} .c-bot li{margin:4px 0;}
-        .c-bot strong{color:rgb(var(--hb-text));font-weight:600;}
-        .c-bot code{background:rgb(var(--hb-surface-2));border-radius:6px;padding:2px 6px;font-size:13px;font-family:ui-monospace,monospace;color:rgb(var(--hb-magenta));border:1px solid var(--hb-border);}
-        .c-bot pre{background:rgb(var(--hb-surface-2));padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--hb-border);}
-        .c-bot pre code{background:transparent;border:none;padding:0;color:rgb(var(--hb-text));}
-        .copilot-markdown p{margin:0 0 10px 0;} .copilot-markdown p:last-child{margin:0;}
-        .copilot-markdown ul,.copilot-markdown ol{margin:6px 0 10px 20px;padding:0;}
-        .copilot-markdown li{margin:4px 0;}
-        .copilot-markdown strong{font-weight:600;}
         @keyframes copilotDot { 0%,80%,100%{opacity:0.3;} 40%{opacity:1;} }
       `}</style>
     </div>

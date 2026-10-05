@@ -19,6 +19,7 @@ import {
   Select,
   Toolbar,
   ToolbarSearch,
+  ToolbarFilters,
 } from '@/components/hb'
 
 /**
@@ -208,6 +209,7 @@ export default function UsersPage() {
           placeholder="Search this page…"
           aria-label="Search users on the current page by name or email"
         />
+        <ToolbarFilters activeCount={[filterRole !== 'all', filterClient !== 'all'].filter(Boolean).length} onReset={() => { setFilterRole('all'); setFilterClient('all') }}>
         <Select
           options={ROLE_OPTIONS}
           value={filterRole}
@@ -225,6 +227,7 @@ export default function UsersPage() {
           aria-label="Filter by tenant"
           fieldClassName="w-auto"
         />
+        </ToolbarFilters>
       </Toolbar>
 
       <Card padding="none">

@@ -90,8 +90,10 @@ const STAGE_SUB = [
 /** The seven-step journey, done → active → pending. */
 function StageTracker({ current }: { current: number }) {
   return (
-    <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-      <ol className="flex min-w-[720px] items-start md:min-w-0" aria-label="Application stages">
+    /* Phones: a vertical timeline (like order tracking) instead of a 720px
+       strip you had to scroll sideways to find your own stage. */
+    <div className="pb-2">
+      <ol className="flex flex-col md:flex-row md:items-start" aria-label="Application stages">
         {STAGES.map((s, i) => {
           const done = i < current
           const active = i === current
@@ -100,13 +102,13 @@ function StageTracker({ current }: { current: number }) {
               {i > 0 && (
                 <span
                   aria-hidden
-                  className={`mt-3.5 h-0.5 flex-1 rounded-full ${
+                  className={`ml-[13px] h-5 w-0.5 rounded-full md:ml-0 md:mt-3.5 md:h-0.5 md:w-auto md:flex-1 ${
                     i <= current ? 'bg-hb-grad' : 'bg-hb-border'
                   }`}
                 />
               )}
               <li
-                className="flex w-[92px] shrink-0 flex-col items-center gap-1.5 text-center"
+                className="flex shrink-0 items-center gap-3 md:w-[92px] md:flex-col md:items-center md:gap-1.5 md:text-center"
                 aria-current={active ? 'step' : undefined}
               >
                 <span

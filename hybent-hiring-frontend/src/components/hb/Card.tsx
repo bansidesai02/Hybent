@@ -90,15 +90,17 @@ export function CardHeader({
   className?: string
 }) {
   return (
-    <div className={clsx('flex items-start justify-between gap-4 mb-4', className)}>
-      <div className="flex items-start gap-3 min-w-0">
+    /* Phones: the action (a filter select, a button) wraps under the title at
+       full width instead of squeezing it to "Your mail…" or running off-card. */
+    <div className={clsx('flex flex-wrap items-start justify-between gap-x-4 gap-y-3 mb-4', className)}>
+      <div className="flex min-w-0 flex-1 items-start gap-3 max-md:basis-full">
         {icon && <span className="shrink-0 mt-0.5">{icon}</span>}
         <div className="min-w-0">
-          <h3 className="font-display text-hb-h3 text-hb-text truncate">{title}</h3>
+          <h3 className="font-display text-hb-h3 text-hb-text max-md:whitespace-normal md:truncate">{title}</h3>
           {subtitle && <p className="mt-1 text-hb-sm text-hb-muted">{subtitle}</p>}
         </div>
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="shrink-0 max-w-full">{action}</div>}
     </div>
   )
 }
