@@ -107,12 +107,20 @@ function dateParams(filter: string, custom: [string, string]) {
   return {}
 }
 
-/** One labelled row inside a candidate card. */
+/**
+ * Card grid: as many columns as fit at 16rem each, capped at five, so a card is
+ * never squeezed narrow enough to clip its content (the sidebar eats into the
+ * width a viewport breakpoint can't see).
+ */
+const CARD_GRID =
+  'grid gap-hb-4 grid-cols-[repeat(auto-fill,minmax(max(min(100%,16rem),calc((100%_-_4_*_var(--hb-s-4))_/_5)),1fr))]'
+
+/** One labelled row inside a candidate card. Long values wrap, never clip. */
 function Fact({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <span className="shrink-0 text-hb-xs text-hb-muted">{label}</span>
-      <span className="min-w-0 truncate text-right text-hb-sm font-medium text-hb-text">
+      <span className="min-w-0 text-right text-hb-sm font-medium text-hb-text [overflow-wrap:anywhere]">
         {value}
       </span>
     </div>
@@ -792,7 +800,7 @@ export default function AllTalentListPage() {
 
       {/* ── Cards ── */}
       {isLoading ? (
-        <div className="grid gap-hb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[1380px]:grid-cols-5">
+        <div className={CARD_GRID}>
           {Array.from({ length: 10 }, (_, i) => (
             <Skeleton key={i} className="h-[300px] w-full" rounded="md" />
           ))}
@@ -819,7 +827,7 @@ export default function AllTalentListPage() {
           />
         </Card>
       ) : (
-        <ul className="grid gap-hb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[1380px]:grid-cols-5">
+        <ul className={CARD_GRID}>
           {items.map((candidate: any) => (
             <li key={candidate.id}>
               <Card
@@ -841,12 +849,12 @@ export default function AllTalentListPage() {
                       />
                       <div className="min-w-0">
                         <p
-                          className="truncate text-hb-body font-bold text-hb-text group-hover:text-hb-blue transition-colors"
+                          className="text-hb-body font-bold text-hb-text [overflow-wrap:anywhere] group-hover:text-hb-blue transition-colors"
                           title={candidate.full_name}
                         >
                           {candidate.full_name}
                         </p>
-                        <p className="truncate text-hb-xs text-hb-muted" title={candidate.email}>
+                        <p className="text-hb-xs text-hb-muted [overflow-wrap:anywhere]">
                           {candidate.email}
                         </p>
                       </div>
