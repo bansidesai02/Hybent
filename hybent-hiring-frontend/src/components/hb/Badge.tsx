@@ -26,14 +26,18 @@ export interface BadgeProps {
   tone?: BadgeTone
   /** Leading dot. `pulse` animates it, for genuinely live states only. */
   dot?: boolean | 'pulse'
+  /** Full text on hover, for when a long label is truncated. */
+  title?: string
   className?: string
 }
 
-export function Badge({ children, tone = 'neutral', dot, className }: BadgeProps) {
+export function Badge({ children, tone = 'neutral', dot, title, className }: BadgeProps) {
   return (
     <span
+      title={title}
       className={clsx(
-        'inline-flex items-center gap-[7px] h-[26px] px-[11px] rounded-hb-full border',
+        /* Never wider than its container: long labels truncate instead. */
+        'inline-flex max-w-full items-center gap-[7px] h-[26px] px-[11px] rounded-hb-full border',
         'font-mono text-[10.5px] tracking-[.14em] uppercase whitespace-nowrap',
         TONE[tone],
         className
@@ -48,7 +52,7 @@ export function Badge({ children, tone = 'neutral', dot, className }: BadgeProps
           )}
         />
       )}
-      {children}
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   )
 }
