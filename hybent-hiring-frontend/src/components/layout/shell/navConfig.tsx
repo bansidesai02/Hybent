@@ -2,9 +2,10 @@ import type { ComponentType } from 'react'
 import {
   Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
   Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ScrollText,
-  Settings, Sparkle, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
+  Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
+import { CopilotSparkle } from '@/modules/recruiter/components/Copilot/CopilotSparkle'
 
 /**
  * The workspace navigation, as data.
@@ -171,7 +172,7 @@ export function getNavSections(
       label: 'Main',
       items: [
         { to: basePath, label: 'Overview', icon: LayoutDashboard, end: true },
-        { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: Sparkle, customActivePath: `${basePath}/copilot` },
+        { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: CopilotSparkle, customActivePath: `${basePath}/copilot` },
         { to: `${basePath}/inbox`, label: 'Gmail Inbox', icon: Inbox },
         { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseBusiness },
         candidatesGroup(basePath, role, candidateBadge),
