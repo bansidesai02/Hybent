@@ -15,6 +15,7 @@ import {
   Trash2,
   Upload,
   Users,
+  X,
 } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
@@ -106,12 +107,20 @@ function dateParams(filter: string, custom: [string, string]) {
   return {}
 }
 
-/** One labelled row inside a candidate card. */
+/**
+ * Card grid: as many columns as fit at 16rem each, capped at five, so a card is
+ * never squeezed narrow enough to clip its content (the sidebar eats into the
+ * width a viewport breakpoint can't see).
+ */
+const CARD_GRID =
+  'grid gap-hb-4 grid-cols-[repeat(auto-fill,minmax(max(min(100%,16rem),calc((100%_-_4_*_var(--hb-s-4))_/_5)),1fr))]'
+
+/** One labelled row inside a candidate card. Long values wrap, never clip. */
 function Fact({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <span className="shrink-0 text-hb-xs text-hb-muted">{label}</span>
-      <span className="min-w-0 truncate text-right text-hb-sm font-medium text-hb-text">
+      <span className="min-w-0 text-right text-hb-sm font-medium text-hb-text [overflow-wrap:anywhere]">
         {value}
       </span>
     </div>
@@ -452,7 +461,7 @@ export default function AllTalentListPage() {
     if (!jobToDelete) return
     setIsDeletingJob(true)
     try {
-      await jobsApi.delete(jobToDelete.id)
+      await designationsApi.delete(jobToDelete.id)
       toast.success(`"${jobToDelete.title}" deleted`)
       if (selectedJobId === jobToDelete.id) setSelectedJobId('all')
       queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
@@ -731,32 +740,53 @@ export default function AllTalentListPage() {
                   return (
                     <Draggable key={job.id} draggableId={job.id} index={index}>
                       {(drag, snapshot) => (
-                        <button
+                        <div
                           ref={drag.innerRef}
                           {...drag.draggableProps}
-                          {...drag.dragHandleProps}
-                          type="button"
-                          aria-pressed={active}
-                          onClick={() => {
-                            setSelectedJobId(job.id)
-                            setPage(1)
-                          }}
-                          onContextMenu={(e) => {
-                            e.preventDefault()
-                            setContextMenu({ x: e.clientX, y: e.clientY, job })
-                          }}
+                          style={drag.draggableProps.style}
                           className={
-                            'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-hb-full border px-3.5 text-hb-sm font-semibold transition-colors duration-hb focus-visible:outline-none focus-visible:shadow-hb-ring ' +
+                            'group/chip inline-flex h-8 shrink-0 items-center rounded-hb-full border text-hb-sm font-semibold transition-colors duration-hb ' +
                             (active
                               ? 'border-hb-blue/40 bg-hb-blue/10 text-hb-blue'
                               : 'border-hb-border bg-hb-surface text-hb-muted hover:border-hb-border-strong hover:text-hb-text') +
                             (snapshot.isDragging ? ' shadow-hb-2' : '')
                           }
-                          style={drag.draggableProps.style}
                         >
-                          {job.title}
-                          <span className="font-mono text-hb-micro opacity-70">{count}</span>
-                        </button>
+                          <button
+                            {...drag.dragHandleProps}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => {
+                              setSelectedJobId(job.id)
+                              setPage(1)
+                            }}
+                            onContextMenu={(e) => {
+                              e.preventDefault()
+                              setContextMenu({ x: e.clientX, y: e.clientY, job })
+                            }}
+                            className={
+                              'inline-flex h-full items-center gap-1.5 rounded-hb-full pl-3.5 focus-visible:outline-none focus-visible:shadow-hb-ring ' +
+                              (active ? 'pr-1' : 'pr-3.5')
+                            }
+                          >
+                            {job.title}
+                            <span className="font-mono text-hb-micro opacity-70">{count}</span>
+                          </button>
+                          {/* Delete sits on the selected chip (and on hover), so it's
+                              findable without right-click and works on touch. */}
+                          <button
+                            type="button"
+                            onClick={() => setJobToDelete(job)}
+                            aria-label={`Delete ${job.title}`}
+                            title={`Delete ${job.title}`}
+                            className={
+                              'mr-1 grid h-6 w-6 place-items-center rounded-hb-full text-hb-dim transition-colors duration-hb hover:bg-hb-error/10 hover:text-hb-error focus-visible:outline-none focus-visible:shadow-hb-ring ' +
+                              (active ? '' : 'hidden group-hover/chip:grid group-focus-within/chip:grid')
+                            }
+                          >
+                            <X size={13} aria-hidden />
+                          </button>
+                        </div>
                       )}
                     </Draggable>
                   )
@@ -770,8 +800,8 @@ export default function AllTalentListPage() {
 
       {/* ── Cards ── */}
       {isLoading ? (
-        <div className="grid gap-hb-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {Array.from({ length: 8 }, (_, i) => (
+        <div className={CARD_GRID}>
+          {Array.from({ length: 10 }, (_, i) => (
             <Skeleton key={i} className="h-[300px] w-full" rounded="md" />
           ))}
         </div>
@@ -797,7 +827,7 @@ export default function AllTalentListPage() {
           />
         </Card>
       ) : (
-        <ul className="grid gap-hb-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <ul className={CARD_GRID}>
           {items.map((candidate: any) => (
             <li key={candidate.id}>
               <Card
@@ -819,12 +849,12 @@ export default function AllTalentListPage() {
                       />
                       <div className="min-w-0">
                         <p
-                          className="truncate text-hb-body font-bold text-hb-text group-hover:text-hb-blue transition-colors"
+                          className="text-hb-body font-bold text-hb-text [overflow-wrap:anywhere] group-hover:text-hb-blue transition-colors"
                           title={candidate.full_name}
                         >
                           {candidate.full_name}
                         </p>
-                        <p className="truncate text-hb-xs text-hb-muted" title={candidate.email}>
+                        <p className="text-hb-xs text-hb-muted [overflow-wrap:anywhere]">
                           {candidate.email}
                         </p>
                       </div>
@@ -1144,9 +1174,9 @@ export default function AllTalentListPage() {
         open={!!jobToDelete}
         onClose={() => setJobToDelete(null)}
         onConfirm={deleteDesignation}
-        title="Delete this designation?"
-        description={`"${jobToDelete?.title}" will be removed. This cannot be undone.`}
-        confirmLabel="Delete designation"
+        title="Delete this role?"
+        description={`"${jobToDelete?.title}" will be removed from the Talent DB. Its candidates stay in the database, unassigned. Open positions are not affected. This cannot be undone.`}
+        confirmLabel="Delete role"
         destructive
         loading={isDeletingJob}
       />

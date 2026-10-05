@@ -16,4 +16,6 @@ export const designationsApi = {
   order: () => api.get<Array<{ designation_id: string; display_order: number }>>('/v1/designations/order'),
   reorder: (designation_ids: string[]) =>
     api.put<DesignationsResponse>('/v1/designations/reorder', { designation_ids }),
+  /** Talent DB roles only — the backend refuses open positions. */
+  delete: (id: string) => api.delete<DesignationsResponse>(`/v1/designations/${id}`),
 }

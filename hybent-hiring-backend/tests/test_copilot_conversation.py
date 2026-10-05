@@ -225,3 +225,44 @@ async def test_generate_and_save_title_falls_back_on_llm_error(db_session, organ
     # Title should be unchanged
     await db_session.refresh(conv)
     assert conv.title == original_title
+
+
+# ── Edit & resend ─────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_edit_turn_drops_that_turn_and_everything_after(db_session, organization, admin_user):
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select
+    from app.routers.copilot import _truncate_from_turn
+
+    conv = CopilotConversation(
+        organization_id=organization.id, user_id=admin_user.id, title="t",
+        last_context={"candidate_name": "Priya", "pending_action": {"id": "x", "tool": "schedule_meeting"}},
+    )
+    db_session.add(conv)
+    await db_session.flush()
+    t0 = datetime.now(timezone.utc)
+    turns = [("user", "q1"), ("assistant", "a1"), ("user", "q2"), ("assistant", "a2"), ("user", "q3"), ("assistant", "a3")]
+    for i, (role, content) in enumerate(turns):
+        db_session.add(CopilotMessage(conversation_id=conv.id, role=role, content=content, created_at=t0 + timedelta(seconds=i)))
+    await db_session.commit()
+
+    await _truncate_from_turn(db_session, admin_user, str(conv.id), 1)
+
+    rows = (await db_session.execute(
+        select(CopilotMessage.content).where(CopilotMessage.conversation_id == conv.id).order_by(CopilotMessage.created_at)
+    )).scalars().all()
+    assert rows == ["q1", "a1"]
+    await db_session.refresh(conv)
+    assert "pending_action" not in conv.last_context
+    assert conv.last_context["candidate_name"] == "Priya"
+
+
+@pytest.mark.asyncio
+async def test_edit_turn_rejects_another_users_conversation(db_session, conversation_no_pending, other_org_admin):
+    from fastapi import HTTPException
+    from app.routers.copilot import _truncate_from_turn
+
+    with pytest.raises(HTTPException) as exc:
+        await _truncate_from_turn(db_session, other_org_admin, str(conversation_no_pending.id), 0)
+    assert exc.value.status_code == 404

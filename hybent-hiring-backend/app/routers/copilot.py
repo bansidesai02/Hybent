@@ -44,6 +44,9 @@ class CopilotChatRequest(BaseModel):
     approved_tool_call: Optional[dict] = None
     # Agent v2: answer to a paused approval — {"action_id", "approved", "edits"?}
     resume: Optional[dict] = None
+    # Edit & resend: 0-based index of the user turn being rewritten. That turn
+    # and everything after it is deleted before the edited message is processed.
+    edit_turn: Optional[int] = None
 
 
 class CopilotChatResponse(BaseModel):
@@ -106,6 +109,9 @@ async def copilot_chat(
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
+    if body.edit_turn is not None and body.conversation_id:
+        await _truncate_from_turn(db, current_user, body.conversation_id, body.edit_turn)
+
     use_agent = settings.copilot_agent_v2_enabled_for(current_user.organization_id)
     resume = body.resume
     if use_agent:
@@ -149,6 +155,47 @@ async def copilot_chat(
     )
 
     return StreamingResponse(generator, media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+async def _truncate_from_turn(db, current_user: User, conversation_id: str, turn: int) -> None:
+    """Drop the `turn`-th user message and everything after it, and any
+    approval those turns left pending, so the edited message replays cleanly."""
+    from app.models.copilot_conversation import CopilotConversation, CopilotMessage
+    from sqlalchemy import delete, select
+
+    if turn < 0:
+        raise HTTPException(status_code=400, detail="Invalid edit_turn.")
+    try:
+        cid = uuid.UUID(conversation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid conversation ID.")
+
+    conv = (await db.execute(
+        select(CopilotConversation).where(
+            CopilotConversation.id == cid,
+            CopilotConversation.organization_id == current_user.organization_id,
+            CopilotConversation.user_id == current_user.id,
+        )
+    )).scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+
+    cutoff = (await db.execute(
+        select(CopilotMessage.created_at)
+        .where(CopilotMessage.conversation_id == cid, CopilotMessage.role == "user")
+        .order_by(CopilotMessage.created_at)
+        .offset(turn)
+        .limit(1)
+    )).scalar_one_or_none()
+    if cutoff is None:
+        return  # that turn was never saved — nothing to drop
+
+    await db.execute(
+        delete(CopilotMessage).where(CopilotMessage.conversation_id == cid, CopilotMessage.created_at >= cutoff)
+    )
+    if conv.last_context and "pending_action" in conv.last_context:
+        conv.last_context = {k: v for k, v in conv.last_context.items() if k != "pending_action"}
+    await db.commit()
 
 
 @router.post("/transcribe")
@@ -371,3 +418,83 @@ async def delete_conversation(
 
     await db.delete(conv)
     # Commit handled by get_db() dependency
+
+
+# ── Create a job from a Copilot JD ────────────────────────────────────────────
+
+JOB_CREATED_RE = r"\[JOB_CREATED:([0-9a-f-]{36})\]"
+
+
+class JDJobRequest(BaseModel):
+    jd_text: str            # the JD as shown in chat (CTA stripped)
+    job: dict               # fields parsed from the JD, same shape as POST /v1/jobs
+
+
+def _norm(text_: str) -> str:
+    import re
+    from app.services.ai.copilot_service import JD_CTA
+
+    text_ = re.sub(JOB_CREATED_RE, "", text_.replace(JD_CTA, ""))
+    return re.sub(r"\s+", " ", text_).strip()
+
+
+@router.post("/conversations/{conversation_id}/jd-job")
+async def create_job_from_jd(
+    conversation_id: str,
+    body: JDJobRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: DB,
+    background_tasks: BackgroundTasks,
+):
+    """Creates the job for a JD in this chat once. The job id is stamped on the
+    chat message, so the chat shows "Job created" after a reload and a second
+    click returns the same job instead of creating a duplicate."""
+    import re
+    from sqlalchemy import select
+    from app.models.copilot_conversation import CopilotConversation, CopilotMessage
+    from app.models.job import Job
+    from app.routers.jobs import create_job_record
+    from app.schemas.job import JobCreate, JobOut
+    from app.schemas.response import APIResponse
+
+    if current_user.role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=403, detail="Access denied.")
+    try:
+        cid = uuid.UUID(conversation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid conversation ID.")
+
+    wanted = _norm(body.jd_text)
+    messages = (await db.execute(
+        select(CopilotMessage)
+        .join(CopilotConversation, CopilotConversation.id == CopilotMessage.conversation_id)
+        .where(
+            CopilotMessage.conversation_id == cid,
+            CopilotMessage.role == "assistant",
+            CopilotConversation.organization_id == current_user.organization_id,
+            CopilotConversation.user_id == current_user.id,
+        )
+        .order_by(CopilotMessage.created_at.desc())
+        .with_for_update(of=CopilotMessage)
+    )).scalars().all()
+    message = next((m for m in messages if _norm(m.content or "") == wanted), None)
+    if message is None:
+        raise HTTPException(status_code=404, detail="That JD is not in this conversation.")
+
+    existing = re.search(JOB_CREATED_RE, message.content or "")
+    if existing:
+        job = (await db.execute(select(Job).where(
+            Job.id == uuid.UUID(existing.group(1)), Job.organization_id == current_user.organization_id,
+        ))).scalar_one_or_none()
+        if job is not None:
+            return APIResponse.success(message="Job already created.", data={"job": JobOut.model_validate(job), "created": False})
+
+    def stamp(job):
+        # Same transaction as the job (the message row stays locked until it
+        # commits), so a double click can't create two jobs.
+        message.content = re.sub(JOB_CREATED_RE, "", message.content or "").rstrip() + f"\n[JOB_CREATED:{job.id}]"
+
+    job = await create_job_record(
+        JobCreate(**{**body.job, "status": "active"}), current_user, db, background_tasks, before_commit=stamp,
+    )
+    return APIResponse.success(message="Job created.", data={"job": JobOut.model_validate(job), "created": True}, status_code=201)

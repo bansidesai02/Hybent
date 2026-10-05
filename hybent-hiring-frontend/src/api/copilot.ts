@@ -1,3 +1,4 @@
+import type { Job } from '@/types'
 import axios, { refreshAccessToken } from './axios'
 import type { ChatMessage, CopilotStep, PageContext } from '@/store/useCopilotStore'
 import { tokenStorage } from '@/utils/tokenStorage'
@@ -77,7 +78,9 @@ export const copilotApi = {
       onApproval?: (approvalData: any) => void
       onDone?: () => void
       onError?: (err: any) => void
-    }
+    },
+    /** Edit & resend: index of the user turn being rewritten (it and everything after are dropped). */
+    editTurn?: number,
   ) => {
     const apiHistory: ApiMessage[] = history.map(({ role, content }) => ({ role, content }))
     const BASE_URL = getApiBaseUrl()
@@ -87,6 +90,7 @@ export const copilotApi = {
       page_context: page_context ?? null,
       conversation_id: conversation_id ?? null,
       approved_tool_call: approved_tool_call ?? null,
+      edit_turn: editTurn ?? null,
     })
     const send = (token: string | null) =>
       fetch(`${BASE_URL}/v1/copilot/chat`, {
@@ -190,6 +194,13 @@ export const copilotApi = {
   /** Delete all conversations and messages. */
   deleteAllConversations: () =>
     axios.delete('/v1/copilot/conversations'),
+
+  /** Create the job for a JD in this chat. Idempotent: a JD that already has a job returns it. */
+  createJobFromJD: (conversationId: string, jdText: string, job: Record<string, unknown>) =>
+    axios.post<{ job: Job; created: boolean }>(`/v1/copilot/conversations/${conversationId}/jd-job`, {
+      jd_text: jdText,
+      job,
+    }),
 
   /** Transcribe audio file to text. */
   transcribe: (audioBlob: Blob) => {

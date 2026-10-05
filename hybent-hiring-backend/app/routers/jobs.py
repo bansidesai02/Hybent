@@ -88,6 +88,13 @@ async def list_jobs(
 
 @router.post("", response_model=JobOut, status_code=201)
 async def create_job(data: JobCreate, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
+    job = await create_job_record(data, current_user, db, background_tasks)
+    return APIResponse.success(message="Job successfully created.", data=JobOut.model_validate(job), status_code=201)
+
+
+async def create_job_record(data: JobCreate, current_user: User, db: DB, background_tasks: BackgroundTasks, before_commit=None) -> Job:
+    """Creates a job (plus its Talent DB category). Shared by the jobs API and Copilot.
+    before_commit(job) runs inside the job's own transaction, after its id exists."""
     create_data = data.model_dump()
     provided_display_order = create_data.pop("display_order", None)
     if data.status == JobStatus.POOL:
@@ -119,7 +126,9 @@ async def create_job(data: JobCreate, current_user: Annotated[User, Depends(requ
         resource_id=str(job.id),
         details={"title": job.title}
     )
-    
+    if before_commit is not None:
+        before_commit(job)
+
     await db.commit()
     await db.refresh(job)
     background_tasks.add_task(es_service.index_job, job)
@@ -149,7 +158,7 @@ async def create_job(data: JobCreate, current_user: Annotated[User, Depends(requ
             await db.commit()
 
     invalidate_jobs_cache(current_user.organization_id)
-    return APIResponse.success(message="Job successfully created.", data=JobOut.model_validate(job), status_code=201)
+    return job
 
 
 @router.post("/parse-jd")

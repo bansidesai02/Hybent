@@ -161,7 +161,8 @@ function HbSidebarComponent({
   }, [])
 
   const itemActive = (item: NavItem, routerActive: boolean) =>
-    item.customActivePath ? location.pathname.startsWith(item.customActivePath) : routerActive
+    (item.customActivePath ? location.pathname.startsWith(item.customActivePath) : routerActive) ||
+    !!item.alsoActiveOn?.some((p) => location.pathname.startsWith(p))
 
   const overviewPath = useMemo(() => {
     switch (role) {

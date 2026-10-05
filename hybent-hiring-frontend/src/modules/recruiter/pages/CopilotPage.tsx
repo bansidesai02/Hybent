@@ -47,6 +47,7 @@ import { useCopilotConversations } from '@/modules/recruiter/components/Copilot/
 import { useCopilotChat } from '@/modules/recruiter/components/Copilot/useCopilotChat'
 import { BotMessageContent } from '@/modules/recruiter/components/Copilot/CopilotMessageContent'
 import { CopilotSteps } from '@/modules/recruiter/components/Copilot/CopilotSteps'
+import { EditableUserMessage } from '@/modules/recruiter/components/Copilot/EditableUserMessage'
 import {
   EXAMPLE_PROMPTS,
   COPILOT_STOPWORDS,
@@ -532,6 +533,14 @@ export default function CopilotPage() {
 
   const onSend = useCallback((text: string) => handleSend(text, messages), [handleSend, messages])
 
+  const onEdit = useCallback(
+    (index: number, text: string) => {
+      setPendingApproval(null)
+      handleSend(text, messages, undefined, index)
+    },
+    [handleSend, messages, setPendingApproval],
+  )
+
   const onApprove = useCallback(() => {
     if (pendingApproval) handleSend('', messages, pendingApproval)
   }, [pendingApproval, handleSend, messages])
@@ -674,18 +683,25 @@ export default function CopilotPage() {
               <Welcome onSend={onSend} />
             ) : (
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-                {messages.map((msg) =>
+                {messages.map((msg, i) =>
                   msg.role === 'user' ? (
                     <div key={msg.id} className="flex justify-end">
-                      <div className="max-w-[85%] break-words rounded-hb-md sm:max-w-[78%] rounded-br-[6px] border border-hb-blue/20 bg-hb-blue/5 px-4 py-2.5 text-hb-sm text-hb-text">
-                        {msg.content === '👍 Action Approved' ? (
-                          <span className="flex items-center gap-1.5">
-                            <Check size={14} /> Action approved
-                          </span>
-                        ) : (
-                          msg.content
-                        )}
-                      </div>
+                      <EditableUserMessage
+                        content={msg.content}
+                        canEdit={!isThinking && msg.content !== '👍 Action Approved'}
+                        onSubmit={(text) => onEdit(i, text)}
+                        className="max-w-[85%] sm:max-w-[78%]"
+                      >
+                        <div className="max-w-full whitespace-pre-wrap break-words rounded-hb-md rounded-br-[6px] border border-hb-blue/20 bg-hb-blue/5 px-4 py-2.5 text-hb-sm text-hb-text">
+                          {msg.content === '👍 Action Approved' ? (
+                            <span className="flex items-center gap-1.5">
+                              <Check size={14} /> Action approved
+                            </span>
+                          ) : (
+                            msg.content
+                          )}
+                        </div>
+                      </EditableUserMessage>
                     </div>
                   ) : (
                     <AssistantRow key={msg.id}>

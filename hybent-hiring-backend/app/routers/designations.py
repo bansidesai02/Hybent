@@ -199,3 +199,51 @@ async def reorder_designations(
         current_user,
         db,
     )
+
+
+@router.delete("/{designation_id}")
+async def delete_designation(
+    designation_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_recruiter)],
+    db: DB,
+):
+    """Delete a Talent DB designation. Only `pool` jobs: open positions are
+    never touched here. Candidates stay in the database, just unassigned."""
+    from sqlalchemy import delete
+    from app.routers.jobs import invalidate_jobs_cache
+
+    job = (await db.execute(
+        select(Job).where(
+            Job.id == designation_id,
+            Job.organization_id == current_user.organization_id,
+            Job.status == JobStatus.POOL,
+        )
+    )).scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Designation not found")
+
+    await log_activity(
+        db,
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        action="DELETE",
+        resource_type="designation",
+        resource_id=str(designation_id),
+        details={"title": job.title},
+    )
+    # The database clears candidates' designation_id (SET NULL) and drops the
+    # pool placeholder applications (CASCADE).
+    await db.execute(delete(Job).where(Job.id == designation_id))
+    await db.commit()
+    invalidate_jobs_cache(current_user.organization_id)
+
+    return APIResponse.success(
+        message="Designation deleted successfully.",
+        data={
+            "items": await _designation_rows(db, current_user.organization_id),
+            "designation_counts": await _designation_counts(db, current_user.organization_id),
+            "total_candidates": (await db.execute(
+                select(func.count(Candidate.id)).where(Candidate.organization_id == current_user.organization_id)
+            )).scalar() or 0,
+        },
+    )
