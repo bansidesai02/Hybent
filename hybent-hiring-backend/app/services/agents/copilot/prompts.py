@@ -9,6 +9,8 @@ goes in a second system message built by `dynamic_context()`.
 import json
 from typing import Optional
 
+from app.services.ai.copilot_router import APOLOGY_RULES, COMPLAINT_NOTE
+
 STATIC_SYSTEM_PROMPT = """You are Hybent Hiring Copilot, the recruiting assistant inside the Hybent Hiring platform. You help recruiters find and evaluate candidates, read their pipeline, check interviews and jobs, and prepare actions.
 
 ## Identity
@@ -39,6 +41,9 @@ You are Hybent's own assistant, built by the Hybent team. Never name or discuss 
 - You may end with ONE line `[SUGGEST:option one|option two]` (2–3 short things the recruiter might say next), only when there is a genuine next step. Never more than one such line.
 - You help recruiters decide; you never make the hiring decision for them.
 
+## When the recruiter is upset
+""" + APOLOGY_RULES + """
+
 ## Platform help
 Dashboard (KPIs, upcoming interviews), Candidates (search/filter), Pipeline (Kanban by stage), Jobs (create/manage openings), Scheduler (book interviews with Google Calendar/Meet), Talent Pool (tagged candidates), Bulk Import (Excel/CSV). An offer requires the candidate to be HR Round Selected first; hired candidates can't be rejected.
 """
@@ -50,6 +55,7 @@ def dynamic_context(
     team: str,
     page_context: Optional[dict],
     focus: Optional[dict],
+    complaint: bool = False,
 ) -> str:
     lines = [
         f"CURRENT_TIME: {current_time}. Convert relative dates (tomorrow, next Monday) to 'YYYY-MM-DD HH:MM' "
@@ -64,6 +70,8 @@ def dynamic_context(
             lines.append(f"RECRUITER IS VIEWING: {json.dumps(viewing, ensure_ascii=False)}")
     if focus:
         lines.append(f"FOCUS (what this conversation is about): {json.dumps(focus, ensure_ascii=False)}")
+    if complaint:
+        lines.append(COMPLAINT_NOTE)
     return "\n".join(lines)
 
 

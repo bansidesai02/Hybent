@@ -69,3 +69,5 @@ class CopilotContext:
     current_time: str = ""
     team: str = "none on file"
     background_tasks: Optional[BackgroundTasks] = None
+    # The recruiter is scolding the Copilot: the reply opens with an apology.
+    complaint: bool = False

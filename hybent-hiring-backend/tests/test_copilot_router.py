@@ -133,3 +133,54 @@ def test_build_last_context_updates_candidate_when_newly_resolved():
 
     assert ctx["candidate_id"] == "new-id"
     assert ctx["candidate_name"] == "New Name"
+
+
+# ── Complaints: the reply must open with an apology ─────────────────────────
+
+from app.services.ai.copilot_router import is_complaint
+
+
+@pytest.mark.parametrize("msg", [
+    "I didn't tell you to do that",
+    "i never asked for this",
+    "Who told you to move him?",
+    "why did you schedule it",
+    "not what I asked",
+    "I said don't email him",
+    "this is useless",
+    "maine ye nahi bola tha",
+    "Maine aisa nahi kaha",
+    "maine kab bola?",
+    "kisne bola tujhe",
+    "tumne ye kyu kiya",
+    "kyu kar diya ye",
+    "i did not ask you to create a jd",
+])
+def test_is_complaint_detects_scolding(msg):
+    assert is_complaint(msg)
+
+
+@pytest.mark.parametrize("msg", [
+    "Show React developers",
+    "create a jd for python developer",
+    "why is Ankit's score low",
+    "move Priya to HR round",
+    "who applied for the React job",
+    "Ankit ka experience kitna hai?",
+    "kitne candidates screening mein hain",
+    "what did the interviewer think",
+])
+def test_is_complaint_ignores_normal_requests(msg):
+    assert not is_complaint(msg)
+
+
+def test_agent_dynamic_context_adds_complaint_note():
+    from app.services.agents.copilot.prompts import STATIC_SYSTEM_PROMPT, dynamic_context
+    from app.services.ai.copilot_router import COMPLAINT_NOTE
+    from app.services.ai.copilot_service import COPILOT_SYSTEM_PROMPT
+
+    assert "When the recruiter is upset" in STATIC_SYSTEM_PROMPT
+    assert "When the recruiter is upset" in COPILOT_SYSTEM_PROMPT
+    kw = dict(current_time="now", team="none", page_context=None, focus=None)
+    assert COMPLAINT_NOTE in dynamic_context(**kw, complaint=True)
+    assert COMPLAINT_NOTE not in dynamic_context(**kw)

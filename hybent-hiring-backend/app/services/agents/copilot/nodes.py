@@ -122,6 +122,7 @@ def build_llm_messages(state: CopilotState, ctx: CopilotContext, force_final: bo
             team=ctx.team,
             page_context=ctx.page_context,
             focus=state.get("focus"),
+            complaint=ctx.complaint,
         )},
         *_history_messages(ctx.history),
         *state.get("messages", []),
