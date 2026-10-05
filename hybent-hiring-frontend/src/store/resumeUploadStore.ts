@@ -76,11 +76,17 @@ interface ResumeUploadState {
   jobReq: JobReq
   /** Whether the Upload page is on screen, so a background finish can toast. */
   pageMounted: boolean
+  /** The run finished while the recruiter was on another page and they
+      haven't been back to see the result yet. */
+  unseen: boolean
 
   setJobReq: (update: JobReq | ((prev: JobReq) => JobReq)) => void
   setError: (error: string) => void
   setResult: (update: (prev: Candidate | null) => Candidate | null) => void
   setPageMounted: (mounted: boolean) => void
+  /** Called when the Upload page unmounts: clears a finished run the
+      recruiter has seen, so the page is ready for the next resume. */
+  leavePage: () => void
   reset: () => void
   startUpload: (file: File, queryClient: QueryClient, opts?: { skipScoring?: boolean }) => Promise<void>
 }
@@ -101,12 +107,21 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
   rejection: null,
   jobReq: DEFAULT_JOB_REQ,
   pageMounted: false,
+  unseen: false,
 
   setJobReq: (update) =>
     set((s) => ({ jobReq: typeof update === 'function' ? update(s.jobReq) : update })),
   setError: (error) => set({ error }),
   setResult: (update) => set((s) => ({ result: update(s.result) })),
   setPageMounted: (pageMounted) => set({ pageMounted }),
+
+  leavePage: () => {
+    const { stage, unseen } = get()
+    set({ pageMounted: false })
+    if (stage === 'uploading' || stage === 'analyzing') return // still running
+    if (unseen) set({ unseen: false }) // they've now been back and seen it
+    else get().reset()
+  },
 
   reset: () => {
     runId++
@@ -120,6 +135,7 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
       error: '',
       rejection: null,
       duplicate: null,
+      unseen: false,
     })
   },
 
@@ -145,6 +161,10 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
     const notifyAway = (fn: () => void) => {
       if (!get().pageMounted) fn()
     }
+    /* A terminal state. Remembers whether the recruiter was away, so leaving
+       the page doesn't clear a result they haven't seen yet. */
+    const finish = (partial: Partial<ResumeUploadState>) =>
+      set({ ...partial, unseen: !get().pageMounted })
 
     try {
       const { data } = await resumesApi.uploadAndCreate(
@@ -180,7 +200,7 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
         set({ completedSteps: i })
       }
 
-      set({ result: data, scoring: data.score_breakdown ?? null, stage: 'done' })
+      finish({ result: data, scoring: data.score_breakdown ?? null, stage: 'done' })
       notifyAway(() =>
         toast.success(`Resume analysed — ${data.full_name || 'candidate'} is ready on the Upload page`)
       )
@@ -189,7 +209,7 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
       const resp = err?.response
 
       if (resp?.status === 409 && resp?.data?.details?.candidate_id) {
-        set({
+        finish({
           duplicate: {
             message: resp.data.message || 'This candidate is already in your database.',
             candidate_id: resp.data.details.candidate_id,
@@ -202,7 +222,7 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
 
       const detail = resp?.data?.detail
       if (resp?.status === 400 && detail?.type === 'role_mismatch') {
-        set({
+        finish({
           rejection: {
             candidate_category: detail.candidate_category || 'Unknown',
             target_category: detail.target_category || jobReq.role_title,
@@ -223,7 +243,7 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
         err?.message ||
         'Upload failed. Please try again.'
 
-      set({
+      finish({
         error: message,
         stage: resp?.status === 400 && message.startsWith('Upload Rejected') ? 'rejected' : 'error',
       })

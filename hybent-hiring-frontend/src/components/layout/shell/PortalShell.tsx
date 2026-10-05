@@ -33,7 +33,6 @@ export function PortalShell() {
   const { data: applications } = useQuery({
     queryKey: ['portal', 'applications-summary'],
     queryFn: () => portalApi.myApplicationsSummary().then((r) => r.data),
-    staleTime: 5 * 60 * 1000,
   })
 
   const offersUnlocked =
