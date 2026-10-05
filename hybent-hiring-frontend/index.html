@@ -71,12 +71,14 @@
          React has rendered (src/pwa/bootScreen.ts fades it out). -->
     <style>
       #hb-boot { position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; gap: 22px; background: #FFFFFF;
+        align-items: center; justify-content: center; gap: 8px; background: #FFFFFF;
         transition: opacity .28s ease; }
       #hb-boot[hidden] { display: none; }
       #hb-boot.hb-boot-out { opacity: 0; pointer-events: none; }
-      #hb-boot .hb-boot-mark { width: 72px; height: auto; }
-      #hb-boot .hb-boot-word { width: 168px; height: auto; }
+      /* Same size and spacing as Android's own launch screen draws the
+         maskable icon (pwa-maskable-*.png), so the hand-off doesn't jump. */
+      #hb-boot .hb-boot-mark { width: auto; height: 60px; }
+      #hb-boot .hb-boot-word { width: 96px; height: auto; }
       #hb-boot .hb-boot-word-dark { display: none; }
       [data-theme='dark'] #hb-boot { background: #0B0F17; }
       [data-theme='dark'] #hb-boot .hb-boot-word-light { display: none; }
