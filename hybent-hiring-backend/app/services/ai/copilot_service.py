@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.services.ai.copilot_intelligence import (
     preprocess_query,
     is_jd_creation_intent,
+    is_jd_edit_request,
     extract_role_from_jd_query,
     validate_job_role,
 )
@@ -2827,6 +2828,250 @@ WRITE_TOOLS = {"schedule_meeting", "update_candidate_stage"}
 
 # ── Main Streaming Chat Service ───────────────────────────────────────────────
 
+# ── Job description turns ─────────────────────────────────────────────────────
+
+JD_CTA = "[CTA_BUTTON:Create Job with this JD]"
+
+JD_SYSTEM_PROMPT = (
+    "You are Hybent Hiring Copilot — an expert AI technical recruiter and Talent Acquisition specialist at Hybent.\n"
+    "Your task is to generate a comprehensive, modern, highly-professional Job Description (JD) "
+    "tailored to the user's prompt.\n\n"
+    "CRITICAL FORMATTING GUIDELINES:\n"
+    "- Output MUST be clean, structured Markdown (never wrap the entire response in a code block).\n"
+    "- Use this exact structure:\n\n"
+    "## [Job Title]\n\n"
+    "**Position:** [Job Title]  \n"
+    "**Experience Level:** [e.g. 2-4 Years / Entry Level / 5+ Years as requested or industry standard]  \n"
+    "**Location / Work Mode:** [Remote / Hybrid / On-site as requested or 'Hybrid / Remote']  \n"
+    "**Employment Type:** Full-time  \n\n"
+    "---\n\n"
+    "### 📌 Role Overview\n"
+    "[2-3 compelling sentences describing the core purpose, mission, and impact of this role]\n\n"
+    "### 🎯 Key Responsibilities\n"
+    "- [5-7 concise, actionable, high-impact bullet points — each should be a short phrase, max 15 words]\n\n"
+    "### 🛠️ Required Qualifications\n"
+    "- [5-7 bullet points covering must-have qualifications, experience, and domain expertise — full sentences okay here]\n\n"
+    "### 🔑 Core Skills\n"
+    "[List ONLY short skill/tool/technology keywords, comma-separated on ONE line. Examples: React, Node.js, Python, AWS, Agile, Salesforce, SQL, REST APIs]\n\n"
+    "### ⭐ Preferred / Good to Have\n"
+    "- [3-4 bullet points covering nice-to-have skills, certifications, or modern tools]\n\n"
+    "### 💡 What We Offer\n"
+    "- Competitive compensation & performance-driven incentives\n"
+    "- Comprehensive health & wellness coverage\n"
+    "- Collaborative team culture & rapid career advancement\n\n"
+    "---\n"
+    "💬 *Need any changes? You can ask me to adjust the experience, add specific tools/skills, or modify any section.*\n\n"
+    "IMPORTANT: The '### 🔑 Core Skills' section MUST contain ONLY short comma-separated keywords (not sentences). "
+    "This is used to auto-fill the skills field in a form."
+)
+
+JD_REVISE_PROMPT = (
+    "\n\nYou are now EDITING the Job Description the recruiter already has (the previous assistant message). "
+    "Apply ONLY the change they ask for and keep every other line exactly as it was. "
+    "Keep the job title, experience level, location and employment type unless the change is about them. "
+    "Put new information in the section where it belongs (e.g. pay terms under 'What We Offer', "
+    "experience under 'Experience Level'). Return the full updated JD in the same structure."
+)
+
+
+def _jd_fallback(role_name: str) -> str:
+    return (
+        f"## {role_name}\n\n"
+        f"**Position:** {role_name}  \n"
+        f"**Employment Type:** Full-time  \n"
+        f"**Work Mode:** Hybrid / Remote  \n\n"
+        f"---\n\n"
+        f"### 📌 Role Overview\n"
+        f"We are looking for an exceptional **{role_name}** to join our growing team.\n\n"
+        f"### 🎯 Key Responsibilities\n"
+        f"- Drive key initiatives and deliver high-quality outcomes for the team\n"
+        f"- Collaborate cross-functionally with internal and external stakeholders\n"
+        f"- Stay updated with industry best practices and contribute to continuous improvement\n\n"
+        f"### 🛠️ Required Qualifications & Core Skills\n"
+        f"- Relevant experience and proven track record as a {role_name}\n"
+        f"- Strong problem-solving, communication, and collaboration skills\n"
+        f"- Proficiency with standard industry tools and methodologies\n"
+    )
+
+
+def _jd_title(jd: str) -> str:
+    m = re.search(r"^#+\s*(.+)$", jd, re.M) or re.search(r"\*\*Position:\*\*\s*(.+)", jd)
+    return m.group(1).strip(" *") if m else "Untitled JD"
+
+
+async def _jd_history(db: AsyncSession, conversation_id: Optional[str], organization_id, user_id) -> tuple[list[dict], list[str]]:
+    """Recent messages of this chat (oldest first) and the JDs written in it (oldest first, CTA stripped)."""
+    if not conversation_id:
+        return [], []
+    from app.models.copilot_conversation import CopilotConversation, CopilotMessage
+    try:
+        rows = (await db.execute(
+            select(CopilotMessage.role, CopilotMessage.content)
+            .join(CopilotConversation, CopilotConversation.id == CopilotMessage.conversation_id)
+            .where(
+                CopilotMessage.conversation_id == uuid.UUID(conversation_id),
+                CopilotConversation.organization_id == organization_id,
+                CopilotConversation.user_id == user_id,
+            )
+            .order_by(CopilotMessage.created_at.desc())
+            .limit(16)
+        )).all()
+    except Exception:
+        await db.rollback()
+        return [], []
+    turns, jds = [], []
+    for role, content in reversed(rows):
+        content = content or ""
+        if role == "assistant" and JD_CTA in content:
+            jds.append(re.sub(r"\[JOB_CREATED:[^\]]*\]", "", content.replace(JD_CTA, "")).strip())
+            turns.append({"role": role, "content": f"[JD {len(jds)}: {_jd_title(jds[-1])}]"})
+        else:
+            turns.append({"role": role, "content": content[:400]})
+    return turns, jds
+
+
+JD_FOLLOWUP_PROMPT = """You route a recruiter's chat message in a hiring assistant. Earlier in this chat the assistant wrote one or more Job Descriptions (JDs), shown as [JD n: title].
+
+Decide what the NEW message wants:
+- "edit": change a JD already written here. This is the default whenever the message talks about the role, its pay, experience, skills, location, tone, length, sections, or wording, even if it says "jd for ..." or "want a jd with ...". Corrections ("I meant ...", "no, ...", "not that, ...") are edits too: the recruiter is correcting a misunderstanding, so target the JD they were working on BEFORE the assistant misunderstood them.
+- "new": the recruiter clearly wants a JD for a DIFFERENT role or position than any JD here (e.g. "now create a jd for Data Analyst", "another jd for HR manager").
+- "other": the message is not about a JD (candidates, pipeline, interviews, analytics, a general question).
+
+Return JSON only:
+{"action": "edit" | "new" | "other", "target": <JD number to edit, or null>, "instruction": "<for edit: the complete change in plain words, resolving references like 'I meant' or 'it' from the conversation; otherwise empty>"}"""
+
+
+async def classify_jd_followup(user_message: str, turns: list[dict], jds: list[str]) -> Optional[dict]:
+    """LLM decision for a message in a chat that already has JDs. None if the call fails."""
+    if not settings.groq_api_key:
+        return None
+    convo = "\n".join(f"{t['role'].upper()}: {t['content']}" for t in turns[-10:])
+    listing = "\n".join(f"JD {i}: {_jd_title(jd)}" for i, jd in enumerate(jds, 1))
+    content = f"JDs in this chat:\n{listing}\n\nConversation so far:\n{convo}\n\nNEW MESSAGE: {user_message}"
+    client = Groq(api_key=settings.groq_api_key)
+    for _ in range(2):
+        try:
+            resp = client.chat.completions.create(
+                model=get_best_groq_model(client),
+                messages=[{"role": "system", "content": JD_FOLLOWUP_PROMPT}, {"role": "user", "content": content}],
+                response_format={"type": "json_object"},
+                temperature=0.0,
+            )
+            raw = json.loads(resp.choices[0].message.content)
+            if raw.get("action") in ("edit", "new", "other"):
+                return raw
+        except Exception as e:  # never let routing break the chat turn
+            logger.warning(f"[JD] follow-up classification failed: {e}")
+    return None
+
+
+async def jd_turn(db: AsyncSession, organization_id, user_id, conversation_id: Optional[str], user_message: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """(kind, jd_to_edit, instruction): ("revise", jd, change) | ("create", None, None) | (None, None, None)."""
+    turns, jds = await _jd_history(db, conversation_id, organization_id, user_id)
+    if jds:
+        decision = await classify_jd_followup(user_message, turns, jds)
+        if decision is not None:
+            if decision["action"] == "edit":
+                target = decision.get("target")
+                jd = jds[target - 1] if isinstance(target, int) and 1 <= target <= len(jds) else jds[-1]
+                return "revise", jd, (decision.get("instruction") or "").strip() or None
+            if decision["action"] == "new":
+                return "create", None, None
+            return None, None, None
+        # Classifier unavailable: keyword rules on the latest JD.
+        jd_is_last = bool(turns) and turns[-1]["role"] == "assistant" and turns[-1]["content"].startswith("[JD ")
+        if is_jd_edit_request(user_message, jd_is_last):
+            return "revise", jds[-1], None
+    if is_jd_creation_intent(user_message):
+        return "create", None, None
+    return None, None, None
+
+
+async def stream_jd_reply(
+    db: AsyncSession,
+    organization_id,
+    user_id,
+    conversation_id: Optional[str],
+    user_message: str,
+    history: list[dict],
+    kind: str,
+    prev_jd: Optional[str] = None,
+    background_tasks: Optional[BackgroundTasks] = None,
+    instruction: Optional[str] = None,
+):
+    def sse(event_type: str, data: dict):
+        return json.dumps({"type": event_type, **data}) + "\n\n"
+
+    if kind == "create":
+        status, role_name, validation_msg = validate_job_role(extract_role_from_jd_query(user_message))
+        if status in ("EMPTY", "INVALID", "INCOMPLETE"):
+            saved_conv_id = await _save_conversation_to_db(
+                db, organization_id, user_id, conversation_id, user_message, validation_msg,
+                background_tasks=background_tasks,
+            )
+            yield sse("meta", {"conversation_id": saved_conv_id})
+            yield sse("chunk", {"content": validation_msg})
+            yield sse("done", {})
+            return
+        messages = [{"role": "system", "content": JD_SYSTEM_PROMPT}]
+        for h in history[-4:]:
+            messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({
+            "role": "user",
+            "content": f"Generate a complete Job Description for the role: '{role_name}'. User request: '{user_message}'"
+        })
+    else:
+        role_name = "this role"
+        change = user_message if not instruction else f"{user_message}\n\n(What the recruiter wants changed: {instruction})"
+        messages = [
+            {"role": "system", "content": JD_SYSTEM_PROMPT + JD_REVISE_PROMPT},
+            {"role": "assistant", "content": prev_jd},
+            {"role": "user", "content": change},
+        ]
+
+    # The chat row must exist before anything streams, so the browser gets the
+    # real id up front and the next message lands in this same conversation.
+    conv_id, created = await _get_or_create_conversation(db, organization_id, user_id, conversation_id, user_message)
+    yield sse("meta", {"conversation_id": conv_id})
+
+    client = Groq(api_key=settings.groq_api_key)
+    full_text = ""
+    try:
+        stream = client.chat.completions.create(
+            model=get_best_groq_model(client), messages=messages, stream=True,
+            temperature=0.3 if kind == "create" else 0.1,
+        )
+        for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                delta_text = chunk.choices[0].delta.content
+                full_text += delta_text
+                yield sse("chunk", {"content": delta_text})
+    except Exception as jd_err:
+        logger.error(f"Error during AI JD streaming: {jd_err}")
+        if kind == "revise":
+            fallback = "Sorry, I couldn't update the JD just now. Please try that change again."
+            if full_text:
+                fallback = "\n\n" + fallback
+            full_text += fallback
+            yield sse("chunk", {"content": fallback})
+        elif not full_text:
+            full_text = _jd_fallback(role_name)
+            yield sse("chunk", {"content": full_text})
+
+    if kind == "create" or (JD_CTA not in full_text and "##" in full_text):
+        cta = "\n\n" + JD_CTA
+        full_text += cta
+        yield sse("chunk", {"content": cta})
+
+    await _save_conversation_to_db(db, organization_id, user_id, conv_id, user_message, full_text)
+    if created and background_tasks is not None:
+        background_tasks.add_task(
+            _generate_and_save_title, conv_id, str(organization_id), str(user_id), user_message, full_text[:1000],
+        )
+    yield sse("done", {})
+
+
+
 @ai_feature("ai_copilot")
 async def stream_copilot_chat(
     user_message: str,
@@ -2916,113 +3161,16 @@ async def _stream_copilot_chat_impl(
         d.update(data)
         return json.dumps(d) + "\n\n"
 
-    # ── Intercept JD Creation Intent & Generate Directly ─────────────────
-    if is_jd_creation_intent(user_message):
-        raw_role = extract_role_from_jd_query(user_message)
-        status, role_name, validation_msg = validate_job_role(raw_role)
-
-        # If empty, invalid, or incomplete, return helpful guidance or error
-        if status in ("EMPTY", "INVALID", "INCOMPLETE"):
-            saved_conv_id = await _save_conversation_to_db(
-                db, organization_id, user_id, conversation_id, user_message, validation_msg,
-                background_tasks=background_tasks,
-            )
-            yield sse("meta", {"conversation_id": saved_conv_id})
-            yield sse("chunk", {"content": validation_msg})
-            yield sse("done", {})
+    # ── Job descriptions: write a new one, or edit the one in this chat ──
+    if not approved_tool_call:
+        jd_kind, prev_jd, jd_change = await jd_turn(db, organization_id, user_id, conversation_id, user_message)
+        if jd_kind:
+            async for chunk in stream_jd_reply(
+                db, organization_id, user_id, conversation_id, user_message, history,
+                jd_kind, prev_jd, background_tasks=background_tasks, instruction=jd_change,
+            ):
+                yield chunk
             return
-
-        # Status is VALID -> Stream complete professional Job Description directly
-        jd_system_prompt = (
-            "You are Hybent Hiring Copilot — an expert AI technical recruiter and Talent Acquisition specialist at Hybent.\n"
-            "Your task is to generate a comprehensive, modern, highly-professional Job Description (JD) "
-            "tailored to the user's prompt.\n\n"
-            "CRITICAL FORMATTING GUIDELINES:\n"
-            "- Output MUST be clean, structured Markdown (never wrap the entire response in a code block).\n"
-            "- Use this exact structure:\n\n"
-            "## [Job Title]\n\n"
-            "**Position:** [Job Title]  \n"
-            "**Experience Level:** [e.g. 2-4 Years / Entry Level / 5+ Years as requested or industry standard]  \n"
-            "**Location / Work Mode:** [Remote / Hybrid / On-site as requested or 'Hybrid / Remote']  \n"
-            "**Employment Type:** Full-time  \n\n"
-            "---\n\n"
-            "### 📌 Role Overview\n"
-            "[2-3 compelling sentences describing the core purpose, mission, and impact of this role]\n\n"
-            "### 🎯 Key Responsibilities\n"
-            "- [5-7 concise, actionable, high-impact bullet points — each should be a short phrase, max 15 words]\n\n"
-            "### 🛠️ Required Qualifications\n"
-            "- [5-7 bullet points covering must-have qualifications, experience, and domain expertise — full sentences okay here]\n\n"
-            "### 🔑 Core Skills\n"
-            "[List ONLY short skill/tool/technology keywords, comma-separated on ONE line. Examples: React, Node.js, Python, AWS, Agile, Salesforce, SQL, REST APIs]\n\n"
-            "### ⭐ Preferred / Good to Have\n"
-            "- [3-4 bullet points covering nice-to-have skills, certifications, or modern tools]\n\n"
-            "### 💡 What We Offer\n"
-            "- Competitive compensation & performance-driven incentives\n"
-            "- Comprehensive health & wellness coverage\n"
-            "- Collaborative team culture & rapid career advancement\n\n"
-            "---\n"
-            "💬 *Need any changes? You can ask me to adjust the experience, add specific tools/skills, or modify any section.*\n\n"
-            "IMPORTANT: The '### 🔑 Core Skills' section MUST contain ONLY short comma-separated keywords (not sentences). "
-            "This is used to auto-fill the skills field in a form."
-        )
-
-        jd_messages = [
-            {"role": "system", "content": jd_system_prompt},
-        ]
-        for h in history[-4:]:
-            jd_messages.append({"role": h["role"], "content": h["content"]})
-        jd_messages.append({
-            "role": "user",
-            "content": f"Generate a complete Job Description for the role: '{role_name}'. User request: '{user_message}'"
-        })
-
-        yield sse("meta", {"conversation_id": conversation_id})
-
-        full_jd_text = ""
-        try:
-            jd_stream = client.chat.completions.create(
-                model=get_best_groq_model(client),
-                messages=jd_messages,
-                stream=True,
-                temperature=0.3,
-            )
-            for chunk in jd_stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    delta_text = chunk.choices[0].delta.content
-                    full_jd_text += delta_text
-                    yield sse("chunk", {"content": delta_text})
-        except Exception as jd_err:
-            logger.error(f"Error during AI JD streaming: {jd_err}")
-            fallback_text = (
-                f"## {role_name}\n\n"
-                f"**Position:** {role_name}  \n"
-                f"**Employment Type:** Full-time  \n"
-                f"**Work Mode:** Hybrid / Remote  \n\n"
-                f"---\n\n"
-                f"### 📌 Role Overview\n"
-                f"We are looking for an exceptional **{role_name}** to join our growing team.\n\n"
-                f"### 🎯 Key Responsibilities\n"
-                f"- Drive key initiatives and deliver high-quality outcomes for the team\n"
-                f"- Collaborate cross-functionally with internal and external stakeholders\n"
-                f"- Stay updated with industry best practices and contribute to continuous improvement\n\n"
-                f"### 🛠️ Required Qualifications & Core Skills\n"
-                f"- Relevant experience and proven track record as a {role_name}\n"
-                f"- Strong problem-solving, communication, and collaboration skills\n"
-                f"- Proficiency with standard industry tools and methodologies\n"
-            )
-            full_jd_text = fallback_text
-            yield sse("chunk", {"content": fallback_text})
-
-        cta_button = "\n\n[CTA_BUTTON:Create Job with this JD]"
-        full_jd_text += cta_button
-        yield sse("chunk", {"content": cta_button})
-
-        saved_conv_id = await _save_conversation_to_db(
-            db, organization_id, user_id, conversation_id, user_message, full_jd_text,
-            background_tasks=background_tasks,
-        )
-        yield sse("done", {})
-        return
 
     # ── 1. Handle Approved Tool Execution ─────────────────────────────────
     if approved_tool_call:
@@ -3482,6 +3630,28 @@ async def _load_last_context(db: AsyncSession, conversation_id: Optional[str], o
         return copy.deepcopy(conversation.last_context) if conversation and conversation.last_context else None
     except Exception:
         return None
+
+
+async def _get_or_create_conversation(db: AsyncSession, organization_id, user_id, conversation_id: Optional[str], title: str):
+    """Returns (conversation_id, created). Reuses the caller's own conversation
+    when the id is theirs, otherwise starts a new one."""
+    from app.models.copilot_conversation import CopilotConversation
+
+    if conversation_id:
+        try:
+            res = await db.execute(select(CopilotConversation.id).where(
+                CopilotConversation.id == uuid.UUID(conversation_id),
+                CopilotConversation.organization_id == organization_id,
+                CopilotConversation.user_id == user_id,
+            ))
+            if res.scalar_one_or_none():
+                return conversation_id, False
+        except ValueError:
+            pass
+    conv = CopilotConversation(organization_id=organization_id, user_id=user_id, title=title[:60].strip() or "New Conversation")
+    db.add(conv)
+    await db.commit()
+    return str(conv.id), True
 
 
 async def _save_conversation_to_db(

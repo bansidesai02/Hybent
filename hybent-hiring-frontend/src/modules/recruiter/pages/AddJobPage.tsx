@@ -13,6 +13,7 @@ import { aiApi } from '@/api/ai'
 import { superAdminApi } from '@/api/superAdmin'
 import type { Job } from '@/types'
 import { AIJDReviewModal } from '@/modules/recruiter/components/AIJDReviewModal'
+import { parseExperience } from '@/modules/recruiter/components/Copilot/jdJob'
 import {
   Button,
   Card,
@@ -105,22 +106,6 @@ function syncExperienceInDescription(description: string, minYears: number, leve
   }
 
   return next
-}
-
-/** Turns "5+ years senior" into the structured fields the form holds. */
-function parseExperience(raw: string) {
-  if (!raw) return { min_experience_years: 0, experience_level: 'entry' }
-  const text = raw.toLowerCase().trim()
-  const years = parseInt(text.match(/\d+/)?.[0] ?? '0', 10)
-
-  let level = 'mid'
-  if (text.includes('entry') || text.includes('junior') || text.includes('fresher') || years <= 1) level = 'entry'
-  else if (text.includes('senior') || (years >= 5 && years < 8)) level = 'senior'
-  else if (text.includes('lead') || text.includes('principal') || (years >= 8 && years < 12)) level = 'lead'
-  else if (text.includes('director') || text.includes('vp') || years >= 12) level = 'director'
-  else if (text.includes('mid') || (years > 1 && years < 5)) level = 'mid'
-
-  return { min_experience_years: years, experience_level: level }
 }
 
 export default function AddJobPage() {
