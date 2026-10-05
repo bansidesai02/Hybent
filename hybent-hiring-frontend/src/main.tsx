@@ -8,6 +8,7 @@ import App from './App'
 import './index.css'
 // Capture the browser's install prompt as early as possible (installed app).
 import './pwa/install'
+import { hideBootScreen } from './pwa/bootScreen'
 
 const googleClientId =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
@@ -36,3 +37,5 @@ createRoot(document.getElementById('root')!).render(
     </GoogleOAuthProvider>
   </StrictMode>
 )
+
+hideBootScreen()

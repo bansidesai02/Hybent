@@ -37,7 +37,7 @@ export default defineConfig({
         short_name: 'Hybent',
         description: 'Hybent Hiring: AI-powered recruitment automation platform',
         theme_color: '#FBFCFE',
-        background_color: '#000000',
+        background_color: '#FFFFFF',
         display: 'standalone',
         display_override: ['standalone', 'minimal-ui'],
         orientation: 'any',

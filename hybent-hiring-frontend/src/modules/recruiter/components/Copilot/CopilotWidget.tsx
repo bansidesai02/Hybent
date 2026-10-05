@@ -40,7 +40,9 @@ const s: Record<string, React.CSSProperties> = {
   iconBtn: { background: 'rgb(var(--hb-surface-2))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-muted))', cursor: 'pointer', padding: '6px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   messages: { flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px' },
   userBubble: { background: 'var(--hb-grad-diag)', color: 'rgb(var(--hb-on-brand))', fontWeight: 500, borderRadius: '18px 18px 4px 18px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, boxShadow: 'var(--hb-sh-1)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word' },
-  botBubble: { background: 'rgb(var(--hb-surface-2))', color: 'rgb(var(--hb-text))', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', fontSize: '14px', lineHeight: 1.6, border: '1px solid var(--hb-border)', boxShadow: 'var(--hb-sh-1)', width: '100%', boxSizing: 'border-box', wordBreak: 'break-word', overflow: 'hidden', minWidth: 0 },
+  /* Replies aren't bubbles — plain text on the panel, like ChatGPT / Claude;
+     only the recruiter's own messages sit in a bubble. */
+  botBubble: { color: 'rgb(var(--hb-text))', paddingTop: '5px', fontSize: '14px', lineHeight: 1.65, flex: 1, width: '100%', boxSizing: 'border-box', wordBreak: 'break-word', minWidth: 0 },
   thinkingBubble: { background: 'rgb(var(--hb-surface-2))', borderRadius: '18px 18px 18px 4px', padding: '14px 18px', border: '1px solid var(--hb-border)', display: 'flex', alignItems: 'center', gap: '6px' },
   footer: { padding: '14px 16px', borderTop: '1px solid var(--hb-border)', display: 'flex', gap: '6px', alignItems: 'flex-end', flexShrink: 0, background: 'rgb(var(--hb-surface))' },
   input: { flex: 1, background: 'rgb(var(--hb-surface))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-text))', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
@@ -1962,11 +1964,6 @@ export function CopilotWidget() {
         .c-messages::-webkit-scrollbar,.c-hist-list::-webkit-scrollbar { width:5px; }
         .c-messages::-webkit-scrollbar-track,.c-hist-list::-webkit-scrollbar-track { background:transparent; }
         .c-messages::-webkit-scrollbar-thumb,.c-hist-list::-webkit-scrollbar-thumb { background:rgb(var(--hb-blue) / .35); border-radius:10px; }
-        .c-bot p{margin:0 0 10px 0;} .c-bot p:last-child{margin:0;} .c-bot ul,.c-bot ol{margin:6px 0 10px 20px;padding:0;} .c-bot li{margin:4px 0;}
-        .c-bot strong{color:rgb(var(--hb-text));font-weight:600;}
-        .c-bot code{background:rgb(var(--hb-surface-2));border-radius:6px;padding:2px 6px;font-size:13px;font-family:ui-monospace,monospace;color:rgb(var(--hb-magenta));border:1px solid var(--hb-border);}
-        .c-bot pre{background:rgb(var(--hb-surface-2));padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--hb-border);}
-        .c-bot pre code{background:transparent;border:none;padding:0;color:rgb(var(--hb-text));}
         @keyframes micPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--hb-error) / .4); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgb(var(--hb-error) / 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--hb-error) / 0); } }
         @keyframes recordBlink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         .c-blink { animation: recordBlink 1.5s infinite ease-in-out; }

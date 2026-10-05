@@ -665,7 +665,7 @@ export default function CopilotPage() {
 
           <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none px-3.5 py-4 sm:px-6 sm:py-6">
             {convLoading ? (
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
                 <Skeleton className="ml-auto h-10 w-2/5" rounded="md" />
                 <Skeleton className="h-20 w-4/5" rounded="md" />
                 <Skeleton className="ml-auto h-10 w-1/3" rounded="md" />
@@ -673,7 +673,7 @@ export default function CopilotPage() {
             ) : messages.length === 0 ? (
               <Welcome onSend={onSend} />
             ) : (
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
                 {messages.map((msg) =>
                   msg.role === 'user' ? (
                     <div key={msg.id} className="flex justify-end">
@@ -689,7 +689,7 @@ export default function CopilotPage() {
                     </div>
                   ) : (
                     <AssistantRow key={msg.id}>
-                      <div className="c-bot text-hb-sm leading-relaxed text-hb-text">
+                      <div className="text-hb-text">
                         <CopilotSteps
                           steps={msg.steps}
                           startedAt={msg.startedAt}
@@ -744,16 +744,6 @@ export default function CopilotPage() {
       />
 
       <style>{`
-        .c-bot p{margin:0 0 10px 0;} .c-bot p:last-child{margin:0;}
-        .c-bot ul,.c-bot ol{margin:6px 0 10px 20px;padding:0;} .c-bot li{margin:4px 0;}
-        .c-bot strong{color:rgb(var(--hb-text));font-weight:600;}
-        .c-bot code{background:rgb(var(--hb-surface-2));border-radius:6px;padding:2px 6px;font-size:13px;font-family:ui-monospace,monospace;color:rgb(var(--hb-magenta));border:1px solid var(--hb-border);}
-        .c-bot pre{background:rgb(var(--hb-surface-2));padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0;border:1px solid var(--hb-border);}
-        .c-bot pre code{background:transparent;border:none;padding:0;color:rgb(var(--hb-text));}
-        .copilot-markdown p{margin:0 0 10px 0;} .copilot-markdown p:last-child{margin:0;}
-        .copilot-markdown ul,.copilot-markdown ol{margin:6px 0 10px 20px;padding:0;}
-        .copilot-markdown li{margin:4px 0;}
-        .copilot-markdown strong{font-weight:600;}
         @keyframes copilotDot { 0%,80%,100%{opacity:0.3;} 40%{opacity:1;} }
       `}</style>
     </div>

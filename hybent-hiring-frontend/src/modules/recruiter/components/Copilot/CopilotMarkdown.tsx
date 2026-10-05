@@ -8,10 +8,17 @@
  *    is a CSS container query on the chat's width, not the screen's (index.css).
  *  - A reply that opens with a bold-only line ("**12 candidates found.**") gets
  *    it as a headline, which is how the agent is told to lead every answer.
- *  - Long emails / URLs / code wrap instead of widening the bubble.
+ *  - Code blocks get a header with the language and a copy button; the code
+ *    scrolls sideways inside its own box rather than wrapping mid-token.
+ *  - Long emails / URLs wrap instead of widening the reply.
+ *
+ * Typography lives in index.css (`.copilot-markdown`), shared by the full
+ * Copilot page and the floating popup.
  */
+import { memo, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Check, Copy } from 'lucide-react'
 
 /* Minimal hast shapes — enough to read a table's text for the card view. */
 type HastNode = { type: string; tagName?: string; value?: string; children?: HastNode[] }
@@ -65,7 +72,45 @@ function TableCards({ headers, rows }: { headers: string[]; rows: string[][] }) 
   )
 }
 
+/** A fenced code block: language label, copy button, then the code. */
+function CodeBlock({ language, code }: { language: string; code: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* clipboard blocked (insecure context) — nothing useful to do */
+    }
+  }
+  return (
+    <div className="cm-code">
+      <div className="cm-code-head">
+        <span>{language || 'code'}</span>
+        <button type="button" className="cm-code-copy" onClick={copy} aria-label="Copy code">
+          {copied ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <pre>
+        <code>{code}</code>
+      </pre>
+    </div>
+  )
+}
+
 const components: Components = {
+  pre({ node }) {
+    const codeEl = hastChildren(node as unknown as HastNode, 'code')[0] as
+      | (HastNode & { properties?: { className?: string[] } })
+      | undefined
+    const lang = (codeEl?.properties?.className ?? [])
+      .map(String)
+      .find((c) => c.startsWith('language-'))
+      ?.slice('language-'.length) ?? ''
+    return <CodeBlock language={lang} code={hastText(codeEl).replace(/\n$/, '')} />
+  },
   table({ node, children }) {
     const { headers, rows } = tableData(node as unknown as HastNode)
     return (
@@ -95,12 +140,16 @@ const components: Components = {
   },
 }
 
-export function CopilotMarkdown({ children }: { children: string }) {
+const remarkPlugins = [remarkGfm]
+
+/* Memoised: while a reply streams, only the message that is growing
+   re-parses — earlier replies in the thread stay put. */
+export const CopilotMarkdown = memo(function CopilotMarkdown({ children }: { children: string }) {
   return (
     <div className="copilot-markdown">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
         {children}
       </ReactMarkdown>
     </div>
   )
-}
+})

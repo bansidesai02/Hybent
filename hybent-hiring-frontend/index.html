@@ -66,6 +66,22 @@
         }
       })()
     </script>
+    <!-- Installed-app launch screen: the navbar's mark + wordmark on white,
+         shown only when opened as the installed app, from first paint until
+         React has rendered (src/pwa/bootScreen.ts fades it out). -->
+    <style>
+      #hb-boot { position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 22px; background: #FFFFFF;
+        transition: opacity .28s ease; }
+      #hb-boot[hidden] { display: none; }
+      #hb-boot.hb-boot-out { opacity: 0; pointer-events: none; }
+      #hb-boot .hb-boot-mark { width: 72px; height: auto; }
+      #hb-boot .hb-boot-word { width: 168px; height: auto; }
+      #hb-boot .hb-boot-word-dark { display: none; }
+      [data-theme='dark'] #hb-boot { background: #0B0F17; }
+      [data-theme='dark'] #hb-boot .hb-boot-word-light { display: none; }
+      [data-theme='dark'] #hb-boot .hb-boot-word-dark { display: block; }
+    </style>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -76,6 +92,17 @@
     />
   </head>
   <body>
+    <div id="hb-boot" hidden aria-hidden="true">
+      <img class="hb-boot-mark" src="/hybent/hybent-mark-hd.png" alt="" width="260" height="313" />
+      <img class="hb-boot-word hb-boot-word-light" src="/hybent/hybent-wordmark-light-hd.png" alt="" width="900" height="99" />
+      <img class="hb-boot-word hb-boot-word-dark" src="/hybent/hybent-wordmark-dark-hd.png" alt="" width="900" height="99" />
+    </div>
+    <script>
+      (function () {
+        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true
+        if (standalone) document.getElementById('hb-boot').hidden = false
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
