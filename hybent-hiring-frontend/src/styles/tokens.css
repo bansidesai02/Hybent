@@ -336,9 +336,11 @@
 
 /* The shell is exactly one viewport tall and scrolls inside <main>, so the
    document itself must never scroll or rubber-band — otherwise macOS bounces
-   the whole page and exposes the body background under the shell. */
-html:has(.hb-app),
-html:has(.hb-app) body {
+   the whole page and exposes the body background under the shell.
+   Only the shell: public `.hb-app` pages (apply link, pre-screening,
+   onboarding, pay) scroll the document, and locking it froze them on phones. */
+html:has(.hb-app-shell),
+html:has(.hb-app-shell) body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;

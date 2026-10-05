@@ -207,7 +207,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
   return (
     /* Desktop: sidebar and main column are two matching floating panels on
        the app ground, separated by an even 8px gutter. */
-    <div className="hb-app flex h-dvh h-screen overflow-hidden lg:gap-2 lg:p-2">
+    <div className="hb-app hb-app-shell flex h-dvh h-screen overflow-hidden lg:gap-2 lg:p-2">
       {config.websocket && <RealtimeBridge />}
 
       <HbSidebar
