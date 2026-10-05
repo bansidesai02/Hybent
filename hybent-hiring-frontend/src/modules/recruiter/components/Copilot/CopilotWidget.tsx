@@ -12,6 +12,7 @@ import { candidatesApi } from '@/api/candidates'
 import { useCopilotConversations } from './useCopilotConversations'
 import { CopilotSteps } from './CopilotSteps'
 import { CopilotMarkdown } from './CopilotMarkdown'
+import { CopilotSparkle } from './CopilotSparkle'
 import type { Candidate } from '@/types'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { Avatar, Badge, Button, Card } from '@/components/hb'
@@ -48,9 +49,9 @@ const s: Record<string, React.CSSProperties> = {
   input: { flex: 1, background: 'rgb(var(--hb-surface))', border: '1px solid var(--hb-border)', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-text))', fontSize: '14px', padding: '10px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto', transition: 'all 0.2s ease' },
   sendBtn: { background: 'var(--hb-grad-diag)', border: 'none', borderRadius: 'var(--hb-r-sm)', color: 'rgb(var(--hb-on-brand))', cursor: 'pointer', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', flexShrink: 0, boxShadow: 'var(--hb-sh-1)' },
   emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '32px 24px', textAlign: 'center' },
-  /* The site's `.grad-text`, inline â€” the launcher's own glyph is the one place
-     in the panel the full gradient is allowed to shout. */
-  emptyIcon: { fontSize: '48px', background: 'var(--hb-grad)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+  /* The Copilot sparkle in the brand gradient — the one place in the panel
+     the full gradient is allowed to shout. */
+  emptyIcon: { display: 'flex' },
   emptyTitle: { color: 'rgb(var(--hb-text))', fontFamily: 'var(--hb-f-display)', fontWeight: 600, fontSize: '19px' },
   emptySubtitle: { color: 'rgb(var(--hb-muted))', fontSize: '14px', lineHeight: 1.6 },
   promptGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', width: '100%', marginTop: '16px' },
@@ -1984,7 +1985,7 @@ export function CopilotWidget() {
         onTouchStart={handleFabTouchStart}
         aria-label="Open AI Copilot"
       >
-        {isOpen ? <CloseIcon /> : '✦'}
+        {isOpen ? <CloseIcon /> : <CopilotSparkle size={26} />}
       </button>
 
       {/* Panel */}
@@ -2026,7 +2027,7 @@ export function CopilotWidget() {
             ) : (
               <>
                 <div style={s.headerTitle}>
-                  <span className="hb-grad-text text-[18px]">✦</span>
+                  <CopilotSparkle size={20} gradient />
                   <span>Recruiter Copilot</span>
                   {isThinking && <span className="text-hb-xs font-normal text-hb-blue/40">thinking...</span>}
                 </div>
@@ -2190,7 +2191,7 @@ export function CopilotWidget() {
                       </div>
                     ) : messages.length === 0 ? (
                       <div style={s.emptyState}>
-                        <div style={s.emptyIcon}>✦</div>
+                        <div style={s.emptyIcon}><CopilotSparkle size={52} gradient /></div>
                         <div style={s.emptyTitle}>Your Recruiter AI Copilot</div>
                         <div style={s.emptySubtitle}>Ask me anything — candidates, jobs, interviews, offers, or pipeline stats.</div>
                         <div style={s.promptGrid}>
@@ -2250,7 +2251,7 @@ export function CopilotWidget() {
                                 fontSize: '14px', 
                                 flexShrink: 0 
                               }}>
-                                ✦
+                                <CopilotSparkle size={17} />
                               </div>
                             )}
                             
@@ -2286,7 +2287,7 @@ export function CopilotWidget() {
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              ✦
+                              <CopilotSparkle size={17} />
                             </div>
                             <div style={s.thinkingBubble}>
                               <span className="c-dot" /><span className="c-dot" /><span className="c-dot" />
@@ -2307,7 +2308,7 @@ export function CopilotWidget() {
                               fontSize: '14px', 
                               flexShrink: 0 
                             }}>
-                              ✦
+                              <CopilotSparkle size={17} />
                             </div>
                             <div style={{ ...s.thinkingBubble, background: 'rgb(var(--hb-blue) / .05)', borderColor: 'rgb(var(--hb-blue) / .35)' }}>
                               <span className="c-dot" style={{ animationDelay: '0s' }} /><span className="c-dot" style={{ animationDelay: '0.2s' }} /><span className="c-dot" style={{ animationDelay: '0.4s' }} />
