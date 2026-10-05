@@ -1,3 +1,4 @@
+import type { Job } from '@/types'
 import axios, { refreshAccessToken } from './axios'
 import type { ChatMessage, CopilotStep, PageContext } from '@/store/useCopilotStore'
 import { tokenStorage } from '@/utils/tokenStorage'
@@ -190,6 +191,13 @@ export const copilotApi = {
   /** Delete all conversations and messages. */
   deleteAllConversations: () =>
     axios.delete('/v1/copilot/conversations'),
+
+  /** Create the job for a JD in this chat. Idempotent: a JD that already has a job returns it. */
+  createJobFromJD: (conversationId: string, jdText: string, job: Record<string, unknown>) =>
+    axios.post<{ job: Job; created: boolean }>(`/v1/copilot/conversations/${conversationId}/jd-job`, {
+      jd_text: jdText,
+      job,
+    }),
 
   /** Transcribe audio file to text. */
   transcribe: (audioBlob: Blob) => {

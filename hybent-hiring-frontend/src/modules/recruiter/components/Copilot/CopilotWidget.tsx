@@ -13,6 +13,7 @@ import { useCopilotConversations } from './useCopilotConversations'
 import { CopilotSteps } from './CopilotSteps'
 import { CopilotMarkdown } from './CopilotMarkdown'
 import { CopilotSparkle } from './CopilotSparkle'
+import { goToHiringPath, jobIdFromContent, stripJobCreated, useGenerateJob } from './jdJob'
 import type { Candidate } from '@/types'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
 import { Avatar, Badge, Button, Card } from '@/components/hb'
@@ -391,7 +392,37 @@ function parseMarkdownJD(content: string) {
   }
 }
 
-function JDActionBar({ content, ctaText }: { content: string; ctaText?: string }) {
+const JD_PRIMARY_BTN: React.CSSProperties = {
+  background: 'var(--hb-grad-diag)',
+  border: 'none',
+  borderRadius: '10px',
+  color: 'rgb(var(--hb-on-brand))',
+  padding: '10px 18px',
+  fontSize: '13px',
+  fontWeight: 600,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '7px',
+  boxShadow: 'var(--hb-sh-1)',
+  transition: 'all 0.2s ease',
+}
+
+const JD_SECONDARY_BTN: React.CSSProperties = {
+  background: 'rgb(var(--hb-surface))',
+  border: '1px solid var(--hb-border)',
+  borderRadius: '10px',
+  color: 'rgb(var(--hb-text))',
+  cursor: 'pointer',
+  padding: '9px 14px',
+  fontSize: '12px',
+  fontWeight: 500,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  transition: 'all 0.2s ease',
+}
+
+function JDActionBar({ content, createdJobId }: { content: string; createdJobId: string | null }) {
   const [copied, setCopied] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
 
@@ -406,26 +437,19 @@ function JDActionBar({ content, ctaText }: { content: string; ctaText?: string }
     }
   }
 
+  const { jobId, isGenerating, generate } = useGenerateJob(createdJobId)
+
   const handleApplyToForm = () => {
     try {
       const parsedJD = parseMarkdownJD(content)
       sessionStorage.setItem('copilot_prefilled_jd', JSON.stringify(parsedJD))
       window.dispatchEvent(new CustomEvent('copilot-apply-jd', { detail: parsedJD }))
 
-      const role = useAuthStore.getState().user?.role
-      const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
-      const targetPath = `${basePath}/jobs/new`
-
       if (window.location.pathname.includes('/jobs/new')) {
         toast.success('✨ Job Description applied to form!')
       } else {
         toast.success('✨ Opening Job Form with prefilled JD...')
-        if (window.history && window.history.pushState) {
-          window.history.pushState({}, '', targetPath)
-          window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
-        } else {
-          window.location.href = targetPath
-        }
+        goToHiringPath('/jobs/new')
       }
     } catch (err) {
       console.error('Apply JD error:', err)
@@ -463,39 +487,32 @@ function JDActionBar({ content, ctaText }: { content: string; ctaText?: string }
     }
   }
 
-  const buttonLabel = ctaText || 'Save & Apply to Form'
-
   return (
     <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-        <button
-          onClick={handleApplyToForm}
-          style={{
-            background: 'var(--hb-grad-diag)',
-            border: 'none',
-            borderRadius: '10px',
-            color: 'rgb(var(--hb-on-brand))',
-            cursor: 'pointer',
-            padding: '10px 18px',
-            fontSize: '13px',
-            fontWeight: 600,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '7px',
-            boxShadow: 'var(--hb-sh-1)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '0.92'
-            e.currentTarget.style.transform = 'translateY(-1px)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1'
-            e.currentTarget.style.transform = 'none'
-          }}
-        >
-          <Sparkles size={15} />
-          <span>{buttonLabel}</span>
+        {jobId ? (
+          <button
+            onClick={() => goToHiringPath(`/jobs/${jobId}/edit`)}
+            style={{ ...JD_SECONDARY_BTN, color: 'rgb(var(--hb-success))', fontWeight: 600 }}
+          >
+            <Check size={14} />
+            <span>Job created · Open</span>
+            <ArrowRight size={14} />
+          </button>
+        ) : (
+          <button
+            onClick={() => generate(parseMarkdownJD(content), content)}
+            disabled={isGenerating}
+            title="Create this job now, as Active"
+            style={{ ...JD_PRIMARY_BTN, cursor: isGenerating ? 'wait' : 'pointer', opacity: isGenerating ? 0.7 : 1 }}
+          >
+            <Sparkles size={15} />
+            <span>{isGenerating ? 'Creating job…' : 'Generate job'}</span>
+          </button>
+        )}
+
+        <button onClick={handleApplyToForm} title="Open the job form with this JD filled in" style={JD_SECONDARY_BTN}>
+          <span>Review</span>
           <ArrowRight size={14} />
         </button>
 
@@ -1767,10 +1784,11 @@ export function CopilotWidget() {
     // Check for CTA_BUTTON
     const ctaMatch = content.match(/\[CTA_BUTTON:(.*?)\]/)
     let ctaButtonText = ''
-    let cleanContent = content
+    const createdJobId = jobIdFromContent(content)
+    let cleanContent = stripJobCreated(content)
     if (ctaMatch) {
       ctaButtonText = ctaMatch[1]
-      cleanContent = content.replace(/\[CTA_BUTTON:.*?\]/g, '').trim()
+      cleanContent = cleanContent.replace(/\[CTA_BUTTON:.*?\]/g, '').trim()
     }
 
     // [PENDING_TOOL:name] — a backend-only marker (COPILOT_SYSTEM_PROMPT §5)
@@ -1876,7 +1894,7 @@ export function CopilotWidget() {
             <CopilotMarkdown>{cleanContent}</CopilotMarkdown>
           </div>
           {isJD ? (
-            <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
+            <JDActionBar content={cleanContent} createdJobId={createdJobId} />
           ) : (
             renderGenericCta()
           )}
@@ -1899,7 +1917,7 @@ export function CopilotWidget() {
           )
         })}
         {isJD ? (
-          <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
+          <JDActionBar content={cleanContent} createdJobId={createdJobId} />
         ) : (
           renderGenericCta()
         )}

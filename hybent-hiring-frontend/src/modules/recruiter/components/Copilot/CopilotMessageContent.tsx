@@ -12,6 +12,7 @@ import { aiApi } from '@/api/ai'
 import type { CandidateCardData } from './conversationUtils'
 import { parseCandidateCard } from './conversationUtils'
 import { CopilotMarkdown } from './CopilotMarkdown'
+import { goToHiringPath, jobIdFromContent, stripJobCreated, useGenerateJob } from './jdJob'
 
 // ── Stage colour helper ───────────────────────────────────────────────────────
 function getStageStyle(stageText?: string): React.CSSProperties {
@@ -149,7 +150,7 @@ function parseMarkdownJD(content: string) {
   return { title, location, experience, description, key_responsibilities, required_qualifications_skills, good_to_have }
 }
 
-function JDActionBar({ content, ctaText }: { content: string; ctaText?: string }) {
+function JDActionBar({ content, createdJobId }: { content: string; createdJobId: string | null }) {
   const [copied, setCopied] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
 
@@ -162,20 +163,18 @@ function JDActionBar({ content, ctaText }: { content: string; ctaText?: string }
     } catch { toast.error('Could not copy to clipboard') }
   }
 
+  const { jobId, isGenerating, generate } = useGenerateJob(createdJobId)
+
   const handleApplyToForm = () => {
     try {
       const parsedJD = parseMarkdownJD(content)
       sessionStorage.setItem('copilot_prefilled_jd', JSON.stringify(parsedJD))
       window.dispatchEvent(new CustomEvent('copilot-apply-jd', { detail: parsedJD }))
-      const role = useAuthStore.getState().user?.role
-      const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
-      const targetPath = `${basePath}/jobs/new`
       if (window.location.pathname.includes('/jobs/new')) {
         toast.success('✨ Job Description applied to form!')
       } else {
         toast.success('✨ Opening Job Form with prefilled JD...')
-        window.history.pushState({}, '', targetPath)
-        window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
+        goToHiringPath('/jobs/new')
       }
     } catch (err) { toast.error('Failed to apply JD to form') }
   }
@@ -205,12 +204,30 @@ function JDActionBar({ content, ctaText }: { content: string; ctaText?: string }
 
   return (
     <div className="mt-4 flex flex-wrap gap-2">
+      {jobId ? (
+        <button
+          onClick={() => goToHiringPath(`/jobs/${jobId}/edit`)}
+          className="inline-flex items-center gap-1.5 rounded-hb-lg border border-hb-success/40 bg-hb-success/10 px-4 py-2 text-hb-sm font-semibold text-hb-success transition-all hover:bg-hb-success/15"
+        >
+          <Check size={14} />Job created · Open<ArrowRight size={13} />
+        </button>
+      ) : (
+        <button
+          onClick={() => generate(parseMarkdownJD(content), content)}
+          disabled={isGenerating}
+          className="inline-flex items-center gap-1.5 rounded-hb-lg px-4 py-2 text-hb-sm font-semibold transition-all hover:opacity-90 disabled:opacity-60"
+          style={{ background: 'var(--hb-grad-diag)', color: 'rgb(var(--hb-on-brand))', boxShadow: 'var(--hb-sh-1)' }}
+          title="Create this job now, as Active"
+        >
+          <Sparkles size={14} />{isGenerating ? 'Creating job…' : 'Generate job'}
+        </button>
+      )}
       <button
         onClick={handleApplyToForm}
-        className="inline-flex items-center gap-1.5 rounded-hb-lg px-4 py-2 text-hb-sm font-semibold transition-all hover:opacity-90"
-        style={{ background: 'var(--hb-grad-diag)', color: 'rgb(var(--hb-on-brand))', boxShadow: 'var(--hb-sh-1)' }}
+        className="inline-flex items-center gap-1.5 rounded-hb-lg border border-hb-border bg-hb-surface px-4 py-2 text-hb-sm font-medium text-hb-text transition-all hover:bg-hb-surface-2"
+        title="Open the job form with this JD filled in"
       >
-        <Sparkles size={14} />{ctaText || 'Save & Apply to Form'}<ArrowRight size={13} />
+        Review<ArrowRight size={13} />
       </button>
       <button
         onClick={handleCopy}
@@ -243,7 +260,8 @@ export function BotMessageContent({
   // Strip CTA and suggestion markers
   const ctaMatch = content.match(/\[CTA_BUTTON:(.*?)\]/)
   const ctaButtonText = ctaMatch ? ctaMatch[1] : ''
-  let cleanContent = content.replace(/\[CTA_BUTTON:.*?\]/g, '').trim()
+  const createdJobId = jobIdFromContent(content)
+  let cleanContent = stripJobCreated(content.replace(/\[CTA_BUTTON:.*?\]/g, ''))
   cleanContent = cleanContent.replace(/\n*\[PENDING_TOOL:.*?\]/g, '').trim()
 
   const suggestionGroups = Array.from(cleanContent.matchAll(/\[SUGGEST:(.*?)\]/g)).map((m) =>
@@ -288,7 +306,7 @@ export function BotMessageContent({
           <CopilotMarkdown>{cleanContent}</CopilotMarkdown>
         </div>
         {isJD ? (
-          <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />
+          <JDActionBar content={cleanContent} createdJobId={createdJobId} />
         ) : ctaButtonText ? (
           <button
             onClick={() => {
@@ -319,7 +337,7 @@ export function BotMessageContent({
           <CopilotMarkdown key={idx}>{trimmedPart}</CopilotMarkdown>
         )
       })}
-      {isJD && <JDActionBar content={cleanContent} ctaText={ctaButtonText || 'Save JD & Apply to Form'} />}
+      {isJD && <JDActionBar content={cleanContent} createdJobId={createdJobId} />}
       {renderSuggestions()}
     </div>
   )

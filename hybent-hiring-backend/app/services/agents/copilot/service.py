@@ -80,23 +80,9 @@ async def _team_list(db: AsyncSession, organization_id) -> str:
 async def _ensure_conversation(db: AsyncSession, organization_id, user_id, conversation_id: Optional[str], title: str):
     """Returns (conversation_id, created). The id doubles as the LangGraph
     thread id, so it must exist (and belong to this user) before the run."""
-    from app.models.copilot_conversation import CopilotConversation
+    from app.services.ai.copilot_service import _get_or_create_conversation
 
-    if conversation_id:
-        try:
-            res = await db.execute(select(CopilotConversation.id).where(
-                CopilotConversation.id == uuid.UUID(conversation_id),
-                CopilotConversation.organization_id == organization_id,
-                CopilotConversation.user_id == user_id,
-            ))
-            if res.scalar_one_or_none():
-                return conversation_id, False
-        except ValueError:
-            pass
-    conv = CopilotConversation(organization_id=organization_id, user_id=user_id, title=title[:60].strip() or "New Conversation")
-    db.add(conv)
-    await db.commit()
-    return str(conv.id), True
+    return await _get_or_create_conversation(db, organization_id, user_id, conversation_id, title)
 
 
 async def resume_from_approved_tool_call(
@@ -132,7 +118,6 @@ async def stream_copilot_agent(
     from app.services.ai_credit_service import AICreditsService
     from app.services.ai import copilot_service as legacy
     from app.services.ai.copilot_router import GENERAL_HELP_REPLY, is_greeting
-    from app.services.ai.copilot_intelligence import is_jd_creation_intent
 
     await AICreditsService.check_credits_available(db, organization_id, "ai_copilot")
 
@@ -147,11 +132,12 @@ async def stream_copilot_agent(
             yield sse("chunk", {"content": GENERAL_HELP_REPLY})
             yield sse("done")
             return
-        if is_jd_creation_intent(user_message):
-            async for chunk in legacy._stream_copilot_chat_impl(
-                user_message=user_message, history=history, organization_id=organization_id, db=db,
-                page_context=page_context, background_tasks=background_tasks, user_id=user_id,
-                conversation_id=conversation_id, user_role=user_role,
+        # Job descriptions (new, or an edit to the one in this chat) skip the agent.
+        jd_kind, prev_jd, jd_change = await legacy.jd_turn(db, organization_id, user_id, conversation_id, user_message)
+        if jd_kind:
+            async for chunk in legacy.stream_jd_reply(
+                db, organization_id, user_id, conversation_id, user_message, history,
+                jd_kind, prev_jd, background_tasks=background_tasks, instruction=jd_change,
             ):
                 yield chunk
             return

@@ -838,8 +838,50 @@ def is_jd_creation_intent(text: str) -> bool:
     
     if has_jd and has_create:
         return True
-        
+
     return False
+
+
+# ── JD follow-ups: edit the JD already in the chat vs. write a new one ───────
+
+_JD_NOUN_RE = re.compile(r"\b(?:jd|job\s+(?:description|posting|post|spec(?:ification)?|requirements))\b")
+# "jd for Data Analyst", "another jd", "new job description": a different JD.
+_NEW_JD_RE = re.compile(
+    r"\b(?:jd|job\s+description|job\s+posting|job\s+post)\s+(?:for|of)\b"
+    r"|\b(?:new|another|second|one\s+more)\s+(?:jd|job\s+description|job\s+posting|job\s+post)\b"
+)
+_JD_EDIT_VERB_RE = re.compile(
+    r"\b(?:change|update|edit|modify|revise|rewrite|rephrase|adjust|tweak|add|include|mention|"
+    r"remove|delete|drop|replace|instead|make|increase|decrease|reduce|raise|lower|shorten|expand|"
+    r"badal\w*|badlo|hata\w*|jod\w*|daal\w*|dal\s*do|kar\s*do|kardo|karo|likh\s*do)\b"
+)
+_JD_ATTR_RE = re.compile(
+    r"\b(?:years?|yrs|saal|experience|remote|hybrid|on-?site|office|salary|ctc|pay|package|"
+    r"incentives?|performance|location|skills?|tone|formal|senior|junior|shorter|longer|more|less|"
+    r"fewer|kam|zyada|jyada)\b"
+)
+# Clearly about candidates or the pipeline, not the JD on screen.
+_NOT_JD_RE = re.compile(
+    r"\b(?:candidates?|interviews?|schedule|meeting|pipeline|stage|shortlist|offer|resumes?|cv|"
+    r"applicants?|move)\b"
+)
+_QUESTION_RE = re.compile(r"^\s*(?:what|who|which|how|show|list|find|search|when|where|why)\b")
+
+
+def is_jd_edit_request(text: str, jd_is_last_reply: bool) -> bool:
+    """True when a message asks to change a JD already written in this chat.
+
+    jd_is_last_reply: the previous assistant reply was that JD, so a bare
+    "make it remote" / "add AWS" refers to it without saying "JD".
+    """
+    t = (text or "").lower().strip()
+    if not t or _NEW_JD_RE.search(t) or _QUESTION_RE.match(t):
+        return False
+    if not (_JD_EDIT_VERB_RE.search(t) or _JD_ATTR_RE.search(t)):
+        return False
+    if _JD_NOUN_RE.search(t):
+        return True
+    return jd_is_last_reply and not _NOT_JD_RE.search(t)
 
 
 def extract_role_from_jd_query(text: str) -> Optional[str]:

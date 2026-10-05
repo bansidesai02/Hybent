@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import {
-  Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
+  Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ClipboardCheck,
   Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, ScrollText,
   Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
@@ -30,6 +30,8 @@ export interface NavItem {
   badge?: number
   /** Matched with startsWith instead of exact — for hub pages with detail routes. */
   customActivePath?: string
+  /** Pages reached from this one (not listed in the nav) that keep it lit. */
+  alsoActiveOn?: string[]
   /** Exact match only. Set on workspace index routes so they do not stay lit. */
   end?: boolean
 }
@@ -197,8 +199,8 @@ export function getNavSections(
     {
       label: 'Intelligence',
       items: [
-        { to: `${basePath}/analytics`, label: 'AI Insights', icon: Lightbulb },
-        { to: `${basePath}/reports`, label: 'Reports & Analytics', icon: ChartColumn },
+        // Reports & Analytics is opened from a button on AI Insights.
+        { to: `${basePath}/analytics`, label: 'AI Insights', icon: Lightbulb, alsoActiveOn: [`${basePath}/reports`] },
       ],
     },
     {
@@ -271,7 +273,10 @@ export function activeNavLabel(sections: NavSection[], pathname: string): string
   const exact = items.find((i) => i.to === pathname)
   if (exact) return exact.label
   // Deepest prefix match, ignoring workspace index routes (they'd match everything).
-  return items
-    .filter((i) => !i.end && pathname.startsWith(i.customActivePath ?? i.to))
-    .sort((a, b) => b.to.length - a.to.length)[0]?.label
+  return (
+    items
+      .filter((i) => !i.end && pathname.startsWith(i.customActivePath ?? i.to))
+      .sort((a, b) => b.to.length - a.to.length)[0]?.label ??
+    items.find((i) => i.alsoActiveOn?.some((p) => pathname.startsWith(p)))?.label
+  )
 }
