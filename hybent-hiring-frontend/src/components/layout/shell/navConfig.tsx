@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import {
   Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ChartColumn, ClipboardCheck,
-  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ScrollText,
+  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, ScrollText,
   Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
@@ -60,20 +60,32 @@ export function isGroup(entry: NavEntry): entry is NavGroup {
 
 /* The Candidates group is shared by the recruiter and admin navs, which differ
    only in the first item's label. */
-function candidatesGroup(basePath: string, role: UserRole, badge?: number): NavGroup {
+/** The Candidate Screening Agent's review list (ScreeningPage). Shown only
+    when screening is on for the org, or something is still waiting there. */
+export interface ScreeningNav {
+  enabled: boolean
+  pending: number
+}
+
+function candidatesGroup(basePath: string, role: UserRole, badge?: number, screening?: ScreeningNav): NavGroup {
+  const showScreening = !!screening && (screening.enabled || screening.pending > 0)
   return {
     type: 'group',
     label: 'Candidates',
     icon: Users,
-    badge,
+    badge: (badge ?? 0) + (showScreening ? screening!.pending : 0) || undefined,
     subPaths: [
       `${basePath}/candidates`,
+      `${basePath}/screening`,
       `${basePath}/upload`,
       `${basePath}/jobs/new`,
       `${basePath}/talent-pool`,
     ],
     items: [
       { to: `${basePath}/candidates`, label: role === 'admin' ? 'All Candidates' : 'My Candidates', icon: Users },
+      ...(showScreening
+        ? [{ to: `${basePath}/screening`, label: 'To review', icon: ListChecks, badge: screening!.pending }]
+        : []),
       { to: `${basePath}/upload`, label: 'Upload Resume', icon: Upload },
       { to: `${basePath}/jobs/new`, label: 'Upload / Add JD', icon: FileText },
       { to: `${basePath}/talent-pool`, label: 'Talent DB', icon: Database },
@@ -84,7 +96,8 @@ function candidatesGroup(basePath: string, role: UserRole, badge?: number): NavG
 export function getNavSections(
   role: UserRole,
   candidateBadge: number,
-  _scheduleBadge: number
+  _scheduleBadge: number,
+  screening?: ScreeningNav
 ): NavSection[] {
   const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
 
@@ -175,7 +188,7 @@ export function getNavSections(
         { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: CopilotSparkle, customActivePath: `${basePath}/copilot` },
         { to: `${basePath}/inbox`, label: 'Gmail Inbox', icon: Inbox },
         { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseBusiness },
-        candidatesGroup(basePath, role, candidateBadge),
+        candidatesGroup(basePath, role, candidateBadge, screening),
         { to: `${basePath}/pipeline`, label: 'Pipeline', icon: SquareKanban },
         { to: `${basePath}/interviews`, label: 'Schedule', icon: CalendarDays },
         { to: `${basePath}/offers`, label: 'Offers', icon: Handshake },

@@ -382,5 +382,8 @@ async def upload_and_create(
     )
 
     background_tasks.add_task(index_candidate_resume_by_id, candidate.id, current_user.organization_id)
+    # Background task: runs after the request's session has committed.
+    from app.tasks.screening import enqueue_screening
+    background_tasks.add_task(enqueue_screening, [candidate.id], current_user.organization_id)
 
     return APIResponse.success(message="Candidate created successfully.", data=CandidateOut.model_validate(candidate), status_code=201)

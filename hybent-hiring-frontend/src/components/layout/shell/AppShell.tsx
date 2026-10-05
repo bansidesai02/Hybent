@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } 
 import { Outlet, useLocation } from 'react-router-dom'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
+import { useScreeningNav } from '@/hooks/useScreeningNav'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useThemeStore } from '@/store/themeStore'
@@ -191,9 +192,10 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
     () => notifications.filter((n) => !n.is_read && (n.type === 'application_received' || n.type === 'stage_changed')).length,
     [notifications],
   )
+  const screening = useScreeningNav(activeRole)
   const navSections = useMemo(
-    () => sections ?? getNavSections(activeRole, candidateBadge, 0),
-    [sections, activeRole, candidateBadge],
+    () => sections ?? getNavSections(activeRole, candidateBadge, 0, screening),
+    [sections, activeRole, candidateBadge, screening],
   )
   const mobileTabs = useMemo(
     () => getMobileTabs(activeRole, basePath, navSections),

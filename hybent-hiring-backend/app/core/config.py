@@ -70,6 +70,19 @@ class Settings(BaseSettings):
         allow = {o.strip() for o in self.copilot_agent_v2_orgs.split(",") if o.strip()}
         return str(organization_id) in allow
 
+    # ── Candidate Screening Agent (LangGraph) ──────────────────────────────────
+    # Screens each new candidate and recommends a next step for a recruiter to
+    # approve. SCREENING_AGENT=true turns it on for every org; otherwise only
+    # the org ids in SCREENING_AGENT_ORGS (comma-separated).
+    screening_agent: bool = False
+    screening_agent_orgs: str = ""
+
+    def screening_agent_enabled_for(self, organization_id) -> bool:
+        if self.screening_agent:
+            return True
+        allow = {o.strip() for o in self.screening_agent_orgs.split(",") if o.strip()}
+        return str(organization_id) in allow
+
     # ── Email (SMTP) ───────────────────────────────────────────────────────────
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587

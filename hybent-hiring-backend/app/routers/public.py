@@ -177,6 +177,9 @@ async def apply_to_public_job(
     db.add(application)
     await db.commit()
 
+    from app.tasks.screening import enqueue_screening
+    enqueue_screening([candidate.id], job.organization_id)
+
     notify_organization_roles.delay(
         str(job.organization_id),
         [UserRole.ADMIN, UserRole.RECRUITER],

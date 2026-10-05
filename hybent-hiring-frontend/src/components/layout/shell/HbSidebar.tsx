@@ -4,6 +4,7 @@ import { clsx } from 'clsx'
 import { ChevronRight } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
+import { useScreeningNav } from '@/hooks/useScreeningNav'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useThemeStore } from '@/store/themeStore'
 import { prefetchRoute } from '@/utils/routePrefetch'
@@ -121,9 +122,11 @@ function HbSidebarComponent({
     [notifications]
   )
 
+  const screening = useScreeningNav(role)
+
   const sections = useMemo(
-    () => sectionsOverride ?? getNavSections(role, candidateBadge, scheduleBadge),
-    [sectionsOverride, role, candidateBadge, scheduleBadge]
+    () => sectionsOverride ?? getNavSections(role, candidateBadge, scheduleBadge, screening),
+    [sectionsOverride, role, candidateBadge, scheduleBadge, screening]
   )
 
   const isGroupActive = useCallback(
