@@ -13,6 +13,7 @@ import { useCopilotConversations } from './useCopilotConversations'
 import { CopilotSteps } from './CopilotSteps'
 import { CopilotMarkdown } from './CopilotMarkdown'
 import { CopilotSparkle } from './CopilotSparkle'
+import { EditableUserMessage } from './EditableUserMessage'
 import { goToHiringPath, jobIdFromContent, stripJobCreated, useGenerateJob } from './jdJob'
 import type { Candidate } from '@/types'
 import { ArrowRight, Banknote, Check, Clock, Copy, FileDown, Mail, MapPin, Save, Sparkles, Star } from 'lucide-react'
@@ -1016,8 +1017,10 @@ export function CopilotWidget() {
   }
 
   // Send message
-  const handleSend = useCallback(async (text?: string, approvedToolCall?: any) => {
+  // `editAt`: edit & resend — store index of the user message being rewritten.
+  const handleSend = useCallback(async (text?: string, approvedToolCall?: any, editAt?: number) => {
     const isApproval = !!approvedToolCall
+    const isEdit = editAt !== undefined
     // Use textarea DOM value as ground truth (always current regardless of how text was set)
     // Fall back to inputRef then empty string
     const currentValue = textareaRef.current?.value ?? inputRef.current
@@ -1026,13 +1029,19 @@ export function CopilotWidget() {
     if (!msg && !isApproval) return
     if (isThinking) return
 
-    const historySnapshot = useCopilotStore.getState().messages
+    let historySnapshot = useCopilotStore.getState().messages
+    let editTurn: number | undefined
+    if (isEdit) {
+      historySnapshot = historySnapshot.slice(0, editAt)
+      editTurn = historySnapshot.filter((m) => m.role === 'user').length
+      useCopilotStore.getState().truncateMessages(editAt)
+    }
     const activeConvId = useCopilotStore.getState().conversationId
     const wasNewConversation = !activeConvId
 
     addMessage({ role: 'user', content: isApproval ? '👍 Action Approved' : msg })
 
-    if (!isApproval) {
+    if (!isApproval && !isEdit) {
       setInput('')
       inputRef.current = ''
       setCandidateSuggestions([])
@@ -1116,7 +1125,8 @@ export function CopilotWidget() {
               useCopilotStore.getState().updateLastMessageContent(`\n\n⚠️ ${errMsg}`)
             }
           }
-        }
+        },
+        editTurn,
       )
 
     } finally {
@@ -2224,7 +2234,7 @@ export function CopilotWidget() {
                       </div>
                     ) : (
                       <>
-                        {messages.map((msg) => (
+                        {messages.map((msg, msgIndex) => (
                           <div 
                             key={msg.id} 
                             style={{ 
@@ -2274,21 +2284,26 @@ export function CopilotWidget() {
                             )}
                             
                             {/* Bubble */}
-                            <div style={msg.role === 'user' ? s.userBubble : s.botBubble}>
-                              {msg.role === 'user' ? (
-                                msg.content
-                              ) : (
-                                <>
-                                  <CopilotSteps
-                                    steps={msg.steps}
-                                    startedAt={msg.startedAt}
-                                    finishedAt={msg.finishedAt}
-                                    hasContent={!!msg.content}
-                                  />
-                                  {msg.content && renderBotMessageContent(msg.content)}
-                                </>
-                              )}
-                            </div>
+                            {msg.role === 'user' ? (
+                              <EditableUserMessage
+                                content={msg.content}
+                                canEdit={!isThinking && msg.content !== '👍 Action Approved'}
+                                onSubmit={(text) => handleSend(text, undefined, msgIndex)}
+                                style={{ flex: 1 }}
+                              >
+                                <div style={{ ...s.userBubble, whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                              </EditableUserMessage>
+                            ) : (
+                              <div style={s.botBubble}>
+                                <CopilotSteps
+                                  steps={msg.steps}
+                                  startedAt={msg.startedAt}
+                                  finishedAt={msg.finishedAt}
+                                  hasContent={!!msg.content}
+                                />
+                                {msg.content && renderBotMessageContent(msg.content)}
+                              </div>
+                            )}
                           </div>
                         ))}
                         {isThinking && (

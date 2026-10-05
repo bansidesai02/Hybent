@@ -38,11 +38,21 @@ export function useCopilotChat(options?: UseCopilotChatOptions) {
       msg: string,
       history: { id: string; role: 'user' | 'assistant'; content: string }[],
       approvedToolCall?: any,
+      /** Edit & resend: store index of the user message being rewritten. */
+      editAt?: number,
     ) => {
       const isApproval = !!approvedToolCall
       const text = msg.trim()
       if (!text && !isApproval) return
       if (isThinking) return
+
+      let editTurn: number | undefined
+      if (editAt !== undefined) {
+        const kept = useCopilotStore.getState().messages.slice(0, editAt)
+        editTurn = kept.filter((m) => m.role === 'user').length
+        useCopilotStore.getState().truncateMessages(editAt)
+        history = kept
+      }
 
       const activeConvId = useCopilotStore.getState().conversationId
       const wasNew = !activeConvId
@@ -126,6 +136,7 @@ export function useCopilotChat(options?: UseCopilotChatOptions) {
               }
             },
           },
+          editTurn,
         )
       } finally {
         setThinking(false)

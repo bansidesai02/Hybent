@@ -78,7 +78,9 @@ export const copilotApi = {
       onApproval?: (approvalData: any) => void
       onDone?: () => void
       onError?: (err: any) => void
-    }
+    },
+    /** Edit & resend: index of the user turn being rewritten (it and everything after are dropped). */
+    editTurn?: number,
   ) => {
     const apiHistory: ApiMessage[] = history.map(({ role, content }) => ({ role, content }))
     const BASE_URL = getApiBaseUrl()
@@ -88,6 +90,7 @@ export const copilotApi = {
       page_context: page_context ?? null,
       conversation_id: conversation_id ?? null,
       approved_tool_call: approved_tool_call ?? null,
+      edit_turn: editTurn ?? null,
     })
     const send = (token: string | null) =>
       fetch(`${BASE_URL}/v1/copilot/chat`, {

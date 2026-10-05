@@ -51,6 +51,8 @@ interface CopilotState {
   /** Stream ended: stamp the finish time and close any step left running. */
   finishLastMessageSteps: () => void
   setMessages: (msgs: ChatMessage[]) => void
+  /** Keep only the first `count` messages (edit & resend drops the rest). */
+  truncateMessages: (count: number) => void
   setConversationId: (id: string | null) => void
   startNewConversation: () => void   // clears messages + conversationId
   setPageContext: (ctx: PageContext | null) => void
@@ -115,6 +117,8 @@ export const useCopilotStore = create<CopilotState>()(
 
       // Used when loading a conversation from history (API response)
       setMessages: (msgs) => set({ messages: msgs }),
+
+      truncateMessages: (count) => set((s) => ({ messages: s.messages.slice(0, count) })),
 
       setConversationId: (id) => set({ conversationId: id }),
 

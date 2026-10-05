@@ -44,6 +44,9 @@ class CopilotChatRequest(BaseModel):
     approved_tool_call: Optional[dict] = None
     # Agent v2: answer to a paused approval — {"action_id", "approved", "edits"?}
     resume: Optional[dict] = None
+    # Edit & resend: 0-based index of the user turn being rewritten. That turn
+    # and everything after it is deleted before the edited message is processed.
+    edit_turn: Optional[int] = None
 
 
 class CopilotChatResponse(BaseModel):
@@ -106,6 +109,9 @@ async def copilot_chat(
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
+    if body.edit_turn is not None and body.conversation_id:
+        await _truncate_from_turn(db, current_user, body.conversation_id, body.edit_turn)
+
     use_agent = settings.copilot_agent_v2_enabled_for(current_user.organization_id)
     resume = body.resume
     if use_agent:
@@ -149,6 +155,47 @@ async def copilot_chat(
     )
 
     return StreamingResponse(generator, media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+async def _truncate_from_turn(db, current_user: User, conversation_id: str, turn: int) -> None:
+    """Drop the `turn`-th user message and everything after it, and any
+    approval those turns left pending, so the edited message replays cleanly."""
+    from app.models.copilot_conversation import CopilotConversation, CopilotMessage
+    from sqlalchemy import delete, select
+
+    if turn < 0:
+        raise HTTPException(status_code=400, detail="Invalid edit_turn.")
+    try:
+        cid = uuid.UUID(conversation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid conversation ID.")
+
+    conv = (await db.execute(
+        select(CopilotConversation).where(
+            CopilotConversation.id == cid,
+            CopilotConversation.organization_id == current_user.organization_id,
+            CopilotConversation.user_id == current_user.id,
+        )
+    )).scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+
+    cutoff = (await db.execute(
+        select(CopilotMessage.created_at)
+        .where(CopilotMessage.conversation_id == cid, CopilotMessage.role == "user")
+        .order_by(CopilotMessage.created_at)
+        .offset(turn)
+        .limit(1)
+    )).scalar_one_or_none()
+    if cutoff is None:
+        return  # that turn was never saved — nothing to drop
+
+    await db.execute(
+        delete(CopilotMessage).where(CopilotMessage.conversation_id == cid, CopilotMessage.created_at >= cutoff)
+    )
+    if conv.last_context and "pending_action" in conv.last_context:
+        conv.last_context = {k: v for k, v in conv.last_context.items() if k != "pending_action"}
+    await db.commit()
 
 
 @router.post("/transcribe")
