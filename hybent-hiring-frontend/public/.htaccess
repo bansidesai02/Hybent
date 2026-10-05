@@ -1,6 +1,12 @@
 RewriteEngine On
 RewriteBase /
 
+# One host for search engines: www.hybent.com answered with the same pages
+# (and the homepage had no canonical), so Google saw two copies of the site
+# and split its ranking between them.
+RewriteCond %{HTTP_HOST} ^www\.hybent\.com$ [NC]
+RewriteRule ^ https://hybent.com%{REQUEST_URI} [R=301,L]
+
 # After a rewrite the server runs these rules again on the new path. Stop on
 # the rewrite targets by matching the path itself: LiteSpeed (Hostinger) does
 # not always refresh %{REQUEST_FILENAME} between passes, so the -f check below
@@ -8,9 +14,12 @@ RewriteBase /
 # host's 404 page instead of the app.
 RewriteRule ^(index\.html|_seo/.+)$ - [L]
 
-# Real files and folders (assets, sitemap) are served as-is.
+# Real files and folders (assets, sitemap) are served as-is. The site root is
+# a folder too, so without the last condition "/" stopped here and got the
+# plain index.html — no canonical — instead of its /_seo/ copy below.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_URI} !^/$
 RewriteRule ^ - [L]
 
 # Public pages have a prerendered copy of index.html in /_seo/ carrying their
