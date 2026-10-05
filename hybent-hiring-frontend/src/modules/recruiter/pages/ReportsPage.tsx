@@ -1,7 +1,8 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
-import { AlertTriangle, CheckCircle2, Download, FileText, Lock, XCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Lock, XCircle } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -49,7 +50,7 @@ import {
  */
 
 export default function ReportsPage() {
-  const { user } = useAuth()
+  const { user, basePath } = useAuth()
   const chart = useChartTheme()
   const isAdmin = user?.role === 'admin'
 
@@ -145,6 +146,15 @@ export default function ReportsPage() {
 
   return (
     <div className="mx-auto max-w-hb-page pb-hb-10">
+      {/* Reports is opened from AI Insights (it has no sidebar entry of its own). */}
+      <Link
+        to={`${basePath}/analytics`}
+        className="mb-3 inline-flex items-center gap-1.5 text-hb-sm text-hb-muted transition-colors duration-hb hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring"
+      >
+        <ArrowLeft size={15} aria-hidden />
+        AI Insights
+      </Link>
+
       <PageHeader
         eyebrow="Reports"
         title="Advanced analytics"
