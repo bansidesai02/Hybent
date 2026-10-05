@@ -7,11 +7,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowLeft, Briefcase, Calendar, Loader2, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
+  ArrowLeft, Briefcase, Calendar, Download, Loader2, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { globalSearch } from '@/api/search'
 import { useThemeStore } from '@/store/themeStore'
+import { useInstallPrompt } from '@/pwa/install'
+import { SHOW_INSTALL_EVENT } from './InstallAppCard'
 import type { SearchResult, SearchResults } from '@/types'
 
 const MessageInbox = lazy(() =>
@@ -84,6 +86,7 @@ function HbTopbarComponent({
   const location = useLocation()
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
+  const install = useInstallPrompt()
 
   const [menuOpen, setMenuOpen] = useState(false)
   // Some avatar sources (a Google-account photo, chiefly) refuse to load for
@@ -478,6 +481,24 @@ function HbTopbarComponent({
                     {item.label}
                   </Link>
                 ))}
+
+                {(install.canPrompt || install.iosManual) && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={async () => {
+                      setMenuOpen(false)
+                      if (install.canPrompt) await install.promptInstall()
+                      else window.dispatchEvent(new Event(SHOW_INSTALL_EVENT))
+                    }}
+                    className="mt-1 flex w-full items-center gap-2.5 rounded-hb-sm px-3 py-2.5 text-left text-hb-sm text-hb-text transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  >
+                    <span className="text-hb-dim">
+                      <Download size={15} aria-hidden />
+                    </span>
+                    Install app
+                  </button>
+                )}
 
                 <button
                   type="button"

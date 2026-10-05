@@ -28,32 +28,37 @@ export default defineConfig({
       // the very next load instead.
       registerType: 'autoUpdate',
       manifestFilename: 'manifest.json',
+      // The installed app (Add to Home Screen / Install app). It opens straight
+      // into the signed-in workspace — /dashboard resolves the user's role, or
+      // shows sign-in — never the marketing homepage.
       manifest: {
+        id: '/dashboard',
         name: 'Hybent Hiring',
-        short_name: 'Hybent Hiring',
+        short_name: 'Hybent',
         description: 'Hybent Hiring: AI-powered recruitment automation platform',
         theme_color: '#FBFCFE',
         background_color: '#FBFCFE',
         display: 'standalone',
-        orientation: 'portrait',
-        start_url: '/',
+        display_override: ['standalone', 'minimal-ui'],
+        orientation: 'any',
+        start_url: '/dashboard?source=pwa',
+        scope: '/',
+        categories: ['business', 'productivity'],
         icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            src: 'favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any',
-          },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          // Padded into the safe zone, so Android's circle/squircle crop
+          // never cuts the mark.
+          { src: 'pwa-maskable-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        // Long-press the app icon. `/dashboard?to=…` resolves the user's own
+        // workspace, so one set of shortcuts works for every role.
+        shortcuts: [
+          { name: 'Copilot', url: '/dashboard?to=copilot', icons: [{ src: 'pwa-maskable-192x192.png', sizes: '192x192' }] },
+          { name: 'Candidates', url: '/dashboard?to=candidates', icons: [{ src: 'pwa-maskable-192x192.png', sizes: '192x192' }] },
+          { name: 'Pipeline', url: '/dashboard?to=pipeline', icons: [{ src: 'pwa-maskable-192x192.png', sizes: '192x192' }] },
+          { name: 'Schedule', url: '/dashboard?to=interviews', icons: [{ src: 'pwa-maskable-192x192.png', sizes: '192x192' }] },
         ],
       },
       devOptions: {

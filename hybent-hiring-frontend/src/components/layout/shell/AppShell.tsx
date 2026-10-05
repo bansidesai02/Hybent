@@ -10,6 +10,7 @@ import { ImpersonationBanner } from '@/components/common/ImpersonationBanner'
 import { HbSidebar } from './HbSidebar'
 import { HbTopbar } from './HbTopbar'
 import { HbBottomNav } from './HbBottomNav'
+import { InstallAppCard } from './InstallAppCard'
 import { activeNavLabel, getMobileTabs, getNavSections, type NavSection } from './navConfig'
 
 type TopbarMenuItem = { label: string; icon: ReactNode; path: string }
@@ -82,16 +83,24 @@ function useWorkspaceTheme() {
     if (!hasHydrated) return
 
     const root = document.documentElement
+    // The installed app's status bar takes this colour; match the top bar.
+    const themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    const lightColor = themeMeta?.content ?? '#FBFCFE'
     if (theme === 'dark') {
       root.dataset.theme = 'dark'
       root.classList.add('dark')
+      // --hb-surface is an "r g b" triple; read it after the theme switch.
+      const surface = getComputedStyle(root).getPropertyValue('--hb-surface').trim()
+      if (themeMeta && surface) themeMeta.content = `rgb(${surface.replace(/\s+/g, ',')})`
     } else {
       root.dataset.theme = 'classic'
       root.classList.remove('dark')
+      if (themeMeta) themeMeta.content = lightColor
     }
     return () => {
       root.dataset.theme = 'classic'
       root.classList.remove('dark')
+      if (themeMeta) themeMeta.content = lightColor
     }
   }, [theme, hasHydrated])
 }
@@ -238,6 +247,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
       </div>
 
       <HbBottomNav tabs={mobileTabs} onMore={() => setDrawerOpen((o) => !o)} moreOpen={drawerOpen} />
+      <InstallAppCard />
 
       {(config.chat || config.copilot) && (
         <Suspense fallback={null}>

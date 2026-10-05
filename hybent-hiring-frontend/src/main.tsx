@@ -6,6 +6,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 
 import App from './App'
 import './index.css'
+// Capture the browser's install prompt as early as possible (installed app).
+import './pwa/install'
 
 const googleClientId =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
