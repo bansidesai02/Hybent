@@ -21,6 +21,9 @@ interface ChatPanelProps {
   thread: ChatThread
 }
 
+/** Last-seen messages per thread, so reopening a chat paints instantly while it refreshes. */
+const threadCache = new Map<string, Message[]>()
+
 const errorDetail = (err: any, fallback: string) =>
   err?.response?.data?.detail || err?.response?.data?.message || fallback
 
@@ -31,6 +34,8 @@ export function ChatPanel({ open, onClose, thread }: ChatPanelProps) {
   const [group, setGroup] = useState<ChatGroupDetail | null>(null)
   const [membersOpen, setMembersOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Which thread `messages` currently belongs to — only then is it cacheable.
+  const loadedFor = useRef<string | null>(null)
 
   const isGroup = thread.kind === 'group'
   const threadId = isGroup ? thread.group.id : thread.recipient.id
@@ -51,10 +56,13 @@ export function ChatPanel({ open, onClose, thread }: ChatPanelProps) {
 
   useEffect(() => {
     if (!open || !threadId) return
-    setMessages([])
+    let alive = true
+    loadedFor.current = null
+    const cached = threadCache.get(threadId)
+    setMessages(cached ?? [])
     setGroup(null)
     setMembersOpen(false)
-    setLoading(true)
+    setLoading(!cached)
     const req =
       thread.kind === 'group'
         ? chatApi.getGroupMessages(thread.group.id).then((res) => {
@@ -63,16 +71,27 @@ export function ChatPanel({ open, onClose, thread }: ChatPanelProps) {
           })
         : messagesApi.getMessages(thread.recipient.id)
     req
-      .then((res) => setMessages(res.data))
-      .catch(() => toast.error('Failed to load messages'))
-      .finally(() => setLoading(false))
+      .then((res) => {
+        if (!alive) return
+        loadedFor.current = threadId
+        threadCache.set(threadId, res.data)
+        setMessages(res.data)
+      })
+      .catch(() => alive && toast.error('Failed to load messages'))
+      .finally(() => alive && setLoading(false))
     loadGroup()
+    return () => {
+      alive = false
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, threadId])
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-  }, [messages])
+    if (threadId && loadedFor.current === threadId) {
+      threadCache.set(threadId, messages.filter((m) => !m.id.startsWith('pending-')))
+    }
+  }, [messages, threadId])
 
   const appendUnique = (msg: Message) =>
     setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
