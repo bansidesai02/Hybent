@@ -22,7 +22,7 @@ export { Meter } from './Meter'
 export { ScoreRing } from './ScoreRing'
 export { Skeleton, SkeletonText, SkeletonStats, SkeletonTable } from './Skeleton'
 export { Badge, type BadgeTone, type BadgeProps } from './Badge'
-export { StatusPill, statusDef } from './StatusPill'
+export { StatusPill, StatusText, statusDef } from './StatusPill'
 export {
   Field,
   Label,

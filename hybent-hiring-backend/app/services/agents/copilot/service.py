@@ -117,11 +117,13 @@ async def stream_copilot_agent(
 ):
     from app.services.ai_credit_service import AICreditsService
     from app.services.ai import copilot_service as legacy
-    from app.services.ai.copilot_router import GENERAL_HELP_REPLY, is_greeting
+    from app.services.ai.copilot_router import GENERAL_HELP_REPLY, is_complaint, is_greeting
 
     await AICreditsService.check_credits_available(db, organization_id, "ai_copilot")
 
-    if resume is None:
+    complaint = resume is None and is_complaint(user_message)
+
+    if resume is None and not complaint:
         # Zero-cost fast paths: no agent run, no tool schemas sent.
         if is_greeting(user_message):
             conv_id = await legacy._save_conversation_to_db(
@@ -157,6 +159,7 @@ async def stream_copilot_agent(
         current_time=await _org_now(db, organization_id),
         team=await _team_list(db, organization_id),
         background_tasks=background_tasks,
+        complaint=complaint,
     )
     config = {"configurable": {"thread_id": f"copilot:{conv_id}"}}
     graph = get_graph()

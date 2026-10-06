@@ -120,6 +120,44 @@ export function statusDef(status: string | null | undefined): StatusDef {
   return STATUS[status.toLowerCase().trim()] ?? fallback(status)
 }
 
+const TONE_TEXT: Record<BadgeTone, string> = {
+  neutral: 'text-hb-muted',
+  success: 'text-hb-success',
+  warning: 'text-hb-warning',
+  error: 'text-hb-error',
+  info: 'text-hb-blue',
+  brand: 'text-hb-violet',
+}
+
+/**
+ * The same status as a dot and a sentence-case label, for narrow places like
+ * cards. Unlike the pill it wraps, so a long stage is always readable in full.
+ */
+export function StatusText({
+  status,
+  /** Overrides the mapped label. The tone stays mapped. */
+  label,
+  className,
+}: {
+  status: string | null | undefined
+  label?: string
+  className?: string
+}) {
+  const def = statusDef(status)
+  return (
+    <span
+      className={clsx(
+        'inline-flex min-w-0 items-start gap-2 text-hb-sm font-medium leading-snug',
+        TONE_TEXT[def.tone],
+        className
+      )}
+    >
+      <span aria-hidden className="mt-[0.4em] h-2 w-2 shrink-0 rounded-full bg-current" />
+      <span className="min-w-0 break-words">{label ?? def.label}</span>
+    </span>
+  )
+}
+
 export function StatusPill({
   status,
   /** Overrides the mapped label. The tone stays mapped. */
@@ -137,6 +175,7 @@ export function StatusPill({
     <Badge
       tone={def.tone}
       dot={live ? 'pulse' : true}
+      title={label ?? def.label}
       className={clsx(className)}
     >
       {label ?? def.label}

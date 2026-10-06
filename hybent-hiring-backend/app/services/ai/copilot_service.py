@@ -23,9 +23,12 @@ from app.services.ai.copilot_intelligence import (
     validate_job_role,
 )
 from app.services.ai.copilot_router import (
+    APOLOGY_RULES,
+    COMPLAINT_NOTE,
     CopilotIntent,
     RoutedIntent,
     GENERAL_HELP_REPLY,
+    is_complaint,
     is_greeting,
     classify_intent,
     resolve_context,
@@ -288,7 +291,10 @@ see the actual answer on the FIRST line, before any context or explanation.
 - If the job title requested is invalid or gibberish, decline politely and ask for a valid job title.
 - If the title is vague or incomplete, ask clarifying questions to get the specific domain or requirements.
 
-### 11. EVIDENCE-FIRST ANSWERS — NEVER FABRICATE
+### 11. WHEN THE RECRUITER IS UPSET
+""" + APOLOGY_RULES + """
+
+### 12. EVIDENCE-FIRST ANSWERS — NEVER FABRICATE
 - Every candidate/job-specific factual claim (experience, skills, education, certifications, salary, notice period, match score, status) must come from a tool result or retrieved data — never invent or guess.
 - If a tool result doesn't contain the answer, say so plainly (e.g. "I don't see that information in the available candidate data") instead of guessing.
 - Match scores and their breakdowns come from Hybent's existing scoring engine only — never estimate or restate a score you weren't given.
@@ -2935,7 +2941,7 @@ JD_FOLLOWUP_PROMPT = """You route a recruiter's chat message in a hiring assista
 Decide what the NEW message wants:
 - "edit": change a JD already written here. This is the default whenever the message talks about the role, its pay, experience, skills, location, tone, length, sections, or wording, even if it says "jd for ..." or "want a jd with ...". Corrections ("I meant ...", "no, ...", "not that, ...") are edits too: the recruiter is correcting a misunderstanding, so target the JD they were working on BEFORE the assistant misunderstood them.
 - "new": the recruiter clearly wants a JD for a DIFFERENT role or position than any JD here (e.g. "now create a jd for Data Analyst", "another jd for HR manager").
-- "other": the message is not about a JD (candidates, pipeline, interviews, analytics, a general question).
+- "other": the message is not about a JD (candidates, pipeline, interviews, analytics, a general question). Complaints or scolding with no concrete change ("I didn't ask for this", "why did you do that", "maine ye nahi bola") are "other" too: the recruiter needs an apology, not a rewritten JD.
 
 Return JSON only:
 {"action": "edit" | "new" | "other", "target": <JD number to edit, or null>, "instruction": "<for edit: the complete change in plain words, resolving references like 'I meant' or 'it' from the conversation; otherwise empty>"}"""
@@ -3161,8 +3167,12 @@ async def _stream_copilot_chat_impl(
         d.update(data)
         return json.dumps(d) + "\n\n"
 
+    # A scolding ("I didn't tell you to do that") goes straight to the model
+    # with an apology note — never to the JD writer or a canned data answer.
+    complaint = not approved_tool_call and is_complaint(user_message)
+
     # ── Job descriptions: write a new one, or edit the one in this chat ──
-    if not approved_tool_call:
+    if not approved_tool_call and not complaint:
         jd_kind, prev_jd, jd_change = await jd_turn(db, organization_id, user_id, conversation_id, user_message)
         if jd_kind:
             async for chunk in stream_jd_reply(
@@ -3230,7 +3240,9 @@ async def _stream_copilot_chat_impl(
     if page_context and page_context.get("job_id"):
         last_context = {**last_context, "job_id": page_context["job_id"]}
 
-    if not mid_write_tool_flow:
+    if complaint:
+        logger.info("Copilot router: skipped (recruiter complaint)")
+    elif not mid_write_tool_flow:
         router_start = time.time()
         routed = await classify_intent(user_message, last_context)
         resolved = await resolve_context(routed, last_context, db, organization_id)
@@ -3313,6 +3325,8 @@ async def _stream_copilot_chat_impl(
     )
 
     messages = [{"role": "system", "content": sys_prompt}]
+    if complaint:
+        messages.append({"role": "system", "content": COMPLAINT_NOTE})
 
     # Include last 10 messages for better multi-turn context
     for h in history[-10:]:
@@ -3506,7 +3520,7 @@ async def _stream_copilot_chat_impl(
         # Full detail goes to the logs, never to the recruiter — a raw
         # exception string (SQL, a provider's schema-validation error, a
         # stack trace fragment) is exactly the kind of internal/technical
-        # leak COPILOT_SYSTEM_PROMPT §2 and §11 rule out everywhere else;
+        # leak COPILOT_SYSTEM_PROMPT §2 and §12 rule out everywhere else;
         # this is the one path those prompt rules can't reach, since it
         # fires when the LLM call itself failed rather than replied badly.
         logger.error(f"Copilot stream error: {e}", exc_info=True)

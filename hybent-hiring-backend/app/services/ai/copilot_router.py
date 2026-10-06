@@ -106,6 +106,51 @@ def is_greeting(text_in: str) -> bool:
     return bool(_GREETING_RE.match(t) or _HELP_RE.match(t))
 
 
+# The recruiter is scolding the Copilot or saying it did something they never
+# asked for. Such a turn must open with an apology — and never be routed into
+# the JD writer or a canned data answer, which would "act" on the complaint.
+_COMPLAINT_RE = re.compile(
+    r"\b(?:i|we)\s+(?:did\s*n[o']?t|didnt|never|had\s*n[o']?t)\s+(?:ask|tell|told|say|said|want|request|mention)"
+    r"|\b(?:did|do)\s*n[o']?t\s+(?:ask|tell)\s+you\b"
+    r"|\bwho\s+(?:asked|told)\s+you\b"
+    r"|\bwhy\s+(?:did|would|have)\s+you\b"
+    r"|\bnot\s+what\s+i\s+(?:asked|said|wanted|meant)\b"
+    r"|\byou\s+(?:were\s*n[o']?t|werent)\s+(?:supposed|asked)\b"
+    r"|\bi\s+(?:said|told\s+you)\s+(?:not|no|don'?t|dont|never)\b"
+    r"|\bstop\s+doing\b"
+    r"|\b(?:stupid|useless|nonsense|rubbish|idiot|dumb|wtf|what\s+the\s+hell)\b"
+    # Hinglish
+    r"|\bmaine\s+(?:kab|kaha|kahan)\s+(?:bola|kaha|maanga|manga)"
+    r"|\bmaine\s+(?:ye|yeh|ya|aisa|aesa|esa|ise|isko)?\s*(?:to|toh)?\s*(?:nahi|nahin|nhi|ni)\s+(?:bola|kaha|maanga|manga|bataya)"
+    r"|\bkisne\s+(?:bola|kaha)"
+    r"|\b(?:tumne|tune|aapne)\s+(?:ye|yeh|aisa)?\s*(?:kyu|kyun|kyon)\b"
+    r"|\b(?:kyu|kyun|kyon)\s+(?:kiya|kia|kar\s*diya|kardiya)\b"
+    r"|\b(?:bakwas|bakwaas|bekar|bekaar|faltu|pagal)\b",
+    re.IGNORECASE,
+)
+
+
+def is_complaint(text_in: str) -> bool:
+    """The recruiter is upset with something the Copilot said or did."""
+    return bool(_COMPLAINT_RE.search(text_in or ""))
+
+
+# Shared by the legacy and agent system prompts.
+APOLOGY_RULES = """When the recruiter is upset with you — scolding, frustrated, or saying you did something they didn't ask for ("I didn't tell you to do that", "maine ye nahi bola", "why did you…"):
+- Your FIRST sentence is a short, sincere apology that names the specific mistake, e.g. "Sorry — you didn't ask me to move Priya, and I shouldn't have." This overrides "answer first".
+- Don't argue, justify yourself, or blame the recruiter. Apologise once, then move on — no grovelling.
+- Don't repeat the unwanted action or start a new one on your own. If something was actually changed, say plainly what and offer to undo it. Then ask, in one line, what they'd like instead.
+- Reply in their language (English or Hinglish) and stay calm and professional, even if they are rude."""
+
+# Added for the turn itself when `is_complaint` matches.
+COMPLAINT_NOTE = (
+    "The recruiter's latest message is a complaint about something you said or did. Start your reply with a "
+    "brief, sincere apology for that specific thing, following the rules for when the recruiter is upset. "
+    "Do not call tools or prepare any action unless the message also clearly asks for something concrete "
+    "(e.g. undo it, or do X instead)."
+)
+
+
 GENERAL_HELP_REPLY = (
     "Hi! I'm Hybent Recruiter Copilot. I can help you:\n\n"
     "- Search candidates by skill, role, location or experience\n"

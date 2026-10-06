@@ -39,7 +39,9 @@ import {
   Avatar,
   Button,
   Card,
+  CellStack,
   ConfirmDialog,
+  DataTable,
   ContextMenu,
   Dialog,
   Drawer,
@@ -49,10 +51,13 @@ import {
   Pagination,
   Select,
   Skeleton,
+  SkeletonTable,
   StatusPill,
+  StatusText,
   Toolbar,
   ToolbarSearch,
   ToolbarFilters,
+  type Column,
 } from '@/components/hb'
 
 /**
@@ -108,20 +113,24 @@ function dateParams(filter: string, custom: [string, string]) {
 }
 
 /**
- * Card grid: as many columns as fit at 16rem each, capped at five, so a card is
+ * Card grid: as many columns as fit at 16rem each, capped at four, so a card is
  * never squeezed narrow enough to clip its content (the sidebar eats into the
  * width a viewport breakpoint can't see).
  */
 const CARD_GRID =
-  'grid gap-hb-4 grid-cols-[repeat(auto-fill,minmax(max(min(100%,16rem),calc((100%_-_4_*_var(--hb-s-4))_/_5)),1fr))]'
+  'grid gap-hb-4 grid-cols-[repeat(auto-fill,minmax(max(min(100%,16rem),calc((100%_-_3_*_var(--hb-s-4))_/_4)),1fr))]'
 
-/** One labelled row inside a candidate card. Long values wrap, never clip. */
+/** One labelled row inside a candidate card. Text values clamp to two lines. */
 function Fact({ label, value }: { label: string; value: React.ReactNode }) {
+  const text = typeof value === 'string' ? value : undefined
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex min-w-0 items-center justify-between gap-3">
       <span className="shrink-0 text-hb-xs text-hb-muted">{label}</span>
-      <span className="min-w-0 text-right text-hb-sm font-medium text-hb-text [overflow-wrap:anywhere]">
-        {value}
+      <span
+        title={text}
+        className="flex min-w-0 justify-end text-right text-hb-sm font-medium text-hb-text"
+      >
+        {text !== undefined ? <span className="line-clamp-2 break-words">{text}</span> : value}
       </span>
     </div>
   )
@@ -567,6 +576,90 @@ export default function AllTalentListPage() {
     setPage(1)
   }
 
+  const stageCell = (c: any) =>
+    c.pipeline_stage ? (
+      <StatusPill status={c.pipeline_stage} />
+    ) : (
+      <span className="inline-flex items-center rounded-hb-full border border-dashed border-hb-border-strong px-2.5 py-1 font-mono text-hb-micro uppercase text-hb-dim">
+        {c.match_score != null ? 'New' : 'Unprocessed'}
+      </span>
+    )
+
+  /* Desktop table. Below lg the same rows render as cards. */
+  const columns: Array<Column<any>> = [
+    {
+      key: 'candidate',
+      header: 'Candidate',
+      cardTitle: true,
+      cell: (c) => (
+        <div className="max-w-[280px]">
+          <CellStack
+            leading={<Avatar name={c.full_name} src={c.avatar_url} size="md" />}
+            primary={<span title={c.full_name}>{c.full_name}</span>}
+            secondary={<span title={c.email}>{c.email}</span>}
+          />
+        </div>
+      ),
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      cell: (c) => {
+        const role = c.applied_job_title || c.current_title || '—'
+        return (
+          <div className="max-w-[240px]">
+            <p className="truncate font-medium text-hb-text" title={role}>{role}</p>
+            <p className="truncate text-hb-xs text-hb-muted">{formatExperience(c)}</p>
+          </div>
+        )
+      },
+    },
+    { key: 'stage', header: 'Stage', cell: stageCell },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (c) => <StatusPill status={statusFromStage(c.pipeline_stage)} />,
+    },
+    {
+      key: 'applied',
+      header: 'Applied',
+      cell: (c) => (
+        <span className="whitespace-nowrap text-hb-muted">{formatCandidateDate(c, 'dd MMM yyyy')}</span>
+      ),
+    },
+    {
+      key: 'added_by',
+      header: 'Added by',
+      cell: (c) => (
+        <div className="max-w-[180px]">
+          <p className="truncate text-hb-text">{c.created_by_name || 'Admin'}</p>
+          {c.hr_name && (
+            <p className="truncate text-hb-xs text-hb-muted" title={c.hr_name}>Recruiter: {c.hr_name}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Actions</span>,
+      align: 'right',
+      width: '56px',
+      cell: (c) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setActionsTarget(c)
+          }}
+          aria-label={`More actions for ${c.full_name}`}
+          className="grid h-8 w-8 place-items-center rounded-hb-full border border-hb-border bg-hb-surface-2/80 text-hb-muted transition-all duration-hb hover:border-hb-blue/40 hover:bg-hb-blue/10 hover:text-hb-blue focus-visible:outline-none focus-visible:shadow-hb-ring"
+        >
+          <MoreHorizontal size={15} aria-hidden />
+        </button>
+      ),
+    },
+  ]
+
   const guardBulk = (run: () => void) => () => {
     if (!bulkEnabled) {
       toast.error('Bulk import is disabled for your organisation. Contact your administrator.')
@@ -800,11 +893,16 @@ export default function AllTalentListPage() {
 
       {/* ── Cards ── */}
       {isLoading ? (
-        <div className={CARD_GRID}>
-          {Array.from({ length: 10 }, (_, i) => (
-            <Skeleton key={i} className="h-[300px] w-full" rounded="md" />
-          ))}
-        </div>
+        <>
+          <div className="hidden lg:block">
+            <SkeletonTable rows={8} columns={6} />
+          </div>
+          <div className={`${CARD_GRID} lg:hidden`}>
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-[300px] w-full" rounded="md" />
+            ))}
+          </div>
+        </>
       ) : !items.length ? (
         <Card padding="none">
           <EmptyState
@@ -827,19 +925,31 @@ export default function AllTalentListPage() {
           />
         </Card>
       ) : (
-        <ul className={CARD_GRID}>
+        <>
+        <div className="hidden lg:block">
+          <DataTable
+            caption="Talent database"
+            columns={columns}
+            rows={items}
+            rowKey={(c: any) => c.id}
+            onRowClick={(c: any) => setViewTarget(c)}
+          />
+        </div>
+
+        <ul className={`${CARD_GRID} lg:hidden`}>
           {items.map((candidate: any) => (
-            <li key={candidate.id}>
+            <li key={candidate.id} className="min-w-0">
               <Card
                 variant="interactive"
                 as="article"
-                className="group relative flex h-full flex-col overflow-hidden border border-hb-border/80 bg-hb-surface transition-all duration-300 hover:border-hb-blue/40 hover:shadow-md hover:shadow-hb-blue/5 hover:-translate-y-0.5"
+                padding="none"
+                className="group relative flex h-full min-w-0 flex-col overflow-hidden border border-hb-border/80 bg-hb-surface transition-all duration-300 hover:border-hb-blue/40 hover:shadow-md hover:shadow-hb-blue/5 hover:-translate-y-0.5"
               >
                 {/* Top accent bar */}
-                <div className="h-1 w-full bg-gradient-to-r from-hb-blue via-indigo-500 to-violet-500 opacity-80 group-hover:opacity-100 transition-opacity" />
+                <div className="h-1 w-full shrink-0 bg-gradient-to-r from-hb-blue via-indigo-500 to-violet-500 opacity-80 group-hover:opacity-100 transition-opacity" />
 
-                <div className="p-4 flex h-full flex-col justify-between space-y-4">
-                  <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-4 p-4">
+                  <div className="flex min-w-0 items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar
                         name={candidate.full_name}
@@ -849,12 +959,12 @@ export default function AllTalentListPage() {
                       />
                       <div className="min-w-0">
                         <p
-                          className="text-hb-body font-bold text-hb-text [overflow-wrap:anywhere] group-hover:text-hb-blue transition-colors"
+                          className="truncate text-hb-body font-bold text-hb-text group-hover:text-hb-blue transition-colors"
                           title={candidate.full_name}
                         >
                           {candidate.full_name}
                         </p>
-                        <p className="text-hb-xs text-hb-muted [overflow-wrap:anywhere]">
+                        <p className="truncate text-hb-xs text-hb-muted" title={candidate.email}>
                           {candidate.email}
                         </p>
                       </div>
@@ -870,25 +980,32 @@ export default function AllTalentListPage() {
                     </button>
                   </div>
 
-                  <div className="space-y-2.5 rounded-hb bg-hb-surface-2/40 p-3 border border-hb-border/40">
+                  <div className="min-w-0 space-y-2.5 rounded-hb border border-hb-border/40 bg-hb-surface-2/40 p-3">
                     <Fact label="Role" value={candidate.applied_job_title || candidate.current_title || '—'} />
                     <Fact label="Experience" value={formatExperience(candidate)} />
                     <Fact label="Applied" value={formatCandidateDate(candidate, 'dd MMM yyyy')} />
                     <Fact
                       label="Stage"
                       value={
-                        candidate.pipeline_stage ? (
-                          <StatusPill status={candidate.pipeline_stage} />
-                        ) : (
-                          <span className="inline-flex items-center rounded-hb-full border border-dashed border-hb-border-strong px-2.5 py-0.5 font-mono text-hb-micro uppercase text-hb-dim">
-                            {candidate.match_score != null ? 'New' : 'Unprocessed'}
-                          </span>
-                        )
+                        <StatusText
+                          status={candidate.pipeline_stage}
+                          label={
+                            candidate.pipeline_stage
+                              ? undefined
+                              : candidate.match_score != null ? 'New' : 'Unprocessed'
+                          }
+                          className="text-right"
+                        />
                       }
                     />
                     <Fact
                       label="Status"
-                      value={<StatusPill status={statusFromStage(candidate.pipeline_stage)} />}
+                      value={
+                        <StatusText
+                          status={statusFromStage(candidate.pipeline_stage)}
+                          className="text-right"
+                        />
+                      }
                     />
                     <Fact label="Added by" value={candidate.created_by_name || 'Admin'} />
                     {candidate.hr_name && <Fact label="Recruiter" value={candidate.hr_name} />}
@@ -899,7 +1016,7 @@ export default function AllTalentListPage() {
                     size="sm"
                     variant="primary"
                     onClick={() => setViewTarget(candidate)}
-                    className="shadow-sm shadow-hb-blue/20"
+                    className="mt-auto shadow-sm shadow-hb-blue/20"
                   >
                     View full profile
                   </Button>
@@ -908,6 +1025,7 @@ export default function AllTalentListPage() {
             </li>
           ))}
         </ul>
+        </>
       )}
 
       {data && (
