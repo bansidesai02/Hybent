@@ -5,7 +5,7 @@ from app.routers import (
     resumes, ai, applications, pipeline,
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
-    activities, reports, messages, search, public, copilot, bulk_import, linkedin, designations, api_compat, screening,
+    activities, reports, messages, chat, search, public, copilot, bulk_import, linkedin, designations, api_compat, screening,
     super_admin, candidate_files, pre_screening, email_accounts, inbox, billing, payments
 )
 
@@ -35,6 +35,7 @@ api_router.include_router(invitations.router)
 api_router.include_router(activities.router)
 api_router.include_router(reports.router)
 api_router.include_router(messages.router)
+api_router.include_router(chat.router)
 api_router.include_router(search.router)
 api_router.include_router(copilot.router)
 api_router.include_router(screening.router)

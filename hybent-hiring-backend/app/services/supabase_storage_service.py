@@ -297,3 +297,95 @@ async def delete_candidate_files(organization_id: str, candidate_id: str) -> Non
 
     candidate_prefix = f"{organization_id}/{candidate_id}"
     await _delete_bucket_prefix(RESUME_BUCKET, candidate_prefix)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Chat Attachment Operations
+# ─────────────────────────────────────────────────────────────────────────────
+
+CHAT_ATTACHMENT_BUCKET = "chat-attachments"
+
+
+def build_chat_attachment_path(organization_id: str, filename: str) -> str:
+    """Format: {organization_id}/{uuid}/{sanitized_filename}"""
+    safe_name = "".join(
+        c if c.isalnum() or c in "._-" else "_" for c in Path(filename).name
+    )[:150] or "file"
+    return f"{organization_id}/{uuid.uuid4().hex}/{safe_name}"
+
+
+async def upload_chat_attachment(file_content: bytes, storage_path: str, content_type: str) -> None:
+    """Upload a chat file to the private chat-attachments bucket."""
+    import asyncio
+
+    client = _get_supabase_client()
+    loop = asyncio.get_event_loop()
+
+    def _upload():
+        try:
+            client.storage.get_bucket(CHAT_ATTACHMENT_BUCKET)
+        except Exception:
+            try:
+                client.storage.create_bucket(CHAT_ATTACHMENT_BUCKET, options={"public": False})
+            except Exception:
+                pass
+        return client.storage.from_(CHAT_ATTACHMENT_BUCKET).upload(
+            path=storage_path,
+            file=file_content,
+            file_options={"content-type": content_type},
+        )
+
+    try:
+        await loop.run_in_executor(None, _upload)
+    except Exception as exc:
+        logger.error("Chat attachment upload failed | path=%s | error=%s", storage_path, exc)
+        raise HTTPException(status_code=500, detail="Failed to upload file. Please try again.")
+
+
+async def get_signed_chat_attachment_url(storage_path: str, download_name: str | None = None,
+                                         expiry_seconds: int = 300) -> str:
+    """Short-lived signed URL for a chat attachment. Never stored."""
+    import asyncio
+
+    client = _get_supabase_client()
+    loop = asyncio.get_event_loop()
+
+    def _sign():
+        options = {"download": download_name} if download_name else None
+        if options:
+            return client.storage.from_(CHAT_ATTACHMENT_BUCKET).create_signed_url(
+                path=storage_path, expires_in=expiry_seconds, options=options,
+            )
+        return client.storage.from_(CHAT_ATTACHMENT_BUCKET).create_signed_url(
+            path=storage_path, expires_in=expiry_seconds,
+        )
+
+    try:
+        response = await loop.run_in_executor(None, _sign)
+    except Exception as exc:
+        logger.error("Chat attachment signing failed | path=%s | error=%s", storage_path, exc)
+        raise HTTPException(status_code=500, detail="Could not open this file.")
+
+    signed_url = None
+    if isinstance(response, dict):
+        signed_url = response.get("signedURL") or response.get("signedUrl")
+    elif hasattr(response, "signed_url"):
+        signed_url = response.signed_url
+    if not signed_url:
+        raise HTTPException(status_code=404, detail="File not found.")
+    return signed_url
+
+
+async def delete_chat_attachments(storage_paths: list[str]) -> None:
+    if not storage_paths:
+        return
+    import asyncio
+
+    client = _get_supabase_client()
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(
+            None, lambda: client.storage.from_(CHAT_ATTACHMENT_BUCKET).remove(storage_paths)
+        )
+    except Exception as exc:
+        logger.warning("Chat attachment delete failed | count=%d | error=%s", len(storage_paths), exc)

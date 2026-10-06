@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useActivityStore } from '@/store/activityStore'
 import { useMessageStore } from '@/store/messageStore'
+import { chatApi } from '@/api/messages'
 import toast from 'react-hot-toast'
 import { ActivityToast } from '@/components/notifications/ActivityToast'
 
@@ -177,7 +178,7 @@ export function useWebSocket() {
                     }}
                   >
                     <span className="font-bold">New message from {msg.data.sender_name}</span>
-                    <span className="text-xs truncate max-w-[200px]">{msg.data.content}</span>
+                    <span className="text-xs truncate max-w-[200px]">{msg.data.preview ?? msg.data.content}</span>
                   </div>
                 ),
                 {
@@ -188,6 +189,52 @@ export function useWebSocket() {
               )
 
             }
+          }
+
+          if (msg.event === 'group_message' && msg.data) {
+            const store = useMessageStore.getState()
+            if (store.groups.some((g) => g.id === msg.data.group_id)) {
+              store.applyGroupMessage(msg.data)
+            } else {
+              // A group we haven't loaded yet (e.g. just added to it)
+              chatApi.listGroups().then((res) => store.setGroups(res.data)).catch(() => {})
+            }
+            window.dispatchEvent(new CustomEvent('ws:group_message', { detail: msg.data }))
+
+            const { user: currentUser } = useAuthStore.getState()
+            if (msg.data.sender_id !== currentUser?.id && store.activeGroup?.id !== msg.data.group_id) {
+              toast.success(
+                (t) => (
+                  <div
+                    className="flex cursor-pointer flex-col"
+                    onClick={() => {
+                      toast.dismiss(t.id)
+                      useMessageStore.getState().openGroup({ id: msg.data.group_id, name: msg.data.group_name })
+                    }}
+                  >
+                    <span className="font-bold">{msg.data.group_name}</span>
+                    <span className="max-w-[200px] truncate text-xs">
+                      {msg.data.sender_name}: {msg.data.preview}
+                    </span>
+                  </div>
+                ),
+                { id: `group-msg-${msg.data.id}`, icon: '👥', duration: 5000 },
+              )
+            }
+          }
+
+          if (msg.event === 'group_updated' && msg.data) {
+            // Membership or details changed: refresh the list (also drops groups we were removed from)
+            chatApi
+              .listGroups()
+              .then((res) => {
+                const store = useMessageStore.getState()
+                const ids = new Set(res.data.map((g) => g.id))
+                store.groups.filter((g) => !ids.has(g.id)).forEach((g) => store.removeGroup(g.id))
+                store.setGroups(res.data)
+              })
+              .catch(() => {})
+            window.dispatchEvent(new CustomEvent('ws:group_updated', { detail: msg.data }))
           }
 
           if (msg.event === 'messages_read' && msg.data) {

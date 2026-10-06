@@ -61,8 +61,10 @@ export default defineConfig({
           { name: 'Schedule', url: '/dashboard?to=interviews', icons: [{ src: 'pwa-maskable-192x192.png', sizes: '192x192' }] },
         ],
       },
+      // Off in dev: a service worker on the dev server only adds load and
+      // can serve stale modules. Test PWA behaviour with `vite preview`.
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module',
       },
     }),
@@ -87,6 +89,18 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Pre-transform the workspace shell and route trees on server start, so
+    // the first visit to /hiring/* doesn't wait on hundreds of on-demand
+    // module compiles.
+    warmup: {
+      clientFiles: [
+        './src/App.tsx',
+        './src/app/AppRoutes.tsx',
+        './src/routes/*.tsx',
+        './src/components/layout/shell/*.tsx',
+        './src/modules/recruiter/pages/OverviewPage.tsx',
+      ],
+    },
     // Allow tunnelled hosts (cloudflared / ngrok) to reach the dev server
     allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.io'],
     // Proxy API calls to backend during development — this is the frontend↔backend connection.
