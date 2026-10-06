@@ -2,15 +2,13 @@ import { useMessageStore } from '@/store/messageStore'
 import { ChatPanel } from './ChatPanel'
 
 export function GlobalChatOverlay() {
-  const { activeChatRecipient, closeChat } = useMessageStore()
+  const { activeChatRecipient, activeGroup, closeChat } = useMessageStore()
 
-  if (!activeChatRecipient) return null
-
-  return (
-    <ChatPanel
-      open={!!activeChatRecipient}
-      onClose={closeChat}
-      recipient={activeChatRecipient}
-    />
-  )
+  if (activeGroup) {
+    return <ChatPanel open onClose={closeChat} thread={{ kind: 'group', group: activeGroup }} />
+  }
+  if (activeChatRecipient) {
+    return <ChatPanel open onClose={closeChat} thread={{ kind: 'dm', recipient: activeChatRecipient }} />
+  }
+  return null
 }

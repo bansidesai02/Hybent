@@ -14,7 +14,8 @@ from app.models.password_reset import PasswordResetToken
 from app.models.other_offer import OtherOffer
 from app.models.job_referral import JobReferral
 from app.models.candidate_document import CandidateDocument
-from app.models.message import Message
+from app.models.message import Message, MessageAttachment
+from app.models.chat_group import ChatGroup, ChatGroupMember
 from app.models.email_account import EmailAccount
 from app.models.email_message import EmailMessage
 from app.models.ai_usage import AIUsage
@@ -39,7 +40,7 @@ __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
     "Application", "Interview", "InterviewPanelist", "Scorecard",
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
-    "OtherOffer", "JobReferral", "CandidateDocument", "Message", "EmailAccount", "EmailMessage",
+    "OtherOffer", "JobReferral", "CandidateDocument", "Message", "MessageAttachment", "ChatGroup", "ChatGroupMember", "EmailAccount", "EmailMessage",
     "AIUsage", "OrganizationAICredits", "UserAICredits", "AICreditRule", "CopilotConversation", "CopilotMessage",
     "CandidateResumeChunk", "ImportBatch",
     "UserPreference", "DesignationChangeLog",

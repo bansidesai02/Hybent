@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select, or_, and_, func, desc
+from sqlalchemy.orm import selectinload
 
 from app.dependencies import DB, CurrentUser
 from app.models.message import Message
@@ -11,6 +12,7 @@ from app.schemas.response import APIResponse
 from app.websocket.manager import ws_manager
 from app.utils.permissions import NotificationType
 from app.tasks.notifications import send_system_notification
+from app.routers.chat import attachments_payload, link_attachments, load_message, message_preview
 
 router = APIRouter(prefix="/v1/messages", tags=["messages"])
 
@@ -39,8 +41,11 @@ async def send_message(
         content=payload.content.strip(),
     )
     db.add(new_message)
+    await db.flush()
+    await link_attachments(db, payload.attachment_ids, current_user, new_message)
     await db.commit()
-    await db.refresh(new_message)
+    new_message = await load_message(db, new_message.id)
+    preview = message_preview(new_message)
 
     # 3. Notify receiver via WebSocket (Direct Message)
     message_data = {
@@ -52,6 +57,8 @@ async def send_message(
         "receiver_name": receiver.full_name,
         "receiver_avatar": receiver.avatar_url,
         "content": new_message.content,
+        "attachments": attachments_payload(new_message),
+        "preview": preview,
         "created_at": new_message.created_at.isoformat(),
     }
     await ws_manager.send_to_user(str(payload.receiver_id), "new_message", message_data)
@@ -72,7 +79,7 @@ async def send_message(
         str(current_user.organization_id),
         NotificationType.MESSAGE_RECEIVED,
         "New Message Received 💬",
-        f"You have a new message from {current_user.full_name}: \"{new_message.content[:50]}...\"",
+        f"You have a new message from {current_user.full_name}: \"{preview[:50]}...\"",
         {
             "sender_id": str(current_user.id),
             "sender_name": current_user.full_name,
@@ -102,7 +109,8 @@ async def list_conversations(
     
     # Subquery to find all unique "other" users
     stmt = select(Message.sender_id, Message.receiver_id).where(
-        or_(Message.sender_id == current_user.id, Message.receiver_id == current_user.id)
+        or_(Message.sender_id == current_user.id, Message.receiver_id == current_user.id),
+        Message.receiver_id.isnot(None),  # group messages are listed by /v1/chat/groups
     )
     result = await db.execute(stmt)
     rows = result.all()
@@ -119,6 +127,7 @@ async def list_conversations(
         # Get last message
         last_msg_stmt = (
             select(Message)
+            .options(selectinload(Message.attachments))
             .where(
                 or_(
                     and_(Message.sender_id == current_user.id, Message.receiver_id == other_id),
@@ -150,7 +159,7 @@ async def list_conversations(
                 other_user_id=other_id,
                 other_user_full_name=user.full_name,
                 other_user_avatar_url=user.avatar_url,
-                last_message=last_msg.content,
+                last_message=message_preview(last_msg),
                 last_message_at=last_msg.created_at,
                 unread_count=unread_count
             ))
@@ -172,6 +181,7 @@ async def get_messages(
     # 1. Fetch messages
     stmt = (
         select(Message)
+        .options(selectinload(Message.attachments))
         .where(
             or_(
                 and_(Message.sender_id == current_user.id, Message.receiver_id == other_user_id),
