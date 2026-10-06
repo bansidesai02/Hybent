@@ -12,7 +12,7 @@ celery_app = Celery(
     "hybent_hiring_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening"]
+    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening", "app.tasks.chat_retention"]
 )
 
 celery_app.conf.update(
@@ -57,5 +57,11 @@ celery_app.conf.beat_schedule = {
     "process-email-ingestion": {
         "task": "app.tasks.email_ingestion.process_email_ingestion",
         "schedule": crontab(minute="*/5"),
+    },
+    # Chat history is kept for a fixed window; older messages and their
+    # files are removed nightly.
+    "purge-old-chat": {
+        "task": "app.tasks.chat_retention.purge_old_chat",
+        "schedule": crontab(minute=30, hour=2),
     },
 }

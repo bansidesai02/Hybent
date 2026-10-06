@@ -20,11 +20,27 @@ export default function HybentResetPasswordRoute() {
     try {
       await authApi.resetPassword(token, password)
     } catch (err: any) {
+      const data = err?.response?.data
+      // 422s carry the real reason (e.g. a password rule) in details.errors.
+      const fieldError = data?.details?.errors?.[0]
+      throw new Error(
+        fieldError?.ctx?.error ||
+          data?.detail ||
+          data?.message ||
+          err?.message ||
+          'We could not reset your password. The link may have expired.'
+      )
+    }
+  }
+
+  const handleRequestLink = async (email: string) => {
+    try {
+      await authApi.forgotPassword(email)
+    } catch (err: any) {
       throw new Error(
         err?.response?.data?.message ||
           err?.response?.data?.detail ||
-          err?.message ||
-          'We could not reset your password. The link may have expired.'
+          'We could not send the reset link. Please try again.'
       )
     }
   }
@@ -33,8 +49,9 @@ export default function HybentResetPasswordRoute() {
     <HybentResetPasswordPortal
       token={token}
       onSubmit={handleSubmit}
+      onRequestLink={handleRequestLink}
       onSignIn={() => navigate(AUTH.login)}
-      onRequestNewLink={() => navigate(AUTH.login)}
+      onRequestNewLink={() => navigate(AUTH.resetPassword)}
     />
   )
 }

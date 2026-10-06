@@ -151,6 +151,9 @@ services:
     working_dir: /app
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      # Default polling is every 100ms, which keeps the dev server busy
+      # rescanning the bind mount and slows every request it proxies.
+      CHOKIDAR_INTERVAL: "1000"
       WATCHPACK_POLLING: "true"
       VITE_API_BASE_URL: ""
       # vite.config.ts's dev proxy defaults to localhost:8000, which inside this

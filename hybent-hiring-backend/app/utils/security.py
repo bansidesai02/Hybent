@@ -21,7 +21,10 @@ def hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt(12)).decode("utf-8")
 
 
-def verify_password(plain: str, hashed: str) -> bool:
+def verify_password(plain: str, hashed: str | None) -> bool:
+    # Google sign-up accounts have no password at all.
+    if not hashed:
+        return False
     try:
         # Standard bcrypt checkpw (extremely fast C implementation)
         return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
