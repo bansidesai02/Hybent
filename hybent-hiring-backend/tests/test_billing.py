@@ -150,10 +150,9 @@ async def test_seats_block_members_beyond_plan(client, admin_user, recruiter_use
     assert res.status_code == 402
     assert "No recruiter seat available" in res.json()["message"]
     assert "$10/month" in res.json()["message"]
+    # Admin seats aren't enforced: another admin can always be added.
     res = await client.post("/v1/users/invite", headers=admin_headers, json=_invite("admin"))
-    assert res.status_code == 402
-    assert "No admin seat available" in res.json()["message"]
-    assert "$15/month" in res.json()["message"]
+    assert res.status_code == 200
     # Interviewers never need a seat.
     res = await client.post("/v1/users/invite", headers=admin_headers, json=_invite("interviewer"))
     assert res.status_code == 200
@@ -163,11 +162,8 @@ async def test_extra_seats_are_per_role(client, db_session, admin_user, recruite
     subscription.extra_admin_seats = 1
     await db_session.commit()
 
-    # An extra admin seat takes an admin...
-    assert (await client.post("/v1/users/invite", headers=admin_headers, json=_invite("admin"))).status_code == 200
-    # ...but not a recruiter, and only one.
+    # An extra admin seat doesn't take a recruiter.
     assert (await client.post("/v1/users/invite", headers=admin_headers, json=_invite("recruiter"))).status_code == 402
-    assert (await client.post("/v1/users/invite", headers=admin_headers, json=_invite("admin"))).status_code == 402
 
     subscription.extra_recruiter_seats = 1
     await db_session.commit()
@@ -178,12 +174,12 @@ async def test_role_change_needs_a_seat(client, db_session, admin_user, recruite
     res = await client.post("/v1/users/invite", headers=admin_headers, json=_invite("interviewer"))
     interviewer_id = res.json()["data"]["id"]
 
-    blocked = await client.put(f"/v1/users/{interviewer_id}", headers=admin_headers, json={"role": "admin"})
+    # Recruiter seats are full, so an interviewer can't become a recruiter...
+    blocked = await client.put(f"/v1/users/{interviewer_id}", headers=admin_headers, json={"role": "recruiter"})
     assert blocked.status_code == 402
-
-    # Swapping a recruiter to admin is seat-neutral only if an admin seat is free — it isn't.
-    swap = await client.put(f"/v1/users/{recruiter_user.id}", headers=admin_headers, json={"role": "admin"})
-    assert swap.status_code == 402
+    # ...but anyone can become an admin, since admin seats aren't enforced.
+    promoted = await client.put(f"/v1/users/{interviewer_id}", headers=admin_headers, json={"role": "admin"})
+    assert promoted.status_code == 200
     # Renaming someone doesn't touch seats.
     assert (await client.put(f"/v1/users/{recruiter_user.id}", headers=admin_headers, json={"full_name": "Renamed"})).status_code == 200
 

@@ -139,12 +139,13 @@ async def ensure_seat_available(
 ) -> None:
     """Raise if giving someone `role` (a new member, or an existing one moving
     from `previous_role`) would need more seats than the organization has.
-    Organizations without a plan aren't limited."""
+    Organizations without a plan aren't limited. Admin seats aren't enforced
+    for now, so an organization can always add another admin."""
     from fastapi import HTTPException
 
     role = getattr(role, "value", role)
     previous_role = getattr(previous_role, "value", previous_role)
-    if role not in SEAT_ROLES or role == previous_role:
+    if role not in SEAT_ROLES or role == previous_role or role == "admin":
         return
     sub = (await db.execute(
         select(CompanySubscription).where(CompanySubscription.organization_id == organization_id)
