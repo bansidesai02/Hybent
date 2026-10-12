@@ -31,14 +31,19 @@ PREV_TAG="$(grep '^BACKEND_IMAGE_TAG=' .env | cut -d= -f2- || true)"
 
 echo "==> Deploying $NEW_TAG (previous: ${PREV_TAG:-none})"
 set_tag "$NEW_TAG"
+# Frees disk before pulling, so a full disk can't fail the pull. Images used by
+# running containers (the current tag, which rollback needs) are kept.
+docker image prune -af --filter "until=24h" >/dev/null || true
+docker builder prune -af >/dev/null || true
+echo "==> Disk free: $(df -h / | awk 'NR==2 {print $4}')"
 $COMPOSE pull backend worker
 $COMPOSE up -d --remove-orphans
 
 if wait_healthy; then
   echo "==> $NEW_TAG is healthy"
   $COMPOSE ps
-  # Keeps the last week of images so a rollback doesn't need a re-pull.
-  docker image prune -af --filter "until=168h" >/dev/null || true
+  # Keeps the last day of images so a recent rollback doesn't need a re-pull.
+  docker image prune -af --filter "until=24h" >/dev/null || true
   exit 0
 fi
 
