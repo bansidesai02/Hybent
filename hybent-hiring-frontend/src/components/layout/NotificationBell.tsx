@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Target,
   Trophy,
+  UserPlus,
 } from 'lucide-react'
 
 import { useNotifications } from '@/hooks/useNotifications'
@@ -45,6 +46,7 @@ function notifIcon(type: NotificationType): ReactNode {
     case 'stage_changed': return <RefreshCw size={15} />
     case 'message_received': return <MessageCircle size={15} />
     case 'application_received': return <FileText size={15} />
+    case 'candidate_joined': return <UserPlus size={15} />
     case 'feedback_reminder': return <CheckCircle size={15} />
     default: return <Bell size={15} />
   }

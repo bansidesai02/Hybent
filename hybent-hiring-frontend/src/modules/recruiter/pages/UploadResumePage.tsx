@@ -18,7 +18,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { jobsApi } from '@/api/jobs'
 import { candidatesApi } from '@/api/candidates'
-import type { Candidate, Job } from '@/types'
+import type { ApplicationStage, Candidate, Job } from '@/types'
 import { useResumeUploadStore, type ScoringResult } from '@/store/resumeUploadStore'
 import {
   Badge,
@@ -439,22 +439,28 @@ function AnalysisActions({
   threshold: number
   currentStage?: string
   scoring?: ScoringResult
-  onActed: () => void
+  /** Called with the candidate's stage after an action changed it. */
+  onActed: (stage: ApplicationStage) => void
 }) {
   const { basePath } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState<string | null>(null)
+  const [kept, setKept] = useState(false)
 
-  const setStage = async (stage: string) => {
-    setBusy(stage)
+  const refreshLists = () => {
+    queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
+    queryClient.invalidateQueries({ queryKey: ['candidates'] })
+  }
+
+  const addToPipeline = async () => {
+    setBusy('applied')
     try {
-      await candidatesApi.updateStage(candidateId, stage, false, jobId)
-      toast.success(stage === 'applied' ? 'Added to the pipeline' : 'Kept in the talent database')
-      queryClient.invalidateQueries({ queryKey: ['candidates_pipeline'] })
-      queryClient.invalidateQueries({ queryKey: ['candidates'] })
-      onActed()
-      if (stage === 'applied') navigate(`${basePath}/pipeline`)
+      await candidatesApi.updateStage(candidateId, 'applied', false, jobId)
+      toast.success('Added to the pipeline')
+      refreshLists()
+      onActed('applied')
+      navigate(`${basePath}/pipeline`)
     } catch {
       toast.error('Failed to update the candidate')
     } finally {
@@ -465,14 +471,24 @@ function AnalysisActions({
   const reject = async () => {
     setBusy('reject')
     try {
-      await candidatesApi.reject(candidateId)
-      toast.success('Profile rejected â€” the rejection email has been sent')
-      onActed()
-    } catch {
-      toast.error('Failed to reject the profile')
+      const { data } = await candidatesApi.reject(candidateId)
+      toast.success('Profile rejected')
+      refreshLists()
+      onActed(data?.pipeline_stage || 'rejected')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to reject the profile')
     } finally {
       setBusy(null)
     }
+  }
+
+  /* The upload already filed the candidate in the talent database for
+     review. This used to send stage "screening", which the API now reads as
+     the Screening bucket and moved them into Pre-screening — so it only
+     acknowledges the decision. */
+  const keepInTalentDb = () => {
+    setKept(true)
+    toast.success('Kept in the talent database')
   }
 
   const passes = (scoring?.final_score ?? 0) >= threshold
@@ -537,7 +553,8 @@ function AnalysisActions({
               <Button
                 icon={<Plus size={15} />}
                 loading={busy === 'applied'}
-                onClick={() => setStage('applied')}
+                disabled={currentStage === 'applied'}
+                onClick={addToPipeline}
               >
                 Add to pipeline
               </Button>
@@ -563,17 +580,17 @@ function AnalysisActions({
               variant="danger"
               icon={<X size={15} />}
               loading={busy === 'reject'}
-              disabled={alreadyRejected}
+              disabled={alreadyRejected || kept || busy !== null}
               onClick={reject}
             >
-              {alreadyRejected ? 'Rejection sent' : 'Reject'}
+              {alreadyRejected ? 'Rejected' : 'Reject'}
             </Button>
             <Button
               variant="ghost"
-              loading={busy === 'screening'}
-              onClick={() => setStage('screening')}
+              disabled={alreadyRejected || kept || busy !== null}
+              onClick={keepInTalentDb}
             >
-              Keep in talent DB
+              {kept ? 'Kept in talent DB' : 'Keep in talent DB'}
             </Button>
           </>
         )}
@@ -985,8 +1002,8 @@ function UploadResume() {
                     threshold={parseFloat(jobReq.match_threshold) || 70}
                     currentStage={result.pipeline_stage || undefined}
                     scoring={scoring ?? undefined}
-                    onActed={() =>
-                      setResult((prev) => (prev ? { ...prev, pipeline_stage: 'applied' } : null))
+                    onActed={(stage) =>
+                      setResult((prev) => (prev ? { ...prev, pipeline_stage: stage } : null))
                     }
                   />
                 </div>

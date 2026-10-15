@@ -69,6 +69,8 @@ def extract_core_category(title: str) -> str:
     title_lower = title.lower()
     core_cat = title.title()
     for tech in ['python', 'react', 'node', 'angular', 'java', 'php', 'flutter', 'mern', 'mean', 'android', 'ios', 'golang', 'ruby', 'c++', 'c#', '.net']:
+        if tech == 'java' and 'java' not in title_lower.replace('javascript', ''):
+            continue
         if tech in title_lower:
             core_cat = tech.title()
             if tech == 'node': core_cat = 'Node.js'
@@ -85,6 +87,34 @@ def extract_core_category(title: str) -> str:
         if core_words:
             core_cat = " ".join(core_words).title()
     return core_cat
+
+
+def _known_category(name: str) -> str | None:
+    """The TECH_SKILL_MAP category `name` refers to, by name or alias."""
+    n = (name or "").strip().lower()
+    for category, _, aliases in TECH_SKILL_MAP:
+        if n == category.lower() or n in (a.lower() for a in aliases):
+            return category
+    return None
+
+
+def is_role_mismatch(candidate_category: str | None, target_category: str | None, candidate_skills: list[str]) -> bool:
+    """Whether a resume is plainly for a different technology than the job —
+    a Python resume for a .Net role. Only a conflict between two categories
+    this module knows is a mismatch. Free-text titles ("Full-Stack", "Data
+    Scientist", "QA") used to count too, and since a resume rarely lists the
+    job title as a skill, valid resumes for them were rejected outright; the
+    match score is the judge of fit there."""
+    if not candidate_category or not target_category:
+        return False
+    target = _known_category(target_category)
+    if not target or not _known_category(candidate_category):
+        return False
+    c1, c2 = candidate_category.lower(), target.lower()
+    if c1 in c2 or c2 in c1:
+        return False
+    skills_text = " ".join(candidate_skills or []).lower()
+    return not any(kw in skills_text for kw in get_tech_keywords(target))
 
 
 def get_missing_skills_hint(candidate_skills: list[str], target_category: str) -> list[str]:
@@ -110,6 +140,9 @@ def extract_all_categories(title: str) -> list[str]:
     
     # We loop through tech categories to find all matching ones
     for tech in ['python', 'react', 'node', 'angular', 'java', 'php', 'flutter', 'mern', 'mean', 'android', 'ios', 'golang', 'ruby', 'c++', 'c#', '.net']:
+        # "JavaScript Developer" is not a Java role.
+        if tech == 'java' and 'java' not in title_lower.replace('javascript', ''):
+            continue
         if tech in title_lower:
             core_cat = tech.title()
             if tech == 'node': core_cat = 'Node.js'

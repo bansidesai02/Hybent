@@ -220,7 +220,11 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
         return
       }
 
-      const detail = resp?.data?.detail
+      /* The API's error envelope puts a structured detail's fields under
+         `details` (the 409 above reads it there too); checking only `detail`
+         meant a role mismatch always fell through to the generic error and
+         showed "Unknown" for both roles. */
+      const detail = resp?.data?.details ?? resp?.data?.detail
       if (resp?.status === 400 && detail?.type === 'role_mismatch') {
         finish({
           rejection: {
@@ -229,7 +233,7 @@ export const useResumeUploadStore = create<ResumeUploadState>((set, get) => ({
             missing_skills: detail.missing_skills || [],
             suggested_roles: detail.suggested_roles || [],
           },
-          error: detail.message || 'Role mismatch detected.',
+          error: resp.data?.message || detail.message || 'Role mismatch detected.',
           stage: 'rejected',
         })
         notifyAway(() => toast.error('Resume upload rejected — role mismatch'))

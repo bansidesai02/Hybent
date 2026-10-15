@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from app.dependencies import DB, CurrentUser
 from app.models.application import Application
 from app.models.candidate import Candidate
@@ -20,18 +20,20 @@ from app.models.candidate_document import CandidateDocument
 from app.schemas.application import ApplicationOut
 from app.schemas.interview import InterviewOut
 from app.schemas.offer import OfferOut, OfferRespondRequest
-from app.schemas.candidate import CandidateOut, CandidateUpdate
+from app.schemas.candidate import CandidateOut, PortalProfileUpdate
 from app.schemas.job import JobOut
 from app.schemas.job_referral import JobReferralOut
 from app.schemas.other_offer import OtherOfferCreate, OtherOfferOut
 from app.schemas.candidate_document import CandidateDocumentCreate, CandidateDocumentOut
-from app.utils.permissions import UserRole, OfferStatus, NotificationType
+from app.utils.permissions import UserRole, OfferStatus, NotificationType, JobStatus, ApplicationStage
 from app.services.ai.ai_evaluator import generate_prep_materials
 from datetime import datetime, timezone
 from app.services.storage_service import save_resume
-from app.services import supabase_storage_service
-from app.services.ai.resume_parser import parse_resume, apply_experience_fields
+from app.services import supabase_storage_service, resume_intake
+from app.services.ai.resume_parser import parse_resume, apply_experience_fields, years_from_experience_text
 from app.services.ai.resume_rag import stage_candidate_resume_chunks
+from app.services.invitation_service import announce_candidate_joined
+from app.services.ai_metering import ai_scope
 from app.schemas.response import APIResponse
 from app.tasks.notifications import notify_organization_roles
 from app.core.config import settings
@@ -80,7 +82,8 @@ async def portal_register(data: PortalRegisterRequest, db: DB):
     # recruiter uploaded their resume before they ever registered) — link the
     # new account to it instead of creating a duplicate.
     candidate = (await db.execute(
-        select(Candidate).where(Candidate.organization_id == org.id, Candidate.email == data.email)
+        select(Candidate).where(Candidate.organization_id == org.id, func.lower(Candidate.email) == data.email.lower())
+        .order_by(Candidate.created_at.asc()).limit(1)
     )).scalar_one_or_none()
     if candidate:
         candidate.user_id = user.id
@@ -92,6 +95,8 @@ async def portal_register(data: PortalRegisterRequest, db: DB):
             full_name=data.full_name,
         )
         db.add(candidate)
+    await db.flush()
+    announce_candidate_joined(candidate)
 
     access_token = create_access_token({"sub": str(user.id), "org": str(org.id), "role": user.role})
     refresh_tok = create_refresh_token()
@@ -282,17 +287,23 @@ async def portal_profile(current_user: CurrentUser, db: DB):
 
 
 @router.put("/profile")
-async def update_portal_profile(data: CandidateUpdate, current_user: CurrentUser, db: DB):
+async def update_portal_profile(data: PortalProfileUpdate, current_user: CurrentUser, db: DB):
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
-        
+
     result = await db.execute(select(Candidate).where(Candidate.user_id == current_user.id))
     candidate = result.scalar_one_or_none()
     if not candidate:
         raise HTTPException(status_code=404, detail="Profile not found")
 
     update_data = data.model_dump(exclude_unset=True)
-    
+    if update_data.get("skills") is not None:
+        update_data["skills"] = [s.strip() for s in update_data["skills"] if s and s.strip()][:30]
+    # Keep the numeric years the scorer reads in step with the typed text.
+    if "experience_years" in update_data:
+        update_data["experience_years"] = (update_data["experience_years"] or "").strip() or None
+        update_data["years_experience"] = years_from_experience_text(update_data["experience_years"])
+
     if "email" in update_data and update_data["email"] != candidate.email:
         from app.models.user import User
         existing_user = (await db.execute(select(User).where(User.email == update_data["email"]))).scalar_one_or_none()
@@ -348,7 +359,9 @@ async def upload_portal_resume(
         candidate.resume_url = url
         candidate.resume_filename = original_name
 
-    parsed = await parse_resume(file_content, file.content_type or "", file.filename or "")
+    # Charged to the org — the candidate's own AI scope refuses AI calls.
+    async with ai_scope(candidate.organization_id):
+        parsed = await parse_resume(file_content, file.content_type or "", file.filename or "")
     candidate.parsed_data = parsed
 
     if parsed.get("skills"):
@@ -464,60 +477,92 @@ async def remove_other_offer(offer_id: uuid.UUID, current_user: CurrentUser, db:
     return APIResponse.success(message="Other offer removed successfully.")
 
 
+def _open_job_conditions(organization_id: uuid.UUID) -> tuple:
+    """What a candidate may see and apply to: the org's own published jobs
+    that are still open. Talent pools ("pool"), drafts, paused/closed and
+    deleted jobs are recruiter-side only, and a job whose deadline day has
+    passed no longer takes applications."""
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (
+        Job.organization_id == organization_id,
+        Job.status == JobStatus.ACTIVE,
+        Job.is_deleted.is_(False),
+        or_(Job.application_deadline.is_(None), Job.application_deadline >= today),
+    )
+
+
 @router.get("/jobs")
 async def portal_get_jobs(current_user: CurrentUser, db: DB):
     """Candidate views open jobs within the organization."""
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
-        
+
     result = await db.execute(
-        select(Job).where(Job.organization_id == current_user.organization_id, Job.status == "active")
+        select(Job)
+        .where(*_open_job_conditions(current_user.organization_id))
+        .order_by(Job.created_at.desc())
     )
     return APIResponse.success(message="Jobs retrieved.", data=[JobOut.model_validate(j).model_dump() for j in result.scalars().all()])
 
 
 @router.post("/jobs/{job_id}/apply", response_model=ApplicationOut, status_code=201)
-async def portal_apply_to_job(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    """Candidate self-applies to an active job within the organization."""
+async def portal_apply_to_job(
+    job_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    resume: UploadFile | None = File(None),
+):
+    """Candidate applies to an open job in their organization, with the
+    resume on their profile or a new one uploaded with the application. The
+    resume is parsed into the profile and scored against the job, like a
+    link application."""
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
 
     candidate = (await db.execute(
         select(Candidate).where(Candidate.user_id == current_user.id)
-    )).scalar_one_or_none()
+    )).scalars().first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
 
-    # Check for resume — supports both Supabase path and legacy URL
-    if not candidate.resume_storage_path and not candidate.resume_url:
-        raise HTTPException(status_code=400, detail="Please upload a resume before applying")
-
-    # Verify the job exists and belongs to the same org
     job = (await db.execute(
-        select(Job).where(Job.id == job_id, Job.organization_id == current_user.organization_id, Job.status == "active")
+        select(Job).where(Job.id == job_id, *_open_job_conditions(current_user.organization_id))
     )).scalar_one_or_none()
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found or no longer active")
+        raise HTTPException(status_code=404, detail="This position is no longer accepting applications.")
 
-    # Prevent duplicate applications
+    # Serialises applications by this candidate to this job until commit, so
+    # a double-submit can't pass the duplicate check below twice. Scoped to
+    # the pair — the profile itself stays editable while the resume parses.
+    await db.execute(select(func.pg_advisory_xact_lock(func.hashtext(f"portal-apply:{candidate.id}:{job.id}"))))
     existing = (await db.execute(
-        select(Application).where(
+        select(Application.id).where(
             Application.candidate_id == candidate.id,
             Application.job_id == job.id,
-        )
+        ).limit(1)
     )).scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=409, detail="You have already applied to this job")
+        raise HTTPException(status_code=409, detail="You have already applied to this position.")
+
+    if resume is not None and resume.filename:
+        content = await resume_intake.read_resume_upload(resume)
+        await resume_intake.store_resume(candidate, resume, content)
+        await resume_intake.parse_into_profile(db, candidate, content, resume)
+    elif not candidate.resume_storage_path and not candidate.resume_url:
+        raise HTTPException(status_code=400, detail="Please upload your resume to apply.")
 
     application = Application(
         candidate_id=candidate.id,
         job_id=job.id,
-        stage="applied",
+        stage=ApplicationStage.APPLIED,
         organization_id=current_user.organization_id,
+        source="portal",
     )
     db.add(application)
+    candidate.applied_job_title = job.title
+    await resume_intake.score_application(candidate, application, job)
     await db.commit()
-    await db.refresh(application)
+
     from sqlalchemy.orm import selectinload
     app_with_job = (await db.execute(
         select(Application).where(Application.id == application.id).options(selectinload(Application.job))
@@ -532,8 +577,10 @@ async def portal_apply_to_job(job_id: uuid.UUID, current_user: CurrentUser, db: 
         f"{candidate.full_name} has applied to '{job.title}' via the candidate portal.",
         {"candidate_id": str(candidate.id), "job_id": str(job.id)},
     )
+    from app.tasks.screening import enqueue_screening
+    enqueue_screening([candidate.id], current_user.organization_id)
 
-    return APIResponse.success(message="Applied to job successfully.", data=ApplicationOut.model_validate(app_with_job))
+    return APIResponse.success(message="Application submitted.", data=ApplicationOut.model_validate(app_with_job), status_code=201)
 
 
 @router.post("/jobs/{job_id}/refer")
