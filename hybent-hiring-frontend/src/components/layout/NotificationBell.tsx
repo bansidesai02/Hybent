@@ -15,6 +15,8 @@ import {
   UserPlus,
 } from 'lucide-react'
 
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useNotificationStore } from '@/store/notificationStore'
 import { timeAgo } from '@/utils/formatters'
@@ -57,6 +59,20 @@ function NotificationBellComponent() {
   const bellRef = useRef<HTMLDivElement>(null)
   const { markRead, markAllRead } = useNotifications()
   const { notifications } = useNotificationStore()
+  const navigate = useNavigate()
+  const { user, basePath } = useAuth()
+
+  /* A notification about a candidate opens that candidate's profile on the
+     Candidates page (its ?openId= deep link) — it used to only mark it read,
+     leaving no way to get from "X applied" to X. */
+  const openNotification = (n: (typeof notifications)[number]) => {
+    if (!n.is_read) handleMarkRead(n.id)
+    const candidateId = (n.data as Record<string, unknown> | null | undefined)?.candidate_id
+    if (typeof candidateId === 'string' && (user?.role === 'admin' || user?.role === 'recruiter')) {
+      setOpen(false)
+      navigate(`${basePath}/candidates?openId=${candidateId}`)
+    }
+  }
 
   // `markRead`/`markAllRead` are bare `mutation.mutate` functions (the hook
   // exposes no `isPending`), so the re-entry guard is hand-rolled here: a ref
@@ -175,7 +191,7 @@ function NotificationBellComponent() {
                 displayNotifications.map((n) => (
                   <button
                     key={n.id}
-                    onClick={() => { if (!n.is_read) handleMarkRead(n.id) }}
+                    onClick={() => openNotification(n)}
                     disabled={markingIds.has(n.id)}
                     className={`w-full px-4 py-3 text-left transition-colors duration-hb hover:bg-hb-surface-2 disabled:cursor-not-allowed disabled:opacity-70 ${
                       !n.is_read ? 'bg-hb-blue/[0.05]' : ''
