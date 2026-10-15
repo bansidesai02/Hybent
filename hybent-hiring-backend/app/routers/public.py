@@ -28,8 +28,13 @@ logger = logging.getLogger(__name__)
 CONTACT_EMAIL = "info@hybent.com"
 
 # Where a shared apply link was opened from. Links were built for LinkedIn
-# posts, so anything missing or unknown is recorded as LinkedIn.
-PUBLIC_APPLY_SOURCES = {"linkedin", "careers_page"}
+# posts, so anything missing or unknown is recorded as LinkedIn. "referral"
+# is a link a candidate shared from the portal's Job Openings page.
+PUBLIC_APPLY_SOURCES = {"linkedin", "careers_page", "referral"}
+APPLY_SOURCE_PHRASES = {
+    "careers_page": "the careers page.",
+    "referral": "a referral link shared by a candidate.",
+}
 
 
 async def _get_active_job_or_404(db: DB, org_slug: str, job_id: uuid.UUID) -> Job:
@@ -173,7 +178,7 @@ async def apply_to_public_job(
         NotificationType.APPLICATION_RECEIVED,
         "New Job Application",
         f"{candidate.full_name} has applied to '{job.title}' via "
-        + ("the careers page." if source == "careers_page" else "a shared application link."),
+        + APPLY_SOURCE_PHRASES.get(source, "a shared application link."),
         {"candidate_id": str(candidate.id), "job_id": str(job.id)},
     )
 

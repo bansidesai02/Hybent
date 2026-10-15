@@ -52,7 +52,12 @@ export function Badge({ children, tone = 'neutral', dot, title, className }: Bad
           )}
         />
       )}
-      <span className="min-w-0 truncate">{children}</span>
+      {/* Icons passed as children sit inline with the label: Tailwind's base
+          makes every svg display:block, which put "⚡" on its own line above
+          "89% MATCH" and stretched the pill. */}
+      <span className="min-w-0 truncate [&>svg]:mr-[5px] [&>svg]:inline-block [&>svg]:align-[-1px]">
+        {children}
+      </span>
     </span>
   )
 }

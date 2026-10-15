@@ -269,6 +269,7 @@ async def test_portal_lists_only_open_published_jobs_of_own_org(client, db_sessi
     assert r.status_code == 200
     assert {j["title"] for j in r.json()["data"]} == {"Open", "Due today"}
     assert any(j["id"] == str(open_job.id) for j in r.json()["data"])
+    assert {j["org_slug"] for j in r.json()["data"]} == {organization.slug}  # for share links
 
 
 async def test_portal_jobs_are_candidates_only(client, recruiter_user):
@@ -344,3 +345,12 @@ async def test_portal_profile_update_saves_skills_and_experience_but_not_recruit
     assert cand.skills == ["Go", "Rust"]
     assert cand.experience_years == "18 Months" and cand.years_experience == 1.5
     assert cand.pipeline_stage is None and cand.hr_notes is None and cand.tags == ["recruiter-tag"]
+
+
+async def test_referral_link_application_is_recorded_as_referral(client, db_session, organization, job, fakes):
+    r = await client.post(f"/api/public/jobs/{organization.slug}/{job.id}/apply",
+                          data=_apply_form(source="referral"), files={"resume": PDF})
+    assert r.status_code == 200, r.text
+    app = (await db_session.execute(select(Application))).scalar_one()
+    assert app.source == "referral"
+    assert "referral link" in fakes["notify"][0][4]

@@ -250,12 +250,10 @@ async def get_talent_stats(current_user: CurrentUser, db: DB):
         select(func.count(Candidate.id)).where(Candidate.organization_id == current_user.organization_id)
     )).scalar() or 0
 
-    # Re-matched: Candidates who have at least one application
-    re_matched_count = (await db.execute(
-        select(func.count(func.distinct(Application.candidate_id))).where(
-            Application.organization_id == current_user.organization_id
-        )
-    )).scalar() or 0
+    # Re-matched: pool candidates who fit at least one currently open role.
+    from app.services.talent_matching import active_jobs, pool_matches
+    matches = await pool_matches(db, current_user.organization_id, await active_jobs(db, current_user.organization_id))
+    re_matched_count = len({m["candidate"].id for ms in matches.values() for m in ms})
 
     # Avg hire from DB (placeholder logic: 2.1d as in reference or based on actual hired applications)
     # real logic would compute delta between candidate created_at and application created_at for hired ones
@@ -273,64 +271,39 @@ async def get_talent_stats(current_user: CurrentUser, db: DB):
 @router.get("/suggested-matches")
 async def get_suggested_matches(current_user: CurrentUser, db: DB):
     """
-    Get candidates from the pool who explicitly applied for or are mapped to current active jobs.
-    Uses pre-calculated match_score and applied_job_title instead of LLM re-evaluations.
+    For each active job, the pool candidates who fit it best — scored against
+    that job (skills, title, experience, education), not matched by exact
+    title against an old score. See services/talent_matching.py.
     """
-    from app.models.job import Job
-    from app.utils.permissions import JobStatus
+    from app.services.talent_matching import active_jobs, pool_matches
 
-    # Get active jobs
-    jobs_res = await db.execute(
-        select(Job).where(
-            Job.organization_id == current_user.organization_id,
-            Job.status == JobStatus.ACTIVE
-        ).order_by(Job.created_at.desc()).limit(3)
-    )
-    active_jobs = jobs_res.scalars().all()
-
-    if not active_jobs:
-        return APIResponse.success(message="Suggested matches retrieved.", data=[])
+    jobs = await active_jobs(db, current_user.organization_id)
+    matches = await pool_matches(db, current_user.organization_id, jobs)
 
     results = []
-    for job in active_jobs:
-        # Use simple statically saved scores and strict title mapping
-        from sqlalchemy.orm import defer
-        cands_res = await db.execute(
-            select(Candidate)
-            .where(
-                Candidate.organization_id == current_user.organization_id,
-                Candidate.applied_job_title == job.title,
-                Candidate.match_score.isnot(None)
-            )
-            .options(
-                defer(Candidate.parsed_data),
-                defer(Candidate.summary),
-                selectinload(Candidate.created_by)
-            )
-            .order_by(Candidate.match_score.desc().nulls_last())
-            .limit(5)
-        )
-        candidates = cands_res.scalars().all()
-
-        job_suggestions = []
-        for candidate in candidates:
-            job_suggestions.append({
-                "id": str(candidate.id),
-                "full_name": candidate.full_name,
-                "current_title": candidate.current_title,
-                "years_experience": candidate.years_experience,
-                "match_score": candidate.match_score,
-                "skills": candidate.skills[:8] if candidate.skills else [],
-                "avatar_url": None,
-                "created_by_name": getattr(candidate.created_by, "full_name", None) or "Admin" if getattr(candidate, "created_by", None) is not None else "Admin"
-            })
-            
-        if job_suggestions:
-            results.append({
-                "job_id": str(job.id),
-                "job_title": job.title,
-                "candidates": job_suggestions
-            })
+    for job in jobs:
+        top = matches.get(job.id, [])[:5]
+        if not top:
+            continue
+        results.append({
+            "job_id": str(job.id),
+            "job_title": job.title,
+            "candidates": [
+                {
+                    "id": str(m["candidate"].id),
+                    "full_name": m["candidate"].full_name,
+                    "current_title": m["candidate"].current_title,
+                    "years_experience": m["candidate"].years_experience,
+                    # Fit for this job, not the candidate's stored score.
+                    "match_score": m["score"],
+                    "matched_skills": m["breakdown"].get("matched_skills", [])[:8],
+                    "skills": (m["candidate"].skills or [])[:8],
+                    "avatar_url": None,
+                    "created_by_name": getattr(m["candidate"].created_by, "full_name", None) or "Admin",
+                }
+                for m in top
+            ],
+        })
 
     return APIResponse.success(message="Suggested matches retrieved.", data=results)
 

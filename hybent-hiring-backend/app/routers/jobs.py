@@ -61,26 +61,17 @@ async def list_jobs(
     )
     counts = {str(row[0]): row[1] for row in count_result.all()}
 
-    # Attach re-engage counts from talent pool
-    job_titles = [j.title for j in jobs]
-    re_engage_counts = {}
-    if job_titles:
-        re_engage_result = await db.execute(
-            select(Candidate.applied_job_title, func.count(Candidate.id))
-            .where(
-                Candidate.organization_id == current_user.organization_id,
-                Candidate.match_score.isnot(None),
-                Candidate.applied_job_title.in_(job_titles)
-            )
-            .group_by(Candidate.applied_job_title)
-        )
-        re_engage_counts = {str(row[0]): row[1] for row in re_engage_result.all()}
+    # Re-engage: pool candidates who fit each open job, scored against the job
+    # itself (see services/talent_matching.py — it used to need an exact title
+    # match, so it was almost always 0).
+    from app.services.talent_matching import pool_matches
+    matches = await pool_matches(db, current_user.organization_id, list(jobs))
 
     items = []
     for j in jobs:
         job_dict = JobOut.model_validate(j).model_dump()
         job_dict["application_count"] = counts.get(str(j.id), 0)
-        job_dict["re_engage_count"] = re_engage_counts.get(j.title, 0)
+        job_dict["re_engage_count"] = len(matches.get(j.id, []))
         items.append(job_dict)
 
     return APIResponse.success(message="Jobs retrieved successfully.", data=paginate(items, total, page, limit))

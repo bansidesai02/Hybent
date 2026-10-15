@@ -1,40 +1,36 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Briefcase, Building2, CalendarDays, CheckCircle, FileText, MapPin, X } from 'lucide-react'
+import {
+  Briefcase,
+  Building2,
+  CalendarDays,
+  Check,
+  Copy,
+  Link2,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Share2,
+} from 'lucide-react'
 
 import { portalApi } from '@/api/portal'
-import { Job, Application, Candidate } from '@/types'
+import { Job, Application } from '@/types'
 import { formatDate } from '@/utils/formatters'
-import {
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  Dropzone,
-  EmptyState,
-  Input,
-  PageHeader,
-  Skeleton,
-  Textarea,
-} from '@/components/hb'
+import { Badge, Button, Card, Dialog, EmptyState, PageHeader, Skeleton } from '@/components/hb'
 
 /**
- * Open roles the candidate can apply to or refer a friend into.
+ * The org's open roles, for the candidate to pass on to friends.
  *
- * Rebuilt on the design system in phase 7 — off portal.css's `.card`/`.btn`
- * and the legacy `Modal`. One oddity kept faithfully but worth naming: the
- * referral form's "LinkedIn profile" input posts as `relationship`, because
- * that is the field name the backend expects.
- *
- * Applying sends the resume on the candidate's profile, or a new one chosen
- * in the apply dialog (required when the profile has none). A failed load
- * used to render nothing at all — an empty page with no openings and no
- * error — so it now says so and offers a retry.
+ * A candidate only reaches the portal once a recruiter has taken them into a
+ * position, so this page is not for applying again: each role has its details
+ * and a shareable link to the public apply page. Whoever opens the link
+ * applies themselves there (resume parsed and scored like any link
+ * application), recorded with source "referral". This replaced a form where
+ * the candidate typed in their friend's details and resume for them.
  */
 
-const RESUME_EXTENSIONS = ['.pdf', '.doc', '.docx']
-const MAX_RESUME_MB = 10
+type PortalJob = Job & { org_slug?: string | null }
 
 const JOB_TYPE_LABELS: Record<string, string> = {
   full_time: 'Full-time',
@@ -42,19 +38,6 @@ const JOB_TYPE_LABELS: Record<string, string> = {
   contract: 'Contract',
   internship: 'Internship',
   remote: 'Remote',
-}
-
-function errorMessage(err: any, fallback: string): string {
-  const data = err?.response?.data
-  return data?.message || (typeof data?.detail === 'string' ? data.detail : null) || fallback
-}
-
-function resumeProblem(file: File): string | null {
-  const name = file.name.toLowerCase()
-  if (!RESUME_EXTENSIONS.some((ext) => name.endsWith(ext))) return 'Only PDF, DOC or DOCX files are supported.'
-  if (file.size === 0) return 'That file is empty. Please choose another.'
-  if (file.size > MAX_RESUME_MB * 1024 * 1024) return `File is too large. Maximum size is ${MAX_RESUME_MB} MB.`
-  return null
 }
 
 function jobMeta(job: Job): string {
@@ -67,6 +50,11 @@ function jobMeta(job: Job): string {
     .join(' · ')
 }
 
+function applyLink(job: PortalJob): string | null {
+  if (!job.org_slug) return null
+  return `${window.location.origin}/apply/${job.org_slug}/${job.id}?source=referral`
+}
+
 function JobSection({ title, text }: { title: string; text?: string | null }) {
   if (!text?.trim()) return null
   return (
@@ -77,21 +65,32 @@ function JobSection({ title, text }: { title: string; text?: string | null }) {
   )
 }
 
+function ShareOption({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="flex flex-1 items-center justify-center gap-2 rounded-hb-md border border-hb-border bg-hb-surface px-3 py-2.5 text-hb-sm font-semibold text-hb-text transition-colors duration-hb hover:border-hb-border-strong hover:bg-hb-surface-2 focus-visible:outline-none focus-visible:shadow-hb-ring"
+    >
+      {icon}
+      {label}
+    </a>
+  )
+}
+
 export default function PortalOpenings() {
-  const queryClient = useQueryClient()
-  const [referTarget, setReferTarget] = useState<any>(null)
-  const [detailTarget, setDetailTarget] = useState<Job | null>(null)
-  const [applyTarget, setApplyTarget] = useState<Job | null>(null)
-  const [resumeFile, setResumeFile] = useState<File | null>(null)
-  const [resumeError, setResumeError] = useState<string | null>(null)
+  const [detailTarget, setDetailTarget] = useState<PortalJob | null>(null)
+  const [shareTarget, setShareTarget] = useState<PortalJob | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const {
     data: jobs,
-    isLoading: jobsLoading,
-    isError: jobsFailed,
-    refetch: refetchJobs,
-    isFetching: jobsFetching,
-  } = useQuery<Job[]>({
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery<PortalJob[]>({
     queryKey: ['portal', 'jobs'],
     queryFn: () => portalApi.jobs().then((r: any) => r.data),
   })
@@ -100,110 +99,58 @@ export default function PortalOpenings() {
     queryKey: ['portal', 'applications'],
     queryFn: () => portalApi.myApplications().then((r: any) => r.data),
   })
+  const myJobIds = new Set(applications?.map((app) => app.job_id))
 
-  const { data: profile } = useQuery<Candidate>({
-    queryKey: ['portal', 'profile'],
-    queryFn: () => portalApi.profile().then((r: any) => r.data),
-  })
-
-  const appliedJobIds = new Set(applications?.map((app: Application) => app.job_id))
-  const resumeOnFile = !!(profile?.resume_storage_path || profile?.resume_url)
-
-  const openApply = (job: Job) => {
+  const openShare = (job: PortalJob) => {
     setDetailTarget(null)
-    setResumeFile(null)
-    setResumeError(null)
-    setApplyTarget(job)
+    setCopied(false)
+    setShareTarget(job)
   }
 
-  const closeApply = () => {
-    if (applyMutation.isPending) return
-    setApplyTarget(null)
-  }
+  const shareUrl = shareTarget ? applyLink(shareTarget) : null
+  const shareText = shareTarget ? `We're hiring a ${shareTarget.title}. Have a look and apply here:` : ''
 
-  const pickResume = (file: File | undefined) => {
-    if (!file) return
-    const problem = resumeProblem(file)
-    setResumeError(problem)
-    setResumeFile(problem ? null : file)
-  }
-
-  const refreshAfterApply = () => {
-    queryClient.invalidateQueries({ queryKey: ['portal', 'applications'] })
-    queryClient.invalidateQueries({ queryKey: ['portal', 'applications-summary'] })
-    queryClient.invalidateQueries({ queryKey: ['portal', 'profile'] })
-  }
-
-  const applyMutation = useMutation({
-    mutationFn: ({ jobId, resume }: { jobId: string; resume?: File }) =>
-      portalApi.applyToJob(jobId, resume),
-    onSuccess: () => {
-      refreshAfterApply()
-      toast.success(`Application for ${applyTarget?.title ?? 'the role'} submitted`)
-      setApplyTarget(null)
-    },
-    onError: (err: any) => {
-      const status = err?.response?.status
-      if (status === 409) {
-        // Already applied (another tab, or a double submit) — show it as such.
-        refreshAfterApply()
-        toast.error(errorMessage(err, 'You have already applied to this position.'))
-        setApplyTarget(null)
-      } else if (status === 404) {
-        queryClient.invalidateQueries({ queryKey: ['portal', 'jobs'] })
-        toast.error(errorMessage(err, 'This position is no longer accepting applications.'))
-        setApplyTarget(null)
-      } else {
-        // Keep the dialog open so the candidate can fix the file and retry.
-        setResumeError(errorMessage(err, 'Failed to submit your application. Please try again.'))
-      }
-    },
-  })
-
-  const submitApplication = () => {
-    if (!applyTarget || applyMutation.isPending) return
-    if (!resumeFile && !resumeOnFile) {
-      setResumeError('Please attach your resume to apply.')
-      return
+  const copyLink = async () => {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      toast.success('Link copied')
+    } catch {
+      toast.error('Could not copy — select the link and copy it manually.')
     }
-    applyMutation.mutate({ jobId: applyTarget.id, resume: resumeFile ?? undefined })
   }
 
-  const referMutation = useMutation({
-    mutationFn: ({ jobId, data }: { jobId: string; data: FormData }) =>
-      portalApi.referJob(jobId, data),
-    onSuccess: () => {
-      toast.success('Referral submitted successfully!')
-      setReferTarget(null)
-    },
-    onError: (err: any) => {
-      toast.error(
-        err?.response?.data?.message || err?.response?.data?.detail || 'Failed to submit referral'
-      )
-    },
-  })
+  const nativeShare = async () => {
+    if (!shareUrl || !shareTarget) return
+    try {
+      await navigator.share({ title: shareTarget.title, text: shareText, url: shareUrl })
+    } catch {
+      /* Dismissed by the user — nothing to do. */
+    }
+  }
 
   return (
     <div className="pb-hb-10">
       <PageHeader
         eyebrow="Candidate portal"
         title="Current openings"
-        description="Explore other roles or refer a friend to earn rewards."
+        description="Know someone who'd be a great fit? Share a role and they can apply directly."
       />
 
-      {jobsLoading ? (
+      {isLoading ? (
         <div className="grid gap-hb-4 sm:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3].map((n) => (
             <Skeleton key={n} className="h-56 w-full" rounded="md" />
           ))}
         </div>
-      ) : jobsFailed ? (
+      ) : isError ? (
         <Card padding="none">
           <EmptyState
             tone="error"
             title="Couldn't load open positions"
             description="Check your connection and try again."
-            action={{ label: jobsFetching ? 'Retrying…' : 'Try again', onClick: () => refetchJobs() }}
+            action={{ label: isFetching ? 'Retrying…' : 'Try again', onClick: () => refetch() }}
             size="page"
           />
         </Card>
@@ -218,63 +165,46 @@ export default function PortalOpenings() {
         </Card>
       ) : (
         <div className="grid gap-hb-4 sm:grid-cols-2 xl:grid-cols-3">
-          {jobs?.map((job) => {
-            const hasApplied = appliedJobIds.has(job.id)
-
-            return (
-              <Card key={job.id} padding="default" className="flex h-full flex-col">
-                <div className="mb-3">
+          {jobs.map((job) => (
+            <Card key={job.id} padding="default" className="flex h-full flex-col">
+              <div className="mb-3">
+                <div className="flex items-start justify-between gap-2">
                   <h3 className="font-display text-hb-h3 text-hb-text">{job.title}</h3>
-                  <p className="mt-1 text-hb-xs text-hb-muted">{jobMeta(job)}</p>
-                  {job.application_deadline && (
-                    <p className="mt-1 text-hb-xs text-hb-muted">
-                      Apply by {formatDate(job.application_deadline)}
-                    </p>
+                  {myJobIds.has(job.id) && (
+                    <Badge tone="brand" className="shrink-0">Your role</Badge>
                   )}
                 </div>
-
-                {job.description && (
-                  <p className="mb-hb-4 line-clamp-3 text-hb-sm text-hb-muted">{job.description}</p>
+                <p className="mt-1 text-hb-xs text-hb-muted">{jobMeta(job)}</p>
+                {job.application_deadline && (
+                  <p className="mt-1 text-hb-xs text-hb-muted">
+                    Apply by {formatDate(job.application_deadline)}
+                  </p>
                 )}
+              </div>
 
-                {job.skills_required && job.skills_required.length > 0 && (
-                  <div className="mb-hb-4 flex flex-wrap gap-1.5">
-                    {job.skills_required.slice(0, 4).map((t) => (
-                      <Badge key={t}>{t}</Badge>
-                    ))}
-                    {job.skills_required.length > 4 && (
-                      <Badge>+{job.skills_required.length - 4}</Badge>
-                    )}
-                  </div>
-                )}
+              {job.description && (
+                <p className="mb-hb-4 line-clamp-3 text-hb-sm text-hb-muted">{job.description}</p>
+              )}
 
-                <div className="mt-auto space-y-2 border-t border-hb-border pt-hb-4">
-                  {!hasApplied ? (
-                    <div className="flex gap-2">
-                      <Button className="flex-1" onClick={() => openApply(job)}>
-                        Apply now
-                      </Button>
-                      <Button variant="ghost" className="flex-1" onClick={() => setDetailTarget(job)}>
-                        View details
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Badge tone="success" className="flex-1 justify-center py-2">
-                        <CheckCircle size={13} aria-hidden /> Applied
-                      </Badge>
-                      <Button variant="ghost" className="flex-1" onClick={() => setDetailTarget(job)}>
-                        View details
-                      </Button>
-                    </div>
-                  )}
-                  <Button variant="quiet" size="sm" className="w-full" onClick={() => setReferTarget(job)}>
-                    Refer a friend
-                  </Button>
+              {job.skills_required?.length > 0 && (
+                <div className="mb-hb-4 flex flex-wrap gap-1.5">
+                  {job.skills_required.slice(0, 4).map((t) => (
+                    <Badge key={t}>{t}</Badge>
+                  ))}
+                  {job.skills_required.length > 4 && <Badge>+{job.skills_required.length - 4}</Badge>}
                 </div>
-              </Card>
-            )
-          })}
+              )}
+
+              <div className="mt-auto flex gap-2 border-t border-hb-border pt-hb-4">
+                <Button className="flex-1" icon={<Share2 size={15} />} onClick={() => openShare(job)}>
+                  Share job link
+                </Button>
+                <Button variant="ghost" className="flex-1" onClick={() => setDetailTarget(job)}>
+                  View details
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -291,15 +221,9 @@ export default function PortalOpenings() {
               <Button variant="quiet" size="sm" onClick={() => setDetailTarget(null)}>
                 Close
               </Button>
-              {appliedJobIds.has(detailTarget.id) ? (
-                <Badge tone="success" className="py-2">
-                  <CheckCircle size={13} aria-hidden /> Applied
-                </Badge>
-              ) : (
-                <Button size="sm" onClick={() => openApply(detailTarget)}>
-                  Apply for this role
-                </Button>
-              )}
+              <Button size="sm" icon={<Share2 size={14} />} onClick={() => openShare(detailTarget)}>
+                Share job link
+              </Button>
             </>
           )
         }
@@ -343,166 +267,61 @@ export default function PortalOpenings() {
         )}
       </Dialog>
 
-      {/* ── Apply ─────────────────────────────────────────────────────────── */}
+      {/* ── Share ─────────────────────────────────────────────────────────── */}
       <Dialog
-        open={!!applyTarget}
-        onClose={closeApply}
-        title={applyTarget ? `Apply for ${applyTarget.title}` : 'Apply'}
-        description="Your profile and resume go to the hiring team."
+        open={!!shareTarget}
+        onClose={() => setShareTarget(null)}
+        title={shareTarget ? `Share ${shareTarget.title}` : 'Share job'}
+        description="Send this link to a friend — they can read the role and apply directly."
         size="md"
         footer={
-          <>
-            <Button variant="quiet" size="sm" onClick={closeApply} disabled={applyMutation.isPending}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={submitApplication}
-              loading={applyMutation.isPending}
-              disabled={applyMutation.isPending || (!resumeFile && !resumeOnFile)}
-            >
-              Submit application
-            </Button>
-          </>
+          <Button variant="quiet" size="sm" onClick={() => setShareTarget(null)}>
+            Done
+          </Button>
         }
       >
-        <div className="space-y-hb-4">
-          {resumeFile ? (
-            <div className="flex items-center gap-2.5 rounded-hb-md border border-hb-border bg-hb-surface-2 px-3.5 py-3 text-hb-sm">
-              <FileText size={15} aria-hidden className="shrink-0 text-hb-cyan" />
-              <span className="min-w-0 flex-1 truncate font-semibold text-hb-text">{resumeFile.name}</span>
-              <button
-                type="button"
-                onClick={() => setResumeFile(null)}
-                disabled={applyMutation.isPending}
-                aria-label="Remove the attached resume"
-                className="rounded-hb-sm p-1 text-hb-muted hover:text-hb-text focus-visible:outline-none focus-visible:shadow-hb-ring"
-              >
-                <X size={14} aria-hidden />
-              </button>
+        {shareUrl ? (
+          <div className="space-y-hb-4">
+            <div className="flex items-center gap-2 rounded-hb-md border border-hb-border bg-hb-surface-2 p-1.5 pl-3.5">
+              <input
+                readOnly
+                value={shareUrl}
+                aria-label="Job link"
+                onFocus={(e) => e.currentTarget.select()}
+                className="min-w-0 flex-1 bg-transparent text-hb-sm text-hb-text outline-none"
+              />
+              <Button size="sm" icon={copied ? <Check size={14} /> : <Copy size={14} />} onClick={copyLink}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
             </div>
-          ) : resumeOnFile ? (
-            <p className="flex items-center gap-2.5 rounded-hb-md border border-hb-success/25 bg-hb-success/8 px-3.5 py-3 text-hb-sm text-hb-text">
-              <FileText size={15} aria-hidden className="shrink-0 text-hb-success" />
-              <span className="min-w-0 truncate">
-                Using your resume on file: <strong>{profile?.resume_filename || 'resume'}</strong>
-              </span>
-            </p>
-          ) : (
-            <p className="text-hb-sm text-hb-muted">
-              Your profile has no resume yet — attach one to apply.
-            </p>
-          )}
 
-          {resumeError && (
-            <p
-              role="alert"
-              className="rounded-hb-md border border-hb-error/25 bg-hb-error/8 px-3.5 py-2.5 text-hb-xs text-hb-error"
-            >
-              {resumeError}
-            </p>
-          )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <ShareOption
+                href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
+                icon={<MessageCircle size={15} aria-hidden />}
+                label="WhatsApp"
+              />
+              <ShareOption
+                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
+                icon={<Link2 size={15} aria-hidden />}
+                label="LinkedIn"
+              />
+              <ShareOption
+                href={`mailto:?subject=${encodeURIComponent(`Job opening: ${shareTarget?.title ?? ''}`)}&body=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`}
+                icon={<Mail size={15} aria-hidden />}
+                label="Email"
+              />
+            </div>
 
-          <Dropzone
-            onFiles={(files) => pickResume(files[0])}
-            accept={RESUME_EXTENSIONS.join(',')}
-            title={resumeOnFile || resumeFile ? 'Use a different resume' : 'Attach your resume'}
-            description="It also replaces the resume on your profile."
-            formats={['PDF', 'DOC', 'DOCX']}
-            busy={applyMutation.isPending}
-            busyLabel="Submitting & analysing your resume…"
-          />
-        </div>
-      </Dialog>
-
-      {/* ── Referral ──────────────────────────────────────────────────────── */}
-      <Dialog
-        open={!!referTarget}
-        onClose={() => setReferTarget(null)}
-        title={referTarget ? `Refer a friend for ${referTarget.title}` : 'Refer a friend'}
-        size="md"
-        footer={
-          <>
-            <Button variant="quiet" size="sm" type="button" onClick={() => setReferTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              type="submit"
-              form="refer-friend"
-              loading={referMutation.isPending}
-              disabled={referMutation.isPending}
-            >
-              Submit referral
-            </Button>
-          </>
-        }
-      >
-        <form
-          id="refer-friend"
-          className="space-y-hb-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (referMutation.isPending) return
-            const formData = new FormData(e.currentTarget)
-
-            // Split the single name input into the first/last the API expects.
-            const fullName = (formData.get('referee_full_name') as string) || ''
-            const nameParts = fullName.trim().split(' ')
-            formData.set('referee_first_name', nameParts[0] || 'Unknown')
-            formData.set(
-              'referee_last_name',
-              nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Unknown'
-            )
-            formData.delete('referee_full_name')
-
-            referMutation.mutate({ jobId: referTarget.id, data: formData })
-          }}
-        >
-          <div className="grid gap-hb-4 sm:grid-cols-2">
-            <Input
-              label="Friend's name"
-              name="referee_full_name"
-              placeholder="e.g. John Doe"
-              required
-            />
-            <Input
-              label="Friend's email"
-              name="referee_email"
-              type="email"
-              placeholder="john@example.com"
-              required
-            />
+            {typeof navigator !== 'undefined' && 'share' in navigator && (
+              <Button variant="ghost" className="w-full" icon={<Share2 size={15} />} onClick={nativeShare}>
+                More sharing options
+              </Button>
+            )}
           </div>
-
-          <div className="grid gap-hb-4 sm:grid-cols-2">
-            <Input
-              label="Friend's number"
-              name="referee_phone"
-              type="tel"
-              placeholder="e.g. +1 555-0000"
-            />
-            <Input
-              label="LinkedIn profile (optional)"
-              name="relationship"
-              placeholder="https://linkedin.com/in/…"
-            />
-          </div>
-
-          <Textarea
-            name="reason"
-            label="Why are they a good fit?"
-            placeholder="Tell us why we should hire your friend…"
-            rows={3}
-          />
-
-          <Input
-            label="Upload resume (optional)"
-            name="resume"
-            type="file"
-            accept=".pdf,.doc,.docx"
-          />
-        </form>
+        ) : (
+          <p className="text-hb-sm text-hb-muted">This role's link isn't available right now. Please try again later.</p>
+        )}
       </Dialog>
     </div>
   )

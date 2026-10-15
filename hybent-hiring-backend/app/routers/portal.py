@@ -497,12 +497,22 @@ async def portal_get_jobs(current_user: CurrentUser, db: DB):
     if current_user.role != UserRole.CANDIDATE:
         raise HTTPException(status_code=403, detail="Candidates only")
 
+    from app.models.organization import Organization
+
     result = await db.execute(
         select(Job)
         .where(*_open_job_conditions(current_user.organization_id))
         .order_by(Job.created_at.desc())
     )
-    return APIResponse.success(message="Jobs retrieved.", data=[JobOut.model_validate(j).model_dump() for j in result.scalars().all()])
+    # The org's slug lets the portal build each job's public apply link, which
+    # candidates share with friends (/apply/<org_slug>/<job_id>).
+    org_slug = (await db.execute(
+        select(Organization.slug).where(Organization.id == current_user.organization_id)
+    )).scalar_one_or_none()
+    return APIResponse.success(
+        message="Jobs retrieved.",
+        data=[{**JobOut.model_validate(j).model_dump(), "org_slug": org_slug} for j in result.scalars().all()],
+    )
 
 
 @router.post("/jobs/{job_id}/apply", response_model=ApplicationOut, status_code=201)
