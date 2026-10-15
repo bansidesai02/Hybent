@@ -16,5 +16,5 @@ export const assistantApi = {
   ask: (messages: AssistantTurn[]): Promise<AssistantReply> =>
     api
       .post('/api/public/assistant', { messages }, { skipLoader: true })
-      .then((res) => res.data.data as AssistantReply),
+      .then((res) => (res.data?.data ?? res.data) as AssistantReply),
 }
