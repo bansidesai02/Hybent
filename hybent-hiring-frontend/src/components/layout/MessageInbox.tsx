@@ -1,7 +1,7 @@
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useMessageStore } from '@/store/messageStore'
 import { useAuthStore } from '@/store/authStore'
-import { messagesApi, chatApi } from '@/api/messages'
+import { messagesApi, chatApi, type Teammate } from '@/api/messages'
 import { Avatar } from '@/components/hb'
 import { timeAgo } from '@/utils/formatters'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -14,6 +14,8 @@ type ThreadRow =
   | { kind: 'dm'; key: string; name: string; avatar: string | null; preview: string; at: string; unread: number; open: () => void }
   | { kind: 'group'; key: string; name: string; avatar: null; preview: string; at: string; unread: number; members: number; open: () => void }
 
+const ROLE_LABEL: Record<string, string> = { admin: 'Admin', recruiter: 'Recruiter', interviewer: 'Interviewer' }
+
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'direct', label: 'Direct' },
@@ -25,6 +27,9 @@ function MessageInboxComponent() {
   const [tab, setTab] = useState<Tab>('all')
   const [query, setQuery] = useState('')
   const [newGroupOpen, setNewGroupOpen] = useState(false)
+  /* Everyone on the team, so a chat can start from here — it used to say
+     "Message a teammate from Team Management" and list no one. */
+  const [teammates, setTeammates] = useState<Teammate[]>([])
   const inboxRef = useRef<HTMLDivElement>(null)
   const role = useAuthStore((s) => s.user?.role)
   const canCreateGroup = role === 'admin' || role === 'recruiter' || role === 'super_admin'
@@ -55,6 +60,10 @@ function MessageInboxComponent() {
     if (open) {
       document.addEventListener('mousedown', handleClickOutside)
       loadThreads()
+      messagesApi
+        .getTeammates()
+        .then((r) => setTeammates(r.data))
+        .catch(() => setTeammates([]))
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open, newGroupOpen, loadThreads])
@@ -88,6 +97,16 @@ function MessageInboxComponent() {
       .filter((r) => !q || r.name.toLowerCase().includes(q))
       .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
   }, [conversations, groups, tab, query, openChat, openGroup])
+
+  /* Teammates with no conversation yet; the rest already have a thread row. */
+  const team = useMemo(() => {
+    if (tab === 'groups') return []
+    const talking = new Set(conversations.map((c) => c.other_user_id))
+    const q = query.trim().toLowerCase()
+    return teammates.filter(
+      (t) => !talking.has(t.id) && (!q || t.full_name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q)),
+    )
+  }, [teammates, conversations, tab, query])
 
   const tabUnread = (t: Tab) =>
     t === 'direct'
@@ -144,7 +163,7 @@ function MessageInboxComponent() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search chats"
+                  placeholder="Search chats or teammates"
                   className="h-9 min-w-0 flex-1 border-0 bg-transparent text-hb-sm text-hb-text outline-none ring-0 placeholder:text-hb-dim focus:outline-none focus:ring-0"
                 />
               </label>
@@ -172,7 +191,7 @@ function MessageInboxComponent() {
             </div>
 
             <div className="min-h-0 flex-1 divide-y divide-hb-border overflow-y-auto">
-              {rows.length === 0 ? (
+              {rows.length === 0 && team.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
                   {tab === 'groups' ? (
                     <Users className="h-8 w-8 text-hb-dim" strokeWidth={1.5} />
@@ -186,7 +205,7 @@ function MessageInboxComponent() {
                     <p className="text-hb-xs text-hb-dim">
                       {tab === 'groups' && canCreateGroup
                         ? 'Create a group to collaborate with your team.'
-                        : 'Message a teammate from Team Management to get started.'}
+                        : 'No teammates to message yet. Invite your team from Team Management.'}
                     </p>
                   )}
                 </div>
@@ -228,6 +247,35 @@ function MessageInboxComponent() {
                     </div>
                   </button>
                 ))
+              )}
+
+              {team.length > 0 && (
+                <div>
+                  <p className="bg-hb-surface-2 px-4 py-2 font-mono text-hb-micro uppercase tracking-wide text-hb-dim">
+                    Team · start a chat
+                  </p>
+                  {team.map((t) => (
+                    <button
+                      key={`team-${t.id}`}
+                      onClick={() => {
+                        setOpen(false)
+                        openChat({ id: t.id, full_name: t.full_name, avatar_url: t.avatar_url ?? null })
+                      }}
+                      className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-all hover:bg-[rgb(var(--hb-blue))]/5"
+                    >
+                      <Avatar name={t.full_name} src={t.avatar_url || ''} size="md" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-hb-sm font-semibold text-hb-text transition-colors duration-hb group-hover:text-hb-blue">
+                          {t.full_name}
+                        </p>
+                        <p className="truncate text-xs text-hb-muted">
+                          {ROLE_LABEL[t.role] ?? t.role} · {t.email}
+                        </p>
+                      </div>
+                      <MessageSquare className="h-4 w-4 shrink-0 text-hb-dim group-hover:text-hb-blue" />
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </motion.div>

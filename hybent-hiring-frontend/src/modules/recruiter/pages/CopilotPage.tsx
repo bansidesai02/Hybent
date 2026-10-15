@@ -21,9 +21,12 @@ import {
   Check,
   GitBranch,
   History,
+  Loader2,
   MessageSquarePlus,
+  Mic,
   Search,
   Sparkles,
+  Square,
   Trash2,
 } from 'lucide-react'
 
@@ -45,6 +48,7 @@ import {
 } from '@/components/hb'
 import { useCopilotConversations } from '@/modules/recruiter/components/Copilot/useCopilotConversations'
 import { useCopilotChat } from '@/modules/recruiter/components/Copilot/useCopilotChat'
+import { useVoiceInput } from '@/modules/recruiter/components/Copilot/useVoiceInput'
 import { BotMessageContent } from '@/modules/recruiter/components/Copilot/CopilotMessageContent'
 import { CopilotSteps } from '@/modules/recruiter/components/Copilot/CopilotSteps'
 import { EditableUserMessage } from '@/modules/recruiter/components/Copilot/EditableUserMessage'
@@ -394,6 +398,21 @@ function Composer({ onSend, isThinking }: { onSend: (text: string) => void; isTh
     }
   }
 
+  /* Spoken text lands in the box for the recruiter to check before sending,
+     as the floating widget's mic does. */
+  const voice = useVoiceInput((text) => {
+    setValue((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+      el.focus({ preventScroll: true })
+    })
+  })
+  const recording = voice.status === 'recording'
+  const transcribing = voice.status === 'transcribing'
+
   const applySuggestion = (name: string) => {
     setValue(name)
     setCandidateSuggestions([])
@@ -428,24 +447,62 @@ function Composer({ onSend, isThinking }: { onSend: (text: string) => void; isTh
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder={isPhone ? 'Message Copilot…' : 'Ask about candidates, jobs, interviews or your pipeline…'}
+            placeholder={
+              recording
+                ? `Listening… ${voice.seconds}s — tap stop when you're done`
+                : transcribing
+                  ? 'Transcribing your voice…'
+                  : isPhone
+                    ? 'Message Copilot…'
+                    : 'Ask about candidates, jobs, interviews or your pipeline…'
+            }
             aria-label="Message Copilot"
             enterKeyHint="send"
             rows={1}
-            disabled={isThinking}
+            disabled={isThinking || recording || transcribing}
             className="max-h-40 min-h-[36px] flex-1 resize-none overflow-y-auto bg-transparent py-2 text-hb-sm text-hb-text placeholder:text-hb-muted focus:outline-none disabled:opacity-60"
           />
+          <button
+            type="button"
+            onClick={() => {
+              voice.clearError()
+              if (recording) voice.stop()
+              else voice.start()
+            }}
+            disabled={isThinking || transcribing}
+            aria-label={recording ? 'Stop recording' : 'Speak your message'}
+            title={recording ? 'Stop recording' : 'Speak your message'}
+            className={clsx(
+              'grid h-9 w-9 shrink-0 place-items-center rounded-hb-full border transition-colors duration-hb focus-visible:outline-none focus-visible:shadow-hb-ring disabled:opacity-50',
+              recording
+                ? 'animate-pulse border-hb-error bg-hb-error/10 text-hb-error'
+                : 'border-hb-border bg-hb-surface-2 text-hb-muted hover:text-hb-text'
+            )}
+          >
+            {transcribing ? (
+              <Loader2 size={16} className="animate-spin" aria-hidden />
+            ) : recording ? (
+              <Square size={13} fill="currentColor" aria-hidden />
+            ) : (
+              <Mic size={16} aria-hidden />
+            )}
+          </button>
           <Button
             size="sm"
             aria-label="Send message"
             loading={isThinking}
-            disabled={!value.trim()}
+            disabled={!value.trim() || recording || transcribing}
             onClick={send}
             className="!h-9 !w-9 shrink-0 !px-0"
           >
             {!isThinking && <ArrowUp size={16} />}
           </Button>
         </div>
+        {voice.error && (
+          <p role="alert" className="mt-2 text-center text-hb-xs text-hb-error">
+            {voice.error}
+          </p>
+        )}
         <p className="mt-2 text-center text-[11px] text-hb-dim">
           Copilot can make mistakes. Check candidate details before acting on them.
         </p>

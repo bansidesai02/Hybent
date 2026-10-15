@@ -72,7 +72,19 @@ export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   '.png', '.jpg', '.jpeg', '.webp', '.gif', '.zip',
 ]
 
+/** A hiring-team member the user can message (GET /v1/users/teammates). */
+export interface Teammate {
+  id: string
+  full_name: string
+  email: string
+  role: string
+  avatar_url?: string | null
+}
+
 export const messagesApi = {
+  /** The org's active admins, recruiters and interviewers, minus the user. */
+  getTeammates: () => api.get<Teammate[]>('/v1/users/teammates'),
+
   getConversations: () => api.get<ConversationSummary[]>('/v1/messages/conversations'),
 
   getMessages: (otherUserId: string, params?: { limit?: number; offset?: number }) =>
