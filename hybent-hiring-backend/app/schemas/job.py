@@ -64,6 +64,7 @@ class JobPublicOut(OrmSchema):
     skills_required: list[str]
     is_remote: bool
     application_deadline: datetime | None = None
+    openings: int = 1
     organization: PublicOrganizationOut
 
 

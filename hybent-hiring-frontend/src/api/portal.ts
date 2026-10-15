@@ -28,7 +28,16 @@ export const portalApi = {
 
   jobs: () => api.get<import('@/types').Job[]>('/v1/portal/jobs'),
 
-  applyToJob: (jobId: string) => api.post<Application>(`/v1/portal/jobs/${jobId}/apply`),
+  /** Apply with the resume on the profile, or with `resume` — which also
+      replaces the profile's resume and is parsed into it. */
+  applyToJob: (jobId: string, resume?: File) => {
+    if (!resume) return api.post<Application>(`/v1/portal/jobs/${jobId}/apply`)
+    const form = new FormData()
+    form.append('resume', resume)
+    return api.post<Application>(`/v1/portal/jobs/${jobId}/apply`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 
   referJob: (jobId: string, data: FormData) =>
     api.post(`/v1/portal/jobs/${jobId}/refer`, data, {

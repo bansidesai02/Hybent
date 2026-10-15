@@ -18,6 +18,27 @@ from app.schemas.auth import UserOut
 
 logger = logging.getLogger(__name__)
 
+
+def announce_candidate_joined(candidate: Candidate) -> None:
+    """Tell the org's admins and recruiters a candidate now has a portal
+    account. Callers send this only when the account is first linked to the
+    candidate, so a re-sent invitation or a second login never repeats it.
+    Never raises: joining must not fail because the broker is down."""
+    from app.tasks.notifications import notify_organization_roles
+    from app.utils.permissions import NotificationType
+
+    try:
+        notify_organization_roles.delay(
+            str(candidate.organization_id),
+            [UserRole.ADMIN, UserRole.RECRUITER],
+            NotificationType.CANDIDATE_JOINED,
+            "Candidate Joined the Portal",
+            f"{candidate.full_name} ({candidate.email}) has joined the candidate portal.",
+            {"candidate_id": str(candidate.id)},
+        )
+    except Exception as exc:
+        logger.warning("Could not queue the candidate-joined notification for %s: %s", candidate.id, exc)
+
 async def create_invitation(
     db: AsyncSession,
     candidate_id: uuid.UUID,
@@ -142,11 +163,14 @@ async def use_invitation(db: AsyncSession, token: str, password: str | None = No
             await db.flush()
         
         # Link candidate to user
+        newly_joined = candidate.user_id != user.id
         candidate.user_id = user.id
-        
+
         # Mark invitation as used
         invitation.is_used = True
         await db.flush()
+        if newly_joined:
+            announce_candidate_joined(candidate)
 
         # Generate tokens for immediate login
         access_token = create_access_token({"sub": str(user.id), "org": str(user.organization_id), "role": user.role})

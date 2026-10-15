@@ -110,6 +110,7 @@ class NotificationType(str, Enum):
     CANDIDATE_ADDED = "candidate_added"
     CANDIDATE_UPDATED = "candidate_updated"
     CANDIDATE_DELETED = "candidate_deleted"
+    CANDIDATE_JOINED = "candidate_joined"  # a candidate created their portal account
     COMMENT_ADDED = "comment_added"
     SYSTEM = "system"
     # ── Candidate-facing types ────────────────────────────────────────────────

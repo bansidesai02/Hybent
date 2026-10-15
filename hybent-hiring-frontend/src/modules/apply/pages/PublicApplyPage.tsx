@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 
 import { publicApi } from '@/api/public'
 import { useAsyncAction } from '@/hooks/useAsyncAction'
+import { formatDate } from '@/utils/formatters'
 import { Badge, Button, Card, Dropzone, Input } from '@/components/hb'
 
 /**
@@ -50,7 +51,32 @@ interface PublicJob {
   benefits: string | null
   skills_required: string[]
   is_remote: boolean
+  application_deadline: string | null
+  openings?: number
   organization: { name: string; slug: string; logo_url: string | null }
+}
+
+/* JD text saved as bullets often loses the first "•" (the parser keeps it
+   only between items), so a list rendered with one bare line. Lines are
+   shown as a real list when most of them are bullets. */
+const BULLET = /^\s*(?:[•\-*–]|\d+[.)])\s+/
+
+function bodyLines(body: string): { list: boolean; lines: string[] } {
+  const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
+  const bulleted = lines.filter((l) => BULLET.test(l)).length
+  if (lines.length > 1 && bulleted >= (lines.length - 1)) {
+    return { list: true, lines: lines.map((l) => l.replace(BULLET, '')) }
+  }
+  return { list: false, lines }
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-hb-sm border border-hb-border bg-hb-surface-2 px-3.5 py-2.5">
+      <p className="font-mono text-hb-label uppercase text-hb-dim">{label}</p>
+      <p className="mt-1 text-hb-sm font-semibold text-hb-text">{value}</p>
+    </div>
+  )
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -62,10 +88,19 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function Prose({ title, body }: { title: string; body: string }) {
+  const { list, lines } = bodyLines(body)
   return (
     <section>
       <h2 className="font-display text-hb-h3 text-hb-text">{title}</h2>
-      <p className="mt-2 whitespace-pre-line text-hb-body text-hb-muted">{body}</p>
+      {list ? (
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-hb-body text-hb-muted marker:text-hb-dim">
+          {lines.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 whitespace-pre-line text-hb-body text-hb-muted">{body}</p>
+      )}
     </section>
   )
 }
@@ -227,13 +262,6 @@ export default function PublicApplyPage() {
             </>
           )}
         </p>
-        {job.skills_required?.length > 0 && (
-          <div className="mt-hb-3 flex flex-wrap justify-center gap-1.5">
-            {job.skills_required.map((skill) => (
-              <Badge key={skill}>{skill}</Badge>
-            ))}
-          </div>
-        )}
       </div>
 
       <Card padding="loose" className="space-y-hb-6">
@@ -241,6 +269,39 @@ export default function PublicApplyPage() {
           {job.description && <Prose title="About the role" body={job.description} />}
           {job.responsibilities && <Prose title="Key responsibilities" body={job.responsibilities} />}
           {job.requirements && <Prose title="Requirements" body={job.requirements} />}
+          {job.skills_required?.length > 0 && (
+            <section>
+              <h2 className="font-display text-hb-h3 text-hb-text">Skills required</h2>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {job.skills_required.map((skill) => (
+                  <Badge key={skill}>{skill}</Badge>
+                ))}
+              </div>
+            </section>
+          )}
+          <div className="grid gap-hb-3 sm:grid-cols-2">
+            <Fact
+              label="Experience"
+              value={
+                job.min_experience_years
+                  ? `${job.min_experience_years}+ years`
+                  : job.experience_level
+                    ? job.experience_level.charAt(0).toUpperCase() + job.experience_level.slice(1)
+                    : 'Open to all levels'
+              }
+            />
+            <Fact label="Employment type" value={JOB_TYPE_LABEL[job.job_type] || job.job_type} />
+            <Fact label="Location" value={job.is_remote ? 'Remote' : job.location || 'Not specified'} />
+            {job.application_deadline ? (
+              <Fact label="Apply by" value={formatDate(job.application_deadline)} />
+            ) : (
+              <Fact
+                label="Openings"
+                value={`${job.openings ?? 1} ${(job.openings ?? 1) === 1 ? 'position' : 'positions'}`}
+              />
+            )}
+          </div>
+
           {job.benefits && <Prose title="Benefits" body={job.benefits} />}
         </div>
 

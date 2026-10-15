@@ -187,42 +187,21 @@ async def upload_and_create(
 
     target_title = "" if skip_scoring else (job.title if job else role_title)
             
-    from app.utils.category import extract_core_category, extract_all_categories, detect_category_from_skills, get_missing_skills_hint, get_tech_keywords
+    from app.utils.category import extract_core_category, extract_all_categories, detect_category_from_skills, get_missing_skills_hint, is_role_mismatch
     target_categories = extract_all_categories(target_title)
-    
+
     # Skill-based detection is more accurate than title (e.g. "Software Engineer" with MEAN skills → MEAN Stack)
     candidate_skills_list = parsed.get("skills", [])
-    candidate_skills_str = " ".join(candidate_skills_list).lower()
     parsed_category = detect_category_from_skills(candidate_skills_list) or extract_core_category(parsed.get("current_title", ""))
-    
-    def is_mismatch(cat1: str, cat2: str) -> bool:
-        if not cat1 or not cat2: return False
-        c1, c2 = cat1.lower(), cat2.lower()
-        if c1 in c2 or c2 in c1: return False
-        
-        generics = ["software", "engineer", "developer", "backend", "frontend", "full stack", "programmer", "coder", "tech lead", "it", "web"]
-        any(g in c1 for g in generics)
-        is_c2_generic = any(g in c2 for g in generics)
-        
-        # If target category is generic, it's not a mismatch
-        if is_c2_generic:
-            return False
-            
-        # Target is specific tech category (e.g. "Angular", ".Net")
-        # Check if the candidate has the required technology keywords in their skills
-        target_kws = get_tech_keywords(cat2)
-        if any(kw in candidate_skills_str for kw in target_kws):
-            return False
-            
-        return True
 
     mismatch_detected = False
     if target_title:
-        mismatch_detected = True
-        for target_cat in target_categories:
-            if not is_mismatch(parsed_category, target_cat):
-                mismatch_detected = False
-                break
+        # Rejected only when the resume conflicts with every technology the
+        # job names — not for any title the category helpers can't place.
+        mismatch_detected = bool(target_categories) and all(
+            is_role_mismatch(parsed_category, target_cat, candidate_skills_list)
+            for target_cat in target_categories
+        )
 
         if mismatch_detected:
             primary_target_cat = target_categories[0] if target_categories else target_title

@@ -5,6 +5,7 @@ import { CalendarDays, Camera, FileText, Loader2, Save } from 'lucide-react'
 
 import { portalApi } from '@/api/portal'
 import { useAuthStore } from '@/store/authStore'
+import { formatExperienceDuration } from '@/utils/formatters'
 import ImageCropperModal from '@/components/common/ImageCropperModal'
 import {
   Badge,
@@ -77,7 +78,7 @@ export default function PortalProfilePage() {
   const [skills, setSkills] = useState<string[]>([])
 
   useEffect(() => {
-    if (profile) setSkills(profile.skills || profile.tags || [])
+    if (profile) setSkills(profile.skills || [])
   }, [profile])
 
   // ── Resume upload ──────────────────────────────────────────────────────────
@@ -161,7 +162,8 @@ export default function PortalProfilePage() {
       delete data.last_name
     }
 
-    data.tags = skills
+    // Skills are the candidate's own; `tags` are the recruiters' labels.
+    data.skills = skills
     saveMutation.mutate(data)
   }
 
@@ -214,6 +216,10 @@ export default function PortalProfilePage() {
   const initials = profile?.full_name
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'C'
+
+  /* Parsed from the resume — read-only here, like the recruiter's view. */
+  const workHistory: Array<{ title?: string; company?: string; duration?: string; description?: string }> =
+    Array.isArray(profile?.parsed_data?.experience) ? profile.parsed_data.experience : []
 
   const pct = profile ? completionPercent(profile) : 0
   const isComplete = pct >= 80
@@ -353,13 +359,24 @@ export default function PortalProfilePage() {
               <Input
                 label="Experience"
                 name="experience_years"
-                defaultValue={profile?.experience_years != null ? `${profile.experience_years} Years` : ''}
+                defaultValue={
+                  /* Already text like "3.5 Years" — appending " Years" showed
+                     "3.5 Years Years" and saved it back that way. */
+                  profile?.experience_years ||
+                  (profile?.years_experience != null ? `${profile.years_experience} Years` : '')
+                }
                 placeholder="e.g. 5 years"
               />
               <Input
                 label="Notice period"
                 name="notice_period_days"
-                defaultValue={profile?.notice_period_days != null ? `${profile.notice_period_days} Days` : ''}
+                defaultValue={
+                  profile?.notice_period_days
+                    ? /^\d+$/.test(profile.notice_period_days.trim())
+                      ? `${profile.notice_period_days.trim()} Days`
+                      : profile.notice_period_days
+                    : ''
+                }
                 placeholder="e.g. 30 days"
               />
             </div>
@@ -501,6 +518,36 @@ export default function PortalProfilePage() {
                 placeholder="Add a skill and press Enter"
               />
             </div>
+          </Card>
+
+          <Card padding="loose">
+            <CardHeader title="Work experience" />
+            {workHistory.length > 0 ? (
+              <ol className="space-y-hb-4">
+                {workHistory.map((exp, i) => {
+                  const length = formatExperienceDuration(exp.duration)
+                  return (
+                    <li key={i} className="border-l-2 border-hb-border pl-3.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-hb-body font-semibold text-hb-text">{exp.title || 'Role'}</p>
+                        {length && <Badge className="shrink-0">{length}</Badge>}
+                      </div>
+                      <p className="text-hb-sm text-hb-cyan">
+                        {exp.company}
+                        {exp.duration && <span className="ml-2 text-hb-muted">· {exp.duration}</span>}
+                      </p>
+                      {exp.description && (
+                        <p className="mt-1 text-hb-xs text-hb-muted">{exp.description}</p>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            ) : (
+              <p className="text-hb-sm text-hb-muted">
+                Upload your resume above and your work history will appear here.
+              </p>
+            )}
           </Card>
         </div>
       </form>

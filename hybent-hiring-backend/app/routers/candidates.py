@@ -18,6 +18,7 @@ from app.services.activity_service import log_activity
 from app.models.application import Application
 from app.models.job import Job
 from app.services.ai.match_scorer import evaluate_candidate_match
+from app.services.ai.resume_parser import years_from_experience_text
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
 
@@ -537,23 +538,11 @@ async def update_candidate(candidate_id: uuid.UUID, data: CandidateUpdate, curre
     elif "expected_salary" in update_data:
         update_data["expected_ctc"] = update_data["expected_salary"]
 
-    # Synchronize experience years string to years_experience float. The typed
-    # string can be in months ("6 Months") as easily as years ("3 Years") —
-    # assuming the leading number is always years silently turned "6 Months"
-    # into years_experience=6.0 (i.e. 6 years).
-    if "experience_years" in update_data:
-        val = update_data["experience_years"]
-        if val:
-            import re
-            match = re.search(r"(\d+(?:\.\d+)?)", val)
-            if match:
-                try:
-                    number = float(match.group(1))
-                    update_data["years_experience"] = (
-                        round(number / 12.0, 2) if "month" in val.lower() else number
-                    )
-                except ValueError:
-                    pass
+    # Synchronize experience years string to years_experience float.
+    if update_data.get("experience_years"):
+        years = years_from_experience_text(update_data["experience_years"])
+        if years is not None:
+            update_data["years_experience"] = years
 
     # Track comment/note changes before applying
     old_hr_notes = candidate.hr_notes
@@ -993,12 +982,15 @@ async def update_candidate_designation(
 
 
 @router.post("/{candidate_id}/reject", response_model=CandidateOut)
-async def reject_candidate(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(require_recruiter)], db: DB):
+async def reject_candidate(candidate_id: uuid.UUID, current_user: Annotated[User, Depends(require_recruiter)], db: DB, background_tasks: BackgroundTasks):
+    # background_tasks used to be left out here, so every call died with a
+    # TypeError — the upload page's Reject button always failed.
     return await update_candidate_stage(
         candidate_id=candidate_id,
         data=CandidateStageUpdate(pipeline_stage="rejected", send_rejection_email=False),
         current_user=current_user,
-        db=db
+        db=db,
+        background_tasks=background_tasks,
     )
 
 

@@ -17,9 +17,7 @@ from app.models.job import Job
 from app.models.candidate import Candidate
 from app.models.application import Application
 from app.schemas.job import JobPublicOut
-from app.core.config import settings
-from app.services import supabase_storage_service
-from app.services.storage_service import save_resume
+from app.services import resume_intake
 from app.utils.permissions import ApplicationStage, NotificationType, UserRole
 from app.tasks.notifications import notify_organization_roles
 from app.services.ai import site_assistant
@@ -107,6 +105,7 @@ async def apply_to_public_job(
         source = "linkedin"
 
     job = await _get_active_job_or_404(db, org_slug, job_id)
+    resume_content = await resume_intake.read_resume_upload(resume)
     email = email.strip().lower()
 
     candidate = (await db.execute(
@@ -148,24 +147,11 @@ async def apply_to_public_job(
     candidate.expected_ctc = candidate.expected_salary = expected_ctc
     candidate.notice_period_days = notice_period
 
-    # Production → Supabase Storage; local/Docker → Cloudinary (or local disk)
-    if settings.use_supabase_resume_storage:
-        file_content = await resume.read()
-        storage_path = await supabase_storage_service.upload_resume(
-            file_content=file_content,
-            organization_id=str(job.organization_id),
-            candidate_id=str(candidate.id),
-            original_filename=resume.filename or "resume",
-            content_type=resume.content_type or "application/octet-stream",
-        )
-        candidate.resume_storage_path = storage_path
-        candidate.resume_url = None
-        candidate.resume_filename = resume.filename
-    else:
-        url, original_name = await save_resume(resume, str(job.organization_id))
-        candidate.resume_url = url
-        candidate.resume_filename = original_name
+    await resume_intake.store_resume(candidate, resume, resume_content)
     candidate.applied_job_title = job.title
+    # Parsed and scored like a recruiter upload — this path used to only
+    # store the file, so link applicants had no experience and no match score.
+    await resume_intake.parse_into_profile(db, candidate, resume_content, resume)
 
     application = Application(
         organization_id=job.organization_id,
@@ -175,6 +161,7 @@ async def apply_to_public_job(
         source=source,
     )
     db.add(application)
+    await resume_intake.score_application(candidate, application, job)
     await db.commit()
 
     from app.tasks.screening import enqueue_screening

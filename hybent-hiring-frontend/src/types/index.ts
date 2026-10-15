@@ -41,6 +41,7 @@ export type NotificationType =
   | 'candidate_added'
   | 'candidate_updated'
   | 'candidate_deleted'
+  | 'candidate_joined'
   | 'comment_added'
   | 'system'
   // Candidate-facing types

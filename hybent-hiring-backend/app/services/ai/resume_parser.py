@@ -542,6 +542,17 @@ def apply_experience_fields(candidate, parsed: dict) -> None:
         candidate.experience_years = parsed.get("experience_years")
 
 
+def years_from_experience_text(text: str | None) -> Optional[float]:
+    """The `years_experience` float for a typed experience string. It can be
+    in months ("6 Months") as easily as years ("3 Years") — assuming the
+    leading number is always years silently turned "6 Months" into 6 years."""
+    match = re.search(r"(\d+(?:\.\d+)?)", text or "")
+    if not match:
+        return None
+    number = float(match.group(1))
+    return round(number / 12.0, 2) if "month" in text.lower() else number
+
+
 # ─── Fallback ────────────────────────────────────────────────────────────────────
 
 def _regex_fallback(text: str) -> dict:

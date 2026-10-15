@@ -117,6 +117,31 @@ class CandidateUpdate(BaseModel):
     sr_no: str | None = None
     source: str | None = None
 
+class PortalProfileUpdate(BaseModel):
+    """What a candidate may change on their own profile. The recruiter-side
+    CandidateUpdate also carries pipeline_stage, HR notes, tags and import
+    fields — none of which a candidate should be able to set on themselves."""
+    email: EmailStr | None = None
+    full_name: str | None = None
+    phone: str | None = None
+    location: str | None = None
+    linkedin_url: str | None = None
+    portfolio_url: str | None = None
+    github_url: str | None = None
+    summary: str | None = None
+    skills: list[str] | None = None
+    experience_years: str | None = None
+    notice_period_days: str | None = None
+    current_ctc: str | None = None
+    expected_ctc: str | None = None
+    work_mode_preference: str | None = None
+    availability_status: str | None = None
+    interview_availability_days: str | None = None
+    interview_time_slot: str | None = None
+    blackout_dates: str | None = None
+    weekend_interviews: bool | None = None
+
+
 class CandidateStageUpdate(BaseModel):
     pipeline_stage: str
     send_rejection_email: bool = False
