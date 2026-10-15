@@ -84,12 +84,14 @@ const SECTIONS: Array<{ title: string; fields: FieldDef[] }> = [
     ],
   },
   {
+    /* Always shown, even when empty, so recruiters see what is missing and
+       where to fill it in — it used to vanish for most link applicants. */
     title: 'Salary & joining',
     fields: [
-      { key: 'current_ctc', label: 'Current salary', placeholder: 'e.g. ₹22,00,000' },
-      { key: 'expected_ctc', label: 'Expected salary', placeholder: 'e.g. ₹32,00,000' },
-      { key: 'notice_period_days', label: 'Notice period', placeholder: 'e.g. 30 days' },
-      { key: 'availability_status', label: 'Can join within', placeholder: 'e.g. 15 days' },
+      { key: 'current_ctc', label: 'Current salary', placeholder: 'e.g. ₹22,00,000', alwaysShow: true },
+      { key: 'expected_ctc', label: 'Expected salary', placeholder: 'e.g. ₹32,00,000', alwaysShow: true },
+      { key: 'notice_period_days', label: 'Notice period', placeholder: 'e.g. 30 days', alwaysShow: true },
+      { key: 'availability_status', label: 'Can join within', placeholder: 'e.g. 15 days', alwaysShow: true },
     ],
   },
   {

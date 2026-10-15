@@ -153,6 +153,31 @@ async def _user_out_with_org(user: User, db: AsyncSession) -> UserOut:
     return data
 
 
+@router.get("/teammates", response_model=list[UserOut])
+async def list_teammates(current_user: CurrentUser, db: DB):
+    """Everyone on the hiring team the user can message: the org's active
+    admins, recruiters and interviewers, excluding themselves. Open to
+    interviewers too (they have team chat), unlike the admin user list, and
+    never includes candidates' portal accounts."""
+    if current_user.role not in (UserRole.ADMIN, UserRole.RECRUITER, UserRole.INTERVIEWER):
+        raise HTTPException(status_code=403, detail="Team chat is for the hiring team.")
+    result = await db.execute(
+        select(User)
+        .options(joinedload(User.organization))
+        .where(
+            User.organization_id == current_user.organization_id,
+            User.id != current_user.id,
+            User.is_active.is_(True),
+            User.role.in_([UserRole.ADMIN, UserRole.RECRUITER, UserRole.INTERVIEWER]),
+        )
+        .order_by(User.full_name)
+    )
+    return APIResponse.success(
+        message="Teammates retrieved.",
+        data=[UserOut.model_validate(u) for u in result.scalars().all()],
+    )
+
+
 @router.get("/me", response_model=UserOut)
 async def get_my_profile(current_user: CurrentUser, db: DB):
     """Get the authenticated user's own profile, including organization name."""
