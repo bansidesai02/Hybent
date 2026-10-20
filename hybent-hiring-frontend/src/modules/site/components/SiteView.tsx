@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useLayoutEffect, type ReactNode } from 'react'
 import { useSiteBehaviours } from '../hooks/useSiteBehaviours'
 
 type SiteViewProps = {
@@ -20,6 +20,12 @@ type SiteViewProps = {
  * moment the router moves to a product view.
  */
 export function SiteView({ route, children }: SiteViewProps) {
+  // The build's static snapshot of this page (scripts/prerender.mjs) stays on
+  // screen until React's own page is ready, then hands over. Layout effect so
+  // it's gone before useSiteBehaviours queries the DOM by id.
+  useLayoutEffect(() => {
+    document.getElementById('hb-prerender')?.remove()
+  }, [])
   useSiteBehaviours(route)
 
   return (

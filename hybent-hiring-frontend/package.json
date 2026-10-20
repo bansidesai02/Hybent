@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:ds": "eslint src --ext ts,tsx --no-eslintrc -c .eslintrc.ds.cjs",
-    "lint:ds:count": "eslint src --ext ts,tsx --no-eslintrc -c .eslintrc.ds.cjs -f json | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);const n=r.reduce((a,f)=>a+f.warningCount,0);const files=r.filter(f=>f.warningCount).length;console.log(`design-system debt: ${n} violations across ${files} files`)})\""
+    "lint:ds:count": "eslint src --ext ts,tsx --no-eslintrc -c .eslintrc.ds.cjs -f json | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);const n=r.reduce((a,f)=>a+f.warningCount,0);const files=r.filter(f=>f.warningCount).length;console.log(`design-system debt: ${n} violations across ${files} files`)})\"",
+    "prerender": "node scripts/prerender.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^16.6.0",
@@ -48,6 +49,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
     "postcss": "^8.4.38",
+    "puppeteer": "^23.11.1",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
