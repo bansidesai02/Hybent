@@ -428,6 +428,21 @@ html:has(.hb-app-shell) body {
 }
 
 /* -----------------------------------------------------------------------------
+   Gradient fills reach the outer edge.
+
+   A background image is positioned from the padding box and *repeats* under
+   the border by default. The filled pills (tabs, primary buttons, chips) keep
+   a 1px `border-transparent` so they line up with their outlined siblings,
+   and through that border the gradient's tile wraps round: a magenta sliver
+   on the cyan end and a cyan sliver on the magenta end. Anchoring the image
+   to the border box makes the sweep run edge to edge.
+   ----------------------------------------------------------------------------- */
+[class*="bg-hb-grad"],
+[class*="bg-gradient-"] {
+  background-origin: border-box;
+}
+
+/* -----------------------------------------------------------------------------
    The gradient hairline.
 
    A 1px brand-gradient edge drawn *inside* the border radius. The site uses it

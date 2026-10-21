@@ -30,16 +30,16 @@ export default function CareersPage() {
           {CAREERS_OPEN ? (
             <>
               <div className="grid" style={{ gap: "12px" }} data-rv="up">
-                <a className="role" href="/contact"><span><h4>Full-Stack Engineer, Hybent Hiring</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                <a className="role" href="/contact"><span><h4>AI/ML Engineer, Screening &amp; Parsing</h4><p className="mono">Ahmedabad or Remote · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                <a className="role" href="/contact"><span><h4>Product Designer</h4><p className="mono">Ahmedabad or Remote · Design</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                <a className="role" href="/contact"><span><h4>Founding Account Executive</h4><p className="mono">Ahmedabad · Hybrid · Sales</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                <a className="role" href="/contact"><span><h4>Customer Success Manager</h4><p className="mono">Ahmedabad or Remote · Customer</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                <a className="role" href="/contact"><span><h4>QA &amp; Release Engineer</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href={`mailto:${CAREERS_EMAIL}?subject=Application%3A%20Full-Stack%20Engineer%2C%20Hybent%20Hiring`}><span><h4>Full-Stack Engineer, Hybent Hiring</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href={`mailto:${CAREERS_EMAIL}?subject=Application%3A%20AI/ML%20Engineer%2C%20Screening%20and%20Parsing`}><span><h4>AI/ML Engineer, Screening &amp; Parsing</h4><p className="mono">Ahmedabad or Remote · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href={`mailto:${CAREERS_EMAIL}?subject=Application%3A%20Product%20Designer`}><span><h4>Product Designer</h4><p className="mono">Ahmedabad or Remote · Design</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href={`mailto:${CAREERS_EMAIL}?subject=Application%3A%20Founding%20Account%20Executive`}><span><h4>Founding Account Executive</h4><p className="mono">Ahmedabad · Hybrid · Sales</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href={`mailto:${CAREERS_EMAIL}?subject=Application%3A%20Customer%20Success%20Manager`}><span><h4>Customer Success Manager</h4><p className="mono">Ahmedabad or Remote · Customer</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="role" href={`mailto:${CAREERS_EMAIL}?subject=Application%3A%20QA%20and%20Release%20Engineer`}><span><h4>QA &amp; Release Engineer</h4><p className="mono">Ahmedabad · Hybrid · Engineering</p></span><svg className="arw" width="18" height="18" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               </div>
               <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginTop: "26px" }} data-rv="up">
-                <a className="btn btn-primary" href="/contact">See all open roles <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                <a className="btn btn-ghost" href="/contact">Join our talent network</a>
+                <a className="btn btn-primary" href={`mailto:${CAREERS_EMAIL}?subject=Application%3A%20Open%20roles`}>See all open roles <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="btn btn-ghost" href={`mailto:${CAREERS_EMAIL}?subject=Talent%20network`}>Join our talent network</a>
               </div>
             </>
           ) : (

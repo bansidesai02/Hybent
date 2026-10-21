@@ -21,6 +21,7 @@ from app.services import resume_intake
 from app.utils.permissions import ApplicationStage, NotificationType, UserRole
 from app.tasks.notifications import notify_organization_roles
 from app.services.ai import site_assistant
+from app.services import lead_checks
 
 router = APIRouter(prefix="/public", tags=["Public"])
 logger = logging.getLogger(__name__)
@@ -209,41 +210,96 @@ async def demo_request(request: DemoRequest):
     return APIResponse.success(message="Demo request submitted successfully. We will get back to you soon!")
 
 
-@router.post("/contact")
-async def contact(request: ContactRequest):
-    """The hybent.com/contact form: emails the message to the Hybent team."""
-    if request.website:
-        # Honeypot filled in: a bot. Look successful so it doesn't retry.
-        logger.info("Contact form honeypot triggered; message dropped.")
-        return APIResponse.success(message="Thanks. We have your message and will reply within one business day.")
+CONTACT_THANKS = "Thanks. We have your message and will reply within one business day."
 
-    optional = [
-        ("Phone", request.phone),
-        ("Company", request.company),
-        ("Country", request.country),
-        ("Location", request.location),
-        ("How they heard about us", request.referrer),
+# The [tag] that starts the subject line, so info@ can sort Hybent Hiring
+# leads from IT Services ones with a mail filter.
+CONTACT_TOPIC_TAGS = {
+    "hiring": "Hybent Hiring",
+    "services": "IT Services",
+}
+
+
+def _contact_rejected(field: str, message: str) -> HTTPException:
+    """A 422 the form shows under the field it names."""
+    return HTTPException(status_code=422, detail={"message": message, "field": field})
+
+
+@router.post("/contact")
+async def contact(body: ContactRequest, request: Request):
+    """The hybent.com/contact form: checks the submission is plausibly real,
+    then emails it to info@ tagged with what the visitor came for."""
+    if body.website or (body.elapsed_ms is not None and body.elapsed_ms < lead_checks.MIN_FILL_MS):
+        # Honeypot filled in, or sent faster than anyone can type: a bot.
+        # Look successful so it doesn't retry.
+        logger.info("Contact form bot check triggered; message dropped.")
+        return APIResponse.success(message=CONTACT_THANKS)
+
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    if lead_checks.rate_limited(ip):
+        raise HTTPException(
+            status_code=429,
+            detail="You've sent several messages already. Please wait a while, or email info@hybent.com directly.",
+        )
+
+    domain = lead_checks.email_domain(body.email)
+    if domain in lead_checks.DISPOSABLE_DOMAINS:
+        raise _contact_rejected("email", "Temporary inboxes can't receive our reply. Please use your work email.")
+    if not await lead_checks.domain_accepts_mail(domain):
+        raise _contact_rejected("email", f"{domain} can't receive email. Please check the spelling.")
+
+    phone = lead_checks.parse_phone(body.phone)
+    if phone is None:
+        raise _contact_rejected("phone", "That phone number isn't valid for the selected country.")
+
+    checks = [
+        "⚠️ Free email (not a company domain)" if domain in lead_checks.FREE_EMAIL_DOMAINS else "✅ Company email",
+        "✅ Valid phone",
+    ]
+    topic = CONTACT_TOPIC_TAGS[body.topic]
+    rows = [
+        ("Topic", topic),
+        ("Service", body.service),
+        ("Industry", body.industry),
+        ("Role to hire", body.role),
+        ("Company size", body.team_size),
+        ("People hired per year", body.hires_per_year),
+        ("Company", body.company),
+        ("Phone", phone[0]),
+        ("Country", phone[1]),
+        ("Location", body.location),
+        ("How they heard about us", body.referrer),
+        ("Came from", body.came_from),
+        ("Landing page", body.landing_page),
+        ("Referring site", body.external_referrer),
+        ("Campaign", " / ".join(v for v in (body.utm_source, body.utm_medium, body.utm_campaign) if v) or None),
+        ("Checks", " · ".join(checks)),
     ]
     details = "".join(
-        f"<tr><td style=\"padding:4px 16px 4px 0;color:#70757a\">{label}</td><td>{html.escape(value)}</td></tr>"
-        for label, value in optional if value
+        f"<tr><td style=\"padding:4px 16px 4px 0;color:#70757a;vertical-align:top\">{label}</td><td>{html.escape(value)}</td></tr>"
+        for label, value in rows if value
     )
-    email = html.escape(request.email)
-    body = (
-        f"<p><b>{html.escape(request.name)}</b> &lt;<a href=\"mailto:{email}\">{email}</a>&gt; "
+    email = html.escape(body.email)
+    html_body = (
+        f"<p><b>{html.escape(body.name)}</b> &lt;<a href=\"mailto:{email}\">{email}</a>&gt; "
         "sent a message from hybent.com/contact.</p>"
-        + (f"<table>{details}</table>" if details else "")
-        + f"<p style=\"white-space:pre-wrap\">{html.escape(request.message)}</p>"
-        f"<p><a href=\"mailto:{email}\">Reply to {html.escape(request.name)}</a></p>"
+        f"<table>{details}</table>"
+        f"<p style=\"white-space:pre-wrap\">{html.escape(body.message)}</p>"
+        f"<p><a href=\"mailto:{email}\">Reply to {html.escape(body.name)}</a></p>"
     )
-    subject = f"Contact form: {request.name}" + (f" ({request.company})" if request.company else "")
-    sent = await asyncio.to_thread(send_email, CONTACT_EMAIL, subject, body)
+    context = body.service or body.role
+    subject = (
+        f"[{topic}] {body.name}"
+        + (f" – {body.company}" if body.company else "")
+        + (f" ({context})" if context else "")
+    )
+    sent = await asyncio.to_thread(send_email, CONTACT_EMAIL, subject, html_body)
     if not sent:
         raise HTTPException(
             status_code=502,
             detail="We couldn't send your message. Please email info@hybent.com directly.",
         )
-    return APIResponse.success(message="Thanks. We have your message and will reply within one business day.")
+    return APIResponse.success(message=CONTACT_THANKS)
 
 
 @router.post("/assistant")

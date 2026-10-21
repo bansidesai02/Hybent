@@ -4,23 +4,12 @@ import { SiteView } from '../components/SiteView'
 export default function ContactPage() {
   return (
     <SiteView route="contact">
-      <section className="hero">
-        <div className="hero__orb orb-a" data-para="0.02"></div>
-        <div className="hero__orb orb-b" data-para="-0.03"></div>
-
-        <div className="wrap">
-          <p className="eyebrow" data-rv="up"><span className="bars"><i></i><i></i><i></i></span><span>Contact</span></p>
-          <h1 style={{ fontSize: "clamp(2.35rem,4.6vw,3.6rem)", marginTop: "14px" }} data-rv="up" data-delay="80">Talk to the people building it</h1>
-          <p className="hero__sub" data-rv="up" data-delay="160">No SDR queue, no qualification call before the real one. Describe the problem and someone who works on the product will answer it.</p>
-        </div>
-      </section>
-
-      <section className="section section--tight-pt-none" id="contact">
+      <section className="section" id="contact" style={{ paddingTop: "calc(var(--nav-h) + clamp(40px,5vw,72px))" }}>
         <div className="wrap">
           <div className="split" style={{ alignItems: "start" }}>
             <div data-rv="left">
               <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Contact</span></p>
-              <h2 className="h-lg">Tell us what you are trying to fix</h2>
+              <h1 className="h-lg">Tell us what you are trying to fix</h1>
               <p className="lead" style={{ marginTop: "22px" }}>Send us the problem, not a meeting request. Someone from the team replies within one business day — with an answer, not a calendar link to another calendar link.</p>
               <div style={{ marginTop: "34px" }}>
                 <div className="contact-item"><span className="icon-tile" style={{ width: "38px", height: "38px", borderRadius: "11px" }}><svg style={{ width: "17px", height: "17px" }} aria-hidden="true"><use href="#i-mail" /></svg></span><span><b><a href="mailto:info@hybent.com">info@hybent.com</a></b><span>Sales, support, partnerships &amp; security</span></span></div>

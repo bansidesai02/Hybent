@@ -38,7 +38,7 @@ export default function ProductsPage() {
                   <li><svg aria-hidden="true"><use href="#i-check" /></svg><span><b>Recruiter copilot &amp; candidate portal.</b> Pipeline health and next actions for your team; automatic status updates for everyone who applied.</span></li>
                 </ul>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                  <a className="btn btn-primary" href="/contact">Book a Hybent Hiring demo <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                  <a className="btn btn-primary" href="/contact?topic=hiring">Book a Hybent Hiring demo <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
                   <a className="btn btn-ghost" href="/solutions">See how it works</a>
                 </div>
               </div>

@@ -1,5 +1,7 @@
-import { useLayoutEffect, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useSiteBehaviours } from '../hooks/useSiteBehaviours'
+import { recordSiteVisit } from '../attribution'
 
 type SiteViewProps = {
   /** Matches the view name the design system uses for per-view styling hooks. */
@@ -27,6 +29,11 @@ export function SiteView({ route, children }: SiteViewProps) {
     document.getElementById('hb-prerender')?.remove()
   }, [])
   useSiteBehaviours(route)
+
+  const { pathname, search } = useLocation()
+  useEffect(() => {
+    recordSiteVisit(pathname, search)
+  }, [pathname, search])
 
   return (
     <div className="hb-site hb-surface route route--on" data-route={route}>

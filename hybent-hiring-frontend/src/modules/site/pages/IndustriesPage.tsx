@@ -722,7 +722,7 @@ export default function IndustriesPage() {
             </p>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", justifyContent: "center" }}>
-              <Link to="/contact" className="btn btn-primary btn-lg">
+              <Link to="/contact?topic=services" className="btn btn-primary btn-lg">
                 <span>Speak with an Expert</span>
                 <svg className="arw" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
