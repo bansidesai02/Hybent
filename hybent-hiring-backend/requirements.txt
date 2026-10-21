@@ -20,6 +20,8 @@ bcrypt>=3.2.2
 pydantic
 pydantic-settings>=2.4.0
 email-validator==2.1.1
+dnspython>=2.6.1
+phonenumbers==8.13.52
 
 # AI - Groq & Gemini (free)
 google-generativeai==0.7.2

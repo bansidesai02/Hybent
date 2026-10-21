@@ -689,6 +689,53 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .field__err{font-size:.8rem;color:var(--error);line-height:1.4}
 .hb-site .field input[aria-invalid="true"],
 .hb-site .field textarea[aria-invalid="true"]{border-color:rgba(255,107,129,.7)}
+/* Paired form fields stay top-aligned when one of them grows an error line. */
+.hb-site form .grid.g2{align-items:start}
+
+/* Form dropdowns (SiteSelect.tsx): a button drawn as a `.field input`, and a
+   list that opens beneath it in the same panel as the phone country picker. */
+.hb-site .site-select{position:relative}
+.hb-site .site-select__btn{width:100%;height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 15px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.035);color:var(--text);font:inherit;font-size:.94rem;text-align:left;cursor:pointer;transition:border-color .3s,background .3s,box-shadow .3s}
+.hb-site .site-select__btn:hover{border-color:var(--border-strong)}
+.hb-site .site-select__btn:focus-visible,
+.hb-site .site-select.is-open .site-select__btn{outline:none;border-color:rgba(76,111,255,.6);box-shadow:0 0 0 4px rgba(76,111,255,.12)}
+.hb-site .site-select__btn[aria-invalid="true"]{border-color:rgba(255,107,129,.7)}
+.hb-site .site-select__placeholder{color:#5A6478}
+.hb-site .site-select__value,
+.hb-site .site-select__placeholder{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-site .site-select__chev{flex:none;color:var(--dim);transition:transform .25s}
+.hb-site .site-select.is-open .site-select__chev{transform:rotate(180deg)}
+.hb-site .site-select__pop{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;list-style:none;margin:0;padding:6px;max-height:300px;overflow-y:auto;overscroll-behavior:contain;border-radius:14px;border:1px solid var(--border-strong);background:var(--surface);box-shadow:0 18px 48px -12px rgba(11,18,32,.28)}
+.hb-site .site-select__opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--text)}
+.hb-site .site-select__opt.is-active{background:rgba(76,111,255,.10)}
+.hb-site .site-select__text{flex:1;min-width:0;display:grid;gap:2px}
+.hb-site .site-select__label{font-size:.9rem}
+.hb-site .site-select__opt[aria-selected="true"] .site-select__label{font-weight:600}
+.hb-site .site-select__hint{font-size:.78rem;color:var(--dim);line-height:1.4}
+.hb-site .site-select__tick{flex:none;color:rgb(76,111,255)}
+
+/* Contact form: phone number. The number box is a plain `.field input`; the
+   country button beside it (CountryPicker.tsx) is drawn to match, and opens a
+   searchable list of flags, names and dial codes. */
+.hb-site .field .PhoneInput{gap:8px;--PhoneInputCountryFlag-height:1em}
+.hb-site .field .PhoneInputCountry{position:relative;align-self:stretch;margin:0;padding:0;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.035);transition:border-color .3s,box-shadow .3s}
+.hb-site .field .PhoneInputCountry:focus-within{border-color:rgba(76,111,255,.6);box-shadow:0 0 0 4px rgba(76,111,255,.12)}
+.hb-site .country-pick__btn{height:100%;display:inline-flex;align-items:center;gap:8px;padding:0 12px;border:0;border-radius:12px;background:none;color:var(--text);font:inherit;font-size:.94rem;cursor:pointer}
+.hb-site .country-pick__btn:focus-visible{outline:none}
+.hb-site .country-pick .PhoneInputCountryIcon{width:22px;height:15px;flex:none;border-radius:3px;overflow:hidden;box-shadow:0 0 0 1px rgba(11,18,32,.12);background:none}
+.hb-site .country-pick .PhoneInputCountryIconImg{display:block;width:100%;height:100%;object-fit:cover}
+.hb-site .country-pick__code{font-variant-numeric:tabular-nums}
+.hb-site .country-pick__chev{color:var(--dim);flex:none}
+.hb-site .country-pick__pop{position:absolute;top:calc(100% + 6px);left:-1px;z-index:40;width:min(320px,calc(100vw - 48px));padding:8px;border-radius:14px;border:1px solid var(--border-strong);background:var(--surface);box-shadow:0 18px 48px -12px rgba(11,18,32,.28)}
+.hb-site .field .country-pick__search{height:40px;padding:0 12px;border-radius:10px;font-size:.88rem}
+.hb-site .country-pick__list{list-style:none;margin:6px 0 0;padding:0;max-height:264px;overflow-y:auto;overscroll-behavior:contain}
+.hb-site .country-pick__opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:.88rem;color:var(--text)}
+.hb-site .country-pick__opt.is-active{background:rgba(76,111,255,.10)}
+.hb-site .country-pick__opt[aria-selected="true"]{font-weight:600}
+.hb-site .country-pick__name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-site .country-pick__dial{color:var(--dim);font-variant-numeric:tabular-nums}
+.hb-site .country-pick__empty{padding:12px 10px;font-size:.85rem;color:var(--dim)}
+.hb-site .field .PhoneInput input[aria-invalid="true"]{border-color:rgba(255,107,129,.7)}
 .hb-site .btn[disabled]{opacity:.65;cursor:progress}
 .hb-site .contact-item{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--border)}
 .hb-site .contact-item:last-child{border-bottom:0}
@@ -1033,6 +1080,19 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 [data-theme="classic"] .hb-site .field input::placeholder,
 [data-theme="classic"] .hb-site .field textarea::placeholder,
 [data-theme="classic"] .hb-site .news__form input::placeholder{color:#97A1B4}
+[data-theme="classic"] .hb-site .site-select__btn,
+[data-theme="classic"] .hb-site .field .PhoneInputCountry{background:#fff;border-color:rgba(11,18,32,.13)}
+[data-theme="classic"] .hb-site .site-select__btn:hover{border-color:rgba(11,18,32,.24)}
+[data-theme="classic"] .hb-site .site-select__btn[aria-invalid="true"]{border-color:rgba(255,107,129,.7)}
+[data-theme="classic"] .hb-site .site-select__btn:focus-visible,
+[data-theme="classic"] .hb-site .site-select.is-open .site-select__btn{border-color:rgba(76,111,255,.6)}
+[data-theme="classic"] .hb-site .site-select__placeholder{color:#97A1B4}
+/* The light-theme `background:#fff` shorthand above clears the chevron; put it back. */
+[data-theme="classic"] .hb-site .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238D97AD' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 15px center}
+/* Same specificity as the light-theme input rule above and later, so the
+   error border has to be restated or it never shows. */
+[data-theme="classic"] .hb-site .field input[aria-invalid="true"],
+[data-theme="classic"] .hb-site .field textarea[aria-invalid="true"]{border-color:rgba(255,107,129,.7)}
 [data-theme="classic"] .hb-site .toast{color:#0F7A56}
 .hb-site .toast.toast--error,
 [data-theme="classic"] .hb-site .toast.toast--error{color:var(--error)}

@@ -59,7 +59,7 @@ const PLANS: Plan[] = [
     term: 'Tailored to your team',
     price: null,
     billed: 'Custom seats and terms',
-    cta: { label: 'Contact sales', href: SITE.contact },
+    cta: { label: 'Contact sales', href: `${SITE.contact}?topic=hiring` },
   },
 ]
 
@@ -166,7 +166,7 @@ export default function PricingPage() {
 
           <p className="price-note" data-rv="up">
             Need more people? Extra admin seats are $15/month (+1,500 AI credits), recruiter seats $10/month (+1,000) &mdash;{' '}
-            <a href={SITE.contact}>contact us</a>.
+            <a href={`${SITE.contact}?topic=hiring`}>contact us</a>.
           </p>
         </div>
       </section>
@@ -203,7 +203,7 @@ export default function PricingPage() {
                     Get started
                     <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
                   </a>
-                  <a className="btn btn-ghost" href={SITE.contact}>Talk to sales</a>
+                  <a className="btn btn-ghost" href={`${SITE.contact}?topic=hiring`}>Talk to sales</a>
                 </div>
               </div>
               <div>

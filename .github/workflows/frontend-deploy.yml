@@ -31,6 +31,12 @@ jobs:
         working-directory: ./hybent-hiring-frontend
         run: npm run build
 
+      # Fills each public page's SEO copy with its rendered HTML, so crawlers
+      # that don't run JavaScript see real content. Fails the build if any page renders empty.
+      - name: Prerender Public Pages
+        working-directory: ./hybent-hiring-frontend
+        run: npm run prerender
+
       - name: Upload Build Artifact
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4

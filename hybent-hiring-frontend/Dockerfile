@@ -7,6 +7,8 @@ WORKDIR /app
 
 # Copy lockfile first so npm ci layer is cached unless dependencies change
 COPY package.json package-lock.json ./
+# Puppeteer is only for the Hostinger CI prerender step; skip its Chrome download here.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 RUN npm ci --prefer-offline
 
 # VITE_API_BASE_URL is baked into the JS bundle at build time.
