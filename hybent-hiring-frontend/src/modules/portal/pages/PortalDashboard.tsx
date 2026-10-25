@@ -14,7 +14,6 @@ import {
 
 import { portalApi } from '@/api/portal'
 import { formatDate } from '@/utils/formatters'
-import { RecentActivityFeed } from '@/components/common/RecentActivityFeed'
 import {
   Badge,
   Button,
@@ -380,17 +379,6 @@ export default function PortalDashboard() {
                 )}
               </ul>
             )}
-          </Card>
-
-          {/* ── Live activity ─────────────────────────────────────────────── */}
-          <Card padding="default">
-            <CardHeader
-              title="Live activity"
-              action={<Badge tone="success" dot="pulse">Live</Badge>}
-            />
-            <div className="max-h-[320px] overflow-y-auto pr-2">
-              <RecentActivityFeed limit={5} />
-            </div>
           </Card>
 
           {/* ── Stats ─────────────────────────────────────────────────────── */}

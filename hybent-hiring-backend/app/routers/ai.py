@@ -78,50 +78,6 @@ async def generate_jd(
 
     logger.debug("JD generation successful")
     return APIResponse.success(message="Job description generated successfully.", data=result)
-    
-@router.get("/test-gemini")
-async def test_gemini():
-    from app.core.config import settings
-    import google.generativeai as genai
-    
-    status = {
-        "key_present": bool(settings.gemini_api_key),
-        "key_prefix_ok": settings.gemini_api_key.startswith("AIza") if settings.gemini_api_key else False,
-        "error": None
-    }
-    
-    try:
-        if not settings.gemini_api_key:
-            return {"status": "error", "message": "Key missing in settings"}
-            
-        genai.configure(api_key=settings.gemini_api_key)
-        
-        # Get list of models
-        models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                models.append(m.name)
-        
-        # Try a very basic model first
-        test_model = ai_evaluator.GEMINI_MODEL
-        
-        model = genai.GenerativeModel(test_model)
-        response = await model.generate_content_async("Say hello")
-        return {
-            "status": "success", 
-            "message": response.text, 
-            "available_models": models,
-            "tested_with": test_model,
-            "diagnostics": status
-        }
-    except Exception as e:
-        # If it fails, still return the models we found
-        return {
-            "status": "error", 
-            "message": str(e), 
-            "available_models": locals().get('models', []),
-            "diagnostics": status
-        }
 
 @router.post("/generate-jd-pdf")
 async def generate_jd_pdf_endpoint(

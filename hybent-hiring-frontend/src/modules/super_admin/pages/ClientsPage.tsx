@@ -581,10 +581,7 @@ export default function ClientsPage() {
                 wizardData.collect_payment ? (
                   'The payment link is emailed here. Once it’s paid, they get an email to set their password.'
                 ) : (
-                  <>
-                    A temporary password of <code className="font-mono text-hb-cyan">password123</code>{' '}
-                    is created. They are prompted to reset it on first sign-in.
-                  </>
+                  'They get an email with a link to set their password (valid for 3 days).'
                 )
               }
             />

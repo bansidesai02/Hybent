@@ -104,7 +104,7 @@ export default function UsersPage() {
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: string) => superAdminApi.resetUserPassword(userId),
     onSuccess: () => {
-      toast.success('Password reset to the default: password123')
+      toast.success('Password reset link emailed to the user')
       setConfirmReset(null)
     },
     onError: (err: any) => toast.error(err.message || 'Failed to reset the password.'),
@@ -316,7 +316,7 @@ export default function UsersPage() {
         onClose={() => setConfirmReset(null)}
         onConfirm={() => confirmReset && resetPasswordMutation.mutate(confirmReset.id)}
         title="Reset this password?"
-        description={`${confirmReset?.email} will be set to the default password and must change it on their next sign-in.`}
+        description={`${confirmReset?.email} will be emailed a single-use link to set a new password. Their current password keeps working until they use it.`}
         confirmLabel="Reset password"
         destructive
         loading={resetPasswordMutation.isPending}

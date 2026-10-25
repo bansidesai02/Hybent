@@ -184,8 +184,10 @@ async def send_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB):
 
 
 @router.post("/{offer_id}/respond", response_model=OfferOut)
-async def respond_to_offer(offer_id: uuid.UUID, data: OfferRespondRequest, current_user: CurrentUser, db: DB):
-    """Candidate accepts or declines the offer."""
+async def respond_to_offer(offer_id: uuid.UUID, data: OfferRespondRequest, current_user: RecruiterUser, db: DB):
+    """The hiring team records the candidate's answer. Candidates answer
+    their own offers through /v1/portal/offers/{id}/respond, which checks
+    the offer is theirs; this one used to let anyone in the org decide."""
     result = await db.execute(
         select(Offer).where(Offer.id == offer_id, Offer.organization_id == current_user.organization_id)
     )

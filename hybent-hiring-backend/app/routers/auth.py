@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Response, Cookie, Body, Depends
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from app.dependencies import DB, CurrentUser
 from app.schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest, RefreshRequest, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.schemas.response import APIResponse
 from app.services import auth_service, invitation_service
 from app.utils.security import hash_password, verify_password, create_access_token, create_refresh_token
-from app.models.user import User
+from app.models.user import User, RefreshToken
 from app.models.candidate import Candidate
 from app.models.password_reset import PasswordResetToken
 from app.models.organization import Organization
@@ -153,8 +153,7 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
     import secrets
     from datetime import timedelta
 
-    result = await db.execute(select(User).where(User.email == data.email))
-    user = result.scalar_one_or_none()
+    user = await auth_service.find_user_by_email(db, data.email)
     # Always return 200 to prevent email enumeration
     if not user or not user.is_active:
         return APIResponse.success(message="If that email exists, a reset link has been sent.")
@@ -206,6 +205,13 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
 
     user.hashed_password = hash_password(data.new_password)
     token_obj.is_used = True
+    # Sign out every existing session: a reset is often because the old
+    # password leaked. Access tokens already issued lapse within the hour.
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.is_revoked == False)
+        .values(is_revoked=True)
+    )
     await db.commit()
     return APIResponse.success(message="Password reset successfully. You can now log in.")
 
@@ -213,35 +219,27 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
 @router.post("/candidate/magic-link")
 async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
     """
-    Send a magic link (invitation) to a candidate. 
-    If registration is open for new candidates, create a stub profile.
-    """
-    
-    # 1. Check if candidate exists
-    result = await db.execute(select(Candidate).where(Candidate.email == data.email))
-    candidate = result.scalar_one_or_none()
-    
-    if not candidate:
-        # Create a stub candidate for truly new users
-        # For multi-tenant, we pick the first org as default 'host' for public signups
-        org_result = await db.execute(select(Organization).limit(1))
-        org = org_result.scalar_one_or_none()
-        
-        if not org:
-            raise HTTPException(status_code=500, detail="System configuration error: No organization found.")
-            
-        candidate = Candidate(
-            organization_id=org.id,
-            email=data.email,
-            full_name=data.email.split('@')[0].capitalize(), # Simple default name
-            source="Magic Link Signup",
-            skills=[],
-            tags=[],
-        )
-        db.add(candidate)
-        await db.flush()
+    Send a magic link (invitation) to an existing candidate.
 
-    # 2. Trigger the invitation flow
+    Unknown addresses used to get a stub candidate in whichever organization
+    came first in the database, plus an email, so anyone could add people to a
+    client's candidate list. They now get the same reply and nothing else.
+    """
+    sent = "If that email belongs to a candidate, a sign-in link has been sent."
+
+    # The same person can be a candidate at several organizations: prefer the
+    # profile already linked to their portal account, then the newest.
+    result = await db.execute(
+        select(Candidate)
+        .where(func.lower(Candidate.email) == data.email.lower())
+        .order_by(Candidate.user_id.is_(None), Candidate.created_at.desc())
+        .limit(1)
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        return APIResponse.success(message=sent)
+
+    # Trigger the invitation flow
     try:
         await invitation_service.create_invitation(
             db=db,
@@ -255,7 +253,7 @@ async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to send magic link: {str(e)}")
 
-    return APIResponse.success(message="Magic link sent successfully. Please check your inbox.")
+    return APIResponse.success(message=sent)
 
 
 @router.post("/2fa/send")

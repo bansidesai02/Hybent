@@ -3,7 +3,7 @@ import logging
 import secrets
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import DB, SuperAdminUser, CurrentUser
@@ -276,7 +276,7 @@ async def create_client(data: ClientCreate, db: DB, current_user: SuperAdminUser
         organization_id=org.id,
         email=data.admin_email,
         full_name=(data.admin_name or "").strip() or data.name + " Admin",
-        hashed_password=hash_password(secrets.token_urlsafe(24) if data.collect_payment else "password123"),
+        hashed_password=hash_password(secrets.token_urlsafe(24)),
         role=UserRole.ADMIN.value,
         is_active=active,
         is_verified=True
@@ -307,6 +307,17 @@ async def create_client(data: ClientCreate, db: DB, current_user: SuperAdminUser
             activate_user_id=admin.id,
         )
 
+    setup_token = None
+    if not data.collect_payment:
+        # Active immediately: the admin sets their own password from an emailed link.
+        from app.models.password_reset import PasswordResetToken
+        setup_token = secrets.token_urlsafe(48)
+        db.add(PasswordResetToken(
+            user_id=admin.id,
+            token=setup_token,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=3),
+        ))
+
     # Setup Feature Flags
     default_flags = data.flags or {"ai": True, "video": True, "bulk": True, "domain": False, "analytics": False}
     for flag, enabled in default_flags.items():
@@ -328,6 +339,16 @@ async def create_client(data: ClientCreate, db: DB, current_user: SuperAdminUser
     )
 
     await db.commit()
+
+    if setup_token:
+        from app.core.config import settings as cfg
+        from app.services.email_service import send_password_reset_email
+        send_password_reset_email(
+            to_email=admin.email,
+            to_name=admin.full_name,
+            reset_url=f"{cfg.frontend_url}/reset-password?token={setup_token}",
+            org_name=org.name,
+        )
     if payment is None:
         return APIResponse.success(message="Client created successfully.", data={"org_id": str(org.id)})
 
@@ -650,9 +671,31 @@ async def reset_user_password(user_id: uuid.UUID, db: DB, current_user: SuperAdm
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    # Reset to default password
-    user.hashed_password = hash_password("password123")
-    
+    # Email a single-use reset link; never set a known default password.
+    from app.core.config import settings as cfg
+    from app.models.password_reset import PasswordResetToken
+    from app.services.email_service import send_password_reset_email
+
+    await db.execute(
+        update(PasswordResetToken)
+        .where(PasswordResetToken.user_id == user.id, PasswordResetToken.is_used == False)
+        .values(is_used=True)
+    )
+    token = secrets.token_urlsafe(48)
+    db.add(PasswordResetToken(
+        user_id=user.id,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+    ))
+    org = await db.get(Organization, user.organization_id) if user.organization_id else None
+    send_password_reset_email(
+        to_email=user.email,
+        to_name=user.full_name,
+        reset_url=f"{cfg.frontend_url}/reset-password?token={token}",
+        org_logo_url=org.logo_url if org else None,
+        org_name=org.name if org else None,
+    )
+
     await log_super_admin_action(
         db=db,
         user_id=current_user.id,
@@ -664,7 +707,7 @@ async def reset_user_password(user_id: uuid.UUID, db: DB, current_user: SuperAdm
     )
 
     await db.commit()
-    return APIResponse.success(message="User password reset to default: password123")
+    return APIResponse.success(message=f"Password reset link sent to {user.email}.")
 
 
 # ── 6. AUDIT LOGS ─────────────────────────────────────────────────────────────

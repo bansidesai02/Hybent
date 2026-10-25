@@ -17,7 +17,7 @@ from app.services.email_service import (
     send_interview_cancellation,
     send_interview_reschedule
 )
-from app.utils.permissions import InterviewStatus, NotificationType
+from app.utils.permissions import INTERVIEWER_ROLES, InterviewStatus, NotificationType
 from app.tasks.notifications import notify_interview_team
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
@@ -73,7 +73,10 @@ async def list_interviews(current_user: CurrentUser, db: DB):
         stmt = (
             select(Interview)
             .join(InterviewPanelist, InterviewPanelist.interview_id == Interview.id)
-            .where(InterviewPanelist.user_id == current_user.id)
+            .where(
+                InterviewPanelist.user_id == current_user.id,
+                Interview.organization_id == current_user.organization_id,
+            )
         )
     elif current_user.role == "recruiter":
         # Recruiter sees what they scheduled OR interviews for their own candidates
@@ -85,12 +88,16 @@ async def list_interviews(current_user: CurrentUser, db: DB):
                 (Interview.scheduled_by_id == current_user.id) | (Candidate.created_by_id == current_user.id)
             )
         )
-    else:
+    elif current_user.role in ("admin", "super_admin"):
         # Admin sees everything in the org
         stmt = (
             select(Interview)
             .where(Interview.organization_id == current_user.organization_id)
         )
+    else:
+        # Candidates used to fall through to the admin branch and see every
+        # interview in their organization.
+        raise HTTPException(status_code=403, detail="Not authorized to view interviews")
 
     # Eager load candidate, application, job, and panelists + panelist users
     stmt = stmt.options(
@@ -180,6 +187,31 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     if data.scheduled_at < (now - timedelta(minutes=5)):
         raise HTTPException(status_code=400, detail="Cannot schedule an interview in the past")
 
+    # A linked application must be this candidate's, in this organization.
+    application_id = None
+    if data.application_id:
+        try:
+            application_id = uuid.UUID(data.application_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid application ID format")
+        owns_application = await db.scalar(
+            select(Application.id).where(
+                Application.id == application_id,
+                Application.organization_id == current_user.organization_id,
+                Application.candidate_id == candidate.id,
+            )
+        )
+        if not owns_application:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+    # Panelists come from this organization's hiring team only; an ID from
+    # another organization (or a candidate account) is skipped, the same way
+    # an unknown ID always was, instead of being invited to this interview.
+    panelist_scope = (
+        User.organization_id == current_user.organization_id,
+        User.role.in_([r.value for r in INTERVIEWER_ROLES]),
+    )
+
     # Org info for emails etc.
     from app.models.organization import Organization
     org_result = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
@@ -188,7 +220,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     # Collect attendee emails
     attendee_emails = [candidate.email]
     for p in data.panelist_ids:
-        u_result = await db.execute(select(User).where(User.id == uuid.UUID(p.user_id)))
+        u_result = await db.execute(select(User).where(User.id == uuid.UUID(p.user_id), *panelist_scope))
         u = u_result.scalar_one_or_none()
         if u:
             attendee_emails.append(u.email)
@@ -208,7 +240,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     interview = Interview(
         organization_id=current_user.organization_id,
         candidate_id=candidate.id,
-        application_id=uuid.UUID(data.application_id) if data.application_id else None,
+        application_id=application_id,
         scheduled_by_id=current_user.id,
         title=data.title,
         interview_type=data.interview_type,
@@ -225,7 +257,7 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     # Add panelists
     panelist_out = []
     for p_data in data.panelist_ids:
-        u_result = await db.execute(select(User).where(User.id == uuid.UUID(p_data.user_id)))
+        u_result = await db.execute(select(User).where(User.id == uuid.UUID(p_data.user_id), *panelist_scope))
         u = u_result.scalar_one_or_none()
         if u:
             panelist = InterviewPanelist(

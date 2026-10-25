@@ -4,7 +4,7 @@ Authentication service: register, login, token refresh, logout.
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -30,14 +30,24 @@ async def register_user(data: RegisterRequest, db: AsyncSession) -> dict:
     )
 
 
+async def find_user_by_email(db: AsyncSession, email: str, *options) -> User | None:
+    """The account for `email`: an exact match first, otherwise a match that
+    ignores letter case, but only when exactly one account fits. Emails keep
+    the case they were saved with (EmailStr only lowercases the domain), so
+    "Rahul@x.com" and "rahul@x.com" used to be different people to the login
+    and forgot-password forms."""
+    user = (await db.execute(select(User).options(*options).where(User.email == email))).scalar_one_or_none()
+    if user:
+        return user
+    matches = (await db.execute(
+        select(User).options(*options).where(func.lower(User.email) == email.lower()).limit(2)
+    )).scalars().all()
+    return matches[0] if len(matches) == 1 else None
+
+
 async def login_user(data: LoginRequest, db: AsyncSession) -> dict:
     """Authenticate user and issue tokens."""
-    result = await db.execute(
-        select(User)
-        .options(joinedload(User.organization))
-        .where(User.email == data.email)
-    )
-    user = result.scalar_one_or_none()
+    user = await find_user_by_email(db, data.email, joinedload(User.organization))
 
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(

@@ -20,6 +20,16 @@ from app.utils.security import decode_access_token
 logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer(auto_error=False)
 
+# Candidate portal accounts belong to the hiring organization, so an
+# organization_id filter alone doesn't keep them out of staff data. Anyone can
+# self-register one (POST /v1/portal/register), so they are denied by default
+# and may only reach their own portal, account and notification endpoints.
+CANDIDATE_ALLOWED_PREFIXES = ("/v1/portal/", "/v1/auth/", "/v1/users/me", "/v1/notifications")
+
+
+def _candidate_may_access(path: str) -> bool:
+    return path.startswith(CANDIDATE_ALLOWED_PREFIXES)
+
 
 async def get_current_user(
     request: Request,
@@ -66,6 +76,8 @@ async def get_current_user(
         if not user.is_active:
             logger.debug(f"User {user_id} is inactive")
             raise credentials_exception
+        if user.role == UserRole.CANDIDATE.value and not _candidate_may_access(request.url.path):
+            raise HTTPException(status_code=403, detail="This area is for the hiring team.")
         user.is_impersonating = bool(impersonator_id)
         user.impersonator_id = impersonator_id
         # AI calls made while serving this request are charged to this
