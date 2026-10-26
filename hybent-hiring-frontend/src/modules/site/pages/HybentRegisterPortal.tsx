@@ -95,7 +95,7 @@ function WhatHappensNext({ onContact }: { onContact?: () => void }) {
         ))}
       </ul>
       <p className="hlp-aside__foot">
-        Plans from $62/month with 1 admin and 2 recruiters included.{' '}
+        Plans from $29 (₹2,799) a month with 1 admin seat included and recruiters from $10 (₹999) each.{' '}
         {onContact && (
           <a href="/contact" onClick={(e) => { e.preventDefault(); onContact() }}>Contact us</a>
         )}

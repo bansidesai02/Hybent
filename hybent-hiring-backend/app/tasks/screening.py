@@ -14,6 +14,15 @@ async def _screen_async(candidate_id: str, organization_id: str):
 
     # The worker reuses one event loop (run_async), so the checkpointer's
     # connection pool is opened once per worker process and kept.
+    from app.core.database import AsyncSessionLocal
+    from app.services.feature_flags import is_enabled
+
+    # The super admin's "AI scoring" switch for this client.
+    async with AsyncSessionLocal() as db:
+        if not await is_enabled(db, organization_id, "ai"):
+            logger.info("AI scoring is off for organization %s; candidate %s not screened", organization_id, candidate_id)
+            return None
+
     await init_checkpointer()
     return await screen_candidate(candidate_id, organization_id)
 

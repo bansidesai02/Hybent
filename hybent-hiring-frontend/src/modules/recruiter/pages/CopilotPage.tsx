@@ -558,7 +558,7 @@ export default function CopilotPage() {
     } else if (!urlConvId && conversationId) {
       startNewConversation()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [urlConvId])
 
   // Store → URL, once the first message creates a conversation

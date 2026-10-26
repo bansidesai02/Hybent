@@ -154,7 +154,9 @@ async def log_requests(request: Request, call_next):
 
 @app.exception_handler(InsufficientCreditsException)
 async def insufficient_credits_handler(request: Request, exc: InsufficientCreditsException):
-    return APIResponse.error(message=exc.message, status_code=403)
+    # Same 403 the frontend already handles; error_code lets machine clients
+    # tell "out of AI credits" (wait and retry) from a permission failure.
+    return APIResponse.error(message=exc.message, status_code=403, details={"error_code": "AI_CREDITS_EXHAUSTED"})
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -203,7 +205,11 @@ class _GZipExceptStreams(GZipMiddleware):
 app.add_middleware(_GZipExceptStreams, minimum_size=1024)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(AuditMiddleware)
-app.add_middleware(RateLimiterMiddleware, auth_limit=30, api_limit=120, window_seconds=60)
+# Locally every browser tab reaches the API through the Vite dev proxy, i.e.
+# from one IP, so a few open tabs share one 120/min budget; dev gets more room.
+app.add_middleware(
+    RateLimiterMiddleware, auth_limit=30, api_limit=120 if settings.is_production else 1200, window_seconds=60,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

@@ -296,24 +296,26 @@ async def test_admin_buys_seats_prorated(client, db_session, fake_stripe, subscr
     assert overview["payments_enabled"] and overview["stripe_managed"]
     assert overview["seat_prices_now"]["recruiter"] == pytest.approx(5.0, abs=0.01)
 
+    # Plans have one admin seat; extra admin seats aren't sold.
     res = await client.post("/v1/billing/checkout/seats", headers=admin_headers, json={"recruiter": 2, "admin": 1})
+    assert res.status_code == 400
+
+    res = await client.post("/v1/billing/checkout/seats", headers=admin_headers, json={"recruiter": 2})
     assert res.status_code == 200, res.text
     sid = res.json()["data"]["url"].rsplit("/", 1)[1]
     session = fake_stripe.sessions[sid]
     assert session["mode"] == "payment"
-    assert session["line_items"][0]["price_data"]["unit_amount"] == pytest.approx(1750, abs=2)
+    assert session["line_items"][0]["price_data"]["unit_amount"] == pytest.approx(1000, abs=2)
     assert "/hiring/admin/billing?checkout=success" in session["success_url"]
 
     fake_stripe.complete(sid)
     res = await client.post("/v1/billing/checkout/confirm", headers=admin_headers, json={"session_id": sid})
     assert res.json()["data"]["status"] == "paid"
     await db_session.refresh(subscription)
-    assert (subscription.extra_admin_seats, subscription.extra_recruiter_seats) == (1, 2)
+    assert (subscription.extra_admin_seats, subscription.extra_recruiter_seats) == (0, 2)
     # Renewals now bill the new seats.
-    assert fake_stripe.item_updates == [("sub_existing", {
-        "admin_seat": ("price_hybent_seat_admin_1500_1m", 1),
-        "recruiter_seat": ("price_hybent_seat_recruiter_1000_1m", 2),
-    })]
+    assert fake_stripe.item_updates[0][0] == "sub_existing"
+    assert fake_stripe.item_updates[0][1]["recruiter_seat"] == ("price_hybent_seat_recruiter_1000_1m", 2)
     # The webhook arriving afterwards doesn't add them again.
     await _webhook(client, "checkout.session.completed", fake_stripe.sessions[sid])
     await db_session.refresh(subscription)

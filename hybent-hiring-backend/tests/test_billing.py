@@ -42,8 +42,9 @@ def test_billed_labels(plans):
 def test_discount_against_standard(plans):
     d = billing_service.plan_to_dict(plans["12 months"], standard_price=69.0)
     assert d["discount_pct"] == 10
-    # $66 is 4.3% off, but the published discount is 5%.
-    assert billing_service.plan_to_dict(plans["6 months"], standard_price=69.0)["discount_pct"] == 5
+    # A plan priced above Standard (Pro) shows no discount.
+    pro = SubscriptionPlan(name="Pro", term_months=1, price_monthly=39.0, price_yearly=468.0)
+    assert billing_service.plan_to_dict(pro, standard_price=29.0)["discount_pct"] is None
 
 
 async def test_admin_sees_plan_seats_and_credits(client, admin_user, recruiter_user, admin_headers, subscription):
@@ -88,16 +89,18 @@ async def test_change_request_emails_hybent(client, admin_headers, subscription,
     assert (await client.post("/v1/billing/request-change", headers=admin_headers, json={})).status_code == 400
     assert (await client.post("/v1/billing/request-change", headers=admin_headers, json={"plan_name": "Gold"})).status_code == 400
     assert (await client.post("/v1/billing/request-change", headers=admin_headers, json={"extra_admin_seats": -1})).status_code == 400
+    # One admin seat per plan: customers can't ask for more.
+    assert (await client.post("/v1/billing/request-change", headers=admin_headers, json={"extra_admin_seats": 1})).status_code == 400
 
     res = await client.post(
         "/v1/billing/request-change", headers=admin_headers,
-        json={"plan_name": "12 months", "extra_admin_seats": 1, "extra_recruiter_seats": 3, "note": "Growing team"},
+        json={"plan_name": "12 months", "extra_recruiter_seats": 3, "note": "Growing team"},
     )
     assert res.status_code == 200
     assert sent[0][0] == "info@hybent.com"
     body = sent[0][1]
     assert "12 months" in body and "Growing team" in body
-    assert "Extra admin seats: 0 → <b>1</b> ($15/month" in body
+    assert "Extra admin seats" not in body
     assert "Extra recruiter seats: 0 → <b>3</b> ($10/month" in body
 
 

@@ -909,8 +909,8 @@ export function CopilotWidget() {
     const maxX = Math.max(10, w - width - 10)
     const maxY = Math.max(10, h - height - 10)
 
-    let newX = Math.max(10, Math.min(pos.x, maxX))
-    let newY = Math.max(10, Math.min(pos.y, maxY))
+    const newX = Math.max(10, Math.min(pos.x, maxX))
+    const newY = Math.max(10, Math.min(pos.y, maxY))
 
     if (newX !== pos.x || newY !== pos.y) {
       const nextPos = { x: newX, y: newY }
@@ -927,8 +927,8 @@ export function CopilotWidget() {
     const maxX = Math.max(10, w - 56 - 10)
     const maxY = Math.max(10, h - 56 - 10)
 
-    let newX = Math.max(10, Math.min(pos.x, maxX))
-    let newY = Math.max(10, Math.min(pos.y, maxY))
+    const newX = Math.max(10, Math.min(pos.x, maxX))
+    const newY = Math.max(10, Math.min(pos.y, maxY))
 
     if (newX !== pos.x || newY !== pos.y) {
       const nextPos = { x: newX, y: newY }

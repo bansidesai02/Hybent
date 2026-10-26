@@ -45,6 +45,8 @@ const PAYMENT_KIND_LABEL: Record<string, string> = {
 }
 
 const SEAT_ROLES: SeatRole[] = ['admin', 'recruiter']
+// Every plan has one admin seat; only recruiter seats can be added.
+const ADDABLE_ROLES: SeatRole[] = ['recruiter']
 const ROLE_LABEL: Record<SeatRole, string> = { admin: 'admin', recruiter: 'recruiter' }
 
 export default function BillingPage() {
@@ -142,7 +144,6 @@ export default function BillingPage() {
       setSending(true)
       await billingApi.requestChange({
         plan_name: request.plan?.name,
-        extra_admin_seats: request.seats?.admin,
         extra_recruiter_seats: request.seats?.recruiter,
         note: note.trim() || undefined,
       })
@@ -263,8 +264,8 @@ export default function BillingPage() {
                 <p className="text-hb-xs text-hb-muted">Interviewers don&apos;t use a seat.</p>
                 {seats && seats.admins_over > 0 && (
                   <p role="status" className="text-hb-xs text-hb-warning">
-                    {seats.admins_over} more admin{seats.admins_over === 1 ? '' : 's'} than admin seats. Request extra admin
-                    seats below.
+                    {seats.admins_over} more admin{seats.admins_over === 1 ? '' : 's'} than admin seats. Your plan has one
+                    admin seat, so change the other admins to recruiters.
                   </p>
                 )}
                 {seats && seats.recruiters_over > 0 && (
@@ -374,10 +375,10 @@ export default function BillingPage() {
             <h2 className="font-display text-hb-h3 text-hb-text">Extra seats</h2>
             <p className="mt-1 text-hb-sm text-hb-muted">
               Your plan includes {sub.plan.included_admins} admin and {sub.plan.included_recruiters} recruiter seats.
-              Each extra seat adds AI credits to your monthly pool.
+              Add recruiter seats as your team grows; each one adds AI credits to your monthly pool.
             </p>
             <div className="mt-hb-4 flex flex-wrap items-end gap-3">
-              {SEAT_ROLES.map((role) => (
+              {ADDABLE_ROLES.map((role) => (
                 <Input
                   key={role}
                   label={`Extra ${ROLE_LABEL[role]} seats`}
@@ -512,7 +513,7 @@ export default function BillingPage() {
                 ? 'A Custom plan, with seats and credits sized to your team.'
                 : `${request.plan.name}: ${formatUsd(request.plan.price_monthly)}/month, ${request.plan.billed_label.toLowerCase()}.`
               : request?.seats
-                ? `${request.seats.admin} extra admin and ${request.seats.recruiter} extra recruiter seat${request.seats.recruiter === 1 ? '' : 's'} (currently ${currentExtra.admin} and ${currentExtra.recruiter}): ${formatUsd(seatCost(request.seats))}/month, adding ${seatCredits(request.seats).toLocaleString()} AI credits a month.`
+                ? `${request.seats.recruiter} extra recruiter seat${request.seats.recruiter === 1 ? '' : 's'} (currently ${currentExtra.recruiter}): ${formatUsd(seatCost(request.seats))}/month, adding ${seatCredits(request.seats).toLocaleString()} AI credits a month.`
                 : null}
           </p>
           <Input

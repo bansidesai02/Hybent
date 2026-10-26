@@ -3,6 +3,9 @@ import { Outlet, useLocation } from 'react-router-dom'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useScreeningNav } from '@/hooks/useScreeningNav'
+import { useAICallsNav } from '@/hooks/useAICallsNav'
+import { useIdleSignOut } from '@/hooks/useIdleSignOut'
+import { useFeatures } from '@/hooks/useFeatures'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useThemeStore } from '@/store/themeStore'
@@ -12,7 +15,7 @@ import { HbSidebar } from './HbSidebar'
 import { HbTopbar } from './HbTopbar'
 import { HbBottomNav } from './HbBottomNav'
 import { InstallAppCard } from './InstallAppCard'
-import { activeNavLabel, getMobileTabs, getNavSections, type NavSection } from './navConfig'
+import { activeNavLabel, getMobileTabs, getNavSections, withoutCopilot, type NavSection } from './navConfig'
 
 type TopbarMenuItem = { label: string; icon: ReactNode; path: string }
 
@@ -181,6 +184,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
   const [drawerOpen, setDrawerOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
   useWorkspaceTheme()
+  useIdleSignOut()
 
   const activeRole = (role ?? user?.role ?? 'recruiter') as UserRole
   const config = ROLE_CONFIG[activeRole] ?? FALLBACK
@@ -193,10 +197,14 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
     [notifications],
   )
   const screening = useScreeningNav(activeRole)
-  const navSections = useMemo(
-    () => sections ?? getNavSections(activeRole, candidateBadge, 0, screening),
-    [sections, activeRole, candidateBadge, screening],
-  )
+  const aiCalls = useAICallsNav(activeRole)
+  // A super admin can switch Copilot off per client: drop its page and widget.
+  const features = useFeatures()
+  const copilotOn = config.copilot && features?.copilot !== false
+  const navSections = useMemo(() => {
+    const all = sections ?? getNavSections(activeRole, candidateBadge, 0, screening, aiCalls)
+    return features?.copilot === false ? withoutCopilot(all) : all
+  }, [sections, activeRole, candidateBadge, screening, aiCalls, features?.copilot])
   const mobileTabs = useMemo(
     () => getMobileTabs(activeRole, basePath, navSections),
     [activeRole, basePath, navSections],
@@ -213,6 +221,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
       <HbSidebar
         role={activeRole}
         sections={sections}
+        hideCopilot={features?.copilot === false}
         footerSubtitle={footerSubtitle}
         mobileOpen={drawerOpen}
         onCloseMobile={() => setDrawerOpen(false)}
@@ -251,10 +260,10 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
       <HbBottomNav tabs={mobileTabs} onMore={() => setDrawerOpen((o) => !o)} moreOpen={drawerOpen} />
       <InstallAppCard />
 
-      {(config.chat || config.copilot) && (
+      {(config.chat || copilotOn) && (
         <Suspense fallback={null}>
           {config.chat && <GlobalChatOverlay />}
-          {config.copilot && <CopilotWidget />}
+          {copilotOn && <CopilotWidget />}
         </Suspense>
       )}
     </div>

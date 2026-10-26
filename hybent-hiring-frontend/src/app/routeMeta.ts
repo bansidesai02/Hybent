@@ -58,7 +58,7 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
   pricing: {
     title: 'Pricing — Hybent Hiring plans | HYBENT',
     description:
-      'Hybent Hiring from $62/month. Every plan includes 1 admin and 2 recruiter seats; save 5% on 6 months or 10% on 12 months. Custom plans available.',
+      'Hybent Hiring from $29 (₹2,799) a month. Every plan includes 1 admin seat, recruiters from $10 (₹999) each; Pro adds the Recruiter Copilot. Custom plans available.',
   },
   about: {
     title: 'About HYBENT — AI Software Company from Ahmedabad, India',

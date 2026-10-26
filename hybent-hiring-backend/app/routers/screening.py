@@ -8,7 +8,7 @@ it here.
 import uuid
 from typing import Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
@@ -20,7 +20,8 @@ from app.models.job import Job
 from app.models.screening_recommendation import ScreeningRecommendation
 from app.schemas.response import APIResponse
 
-router = APIRouter(prefix="/v1/screening", tags=["screening"])
+from app.services.feature_flags import require_feature
+router = APIRouter(prefix="/v1/screening", tags=["screening"], dependencies=[Depends(require_feature("ai"))])
 
 MAX_BATCH = 50
 

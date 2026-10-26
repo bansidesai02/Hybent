@@ -9,7 +9,7 @@ import aiofiles
 import csv
 import io
 from datetime import datetime, timezone
-from fastapi import APIRouter, File, UploadFile, Query, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, File, UploadFile, Query, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
@@ -32,7 +32,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/bulk-import", tags=["bulk-import"])
+from app.services.feature_flags import require_feature
+router = APIRouter(prefix="/v1/bulk-import", tags=["bulk-import"], dependencies=[Depends(require_feature("bulk"))])
 
 # Temporary storage for uploaded files
 UPLOAD_TEMP_DIR = tempfile.gettempdir()

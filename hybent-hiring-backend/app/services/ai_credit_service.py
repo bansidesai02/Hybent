@@ -149,6 +149,11 @@ class AICreditsService:
             )).scalar() or 0
             if same_role_with_limits >= included:
                 default = billing_service.EXTRA_SEATS[role][1]
+            elif role == "admin" and sub.plan.ai_credits_monthly is not None:
+                # The included admin gets whatever the included recruiters
+                # don't, so a solo admin can use the plan's whole allowance.
+                default = max(default, sub.plan.ai_credits_monthly
+                              - sub.plan.included_recruiters * ROLE_DEFAULT_LIMITS["recruiter"])
 
         row = UserAICredits(
             organization_id=organization_id,

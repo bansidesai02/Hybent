@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 
-from .conftest import auth_headers
+from tests.conftest import auth_headers
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -151,7 +151,6 @@ async def test_get_conversation_404_for_invalid_id(client, admin_user):
 async def test_generate_and_save_title_updates_conversation(db_session, organization, admin_user):
     """_generate_and_save_title writes a short AI title to the conversation."""
     from app.services.ai.copilot_service import _generate_and_save_title
-    from app.core.database import AsyncSessionLocal
 
     conv = CopilotConversation(
         organization_id=organization.id,
@@ -172,8 +171,9 @@ async def test_generate_and_save_title_updates_conversation(db_session, organiza
         mock_instance.chat.completions.create.return_value = mock_resp
 
         # _generate_and_save_title opens its own DB session; we patch
-        # AsyncSessionLocal so it reuses our test session.
-        with patch("app.services.ai.copilot_service.AsyncSessionLocal") as MockSession:
+        # app.core.database.AsyncSessionLocal (imported inside the function) so it
+        # reuses our test session.
+        with patch("app.core.database.AsyncSessionLocal") as MockSession:
             # Use the real test db_session via a context manager mock
             MockSession.return_value.__aenter__ = AsyncMock(return_value=db_session)
             MockSession.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -206,10 +206,11 @@ async def test_generate_and_save_title_falls_back_on_llm_error(db_session, organ
     await db_session.commit()
     await db_session.refresh(conv)
 
-    with patch("app.services.ai.copilot_service.Groq") as MockGroq:
+    # Both providers fail: Groq raises, and the Gemini fallback is unavailable.
+    with patch("app.services.ai.copilot_service.Groq") as MockGroq,             patch("app.services.ai.copilot_service.genai", None):
         MockGroq.return_value.chat.completions.create.side_effect = Exception("Network error")
 
-        with patch("app.services.ai.copilot_service.AsyncSessionLocal") as MockSession:
+        with patch("app.core.database.AsyncSessionLocal") as MockSession:
             MockSession.return_value.__aenter__ = AsyncMock(return_value=db_session)
             MockSession.return_value.__aexit__ = AsyncMock(return_value=False)
 
