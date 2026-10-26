@@ -1,77 +1,109 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { Key, MoreHorizontal, Pause, Play, Users } from 'lucide-react'
+import { History, Key, MoreHorizontal, Pause, Play, Users } from 'lucide-react'
 
-import { superAdminApi } from '@/api/superAdmin'
+import { superAdminApi, type UserDirectoryParams } from '@/api/superAdmin'
+import { useDebounce } from '@/components/chatbot/useDebounce'
 import {
   Avatar,
   Badge,
-  Button,
   Card,
   type Column,
   ConfirmDialog,
   ContextMenu,
   DataTable,
+  Dialog,
   PageHeader,
   Pagination,
   Select,
+  type SortDirection,
   Toolbar,
   ToolbarSearch,
   ToolbarFilters,
 } from '@/components/hb'
+import { formatDate, formatDateTime, timeAgo } from '@/utils/formatters'
+import LoginEventsTable from '../components/LoginEventsTable'
 
 /**
  * Every account on the platform, across every tenant.
  *
- * Rebuilt on the design system in phase 9. Beyond appearance:
- *
- * - The status cell was a `<button>` shaped exactly like the status badges
- *   everywhere else in the product, and clicking it suspended or reactivated
- *   the account. A control that looks like a label is a trap; the status is a
- *   `Badge` again and the two account actions live in the row menu.
- * - Suspension and password reset were both guarded by `window.confirm`,
- *   which cannot be styled and is suppressible by the browser.
- * - The pagination footer was hand-rolled Previous/Next buttons; it is the
- *   design system's `Pagination`, which also states the range.
- *
- * Known limitation, unchanged: the search box filters the current page of 50
- * rows in the browser, not the whole directory. The role and client filters
- * are the server-side ones.
+ * Search, filters and sorting all run on the server, over the whole
+ * directory (the search box used to filter only the 50 rows on screen).
+ * Tenants are filtered by id, not by name, so two clients with the same name
+ * no longer merge. "Sign-in history" shows the account's recorded attempts.
  */
 
 const ROLE_OPTIONS = [
   { value: 'all', label: 'All roles' },
-  { value: 'Admin', label: 'Admin' },
-  { value: 'Recruiter', label: 'HR / Recruiter' },
-  { value: 'Interviewer', label: 'Interviewer' },
-  { value: 'Candidate', label: 'Candidate' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'recruiter', label: 'HR / Recruiter' },
+  { value: 'interviewer', label: 'Interviewer' },
+  { value: 'candidate', label: 'Candidate' },
+  { value: 'super_admin', label: 'Super admin' },
 ]
 
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Any status' },
+  { value: 'active', label: 'Active' },
+  { value: 'suspended', label: 'Suspended' },
+]
+
+const LAST_LOGIN_OPTIONS = [
+  { value: 'all', label: 'Any last sign-in' },
+  { value: '7d', label: 'Signed in, last 7 days' },
+  { value: '30d', label: 'Signed in, last 30 days' },
+  { value: 'stale_30d', label: 'Not signed in for 30+ days' },
+  { value: 'never', label: 'Never signed in' },
+]
+
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super admin',
+  admin: 'Admin',
+  recruiter: 'Recruiter',
+  interviewer: 'Interviewer',
+  candidate: 'Candidate',
+}
+
 const PAGE_SIZE = 50
+
+type SortKey = NonNullable<UserDirectoryParams['sort']>
 
 export default function UsersPage() {
   const queryClient = useQueryClient()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [filterRole, setFilterRole] = useState('all')
-  const [filterClient, setFilterClient] = useState('all')
+  const [filterClient, setFilterClient] = useState(searchParams.get('organization_id') ?? 'all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all')
+  const [filterLogin, setFilterLogin] = useState<NonNullable<UserDirectoryParams['last_login']>>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection }>({ key: 'created_at', direction: 'desc' })
   const [page, setPage] = useState(1)
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; user: any } | null>(null)
   const [confirmStatus, setConfirmStatus] = useState<any | null>(null)
   const [confirmReset, setConfirmReset] = useState<any | null>(null)
+  const [historyFor, setHistoryFor] = useState<any | null>(null)
 
-  const { data: usersResponse, isLoading } = useQuery({
-    queryKey: ['super-admin', 'users', filterRole, filterClient, page],
+  const search = useDebounce(searchQuery.trim(), 300)
+
+  const { data: usersResponse, isLoading, isError, refetch } = useQuery({
+    queryKey: ['super-admin', 'users', filterRole, filterClient, filterStatus, filterLogin, search, sort, page],
     queryFn: () =>
       superAdminApi.getUsers({
         role: filterRole,
-        client: filterClient,
+        organization_id: filterClient !== 'all' ? filterClient : undefined,
+        status: filterStatus,
+        last_login: filterLogin,
+        q: search || undefined,
+        sort: sort.key as SortKey,
+        direction: sort.direction,
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
       }),
+    placeholderData: (prev) => prev,
   })
 
   const { data: clients } = useQuery({
@@ -79,16 +111,28 @@ export default function UsersPage() {
     queryFn: () => superAdminApi.getClients(),
   })
 
-  // Arriving from a client's detail page pre-filters to that tenant.
+  const { data: history, isLoading: historyLoading } = useQuery({
+    queryKey: ['super-admin', 'user-logins', historyFor?.id],
+    queryFn: () => superAdminApi.getUserLogins(historyFor.id),
+    enabled: !!historyFor,
+  })
+
+  // Older links passed the tenant by name in navigation state.
   useEffect(() => {
-    if (location.state?.clientFilter) {
-      setFilterClient(location.state.clientFilter)
-      setPage(1)
+    const byName = location.state?.clientFilter
+    if (byName && clients) {
+      const match = clients.find((c) => c.name === byName)
+      if (match) setFilterClient(match.id)
       window.history.replaceState({}, document.title)
     }
-  }, [location.state])
+  }, [location.state, clients])
 
-  useEffect(() => { setPage(1) }, [filterRole, filterClient])
+  useEffect(() => {
+    setPage(1)
+    if (filterClient === 'all') searchParams.delete('organization_id')
+    else searchParams.set('organization_id', filterClient)
+    setSearchParams(searchParams, { replace: true })
+  }, [filterRole, filterClient, filterStatus, filterLogin, search, sort])
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
@@ -96,6 +140,7 @@ export default function UsersPage() {
     onSuccess: () => {
       toast.success('User status updated')
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'users'] })
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'client-overview'] })
       setConfirmStatus(null)
     },
     onError: (err: any) => toast.error(err.message || 'Failed to update user status.'),
@@ -110,38 +155,38 @@ export default function UsersPage() {
     onError: (err: any) => toast.error(err.message || 'Failed to reset the password.'),
   })
 
-  const filteredUsers = useMemo(() => {
-    const list = usersResponse?.users || []
-    if (!searchQuery.trim()) return list
-    const q = searchQuery.toLowerCase()
-    return list.filter(
-      (u: any) => u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
-    )
-  }, [usersResponse, searchQuery])
-
+  const users = usersResponse?.users ?? []
   const totalCount = usersResponse?.total || 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const filtersActive = [filterRole, filterClient, filterStatus, filterLogin].filter((f) => f !== 'all').length
+
+  const clearAll = () => {
+    setSearchQuery('')
+    setFilterRole('all')
+    setFilterClient('all')
+    setFilterStatus('all')
+    setFilterLogin('all')
+  }
 
   const columns: Array<Column<any>> = [
     {
-      key: 'user',
+      key: 'name',
       header: 'User',
       cardTitle: true,
+      sortable: true,
       cell: (user) => (
         <span className="flex min-w-0 items-center gap-3">
           <span className="relative shrink-0">
             <Avatar name={user.full_name} size="sm" />
             {user.online && (
               <span
-                title="Online"
+                title="Signed in within the last 15 minutes"
                 className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-hb-surface bg-hb-success"
               />
             )}
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-hb-sm font-semibold text-hb-text">
-              {user.full_name}
-            </span>
+            <span className="block truncate text-hb-sm font-semibold text-hb-text">{user.full_name}</span>
             <span className="block truncate text-hb-xs text-hb-muted">{user.email}</span>
           </span>
         </span>
@@ -150,25 +195,43 @@ export default function UsersPage() {
     {
       key: 'client',
       header: 'Tenant',
-      width: '190px',
-      cell: (user) => <span className="text-hb-muted">{user.client}</span>,
+      width: '170px',
+      cell: (user) => <span className="truncate text-hb-muted">{user.client}</span>,
     },
     {
       key: 'role',
       header: 'Role',
-      width: '140px',
-      cell: (user) => <Badge>{user.role}</Badge>,
+      width: '120px',
+      cell: (user) => <Badge>{ROLE_LABEL[user.role] ?? user.role}</Badge>,
     },
     {
       key: 'status',
       header: 'Status',
-      width: '120px',
-      align: 'center',
+      width: '110px',
       cell: (user) => (
-        <Badge tone={user.is_active ? 'success' : 'error'}>
-          {user.is_active ? 'Active' : 'Suspended'}
-        </Badge>
+        <Badge tone={user.is_active ? 'success' : 'error'}>{user.is_active ? 'Active' : 'Suspended'}</Badge>
       ),
+    },
+    {
+      key: 'last_login',
+      header: 'Last sign-in',
+      width: '150px',
+      sortable: true,
+      cell: (user) =>
+        user.last_login ? (
+          <span className="text-hb-sm text-hb-text" title={formatDateTime(user.last_login)}>
+            {timeAgo(user.last_login)}
+          </span>
+        ) : (
+          <span className="text-hb-sm text-hb-dim">Never</span>
+        ),
+    },
+    {
+      key: 'created_at',
+      header: 'Joined',
+      width: '120px',
+      sortable: true,
+      cell: (user) => <span className="text-hb-sm text-hb-muted">{formatDate(user.created_at)}</span>,
     },
     {
       key: 'actions',
@@ -206,54 +269,70 @@ export default function UsersPage() {
         <ToolbarSearch
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Search this page…"
-          aria-label="Search users on the current page by name or email"
+          placeholder="Search name or email…"
+          aria-label="Search all users by name or email"
         />
-        <ToolbarFilters activeCount={[filterRole !== 'all', filterClient !== 'all'].filter(Boolean).length} onReset={() => { setFilterRole('all'); setFilterClient('all') }}>
-        <Select
-          options={ROLE_OPTIONS}
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-          aria-label="Filter by role"
-          fieldClassName="w-auto"
-        />
-        <Select
-          options={[
-            { value: 'all', label: 'All clients' },
-            ...(clients ?? []).map((c) => ({ value: c.name, label: c.name })),
-          ]}
-          value={filterClient}
-          onChange={(e) => setFilterClient(e.target.value)}
-          aria-label="Filter by tenant"
-          fieldClassName="w-auto"
-        />
+        <ToolbarFilters activeCount={filtersActive} onReset={clearAll}>
+          <Select
+            options={[
+              { value: 'all', label: 'All clients' },
+              ...(clients ?? []).map((c) => ({ value: c.id, label: c.name })),
+            ]}
+            value={filterClient}
+            onChange={(e) => setFilterClient(e.target.value)}
+            aria-label="Filter by tenant"
+            fieldClassName="w-auto"
+          />
+          <Select
+            options={ROLE_OPTIONS}
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            aria-label="Filter by role"
+            fieldClassName="w-auto"
+          />
+          <Select
+            options={STATUS_OPTIONS}
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+            aria-label="Filter by account status"
+            fieldClassName="w-auto"
+          />
+          <Select
+            options={LAST_LOGIN_OPTIONS}
+            value={filterLogin}
+            onChange={(e) => setFilterLogin(e.target.value as typeof filterLogin)}
+            aria-label="Filter by last sign-in"
+            fieldClassName="w-auto"
+          />
         </ToolbarFilters>
       </Toolbar>
 
       <Card padding="none">
         <DataTable
           columns={columns}
-          rows={filteredUsers}
+          rows={users}
           rowKey={(u) => u.id}
           loading={isLoading}
+          sort={sort}
+          onSortChange={setSort}
           caption="All user accounts on the platform"
-          empty={{
-            icon: <Users />,
-            title: 'No users found',
-            description: 'Try relaxing the filters or searching for something else.',
-            size: 'page',
-            action:
-              searchQuery || filterRole !== 'all' || filterClient !== 'all'
-                ? {
-                    label: 'Clear filters',
-                    onClick: () => {
-                      setSearchQuery('')
-                      setFilterRole('all')
-                      setFilterClient('all')
-                    },
-                  }
-                : undefined,
-          }}
+          empty={
+            isError
+              ? {
+                  icon: <Users />,
+                  title: 'Could not load users',
+                  description: 'The server did not respond as expected.',
+                  size: 'page',
+                  action: { label: 'Retry', onClick: () => refetch() },
+                }
+              : {
+                  icon: <Users />,
+                  title: 'No users found',
+                  description: 'Try relaxing the filters or searching for something else.',
+                  size: 'page',
+                  action: searchQuery || filtersActive ? { label: 'Clear filters', onClick: clearAll } : undefined,
+                }
+          }
         />
 
         <Pagination
@@ -275,6 +354,11 @@ export default function UsersPage() {
           menu
             ? [
                 {
+                  label: 'Sign-in history',
+                  icon: <History size={14} />,
+                  onSelect: () => setHistoryFor(menu.user),
+                },
+                {
                   label: menu.user.is_active ? 'Suspend account' : 'Activate account',
                   icon: menu.user.is_active ? <Pause size={14} /> : <Play size={14} />,
                   destructive: menu.user.is_active,
@@ -290,6 +374,27 @@ export default function UsersPage() {
         }
       />
 
+      <Dialog
+        open={!!historyFor}
+        onClose={() => setHistoryFor(null)}
+        title="Sign-in history"
+        description={
+          historyFor
+            ? `${historyFor.full_name} · ${historyFor.email} · last signed in ${
+                historyFor.last_login ? formatDateTime(historyFor.last_login) : 'never'
+              }`
+            : undefined
+        }
+        size="xl"
+      >
+        <LoginEventsTable
+          events={history?.events ?? []}
+          loading={historyLoading}
+          showEmail={false}
+          caption="Recorded sign-in attempts for this account"
+        />
+      </Dialog>
+
       <ConfirmDialog
         open={!!confirmStatus}
         onClose={() => setConfirmStatus(null)}
@@ -303,7 +408,7 @@ export default function UsersPage() {
         title={confirmStatus?.is_active ? 'Suspend this account?' : 'Activate this account?'}
         description={
           confirmStatus?.is_active
-            ? `${confirmStatus?.full_name} will no longer be able to sign in.`
+            ? `${confirmStatus?.full_name} will be signed out and won't be able to sign in. Their data is kept.`
             : `${confirmStatus?.full_name} will regain access immediately.`
         }
         confirmLabel={confirmStatus?.is_active ? 'Suspend' : 'Activate'}

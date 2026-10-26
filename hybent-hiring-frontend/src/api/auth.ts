@@ -16,6 +16,15 @@ export const authApi = {
   googleLogin: (token: string) =>
     api.post<AuthResponse>('/v1/auth/google', { id_token: token }),
 
+  /** Second step when 2FA is required: the challenge from login + the emailed code. */
+  verifyMfa: (mfa_token: string, otp: string) =>
+    api.post<AuthResponse>('/v1/auth/2fa/verify', { mfa_token, otp }),
+
+  resendMfa: (mfa_token: string) => api.post('/v1/auth/2fa/send', { mfa_token }),
+
+  /** How long the app may sit idle before signing out; null = no limit. */
+  sessionPolicy: () => api.get<{ idle_timeout_minutes: number | null }>('/v1/auth/session-policy'),
+
   logout: (refresh_token?: string) =>
     api.post('/v1/auth/logout', refresh_token ? { refresh_token } : {}),
 

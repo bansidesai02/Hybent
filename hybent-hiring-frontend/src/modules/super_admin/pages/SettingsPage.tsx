@@ -14,6 +14,7 @@ import {
   Select,
   Skeleton,
   Switch,
+  Textarea,
 } from '@/components/hb'
 
 /**
@@ -24,6 +25,10 @@ import {
  * - The three security switches were `<button>`s wrapping a translated `<div>`
  *   with no accessible name and no state — on the settings that decide whether
  *   tenant admins need 2FA and whether super-admin logins are IP-restricted.
+ * - The security switches are enforced by the API (app/services/
+ *   platform_security.py) once saved. Before that, nothing enforced them and
+ *   the page wrote 2FA = on as a default on first view; the API now reports
+ *   the switches as actually enforced, so an unsaved default shows as off.
  * - Every text input was a bare `<input>` with a `<label>` that had no `for`,
  *   so clicking a label did nothing and screen readers announced eight
  *   unlabelled fields. They are the design system's `Input`/`Select`, which
@@ -39,17 +44,17 @@ const SECURITY = [
   {
     key: 'require_2fa',
     title: 'Require 2FA for tenant admins',
-    desc: 'Enforces authenticator registration at sign-in.',
+    desc: 'Organization admins confirm a 6-digit code emailed to them at every sign-in (password or Google).',
   },
   {
     key: 'session_timeout',
     title: 'Auto session timeout (30 min)',
-    desc: 'Clears credentials after 30 minutes idle.',
+    desc: 'Signs everyone out after 30 minutes without activity; the server also refuses to resume an idle session.',
   },
   {
     key: 'ip_whitelist',
     title: 'Restrict super admin by IP',
-    desc: 'Checks the allow-list on every super-admin sign-in.',
+    desc: 'Super admin sign-in and every super admin request must come from an address in the allow-list below.',
   },
 ] as const
 
@@ -58,19 +63,22 @@ const DEFAULTS = {
   smtp_sender_name: 'Hybent',
   smtp_sender_email: 'no-reply@hybent.com',
   require_2fa: false,
-  session_timeout: true,
+  session_timeout: false,
   ip_whitelist: false,
+  ip_allowlist: [] as string[],
+  current_ip: null as string | null,
   platform_name: 'Hybent',
   logo_url: '',
   /* Not styling — this is the stored white-label value tenants configure.
      A hex is the data format the API expects. */
-  // eslint-disable-next-line no-restricted-syntax
   primary_color: '#534AB7',
 }
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
   const [settings, setSettings] = useState(DEFAULTS)
+  /** The allow-list as typed: one address or CIDR range per line. */
+  const [allowlistText, setAllowlistText] = useState('')
 
   const { data: dbSettings, isLoading } = useQuery({
     queryKey: ['super-admin', 'settings'],
@@ -78,7 +86,10 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    if (dbSettings) setSettings(dbSettings)
+    if (dbSettings) {
+      setSettings({ ...DEFAULTS, ...dbSettings })
+      setAllowlistText((dbSettings.ip_allowlist ?? []).join('\n'))
+    }
   }, [dbSettings])
 
   const updateSettingsMutation = useMutation({
@@ -87,14 +98,19 @@ export default function SettingsPage() {
       toast.success('Platform configuration saved')
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'settings'] })
     },
-    onError: (err: any) => toast.error(err.message || 'Failed to save the configuration.'),
+    onError: (err: any) =>
+      toast.error(err.response?.data?.message || err.message || 'Failed to save the configuration.'),
   })
 
   const set = (key: string, val: any) => setSettings((prev) => ({ ...prev, [key]: val }))
 
   const handleSave = (e: FormEvent) => {
     e.preventDefault()
-    updateSettingsMutation.mutate(settings)
+    const { current_ip: _ip, ...payload } = settings
+    updateSettingsMutation.mutate({
+      ...payload,
+      ip_allowlist: allowlistText.split(/[\n,]/).map((v) => v.trim()).filter(Boolean),
+    })
   }
 
   if (isLoading) {
@@ -131,8 +147,12 @@ export default function SettingsPage() {
                 Email delivery
               </span>
             }
-            subtitle="The SMTP relay used for verification, scorecards and magic links."
+            subtitle="Saved for reference only."
           />
+          <p className="mb-hb-4 rounded-hb-md border border-hb-warning/25 bg-hb-warning/8 p-3 text-hb-xs text-hb-text">
+            Not applied yet: email is sent with the server's own mail settings (SMTP / Resend environment
+            variables). Changing these fields does not change how mail is delivered.
+          </p>
           <div className="space-y-hb-4">
             <Select
               label="SMTP provider"
@@ -166,7 +186,7 @@ export default function SettingsPage() {
                 Security & sessions
               </span>
             }
-            subtitle="Login rules that apply across every tenant."
+            subtitle="Sign-in rules that apply across every tenant. They take effect when you save."
           />
           <div className="divide-y divide-hb-border">
             {SECURITY.map((sec) => (
@@ -179,6 +199,31 @@ export default function SettingsPage() {
                 />
               </div>
             ))}
+          </div>
+          <div className="mt-hb-4 space-y-2">
+            <Textarea
+              label="Super admin IP allow-list"
+              description="One IP address or CIDR range per line, e.g. 203.0.113.7 or 203.0.113.0/24."
+              rows={3}
+              value={allowlistText}
+              onChange={(e) => setAllowlistText(e.target.value)}
+              placeholder="203.0.113.7"
+            />
+            {settings.current_ip && (
+              <p className="text-hb-xs text-hb-muted">
+                Your current IP is <code className="font-mono text-hb-text">{settings.current_ip}</code>. Saving
+                the restriction without it is refused, so you can't lock yourself out.{' '}
+                <button
+                  type="button"
+                  className="font-semibold text-hb-cyan underline-offset-2 hover:underline"
+                  onClick={() =>
+                    setAllowlistText((t) => (t.trim() ? `${t.trim()}\n${settings.current_ip}` : String(settings.current_ip)))
+                  }
+                >
+                  Add it
+                </button>
+              </p>
+            )}
           </div>
         </Card>
 
@@ -197,8 +242,12 @@ export default function SettingsPage() {
                 Branding
               </span>
             }
-            subtitle="White-label title, colour and logo for the platform."
+            subtitle="Saved for reference only."
           />
+          <p className="mb-hb-4 rounded-hb-md border border-hb-warning/25 bg-hb-warning/8 p-3 text-hb-xs text-hb-text">
+            Not applied yet: nothing in the product reads these values, so the platform name, colour and logo
+            shown to users don't change.
+          </p>
           <div className="grid gap-hb-4 sm:grid-cols-3">
             <Input
               label="Platform name"

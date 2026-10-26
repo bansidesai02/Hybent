@@ -1,9 +1,10 @@
 """
 Authentication service: register, login, token refresh, logout.
 """
+import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -14,6 +15,7 @@ from app.models.user import User, RefreshToken
 from app.schemas.auth import RegisterRequest, LoginRequest, UserOut
 from app.utils.permissions import UserRole
 from app.utils.security import verify_password, create_access_token, create_refresh_token
+from app.services import platform_security
 
 
 async def register_user(data: RegisterRequest, db: AsyncSession) -> dict:
@@ -45,21 +47,62 @@ async def find_user_by_email(db: AsyncSession, email: str, *options) -> User | N
     return matches[0] if len(matches) == 1 else None
 
 
-async def login_user(data: LoginRequest, db: AsyncSession) -> dict:
-    """Authenticate user and issue tokens."""
-    user = await find_user_by_email(db, data.email, joinedload(User.organization))
+def ensure_org_active(user: User) -> None:
+    """Reject sign-in for members of a suspended organization (super admins exempt)."""
+    if user.role == "super_admin":
+        return
+    org = user.__dict__.get("organization")
+    if org is not None and not org.is_active:
+        raise HTTPException(status_code=403, detail="Your organization's account is suspended. Please contact support.")
 
-    if not user or not verify_password(data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
+
+async def _reject(
+    db: AsyncSession, *, status_code: int, detail: str, email: str, method: str,
+    request: Request | None, user: User | None = None, reason: str,
+):
+    """Record the failed attempt (committed, so the raise doesn't roll it back) and refuse."""
+    await platform_security.record_login_event(
+        db, email=email, method=method, success=False, request=request,
+        user=user, reason=reason, commit=True,
+    )
+    raise HTTPException(status_code=status_code, detail=detail)
+
+
+async def _complete_sign_in(user: User, db: AsyncSession, method: str, request: Request | None) -> dict:
+    """Checks every sign-in path shares once the first factor passed: account
+    and organization status, the super admin IP allow-list, then either a
+    2FA challenge or a session."""
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account is deactivated")
+        await _reject(db, status_code=403, detail="Account is deactivated. Please contact support.",
+                      email=user.email, method=method, request=request, user=user, reason="user_suspended")
+    try:
+        ensure_org_active(user)
+    except HTTPException as e:
+        await _reject(db, status_code=e.status_code, detail=e.detail,
+                      email=user.email, method=method, request=request, user=user, reason="org_suspended")
+    if user.role == UserRole.SUPER_ADMIN.value and await platform_security.super_admin_ip_blocked(db, request):
+        await _reject(db, status_code=403, detail="Super admin sign-in is not allowed from this network.",
+                      email=user.email, method=method, request=request, user=user, reason="ip_not_allowed")
 
-    # Update last login
+    if method != "otp" and user.role in platform_security.MFA_ROLES:
+        sec = await platform_security.get_security_settings(db)
+        if sec["require_2fa"]:
+            await platform_security.issue_mfa_code(db, user)
+            await platform_security.record_login_event(
+                db, email=user.email, method=method, success=False, request=request,
+                user=user, reason="mfa_required",
+            )
+            return {
+                "mfa_required": True,
+                "mfa_token": platform_security.create_mfa_token(user.id, method),
+                "email": user.email,
+            }
+
+    return await _issue_session(user, db, method, request)
+
+
+async def _issue_session(user: User, db: AsyncSession, method: str, request: Request | None) -> dict:
     user.last_login = datetime.now(timezone.utc)
-
     access_token = create_access_token({"sub": str(user.id), "org": str(user.organization_id), "role": user.role})
     refresh_tok = create_refresh_token()
     db.add(RefreshToken(
@@ -67,13 +110,57 @@ async def login_user(data: LoginRequest, db: AsyncSession) -> dict:
         token=refresh_tok,
         expires_at=datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days),
     ))
-
+    await platform_security.record_login_event(
+        db, email=user.email, method=method, success=True, request=request, user=user,
+    )
     return {
         "access_token": access_token,
         "refresh_token": refresh_tok,
         "token_type": "bearer",
         "user": UserOut.model_validate(user).model_dump(),
     }
+
+
+async def login_user(data: LoginRequest, db: AsyncSession, request: Request | None = None) -> dict:
+    """Authenticate user and issue tokens (or a 2FA challenge)."""
+    user = await find_user_by_email(db, data.email, joinedload(User.organization))
+
+    if not user or not verify_password(data.password, user.hashed_password):
+        await _reject(db, status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password",
+                      email=data.email, method="password", request=request, user=user,
+                      reason="bad_credentials")
+    return await _complete_sign_in(user, db, "password", request)
+
+
+_EXPIRED = "Your sign-in attempt expired. Please sign in again."
+
+
+async def verify_mfa(mfa_token: str, code: str, db: AsyncSession, request: Request | None = None) -> dict:
+    """Second step of a 2FA sign-in: the challenge token from step one plus the emailed code."""
+    claims = platform_security.decode_mfa_token(mfa_token or "")
+    if not claims:
+        raise HTTPException(status_code=401, detail=_EXPIRED)
+    user = (await db.execute(
+        select(User).options(joinedload(User.organization)).where(User.id == uuid.UUID(claims["sub"]))
+    )).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail=_EXPIRED)
+    if await platform_security.mfa_attempts_exhausted(db, user.id):
+        raise HTTPException(status_code=429, detail="Too many incorrect codes. Please sign in again in a few minutes.")
+    if not code or not await platform_security.consume_mfa_code(db, user.id, code):
+        await _reject(db, status_code=400, detail="Invalid or expired code.",
+                      email=user.email, method="otp", request=request, user=user, reason="bad_otp")
+    return await _complete_sign_in(user, db, "otp", request)
+
+
+async def resend_mfa(mfa_token: str, db: AsyncSession) -> None:
+    claims = platform_security.decode_mfa_token(mfa_token or "")
+    if not claims:
+        raise HTTPException(status_code=401, detail=_EXPIRED)
+    user = await db.get(User, uuid.UUID(claims["sub"]))
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail=_EXPIRED)
+    await platform_security.issue_mfa_code(db, user)
 
 
 async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
@@ -91,6 +178,11 @@ async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
     # Revoke old token (rotation)
     token_obj.is_revoked = True
 
+    sec = await platform_security.get_security_settings(db)
+    if sec["session_timeout"] and platform_security.refresh_is_stale(token_obj.created_at):
+        await db.commit()
+        raise HTTPException(status_code=401, detail="Your session timed out. Please sign in again.")
+
     # Get user
     user_result = await db.execute(
         select(User)
@@ -102,6 +194,7 @@ async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
         raise HTTPException(status_code=403, detail="Account has been deleted")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account has been deactivated")
+    ensure_org_active(user)
 
     # Issue new tokens
     new_access = create_access_token({"sub": str(user.id), "org": str(user.organization_id), "role": user.role})
@@ -195,7 +288,7 @@ async def verify_google_token(raw_token: str) -> dict:
     )
 
 
-async def google_authenticate(token: str, db: AsyncSession) -> dict:
+async def google_authenticate(token: str, db: AsyncSession, request: Request | None = None) -> dict:
     """
     Authenticate user via Google OAuth 2.0.
     Links existing user or registers a new account automatically with provider="google".
@@ -216,12 +309,6 @@ async def google_authenticate(token: str, db: AsyncSession) -> dict:
     user = result.scalar_one_or_none()
 
     if user:
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account is deactivated. Please contact support.",
-            )
-
         # Update google_id if missing
         if not user.google_id and google_id:
             user.google_id = google_id
@@ -236,31 +323,15 @@ async def google_authenticate(token: str, db: AsyncSession) -> dict:
         # get to provision itself a new organization + admin. New orgs come
         # from a super admin (POST /v1/super-admin/clients); new teammates
         # inside an existing org come from POST /v1/users/invite.
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+        await _reject(
+            db, status_code=status.HTTP_403_FORBIDDEN,
             detail="No account found for this email. Ask your organization admin to invite you, or contact Hybent to set up your organization.",
+            email=email, method="google", request=request, reason="no_account",
         )
-
-    # Update last login
-    user.last_login = datetime.now(timezone.utc)
 
     # Re-query user with organization loaded if needed
     if user.organization_id and "organization" not in user.__dict__:
         org_res = await db.execute(select(Organization).where(Organization.id == user.organization_id))
         user.organization = org_res.scalar_one_or_none()
-
-    access_token = create_access_token({"sub": str(user.id), "org": str(user.organization_id), "role": user.role})
-    refresh_tok = create_refresh_token()
-    db.add(RefreshToken(
-        user_id=user.id,
-        token=refresh_tok,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days),
-    ))
-
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_tok,
-        "token_type": "bearer",
-        "user": UserOut.model_validate(user).model_dump(),
-    }
+    return await _complete_sign_in(user, db, "google", request)
 
