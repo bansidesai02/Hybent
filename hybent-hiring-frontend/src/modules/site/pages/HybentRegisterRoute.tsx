@@ -7,9 +7,8 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 /** Pricing cards link here with ?plan=; mirrors PLANS in PricingPage. */
 const PLANS: Record<string, SelectedPlan> = {
-  '1m': { label: 'Standard · 1 month', price: '$69/month' },
-  '6m': { label: '6 months', price: '$66/month' },
-  '12m': { label: '12 months', price: '$62/month' },
+  standard: { label: 'Standard', price: '$29 / ₹2,799 a month' },
+  pro: { label: 'Pro', price: '$39 / ₹3,799 a month' },
 }
 
 /**

@@ -36,6 +36,8 @@ export const SITE = {
  * redirects home and it is left out of the sitemap. Flip to true to restore.
  */
 export const SHOW_CUSTOMERS = false
+// Solutions (services, industries, hire talent) hidden from nav/footer while we focus on Hybent Hiring.
+export const SHOW_SOLUTIONS = false
 
 /**
  * No specific roles are open at launch. While false, /careers shows a

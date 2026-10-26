@@ -10,6 +10,7 @@ import {
   Mail,
   MoreHorizontal,
   Pause,
+  PhoneCall,
   Play,
   Plus,
   Trash2,
@@ -27,6 +28,8 @@ import type { Candidate } from '@/types'
 import { CandidateProfileView } from '@/modules/recruiter/components/CandidateProfileView'
 import { CandidateActionsPanel } from '@/modules/recruiter/components/CandidateActionsPanel'
 import { GenerateOfferModal } from '@/modules/recruiter/components/GenerateOfferModal'
+import { StartAICallDialog } from '@/modules/recruiter/components/aiCalls/StartAICallDialog'
+import { useAICallsEnabled } from '@/hooks/useAICallsNav'
 import {
   STATUS_TABS,
   isCandidateInActivePipeline,
@@ -52,6 +55,7 @@ import {
   Toolbar,
   ToolbarSearch,
   ToolbarFilters,
+  ToolbarSelection,
   statusDef,
   type Column,
 } from '@/components/hb'
@@ -132,6 +136,10 @@ export default function CandidatesPage() {
   const [statusFilter, setStatusFilter] = useState<CandidateStatus | null>(null)
   const [recruiterId, setRecruiterId] = useState('all')
   const [selectedJobId, setSelectedJobId] = useState('all')
+  // AI Calls: pick candidates on this page to pre-screen them in one go.
+  const aiCallsEnabled = useAICallsEnabled()
+  const [aiSelected, setAiSelected] = useState<Set<string>>(new Set())
+  const [aiCalling, setAiCalling] = useState(false)
   const [dateFilter, setDateFilter] = useState('all')
   const [customDateRange, setCustomDateRange] = useState<[string, string]>(['', ''])
 
@@ -254,6 +262,7 @@ export default function CandidatesPage() {
 
   const designationCounts = (designationData?.designation_counts ?? {}) as Record<string, number>
   const rows = data?.items ?? []
+  const aiPicked = rows.filter((c: any) => aiSelected.has(c.id)).map((c: any) => ({ id: c.id as string, full_name: c.full_name as string }))
 
   /* â”€â”€ Mutations â”€â”€ */
   const inviteMutation = useMutation({
@@ -683,6 +692,13 @@ export default function CandidatesPage() {
         </div>
       ) : (
         <>
+          {aiCallsEnabled && (
+            <ToolbarSelection count={aiPicked.length} onClear={() => setAiSelected(new Set())}>
+              <Button size="sm" icon={<PhoneCall size={14} />} onClick={() => setAiCalling(true)}>
+                Start AI pre-screen
+              </Button>
+            </ToolbarSelection>
+          )}
           <DataTable
             caption="Candidates"
             columns={columns}
@@ -690,6 +706,18 @@ export default function CandidatesPage() {
             rowKey={(c: any) => c.id}
             loading={isLoading}
             onRowClick={openProfile}
+            selection={aiCallsEnabled ? {
+              selected: aiSelected,
+              onToggle: (key) => setAiSelected((s) => {
+                const next = new Set(s)
+                const id = String(key)
+                if (next.has(id)) next.delete(id)
+                else next.add(id)
+                return next
+              }),
+              onToggleAll: (keys) => setAiSelected((s) =>
+                keys.every((k) => s.has(String(k))) ? new Set() : new Set(keys.map(String))),
+            } : undefined}
             empty={{
               tone: hasFilters ? 'no-results' : 'empty',
               icon: <Users />,
@@ -714,6 +742,14 @@ export default function CandidatesPage() {
             />
           )}
         </>
+      )}
+
+      {aiCalling && aiPicked.length > 0 && (
+        <StartAICallDialog
+          candidates={aiPicked}
+          defaultJobId={selectedJobId !== 'all' ? selectedJobId : undefined}
+          onClose={() => { setAiCalling(false); setAiSelected(new Set()) }}
+        />
       )}
 
       {/* â”€â”€ Row actions â”€â”€ */}

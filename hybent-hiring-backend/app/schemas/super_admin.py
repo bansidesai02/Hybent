@@ -1,5 +1,7 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from typing import Literal
+
+from pydantic import BaseModel, EmailStr, Field
 
 class SubscriptionPlanOut(BaseModel):
     id: str
@@ -121,7 +123,14 @@ class SuperAdminAuditLogOut(BaseModel):
 
 
 class ImpersonationStartRequest(BaseModel):
-    reason: str
+    reason: str = Field(..., min_length=3, max_length=500)
+    # Off = view only: the session can look but not change anything.
+    allow_changes: bool = False
+
+
+class ImpersonationEndRequest(BaseModel):
+    # exit: the super admin left; expired: their browser saw the time run out.
+    reason: Literal["exit", "expired"] = "exit"
 
 
 class HealthStatus(BaseModel):
@@ -154,6 +163,7 @@ class PlatformSettingsUpdate(BaseModel):
     require_2fa: bool | None = None
     session_timeout: bool | None = None
     ip_whitelist: bool | None = None
+    ip_allowlist: list[str] | None = None
     platform_name: str | None = None
     logo_url: str | None = None
     primary_color: str | None = None

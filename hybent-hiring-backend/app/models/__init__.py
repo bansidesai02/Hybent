@@ -25,6 +25,7 @@ from app.models.ai_credit_rule import AICreditRule
 from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 from app.models.candidate_resume_chunk import CandidateResumeChunk
 from app.models.import_batch import ImportBatch
+from app.models.login_event import LoginEvent
 from app.models.user_preference import UserPreference
 from app.models.designation_change_log import DesignationChangeLog
 from app.models.pre_screening import PreScreeningSession, PreScreeningResponse
@@ -35,6 +36,8 @@ from app.models.super_admin import (
     PlatformSetting, BillingTransaction
 )
 from app.models.payment import Payment
+from app.models.integration_key import IntegrationKey
+from app.models.voice_call import VoiceCall, OrgVoiceSettings, VoiceSlotHold
 
 __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
@@ -42,10 +45,10 @@ __all__ = [
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
     "OtherOffer", "JobReferral", "CandidateDocument", "Message", "MessageAttachment", "ChatGroup", "ChatGroupMember", "EmailAccount", "EmailMessage",
     "AIUsage", "OrganizationAICredits", "UserAICredits", "AICreditRule", "CopilotConversation", "CopilotMessage",
-    "CandidateResumeChunk", "ImportBatch",
+    "CandidateResumeChunk", "ImportBatch", "LoginEvent",
     "UserPreference", "DesignationChangeLog",
     "PreScreeningSession", "PreScreeningResponse", "ScreeningRecommendation",
     "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag", "Payment",
     "CompanyUsage", "SuperAdminAuditLog", "ImpersonationLog",
-    "PlatformSetting", "BillingTransaction"
+    "PlatformSetting", "BillingTransaction", "IntegrationKey", "VoiceCall", "OrgVoiceSettings", "VoiceSlotHold"
 ]

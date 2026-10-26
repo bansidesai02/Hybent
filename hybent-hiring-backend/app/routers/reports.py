@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Response
 from app.dependencies import DB, RecruiterUser
 from app.services import report_service
 from app.utils.permissions import UserRole
 from app.schemas.response import APIResponse
 
+from app.services.feature_flags import require_feature
 router = APIRouter(prefix="/v1/reports", tags=["reports"])
 
 @router.get("/summary")
@@ -30,7 +31,7 @@ async def get_summary(
         )
     )
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(require_feature("analytics"))])
 async def export_report(
     current_user: RecruiterUser, 
     db: DB,

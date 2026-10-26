@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, CalendarPlus, FileText, Mail, Mic, Sparkles, User, Zap } from 'lucide-react'
+import { Activity, CalendarPlus, FileText, Mail, Mic, PhoneCall, Sparkles, User, Zap } from 'lucide-react'
 
 import { useCopilotStore } from '@/store/useCopilotStore'
 import { useAsyncAction } from '@/hooks/useAsyncAction'
+import { useAICallsEnabled } from '@/hooks/useAICallsNav'
 import { candidatesApi } from '@/api/candidates'
 import type { Candidate } from '@/types'
 import { Avatar, Badge, Button, StatusPill, Tabs, TabPanel } from '@/components/hb'
 
+import { AICallTab } from './profile/AICallTab'
 import { DetailsTab } from './profile/DetailsTab'
 import { FeedbackTab } from './profile/FeedbackTab'
 import { PreScreenTab } from './profile/PreScreenTab'
@@ -27,7 +29,7 @@ import { TimelineTab } from './profile/TimelineTab'
  * reader announced four unrelated buttons rather than a tablist.
  */
 
-type TabKey = 'details' | 'feedback' | 'prescreen' | 'timeline'
+type TabKey = 'details' | 'feedback' | 'prescreen' | 'aicall' | 'timeline'
 
 const TABS = [
   { value: 'details' as const, label: <><User size={14} aria-hidden /> Details</> },
@@ -35,6 +37,7 @@ const TABS = [
   { value: 'prescreen' as const, label: <><Sparkles size={14} aria-hidden /> Pre-screen</> },
   { value: 'timeline' as const, label: <><Activity size={14} aria-hidden /> Audit trail</> },
 ]
+const AI_CALL_TAB = { value: 'aicall' as const, label: <><PhoneCall size={14} aria-hidden /> AI Call</> }
 
 interface CandidateProfileViewProps {
   candidate: Candidate
@@ -91,6 +94,8 @@ export function CandidateProfileView({
   const setPageContext = useCopilotStore((s) => s.setPageContext)
   const [tab, setTab] = useState<TabKey>(initialTab ?? 'details')
   const [openCandidateResume, openingResume] = useAsyncAction(openResume)
+  const aiCallsEnabled = useAICallsEnabled()
+  const tabs = aiCallsEnabled ? [...TABS.slice(0, 3), AI_CALL_TAB, TABS[3]] : TABS
 
   useEffect(() => {
     setPageContext({ candidate_id: candidate.id, candidate_name: candidate.full_name })
@@ -163,7 +168,7 @@ export function CandidateProfileView({
         </div>
       </header>
 
-      <Tabs items={TABS} value={tab} onChange={setTab} aria-label="Candidate profile sections" />
+      <Tabs items={tabs} value={tab} onChange={setTab} aria-label="Candidate profile sections" />
 
       <TabPanel value="details" active={tab === 'details'}>
         <DetailsTab candidate={candidate} />
@@ -174,6 +179,11 @@ export function CandidateProfileView({
       <TabPanel value="prescreen" active={tab === 'prescreen'}>
         <PreScreenTab candidate={candidate} />
       </TabPanel>
+      {aiCallsEnabled && (
+        <TabPanel value="aicall" active={tab === 'aicall'}>
+          <AICallTab candidate={candidate} />
+        </TabPanel>
+      )}
       <TabPanel value="timeline" active={tab === 'timeline'}>
         <TimelineTab candidate={candidate} />
       </TabPanel>

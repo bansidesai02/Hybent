@@ -1,9 +1,10 @@
 import { type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
-import { BadgeCent, LineChart, UserCheck, Users } from 'lucide-react'
+import { BadgeCent, UserCheck, Users } from 'lucide-react'
 
 import { superAdminApi } from '@/api/superAdmin'
+import ActivityRankings from '../components/ActivityRankings'
 import {
   axisProps,
   Badge,
@@ -27,25 +28,18 @@ import {
  * `chartTheme`; these now do too.
  *
  * The "+12% MRR" / "+34% Growth" / "+1.1k resumes" chips were hardcoded
- * strings presented as live deltas. The operational-highlights figures are
- * equally static, but they at least read as marketing copy; a percentage badge
- * on a chart reads as computed. The chips now show the latest real value from
- * the series instead.
+ * strings presented as live deltas, and the "operational highlights" figures
+ * were invented; both are gone. The chips show the latest real value from
+ * each series instead.
  */
 
+/** Plan prices are USD (hybent.com/pricing); this used to format them as rupees. */
 const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('en-IN', {
+  new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'INR',
+    currency: 'USD',
     maximumFractionDigits: 0,
   }).format(val)
-
-const HIGHLIGHTS = [
-  { label: 'Average match latency', value: '1.8s', note: '↓ 20% vs last month' },
-  { label: 'AI parser accuracy', value: '98.4%', note: 'Continuously optimised' },
-  { label: 'Cost per interview session', value: '₹4.20', note: '↓ 15% after model tuning' },
-  { label: 'Admin action coverage', value: '100%', note: 'Full audit-log tracking' },
-]
 
 /**
  * One growth trend, framed. `ChartFrame` owns the sizing — its
@@ -92,7 +86,7 @@ function TrendCard({
           {...axisProps(theme)}
           width={64}
           tickFormatter={(v: number) =>
-            money ? `₹${v >= 1000 ? `${Math.round(v / 1000)}k` : v}` : String(v)
+            money ? `$${v >= 1000 ? `${Math.round(v / 1000)}k` : v}` : String(v)
           }
         />
         <ChartTooltip
@@ -132,8 +126,12 @@ export default function AnalyticsPage() {
       <PageHeader
         eyebrow="Platform"
         title="Analytics"
-        description="Revenue projection, account growth and candidate volume across the whole platform."
+        description="Organization activity, account growth and candidate volume across the whole platform."
       />
+
+      <div className="mb-hb-5">
+        <ActivityRankings />
+      </div>
 
       {isLoading ? (
         <div className="grid gap-hb-5 lg:grid-cols-2">
@@ -147,7 +145,8 @@ export default function AnalyticsPage() {
             title={
               <span className="inline-flex items-center gap-2">
                 <BadgeCent size={17} aria-hidden className="text-hb-cyan" />
-                Revenue growth (MRR)
+                Monthly recurring revenue
+                <span className="font-sans text-hb-xs font-normal text-hb-muted">(current month only; no history is recorded)</span>
               </span>
             }
             action={
@@ -166,7 +165,7 @@ export default function AnalyticsPage() {
             title={
               <span className="inline-flex items-center gap-2">
                 <Users size={17} aria-hidden className="text-hb-cyan" />
-                Active users
+                Total accounts
               </span>
             }
             action={usersNow ? <Badge tone="info">{usersNow.count} accounts</Badge> : undefined}
@@ -198,29 +197,6 @@ export default function AnalyticsPage() {
             emptyText="No candidate data yet."
           />
 
-          <Card padding="loose">
-            <CardHeader
-              title={
-                <span className="inline-flex items-center gap-2">
-                  <LineChart size={17} aria-hidden className="text-hb-cyan" />
-                  Operational highlights
-                </span>
-              }
-              subtitle="Key efficiency indicators of the AI matching platform."
-            />
-            <dl className="grid gap-2.5 sm:grid-cols-2">
-              {HIGHLIGHTS.map((h) => (
-                <div
-                  key={h.label}
-                  className="flex flex-col justify-center rounded-hb-md border border-hb-border bg-hb-surface-2 p-4"
-                >
-                  <dt className="font-mono text-hb-label uppercase text-hb-dim">{h.label}</dt>
-                  <dd className="mt-1.5 font-display text-hb-h2 text-hb-text">{h.value}</dd>
-                  <dd className="mt-1 text-hb-xs text-hb-muted">{h.note}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
         </div>
       )}
     </div>

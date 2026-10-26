@@ -479,6 +479,10 @@ export interface AuthResponse {
   token_type: string
   refresh_token?: string
   user?: User
+  /** 2FA is on for this account: no session yet, send the emailed code to /2fa/verify. */
+  mfa_required?: boolean
+  mfa_token?: string
+  email?: string
 }
 
 // ── Pipeline (Kanban) ──────────────────────────────────────────────────────────

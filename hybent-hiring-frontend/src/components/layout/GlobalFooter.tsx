@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
-import { SHOW_CUSTOMERS } from '@/app/paths'
+import { SHOW_CUSTOMERS, SHOW_SOLUTIONS } from '@/app/paths'
 
 /* Only accounts that exist get an icon: an empty url hides it, and with no
    urls at all the whole row is left out rather than linking back home. */
@@ -118,11 +118,11 @@ export function GlobalFooter() {
           <div><h5>Products</h5><ul>
             <li><a href="/products/hiring">Hybent Hiring</a></li>
           </ul></div>
-          <div><h5>Solutions</h5><ul>
+          {SHOW_SOLUTIONS && <div><h5>Solutions</h5><ul>
             <li><a href="/services">Services</a></li>
             <li><a href="/industries">Industries</a></li>
             <li><a href="/hire-talent">Hire Talent</a></li>
-          </ul></div>
+          </ul></div>}
           <div><h5>Company</h5><ul>
             <li><a href="/about">About</a></li><li><a href="/about/story">Our story</a></li><li><a href="/careers">Careers</a></li>
             <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>

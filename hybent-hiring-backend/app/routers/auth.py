@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Response, Cookie, Body, Depends
-from sqlalchemy import select, update
+from fastapi import APIRouter, HTTPException, Request, Response, Cookie, Body, Depends
+from sqlalchemy import func, select, update
 from app.dependencies import DB, CurrentUser
 from app.schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest, RefreshRequest, UserOut, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.schemas.response import APIResponse
 from app.services import auth_service, invitation_service
 from app.utils.security import hash_password, verify_password, create_access_token, create_refresh_token
-from app.models.user import User
+from app.models.user import User, RefreshToken
 from app.models.candidate import Candidate
 from app.models.password_reset import PasswordResetToken
 from app.models.organization import Organization
@@ -35,10 +35,13 @@ async def register(data: RegisterRequest, db: DB):
     return APIResponse.success(message="Account created successfully.", data=result)
 
 
-@router.post("/login")
-async def login(data: LoginRequest, response: Response, db: DB):
-    result = await auth_service.login_user(data, db)
-    # Set refresh token in HttpOnly cookie
+def _sign_in_response(result: dict, response: Response, message: str):
+    """A session (refresh cookie + tokens) or, with 2FA on, the challenge for step two."""
+    if result.get("mfa_required"):
+        return APIResponse.success(
+            message="Enter the code we emailed you.",
+            data={"mfa_required": True, "mfa_token": result["mfa_token"], "email": result["email"]},
+        )
     response.set_cookie(
         key="refresh_token",
         value=result["refresh_token"],
@@ -49,7 +52,7 @@ async def login(data: LoginRequest, response: Response, db: DB):
         path="/v1/auth/refresh",
     )
     return APIResponse.success(
-        message="Login successful.",
+        message=message,
         data={
             "access_token": result["access_token"],
             "refresh_token": result["refresh_token"],
@@ -57,33 +60,31 @@ async def login(data: LoginRequest, response: Response, db: DB):
             "user": result.get("user"),
         },
     )
+
+
+@router.post("/login")
+async def login(data: LoginRequest, request: Request, response: Response, db: DB):
+    result = await auth_service.login_user(data, db, request)
+    return _sign_in_response(result, response, "Login successful.")
 
 
 @router.post("/google")
-async def google_login(data: GoogleAuthRequest, response: Response, db: DB):
+async def google_login(data: GoogleAuthRequest, request: Request, response: Response, db: DB):
     token = data.id_token or data.token
     if not token:
         raise HTTPException(status_code=400, detail="Google authentication token is required.")
-    result = await auth_service.google_authenticate(token, db)
-    # Set refresh token in HttpOnly cookie
-    response.set_cookie(
-        key="refresh_token",
-        value=result["refresh_token"],
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite=_COOKIE_SAMESITE,
-        max_age=30 * 24 * 3600,
-        path="/v1/auth/refresh",
-    )
-    return APIResponse.success(
-        message="Google authentication successful.",
-        data={
-            "access_token": result["access_token"],
-            "refresh_token": result["refresh_token"],
-            "token_type": "bearer",
-            "user": result.get("user"),
-        },
-    )
+    result = await auth_service.google_authenticate(token, db, request)
+    return _sign_in_response(result, response, "Google authentication successful.")
+
+
+@router.get("/session-policy")
+async def session_policy(db: DB):
+    """Public: how long the app may sit idle before signing out (null = no limit)."""
+    from app.services import platform_security
+    sec = await platform_security.get_security_settings(db)
+    return APIResponse.success(data={
+        "idle_timeout_minutes": platform_security.SESSION_IDLE_MINUTES if sec["session_timeout"] else None,
+    })
 
 
 @router.post("/refresh")
@@ -132,6 +133,16 @@ async def logout(
     return APIResponse.success(message="Logged out successfully.")
 
 
+@router.get("/features")
+async def my_features(current_user: CurrentUser, db: DB):
+    """Which switchable features the caller's organization has (super admin → Feature flags)."""
+    from app.services import feature_flags
+    from app.services.voice_calls import ai_calls_enabled
+    flags = await feature_flags.effective_flags(db, current_user.organization_id)
+    flags["ai_calls"] = await ai_calls_enabled(db, current_user.organization_id)
+    return APIResponse.success(data=flags)
+
+
 @router.get("/me", response_model=UserOut)
 async def me(current_user: CurrentUser):
     return APIResponse.success(message="User details retrieved.", data=UserOut.model_validate(current_user))
@@ -153,8 +164,7 @@ async def forgot_password(data: ForgotPasswordRequest, db: DB):
     import secrets
     from datetime import timedelta
 
-    result = await db.execute(select(User).where(User.email == data.email))
-    user = result.scalar_one_or_none()
+    user = await auth_service.find_user_by_email(db, data.email)
     # Always return 200 to prevent email enumeration
     if not user or not user.is_active:
         return APIResponse.success(message="If that email exists, a reset link has been sent.")
@@ -206,6 +216,13 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
 
     user.hashed_password = hash_password(data.new_password)
     token_obj.is_used = True
+    # Sign out every existing session: a reset is often because the old
+    # password leaked. Access tokens already issued lapse within the hour.
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.is_revoked == False)
+        .values(is_revoked=True)
+    )
     await db.commit()
     return APIResponse.success(message="Password reset successfully. You can now log in.")
 
@@ -213,35 +230,27 @@ async def reset_password(data: ResetPasswordRequest, db: DB):
 @router.post("/candidate/magic-link")
 async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
     """
-    Send a magic link (invitation) to a candidate. 
-    If registration is open for new candidates, create a stub profile.
-    """
-    
-    # 1. Check if candidate exists
-    result = await db.execute(select(Candidate).where(Candidate.email == data.email))
-    candidate = result.scalar_one_or_none()
-    
-    if not candidate:
-        # Create a stub candidate for truly new users
-        # For multi-tenant, we pick the first org as default 'host' for public signups
-        org_result = await db.execute(select(Organization).limit(1))
-        org = org_result.scalar_one_or_none()
-        
-        if not org:
-            raise HTTPException(status_code=500, detail="System configuration error: No organization found.")
-            
-        candidate = Candidate(
-            organization_id=org.id,
-            email=data.email,
-            full_name=data.email.split('@')[0].capitalize(), # Simple default name
-            source="Magic Link Signup",
-            skills=[],
-            tags=[],
-        )
-        db.add(candidate)
-        await db.flush()
+    Send a magic link (invitation) to an existing candidate.
 
-    # 2. Trigger the invitation flow
+    Unknown addresses used to get a stub candidate in whichever organization
+    came first in the database, plus an email, so anyone could add people to a
+    client's candidate list. They now get the same reply and nothing else.
+    """
+    sent = "If that email belongs to a candidate, a sign-in link has been sent."
+
+    # The same person can be a candidate at several organizations: prefer the
+    # profile already linked to their portal account, then the newest.
+    result = await db.execute(
+        select(Candidate)
+        .where(func.lower(Candidate.email) == data.email.lower())
+        .order_by(Candidate.user_id.is_(None), Candidate.created_at.desc())
+        .limit(1)
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        return APIResponse.success(message=sent)
+
+    # Trigger the invitation flow
     try:
         await invitation_service.create_invitation(
             db=db,
@@ -255,98 +264,23 @@ async def candidate_magic_link(data: ForgotPasswordRequest, db: DB):
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to send magic link: {str(e)}")
 
-    return APIResponse.success(message="Magic link sent successfully. Please check your inbox.")
+    return APIResponse.success(message=sent)
 
 
 @router.post("/2fa/send")
-async def send_2fa_otp(data: ForgotPasswordRequest, db: DB):
-    """Send a 6-digit 2FA OTP code to user's email for login verification."""
-    import random, secrets
-    from datetime import timedelta
-    user_result = await db.execute(select(User).where(User.email == data.email))
-    user = user_result.scalar_one_or_none()
-    if not user or not user.is_active:
-        return APIResponse.success(message="If that email exists, a 2FA OTP has been sent.")
-    
-    otp = f"{100000 + secrets.randbelow(900000)}"
-    # Store OTP in PasswordResetToken table with 10 min expiration
-    token = f"2fa_{otp}_{secrets.token_hex(8)}"
-    db.add(PasswordResetToken(
-        user_id=user.id,
-        token=token,
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
-    ))
-    # Send email (using existing email service or log in dev)
-    from app.services.email_service import _send_resend
-    try:
-        _send_resend(
-            to=user.email,
-            subject="Your Hybent 2FA Security Code",
-            html_body=f"<p>Your 2FA verification code is: <strong>{otp}</strong>. It expires in 10 minutes.</p>"
-        )
-    except Exception as e:
-        logger.warning(f"Failed to dispatch 2FA email to {user.email}: {e}")
-
-    return APIResponse.success(message="2FA security code sent to your email.")
+async def resend_2fa_code(db: DB, body: dict = Body(...)):
+    """Email a fresh sign-in code for a pending 2FA challenge (from /login)."""
+    await auth_service.resend_mfa(body.get("mfa_token") or "", db)
+    return APIResponse.success(message="A new code is on its way.")
 
 
 @router.post("/2fa/verify")
-async def verify_2fa_otp(
-    db: DB,
-    body: dict = Body(...)
-):
-    """Verify 2FA OTP code and return auth token if valid."""
-    email = body.get("email")
-    otp = body.get("otp")
-    if not email or not otp:
-        raise HTTPException(status_code=400, detail="Email and OTP are required.")
-    
-    user_result = await db.execute(select(User).where(User.email == email))
-    user = user_result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=400, detail="Invalid email or OTP.")
-    
-    # Check valid 2FA token
-    tokens_res = await db.execute(
-        select(PasswordResetToken)
-        .where(
-            PasswordResetToken.user_id == user.id,
-            PasswordResetToken.is_used == False,
-            PasswordResetToken.expires_at > datetime.now(timezone.utc)
-        )
-    )
-    tokens = tokens_res.scalars().all()
-    valid_token = None
-    for t in tokens:
-        if t.token.startswith(f"2fa_{otp}_"):
-            valid_token = t
-            break
-            
-    if not valid_token:
-        raise HTTPException(status_code=400, detail="Invalid or expired 2FA code.")
-    
-    valid_token.is_used = True
-    
-    # Correctly create tokens using security helpers
-    access_token = create_access_token({"sub": str(user.id), "org": str(user.organization_id), "role": user.role})
-    refresh_tok = create_refresh_token()
-    
-    # Save the refresh token to the database
-    from app.models.user import RefreshToken
-    from datetime import timedelta
-    db.add(RefreshToken(
-        user_id=user.id,
-        token=refresh_tok,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days),
-    ))
-    
-    return APIResponse.success(
-        message="2FA authentication successful.",
-        data={
-            "access_token": access_token,
-            "refresh_token": refresh_tok,
-            "token_type": "bearer",
-            "user": UserOut.model_validate(user).model_dump()
-        }
-    )
+async def verify_2fa_code(request: Request, response: Response, db: DB, body: dict = Body(...)):
+    """Second sign-in step when 2FA is required: challenge token + emailed code.
+
+    The challenge token proves the password (or Google) step passed; a code
+    alone never signs anyone in.
+    """
+    result = await auth_service.verify_mfa(body.get("mfa_token") or "", str(body.get("otp") or ""), db, request)
+    return _sign_in_response(result, response, "2FA authentication successful.")
 

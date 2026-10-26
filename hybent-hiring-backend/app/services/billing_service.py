@@ -20,6 +20,8 @@ EXTRA_SEATS = {
     "recruiter": (10.0, 1_000),
 }
 
+ONE_ADMIN_DETAIL = "Every plan includes one admin seat. Extra admin seats aren't sold; add recruiters instead."
+
 # Most extra seats of one role an organization can have.
 MAX_EXTRA_SEATS = 100
 
@@ -42,9 +44,6 @@ def extra_seat_credits(sub: CompanySubscription | None) -> int:
 def extra_seat_pricing() -> dict[str, dict]:
     return {role: {"price_usd": price, "ai_credits": credits} for role, (price, credits) in EXTRA_SEATS.items()}
 
-# Advertised on hybent.com/pricing. Monthly rates are rounded to whole
-# dollars ($66 is 4.3% off $69), so the badge uses the advertised figure.
-ADVERTISED_DISCOUNT_PCT = {6: 5, 12: 10}
 
 
 def billed_label(plan: SubscriptionPlan) -> str:
@@ -61,9 +60,7 @@ def billed_label(plan: SubscriptionPlan) -> str:
 def plan_to_dict(plan: SubscriptionPlan, standard_price: float | None = None) -> dict:
     discount = None
     if standard_price and plan.term_months and plan.price_monthly < standard_price:
-        discount = ADVERTISED_DISCOUNT_PCT.get(
-            plan.term_months, round((1 - plan.price_monthly / standard_price) * 100)
-        )
+        discount = round((1 - plan.price_monthly / standard_price) * 100)
     return {
         "id": str(plan.id),
         "name": plan.name,

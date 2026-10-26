@@ -2,7 +2,9 @@ import asyncio
 import html
 import logging
 import uuid
+from datetime import datetime, timezone
 
+from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -64,7 +66,11 @@ async def _get_active_job_or_404(db: DB, org_slug: str, job_id: uuid.UUID) -> Jo
 async def get_public_job(org_slug: str, job_id: uuid.UUID, db: DB):
     """Public, unauthenticated job view — used by the shareable apply link."""
     job = await _get_active_job_or_404(db, org_slug, job_id)
-    return APIResponse.success(message="Job retrieved.", data=JobPublicOut.model_validate(job))
+    data = JobPublicOut.model_validate(job).model_dump(mode="json")
+    # The apply form shows the AI-call consent checkbox only when the org uses AI calls.
+    from app.services.voice_calls import ai_calls_enabled
+    data["ai_calls"] = await ai_calls_enabled(db, job.organization_id)
+    return APIResponse.success(message="Job retrieved.", data=data)
 
 
 @router.post("/jobs/{org_slug}/{job_id}/apply", status_code=201)
@@ -81,6 +87,7 @@ async def apply_to_public_job(
     notice_period: str = Form(...),
     resume: UploadFile = File(...),
     source: str | None = Form(None),
+    ai_call_consent: bool = Form(False),
 ):
     """
     Public, unauthenticated job application — the destination of shareable
@@ -94,6 +101,13 @@ async def apply_to_public_job(
     current_ctc, expected_ctc, notice_period = (
         current_ctc.strip(), expected_ctc.strip(), notice_period.strip()
     )
+    full_name = full_name.strip()
+    if not full_name or len(full_name) > 255:
+        raise HTTPException(status_code=400, detail="Please enter your full name.")
+    try:
+        email = validate_email(email.strip(), check_deliverability=False).normalized
+    except EmailNotValidError:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
     if not phone:
         raise HTTPException(status_code=400, detail="Please fill in your phone number.")
     if not 7 <= sum(ch.isdigit() for ch in phone) <= 15 or len(phone) > 50:
@@ -152,6 +166,10 @@ async def apply_to_public_job(
     candidate.current_ctc = candidate.current_salary = current_ctc
     candidate.expected_ctc = candidate.expected_salary = expected_ctc
     candidate.notice_period_days = notice_period
+    # Opt-in checkbox on the apply form; an earlier opt-out always wins.
+    if ai_call_consent and not candidate.ai_call_opted_out_at:
+        candidate.ai_call_consent_at = datetime.now(timezone.utc)
+        candidate.ai_call_consent_source = "APPLICATION_FORM"
 
     await resume_intake.store_resume(candidate, resume, resume_content)
     candidate.applied_job_title = job.title

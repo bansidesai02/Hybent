@@ -399,6 +399,8 @@ async def seats_checkout(db: AsyncSession, user: User, add_admin: int, add_recru
     for role, n in add.items():
         if not isinstance(n, int) or isinstance(n, bool) or n < 0:
             raise HTTPException(status_code=400, detail=f"Extra {role} seats to add must be 0 or more.")
+    if add_admin:
+        raise HTTPException(status_code=400, detail=billing_service.ONE_ADMIN_DETAIL)
     if not any(add.values()):
         raise HTTPException(status_code=400, detail="Choose how many seats to add.")
 

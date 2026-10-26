@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle, Database, RefreshCw, Server } from 'lucide-react'
 
+import { formatUptime } from '../components/formatUptime'
 import { superAdminApi } from '@/api/superAdmin'
 import {
   Badge,
@@ -32,9 +33,9 @@ import {
  */
 
 const RESOURCES = [
-  { key: 'cpu_percent' as const, label: 'CPU utilisation', fallback: 12 },
-  { key: 'memory_percent' as const, label: 'RAM allocation', fallback: 45 },
-  { key: 'disk_percent' as const, label: 'Disk capacity (root)', fallback: 28 },
+  { key: 'cpu_percent' as const, label: 'CPU utilisation' },
+  { key: 'memory_percent' as const, label: 'RAM allocation' },
+  { key: 'disk_percent' as const, label: 'Disk capacity (root)' },
 ]
 
 export default function HealthPage() {
@@ -44,14 +45,15 @@ export default function HealthPage() {
     refetchInterval: 15_000,
   })
 
-  const errors = health?.errors_24h ?? 0
+  const failedImports = health?.failed_imports_24h ?? 0
+  const metricsAvailable = health?.metrics_available !== false
 
   return (
     <div className="pb-hb-10">
       <PageHeader
         eyebrow="Platform"
         title="Health monitor"
-        description="Resource allocation, latency, database load and service availability — refreshed every fifteen seconds."
+        description="Host resources, database and Redis reachability, and import failures — refreshed every fifteen seconds."
         actions={
           <Button
             variant="ghost"
@@ -67,10 +69,16 @@ export default function HealthPage() {
       <div className="space-y-hb-5">
         {/* Phones: two gauges per row (the third spans), not three screen-tall cards. */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-hb-4 max-md:[&>*:last-child:nth-child(odd)]:col-span-2">
-          {isLoading
+          {!isLoading && !metricsAvailable ? (
+            <Card padding="default" className="md:col-span-3">
+              <p className="text-hb-sm text-hb-muted">
+                Host metrics are unavailable: install <code>psutil</code> on the API server to report CPU, RAM and disk.
+              </p>
+            </Card>
+          ) : isLoading
             ? RESOURCES.map((r) => <Skeleton key={r.key} className="h-[176px] w-full" rounded="md" />)
             : RESOURCES.map((r) => {
-                const value = (health as any)?.[r.key] ?? r.fallback
+                const value = (health as any)?.[r.key] ?? 0
                 return (
                   <Card key={r.key} padding="default" className="flex flex-col items-center gap-3 max-md:!p-4">
                     <ScoreRing
@@ -89,26 +97,26 @@ export default function HealthPage() {
 
         <StatGrid>
           <StatCard
-            label="Gateway API uptime"
-            value={health?.api_uptime || '99.99%'}
+            label="API process uptime"
+            value={formatUptime(health?.uptime_seconds)}
             icon={<Activity />}
             loading={isLoading}
           />
           <StatCard
-            label="Avg API latency"
-            value={health?.avg_latency || '220ms'}
+            label="DB round-trip latency"
+            value={health?.avg_latency || '—'}
             icon={<Server />}
             loading={isLoading}
           />
           <StatCard
-            label="Platform errors (24h)"
-            value={errors}
+            label="Imports with failures (24h)"
+            value={failedImports}
             icon={<AlertCircle />}
             loading={isLoading}
           />
           <StatCard
-            label="Live DB queries/s"
-            value={health?.db_queries_sec ?? 0}
+            label="Failed import rows (24h)"
+            value={health?.failed_import_rows_24h ?? 0}
             icon={<Database />}
             loading={isLoading}
           />

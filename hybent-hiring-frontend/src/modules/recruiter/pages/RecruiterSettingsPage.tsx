@@ -10,6 +10,8 @@ import { authApi, profileApi } from '@/api/auth'
 import getCroppedImg from '@/utils/cropImage'
 import type { Organization } from '@/types'
 import { EmailAccountsSection } from '@/modules/recruiter/components/EmailAccountsSection'
+import { AICallSettingsCard } from '@/modules/recruiter/components/aiCalls/AICallSettingsCard'
+import { useAICallsEnabled } from '@/hooks/useAICallsNav'
 import { PersonalMailboxCard } from '@/modules/recruiter/components/PersonalMailboxCard'
 import {
   Badge,
@@ -41,6 +43,7 @@ import {
  */
 export default function RecruiterSettingsPage() {
   const { user, isAdmin } = useAuth()
+  const aiCallsEnabled = useAICallsEnabled()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const zoomId = useId()
@@ -261,6 +264,8 @@ export default function RecruiterSettingsPage() {
             only renders for 'admin' or 'recruiter' (route-guarded), so
             !isAdmin here means recruiter. */}
         {isAdmin ? <EmailAccountsSection /> : <PersonalMailboxCard />}
+
+        {aiCallsEnabled && <AICallSettingsCard canEdit={!!isAdmin} />}
 
         {/* Common Section: Account Security */}
         <Card as="section">

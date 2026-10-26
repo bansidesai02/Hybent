@@ -4,7 +4,7 @@ Admin-only endpoints: audit logs, org settings, team management.
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy import select, func
-from app.dependencies import DB, require_admin
+from app.dependencies import DB, require_admin, require_super_admin
 from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.models.ai_usage import AIUsage
@@ -271,11 +271,11 @@ async def es_reindex_all(current_user: Annotated[User, Depends(require_admin)], 
 @router.post("/test-email")
 async def test_email(
     current_user: Annotated[User, Depends(require_admin)],
-    recipient: str | None = Query(None, description="Override recipient email. Defaults to current admin's email.")
 ):
     """
     Admin-only: send a test email to verify SMTP is working.
-    Optionally pass ?recipient=your@email.com to send to a specific address.
+    Always sent to the calling admin's own address so the endpoint can't be
+    used to relay mail to arbitrary recipients.
     Check backend logs for ✅ or ❌ status after calling this endpoint.
     """
     from fastapi import HTTPException
@@ -289,7 +289,7 @@ async def test_email(
             detail="SMTP is not configured. Set SMTP_USER and SMTP_PASSWORD in your environment."
         )
 
-    target_email = recipient or current_user.email
+    target_email = current_user.email
     send_email(
         to=target_email,
         subject="✅ Hybent Hiring Email Test — SMTP Working",
@@ -315,11 +315,12 @@ async def test_email(
 
 @router.get("/debug-db")
 async def debug_db(
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_super_admin)],
     db: DB,
 ):
     """
-    Admin-only endpoint to inspect database schema status.
+    Super-admin-only endpoint to inspect database schema status. Platform-wide,
+    so a tenant's own admin must not reach it.
     """
     from sqlalchemy import text
 
@@ -360,10 +361,11 @@ async def debug_db(
 
 @router.post("/run-migrations")
 async def run_migrations_endpoint(
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_super_admin)],
 ):
     """
-    Admin-only endpoint to run Alembic migrations programmatically.
+    Super-admin-only endpoint to run Alembic migrations programmatically.
+    Changes the schema every tenant shares, so tenant admins can't call it.
     """
     import threading
     from alembic.config import Config
@@ -407,11 +409,11 @@ async def run_migrations_endpoint(
 
 @router.post("/repair-db-schema")
 async def repair_db_schema_endpoint(
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_super_admin)],
     db: DB,
 ):
     """
-    Admin-only endpoint to repair database schema when migrations got out of sync.
+    Super-admin-only endpoint to repair database schema when migrations got out of sync.
     Adds missing bulk import columns to the candidates table.
     """
     from sqlalchemy import text

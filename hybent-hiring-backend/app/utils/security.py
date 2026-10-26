@@ -37,10 +37,10 @@ def verify_password(plain: str, hashed: str | None) -> bool:
 
 
 # ── JWT ────────────────────────────────────────────────────────────────────────
-def create_access_token(data: dict[str, Any]) -> str:
+def create_access_token(data: dict[str, Any], expires_minutes: int | None = None) -> str:
     payload = data.copy()
     payload["exp"] = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.access_token_expire_minutes
+        minutes=expires_minutes if expires_minutes is not None else settings.access_token_expire_minutes
     )
     payload["type"] = "access"
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)

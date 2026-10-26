@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { ActivityToast } from '@/components/notifications/ActivityToast'
 
 import { getApiBaseUrl } from '@/config/api'
+import { refreshAccessToken } from '@/api/axios'
 
 const getWsBase = () => {
   const { protocol, host } = window.location
@@ -26,6 +27,8 @@ const WS_BASE = getWsBase()
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>()
+  /** Consecutive failed connects, for backoff. */
+  const failures = useRef(0)
   const { accessToken, isAuthenticated } = useAuthStore()
   const { addNotification, setUnreadCount } = useNotificationStore()
   const { addActivity } = useActivityStore()
@@ -38,17 +41,22 @@ export function useWebSocket() {
     const ws = new WebSocket(`${WS_BASE}/v1/notifications/ws?token=${accessToken}`)
     wsRef.current = ws
 
-    ws.onopen = () => {
-      console.log('[WS] Connected')
-      // Sync missed notifications during connection/reconnection
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'count'] })
-    }
+    // The server accepts the socket before checking the token, so `onopen`
+    // doesn't mean signed in: catch up on missed notifications only once it
+    // sends "connected" (it closes with 4001 instead when the token is bad).
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data)
         if (msg.type === 'event') {
+          if (msg.event === 'features_updated') {
+            queryClient.invalidateQueries({ queryKey: ['org-features'] })
+          }
+          if (msg.event === 'connected') {
+            failures.current = 0
+            queryClient.invalidateQueries({ queryKey: ['notifications'] })
+            queryClient.invalidateQueries({ queryKey: ['notifications', 'count'] })
+          }
           if (msg.event === 'notification' && msg.data) {
             addNotification(msg.data)
 
@@ -246,14 +254,22 @@ export function useWebSocket() {
     }
 
     ws.onclose = (e) => {
-      // 4001 is our custom code for "Authentication failed (Expired or Invalid Token)"
+      // Back off 3s, 6s, 12s… up to a minute, so a tab that can't connect
+      // (expired sign-in, server down) doesn't hammer the API.
+      failures.current += 1
+      const delay = Math.min(60_000, 3000 * 2 ** (failures.current - 1))
+      // 4001 = the token was refused (usually expired). Reconnecting with the
+      // same token would fail forever: get a fresh one first. The new token
+      // re-creates `connect` and the effect below reconnects with it.
       if (e.code === 4001) {
-        console.warn('[WS] Authentication failed. Retrying in 5s (waiting for background token refresh)...')
-        reconnectTimeout.current = setTimeout(connect, 5000)
+        reconnectTimeout.current = setTimeout(() => {
+          refreshAccessToken().catch(() => {
+            /* signed out or support session over: the API client handles it */
+          })
+        }, delay)
         return
       }
-      console.log('[WS] Disconnected, reconnecting in 3s...', e.reason)
-      reconnectTimeout.current = setTimeout(connect, 3000)
+      reconnectTimeout.current = setTimeout(connect, delay)
     }
 
     ws.onerror = () => {

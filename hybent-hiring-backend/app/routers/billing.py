@@ -83,8 +83,8 @@ async def request_change(
     payload: dict = Body(...),
 ):
     """Ask Hybent to move the organization to another plan and/or change its
-    extra admin seats ($15/month, +1,500 credits each) and extra recruiter
-    seats ($10/month, +1,000 credits each)."""
+    extra recruiter seats ($10/month, +1,000 credits each). Plans have one
+    admin seat; extra admin seats are only set up by Hybent for Custom deals."""
     plan_name = payload.get("plan_name")
     requested = {
         "admin": payload.get("extra_admin_seats"),
@@ -100,6 +100,8 @@ async def request_change(
     for role, n in requested.items():
         if n is not None and (not isinstance(n, int) or isinstance(n, bool) or not 0 <= n <= MAX_EXTRA_SEATS):
             raise HTTPException(status_code=400, detail=f"Extra {role} seats must be between 0 and {MAX_EXTRA_SEATS}.")
+    if requested["admin"]:
+        raise HTTPException(status_code=400, detail=billing_service.ONE_ADMIN_DETAIL)
     if plan is None and all(n is None for n in requested.values()):
         raise HTTPException(status_code=400, detail="Choose a plan or a number of extra seats.")
 

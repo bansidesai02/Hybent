@@ -3,7 +3,6 @@ Hybent Hiring FastAPI application entry point.
 Registers all routers, middleware, static files, and startup events.
 """
 import asyncio
-import io
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -155,7 +154,9 @@ async def log_requests(request: Request, call_next):
 
 @app.exception_handler(InsufficientCreditsException)
 async def insufficient_credits_handler(request: Request, exc: InsufficientCreditsException):
-    return APIResponse.error(message=exc.message, status_code=403)
+    # Same 403 the frontend already handles; error_code lets machine clients
+    # tell "out of AI credits" (wait and retry) from a permission failure.
+    return APIResponse.error(message=exc.message, status_code=403, details={"error_code": "AI_CREDITS_EXHAUSTED"})
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -204,7 +205,11 @@ class _GZipExceptStreams(GZipMiddleware):
 app.add_middleware(_GZipExceptStreams, minimum_size=1024)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(AuditMiddleware)
-app.add_middleware(RateLimiterMiddleware, auth_limit=30, api_limit=120, window_seconds=60)
+# Locally every browser tab reaches the API through the Vite dev proxy, i.e.
+# from one IP, so a few open tabs share one 120/min budget; dev gets more room.
+app.add_middleware(
+    RateLimiterMiddleware, auth_limit=30, api_limit=120 if settings.is_production else 1200, window_seconds=60,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -245,115 +250,33 @@ async def add_security_headers(request: Request, call_next):
 uploads_path = Path(settings.upload_dir)
 uploads_path.mkdir(exist_ok=True)
 
-RESUME_FALLBACK_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-  @page {{ margin: 2cm; }}
-  body {{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.5; }}
-  .name {{ font-size: 20pt; font-weight: bold; color: #0f172a; margin-bottom: 4px; }}
-  .title {{ font-size: 12pt; color: #2563eb; margin-bottom: 12px; font-weight: bold; }}
-  .contact {{ font-size: 10pt; color: #64748b; margin-bottom: 20px; border-bottom: 1.5pt solid #cbd5e1; padding-bottom: 10px; }}
-  h3 {{ font-size: 12pt; font-weight: bold; color: #0f172a; border-bottom: 1pt solid #cbd5e1; padding-bottom: 4px; margin-top: 20px; margin-bottom: 10px; }}
-  .section {{ margin-bottom: 18px; }}
-  .paragraph {{ margin: 0 0 10px 0; text-align: justify; color: #334155; }}
-  .skill-tag {{ display: inline-block; background-color: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 4px; margin: 3px; font-size: 9.5pt; font-weight: bold; border: 0.5pt solid #bfdbfe; }}
-  .footer {{ position: fixed; bottom: -1cm; left: 0; right: 0; text-align: center; font-size: 8.5pt; color: #94a3b8; border-top: 0.5pt solid #f1f5f9; padding-top: 6px; }}
-</style>
-</head>
-<body>
-  <div class="name">{full_name}</div>
-  <div class="title">{title}</div>
-  <div class="contact">Email: {email} &bull; Location: {location} &bull; Experience: {experience}</div>
-
-  {summary_section}
-
-  <div class="section">
-    <h3>Key Technical Skills</h3>
-    <div>{skills_html}</div>
-  </div>
-
-  <div class="footer">
-    Hybent Hiring Candidate Document &bull; {full_name}
-  </div>
-</body>
-</html>
-"""
-
 @app.get("/static/uploads/resumes/{org_id}/{filename}")
 @app.get("/static/uploads/resumes/{filename}")
-async def serve_or_fallback_resume(filename: str, org_id: str = ""):
-    """Serve uploaded resume file from disk if present, or generate a fallback candidate PDF if missing on ephemeral cloud instances."""
+async def serve_resume(filename: str, org_id: str = ""):
+    """Serve an uploaded resume from local disk. A missing file is a 404 —
+    this used to look candidates up by a substring of the URL across every
+    organization and return their details (or an invented resume) unauthenticated."""
     from fastapi import HTTPException
-    
+
     # Sanitize path variables to prevent path traversal
     clean_filename = Path(filename).name
     clean_org_id = Path(org_id).name if org_id else ""
-    
+
     if clean_org_id:
         file_path = (uploads_path / "resumes" / clean_org_id / clean_filename).resolve()
     else:
         file_path = (uploads_path / "resumes" / clean_filename).resolve()
-        
+
     # Ensure resolved path is under the base uploads path
     if not file_path.is_relative_to(uploads_path.resolve()):
         raise HTTPException(status_code=400, detail="Invalid file path")
-        
-    if file_path.exists():
-        return FileResponse(
-            file_path, 
-            media_type="application/pdf", 
-            headers={"Content-Disposition": f"attachment; filename={clean_filename}"}
-        )
 
-    candidate = None
-    try:
-        from app.core.database import AsyncSessionLocal
-        from app.models.candidate import Candidate
-        from sqlalchemy import select
-        async with AsyncSessionLocal() as session:
-            res = await session.execute(select(Candidate).where(Candidate.resume_url.like(f"%{filename}%")))
-            candidate = res.scalar_one_or_none()
-    except Exception as exc:
-        logger.warning(f"Failed to lookup candidate for resume fallback: {exc}")
-
-    import html
-    full_name = html.escape(candidate.full_name) if candidate else "Candidate Profile"
-    email = html.escape(candidate.email) if candidate else "applicant@hybent.com"
-    title = html.escape(candidate.current_title or "Software Professional") if candidate else "Professional"
-    location = html.escape(candidate.location or "Remote / Office") if candidate else "N/A"
-    exp = html.escape(f"{candidate.years_experience} years") if (candidate and candidate.years_experience) else "3+ years"
-    summary = html.escape(candidate.summary) if (candidate and candidate.summary) else "Experienced professional skilled in software engineering, technical architecture, and collaboration."
-    skills = [html.escape(s) for s in candidate.skills] if (candidate and candidate.skills) else ["Python", "FastAPI", "React", "TypeScript", "SQL"]
-
-    skills_html = "".join([f'<span class="skill-tag">{s}</span>' for s in skills])
-    summary_html = f'<div class="section"><h3>Professional Summary</h3><div class="paragraph">{summary}</div></div>' if summary else ''
-
-    html_content = RESUME_FALLBACK_HTML.format(
-        full_name=full_name,
-        title=title,
-        email=email,
-        location=location,
-        experience=exp,
-        summary_section=summary_html,
-        skills_html=skills_html
-    )
-
-    buf = io.BytesIO()
-    try:
-        from xhtml2pdf import pisa
-        pisa.CreatePDF(html_content, dest=buf)
-        pdf_bytes = buf.getvalue()
-    except Exception as pdf_err:
-        logger.error(f"Fallback resume PDF generation failed: {pdf_err}")
-        pdf_bytes = b"%PDF-1.4 Fallback Resume"
-
-    return Response(
-        content=pdf_bytes,
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(
+        file_path,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={clean_filename}"}
     )
 
 app.mount("/static/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")

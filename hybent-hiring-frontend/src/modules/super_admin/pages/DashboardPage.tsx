@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import { superAdminApi } from '@/api/superAdmin'
+import { formatUptime } from '../components/formatUptime'
 import {
   Badge,
   Button,
@@ -222,7 +223,7 @@ export default function DashboardPage() {
               icon={<Building2 />}
             />
             <StatCard label="Total users" value={dashboard?.total_users ?? 0} icon={<Users />} />
-            <StatCard label="Active jobs" value={dashboard?.total_jobs ?? 0} icon={<Briefcase />} />
+            <StatCard label="Jobs" value={dashboard?.total_jobs ?? 0} icon={<Briefcase />} />
             <StatCard
               label="Monthly recurring revenue"
               value={formatCurrency(dashboard?.total_mrr ?? 0)}
@@ -240,9 +241,38 @@ export default function DashboardPage() {
             />
             <StatCard label="Total offers" value={dashboard?.total_offers ?? 0} icon={<Award />} />
             <StatCard
-              label="API / AI usage"
+              label="AI requests (all time)"
               value={dashboard?.api_usage ?? 0}
               icon={<Activity />}
+            />
+          </StatGrid>
+        )}
+
+        {!dashboardLoading && dashboard && (
+          <StatGrid>
+            <StatCard
+              label="Suspended clients"
+              value={`${dashboard.suspended_clients ?? 0} of ${dashboard.total_clients ?? 0}`}
+              icon={<Building2 />}
+              onClick={() => navigate('/hiring/super-admin/clients')}
+            />
+            <StatCard
+              label="Suspended accounts"
+              value={dashboard.suspended_accounts ?? 0}
+              icon={<Users />}
+              onClick={() => navigate('/hiring/super-admin/users')}
+            />
+            <StatCard
+              label="Never signed in"
+              value={dashboard.never_signed_in ?? 0}
+              icon={<UserCheck />}
+              onClick={() => navigate('/hiring/super-admin/users')}
+            />
+            <StatCard
+              label="Failed sign-ins (24h)"
+              value={dashboard.failed_logins_24h ?? 0}
+              icon={<Activity />}
+              onClick={() => navigate('/hiring/super-admin/audit')}
             />
           </StatGrid>
         )}
@@ -297,16 +327,20 @@ export default function DashboardPage() {
               <CardHeader title="Platform status" />
               <dl className="grid grid-cols-2 gap-2.5">
                 {[
-                  { label: 'API uptime', value: health?.api_uptime || '99.9%' },
-                  { label: 'Avg latency', value: health?.avg_latency || '340ms' },
+                  { label: 'API uptime', value: formatUptime(health?.uptime_seconds) },
+                  { label: 'DB latency', value: health?.avg_latency || '—' },
                   {
-                    label: 'Errors (24h)',
-                    value: health?.errors_24h ?? 0,
-                    /* The only figure here with a verdict attached: any error
-                       in the last day is worth an operator's attention. */
-                    alarming: (health?.errors_24h ?? 0) > 0,
+                    label: 'Failed imports (24h)',
+                    value: health?.failed_imports_24h ?? 0,
+                    /* The only figure here with a verdict attached: any failed
+                       import in the last day is worth an operator's attention. */
+                    alarming: (health?.failed_imports_24h ?? 0) > 0,
                   },
-                  { label: 'DB queries/s', value: health?.db_queries_sec ?? 0 },
+                  {
+                    label: 'Services down',
+                    value: (health?.services ?? []).filter((s: any) => s.status !== 'Operational').length,
+                    alarming: (health?.services ?? []).some((s: any) => s.status !== 'Operational'),
+                  },
                 ].map((tile) => (
                   <div
                     key={tile.label}

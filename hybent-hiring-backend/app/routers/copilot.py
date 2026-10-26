@@ -21,7 +21,8 @@ from app.services.ai.ai_evaluator import transcribe_audio, clean_speech_transcri
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/copilot", tags=["copilot"])
+from app.services.feature_flags import require_feature
+router = APIRouter(prefix="/v1/copilot", tags=["copilot"], dependencies=[Depends(require_feature("copilot"))])
 
 ALLOWED_ROLES = {r.value for r in RECRUITER_ROLES}  # ADMIN + RECRUITER
 

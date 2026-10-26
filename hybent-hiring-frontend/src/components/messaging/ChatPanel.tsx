@@ -83,7 +83,7 @@ export function ChatPanel({ open, onClose, thread }: ChatPanelProps) {
     return () => {
       alive = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, threadId])
 
   useEffect(() => {

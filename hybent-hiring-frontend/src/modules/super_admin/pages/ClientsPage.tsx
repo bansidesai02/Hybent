@@ -54,21 +54,20 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'error'> = {
 const STATUS_FILTERS = ['active', 'pending', 'suspended'] as const
 
 /* The published plans (hybent.com/pricing). Each includes 1 admin + 2
-   recruiter seats and 10,000 AI credits a month; the term sets the billing
-   cycle. */
+   recruiter seats and 10,000 AI credits a month, billed monthly; Pro adds
+   the Recruiter Copilot. */
 const PLANS = [
-  { name: 'Standard', price: '$69/mo', desc: 'Billed monthly' },
-  { name: '6 months', price: '$66/mo', desc: 'Billed $396 every 6 months' },
-  { name: '12 months', price: '$62/mo', desc: 'Billed $744 per year' },
+  { name: 'Standard', price: '$29/mo', desc: '₹2,799/mo · no Copilot' },
+  { name: 'Pro', price: '$39/mo', desc: '₹3,799/mo · with Copilot' },
   { name: 'Custom', price: 'Custom', desc: 'Priced by sales' },
 ]
 
+/* The switches the API enforces (app/services/feature_flags.py). */
 const FEATURE_FLAGS = [
-  { key: 'ai', title: 'AI scoring engine', desc: 'Deep AI screening on incoming resume attachments.' },
-  { key: 'video', title: 'Video interviews', desc: 'Setting up and recording video rounds.' },
+  { key: 'ai', title: 'AI scoring engine', desc: 'AI screening and scoring of candidates.' },
   { key: 'bulk', title: 'Bulk candidate import', desc: 'Importing candidate sheets via the Excel/CSV parser.' },
-  { key: 'domain', title: 'Custom subdomain', desc: 'Hosting the applicant portal on the organisation’s own URL.' },
-  { key: 'analytics', title: 'Advanced export', desc: 'Excel/CSV report downloads.' },
+  { key: 'analytics', title: 'Report export', desc: 'Excel/CSV report downloads.' },
+  { key: 'copilot', title: 'Hybent Copilot', desc: 'The AI recruiting assistant (page and floating widget).' },
 ]
 
 const SIZE_OPTIONS = ['1–10', '11–50', '51–200', '201–1000', '1000+'].map((v) => ({
@@ -86,7 +85,7 @@ const EMPTY_WIZARD = {
   admin_name: '',
   plan_name: 'Standard',
   trial_days: 14,
-  flags: { ai: true, video: true, bulk: true, domain: false, analytics: false },
+  flags: { ai: true, bulk: true, analytics: true, copilot: true },
   /** After a demo the client pays a Stripe link; off = set up by hand (trial / invoiced). */
   collect_payment: true,
   payment: EMPTY_PAYMENT_LINK as PaymentLinkDraft,
@@ -108,10 +107,11 @@ interface ClientRow {
   jobs_limit: number
 }
 
+/** Plan prices are USD (hybent.com/pricing), as on the dashboard and client page. */
 const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('en-IN', {
+  new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'INR',
+    currency: 'USD',
     maximumFractionDigits: 0,
   }).format(val)
 
@@ -581,10 +581,7 @@ export default function ClientsPage() {
                 wizardData.collect_payment ? (
                   'The payment link is emailed here. Once it’s paid, they get an email to set their password.'
                 ) : (
-                  <>
-                    A temporary password of <code className="font-mono text-hb-cyan">password123</code>{' '}
-                    is created. They are prompted to reset it on first sign-in.
-                  </>
+                  'They get an email with a link to set their password (valid for 3 days).'
                 )
               }
             />

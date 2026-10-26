@@ -18,6 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest")
 os.environ.setdefault("EMAIL_ACCOUNTS_ENCRYPTION_KEY", "test-encryption-key-for-pytest")
+# docker-compose publishes Redis on 6380. The app default (6379) has nothing
+# listening locally, so every test sat through a connection timeout.
+os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",

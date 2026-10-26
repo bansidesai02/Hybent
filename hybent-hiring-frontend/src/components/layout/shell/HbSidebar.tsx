@@ -5,11 +5,12 @@ import { ChevronRight } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useScreeningNav } from '@/hooks/useScreeningNav'
+import { useAICallsNav } from '@/hooks/useAICallsNav'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useThemeStore } from '@/store/themeStore'
 import { prefetchRoute } from '@/utils/routePrefetch'
 import { useOverlay } from '@/components/hb/useOverlay'
-import { getNavSections, isGroup, type NavEntry, type NavGroup, type NavItem, type NavSection } from './navConfig'
+import { getNavSections, withoutCopilot, isGroup, type NavEntry, type NavGroup, type NavItem, type NavSection } from './navConfig'
 
 /**
  * The workspace sidebar, on the Hybent design system.
@@ -41,6 +42,8 @@ interface HbSidebarProps {
    * reached, which is a server answer rather than a property of the role.
    */
   sections?: NavSection[]
+  /** The client's super admin switched Copilot off. */
+  hideCopilot?: boolean
   /** Second line of the footer card. Defaults to the user's organisation. */
   footerSubtitle?: string
 }
@@ -60,6 +63,7 @@ function HbSidebarComponent({
   mobileOpen,
   onCloseMobile,
   sections: sectionsOverride,
+  hideCopilot = false,
   footerSubtitle,
 }: HbSidebarProps) {
   const location = useLocation()
@@ -123,10 +127,14 @@ function HbSidebarComponent({
   )
 
   const screening = useScreeningNav(role)
+  const aiCalls = useAICallsNav(role)
 
   const sections = useMemo(
-    () => sectionsOverride ?? getNavSections(role, candidateBadge, scheduleBadge, screening),
-    [sectionsOverride, role, candidateBadge, scheduleBadge, screening]
+    () => {
+      const all = sectionsOverride ?? getNavSections(role, candidateBadge, scheduleBadge, screening, aiCalls)
+      return hideCopilot ? withoutCopilot(all) : all
+    },
+    [sectionsOverride, role, candidateBadge, scheduleBadge, screening, aiCalls, hideCopilot]
   )
 
   const isGroupActive = useCallback(

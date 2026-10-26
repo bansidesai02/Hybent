@@ -6,7 +6,8 @@ from app.routers import (
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
     activities, reports, messages, chat, search, public, copilot, bulk_import, linkedin, designations, api_compat, screening,
-    super_admin, candidate_files, pre_screening, email_accounts, inbox, billing, payments
+    super_admin, candidate_files, pre_screening, email_accounts, inbox, billing, payments,
+    integrations, voice_calls,
 )
 
 api_router = APIRouter()
@@ -50,3 +51,5 @@ api_router.include_router(candidate_files.router)
 api_router.include_router(pre_screening.router)
 api_router.include_router(email_accounts.router)
 api_router.include_router(inbox.router)
+api_router.include_router(integrations.router)
+api_router.include_router(voice_calls.router)

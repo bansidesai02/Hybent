@@ -92,7 +92,7 @@ class SuperAdminAuditLog(Base):
     ip_address: Mapped[str | None] = mapped_column(String(50), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     action_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
     user: Mapped["User | None"] = relationship("User", lazy="raise")
 
@@ -107,6 +107,19 @@ class ImpersonationLog(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    # Support-session controls (migration 057). Rows from before it have none
+    # of these: their end was never recorded.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # False = view only: the session may look but not change anything.
+    allow_changes: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    # exit | expired | replaced | ended_by_admin
+    end_reason: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ended_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     super_admin: Mapped["User"] = relationship("User", foreign_keys=[super_admin_id], lazy="raise")
     impersonated_user: Mapped["User"] = relationship("User", foreign_keys=[impersonated_user_id], lazy="raise")

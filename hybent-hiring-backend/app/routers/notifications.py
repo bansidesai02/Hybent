@@ -7,6 +7,7 @@ from app.dependencies import DB, CurrentUser
 from app.models.notification import Notification
 from app.models.user import User
 from app.schemas.notification import NotificationOut
+from app.services import impersonation
 from app.utils.security import decode_access_token
 from app.websocket.manager import ws_manager
 from app.schemas.response import APIResponse
@@ -30,6 +31,10 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
         if not user_id:
             logger.error(f"[WS] No 'sub' in token: {token[:15]}...")
             await websocket.send_json({"type": "error", "message": "unauthorized"})
+            await websocket.close(code=4001)
+            return
+        if not await impersonation.token_session_is_live(payload):
+            await websocket.send_json({"type": "error", "message": "unauthorized", "detail": "support session ended"})
             await websocket.close(code=4001)
             return
     except Exception as e:

@@ -24,13 +24,18 @@ import {
  * unlabelled buttons. They are `Switch` now, each named by its column and row.
  */
 
+/* Every switch here is enforced by the API (app/services/feature_flags.py,
+   and voice_calls for AI Calls). "Video interviews" and "Custom subdomain"
+   were listed before but no product feature sits behind them, so they're gone. */
 const FLAGS = [
-  { key: 'ai', title: 'AI scoring engine', short: 'AI scoring', desc: 'Deep AI screening of candidate resumes.' },
-  { key: 'video', title: 'Video interviews', short: 'Video', desc: 'Candidates recording asynchronous answers.' },
+  { key: 'ai', title: 'AI scoring engine', short: 'AI scoring', desc: 'AI screening and scoring of candidates, including automatic scoring of new ones.' },
   { key: 'bulk', title: 'Bulk Excel import', short: 'Bulk import', desc: 'Uploading candidate rosters as a sheet.' },
-  { key: 'domain', title: 'Custom subdomain', short: 'Custom domain', desc: 'Branded host URLs for the applicant portal.' },
-  { key: 'analytics', title: 'Advanced export', short: 'Export', desc: 'Downloading CSV reports and charts.' },
+  { key: 'analytics', title: 'Report export', short: 'Export', desc: 'Downloading Excel/CSV reports.' },
+  { key: 'copilot', title: 'Hybent Copilot', short: 'Copilot', desc: 'The AI recruiting assistant: its page and the floating widget.' },
+  { key: 'ai_calls', title: 'AI Calls (Hybent AI Agent)', short: 'AI Calls', desc: 'Phone pre-screens, availability checks and interview reminders by the AI Agent. Needs the voice engine configured.' },
 ]
+/* AI Calls is off unless switched on per client, so it has no global default. */
+const GLOBAL_FLAGS = FLAGS.filter((f) => f.key !== 'ai_calls')
 
 interface ClientRow {
   id: string
@@ -137,7 +142,7 @@ export default function FeatureFlagsPage() {
                 Global defaults
               </span>
             }
-            subtitle="Applied to new client registrations. Existing overrides are unaffected."
+            subtitle="What every client gets unless it has its own setting below."
           />
 
           {globalLoading ? (
@@ -148,7 +153,7 @@ export default function FeatureFlagsPage() {
             </div>
           ) : globalFlags ? (
             <div className="divide-y divide-hb-border">
-              {FLAGS.map((f) => (
+              {GLOBAL_FLAGS.map((f) => (
                 <div key={f.key} className="py-3.5 first:pt-0 last:pb-0">
                   <Switch
                     label={f.title}
@@ -180,6 +185,9 @@ export default function FeatureFlagsPage() {
               <ToggleLeft size={18} aria-hidden className="text-hb-cyan" />
               Per-client overrides
             </h2>
+            <p className="mt-1 text-hb-sm text-hb-muted">
+              What each client actually has. Switching one here saves it for that client.
+            </p>
           </div>
           <DataTable
             columns={columns}

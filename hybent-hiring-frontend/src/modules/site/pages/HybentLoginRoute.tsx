@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 
 import HybentLoginPortal from './HybentLoginPortal'
+import HybentMfaStep from './HybentMfaStep'
 import type { HybentLoginValues } from './HybentLoginPortal'
 import { useAuthProduct, withProduct } from './useAuthProduct'
 import { authApi } from '@/api/auth'
@@ -29,6 +30,21 @@ export default function HybentLoginRoute() {
   const product = useAuthProduct()
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState<string | null>(null)
+  /* Set when the server asks for the emailed 2FA code before signing in. */
+  const [challenge, setChallenge] = useState<{ mfaToken: string; email: string; remember: boolean } | null>(null)
+
+  const errorMessage = (err: any, fallback: string) =>
+    err?.response?.data?.message || err?.response?.data?.detail || err?.message || fallback
+
+  /** A session, or (2FA on) the challenge for the code step. */
+  const finishSignIn = (data: any, remember: boolean) => {
+    if (data?.mfa_required) {
+      setChallenge({ mfaToken: data.mfa_token, email: data.email, remember })
+      return
+    }
+    setTokens(data.access_token, data.refresh_token, data.user, remember)
+    navigate(intended || workspaceForRole(data.user?.role), { replace: true })
+  }
 
   /* RequireAuth parks the page the visitor wanted here. `location.state` only
      survives a client-side redirect — it's empty after a full page load (a
@@ -61,15 +77,9 @@ export default function HybentLoginRoute() {
   const handleSubmit = async ({ email, password, remember }: HybentLoginValues) => {
     try {
       const { data } = await authApi.login(email, password)
-      setTokens(data.access_token, data.refresh_token, data.user, remember)
-      navigate(intended || workspaceForRole(data.user?.role), { replace: true })
+      finishSignIn(data, remember)
     } catch (err: any) {
-      throw new Error(
-        err?.response?.data?.message ||
-          err?.response?.data?.detail ||
-          err?.message ||
-          'Invalid email or password. Please try again.'
-      )
+      throw new Error(errorMessage(err, 'Invalid email or password. Please try again.'))
     }
   }
 
@@ -80,8 +90,7 @@ export default function HybentLoginRoute() {
       try {
         const token = tokenResponse.access_token
         const { data } = await authApi.googleLogin(token)
-        setTokens(data.access_token, data.refresh_token, data.user, true)
-        navigate(intended || workspaceForRole(data.user?.role), { replace: true })
+        finishSignIn(data, true)
       } catch (err: any) {
         setGoogleError(
           err?.response?.data?.message ||
@@ -105,6 +114,31 @@ export default function HybentLoginRoute() {
     setGoogleError(null)
     setGoogleLoading(true)
     triggerGoogleLogin()
+  }
+
+  if (challenge) {
+    return (
+      <HybentMfaStep
+        email={challenge.email}
+        onVerify={async (code) => {
+          try {
+            const { data } = await authApi.verifyMfa(challenge.mfaToken, code)
+            finishSignIn(data, challenge.remember)
+          } catch (err: any) {
+            if (err?.response?.status === 401) setChallenge(null)
+            throw new Error(errorMessage(err, 'That code did not work. Please try again.'))
+          }
+        }}
+        onResend={async () => {
+          try {
+            await authApi.resendMfa(challenge.mfaToken)
+          } catch (err: any) {
+            throw new Error(errorMessage(err, 'Could not send a new code.'))
+          }
+        }}
+        onCancel={() => setChallenge(null)}
+      />
+    )
   }
 
   return (

@@ -9,11 +9,14 @@ from typing import Dict, List
 import logging
 import redis.asyncio as aioredis
 
+from app.services.platform_security import client_ip as platform_client_ip
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.core.config import settings
+from app.utils.integration_keys import key_id_from_header
 
 logger = logging.getLogger(__name__)
 
@@ -57,18 +60,25 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip health check endpoints, OPTIONS preflight, and static assets
         path = request.url.path
-        if request.method == "OPTIONS" or path in ["/", "/health", "/docs", "/openapi.json", "/redoc", "/v1/stripe/webhook"] or path.startswith("/static/"):
+        # Signed server-to-server webhooks (Stripe, the AI Calls engine) arrive from one IP in bursts.
+        if request.method == "OPTIONS" or path in ["/", "/health", "/docs", "/openapi.json", "/redoc", "/v1/stripe/webhook", "/v1/voice-calls/callbacks"] or path.startswith("/static/"):
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "127.0.0.1"
-        # Check X-Forwarded-For if behind reverse proxy / load balancer
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            client_ip = forwarded_for.split(",")[0].strip()
+        # Right-most X-Forwarded-For hop (set by our proxy); the left-most is
+        # whatever the client sent, so keying on it let anyone dodge the limit.
+        client_ip = platform_client_ip(request) or "127.0.0.1"
 
         now = time.time()
-        is_auth_endpoint = "/auth/login" in path or "/auth/register" in path or "/auth/forgot-password" in path or "/auth/reset-password" in path
+        is_auth_endpoint = "/auth/login" in path or "/auth/register" in path or "/auth/forgot-password" in path or "/auth/reset-password" in path or "/auth/2fa/" in path or "/auth/google" in path
         limit = self.auth_limit if is_auth_endpoint else self.api_limit
+
+        # Integration calls (n8n) get a bucket per key instead of per IP, so
+        # one automation server isn't throttled as a single browser would be.
+        if path.startswith("/v1/integrations/"):
+            key_id = key_id_from_header(request.headers.get("X-Hybent-Key"))
+            if key_id:
+                client_ip = f"ikey:{key_id}"
+                limit = settings.integration_rate_limit_per_minute
 
         # Try Redis Rate Limiting first
         use_fallback = False

@@ -1,6 +1,7 @@
 import logging
 from jose import JWTError
 from starlette.types import ASGIApp, Scope, Receive, Send
+from app.services import impersonation
 from app.utils.security import decode_access_token
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,17 @@ class TenantMiddleware:
         scope["state"]["user_id"] = None
         scope["state"]["org_id"] = None
         scope["state"]["impersonator_id"] = None
+        scope["state"]["impersonation_sid"] = None
 
+        # No support session until get_current_user validates one, and none
+        # left behind afterwards (tests run requests in one task).
+        support_token = impersonation.bind(None)
+        try:
+            await self._handle(scope, receive, send)
+        finally:
+            impersonation.reset(support_token)
+
+    async def _handle(self, scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
         if path in PUBLIC_PATHS or path.startswith("/static"):
             await self.app(scope, receive, send)
@@ -52,6 +63,7 @@ class TenantMiddleware:
                 scope["state"]["user_id"] = payload.get("sub")
                 scope["state"]["org_id"] = payload.get("org")
                 scope["state"]["impersonator_id"] = payload.get("impersonator_id")
+                scope["state"]["impersonation_sid"] = payload.get("imp_sid")
             except (JWTError, UnicodeDecodeError):
                 pass  # invalid token handled by auth dependency
 
