@@ -764,7 +764,7 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 
 /* ============================ FOOTER ============================ */
 .hb-site .footer{border-top:1px solid var(--border);background:var(--bg);padding-top:clamp(52px,6vw,80px);margin-top:0;position:relative;overflow:hidden}
-.hb-site .footer__top{display:grid;grid-template-columns:1.5fr repeat(4,1fr);gap:clamp(24px,3vw,40px);padding-bottom:48px}
+.hb-site .footer__top{display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:clamp(24px,3vw,40px);padding-bottom:48px}
 .hb-site .footer h5{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 16px;font-weight:500}
 .hb-site .footer li{margin-bottom:11px}
 .hb-site .footer li a{font-size:.88rem;color:#9AA4B8;transition:color .25s,padding-left .25s}
@@ -1282,7 +1282,14 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
    Four identical, compact cards on one row, in the minimal style of
    developer-tool pricing pages: name, price, one action, a short list.
    Hover is the same for every card. */
-.hb-site .price-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.hb-site .price-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1040px;margin-inline:auto}
+.hb-site .price-cur{display:flex;justify-content:center;margin-bottom:clamp(22px,2.4vw,30px)}
+.hb-site .price-cur__seg{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:#FFFFFF;border:1px solid rgba(11,18,32,.1)}
+.hb-site .price-cur__seg button{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:9px;border:0;background:transparent;
+  font-family:var(--f-mono);font-size:.8rem;font-weight:600;letter-spacing:.08em;color:#54607A;cursor:pointer;transition:background .2s ease,color .2s ease}
+.hb-site .price-cur__seg button b{font-family:var(--f-display);font-size:.95rem;font-weight:700;letter-spacing:0}
+.hb-site .price-cur__seg button[aria-pressed="true"]{background:#0B1220;color:#FFFFFF}
+.hb-site .price-cur__seg button:focus-visible{outline:2px solid #4C6FFF;outline-offset:2px}
 .hb-site .price-card{
   position:relative;display:flex;flex-direction:column;
   padding:22px 22px 24px;border-radius:18px;
@@ -1321,8 +1328,7 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 .hb-site .price-note{margin-top:clamp(24px,2.6vw,34px);text-align:center;font-size:.92rem;color:var(--muted)}
 .hb-site .price-note a{color:var(--text);font-weight:600;text-decoration:underline;text-underline-offset:3px}
 
-@media (max-width:1080px){.hb-site .price-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:560px){.hb-site .price-grid{grid-template-columns:1fr}}
+@media (max-width:860px){.hb-site .price-grid{grid-template-columns:1fr;max-width:460px}}
 @media (prefers-reduced-motion:reduce){.hb-site .price-card{transition:none}}
 
 /* ---- Founder card (product page) -----------------------------------

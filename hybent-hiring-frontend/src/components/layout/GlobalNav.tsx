@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { AUTH, PRODUCTS, SHOW_CUSTOMERS } from '@/app/paths'
+import { AUTH, PRODUCTS, SHOW_CUSTOMERS, SHOW_SOLUTIONS } from '@/app/paths'
 import SolutionsMegaMenu from '@/components/SolutionsMegaMenu'
 
 type GlobalNavProps = {
@@ -215,7 +215,7 @@ export function GlobalNav({
                   </div>
                 </div>
               </li>
-              <SolutionsMegaMenu />
+              {SHOW_SOLUTIONS && <SolutionsMegaMenu />}
               {SHOW_CUSTOMERS && <li><a className="navlink" href="/customers" data-nav="customers">Customers</a></li>}
               <li><a className="navlink" href="/pricing" data-nav="pricing">Pricing</a></li>
               <li className="has-mega">
@@ -278,12 +278,14 @@ export function GlobalNav({
       >
         <p className="mono" style={{ margin: '6px 0 4px', color: 'var(--dim)' }}>Products</p>
         <a href="/products/hiring">Hybent Hiring</a>
-        <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Solutions</p>
-        <a href="/services">Services</a>
-        <a href="/industries">Industries</a>
-        <a href="/hire-talent">Hire Talent</a>
+        {SHOW_SOLUTIONS && <>
+          <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Solutions</p>
+          <a href="/services">Services</a>
+          <a href="/industries">Industries</a>
+          <a href="/hire-talent">Hire Talent</a>
+        </>}
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Explore</p>
-        <a href="/solutions">Solutions Overview</a>
+        {SHOW_SOLUTIONS && <a href="/solutions">Solutions Overview</a>}
         {SHOW_CUSTOMERS && <a href="/customers">Customers</a>}
         <a href="/pricing">Pricing</a>
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Company</p>
