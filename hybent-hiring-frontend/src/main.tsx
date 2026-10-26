@@ -25,7 +25,13 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 0,
       gcTime: 1000 * 60 * 20,
-      retry: 1,
+      // Retrying a refused request (4xx: rate-limited, forbidden, not found)
+      // only repeats the refusal and adds load; network/5xx errors get one retry.
+      retry: (failureCount, error: any) => {
+        const status = error?.response?.status
+        if (status && status >= 400 && status < 500) return false
+        return failureCount < 1
+      },
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
     },

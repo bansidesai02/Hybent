@@ -1,6 +1,5 @@
 import uuid
-from typing import Annotated
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks
 from app.dependencies import DB, CurrentUser, RecruiterUser
 from app.schemas.candidate import CandidateDesignationUpdate
 from app.routers.designations import list_designations
@@ -11,7 +10,7 @@ router = APIRouter(prefix="/api", tags=["API Compatibility"])
 
 @router.get("/designations")
 async def compat_list_designations(
-    current_user: Annotated[CurrentUser, Depends()],
+    current_user: CurrentUser,
     db: DB,
 ):
     return await list_designations(current_user=current_user, db=db)
@@ -20,7 +19,7 @@ async def compat_list_designations(
 async def compat_update_candidate_designation(
     candidate_id: uuid.UUID,
     data: CandidateDesignationUpdate,
-    current_user: Annotated[RecruiterUser, Depends()],
+    current_user: RecruiterUser,
     db: DB,
     background_tasks: BackgroundTasks,
 ):
@@ -36,7 +35,7 @@ async def compat_update_candidate_designation(
 async def compat_update_designation_order(
     user_id: uuid.UUID,
     data: DesignationOrderUpdate,
-    current_user: Annotated[CurrentUser, Depends()],
+    current_user: CurrentUser,
     db: DB,
 ):
     return await update_designation_order(
@@ -49,7 +48,7 @@ async def compat_update_designation_order(
 @router.get("/users/{user_id}/designation-order")
 async def compat_get_designation_order(
     user_id: uuid.UUID,
-    current_user: Annotated[CurrentUser, Depends()],
+    current_user: CurrentUser,
     db: DB,
 ):
     return await get_designation_order(

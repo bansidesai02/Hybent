@@ -8,54 +8,72 @@ import app.routers.public as public
 def outbox(monkeypatch):
     sent = []
     monkeypatch.setattr(public, "send_email", lambda to, subject, body: sent.append((to, subject, body)) or True)
+    # No DNS or shared rate-limit state in tests.
+    monkeypatch.setattr(public.lead_checks, "domain_accepts_mail", _accepts)
+    monkeypatch.setattr(public.lead_checks, "rate_limited", lambda ip: False)
     return sent
 
 
+async def _accepts(domain):
+    return True
+
+
+# Every field the form shows is required; Hybent Hiring leads add size and hires.
+VALID = {
+    "topic": "services", "name": "Ananya Shah", "email": "ananya@acme-example.com",
+    "message": "We lose two weeks of every search in screening <script>",
+    "company": "Acme", "phone": "+91 98765 43210", "location": "Pune", "referrer": "LinkedIn",
+}
+
+
 async def test_contact_emails_the_team(client, outbox):
-    res = await client.post("/api/public/contact", json={
-        "name": "Ananya Shah", "email": "ananya@example.com",
-        "message": "We lose two weeks of every search in screening <script>",
-        "company": "Acme", "phone": "  ", "referrer": "LinkedIn",
-    })
+    res = await client.post("/api/public/contact", json=VALID)
     assert res.status_code == 200, res.text
     assert len(outbox) == 1
     to, subject, body = outbox[0]
     assert to == "info@hybent.com"
-    assert subject == "Contact form: Ananya Shah (Acme)"
-    assert "LinkedIn" in body and "Phone" not in body  # blank optional fields are left out
+    assert subject == "[IT Services] Ananya Shah – Acme"
+    assert "LinkedIn" in body and "Pune" in body
     assert "<script>" not in body and "&lt;script&gt;" in body
 
 
-async def test_only_name_email_and_message_are_required(client, outbox):
-    res = await client.post("/api/public/contact", json={
-        "name": "A", "email": "a@example.com", "message": "Just a short question here",
-    })
-    assert res.status_code == 200 and len(outbox) == 1
+async def test_hiring_leads_need_team_size_and_hires(client, outbox):
+    hiring = {**VALID, "topic": "hiring"}
+    assert (await client.post("/api/public/contact", json=hiring)).status_code == 422
+    res = await client.post("/api/public/contact", json={**hiring, "team_size": "11-50", "hires_per_year": "10-25"})
+    assert res.status_code == 200, res.text
+    assert outbox[0][1].startswith("[Hybent Hiring]")
 
 
-@pytest.mark.parametrize("payload", [
-    {"email": "a@example.com", "message": "long enough message"},
-    {"name": "A", "email": "not-an-email", "message": "long enough message"},
-    {"name": "A", "email": "a@example.com", "message": "short"},
-    {"name": "   ", "email": "a@example.com", "message": "long enough message"},
+@pytest.mark.parametrize("change", [
+    {"topic": None},
+    {"name": "   "},
+    {"email": "not-an-email"},
+    {"message": "short"},
+    {"phone": ""},
+    {"company": ""},
+    {"location": ""},
+    {"referrer": ""},
 ])
-async def test_invalid_submissions_are_refused(client, outbox, payload):
+async def test_invalid_submissions_are_refused(client, outbox, change):
+    payload = {k: v for k, v in {**VALID, **change}.items() if v is not None}
     assert (await client.post("/api/public/contact", json=payload)).status_code == 422
     assert outbox == []
 
 
+async def test_invalid_phone_names_the_field(client, outbox):
+    res = await client.post("/api/public/contact", json={**VALID, "phone": "12"})
+    assert res.status_code == 422 and outbox == []
+
+
 async def test_honeypot_drops_bots_quietly(client, outbox):
-    res = await client.post("/api/public/contact", json={
-        "name": "Bot", "email": "bot@example.com", "message": "buy cheap things now", "website": "http://spam",
-    })
+    res = await client.post("/api/public/contact", json={**VALID, "website": "http://spam"})
     assert res.status_code == 200 and outbox == []
 
 
-async def test_failed_send_is_reported(client, monkeypatch):
+async def test_failed_send_is_reported(client, outbox, monkeypatch):
     monkeypatch.setattr(public, "send_email", lambda *a: False)
-    res = await client.post("/api/public/contact", json={
-        "name": "A", "email": "a@example.com", "message": "long enough message",
-    })
+    res = await client.post("/api/public/contact", json=VALID)
     assert res.status_code == 502
     assert "info@hybent.com" in res.json()["message"]
 

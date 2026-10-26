@@ -38,9 +38,13 @@ async def get_pipeline(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
     # Group by stage
     stages: dict[str, list] = {s.value: [] for s in ApplicationStage}
 
+    candidate_ids = {app.candidate_id for app in applications}
+    candidates = {
+        c.id: c for c in (await db.execute(select(Candidate).where(Candidate.id.in_(candidate_ids)))).scalars()
+    } if candidate_ids else {}
+
     for app in applications:
-        cand_result = await db.execute(select(Candidate).where(Candidate.id == app.candidate_id))
-        cand = cand_result.scalar_one_or_none()
+        cand = candidates.get(app.candidate_id)
         stages[app.stage].append({
             "application_id": str(app.id),
             "candidate_id": str(app.candidate_id),

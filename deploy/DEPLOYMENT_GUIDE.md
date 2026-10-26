@@ -586,12 +586,39 @@ Rolling back the image does **not** undo database migrations. If a bad deploy in
 | Shell inside backend | `dc exec backend bash` |
 | Run migrations by hand | `dc exec backend alembic upgrade head` |
 | Create a super admin | `dc exec backend python create_super_admin.py` |
+| Back up the database now | `bash ~/hybent/deploy/scripts/backup_db.sh` |
+| Create an integration key (n8n) | `dc exec backend python scripts/create_integration_key.py --org-slug hybent --name "n8n reports" --scopes reports:read,ops:read` |
+| Revoke an integration key | `dc exec backend python scripts/create_integration_key.py --org-slug hybent --revoke <key_id>` |
 | Currently deployed version | `grep BACKEND_IMAGE_TAG .env` |
 | Disk usage | `df -h /` and `docker system df` |
 
 ### Reboots
 
 All containers use `restart: always` and Docker starts at boot, so after `sudo reboot` everything comes back on its own. Check with `dc ps`.
+
+### Database backups
+
+The Supabase project is on the Free plan, which has no backups you can restore from. `deploy/scripts/backup_db.sh` is the backup. It dumps the `public` schema with `pg_dump` into `~/hybent-backups`, checks that the dump is readable, and keeps 14 days of dumps.
+
+1. Run it once by hand: `bash ~/hybent/deploy/scripts/backup_db.sh`. It should end with `==> OK`.
+2. Schedule it: `crontab -e`, then add
+   `15 3 * * * bash $HOME/hybent/deploy/scripts/backup_db.sh >> $HOME/hybent-backups/backup.log 2>&1`
+3. Optional, recommended: a copy off the server. Create a private S3 bucket in eu-north-1, allow the instance role `s3:PutObject` on it, and prefix the cron line with `BACKUP_S3_URI=s3://<bucket>/db`.
+
+**Check:** the next morning, `tail ~/hybent-backups/backup.log` shows `==> OK` and `ls ~/hybent-backups` lists a `hybent_*.pgdump` file.
+
+To restore, use an **empty** database (e.g. a new Supabase project). Never restore over the live one:
+`docker run --rm -i -e TARGET="<session pooler URL>" postgres:17-alpine sh -c 'pg_restore --no-owner --no-privileges -d "$TARGET"' < ~/hybent-backups/<file>.pgdump`
+
+### Integrations (n8n)
+
+`/v1/integrations/*` accepts integration keys (header `X-Hybent-Key`) only when `INTEGRATIONS_ENABLED=true` is set in `.env.prod`. It is off by default, and setting it back to `false` (then `dc up -d`) is the kill switch for every key at once.
+
+- **Create a key** with the command in the table above. The key is printed **once**: paste it straight into the n8n credential, not into chat or git.
+- **Each key belongs to one organization and has fixed scopes.** The organization always comes from the key.
+- **Rate limit:** 60 requests/min per key (`INTEGRATION_RATE_LIMIT_PER_MINUTE`).
+- **Test a key:** `curl -H "X-Hybent-Key: <key>" https://$API_DOMAIN/v1/integrations/whoami` returns the organization and scopes.
+- **Revoke** with `--revoke <key_id>`. The key_id is the 16 characters after `hyb_live_`.
 
 ---
 

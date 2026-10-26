@@ -162,7 +162,7 @@ export function exportProposalAsPdf(proposal: any) {
   const process = proposal.development_process || []
   const nextSteps = proposal.next_steps || []
 
-  let html = `
+  const html = `
     <!DOCTYPE html>
     <html>
       <head>
@@ -303,7 +303,7 @@ export function exportDiscoveryReportAsPdf(report: any) {
   const arch = report.recommended_architecture || {}
   const actionPlan = report.strategic_action_plan || []
 
-  let html = `
+  const html = `
     <!DOCTYPE html>
     <html>
       <head>

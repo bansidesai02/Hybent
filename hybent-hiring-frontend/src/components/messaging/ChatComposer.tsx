@@ -51,7 +51,7 @@ export function ChatComposer({ onSend, placeholder = 'Message…', disabled }: C
   }, [text])
 
   // Abort in-flight uploads on unmount
-  useEffect(() => () => files.forEach((f) => f.status === 'uploading' && f.controller.abort()), []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => files.forEach((f) => f.status === 'uploading' && f.controller.abort()), [])  
 
   const uploading = files.some((f) => f.status === 'uploading')
   const readyIds = files.filter((f) => f.status === 'done' && f.attachmentId).map((f) => f.attachmentId!)

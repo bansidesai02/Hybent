@@ -10,6 +10,7 @@ from app.schemas.candidate import CandidateOut
 from app.utils.pagination import paginate
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
+from app.utils.permissions import ApplicationStage
 
 from sqlalchemy.orm import selectinload
 
@@ -255,9 +256,15 @@ async def get_talent_stats(current_user: CurrentUser, db: DB):
     matches = await pool_matches(db, current_user.organization_id, await active_jobs(db, current_user.organization_id))
     re_matched_count = len({m["candidate"].id for ms in matches.values() for m in ms})
 
-    # Avg hire from DB (placeholder logic: 2.1d as in reference or based on actual hired applications)
-    # real logic would compute delta between candidate created_at and application created_at for hired ones
-    avg_hire_time = "2.1d" 
+    # Applied → moved to "hired". Not hired_joined: its stage_changed_at is
+    # the joining date, not the hiring decision. None when nobody was hired.
+    avg_hire_seconds = (await db.execute(
+        select(func.avg(func.extract("epoch", Application.stage_changed_at - Application.applied_at))).where(
+            Application.organization_id == current_user.organization_id,
+            Application.stage == ApplicationStage.HIRED.value,
+        )
+    )).scalar()
+    avg_hire_time = f"{float(avg_hire_seconds) / 86400:.1f}d" if avg_hire_seconds is not None else None
 
     data = {
         "total_candidates": total_candidates,

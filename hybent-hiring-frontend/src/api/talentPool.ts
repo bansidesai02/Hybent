@@ -23,7 +23,7 @@ export const talentPoolApi = {
   getStats: () => api.get<{
     total_candidates: number
     re_matched_count: number
-    avg_hire_time: string
+    avg_hire_time: string | null
   }>('/v1/talent-pool/stats'),
 
   getSuggestedMatches: () => api.get<Array<{

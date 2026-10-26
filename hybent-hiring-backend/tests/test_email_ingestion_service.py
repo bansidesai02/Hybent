@@ -16,6 +16,14 @@ from app.services.email_providers import gmail_provider
 from app.utils import crypto
 
 
+@pytest.fixture(autouse=True)
+def _no_memory_pressure(monkeypatch):
+    """The guard falls back to this process's RSS when no container limit is
+    visible, and a full pytest run is past that by itself. Tests of the pause
+    patch _memory_pressure themselves, which takes precedence."""
+    monkeypatch.setattr("app.services.email_ingestion_service._memory_pressure", lambda: (False, "test"))
+
+
 def _gmail_account(organization_id, **overrides) -> EmailAccount:
     defaults = dict(
         organization_id=organization_id,

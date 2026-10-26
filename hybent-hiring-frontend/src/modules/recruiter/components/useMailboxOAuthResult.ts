@@ -32,6 +32,6 @@ export function useMailboxOAuthResult() {
     next.delete('error')
     next.delete('reason')
     setSearchParams(next, { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [searchParams])
 }
