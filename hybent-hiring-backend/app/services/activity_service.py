@@ -2,6 +2,7 @@ import uuid
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit_log import AuditLog
+from app.services import impersonation
 from app.websocket.manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,10 @@ async def log_activity(
     skips the acting user, which suits an interactive request but not a
     background job acting on someone's behalf.
     """
+    support = impersonation.current()
+    if support is not None:
+        # A super admin acting through a support session, not the user.
+        details = {**(details or {}), "impersonated_by": support.super_admin_email}
     activity = AuditLog(
         organization_id=organization_id,
         user_id=user_id,

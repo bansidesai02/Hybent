@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { tokenStorage } from '@/utils/tokenStorage'
+import { endSupportSession } from '@/utils/impersonation'
 
 export function useAuth() {
   const { user, isAuthenticated, setTokens, logout: storeLogout } = useAuthStore()
@@ -30,7 +31,7 @@ export function useAuth() {
   const logout = async () => {
     // If we are currently impersonating, logout should exit impersonation instead of logging out the admin entirely
     if (user?.is_impersonating) {
-      exitImpersonation()
+      await exitImpersonation()
       return
     }
 
@@ -46,30 +47,11 @@ export function useAuth() {
     navigate('/login')
   }
 
-  const exitImpersonation = () => {
-    const adminToken = localStorage.getItem('hybent_hiring_super_admin_access_token') || sessionStorage.getItem('hybent_hiring_super_admin_access_token')
-    const adminRefreshToken = localStorage.getItem('hybent_hiring_super_admin_refresh_token') || sessionStorage.getItem('hybent_hiring_super_admin_refresh_token')
-    const adminUserStr = localStorage.getItem('hybent_hiring_super_admin_user') || sessionStorage.getItem('hybent_hiring_super_admin_user')
-
-    if (adminToken && adminUserStr) {
-      const adminUser = JSON.parse(adminUserStr)
-      setTokens(adminToken, adminRefreshToken || undefined, adminUser)
-      
-      localStorage.removeItem('hybent_hiring_super_admin_access_token')
-      localStorage.removeItem('hybent_hiring_super_admin_refresh_token')
-      localStorage.removeItem('hybent_hiring_super_admin_user')
-      sessionStorage.removeItem('hybent_hiring_super_admin_access_token')
-      sessionStorage.removeItem('hybent_hiring_super_admin_refresh_token')
-      sessionStorage.removeItem('hybent_hiring_super_admin_user')
-      
-      queryClient.clear()
-      navigate('/hiring/super-admin')
-    } else {
-      // fallback if backup doesn't exist
-      queryClient.clear()
-      storeLogout()
-      navigate('/login')
-    }
+  /** End the support session: back to the super admin, and the API records it. */
+  const exitImpersonation = async () => {
+    const to = await endSupportSession('exit')
+    queryClient.clear()
+    navigate(to)
   }
 
   const isAdmin = user?.role === 'admin'

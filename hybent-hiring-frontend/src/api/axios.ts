@@ -68,7 +68,9 @@ api.interceptors.response.use(
       originalRequest.url.includes('/v1/auth/refresh') ||
       originalRequest.url.includes('/v1/auth/forgot-password') ||
       originalRequest.url.includes('/v1/auth/reset-password') ||
-      originalRequest.url.includes('/v1/auth/candidate/magic-link')
+      originalRequest.url.includes('/v1/auth/candidate/magic-link') ||
+      originalRequest.url.includes('/v1/auth/2fa/') ||
+      originalRequest.url.includes('/v1/auth/google')
     )
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthRouteToSkip) {
@@ -105,6 +107,15 @@ api.interceptors.response.use(
  * (e.g. the Copilot's streaming fetch) call this themselves on a 401.
  */
 export async function refreshAccessToken(): Promise<string> {
+  // A support session's token is never refreshed: the refresh would come back
+  // as the super admin's own account. When it stops working, the session is over.
+  const { useAuthStore: authStore } = await import('@/store/authStore')
+  if (authStore.getState().user?.is_impersonating) {
+    const { leaveSupportSession } = await import('@/utils/impersonation')
+    void leaveSupportSession('expired', 'Your support session has ended.')
+    throw new Error('Support session ended')
+  }
+
   if (isRefreshing) {
     return new Promise<string>((resolve, reject) => {
       failedQueue.push({ resolve, reject })
