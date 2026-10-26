@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import {
   Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ClipboardCheck,
-  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, ScrollText,
+  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, PhoneCall, ScrollText,
   Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
@@ -95,11 +95,19 @@ function candidatesGroup(basePath: string, role: UserRole, badge?: number, scree
   }
 }
 
+/** AI Calls (Hybent AI Agent). Shown only when the org has AI calling on;
+    the badge counts calls a recruiter has to follow up on. */
+export interface AICallsNav {
+  enabled: boolean
+  needsAction: number
+}
+
 export function getNavSections(
   role: UserRole,
   candidateBadge: number,
   _scheduleBadge: number,
-  screening?: ScreeningNav
+  screening?: ScreeningNav,
+  aiCalls?: AICallsNav
 ): NavSection[] {
   const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
 
@@ -193,6 +201,9 @@ export function getNavSections(
         candidatesGroup(basePath, role, candidateBadge, screening),
         { to: `${basePath}/pipeline`, label: 'Pipeline', icon: SquareKanban },
         { to: `${basePath}/interviews`, label: 'Schedule', icon: CalendarDays },
+        ...(aiCalls?.enabled
+          ? [{ to: `${basePath}/ai-calls`, label: 'AI Calls', icon: PhoneCall, badge: aiCalls.needsAction || undefined }]
+          : []),
         { to: `${basePath}/offers`, label: 'Offers', icon: Handshake },
       ],
     },
@@ -279,4 +290,12 @@ export function activeNavLabel(sections: NavSection[], pathname: string): string
       .sort((a, b) => b.to.length - a.to.length)[0]?.label ??
     items.find((i) => i.alsoActiveOn?.some((p) => pathname.startsWith(p)))?.label
   )
+}
+
+/** The nav without Copilot, for clients whose super admin switched it off. */
+export function withoutCopilot(sections: NavSection[]): NavSection[] {
+  return sections.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !('to' in item && item.to.endsWith('/copilot'))),
+  }))
 }

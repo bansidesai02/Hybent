@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { publicApi } from '@/api/public'
 import { useAsyncAction } from '@/hooks/useAsyncAction'
 import { formatDate } from '@/utils/formatters'
-import { Badge, Button, Card, Dropzone, Input } from '@/components/hb'
+import { Badge, Button, Card, Checkbox, Dropzone, Input } from '@/components/hb'
 
 /**
  * The public, no-login "apply to this job" page — the destination of a
@@ -51,6 +51,8 @@ interface PublicJob {
   benefits: string | null
   skills_required: string[]
   is_remote: boolean
+  /** The org uses AI calls, so ask for consent to one. */
+  ai_calls?: boolean
   application_deadline: string | null
   openings?: number
   organization: { name: string; slug: string; logo_url: string | null }
@@ -132,6 +134,7 @@ export default function PublicApplyPage() {
   const [expectedCtc, setExpectedCtc] = useState('')
   const [noticePeriod, setNoticePeriod] = useState('')
   const [resume, setResume] = useState<File | null>(null)
+  const [aiCallConsent, setAiCallConsent] = useState(false)
 
   useEffect(() => {
     if (!orgSlug || !jobId) return
@@ -174,6 +177,7 @@ export default function PublicApplyPage() {
         notice_period: noticePeriod,
         resume,
         source,
+        ai_call_consent: job?.ai_calls ? aiCallConsent : undefined,
       })
       setSubmitted(true)
     } catch (err: any) {
@@ -408,6 +412,19 @@ export default function PublicApplyPage() {
             accept=".pdf,.doc,.docx"
             onFiles={(files) => setResume(files[0] ?? null)}
           />
+
+          {job?.ai_calls && (
+            <Checkbox
+              checked={aiCallConsent}
+              onChange={(e) => setAiCallConsent(e.target.checked)}
+              label={
+                <span className="text-hb-sm text-hb-muted">
+                  I agree to a short screening call from the Hybent AI Agent, an AI assistant calling on behalf of
+                  the hiring team. The call may be recorded for hiring purposes, and I can ask it to stop calling me at any time.
+                </span>
+              }
+            />
+          )}
 
           <Button onClick={() => handleSubmit()} loading={isSubmitting} size="lg" className="w-full">
             Submit application

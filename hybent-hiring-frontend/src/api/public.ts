@@ -22,6 +22,8 @@ export const publicApi = {
       resume: File
       /** Where the link was opened from, e.g. `careers_page`. Defaults to LinkedIn. */
       source?: string
+      /** Opt-in to an AI screening call (only sent when the org uses AI calls). */
+      ai_call_consent?: boolean
     }
   ) => {
     const form = new FormData()
@@ -34,6 +36,7 @@ export const publicApi = {
     form.append('notice_period', data.notice_period)
     form.append('resume', data.resume)
     if (data.source) form.append('source', data.source)
+    if (data.ai_call_consent !== undefined) form.append('ai_call_consent', String(data.ai_call_consent))
     return axios.post(`/api/public/jobs/${orgSlug}/${jobId}/apply`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

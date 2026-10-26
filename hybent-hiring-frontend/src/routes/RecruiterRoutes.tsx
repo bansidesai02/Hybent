@@ -21,6 +21,7 @@ const RecruiterProfilePage = lazy(() => import('@/modules/recruiter/pages/Recrui
 const RecruiterSettingsPage = lazy(() => import('@/modules/recruiter/pages/RecruiterSettingsPage'))
 const PreScreeningReviewPage = lazy(() => import('@/modules/recruiter/pages/PreScreeningReviewPage'))
 const ScreeningPage = lazy(() => import('@/modules/recruiter/pages/ScreeningPage'))
+const AICallsPage = lazy(() => import('@/modules/recruiter/pages/AICallsPage'))
 const AICreditsPage = lazy(() => import('@/modules/recruiter/pages/AICreditsPage'))
 const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
 const CopilotPage = lazy(() => import('@/modules/recruiter/pages/CopilotPage'))
@@ -43,6 +44,7 @@ export default function RecruiterRoutes() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="talent-pool" element={<TalentPoolPage />} />
         <Route path="screening" element={<ScreeningPage />} />
+        <Route path="ai-calls" element={<AICallsPage />} />
         <Route path="all-talent" element={<AllTalentListPage />} />
         <Route path="profile" element={<RecruiterProfilePage />} />
         <Route path="settings" element={<RecruiterSettingsPage />} />

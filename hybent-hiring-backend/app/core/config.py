@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
+    # How long a super admin support (impersonation) session lasts. It can't be
+    # refreshed; the super admin starts a new one.
+    impersonation_session_minutes: int = 30
 
     # ── Database & Redis ───────────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://postgres:root@localhost:5432/hybent_hiring_db"
@@ -82,6 +85,38 @@ class Settings(BaseSettings):
             return True
         allow = {o.strip() for o in self.screening_agent_orgs.split(",") if o.strip()}
         return str(organization_id) in allow
+
+    # ── AI Calls (Hybent AI Agent voice engine, hybent-voice-agent/) ───────────
+    # AI_CALLS=true turns AI calling on for every org; otherwise only the org
+    # ids in AI_CALLS_ORGS (comma-separated). The engine URL, the key it gave
+    # us and the secret it signs callbacks with come from its create_client.
+    ai_calls: bool = False
+    ai_calls_orgs: str = ""
+    voice_engine_url: str = "http://localhost:8100"
+    voice_api_key: str = ""
+    voice_callback_secret: str = ""
+    # Where the engine should POST results (this backend's public URL).
+    voice_callback_url: str = "http://localhost:8000/v1/voice-calls/callbacks"
+    # What one connected call minute costs us (telephony + STT + LLM + TTS +
+    # LiveKit, ~Rs 3). Billed to AI credits per started minute at the usual 2x.
+    voice_cost_per_minute_usd: float = 0.035
+
+    def ai_calls_enabled_for(self, organization_id) -> bool:
+        if not (self.voice_api_key and self.voice_callback_secret):
+            return False
+        if self.ai_calls:
+            return True
+        allow = {o.strip() for o in self.ai_calls_orgs.split(",") if o.strip()}
+        return str(organization_id) in allow
+
+    # ── Integrations (n8n and other machine clients) ───────────────────────────
+    # Kill switch for /v1/integrations/* calls made with an integration key.
+    # Off by default: keys can still be created and revoked, but none of them
+    # authenticates until INTEGRATIONS_ENABLED=true.
+    integrations_enabled: bool = False
+    # Requests per minute allowed for each integration key (own Redis bucket,
+    # separate from the per-IP limit browsers get).
+    integration_rate_limit_per_minute: int = 60
 
     # ── Email (SMTP) ───────────────────────────────────────────────────────────
     smtp_host: str = "smtp.gmail.com"
@@ -156,11 +191,12 @@ class Settings(BaseSettings):
         self.cloudinary_api_key = self.cloudinary_api_key.strip()
         self.cloudinary_api_secret = self.cloudinary_api_secret.strip()
 
-        if self.app_env == "production":
-            if not self.database_url:
-                raise ValueError("DATABASE_URL environment variable is required in production.")
-            if not self.secret_key:
-                raise ValueError("SECRET_KEY environment variable is required.")
+        if self.app_env == "production" and not self.database_url:
+            raise ValueError("DATABASE_URL environment variable is required in production.")
+        # In every environment: an empty key signs tokens with "", which
+        # anyone can forge.
+        if not self.secret_key:
+            raise ValueError("SECRET_KEY environment variable is required.")
         return self
 
     @property

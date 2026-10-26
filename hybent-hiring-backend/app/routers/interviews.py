@@ -9,11 +9,9 @@ from app.models.user import User
 from app.models.application import Application
 from app.models.job import Job
 from app.schemas.interview import InterviewCreate, InterviewUpdate, InterviewOut
-from app.services.calendar_service import create_calendar_event, cancel_calendar_event
+from app.services.calendar_service import cancel_calendar_event
 from app.services.email_accounts_service import resolve_sender_for_user
 from app.services.email_service import (
-    send_interview_invite, 
-    send_interviewer_invite,
     send_interview_cancellation,
     send_interview_reschedule
 )
@@ -22,39 +20,14 @@ from app.tasks.notifications import notify_interview_team
 from app.services.activity_service import log_activity
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
+from app.services import voice_calls as voice_calls_svc
+from app.services.interview_scheduling import get_job_role, resolve_panelists, schedule_interview
 
 router = APIRouter(prefix="/v1/interviews", tags=["interviews"])
 
 
-async def _get_job_role(db: DB, application_id: uuid.UUID | None, candidate_id: uuid.UUID) -> str:
-    """Robustly resolve the job title for an interview context."""
-    # 1. Try via application_id
-    if application_id:
-        job_result = await db.execute(
-            select(Job.title)
-            .join(Application, Application.job_id == Job.id)
-            .where(Application.id == application_id)
-        )
-        job_title = job_result.scalar_one_or_none()
-        if job_title:
-            return job_title
-
-    # 2. Try via Candidate.applied_job_title
-    cand_result = await db.execute(select(Candidate.applied_job_title).where(Candidate.id == candidate_id))
-    job_title = cand_result.scalar_one_or_none()
-    if job_title:
-        return job_title
-
-    # 3. Fallback: Most recent application for this candidate
-    fallback_result = await db.execute(
-        select(Job.title)
-        .join(Application, Application.job_id == Job.id)
-        .where(Application.candidate_id == candidate_id)
-        .order_by(Application.created_at.desc())
-        .limit(1)
-    )
-    job_title = fallback_result.scalar_one_or_none()
-    return job_title or "Position"
+# Kept under its old name; the logic lives with schedule_interview.
+_get_job_role = get_job_role
 
 
 async def _interview_out(db: DB, interview: Interview, panelists: list) -> dict:
@@ -187,7 +160,10 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     if data.scheduled_at < (now - timedelta(minutes=5)):
         raise HTTPException(status_code=400, detail="Cannot schedule an interview in the past")
 
-    # A linked application must be this candidate's, in this organization.
+    panelists = [(p.user_id, p.role) for p in data.panelist_ids]
+    if len(await resolve_panelists(db, current_user.organization_id, panelists)) != len(panelists):
+        raise HTTPException(status_code=400, detail="Panelists must be active members of your hiring team")
+
     application_id = None
     if data.application_id:
         try:
@@ -204,136 +180,22 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
         if not owns_application:
             raise HTTPException(status_code=404, detail="Application not found")
 
-    # Panelists come from this organization's hiring team only; an ID from
-    # another organization (or a candidate account) is skipped, the same way
-    # an unknown ID always was, instead of being invited to this interview.
-    panelist_scope = (
-        User.organization_id == current_user.organization_id,
-        User.role.in_([r.value for r in INTERVIEWER_ROLES]),
-    )
-
-    # Org info for emails etc.
-    from app.models.organization import Organization
-    org_result = await db.execute(select(Organization).where(Organization.id == current_user.organization_id))
-    org = org_result.scalar_one_or_none()
-
-    # Collect attendee emails
-    attendee_emails = [candidate.email]
-    for p in data.panelist_ids:
-        u_result = await db.execute(select(User).where(User.id == uuid.UUID(p.user_id), *panelist_scope))
-        u = u_result.scalar_one_or_none()
-        if u:
-            attendee_emails.append(u.email)
-
-    # Create calendar event / get Meet link
-    cal = await create_calendar_event(
-        title=data.title,
-        description=f"Interview with {candidate.full_name}",
-        start_time=data.scheduled_at,
-        duration_minutes=data.duration_minutes,
-        attendee_emails=attendee_emails,
-        organizer_refresh_token=current_user.google_refresh_token,
-    )
-    # A real Calendar link wins; otherwise keep the one the recruiter typed in.
-    meeting_link = cal["meeting_link"] or data.meeting_link
-
-    interview = Interview(
-        organization_id=current_user.organization_id,
-        candidate_id=candidate.id,
-        application_id=application_id,
-        scheduled_by_id=current_user.id,
+    interview, panelist_out = await schedule_interview(
+        db,
+        scheduler=current_user,
+        candidate=candidate,
         title=data.title,
         interview_type=data.interview_type,
         scheduled_at=data.scheduled_at,
         duration_minutes=data.duration_minutes,
         location=data.location,
         notes=data.notes,
-        meeting_link=meeting_link,
-        calendar_event_id=cal.get("event_id"),
+        meeting_link=data.meeting_link,
+        application_id=application_id,
+        panelists=panelists,
     )
-    db.add(interview)
-    await db.flush()
+    await voice_calls_svc.sync_reminders_safely(db, interview)
 
-    # Add panelists
-    panelist_out = []
-    for p_data in data.panelist_ids:
-        u_result = await db.execute(select(User).where(User.id == uuid.UUID(p_data.user_id), *panelist_scope))
-        u = u_result.scalar_one_or_none()
-        if u:
-            panelist = InterviewPanelist(
-                interview_id=interview.id,
-                user_id=u.id,
-                role=p_data.role,
-            )
-            db.add(panelist)
-            panelist_out.append({
-                "id": str(panelist.id),
-                "user_id": str(u.id),
-                "role": p_data.role,
-                "user_name": u.full_name,
-                "user_email": u.email,
-            })
-
-    # Send invite email to candidate and panelists — from the scheduler's
-    # own mailbox when they've connected one.
-    sender = await resolve_sender_for_user(db, current_user)
-    if org:
-        tz = zoneinfo.ZoneInfo(org.timezone or "Asia/Kolkata")
-        local_time = data.scheduled_at.astimezone(tz)
-        time_str = local_time.strftime("%B %d, %Y at %I:%M %p")
-
-        # Fetch job title/role using robust helper
-        job_role = await _get_job_role(db, interview.application_id, candidate.id)
-
-        send_interview_invite(
-            candidate_email=candidate.email,
-            candidate_name=candidate.full_name,
-            round_name=data.title,
-            job_role=job_role,
-            company_name=org.name,
-            scheduled_at=time_str,
-            meeting_link=meeting_link,
-            duration_minutes=data.duration_minutes,
-            interview_type=data.interview_type,
-            org_logo_url=org.logo_url if org else None,
-            email_account=sender,
-        )
-        
-        for p_out in panelist_out:
-            send_interviewer_invite(
-                interviewer_email=p_out["user_email"],
-                interviewer_name=p_out["user_name"],
-                candidate_name=candidate.full_name,
-                round_name=data.title,
-                job_role=job_role,
-                company_name=org.name,
-                scheduled_at=time_str,
-                meeting_link=meeting_link,
-                duration_minutes=data.duration_minutes,
-                interview_type=data.interview_type,
-                org_logo_url=org.logo_url if org else None,
-                email_account=sender,
-            )
-
-    await log_activity(
-        db,
-        organization_id=current_user.organization_id,
-        user_id=current_user.id,
-        action="SCHEDULE",
-        resource_type="interview",
-        resource_id=str(interview.id),
-        details={"candidate": candidate.full_name, "title": data.title, "scheduled_at": data.scheduled_at.isoformat()}
-    )
-
-    # Trigger system notification for Admin, HR, and Panelists
-    notify_interview_team.delay(
-        str(interview.id),
-        NotificationType.INTERVIEW_SCHEDULED,
-        "Interview Scheduled",
-        f"A new interview '{data.title}' for {job_role} has been scheduled for {candidate.full_name} on {time_str}.",
-        {"interview_id": str(interview.id), "candidate": candidate.full_name, "scheduled_at": time_str}
-    )
-    
     d = await _interview_out(db, interview, panelist_out)
     d["candidate_name"] = candidate.full_name
     d["candidate_email"] = candidate.email
@@ -436,7 +298,9 @@ async def update_interview(interview_id: uuid.UUID, data: InterviewUpdate, curre
     old_status = interview.status
     for field, value in data_dict.items():
         setattr(interview, field, value)
-    
+    if "scheduled_at" in data_dict or "status" in data_dict:
+        await voice_calls_svc.sync_reminders_safely(db, interview)
+
     await db.commit()
     await db.refresh(interview)
 
@@ -551,6 +415,7 @@ async def cancel_interview(interview_id: uuid.UUID, current_user: RecruiterUser,
         raise HTTPException(status_code=404, detail="Interview not found")
     
     interview.status = InterviewStatus.CANCELLED
+    await voice_calls_svc.sync_reminders_safely(db, interview)
     
     # Org info for timezone and emails
     from app.models.organization import Organization

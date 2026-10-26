@@ -50,6 +50,7 @@ import {
   Textarea,
   type BadgeTone,
 } from '@/components/hb'
+import { InterviewAIStatus } from '@/modules/recruiter/components/aiCalls/InterviewAIStatus'
 
 /**
  * Interview scheduling.
@@ -513,7 +514,7 @@ function MonthCalendar({
     if (selectedDate.getFullYear() !== year || selectedDate.getMonth() !== month) {
       setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [selectedDate])
 
   const byDate = useMemo(() => {
@@ -650,7 +651,7 @@ function DateStrip({
   useEffect(() => {
     const ws = startOfWeek(value)
     if (ws.getTime() !== weekStart.getTime()) setWeekStart(ws)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [value])
 
   const busy = useMemo(() => {
@@ -921,7 +922,7 @@ function ScheduleDrawer({
     if (!open) return
     setDate(initialDate)
     setTime(initialTime)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open])
 
   /* The date strip and slot grid own the date and time; the form mirrors them. */
@@ -1470,7 +1471,7 @@ function WeekView({
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const byDay = useMemo(
     () => days.map((d) => items.filter((iv) => sameDay(parseISO(iv.scheduled_at), d))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [items, weekStart.getTime()]
   )
   const { first, last } = hourRange(items)
@@ -1884,6 +1885,7 @@ function InterviewDrawer({
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill status={iv.status} />
         </div>
+        <InterviewAIStatus interviewId={iv.id} />
 
         <dl className="grid grid-cols-2 gap-hb-3">
           {facts.map((f) => (
@@ -1980,7 +1982,7 @@ export default function InterviewsListPage() {
     next.delete('success')
     next.delete('error')
     setSearchParams(next, { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()))
@@ -2037,7 +2039,7 @@ export default function InterviewsListPage() {
       const d = parseISO(iv.scheduled_at)
       return d >= weekStart && d < end
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [filtered, weekStart.getTime()])
 
   /* Derived from the list rather than held, so the drawer reflects a status
@@ -2056,7 +2058,7 @@ export default function InterviewsListPage() {
      person" — open the drawer straight away. */
   useEffect(() => {
     if (preselectedCandidateId) openBooking()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   const cancelMutation = useMutation({

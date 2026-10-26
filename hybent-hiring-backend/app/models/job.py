@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, ARRAY
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -38,6 +38,8 @@ class Job(Base):
 
     application_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     openings: Mapped[int] = mapped_column(Integer, default=1)
+    # AI pre-screen setup for this job: {questions: [...], criteria: {...}, client_facing}
+    voice_call_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True

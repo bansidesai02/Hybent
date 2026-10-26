@@ -65,6 +65,10 @@ class Candidate(Base):
     interview_time_slot: Mapped[str | None] = mapped_column(String(100))
     blackout_dates: Mapped[str | None] = mapped_column(String(255))
     weekend_interviews: Mapped[bool] = mapped_column(default=False, server_default="false")
+    # AI Calls: when and how the candidate agreed to AI calls, and whether they opted out.
+    ai_call_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ai_call_consent_source: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ai_call_opted_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     current_title: Mapped[str | None] = mapped_column(String(255))
     current_company: Mapped[str | None] = mapped_column(String(255))
     summary: Mapped[str | None] = mapped_column(Text)
