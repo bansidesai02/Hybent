@@ -21,6 +21,7 @@ from app.models.password_reset import PasswordResetToken
 from app.models.super_admin import SubscriptionPlan
 from app.models.user import RefreshToken, User
 from app.routers import interviews as interviews_router
+from app.services import interview_scheduling
 from app.services import email_service, invitation_service
 from app.utils.security import create_refresh_token, hash_password, verify_password
 from tests.conftest import _make_user, auth_headers
@@ -122,14 +123,15 @@ async def test_offer_respond_is_for_the_hiring_team(client, db_session, organiza
 
 @pytest.fixture
 def quiet_scheduling(monkeypatch):
-    monkeypatch.setattr(interviews_router, "send_interview_invite", lambda **kw: None)
-    monkeypatch.setattr(interviews_router, "send_interviewer_invite", lambda **kw: None)
-    monkeypatch.setattr(interviews_router.notify_interview_team, "delay", lambda *a, **kw: None)
+    # Scheduling lives in services/interview_scheduling; patch it there.
+    monkeypatch.setattr(interview_scheduling, "send_interview_invite", lambda **kw: None)
+    monkeypatch.setattr(interview_scheduling, "send_interviewer_invite", lambda **kw: None)
+    monkeypatch.setattr(interview_scheduling.notify_interview_team, "delay", lambda *a, **kw: None)
     monkeypatch.setattr(interviews_router.es_service, "index_interview", lambda *a, **kw: None)
 
     async def no_calendar(**kw):
         return {"meeting_link": None, "event_id": None}
-    monkeypatch.setattr(interviews_router, "create_calendar_event", no_calendar)
+    monkeypatch.setattr(interview_scheduling, "create_calendar_event", no_calendar)
 
 
 def _interview_body(candidate, **over):
@@ -150,7 +152,9 @@ async def test_cross_org_panelist_is_not_invited(client, db_session, organizatio
     candidate = await _candidate(db_session, organization)
     body = _interview_body(candidate, panelist_ids=[{"user_id": str(other_org_admin.id), "role": "lead"}])
     r = await client.post("/v1/interviews", json=body, headers=recruiter_headers)
-    assert r.status_code in (200, 201), r.text
+    # Refused outright rather than silently dropped; either way nobody from
+    # another organization is invited.
+    assert r.status_code == 400, r.text
     assert other_org_admin.email not in r.text
     assert (await db_session.execute(select(InterviewPanelist))).first() is None
 
