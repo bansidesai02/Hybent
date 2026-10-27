@@ -40,7 +40,6 @@ export default function AppLayout() {
 
   const [, segment = '', fragment = ''] = location.pathname.split('/')
   const viewKey = location.pathname === '/' ? 'index' : segment
-  const metaKey = location.pathname === '/products/hiring' ? 'hiring' : viewKey
   /* A service detail page applies its own meta; the generic Services meta must
      not overwrite it. */
   const isServiceDetail = segment === 'services' && fragment !== ''
@@ -62,14 +61,14 @@ export default function AppLayout() {
 
   /* Per-view title, description and canonical, plus aria-current on the owning nav link. */
   useEffect(() => {
-    const meta = ROUTE_META[metaKey]
-    if (meta && !isServiceDetail) applyPageMeta({ ...meta, path: routeMetaPath(metaKey) })
+    const meta = ROUTE_META[viewKey]
+    if (meta && !isServiceDetail) applyPageMeta({ ...meta, path: routeMetaPath(viewKey) })
     document.querySelectorAll<HTMLElement>('[data-nav]').forEach((link) => {
-      const owns = ` ${link.getAttribute('data-nav')} `.includes(` ${metaKey} `)
+      const owns = ` ${link.getAttribute('data-nav')} `.includes(` ${viewKey} `)
       if (owns) link.setAttribute('aria-current', 'page')
       else link.removeAttribute('aria-current')
     })
-  }, [metaKey, isServiceDetail])
+  }, [viewKey, isServiceDetail])
 
   /* Land on the top of the view, or on a deep-linked section (/about/story). */
   useEffect(() => {

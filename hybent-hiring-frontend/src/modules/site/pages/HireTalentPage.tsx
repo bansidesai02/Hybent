@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { SiteView } from '../components/SiteView'
+import { SHOW_SERVICES } from '@/app/paths'
 
 interface TalentRole {
   id: string
@@ -959,9 +960,11 @@ export default function HireTalentPage() {
                   <polyline points="12 5 19 12 12 19"></polyline>
                 </svg>
               </Link>
-              <Link to="/services" className="btn btn-ghost btn-lg">
-                <span>Explore Managed Services</span>
-              </Link>
+              {SHOW_SERVICES && (
+                <Link to="/services" className="btn btn-ghost btn-lg">
+                  <span>Explore Managed Services</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>

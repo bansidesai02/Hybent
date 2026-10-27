@@ -2,6 +2,7 @@ import { SiteView } from '../components/SiteView'
 import { AiRecruitmentWorkflowAnimation } from '../components/AiRecruitmentWorkflowAnimation'
 import { AskAiSection } from '../components/AskAiSection'
 import { TypedLabel } from '../components/TypedLabel'
+import { SHOW_SERVICES } from '@/app/paths'
 
 export default function HomePage() {
   return (
@@ -28,10 +29,14 @@ export default function HomePage() {
               </span>
             </h1>
 
-            <p className="hero__sub" data-rv="up" data-delay="160">HYBENT builds intelligent products and delivers technology services that help businesses innovate, grow, and scale. Hybent Hiring, our flagship AI recruitment platform, is the first step in a long-term ecosystem of innovative business software designed to help organizations hire, scale, and succeed.</p>
+            {SHOW_SERVICES ? (
+              <p className="hero__sub" data-rv="up" data-delay="160">HYBENT builds intelligent products and delivers technology services that help businesses innovate, grow, and scale. Hybent Hiring, our flagship AI recruitment platform, is the first step in a long-term ecosystem of innovative business software designed to help organizations hire, scale, and succeed.</p>
+            ) : (
+              <p className="hero__sub" data-rv="up" data-delay="160">HYBENT builds intelligent products that help businesses innovate, grow, and scale. Hybent Hiring, our flagship AI recruitment platform, is the first step in a long-term ecosystem of innovative business software designed to help organizations hire, scale, and succeed.</p>
+            )}
 
             <div className="hero__actions" data-rv="up" data-delay="240">
-              <a className="btn btn-primary btn-lg" href="/products">Explore Hybent Hiring <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+              <a className="btn btn-primary btn-lg" href="/hybent-hiring">Explore Hybent Hiring <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               <a className="btn btn-ghost btn-lg" href="/contact?topic=hiring">Book a demo</a>
             </div>
           </div>
@@ -46,13 +51,32 @@ export default function HomePage() {
                 <path className="spark" d="M50 50 L18 26" /><path className="spark" d="M50 50 L84 30" />
                 <path className="spark" d="M50 50 L14 62" /><path className="spark" d="M50 50 L88 68" />
                 <path className="spark" d="M50 50 L46 92" />
+                {/* A short glint travelling from each node into the core:
+                    every capability feeds the same AI. */}
+                <path className="spark-flow" pathLength={100} d="M18 26 L50 50" />
+                <path className="spark-flow" pathLength={100} d="M84 30 L50 50" />
+                <path className="spark-flow" pathLength={100} d="M14 62 L50 50" />
+                <path className="spark-flow" pathLength={100} d="M88 68 L50 50" />
+                <path className="spark-flow" pathLength={100} d="M46 92 L50 50" />
               </svg>
               <div className="lattice__core"><img src="/hybent/hybent-mark.png" alt="HYBENT platform core" /></div>
-              <a href="/products/hiring" className="node node--live" style={{ left: "18%", top: "26%", textDecoration: "none", cursor: "pointer" }}><i></i><TypedLabel text="Hybent Hiring" /></a>
+              {SHOW_SERVICES ? (
+                <a href="/hybent-hiring" className="node node--live" style={{ left: "18%", top: "26%", textDecoration: "none", cursor: "pointer" }}><i></i><TypedLabel text="Hybent Hiring" /></a>
+              ) : <>
+              {/* While services are hidden the five spokes carry Hybent
+                  Hiring's own capabilities, so no spark points at nothing. */}
+              <div className="node node--live" style={{ left: "18%", top: "26%" }}><i></i><TypedLabel text="Recruiter's Copilot" /></div>
+              <div className="node node--live" style={{ left: "84%", top: "30%" }}><i></i><TypedLabel text="AI Screening" order={1} /></div>
+              <div className="node node--live" style={{ left: "88%", top: "68%" }}><i></i><TypedLabel text="Candidate's Portal" order={2} /></div>
+              <div className="node node--live" style={{ left: "46%", top: "92%" }}><i></i><TypedLabel text="Interviewer's Portal" order={3} /></div>
+              <div className="node node--live" style={{ left: "14%", top: "62%" }}><i></i><TypedLabel text="Automated Scheduling" order={4} /></div>
+              </>}
+              {SHOW_SERVICES && <>
               <div className="node" style={{ left: "84%", top: "30%" }}><i></i><TypedLabel text="IT Services" order={1} /></div>
               <div className="node" style={{ left: "88%", top: "68%" }}><i></i><TypedLabel text="Custom Software" order={2} /></div>
               <div className="node" style={{ left: "46%", top: "92%" }}><i></i><TypedLabel text="Hire Talent" order={3} /></div>
               <div className="node" style={{ left: "14%", top: "62%" }}><i></i><TypedLabel text="Web & Mobile Apps" order={4} /></div>
+              </>}
             </div>
           </div>
         </div>
@@ -127,7 +151,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="product-card__actions">
-                <a className="btn btn-primary" href="/products/hiring">Explore Hybent Hiring <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="btn btn-primary" href="/hybent-hiring">Explore Hybent Hiring <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
                 <a className="btn btn-ghost" href="/contact?topic=hiring">Book a demo</a>
               </div>
             </article>
@@ -348,7 +372,7 @@ export default function HomePage() {
             <p className="lead" style={{ marginTop: "24px" }}>HYBENT is an enterprise software company with a single purpose: build intelligent products that simplify how businesses operate, using AI that sits inside the work rather than alongside it.</p>
             <p className="lead" style={{ marginTop: "16px" }}>We are at the beginning of a long build. Hybent Hiring, our AI recruitment platform, is live today. Everything that follows will share the same platform, the same data model and the same design language — so each product makes the one before it more useful. We started with hiring because it is where every company's next decade begins.</p>
             <div style={{ display: "flex", gap: "12px", marginTop: "32px", flexWrap: "wrap" }}>
-              <a className="btn btn-ghost" href="/platform/ecosystem">How the platform works</a>
+              <a className="btn btn-ghost" href="/hybent-hiring">See how Hybent Hiring works</a>
               <a className="link-arrow" href="/about/story" style={{ alignSelf: "center", marginLeft: "6px" }}>Our story <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </div>
           </div>
@@ -392,7 +416,7 @@ export default function HomePage() {
                 <p className="lead" style={{ marginTop: "18px" }}>A working demo on your own roles, not a slide deck. Tell us how you hire today and we will show you the difference in twenty minutes.</p>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "30px" }}>
                   <a className="btn btn-primary btn-lg" href="/contact?topic=hiring">Book a demo <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                  <a className="btn btn-ghost btn-lg" href="/products">Explore Hybent Hiring</a>
+                  <a className="btn btn-ghost btn-lg" href="/hybent-hiring">Explore Hybent Hiring</a>
                 </div>
               </div>
             </div>

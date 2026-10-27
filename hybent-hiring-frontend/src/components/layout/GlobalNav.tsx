@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { AUTH, PRODUCTS, SHOW_CUSTOMERS, SHOW_SOLUTIONS } from '@/app/paths'
+import { AUTH, PRODUCTS, SHOW_CUSTOMERS, SHOW_SERVICES, SHOW_SOLUTIONS, SITE } from '@/app/paths'
 import SolutionsMegaMenu from '@/components/SolutionsMegaMenu'
 
 type GlobalNavProps = {
@@ -198,28 +198,13 @@ export function GlobalNav({
 
           <nav aria-label="Primary">
             <ul className="nav__links">
-              <li className="has-mega">
-                <a className="navlink" href="/products" aria-haspopup="true" aria-expanded="false" data-nav="products hiring">Products <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
-                <div className="mega mega--sm">
-                  <div className="mega__grid" style={{ gridTemplateColumns: '1fr' }}>
-                    <div className="mega__item mega__item--linked mega__item--full">
-                      {/* Stretched hit area: the whole card opens the product, while
-                          the action links below stay individually clickable. Hidden
-                          from assistive tech so the card announces one link, not two. */}
-                      <a className="mega__item-hit" href={PRODUCTS.hiring} tabIndex={-1} aria-hidden="true"></a>
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-users" /></svg></span>
-                      <span><h5>Hybent Hiring <span className="badge badge--live"><i className="dot dot--pulse"></i>Live</span></h5><p>AI recruitment platform — resume parsing, AI screening, interview management and offers in one pipeline.</p>
-                        <span className="mega__acts"><a href="/products/hiring">Learn more <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="/products/hiring">Open product <svg width="13" height="13" aria-hidden="true"><use href="#i-arrow" /></svg></a></span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </li>
+              <li><a className="navlink" href={PRODUCTS.hiring} data-nav="hybent-hiring">Hybent Hiring</a></li>
+              <li><a className="navlink" href={SITE.useCases} data-nav="use-cases">Use Cases</a></li>
               {SHOW_SOLUTIONS && <SolutionsMegaMenu />}
               {SHOW_CUSTOMERS && <li><a className="navlink" href="/customers" data-nav="customers">Customers</a></li>}
               <li><a className="navlink" href="/pricing" data-nav="pricing">Pricing</a></li>
               <li className="has-mega">
-                <a className="navlink" href="/about" aria-haspopup="true" aria-expanded="false" data-nav="about careers contact security faq">Company <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
+                <a className="navlink" href="/about" aria-haspopup="true" aria-expanded="false" data-nav="about contact security faq">Company <svg className="chev" aria-hidden="true"><use href="#i-chev" /></svg></a>
                 <div className="mega mega--sm">
                   <div className="mega__grid">
                     <a className="mega__item" href="/about">
@@ -230,17 +215,11 @@ export function GlobalNav({
                       <span className="icon-tile"><svg aria-hidden="true"><use href="#i-shield" /></svg></span>
                       <span><h5>Security</h5><p>The controls every Hybent product inherits on the day it launches.</p></span>
                     </a>
-                    <a className="mega__item" href="/careers">
-                      <span className="icon-tile"><svg aria-hidden="true"><use href="#i-brief" /></svg></span>
-                      <span><h5>Careers</h5><p>Join early enough to shape the platform everything else is built on.</p></span>
-                    </a>
                     <a className="mega__item" href="/contact">
                       <span className="icon-tile"><svg aria-hidden="true"><use href="#i-mail" /></svg></span>
                       <span><h5>Contact</h5><p>Tell us what you are trying to fix. We reply within one business day.</p></span>
                     </a>
-                    {/* Odd one out in a two-column grid, so it spans the row
-                        rather than sitting orphaned beside a gap. */}
-                    <a className="mega__item mega__item--full" href="/faq">
+                    <a className="mega__item" href="/faq">
                       <span className="icon-tile"><svg aria-hidden="true"><use href="#i-doc" /></svg></span>
                       <span><h5>FAQ</h5><p>Straight answers on what is live today, how pricing works, and what happens to your data.</p></span>
                     </a>
@@ -276,11 +255,12 @@ export function GlobalNav({
           if ((e.target as HTMLElement).closest('a')) onCloseDrawer()
         }}
       >
-        <p className="mono" style={{ margin: '6px 0 4px', color: 'var(--dim)' }}>Products</p>
-        <a href="/products/hiring">Hybent Hiring</a>
+        <p className="mono" style={{ margin: '6px 0 4px', color: 'var(--dim)' }}>Product</p>
+        <a href={PRODUCTS.hiring}>Hybent Hiring</a>
+        <a href={SITE.useCases}>Use Cases</a>
         {SHOW_SOLUTIONS && <>
           <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Solutions</p>
-          <a href="/services">Services</a>
+          {SHOW_SERVICES && <a href="/services">Services</a>}
           <a href="/industries">Industries</a>
           <a href="/hire-talent">Hire Talent</a>
         </>}
@@ -291,13 +271,12 @@ export function GlobalNav({
         <p className="mono" style={{ margin: '22px 0 4px', color: 'var(--dim)' }}>Company</p>
         <a href="/about">About</a>
         <a href="/security">Security</a>
-        <a href="/careers">Careers</a>
         <a href="/faq">FAQ</a>
         <a href="/contact">Contact</a>
         <div className="drawer__cta">
           {/* The header's Log in is hidden under 860px, so the drawer carries it. */}
           <a className="btn btn-ghost btn-lg" href={AUTH.login}>Log in</a>
-          <a className="btn btn-ghost btn-lg" href="/products/hiring">Explore Hybent Hiring</a>
+          <a className="btn btn-ghost btn-lg" href={PRODUCTS.hiring}>Explore Hybent Hiring</a>
           <a className="btn btn-primary btn-lg" href="/contact" onPointerDown={onRipple}>Get in Touch</a>
         </div>
       </div>

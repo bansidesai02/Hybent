@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { AlertTriangle, Loader2, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+import { PRODUCTS } from '@/app/paths'
 import { useAuthStore } from '@/store/authStore'
 import { invitationsApi } from '@/api/invitations'
 import { Button, Card, Input } from '@/components/hb'
@@ -119,7 +120,7 @@ export default function OnboardingPage() {
           </span>
           <h1 className="mb-2 font-display text-hb-h2 text-hb-text">Invitation error</h1>
           <p className="mb-hb-5 text-hb-sm text-hb-muted">{error}</p>
-          <Button variant="ghost" onClick={() => navigate('/products/hiring')} className="w-full">
+          <Button variant="ghost" onClick={() => navigate(PRODUCTS.hiring)} className="w-full">
             Back to home
           </Button>
         </Card>

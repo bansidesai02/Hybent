@@ -39,7 +39,7 @@ export default function ProductsPage() {
                 </ul>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                   <a className="btn btn-primary" href="/contact?topic=hiring">Book a Hybent Hiring demo <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                  <a className="btn btn-ghost" href="/solutions">See how it works</a>
+                  <a className="btn btn-ghost" href="/use-cases">See how it works</a>
                 </div>
               </div>
 

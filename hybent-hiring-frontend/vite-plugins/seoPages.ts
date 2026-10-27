@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
-import { SHOW_CUSTOMERS } from '../src/app/paths'
+import { RETIRED_PAGES, SHOW_SERVICES, retiredTarget } from '../src/app/paths'
 import { ROUTE_META } from '../src/app/routeMeta'
 import { SITE_ORIGIN, routeMetaPath, serviceMeta, type PageMeta } from '../src/app/seo'
 import { SERVICES_DATA } from '../src/modules/site/data/servicesData'
@@ -19,11 +19,10 @@ import { SERVICES_DATA } from '../src/modules/site/data/servicesData'
 const SEO_DIR = '_seo'
 
 function publicPages(): PageMeta[] {
-  const sitePages = Object.entries(ROUTE_META)
-    .filter(([key]) => SHOW_CUSTOMERS || key !== 'customers')
-    .map(([key, meta]) => ({ ...meta, path: routeMetaPath(key) }))
-  const servicePages = Object.values(SERVICES_DATA).map(serviceMeta)
-  return [...sitePages, ...servicePages]
+  const sitePages = Object.entries(ROUTE_META).map(([key, meta]) => ({ ...meta, path: routeMetaPath(key) }))
+  const servicePages = SHOW_SERVICES ? Object.values(SERVICES_DATA).map(serviceMeta) : []
+  // A retired page 301s elsewhere, so it gets no copy and no sitemap entry.
+  return [...sitePages, ...servicePages].filter((page) => !retiredTarget(page.path))
 }
 
 function escapeAttr(value: string): string {
@@ -64,13 +63,26 @@ function sitemapXml(pages: PageMeta[], lastmod: string): string {
 
 const HTACCESS_MARKER = '# @seo-pages'
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Permanent redirects for retired URLs (RETIRED_PAGES in src/app/paths.ts),
+ * sub-paths included, in the map's order so /products/hiring is matched
+ * before /products.
+ */
+function redirectRules(): string {
+  return Object.entries(RETIRED_PAGES)
+    .map(([from, to]) => `RewriteRule ^${escapeRegex(from.slice(1))}(/.*)?$ ${to} [R=301,L]`)
+    .join('\n')
+}
+
 /**
  * Apache/LiteSpeed rules sending each public page to its copy. Pages are
  * listed explicitly rather than probed with -f: Hostinger's server can't be
  * relied on to fall back cleanly when a guessed copy is missing.
  */
 function htaccessRules(pages: PageMeta[]): string {
-  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const escape = escapeRegex
   const paths = pages.map((page) => page.path.slice(1)).filter(Boolean)
   const topLevel = paths.filter((p) => !p.includes('/'))
   const lines: string[] = []
@@ -105,7 +117,7 @@ export function seoPages(): Plugin {
       if (!htaccess.includes(HTACCESS_MARKER)) {
         throw new Error(`[seo-pages] public/.htaccess is missing the "${HTACCESS_MARKER}" marker`)
       }
-      fs.writeFileSync(htaccessFile, htaccess.replace(HTACCESS_MARKER, htaccessRules(pages)))
+      fs.writeFileSync(htaccessFile, htaccess.replace(HTACCESS_MARKER, `${redirectRules()}\n${htaccessRules(pages)}`))
     },
   }
 }

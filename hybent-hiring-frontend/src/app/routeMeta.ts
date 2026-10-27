@@ -1,7 +1,8 @@
+import { SHOW_SERVICES } from './paths'
 /** Title and description for every public view, applied by AppLayout. */
 export const ROUTE_META: Record<string, { title: string; description: string }> = {
   index: {
-    title: 'Hybent | AI-Powered Software Products & IT Services',
+    title: SHOW_SERVICES ? 'Hybent | AI-Powered Software Products & IT Services' : 'Hybent | AI-Powered Software Products',
     description:
       'HYBENT builds intelligent software products that simplify business operations using AI. Hybent Hiring, our AI recruitment platform, is live today.',
   },
@@ -10,7 +11,7 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     description:
       'Hybent Hiring is our live AI recruitment platform: resume parsing, AI screening, interview management and recruiter copilot. See what is coming next.',
   },
-  hiring: {
+  'hybent-hiring': {
     title: 'Hybent Hiring — AI recruitment platform | HYBENT',
     description:
       'Find, match and hire top talent faster with an AI engine built for modern recruiting teams. Part of the HYBENT enterprise suite.',
@@ -29,6 +30,11 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     title: 'Solutions — start where the pain is loudest | HYBENT',
     description:
       'Four ways teams put HYBENT to work: talent acquisition, people operations, hiring managers, and IT & security.',
+  },
+  'use-cases': {
+    title: 'Use Cases — how teams hire with Hybent Hiring | HYBENT',
+    description:
+      "How high-volume, tech, startup and referral-driven hiring teams use Hybent Hiring: AI screening, automated scheduling, a Recruiter's Copilot, an Interviewer's Portal and a Candidate's Portal.",
   },
   services: {
     title: 'Enterprise IT Services & Custom Software | HYBENT',
@@ -63,7 +69,9 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
   about: {
     title: 'About HYBENT — AI Software Company from Ahmedabad, India',
     description:
-      'Meet HYBENT — an AI-powered software company from India building custom software and AI products like Hybent Hiring for teams worldwide.',
+      SHOW_SERVICES
+        ? 'Meet HYBENT — an AI-powered software company from India building custom software and AI products like Hybent Hiring for teams worldwide.'
+        : 'Meet HYBENT — an AI-powered software company from India building AI products like Hybent Hiring for teams worldwide.',
   },
   faq: {
     title: 'FAQ — the questions we get asked first | HYBENT',
@@ -83,7 +91,9 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
   privacy: {
     title: 'Privacy & Terms Policy | HYBENT — Protection & Data Trust',
     description:
-      'Learn how Hybent collects, uses, protects, and handles personal information across our AI-powered products, website, and IT services.',
+      SHOW_SERVICES
+        ? 'Learn how Hybent collects, uses, protects, and handles personal information across our AI-powered products, website, and IT services.'
+        : 'Learn how Hybent collects, uses, protects, and handles personal information across our AI-powered products and website.',
   },
   cookies: {
     title: 'Cookie Policy | HYBENT — Transparency & Cookie Governance',

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { SiteView } from '../components/SiteView'
+import { SHOW_SERVICES } from '@/app/paths'
 
 interface IndustryItem {
   id: string
@@ -729,9 +730,11 @@ export default function IndustriesPage() {
                   <polyline points="12 5 19 12 12 19"></polyline>
                 </svg>
               </Link>
-              <Link to="/services" className="btn btn-ghost btn-lg">
-                <span>Browse All Services</span>
-              </Link>
+              {SHOW_SERVICES && (
+                <Link to="/services" className="btn btn-ghost btn-lg">
+                  <span>Browse All Services</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>

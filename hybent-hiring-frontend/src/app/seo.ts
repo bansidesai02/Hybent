@@ -17,7 +17,6 @@ export interface PageMeta {
 /** The path each ROUTE_META key is served at. */
 export function routeMetaPath(key: string): string {
   if (key === 'index') return '/'
-  if (key === 'hiring') return '/products/hiring'
   return `/${key}`
 }
 

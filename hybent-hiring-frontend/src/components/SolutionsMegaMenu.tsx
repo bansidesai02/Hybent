@@ -1,3 +1,5 @@
+import { SHOW_SERVICES } from '@/app/paths'
+
 export default function SolutionsMegaMenu() {
   return (
     <li className="has-mega">
@@ -12,6 +14,7 @@ export default function SolutionsMegaMenu() {
       </a>
       <div className="mega mega--sm">
         <div className="mega__grid">
+          {SHOW_SERVICES && (
           <div className="mega__item mega__item--linked">
             <a className="mega__item-hit" href="/services" tabIndex={-1} aria-hidden="true"></a>
             <span className="icon-tile"><svg aria-hidden="true"><use href="#i-layers" /></svg></span>
@@ -24,6 +27,7 @@ export default function SolutionsMegaMenu() {
               </span>
             </span>
           </div>
+          )}
           <div className="mega__item mega__item--linked">
             <a className="mega__item-hit" href="/industries" tabIndex={-1} aria-hidden="true"></a>
             <span className="icon-tile"><svg aria-hidden="true"><use href="#i-brief" /></svg></span>

@@ -439,6 +439,18 @@ html { scroll-padding-top: calc(var(--hb-nav-h) + 20px); }
 .hb-site .typed__sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .hb-site .spark{stroke:url(#lg);stroke-width:1;fill:none;opacity:.42;stroke-dasharray:5 7;animation:dash 12s linear infinite}
 @keyframes dash{to{stroke-dashoffset:-160}}
+/* Glints running node → core along each spark, staggered so one lands at a time. */
+.hb-site .spark-flow{stroke:url(#lg);stroke-width:1.6;stroke-linecap:round;fill:none;stroke-dasharray:8 92;stroke-dashoffset:8;opacity:0;animation:flow 5s cubic-bezier(.45,0,.3,1) infinite}
+.hb-site .spark-flow:nth-of-type(7){animation-delay:1s}
+.hb-site .spark-flow:nth-of-type(8){animation-delay:2s}
+.hb-site .spark-flow:nth-of-type(9){animation-delay:3s}
+.hb-site .spark-flow:nth-of-type(10){animation-delay:4s}
+@keyframes flow{0%{stroke-dashoffset:8;opacity:0}8%{opacity:.95}36%{opacity:.95}44%{stroke-dashoffset:-92;opacity:0}100%{stroke-dashoffset:-92;opacity:0}}
+/* Soft halo behind the core that swells as a glint arrives. */
+.hb-site .lattice__core::before{content:"";position:absolute;inset:-22%;border-radius:50%;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle,rgba(34,207,255,.22),rgba(76,111,255,.14) 45%,rgba(232,92,255,0) 70%);
+  animation:halo 5s ease-in-out infinite}
+@keyframes halo{0%,100%{opacity:.55;transform:scale(.94)}45%{opacity:1;transform:scale(1.04)}}
 
 /* ============================ MARQUEE ============================ */
 .hb-site .marquee{position:relative;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}

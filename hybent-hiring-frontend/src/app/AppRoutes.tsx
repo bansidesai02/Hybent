@@ -1,10 +1,10 @@
 import { lazy } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import AppLayout from '@/components/layout/AppLayout'
 import { RequireAuth } from './RequireAuth'
 import { DashboardRedirect } from './DashboardRedirect'
-import { SHOW_CUSTOMERS } from './paths'
+import { PRODUCTS, RETIRED_PAGES, SHOW_CUSTOMERS, SHOW_EXTRA_PAGES, SHOW_SERVICES, SITE, retiredTarget } from './paths'
 
 /* ── Hybent — the company site ──────────────────────────────────────────────
    Split per view so a visitor landing on the homepage never downloads the
@@ -13,7 +13,7 @@ const HomePage = lazy(() => import('@/modules/site/pages/HomePage'))
 const ProductsPage = lazy(() => import('@/modules/site/pages/ProductsPage'))
 const PlatformPage = lazy(() => import('@/modules/site/pages/PlatformPage'))
 const AiCapabilitiesPage = lazy(() => import('@/modules/site/pages/AiCapabilitiesPage'))
-const SolutionsPage = lazy(() => import('@/modules/site/pages/SolutionsPage'))
+const UseCasesPage = lazy(() => import('@/modules/site/pages/UseCasesPage'))
 const ServicesPage = lazy(() => import('@/modules/site/pages/ServicesPage'))
 const ServiceDetailPage = lazy(() => import('@/modules/site/pages/ServiceDetailPage'))
 const IndustriesPage = lazy(() => import('@/modules/site/pages/IndustriesPage'))
@@ -75,7 +75,7 @@ const SuperAdminRoutes = lazy(() => import('@/routes/SuperAdminRoutes'))
  * The whole platform in one table.
  *
  *   /                    Hybent — the parent brand, always the entry point
- *   /products/hiring     Hybent Hiring — a product inside the company site
+ *   /hybent-hiring       Hybent Hiring — a product inside the company site
  *   /login               Authentication, reached only from inside a product
  *   /hiring/<workspace>  The authenticated product, with its own chrome
  *
@@ -83,6 +83,12 @@ const SuperAdminRoutes = lazy(() => import('@/routes/SuperAdminRoutes'))
  * navigation bar. Workspaces sit outside it because they bring their own
  * sidebar and topbar.
  */
+/** Sends a retired URL (RETIRED_PAGES) to the page that replaced it, keeping any query string. */
+function RetiredRedirect() {
+  const { pathname, search } = useLocation()
+  return <Navigate to={`${retiredTarget(pathname) ?? '/'}${search}`} replace />
+}
+
 export default function AppRoutes() {
   /* Built here rather than inline: narrowing `KitchenSink` away from null does
      not reach into a nested JSX attribute, so the element is composed first. */
@@ -96,28 +102,39 @@ export default function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
 
-        {/* Static product paths are declared before the section-deep-link form
-            so /products/hiring can never be read as a fragment id. */}
-        <Route path="/products/hiring" element={<HiringHomePage />} />
+        <Route path={PRODUCTS.hiring} element={<HiringHomePage />} />
+        <Route path={`${SITE.useCases}/:section?`} element={<UseCasesPage />} />
 
-        <Route path="/products/:section?" element={<ProductsPage />} />
-        <Route path="/platform/:section?" element={<PlatformPage />} />
-        <Route path="/ai/:section?" element={<AiCapabilitiesPage />} />
-        <Route path="/solutions/:section?" element={<SolutionsPage />} />
-        <Route path="/services" element={<ServicesPage />} />
-        <Route path="/services/:slug" element={<ServiceDetailPage />} />
-        <Route path="/industries/:section?" element={<IndustriesPage />} />
-        <Route path="/hire-talent/:section?" element={<HireTalentPage />} />
-        <Route path="/security/:section?" element={<SecurityPage />} />
-        {SHOW_CUSTOMERS ? (
-          <Route path="/customers/:section?" element={<CustomersPage />} />
-        ) : (
-          <Route path="/customers/*" element={<Navigate to="/" replace />} />
+        {/* Held-back pages render only while their flag is on (paths.ts).
+            Otherwise RETIRED_PAGES lists them and they redirect below. */}
+        {SHOW_EXTRA_PAGES && (
+          <>
+            <Route path="/products/:section?" element={<ProductsPage />} />
+            <Route path="/platform/:section?" element={<PlatformPage />} />
+            <Route path="/ai/:section?" element={<AiCapabilitiesPage />} />
+            <Route path="/careers/:section?" element={<CareersPage />} />
+          </>
         )}
+        {SHOW_SERVICES && (
+          <>
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/services/:slug" element={<ServiceDetailPage />} />
+            <Route path="/industries/:section?" element={<IndustriesPage />} />
+            <Route path="/hire-talent/:section?" element={<HireTalentPage />} />
+          </>
+        )}
+        {SHOW_CUSTOMERS && <Route path="/customers/:section?" element={<CustomersPage />} />}
+
+        {/* Retired URLs: the server already answers them with a 301; this
+            covers in-app navigation and links followed client-side. */}
+        {Object.keys(RETIRED_PAGES).map((path) => (
+          <Route key={path} path={`${path}/*`} element={<RetiredRedirect />} />
+        ))}
+
+        <Route path="/security/:section?" element={<SecurityPage />} />
         <Route path="/pricing/:section?" element={<PricingPage />} />
         <Route path="/about/:section?" element={<AboutPage />} />
         <Route path="/faq/:section?" element={<FaqPage />} />
-        <Route path="/careers/:section?" element={<CareersPage />} />
         <Route path="/contact/:section?" element={<ContactPage />} />
         <Route path="/privacy/:section?" element={<PrivacyPage />} />
         <Route path="/terms/:section?" element={<PrivacyPage />} />
@@ -201,7 +218,7 @@ export default function AppRoutes() {
       />
 
       {/* /hiring on its own is the product's marketing surface. */}
-      <Route path="/hiring" element={<Navigate to="/products/hiring" replace />} />
+      <Route path="/hiring" element={<Navigate to={PRODUCTS.hiring} replace />} />
 
       {/* Unknown paths land on the parent brand, never on a product. */}
       <Route path="*" element={<Navigate to="/" replace />} />

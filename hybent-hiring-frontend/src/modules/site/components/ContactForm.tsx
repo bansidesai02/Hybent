@@ -8,6 +8,7 @@ import { contactApi, type ContactMessage, type ContactTopic } from '@/api/contac
 import { readAttribution } from '../attribution'
 import { CountryPicker } from './CountryPicker'
 import { SiteSelect, type SiteSelectOption } from './SiteSelect'
+import { SHOW_SERVICES } from '@/app/paths'
 
 /**
  * The contact form. Sends the message to the Hybent team (info@hybent.com)
@@ -42,10 +43,11 @@ type Values = {
 type FieldName = Exclude<keyof Values, 'website'>
 type Errors = Partial<Record<FieldName, string>>
 
-const TOPICS: Array<SiteSelectOption<ContactTopic>> = [
+const ALL_TOPICS: Array<SiteSelectOption<ContactTopic>> = [
   { value: 'hiring', label: 'Hybent Hiring', hint: 'Our AI recruitment platform: a demo, pricing or access' },
   { value: 'services', label: 'IT Services', hint: 'Custom software, AI, cloud, data, consulting or hiring engineers' },
 ]
+const TOPICS = ALL_TOPICS.filter((t) => SHOW_SERVICES || t.value !== 'services')
 const isTopic = (v: string | null): v is ContactTopic => TOPICS.some((t) => t.value === v)
 
 // Same bands as the /register access request.
@@ -97,7 +99,7 @@ function guessCountry(): Country {
 function initialValues(params: URLSearchParams): Values {
   const asked = params.get('topic')
   const context = linkContext(params)
-  const topic: Values['topic'] = isTopic(asked) ? asked : context.service || context.industry ? 'services' : ''
+  const topic: Values['topic'] = isTopic(asked) ? asked : SHOW_SERVICES && (context.service || context.industry) ? 'services' : ''
   return {
     topic, name: '', email: '', message: '', phone: '', company: '', location: '', referrer: '',
     team_size: '', hires_per_year: '', website: '',

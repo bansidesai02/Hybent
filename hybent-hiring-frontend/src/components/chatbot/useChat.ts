@@ -1,18 +1,19 @@
 import { useState, useCallback, useRef } from 'react'
 import type { ChatMessageItem } from './types'
 import { assistantApi, type AssistantTurn } from '../../api/assistant'
+import { SHOW_SERVICES } from '@/app/paths'
 
 const INITIAL_WELCOME_MESSAGE: ChatMessageItem = {
   id: 'welcome-1',
   sender: 'ai',
   text: `👋 Welcome to Hybent!
 
-I am **Hybent AI**. Ask me anything about Hybent Hiring, our pricing, custom software services, or how to get in touch.`,
+I am **Hybent AI**. Ask me anything about Hybent Hiring, our pricing${SHOW_SERVICES ? ', custom software services' : ''}, or how to get in touch.`,
   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   followups: [
     'What is Hybent Hiring?',
     'How much does it cost?',
-    'Can you build custom software for us?',
+    SHOW_SERVICES ? 'Can you build custom software for us?' : 'How does the AI screening work?',
     'How do I book a demo?',
   ],
 }
