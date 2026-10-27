@@ -1,6 +1,6 @@
 # HYBENT
 
-> HYBENT (hybent.com) is an AI-powered software company from Ahmedabad, India. It builds intelligent software products that simplify business operations using AI, and delivers custom software and IT services. Its first product, Hybent Hiring, is an AI recruitment platform that is live in production today.
+> HYBENT (hybent.com) is an AI-powered software company from Ahmedabad, India. It builds intelligent software products that simplify business operations using AI. Its first product, Hybent Hiring, is an AI recruitment platform that is live in production today.
 
 HYBENT is written in capitals in copy; "Hybent" is the same company.
 
@@ -15,17 +15,19 @@ HYBENT is written in capitals in copy; "Hybent" is the same company.
 
 ### Pricing
 
-- Every plan includes 1 admin seat and 10,000 AI credits a month, billed monthly. Recruiter seats are added separately.
-- Standard: $29 (₹2,799) per month. No Recruiter Copilot.
-- Pro: $39 (₹3,799) per month. Everything in Standard plus the Recruiter Copilot.
+- Every plan includes 1 admin seat, billed monthly. Recruiter seats are added separately; interviewers don't need a seat.
+- Standard: $29 (₹2,799) per month, 5,000 AI credits a month. No Recruiter Copilot.
+- Pro: $39 (₹3,799) per month, 10,000 AI credits a month. Everything in Standard plus the Recruiter Copilot.
 - Each plan has one admin seat. Extra recruiter seats: $10 (₹999) per month, +1,000 AI credits each.
 - Custom: additional seats and custom terms through the sales team.
 
-## Services
+## Use cases
 
-- Custom software engineering: web, mobile and AI software, with a first release typically in 4–8 weeks.
-- Enterprise IT services, cloud architecture and AI integration.
-- Hire Talent: dedicated, pre-vetted software developers, AI engineers and tech leads.
+- High-volume hiring: AI screening, bulk import (CSV/Excel), public apply links, automated scheduling.
+- Tech and engineering hiring: Interviewer's Portal with prep kits and scorecards.
+- Startups and small teams: one admin seat runs the pipeline; Pro adds the Recruiter's Copilot.
+- Hiring from email and referrals: an email with several resumes attached becomes one candidate per resume.
+- Candidate experience: a Candidate's Portal for applications, interviews, offers and prep.
 
 ## Company
 
@@ -37,10 +39,9 @@ HYBENT is written in capitals in copy; "Hybent" is the same company.
 ## Key pages
 
 - [Home](https://hybent.com/): what HYBENT builds
-- [Hybent Hiring](https://hybent.com/products/hiring): the AI recruitment platform
+- [Hybent Hiring](https://hybent.com/hybent-hiring): the AI recruitment platform
+- [Use Cases](https://hybent.com/use-cases): how teams hire with Hybent Hiring
 - [Pricing](https://hybent.com/pricing): Hybent Hiring plans
-- [Services](https://hybent.com/services): custom software and IT services
-- [Hire Talent](https://hybent.com/hire-talent): dedicated engineers
 - [Security](https://hybent.com/security): security and compliance
 - [About](https://hybent.com/about): company, team and story
 - [FAQ](https://hybent.com/faq): common questions

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { SiteView } from '../components/SiteView'
+import { SHOW_SERVICES } from '@/app/paths'
 
 /* ─── sticky-stacking helper ─────────────────────────────────── */
 // All cards share the same top so each new card fully covers the previous one.
@@ -138,7 +139,9 @@ export default function PrivacyPage() {
             Hybent Privacy &amp; Terms Policy
           </h1>
           <p className="hero__sub" data-rv="up" data-delay="160" style={{ maxWidth: '680px' }}>
-            Transparent, enterprise-grade protection for your data across all Hybent products, custom software, and IT services.
+            {SHOW_SERVICES
+              ? 'Transparent, enterprise-grade protection for your data across all Hybent products, custom software, and IT services.'
+              : 'Transparent, enterprise-grade protection for your data across all Hybent products.'}
           </p>
 
           <div
@@ -162,7 +165,7 @@ export default function PrivacyPage() {
             <span style={{ opacity: 0.3 }}>|</span>
             <span><strong>Effective Date:</strong> August 1, 2026</span>
             <span style={{ opacity: 0.3 }}>|</span>
-            <span><strong>Scope:</strong> Products, Website &amp; IT Services</span>
+            <span><strong>Scope:</strong> {SHOW_SERVICES ? 'Products, Website & IT Services' : 'Products & Website'}</span>
           </div>
         </div>
       </section>
@@ -243,7 +246,11 @@ export default function PrivacyPage() {
                   At <strong>Hybent</strong> ("we", "us", or "our"), privacy is a foundational design principle, not an afterthought. We are committed to safeguarding the personal information of everyone who interacts with our digital ecosystem — including our website visitors, enterprise software users, recruitment candidates, and IT service clients.
                 </p>
                 <p style={{ color: 'var(--text, #374151)', lineHeight: 1.7, marginBottom: '16px' }}>
-                  Hybent is an AI-powered software products and IT services company headquartered in Ahmedabad, Gujarat, India. Our portfolio includes our flagship AI recruitment platform, <strong>Hybent Hiring</strong>, as well as enterprise IT Services, Custom Software Development, Hire Talent solutions, and Web &amp; Mobile App Development.
+                  {SHOW_SERVICES ? (
+                    <>Hybent is an AI-powered software products and IT services company headquartered in Ahmedabad, Gujarat, India. Our portfolio includes our flagship AI recruitment platform, <strong>Hybent Hiring</strong>, as well as enterprise IT Services, Custom Software Development, Hire Talent solutions, and Web &amp; Mobile App Development.</>
+                  ) : (
+                    <>Hybent is an AI-powered software products company headquartered in Ahmedabad, Gujarat, India. Our flagship product is the AI recruitment platform <strong>Hybent Hiring</strong>.</>
+                  )}
                 </p>
                 <p style={{ color: 'var(--text, #374151)', lineHeight: 1.7 }}>
                   This Privacy Policy outlines how we collect, use, disclose, and protect personal data across our official website (<a href="https://www.hybent.com" style={{ color: '#4C6FFF', textDecoration: 'underline' }}>www.hybent.com</a>), software platforms, APIs, client engagements, and related technical services. By using our website or engaging with Hybent products and services, you acknowledge the terms described in this policy.
@@ -337,7 +344,7 @@ export default function PrivacyPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
                   {[
                     { title: 'Inquiries & Demo Requests', desc: 'Responding to contact submissions, answering technical queries, and setting up Hybent product demonstrations.' },
-                    { title: 'Product & Service Delivery', desc: 'Operating Hybent Hiring, delivering IT services, custom software engineering, and managing client contracts.' },
+                    { title: 'Product & Service Delivery', desc: SHOW_SERVICES ? 'Operating Hybent Hiring, delivering IT services, custom software engineering, and managing client contracts.' : 'Operating Hybent Hiring and managing client contracts.' },
                     { title: 'Platform Optimization', desc: 'Analyzing website metrics to improve site navigation, optimize page load speeds, and refine UI experience.' },
                     { title: 'Customer Care & Support', desc: 'Providing timely technical assistance, diagnosing platform issues, and managing account preferences.' },
                     { title: 'Security & Integrity', desc: 'Monitoring infrastructure health, preventing fraudulent activity, and ensuring system compliance.' },

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
-import { SHOW_CUSTOMERS, SHOW_SOLUTIONS } from '@/app/paths'
+import { PRODUCTS, SHOW_CUSTOMERS, SHOW_SERVICES, SHOW_SOLUTIONS, SITE } from '@/app/paths'
 
 /* Only accounts that exist get an icon: an empty url hides it, and with no
    urls at all the whole row is left out rather than linking back home. */
@@ -115,20 +115,22 @@ export function GlobalFooter() {
               </div>
             )}
           </div>
-          <div><h5>Products</h5><ul>
-            <li><a href="/products/hiring">Hybent Hiring</a></li>
+          <div><h5>Product</h5><ul>
+            <li><a href={PRODUCTS.hiring}>Hybent Hiring</a></li>
+            <li><a href={SITE.useCases}>Use Cases</a></li>
+            <li><a href="/pricing">Pricing</a></li>
           </ul></div>
           {SHOW_SOLUTIONS && <div><h5>Solutions</h5><ul>
-            <li><a href="/services">Services</a></li>
+            {SHOW_SERVICES && <li><a href="/services">Services</a></li>}
             <li><a href="/industries">Industries</a></li>
             <li><a href="/hire-talent">Hire Talent</a></li>
           </ul></div>}
           <div><h5>Company</h5><ul>
-            <li><a href="/about">About</a></li><li><a href="/about/story">Our story</a></li><li><a href="/careers">Careers</a></li>
-            <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
-          <div><h5>More</h5><ul>
-            <li><a href="/security">Security</a></li><li><a href="/platform/ecosystem">Platform</a></li>
-            {SHOW_CUSTOMERS && <li><a href="/customers">Customers</a></li>}<li><a href="/pricing">Pricing</a></li><li><a href="/contact">Contact sales</a></li></ul></div>
+            <li><a href="/about">About</a></li><li><a href="/security">Security</a></li>
+            <li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li>
+            {SHOW_CUSTOMERS && <li><a href="/customers">Customers</a></li>}</ul></div>
+          <div><h5>Legal</h5><ul>
+            <li><a href="/privacy">Privacy &amp; Terms</a></li><li><a href="/cookies">Cookies</a></li></ul></div>
         </div>
 
         <p className="footer__tag" ref={tagRef}>

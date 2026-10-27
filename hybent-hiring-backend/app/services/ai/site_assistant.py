@@ -11,7 +11,12 @@ from collections import defaultdict, deque
 
 from app.services.ai.copilot_service import _generate_text_with_fallback
 
-SITE_KNOWLEDGE = """
+# IT Services are hidden from the website until 2027 (SHOW_SERVICES in the
+# frontend's src/app/paths.ts). While False the assistant is not told about
+# them; flip both flags to True to bring them back. The full text stays below.
+SHOW_SERVICES = False
+
+_FULL_SITE_KNOWLEDGE = """
 # HYBENT — company
 - HYBENT builds intelligent products and delivers technology services that help businesses innovate, grow, and scale. Tagline: "Intelligent software for how you hire / grow / scale / work / innovate."
 - Two ways to work with HYBENT: (1) Products — led by Hybent Hiring, our flagship AI recruitment platform, live in production today; (2) IT Services — custom web, mobile and AI software designed, built, tested and maintained by one team, plus dedicated pre-vetted engineers (staff augmentation).
@@ -21,7 +26,7 @@ SITE_KNOWLEDGE = """
 - Values: honest timelines (quote realistically, ship when promised, no surprise invoices); AI with accountability (explainable, auditable, you stay in control); partners, not vendors.
 - Why HYBENT: fast to adopt (guided import, sensible defaults, ready-made rubrics by role type); AI-first, not AI-added; your data is portable (full export in open formats any time); access to the builders (you talk to the people writing the code).
 
-# Hybent Hiring — the product (page: /products, /products/hiring)
+# Hybent Hiring — the product (pages: /hybent-hiring, /use-cases)
 AI-powered recruitment platform holding the whole hiring pipeline in one place:
 - Resume parsing & talent database: every CV (PDF & DOCX) parsed in ~10 seconds — skills extracted, hidden competencies inferred from context, experience years calculated, seniority detected. Stored in a searchable talent database you can hire from again.
 - AI screening & match scoring: every applicant scored against the same job rubric, with evidence attached to the score. Candidates above the threshold are auto-shortlisted, HR is notified and status emails go out automatically.
@@ -48,7 +53,7 @@ AI-powered recruitment platform holding the whole hiring pipeline in one place:
 - Service areas: Web & Mobile Engineering; Custom Enterprise Software; AI & Machine Learning Integration; Data Engineering & Pipelines; Business Intelligence & Analytics; Cloud Infrastructure & DevOps; Legacy App Modernization; Application Maintenance & Support; IT Security & Compliance; IoT & Smart Connected Solutions; Product Strategy & Scoping; Technology & Architecture Consulting; Design Systems & UI/UX Consulting; UX Optimization & Accessibility; IT Strategy & Process Optimization; IT Staff Augmentation; Performance Marketing; Digital Marketing & Growth Consulting; B2B Lead Generation; eCommerce Growth.
 - Hire Talent (page: /hire-talent): dedicated pre-vetted engineers — React, Next.js, TypeScript, Vue/Nuxt, Angular, Node.js/NestJS, Python/FastAPI/Django, Java/Spring Boot, Go, PHP/Laravel, GraphQL, DevOps & Cloud (AWS/GCP/Azure, Kubernetes, Terraform), React Native, Flutter, iOS/Swift, Android/Kotlin, mobile QA automation, Liferay, AI & ML engineers (LLMs, RAG, vector DBs), data platform engineers, designers.
 
-# Platform & technology (pages: /platform, /ai)
+# Platform & technology (page: /hybent-hiring)
 - Four layers: Products → Intelligence (screening & ranking, resume parsing, recruiter copilot, evaluation harness, natural-language reporting) → Platform services (identity & SSO, permissions, workflow engine, notifications, files & e-sign, APIs & webhooks, audit log) → Data foundation.
 - Stack: TypeScript, React, Python, FastAPI, PostgreSQL, Redis, Celery, Docker, Supabase. Documented REST APIs and webhooks; full export in open formats.
 - AI principles: grounded in your own data; assistance, not autonomy; every model change gated by accuracy/consistency tests; customer data never used to train shared models.
@@ -62,8 +67,8 @@ AI-powered recruitment platform holding the whole hiring pipeline in one place:
 - Where is data stored? We tell you exactly where and who processes it; ask about specific residency needs.
 - Leaving? Export in open formats from the admin console any time — no ticket, fee or notice period.
 
-# Careers (page: /careers)
-- No open roles right now; roles opening soon. Send your resume via the careers page and we reach out first when a role matches.
+# Careers
+- No open roles right now; roles opening soon. Send your resume to info@hybent.com and we reach out first when a role matches.
 
 # Contact & demos
 - Email: info@hybent.com (sales, support, partnerships, security). Reply within one business day.
@@ -71,11 +76,42 @@ AI-powered recruitment platform holding the whole hiring pipeline in one place:
 - Log in: /login.
 """
 
-SYSTEM_PROMPT = f"""You are **Hybent AI**, the assistant on the hybent.com website. You talk to visitors: potential customers, recruiters, businesses wanting software built, and job seekers.
+
+def _without_services(text: str) -> str:
+    """The knowledge with every IT Services / Hire Talent part taken out."""
+    text = text.replace(
+        "HYBENT builds intelligent products and delivers technology services that help businesses",
+        "HYBENT builds intelligent products that help businesses",
+    )
+    text = text.replace(
+        "- Two ways to work with HYBENT: (1) Products — led by Hybent Hiring, our flagship AI recruitment platform, live in production today; (2) IT Services — custom web, mobile and AI software designed, built, tested and maintained by one team, plus dedicated pre-vetted engineers (staff augmentation).",
+        "- HYBENT's product is Hybent Hiring, our flagship AI recruitment platform, live in production today. HYBENT does not currently offer IT services or custom software projects.",
+    )
+    text = text.replace(
+        "- IT services / custom software projects have NO fixed price list: they are quoted per project after understanding scope. Do not invent a budget figure.\n",
+        "",
+    )
+    start = text.index("# IT Services (page: /services)")
+    end = text.index("# Platform & technology")
+    return text[:start] + text[end:]
+
+
+SITE_KNOWLEDGE = _FULL_SITE_KNOWLEDGE if SHOW_SERVICES else _without_services(_FULL_SITE_KNOWLEDGE)
+
+_AUDIENCE = (
+    "potential customers, recruiters, businesses wanting software built, and job seekers"
+    if SHOW_SERVICES else "potential customers, recruiters and job seekers"
+)
+_CUSTOM_PRICING_RULE = (
+    " For custom software projects, explain they are quoted per project and suggest contacting the team."
+    if SHOW_SERVICES else ""
+)
+
+SYSTEM_PROMPT = f"""You are **Hybent AI**, the assistant on the hybent.com website. You talk to visitors: {_AUDIENCE}.
 
 ## Rules
 - Answer ONLY from the KNOWLEDGE below. If something isn't covered, say you don't have that detail and point them to info@hybent.com or /contact. Never invent prices, budgets, timelines, clients, case studies, discounts, links or features.
-- "Pricing / price / cost / kitna" with no other context means Hybent Hiring pricing — give the actual plans (Standard $29 / ₹2,799, Pro $39 / ₹3,799 per month). For custom software projects, explain they are quoted per project and suggest contacting the team.
+- "Pricing / price / cost / kitna" with no other context means Hybent Hiring pricing — give the actual plans (Standard $29 / ₹2,799, Pro $39 / ₹3,799 per month).{_CUSTOM_PRICING_RULE}
 - Reply in the visitor's language style: English if they write English, Hinglish if they write Hinglish/Hindi. Hinglish means Hindi words written in the Latin alphabet (e.g. "saare plans mein 1 admin seat shaamil hai"). NEVER output Devanagari script (हिंदी अक्षर) anywhere — not in the reply, not in suggestions. Use $ prices only, no ₹ conversions.
 - Answer first, directly, on the first line. Keep it short: 2–6 lines or a short bullet list. Bold the key fact. Use Markdown.
 - When useful, mention the relevant page as a Markdown link, e.g. [Pricing](/pricing), [Contact](/contact).

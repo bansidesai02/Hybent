@@ -1,4 +1,5 @@
 import { SiteView } from '../components/SiteView'
+import { SHOW_SERVICES } from '@/app/paths'
 
 const FACTS = [
   { label: 'Live product', value: 'Hybent Hiring', live: true },
@@ -55,7 +56,11 @@ export default function AboutPage() {
           <div>
             <p className="eyebrow" data-rv="up"><Bars /><span>About HYBENT</span></p>
             <h1 className="ab-hero__title" data-rv="up" data-delay="80"><span className="grad-text">AI-powered software,</span> built for businesses that need results.</h1>
-            <p className="hero__sub" data-rv="up" data-delay="160">We build custom software and AI products — including Hybent Hiring — that remove work instead of adding another dashboard. For teams in India and worldwide.</p>
+            {SHOW_SERVICES ? (
+              <p className="hero__sub" data-rv="up" data-delay="160">We build custom software and AI products — including Hybent Hiring — that remove work instead of adding another dashboard. For teams in India and worldwide.</p>
+            ) : (
+              <p className="hero__sub" data-rv="up" data-delay="160">We build AI products — starting with Hybent Hiring — that remove work instead of adding another dashboard. For teams in India and worldwide.</p>
+            )}
             <div className="hero__actions" data-rv="up" data-delay="240">
               <a className="btn btn-primary btn-lg" href="/contact">Talk to us <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               <a className="link-arrow" href="/about/team" style={{ alignSelf: "center", marginLeft: "8px" }}>Meet the founders <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
@@ -97,7 +102,7 @@ export default function AboutPage() {
         <div className="wrap">
           <div className="ab-head" data-rv="up">
             <p className="eyebrow"><Bars /><span>What we do</span></p>
-            <h2 className="h-lg">Two ways we work with you</h2>
+            <h2 className="h-lg">{SHOW_SERVICES ? 'Two ways we work with you' : 'What we build'}</h2>
           </div>
           <div className="ab-offer">
             <article className="ab-card ab-offer__card" data-rv="up">
@@ -106,19 +111,21 @@ export default function AboutPage() {
               <p className="ab-offer__text">Resume parsing, AI-powered screening, interview management, and a recruiter copilot — so your team shortlists in minutes, not days.</p>
               <ul className="ab-chips"><li>Resume parsing</li><li>AI screening</li><li>Interview management</li><li>Recruiter copilot</li></ul>
               <div className="ab-offer__links">
-                <a className="link-arrow" href="/products/hiring">Explore Hybent Hiring <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a className="link-arrow" href="/hybent-hiring">Explore Hybent Hiring <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               </div>
             </article>
+            {SHOW_SERVICES && (
             <article className="ab-card ab-offer__card" data-rv="up" data-delay="100">
               <div className="ab-offer__top"><span className="mono">02 · IT Services</span></div>
               <h3 className="h-md">Custom software, built end to end</h3>
               <p className="ab-offer__text">Web, mobile and AI software designed, built, tested and maintained by one team. First working release in 4–8 weeks. Dedicated pre-vetted engineers available when you need extra hands.</p>
               <ul className="ab-chips"><li>Web apps</li><li>Mobile apps</li><li>AI software</li><li>Testing &amp; QA</li><li>Maintenance</li></ul>
               <div className="ab-offer__links">
-                <a className="link-arrow" href="/services">Start a project <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                {SHOW_SERVICES && <a className="link-arrow" href="/services">Start a project <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>}
                 <a className="link-arrow" href="/hire-talent">Hire engineers <svg width="15" height="15" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               </div>
             </article>
+            )}
           </div>
         </div>
       </section>

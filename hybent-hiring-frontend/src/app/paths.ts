@@ -4,7 +4,7 @@
  * The tree is deliberately shallow and brand-first:
  *
  *   /                     Hybent — the company site (parent brand)
- *   /products/hiring      Hybent Hiring — a product inside the company site
+ *   /hybent-hiring        Hybent Hiring — a product inside the company site
  *   /login                Authentication, reached only from inside a product
  *   /hiring/<workspace>   The authenticated Hybent Hiring workspaces
  *
@@ -18,6 +18,7 @@ export const SITE = {
   platform: '/platform',
   ai: '/ai',
   solutions: '/solutions',
+  useCases: '/use-cases',
   services: '/services',
   industries: '/industries',
   hireTalent: '/hire-talent',
@@ -38,6 +39,44 @@ export const SITE = {
 export const SHOW_CUSTOMERS = false
 // Solutions (services, industries, hire talent) hidden from nav/footer while we focus on Hybent Hiring.
 export const SHOW_SOLUTIONS = false
+/**
+ * Services are held back until 2027. While false, /services and every
+ * /services/:slug page redirect home, the in-page buttons that link there are
+ * hidden, and the pages are left out of the sitemap and prerender. Flip to
+ * true to restore.
+ */
+export const SHOW_SERVICES = false
+
+/**
+ * Products overview, Platform, AI capabilities and Careers are held back while
+ * the site follows the marketing link tree (Hybent Hiring, Use Cases, Pricing,
+ * Company, Legal). Their pages stay in the codebase; while false their URLs
+ * 301 to the closest live page and they leave the sitemap. Flip to true to restore.
+ */
+export const SHOW_EXTRA_PAGES = false
+
+/**
+ * Old public URLs and where they now live. Each is answered with a 301 by the
+ * server (.htaccess, written by vite-plugins/seoPages.ts) and redirected by the
+ * router, so search engines carry the old page's standing over. None of them is
+ * in the sitemap. A path also covers its sub-paths (/services/x); longer paths
+ * come first because the first match wins.
+ */
+export const RETIRED_PAGES: Record<string, string> = {
+  '/products/hiring': '/hybent-hiring',
+  '/solutions': '/use-cases',
+  ...(SHOW_EXTRA_PAGES
+    ? {}
+    : { '/products': '/hybent-hiring', '/platform': '/hybent-hiring', '/ai': '/hybent-hiring', '/careers': '/' }),
+  ...(SHOW_SERVICES ? {} : { '/services': '/', '/industries': '/', '/hire-talent': '/' }),
+  ...(SHOW_CUSTOMERS ? {} : { '/customers': '/' }),
+}
+
+/** Where a retired path now lives, or null if the path is live. */
+export function retiredTarget(path: string): string | null {
+  const match = Object.keys(RETIRED_PAGES).find((old) => path === old || path.startsWith(`${old}/`))
+  return match ? RETIRED_PAGES[match] : null
+}
 
 /**
  * No specific roles are open at launch. While false, /careers shows a
@@ -48,7 +87,7 @@ export const CAREERS_OPEN = false
 
 /** Marketing surface for each product that lives inside the Hybent site. */
 export const PRODUCTS = {
-  hiring: '/products/hiring',
+  hiring: '/hybent-hiring',
 } as const
 
 export const AUTH = {
