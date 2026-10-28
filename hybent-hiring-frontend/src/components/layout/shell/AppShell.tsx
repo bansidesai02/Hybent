@@ -11,6 +11,7 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { useThemeStore } from '@/store/themeStore'
 import { SkeletonStats, Skeleton } from '@/components/hb'
 import { ImpersonationBanner } from '@/components/common/ImpersonationBanner'
+import { TrialBanner } from '@/modules/billing/components/TrialBanner'
 import { HbSidebar } from './HbSidebar'
 import { HbTopbar } from './HbTopbar'
 import { HbBottomNav } from './HbBottomNav'
@@ -232,6 +233,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
           any fill here hides them. The panel is just its border and radius. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden lg:rounded-hb-md lg:border lg:border-hb-border">
         <ImpersonationBanner />
+        <TrialBanner />
         <HbTopbar
           onToggleMenu={() => setDrawerOpen((o) => !o)}
           mobileTitle={pageTitle}

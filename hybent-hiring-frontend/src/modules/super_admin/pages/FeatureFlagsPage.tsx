@@ -32,6 +32,7 @@ const FLAGS = [
   { key: 'bulk', title: 'Bulk Excel import', short: 'Bulk import', desc: 'Uploading candidate rosters as a sheet.' },
   { key: 'analytics', title: 'Report export', short: 'Export', desc: 'Downloading Excel/CSV reports.' },
   { key: 'copilot', title: 'Hybent Copilot', short: 'Copilot', desc: 'The AI recruiting assistant: its page and the floating widget.' },
+  { key: 'usage_logs', title: 'AI usage history', short: 'Usage logs', desc: 'The consumption history log (model, tokens, credits per call) on the AI Credits page.' },
   { key: 'ai_calls', title: 'AI Calls (Hybent AI Agent)', short: 'AI Calls', desc: 'Phone pre-screens, availability checks and interview reminders by the AI Agent. Needs the voice engine configured.' },
 ]
 /* AI Calls is off unless switched on per client, so it has no global default. */

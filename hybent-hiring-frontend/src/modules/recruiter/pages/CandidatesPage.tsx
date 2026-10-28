@@ -424,7 +424,7 @@ export default function CandidatesPage() {
         <CellStack
           leading={<Avatar name={c.full_name} src={c.avatar_url} size="md" />}
           primary={c.full_name}
-          secondary={`${c.email} • Added by ${c.created_by_name || 'Admin'}`}
+          secondary={`${c.email} • Added by ${c.created_by_name || '—'}`}
         />
       ),
     },

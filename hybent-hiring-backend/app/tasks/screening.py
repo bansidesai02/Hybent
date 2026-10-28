@@ -16,9 +16,13 @@ async def _screen_async(candidate_id: str, organization_id: str):
     # connection pool is opened once per worker process and kept.
     from app.core.database import AsyncSessionLocal
     from app.services.feature_flags import is_enabled
+    from app.services.trial_service import org_is_usable
 
     # The super admin's "AI scoring" switch for this client.
     async with AsyncSessionLocal() as db:
+        if not await org_is_usable(db, organization_id):
+            logger.info("Free trial of organization %s has ended; candidate %s not screened", organization_id, candidate_id)
+            return None
         if not await is_enabled(db, organization_id, "ai"):
             logger.info("AI scoring is off for organization %s; candidate %s not screened", organization_id, candidate_id)
             return None

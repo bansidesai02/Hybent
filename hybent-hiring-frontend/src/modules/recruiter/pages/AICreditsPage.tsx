@@ -8,6 +8,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'rec
 import { aiApi } from '@/api/ai'
 import { billingApi, redirectToCheckout } from '@/api/billing'
 import { useAuthStore } from '@/store/authStore'
+import { useFeatures } from '@/hooks/useFeatures'
 import {
   Button,
   Card,
@@ -103,6 +104,7 @@ export default function AICreditsPage() {
   const isAdmin = user?.role === 'admin'
 
   const [balance, setBalance] = useState<any>(null)
+  const features = useFeatures()
   const [history, setHistory] = useState<any[]>([])
   const [usageByFeature, setUsageByFeature] = useState<any>({})
   const [usageOverTime, setUsageOverTime] = useState<any[]>([])
@@ -726,6 +728,8 @@ export default function AICreditsPage() {
           </section>
         )}
 
+        {/* A super admin can hide the usage log (Feature flags → AI usage history). */}
+        {features?.usage_logs !== false && (
         <section aria-labelledby="credits-history-heading">
           <div className="mb-hb-4 flex flex-wrap items-center gap-3">
             <IconTile size="sm">
@@ -800,6 +804,7 @@ export default function AICreditsPage() {
             noun="logs"
           />
         </section>
+        )}
       </div>
 
       <Dialog

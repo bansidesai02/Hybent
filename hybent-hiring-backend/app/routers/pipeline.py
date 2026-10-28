@@ -13,6 +13,8 @@ from app.schemas.application import StageUpdate
 from app.utils.permissions import ApplicationStage
 from app.schemas.response import APIResponse
 
+from sqlalchemy.orm import selectinload
+from app.utils.candidate_labels import added_by_label
 router = APIRouter(prefix="/v1/pipeline", tags=["pipeline"])
 
 
@@ -40,7 +42,9 @@ async def get_pipeline(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
 
     candidate_ids = {app.candidate_id for app in applications}
     candidates = {
-        c.id: c for c in (await db.execute(select(Candidate).where(Candidate.id.in_(candidate_ids)))).scalars()
+        c.id: c for c in (await db.execute(
+            select(Candidate).where(Candidate.id.in_(candidate_ids)).options(selectinload(Candidate.created_by))
+        )).scalars()
     } if candidate_ids else {}
 
     for app in applications:
@@ -57,6 +61,7 @@ async def get_pipeline(job_id: uuid.UUID, current_user: CurrentUser, db: DB):
             "recruiter_notes": app.recruiter_notes,
             "skills": cand.skills[:5] if cand else [],
             "current_title": cand.current_title if cand else None,
+            "created_by_name": added_by_label(cand) if cand else None,
         })
 
     return APIResponse.success(message="Pipeline retrieved successfully.", data={

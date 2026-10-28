@@ -29,6 +29,8 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # When the user last had Hybent open (live connection opened or closed); chat presence.
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

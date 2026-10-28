@@ -10,6 +10,8 @@ export interface OrgFeatures {
   analytics: boolean
   copilot: boolean
   ai_calls: boolean
+  /** The consumption history log on the AI Credits page. */
+  usage_logs?: boolean
 }
 
 /**

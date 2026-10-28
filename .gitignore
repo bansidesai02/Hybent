@@ -16,3 +16,9 @@ vite.config.ts.timestamp-*.mjs
 # Marketing assets parked out of the way (images, video, generated slides) —
 # too large for git, and portfolio-clips holds an auth.json.
 archive/marketing/
+
+# TypeScript incremental build cache — regenerated on every build.
+*.tsbuildinfo
+
+# Local env backups — may hold secrets.
+.env*.bak*

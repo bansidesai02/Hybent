@@ -14,6 +14,7 @@ import uuid
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest")
@@ -44,7 +45,12 @@ async def _create_schema():
     """Only pulled in by db_session (and its dependents) — pure unit tests
     elsewhere in tests/ never touch Postgres."""
     async with test_engine.begin() as conn:
+        # Trial tables live in their own schema (alembic 062); before that,
+        # trial_requests was in public.
+        await conn.execute(text("DROP SCHEMA IF EXISTS trial CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS public.trial_requests CASCADE"))
         await conn.run_sync(Base.metadata.drop_all)
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS trial"))
         await conn.run_sync(Base.metadata.create_all)
     yield
     await test_engine.dispose()

@@ -5,7 +5,8 @@ import { AUTH, SITE } from '@/app/paths'
 /**
  * Pricing for Hybent Hiring.
  *
- * Two monthly plans with the same seat bundle (1 admin seat, recruiters added
+ * Two monthly plans, each with a 7-day free trial (request-based). Standard has
+ * 1 admin seat; Pro adds 1 recruiter seat (more recruiters added
  * at $10 / ₹999 each): Standard with 5,000 AI credits, and Pro with 10,000
  * credits and the Recruiter Copilot.
  * Custom seats and terms go through sales. Prices are shown in USD or INR;
@@ -22,6 +23,8 @@ type Plan = {
   featured?: boolean
   includes: string[]
   cta: { label: string; href: string }
+  /** Start a 7-day trial of this plan (request-based, see /free-trial). */
+  trial?: string
 }
 
 const STANDARD_INCLUDED = [
@@ -41,7 +44,8 @@ const PLANS: Plan[] = [
     price: { USD: '$29', INR: '₹2,799' },
     billed: 'Billed monthly',
     includes: STANDARD_INCLUDED,
-    cta: { label: 'Get started', href: `${AUTH.register}?plan=standard` },
+    cta: { label: 'Buy now', href: `${AUTH.register}?plan=standard` },
+    trial: `${SITE.freeTrial}?plan=standard`,
   },
   {
     id: 'pro',
@@ -49,8 +53,9 @@ const PLANS: Plan[] = [
     price: { USD: '$39', INR: '₹3,799' },
     billed: 'Billed monthly',
     featured: true,
-    includes: ['Everything in Standard', 'Recruiter Copilot', '10,000 AI credits a month', ...STANDARD_INCLUDED.slice(0, 2)],
-    cta: { label: 'Get started', href: `${AUTH.register}?plan=pro` },
+    includes: ['Everything in Standard', 'Recruiter Copilot', '10,000 AI credits a month', '1 admin + 1 recruiter seat', 'Add more recruiters as you grow'],
+    cta: { label: 'Buy now', href: `${AUTH.register}?plan=pro` },
+    trial: `${SITE.freeTrial}?plan=pro`,
   },
   {
     id: 'custom',
@@ -70,7 +75,7 @@ const PLANS: Plan[] = [
 const PRICING_FAQ = [
   {
     q: 'What is the difference between Standard and Pro?',
-    a: 'Both plans include the Hybent Hiring platform with 1 admin seat: AI resume parsing and screening, match scoring, pipeline and interview scheduling, and hiring analytics. Standard includes 5,000 AI credits a month. Pro doubles that to 10,000 and adds the Recruiter Copilot, the AI assistant you can ask about candidates, roles and your pipeline in plain language.',
+    a: 'Both plans include the Hybent Hiring platform with 1 admin seat: AI resume parsing and screening, match scoring, pipeline and interview scheduling, and hiring analytics. Standard includes 5,000 AI credits a month. Pro doubles that to 10,000, includes 1 recruiter seat and adds the Recruiter Copilot, the AI assistant you can ask about candidates, roles and your pipeline in plain language.',
   },
   {
     q: 'What are AI credits?',
@@ -78,7 +83,11 @@ const PRICING_FAQ = [
   },
   {
     q: 'How do additional seats work?',
-    a: 'Every plan has one admin seat. Need more recruiters? An extra recruiter seat is ₹999 ($10) a month and adds 1,000 AI credits to your monthly pool. Your admin can add seats from the Billing page, or contact us. Interviewers don’t need a seat.',
+    a: 'Every plan has one admin seat, and Pro also includes one recruiter seat. Need more recruiters? An extra recruiter seat is ₹999 ($10) a month and adds 1,000 AI credits to your monthly pool. Your admin can add seats from the Billing page, or contact us. Interviewers don’t need a seat.',
+  },
+  {
+    q: 'Is there a free trial?',
+    a: 'Yes. Verified companies can try Standard or Pro free for 7 days, with that plan’s features and seats. Request it with your work email; we approve requests within one business day and the 7 days start then. When the trial ends, upgrade to Standard or Pro to keep everything. Your admin can export your data at any time, and an unconverted trial workspace is deleted 30 days after it ends.',
   },
   {
     q: 'Can I switch plans later?',
@@ -102,7 +111,7 @@ export default function PricingPage() {
         <div className="wrap center">
           <p className="eyebrow" data-rv="up" style={{ justifyContent: 'center' }}><span className="bars"><i></i><i></i><i></i></span><span>Pricing</span></p>
           <h1 style={{ fontSize: 'clamp(2.35rem,4.6vw,3.6rem)', marginTop: '14px' }} data-rv="up" data-delay="80">Simple pricing for <span className="grad-text">Hybent Hiring</span></h1>
-          <p className="hero__sub" data-rv="up" data-delay="160" style={{ marginInline: 'auto', textAlign: 'center' }}>Every plan includes 1 admin seat. Add recruiters as you need them, and choose Pro for the Recruiter Copilot.</p>
+          <p className="hero__sub" data-rv="up" data-delay="160" style={{ marginInline: 'auto', textAlign: 'center' }}>Try Standard or Pro free for 7 days. Every plan includes 1 admin seat; Pro adds a recruiter seat and the Recruiter Copilot.</p>
         </div>
       </section>
 
@@ -134,9 +143,18 @@ export default function PricingPage() {
                 </p>
                 <p className="price-card__billed">{plan.billed}</p>
 
-                <a className="btn btn-ghost price-card__cta" href={plan.cta.href}>
-                  {plan.cta.label}
-                </a>
+                {plan.trial ? (
+                  <>
+                    <p className="price-card__trial"><Check />7-day free trial · No card required</p>
+                    <a className="btn btn-primary price-card__cta price-card__cta--trial" href={plan.trial}>
+                      Start free trial
+                    </a>
+                  </>
+                ) : (
+                  <a className="btn btn-ghost price-card__cta" href={plan.cta.href}>
+                    {plan.cta.label}
+                  </a>
+                )}
 
                 <p className="price-card__inc">Includes</p>
                 <ul className="price-card__list">
@@ -147,6 +165,10 @@ export default function PricingPage() {
               </article>
             ))}
           </div>
+
+          <p className="price-note" data-rv="up" style={{ marginTop: '18px' }}>
+            Free trials are for verified companies: request one with your work email and we confirm within one business day. One trial per company.
+          </p>
 
           <p className="price-note" data-rv="up">
             Need more recruiters? Extra recruiter seats are {currency === 'INR' ? '₹999' : '$10'}/month (+1,000 AI credits). Every plan has one admin seat &mdash;{' '}
@@ -193,7 +215,8 @@ export default function PricingPage() {
               <div>
                 <p className="mono" style={{ marginBottom: '14px' }}>Every plan includes</p>
                 <ul className="feat-list">
-                  <li><Check />1 admin seat</li>
+                  <li><Check />1 admin seat (Pro: + 1 recruiter seat)</li>
+                  <li><Check />7-day free trial on Standard and Pro</li>
                   <li><Check />5,000 AI credits a month (10,000 on Pro)</li>
                   <li><Check />Recruiter Copilot on Pro</li>
                   <li><Check />Extra recruiter seats from ₹999 ($10) a month</li>

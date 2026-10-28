@@ -22,10 +22,11 @@ ENFORCED = {
     "bulk": "Bulk candidate import",
     "analytics": "Report export",
     "copilot": "Hybent Copilot",
+    "usage_logs": "AI usage history",
 }
 # Before these were enforced every client had all four, so a client with no
 # saved setting keeps them: switching them on by default changes nothing.
-BUILT_IN_DEFAULTS = {"ai": True, "bulk": True, "analytics": True, "copilot": True}
+BUILT_IN_DEFAULTS = {"ai": True, "bulk": True, "analytics": True, "copilot": True, "usage_logs": True}
 
 
 async def _global_defaults(db: AsyncSession) -> dict:

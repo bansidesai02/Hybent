@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { lazy } from 'react'
 
 /* Phase 10: the Hybent shell is the only shell. */
+import { FeatureGate } from '@/components/auth/FeatureGate'
 const Shell = lazy(() => import('@/components/layout/shell/AppShell').then(m => ({ default: m.WorkspaceShell })))
 
 const OverviewPage = lazy(() => import('@/modules/recruiter/pages/OverviewPage'))
@@ -61,8 +62,8 @@ export default function AdminRoutes() {
         <Route path="ai-credits" element={<AICreditsPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="inbox" element={<InboxPage />} />
-        <Route path="copilot" element={<CopilotPage />} />
-        <Route path="copilot/:conversationId" element={<CopilotPage />} />
+        <Route path="copilot" element={<FeatureGate feature="copilot"><CopilotPage /></FeatureGate>} />
+        <Route path="copilot/:conversationId" element={<FeatureGate feature="copilot"><CopilotPage /></FeatureGate>} />
       </Route>
     </Routes>
   )

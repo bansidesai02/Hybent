@@ -349,9 +349,16 @@ async def _reset_expired_credits_async():
     from app.tasks.notifications import notify_organization_roles
     from sqlalchemy import select, update
 
+    from app.models.super_admin import CompanySubscription
+
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
-        query = select(OrganizationAICredits).where(OrganizationAICredits.reset_at <= now)
+        # A free trial's credits are for the whole trial; they never refill.
+        trial_orgs = select(CompanySubscription.organization_id).where(CompanySubscription.is_trial.is_(True))
+        query = select(OrganizationAICredits).where(
+            OrganizationAICredits.reset_at <= now,
+            OrganizationAICredits.organization_id.not_in(trial_orgs),
+        )
         expired_credits = (await db.execute(query)).scalars().all()
 
         for org_credits in expired_credits:

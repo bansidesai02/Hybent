@@ -11,6 +11,10 @@ from app.models.user import User
 
 BILLING_CYCLE_FOR_TERM = {1: "monthly", 6: "6_months", 12: "yearly"}
 DEFAULT_PLAN_NAME = "Standard"
+# Hidden plans a free trial runs on, by the plan it was requested for.
+TRIAL_PLANS = {"standard": "Trial Standard", "pro": "Trial Pro"}
+# Plans a trial can upgrade to by itself (Custom is agreed with sales).
+SELF_SERVE_PLANS = ("Standard", "Pro")
 PLAN_REQUEST_EMAIL = "info@hybent.com"
 
 # Extra seats bought on top of the plan's 1 admin + 2 recruiters, per role:
@@ -74,12 +78,18 @@ def plan_to_dict(plan: SubscriptionPlan, standard_price: float | None = None) ->
         "included_admins": plan.included_admins,
         "included_recruiters": plan.included_recruiters,
         "ai_credits_monthly": plan.ai_credits_monthly,
+        # Custom plans are agreed with sales and include the Copilot.
+        "copilot": plan.term_months is None or bool((plan.features or {}).get("copilot")),
     }
 
 
 async def list_plans(db: AsyncSession) -> list[SubscriptionPlan]:
+    """Plans that can be chosen or sold. The Trial plan is only given by
+    approving a trial request, so it isn't listed."""
     return list((await db.execute(
-        select(SubscriptionPlan).order_by(SubscriptionPlan.sort_order, SubscriptionPlan.name)
+        select(SubscriptionPlan)
+        .where(SubscriptionPlan.name.not_in(tuple(TRIAL_PLANS.values())))
+        .order_by(SubscriptionPlan.sort_order, SubscriptionPlan.name)
     )).scalars().all())
 
 

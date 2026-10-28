@@ -78,6 +78,8 @@ export interface PlanInfo {
   included_admins: number
   included_recruiters: number
   ai_credits_monthly: number
+  /** The plan includes the Recruiter Copilot (Pro and Custom). */
+  copilot: boolean
   subscribers?: number
 }
 
@@ -311,8 +313,13 @@ export const superAdminApi = {
   
   getClientFlags: (clientId: string) => api.get<Record<string, boolean>>(`/v1/super-admin/clients/${clientId}/flags`).then(res => res.data),
   
-  updateClientFlags: (clientId: string, flags: Record<string, boolean>) => 
-    api.put<any>(`/v1/super-admin/clients/${clientId}/flags`, flags).then(res => res.data),
+  /** `force` turns on the Copilot for a plan that doesn't include it (Standard). */
+  updateClientFlags: (clientId: string, flags: Record<string, boolean>, force = false) =>
+    api.put<any>(`/v1/super-admin/clients/${clientId}/flags`, flags, { params: force ? { force: true } : undefined }).then(res => res.data),
+
+  /** What the client's plan includes: the Copilot is Pro-only unless forced. */
+  getClientPlanFeatures: (clientId: string) =>
+    api.get<{ plan_name: string | null; copilot_in_plan: boolean }>(`/v1/super-admin/clients/${clientId}/plan-features`).then(res => res.data),
   
   getGlobalFlags: () => api.get<Record<string, boolean>>('/v1/super-admin/flags').then(res => res.data),
   
@@ -373,4 +380,86 @@ export const superAdminApi = {
   getImpersonations: (params?: { status?: 'all' | 'active' | 'ended'; organization_id?: string; limit?: number; offset?: number }) =>
     api.get<{ sessions: SupportSessionRow[]; total: number; minutes: number }>('/v1/super-admin/impersonations', { params })
       .then(res => res.data),
+}
+
+// ── Free trial requests (/v1/super-admin/trials) ─────────────────────────────
+
+export type TrialRequestStatus = 'pending' | 'rejected' | 'active' | 'expired' | 'converted' | 'purged'
+
+export interface TrialRequest {
+  id: string
+  company_name: string
+  company_website: string
+  company_domain: string
+  company_linkedin_url: string
+  company_size: string
+  industry: string
+  country: string
+  hires_per_year: string | null
+  contact_name: string
+  contact_title: string
+  contact_email: string
+  contact_phone: string
+  contact_linkedin_url: string
+  hiring_needs: string | null
+  plan_interest: 'standard' | 'pro'
+  ip_address: string | null
+  risk_flags: string[]
+  status: TrialRequestStatus
+  reviewed_at: string | null
+  rejection_reason: string | null
+  admin_notes: string | null
+  organization_id: string | null
+  trial_start: string | null
+  trial_end: string | null
+  data_purge_at: string | null
+  reminder_1d_sent_at: string | null
+  reminder_1h_sent_at: string | null
+  converted_at: string | null
+  purged_at: string | null
+  created_at: string
+  usage?: { users: number; jobs: number; candidates: number } | null
+  email_verified_at?: string | null
+  setup_completed_at?: string | null
+  messages?: TrialReplyMessage[]
+}
+
+export type TrialReplyKind = 'approve' | 'reject' | 'info'
+
+export interface TrialReplyMessage {
+  id: string
+  kind: TrialReplyKind
+  to_email: string
+  subject: string
+  body: string
+  ai_generated: boolean
+  delivered: boolean
+  sent_by_email: string | null
+  created_at: string
+}
+
+export interface TrialRequestList {
+  items: TrialRequest[]
+  total: number
+  page: number
+  page_size: number
+  counts: Record<TrialRequestStatus, number>
+}
+
+export const trialsApi = {
+  list: (params: { status?: string; search?: string; page?: number; page_size?: number }) =>
+    api.get<TrialRequestList>('/v1/super-admin/trials', { params, skipLoader: true }).then((res) => res.data),
+  get: (id: string) => api.get<TrialRequest>(`/v1/super-admin/trials/${id}`).then((res) => res.data),
+  /** An AI (or template) email for the team to edit; call again to regenerate. */
+  draft: (id: string, kind: TrialReplyKind, instructions = '') =>
+    api.post<{ subject: string; body: string; ai_generated: boolean }>(
+      `/v1/super-admin/trials/${id}/draft`, { kind, instructions }, { skipLoader: true },
+    ).then((res) => res.data),
+  /** Sends from info@hybent.com. "approve" starts the trial and adds the setup link. */
+  send: (id: string, payload: { kind: TrialReplyKind; subject: string; body: string; ai_generated: boolean; reason?: string }) =>
+    api.post<TrialRequest & { email_sent: boolean }>(`/v1/super-admin/trials/${id}/send`, payload).then((res) => res.data),
+  extend: (id: string, days: number) =>
+    api.post<TrialRequest>(`/v1/super-admin/trials/${id}/extend`, { days }).then((res) => res.data),
+  saveNotes: (id: string, admin_notes: string) =>
+    api.put<TrialRequest>(`/v1/super-admin/trials/${id}/notes`, { admin_notes }).then((res) => res.data),
 }

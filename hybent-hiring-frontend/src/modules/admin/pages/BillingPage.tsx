@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Check, Coins, CreditCard, Receipt, Users } from 'lucide-react'
+import { Check, Clock, Coins, CreditCard, Receipt, Users } from 'lucide-react'
 
 import { billingApi, redirectToCheckout, type SeatRole } from '@/api/billing'
+import { trialApi } from '@/api/trial'
+import { TrialExportButtons, TrialUpgradeButtons } from '@/modules/billing/components/TrialActions'
+import { formatTrialDate, trialTimeLeft } from '@/modules/billing/trialTime'
 import type { PlanInfo } from '@/api/superAdmin'
 import {
   Badge,
@@ -63,6 +66,18 @@ export default function BillingPage() {
   const [sending, setSending] = useState(false)
 
   const sub = data?.subscription ?? null
+  const trial = data?.trial ?? null
+  const [upgrading, setUpgrading] = useState<string | null>(null)
+  const upgradeTrial = async (plan: 'Standard' | 'Pro') => {
+    try {
+      setUpgrading(plan)
+      const { checkout_url } = await trialApi.upgrade(plan)
+      redirectToCheckout(checkout_url)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Could not start the payment.')
+      setUpgrading(null)
+    }
+  }
   const seatsUsed = data?.seats_used
   const credits = data?.ai_credits
   const seats = sub?.seats
@@ -194,6 +209,39 @@ export default function BillingPage() {
       />
 
       <div className="space-y-hb-6">
+        {trial && (
+          <Card padding="loose" className={trial.status === 'expired' ? 'border-hb-error/40' : 'border-hb-blue/40'}>
+            <div className="flex flex-wrap items-start justify-between gap-hb-4">
+              <div className="min-w-0 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <IconTile size="sm"><Clock /></IconTile>
+                  <h2 className="font-display text-hb-h3 text-hb-text">
+                    {trial.status === 'expired' ? 'Your free trial has ended' : 'You’re on a 7-day free trial'}
+                  </h2>
+                  <Badge tone={trial.status === 'expired' ? 'error' : 'info'}>
+                    {trial.status === 'expired' ? 'Ended' : trialTimeLeft(trial.trial_end)}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-hb-sm text-hb-muted">
+                  {trial.status === 'expired' ? (
+                    <>Ended {formatTrialDate(trial.trial_end)}. Your team&apos;s access is paused until you choose a plan. Your data is kept until <b>{formatTrialDate(trial.data_purge_at)}</b>, then permanently deleted.</>
+                  ) : (
+                    <>Ends {formatTrialDate(trial.trial_end)}. Upgrade any time to keep everything with no interruption. If you don&apos;t, access pauses at the end of the trial and the workspace is deleted 30 days later.</>
+                  )}
+                </p>
+              </div>
+              <TrialUpgradeButtons paymentsEnabled={data?.payments_enabled} suggested={trial.plan} />
+            </div>
+            <div className="mt-hb-5 border-t border-hb-border pt-hb-4">
+              <p className="font-mono text-hb-label uppercase text-hb-muted">Export your data</p>
+              <p className="mt-1 text-hb-sm text-hb-muted">
+                Jobs, candidates, pipeline, interviews, scorecards and offers. Excel and CSV hold every field; the PDF is a summary.
+              </p>
+              <div className="mt-3"><TrialExportButtons /></div>
+            </div>
+          </Card>
+        )}
+
         <div className="grid gap-hb-4 lg:grid-cols-3">
           <Card padding="loose" className="flex flex-col">
             <div className="flex items-center gap-3">
@@ -229,7 +277,7 @@ export default function BillingPage() {
                     Your last payment failed. Stripe will retry; check the email from Stripe to update your card.
                   </p>
                 )}
-                {sub.trial_end && new Date(sub.trial_end) > new Date() && (
+                {!trial && sub.trial_end && new Date(sub.trial_end) > new Date() && (
                   <p className="mt-1 text-hb-xs text-hb-muted">
                     Trial ends {new Date(sub.trial_end).toLocaleDateString()}
                   </p>
@@ -345,7 +393,7 @@ export default function BillingPage() {
                       p.is_custom
                         ? 'Seats and credits sized to your team'
                         : `${p.included_admins} admin + ${p.included_recruiters} recruiter seats`,
-                      'Recruiter Copilot',
+                      p.copilot ? 'Recruiter Copilot' : `${p.ai_credits_monthly.toLocaleString()} AI credits a month`,
                       p.is_custom ? 'Tailored onboarding and invoicing' : 'AI parsing, screening and match scoring',
                     ].map((feat) => (
                       <li key={feat} className="flex items-start gap-2 text-hb-sm text-hb-muted">
@@ -354,23 +402,36 @@ export default function BillingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button
-                    size="sm"
-                    fullWidth
-                    className="mt-hb-4"
-                    variant={isCurrent ? 'ghost' : 'primary'}
-                    disabled={isCurrent}
-                    onClick={() => setRequest({ plan: p })}
-                  >
-                    {isCurrent ? 'Your plan' : p.is_custom ? 'Talk to sales' : 'Request this plan'}
-                  </Button>
+                  {trial && data?.payments_enabled && (p.name === 'Standard' || p.name === 'Pro') ? (
+                    <Button
+                      size="sm"
+                      fullWidth
+                      className="mt-hb-4"
+                      loading={upgrading === p.name}
+                      disabled={!!upgrading}
+                      onClick={() => upgradeTrial(p.name as 'Standard' | 'Pro')}
+                    >
+                      Upgrade to {p.name}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      fullWidth
+                      className="mt-hb-4"
+                      variant={isCurrent ? 'ghost' : 'primary'}
+                      disabled={isCurrent}
+                      onClick={() => setRequest({ plan: p })}
+                    >
+                      {isCurrent ? 'Your plan' : p.is_custom ? 'Talk to sales' : 'Request this plan'}
+                    </Button>
+                  )}
                 </Card>
               )
             })}
           </div>
         </section>
 
-        {sub && (
+        {sub && !trial && (
           <Card padding="loose">
             <h2 className="font-display text-hb-h3 text-hb-text">Extra seats</h2>
             <p className="mt-1 text-hb-sm text-hb-muted">

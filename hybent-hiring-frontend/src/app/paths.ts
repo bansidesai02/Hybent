@@ -29,6 +29,7 @@ export const SITE = {
   faq: '/faq',
   careers: '/careers',
   contact: '/contact',
+  freeTrial: '/free-trial',
 } as const
 
 /**

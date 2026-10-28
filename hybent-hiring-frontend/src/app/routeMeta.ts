@@ -83,6 +83,11 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
     description:
       'Join HYBENT early enough to shape the platform. See how we work and send us your resume — we are based in Ahmedabad, India.',
   },
+  'free-trial': {
+    title: 'Free 7-day trial — Hybent Hiring | HYBENT',
+    description:
+      'Try Hybent Hiring Standard or Pro free for 7 days with your team. No credit card; a business email is required.',
+  },
   contact: {
     title: 'Contact HYBENT — talk to the team',
     description:

@@ -22,6 +22,7 @@ from app.services.ai.resume_parser import years_from_experience_text
 from app.schemas.response import APIResponse
 from app.services import elasticsearch_service as es_service
 
+from app.utils.candidate_labels import added_by_label
 router = APIRouter(prefix="/v1/candidates", tags=["candidates"])
 logger = logging.getLogger(__name__)
 
@@ -197,20 +198,20 @@ async def list_candidates(
                 "invitations": [],
                 "other_offers": [],
                 "documents": [],
-                "created_by_name": "Admin",
+                "created_by_name": added_by_label(c),
                 "created_by_id": str(c.created_by_id) if c.created_by_id else None,
             }
             return d
         try:
             cb = c.created_by
             if cb is not None:
-                d["created_by_name"] = getattr(cb, "full_name", None) or "Admin"
+                d["created_by_name"] = added_by_label(c)
                 d["created_by_id"] = str(getattr(cb, "id", ""))
             else:
-                d["created_by_name"] = "Admin"
+                d["created_by_name"] = added_by_label(c)
                 d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         except Exception:
-            d["created_by_name"] = "Admin"
+            d["created_by_name"] = added_by_label(c)
             d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
 
@@ -330,20 +331,20 @@ async def get_candidates_pipeline(current_user: Annotated[User, Depends(get_curr
                 "invitations": [],
                 "other_offers": [],
                 "documents": [],
-                "created_by_name": "Admin",
+                "created_by_name": added_by_label(c),
                 "created_by_id": str(c.created_by_id) if c.created_by_id else None,
             }
             return d
         try:
             cb = c.created_by
             if cb is not None:
-                d["created_by_name"] = getattr(cb, "full_name", None) or "Admin"
+                d["created_by_name"] = added_by_label(c)
                 d["created_by_id"] = str(getattr(cb, "id", ""))
             else:
-                d["created_by_name"] = "Admin"
+                d["created_by_name"] = added_by_label(c)
                 d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         except Exception:
-            d["created_by_name"] = "Admin"
+            d["created_by_name"] = added_by_label(c)
             d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
     
@@ -391,13 +392,7 @@ async def create_candidate(data: CandidateCreate, current_user: Annotated[User, 
     )
     existing_candidate = existing.scalar_one_or_none()
     if existing_candidate:
-        creator_name = "Admin"
-        try:
-            cb = existing_candidate.created_by
-            if cb is not None:
-                creator_name = getattr(cb, "full_name", None) or "Admin"
-        except Exception:
-            pass
+        creator_name = added_by_label(existing_candidate)
         raise HTTPException(
             status_code=409, 
             detail=f"Candidate with this email has already been added by {creator_name}"

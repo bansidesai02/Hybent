@@ -15,7 +15,7 @@ from app.models.user import User, RefreshToken
 from app.schemas.auth import RegisterRequest, LoginRequest, UserOut
 from app.utils.permissions import UserRole
 from app.utils.security import verify_password, create_access_token, create_refresh_token
-from app.services import platform_security
+from app.services import platform_security, trial_service
 
 
 async def register_user(data: RegisterRequest, db: AsyncSession) -> dict:
@@ -80,6 +80,13 @@ async def _complete_sign_in(user: User, db: AsyncSession, method: str, request: 
     except HTTPException as e:
         await _reject(db, status_code=e.status_code, detail=e.detail,
                       email=user.email, method=method, request=request, user=user, reason="org_suspended")
+    # After a free trial ends only its admins sign in, to upgrade or export.
+    if (
+        user.role not in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value)
+        and await trial_service.trial_access(db, user.organization_id) == "expired"
+    ):
+        await _reject(db, status_code=403, detail=trial_service.EXPIRED_MEMBER_DETAIL["message"],
+                      email=user.email, method=method, request=request, user=user, reason="trial_expired")
     if user.role == UserRole.SUPER_ADMIN.value and await platform_security.super_admin_ip_blocked(db, request):
         await _reject(db, status_code=403, detail="Super admin sign-in is not allowed from this network.",
                       email=user.email, method=method, request=request, user=user, reason="ip_not_allowed")

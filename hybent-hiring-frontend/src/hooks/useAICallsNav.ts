@@ -5,15 +5,20 @@ import { VOICE_CALLS_KEY, voiceCallsApi } from '@/api/voiceCalls'
 import type { AICallsNav } from '@/components/layout/shell/navConfig'
 import type { UserRole } from '@/types'
 
-/** Whether AI calling is on for the user's org (cached; gates every AI Call button). */
-export function useAICallsEnabled(): boolean {
-  const { data } = useQuery({
+/** AI calling for the user's org: `enabled`, and `known` once the server has answered. */
+export function useAICallsStatus(): { enabled: boolean; known: boolean } {
+  const { data, isFetched } = useQuery({
     queryKey: [...VOICE_CALLS_KEY, 'status'],
     queryFn: () => voiceCallsApi.status().then((r) => r.data.enabled),
     staleTime: 5 * 60_000,
     retry: false,
   })
-  return data === true
+  return { enabled: data === true, known: isFetched }
+}
+
+/** Whether AI calling is on for the user's org (cached; gates every AI Call button). */
+export function useAICallsEnabled(): boolean {
+  return useAICallsStatus().enabled
 }
 
 /**

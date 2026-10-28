@@ -87,15 +87,17 @@ AI_CALLS_FLAG = "ai_calls"   # Super Admin → client feature override
 
 
 async def ai_calls_enabled(db: AsyncSession, organization_id) -> bool:
-    """On when the engine is configured AND either the env turns it on for this
-    org (AI_CALLS / AI_CALLS_ORGS) or a super admin switched the client on."""
+    """On when the engine is configured and the client has it on. A super
+    admin's switch for the client decides; a client never switched follows the
+    env default (AI_CALLS / AI_CALLS_ORGS)."""
     if not (settings.voice_api_key and settings.voice_callback_secret):
         return False
-    if settings.ai_calls_enabled_for(organization_id):
-        return True
     from app.models.super_admin import CompanyFeatureFlag
-    return bool(await db.scalar(select(CompanyFeatureFlag.is_enabled).where(
-        CompanyFeatureFlag.organization_id == organization_id, CompanyFeatureFlag.flag_key == AI_CALLS_FLAG)))
+    own = await db.scalar(select(CompanyFeatureFlag.is_enabled).where(
+        CompanyFeatureFlag.organization_id == organization_id, CompanyFeatureFlag.flag_key == AI_CALLS_FLAG))
+    if own is not None:
+        return bool(own)
+    return settings.ai_calls_enabled_for(organization_id)
 
 
 class VoiceCallError(Exception):

@@ -47,6 +47,9 @@ class CompanySubscription(Base):
     current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     trial_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # A 7-day free trial from a trial request (services/trial_service.py).
+    # Only these lose access at trial_end; older trial_end values aren't enforced.
+    is_trial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

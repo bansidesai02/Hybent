@@ -35,6 +35,9 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+/** Dispatched on window when a request is refused because the free trial ended. */
+export const TRIAL_EXPIRED_EVENT = 'hb:trial-expired'
+
 // ── Response interceptor: auto-refresh on 401 & stop loading ─────────────────
 let isRefreshing = false
 let failedQueue: Array<{
@@ -72,6 +75,13 @@ api.interceptors.response.use(
       originalRequest.url.includes('/v1/auth/2fa/') ||
       originalRequest.url.includes('/v1/auth/google')
     )
+
+    // The organization's free trial ended (trial_service on the server):
+    // TrialBanner shows the upgrade/export screen at once.
+    if ((error.response?.status === 402 || error.response?.status === 403) &&
+        error.response?.data?.details?.code === 'trial_expired') {
+      window.dispatchEvent(new Event(TRIAL_EXPIRED_EVENT))
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthRouteToSkip) {
       if (isRefreshing) {

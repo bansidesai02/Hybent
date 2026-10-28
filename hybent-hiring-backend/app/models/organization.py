@@ -17,6 +17,9 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     logo_url: Mapped[str | None] = mapped_column(String(500))
+    # Branding for the emails the organization sends (sent from Hybent's address).
+    brand_color: Mapped[str | None] = mapped_column(String(9), nullable=True)
+    email_sender_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     website: Mapped[str | None] = mapped_column(String(255))
     industry: Mapped[str | None] = mapped_column(String(100))
     size: Mapped[str | None] = mapped_column(String(50))   # e.g. "1-10", "11-50"

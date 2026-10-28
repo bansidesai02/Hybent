@@ -7,6 +7,7 @@ from app.core.database import AsyncSessionLocal, run_async
 from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountStatus
 from app.services.email_ingestion_service import EmailApplicationIngestionService, MemoryPause
 from app.services.ai_metering import ai_scope
+from app.services import trial_service
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,8 @@ async def _process_email_ingestion_async():
 
         totals = {"created": 0, "matched_existing": 0, "skipped": 0, "failed": 0}
         for account in accounts:
+            if not await trial_service.org_is_usable(db, account.organization_id):
+                continue  # free trial ended; nothing is processed until it upgrades
             try:
                 # Charge AI parsing/scoring to the mailbox's org and owner.
                 async with ai_scope(account.organization_id, account.connected_by_user_id):
