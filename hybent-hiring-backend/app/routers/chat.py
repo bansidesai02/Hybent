@@ -105,6 +105,19 @@ async def upload_attachment(db: DB, current_user: CurrentUser, file: UploadFile 
     return APIResponse.success(message="File uploaded.", data=AttachmentRead.model_validate(attachment))
 
 
+@router.get("/presence/{user_id}")
+async def get_presence(user_id: uuid.UUID, db: DB, current_user: CurrentUser):
+    """Whether a teammate has Hybent open now, else when they last did."""
+    from app.models.user import User
+    from app.websocket.manager import ws_manager
+    user = await db.get(User, user_id)
+    if user is None or user.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=404, detail="User not found.")
+    online = ws_manager.is_online(str(user.id))
+    last_seen = user.last_seen_at or user.last_login
+    return APIResponse.success(data={"online": online, "last_seen_at": last_seen})
+
+
 @router.get("/attachments/{attachment_id}/url")
 async def get_attachment_url(attachment_id: uuid.UUID, db: DB, current_user: CurrentUser, download: bool = False):
     """Short-lived signed URL, only for people who can see the message."""

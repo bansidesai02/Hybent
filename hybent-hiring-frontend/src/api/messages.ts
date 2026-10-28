@@ -97,7 +97,16 @@ export const messagesApi = {
     api.post(`/v1/messages/${otherUserId}/read`),
 }
 
+/** A teammate's chat presence: Hybent open now, else when they last had it open. */
+export interface ChatPresence {
+  online: boolean
+  last_seen_at: string | null
+}
+
 export const chatApi = {
+  presence: (userId: string) =>
+    api.get<ChatPresence>(`/v1/chat/presence/${userId}`, { skipLoader: true }).then((res) => res.data),
+
   uploadAttachment: (file: File, onProgress?: (pct: number) => void, signal?: AbortSignal) => {
     const form = new FormData()
     form.append('file', file)

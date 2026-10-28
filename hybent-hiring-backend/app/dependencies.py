@@ -18,8 +18,9 @@ from app.core.database import get_db
 from app.models.integration_key import IntegrationKey
 from app.models.organization import Organization
 from app.models.user import User
-from app.services import impersonation
+from app.services import impersonation, trial_service
 from app.services.ai_metering import bind_request_scope
+from app.services.email_service import EmailBranding, email_branding
 from app.utils.integration_keys import parse_key, secret_matches
 from app.utils.permissions import UserRole, RECRUITER_ROLES, INTERVIEWER_ROLES, ADMIN_ONLY
 from app.utils.security import decode_access_token
@@ -87,11 +88,25 @@ async def get_current_user(
             logger.debug(f"User {user_id} is inactive")
             raise credentials_exception
         if user.role != UserRole.SUPER_ADMIN.value and user.organization_id:
-            org_active = await db.scalar(
-                select(Organization.is_active).where(Organization.id == user.organization_id)
-            )
+            org_row = (await db.execute(
+                select(Organization.is_active, Organization.name, Organization.email_sender_name, Organization.brand_color)
+                .where(Organization.id == user.organization_id)
+            )).first()
+            org_active = org_row.is_active if org_row else None
+            if org_row is not None:
+                # Emails sent while serving this request carry the organization's
+                # name and colour, with replies going to this user.
+                email_branding.set(EmailBranding(
+                    sender_name=org_row.email_sender_name or org_row.name,
+                    reply_to=user.email,
+                    brand_color=org_row.brand_color,
+                ))
             if org_active is False:
                 raise HTTPException(status_code=403, detail="Your organization's account is suspended.")
+            # A free trial ends exactly at trial_end, whenever the expiry job
+            # runs. Support sessions (impersonation) still get in.
+            if not impersonator_id and await trial_service.trial_access(db, user.organization_id) == "expired":
+                trial_service.check_expired_access(user.role, request.url.path)
         if user.role == UserRole.CANDIDATE.value and not _candidate_may_access(request.url.path):
             raise HTTPException(status_code=403, detail="This area is for the hiring team.")
         if impersonator_id:

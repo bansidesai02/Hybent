@@ -1,5 +1,6 @@
 import api from './axios'
 import type { PlanInfo } from './superAdmin'
+import type { TrialStatus } from './trial'
 
 export interface BillingOverview {
   subscription: {
@@ -35,6 +36,8 @@ export interface BillingOverview {
   seat_prices_now: Record<SeatRole, number> | null
   /** The plan renews through a Stripe subscription. */
   stripe_managed: boolean
+  /** The organization's 7-day free trial, or null when it isn't on one. */
+  trial: TrialStatus | null
 }
 
 export type SeatRole = 'admin' | 'recruiter'

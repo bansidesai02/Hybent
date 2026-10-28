@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { ChevronDown, ChevronUp, ExternalLink, PhoneCall, RefreshCw } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
-import { useAICallsEnabled } from '@/hooks/useAICallsNav'
+import { useAICallsStatus } from '@/hooks/useAICallsNav'
 import { applicationsApi } from '@/api/applications'
 import { jobsApi } from '@/api/jobs'
 import {
@@ -193,7 +193,7 @@ function CallRow({ call, tab, onOpenProfile }: { call: VoiceCall; tab: PageTab; 
 export default function AICallsPage() {
   const { basePath } = useAuth()
   const navigate = useNavigate()
-  const enabled = useAICallsEnabled()
+  const { enabled, known } = useAICallsStatus()
   const [tab, setTab] = useState<PageTab>('queue')
   const [picking, setPicking] = useState(false)
   const [starting, setStarting] = useState<{ jobId: string; candidates: Array<{ id: string; full_name: string }> } | null>(null)
@@ -208,6 +208,9 @@ export default function AICallsPage() {
 
   const openProfile = (candidateId: string) =>
     navigate(`${basePath}/candidates?openId=${encodeURIComponent(candidateId)}`)
+
+  // Switched off for this organization (by Hybent): the page isn't available.
+  if (known && !enabled) return <Navigate to={basePath} replace />
 
   return (
     <div className="flex flex-col gap-hb-5">

@@ -68,6 +68,7 @@ const FEATURE_FLAGS = [
   { key: 'bulk', title: 'Bulk candidate import', desc: 'Importing candidate sheets via the Excel/CSV parser.' },
   { key: 'analytics', title: 'Report export', desc: 'Excel/CSV report downloads.' },
   { key: 'copilot', title: 'Hybent Copilot', desc: 'The AI recruiting assistant (page and floating widget).' },
+  { key: 'usage_logs', title: 'AI usage history', desc: 'Consumption history log on the AI Credits page.' },
 ]
 
 const SIZE_OPTIONS = ['1–10', '11–50', '51–200', '201–1000', '1000+'].map((v) => ({

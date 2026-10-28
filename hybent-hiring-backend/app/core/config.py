@@ -156,6 +156,9 @@ class Settings(BaseSettings):
 
     # ── CORS ───────────────────────────────────────────────────────────────────
     frontend_url: str = "https://hybent.com"
+    # Development only: lets one company request free trials again and again
+    # (no one-trial-per-domain rule, no hourly code limit). Never set in production.
+    trial_testing_mode: bool = False
 
     # ── Logging ────────────────────────────────────────────────────────────────
     log_level: str = "INFO"

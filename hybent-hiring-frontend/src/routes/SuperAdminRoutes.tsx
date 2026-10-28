@@ -9,6 +9,7 @@ const SuperAdminClients = lazy(() => import('@/modules/super_admin/pages/Clients
 const SuperAdminClientDetail = lazy(() => import('@/modules/super_admin/pages/ClientDetailPage'))
 const SuperAdminBilling = lazy(() => import('@/modules/super_admin/pages/BillingPage'))
 const SuperAdminAICredits = lazy(() => import('@/modules/super_admin/pages/AICreditsPage'))
+const SuperAdminTrials = lazy(() => import('@/modules/super_admin/pages/TrialRequestsPage'))
 const SuperAdminUsers = lazy(() => import('@/modules/super_admin/pages/UsersPage'))
 const SuperAdminFlags = lazy(() => import('@/modules/super_admin/pages/FeatureFlagsPage'))
 const SuperAdminAudit = lazy(() => import('@/modules/super_admin/pages/AuditLogsPage'))
@@ -25,6 +26,7 @@ export default function SuperAdminRoutes() {
         <Route path="analytics" element={<SuperAdminAnalytics />} />
         <Route path="clients" element={<SuperAdminClients />} />
         <Route path="clients/:id" element={<SuperAdminClientDetail />} />
+        <Route path="trials" element={<SuperAdminTrials />} />
         <Route path="billing" element={<SuperAdminBilling />} />
         <Route path="ai-credits" element={<SuperAdminAICredits />} />
         <Route path="users" element={<SuperAdminUsers />} />

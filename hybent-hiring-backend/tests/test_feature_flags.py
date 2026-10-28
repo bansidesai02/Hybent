@@ -2,8 +2,9 @@
 from tests.conftest import auth_headers
 
 
-async def _set(client, super_admin, org, **flags):
-    r = await client.put(f"/v1/super-admin/clients/{org.id}/flags", json=flags, headers=auth_headers(super_admin))
+async def _set(client, super_admin, org, force=False, **flags):
+    r = await client.put(f"/v1/super-admin/clients/{org.id}/flags", json=flags, headers=auth_headers(super_admin),
+                         params={"force": "true"} if force else None)
     assert r.status_code == 200, r.text
 
 
@@ -37,7 +38,11 @@ async def test_global_default_applies_without_a_client_setting(client, super_adm
     assert flags["copilot"] is False and flags["ai"] is True
 
 
-async def test_super_admin_sees_effective_flags(client, super_admin_user, other_organization):
+async def test_super_admin_sees_effective_flags(client, super_admin_user, other_organization, monkeypatch):
+    # AI calls off by default here, whatever the developer's .env says.
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "ai_calls", False)
+    monkeypatch.setattr(settings, "ai_calls_orgs", "")
     await _set(client, super_admin_user, other_organization, copilot=False)
     r = await client.get(f"/v1/super-admin/clients/{other_organization.id}/flags", headers=auth_headers(super_admin_user))
     data = r.json()["data"]
@@ -73,6 +78,37 @@ async def test_pro_plan_has_copilot(client, db_session, admin_user, organization
 
 async def test_client_switch_overrides_the_plan(client, db_session, super_admin_user, admin_user, organization):
     await _subscribe(db_session, organization, "Standard", {"copilot": False})
-    await _set(client, super_admin_user, organization, copilot=True)
+    # The Copilot isn't in Standard: a super admin turns it on by force.
+    await _set(client, super_admin_user, organization, force=True, copilot=True)
     flags = (await client.get("/v1/auth/features", headers=auth_headers(admin_user))).json()["data"]
     assert flags["copilot"] is True
+
+
+
+async def test_super_admin_switch_overrides_the_env_default(client, super_admin_user, other_organization, monkeypatch):
+    """AI_CALLS=true is only the default: switching a client off hides AI Calls for it."""
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "ai_calls", True)
+    monkeypatch.setattr(settings, "voice_api_key", "k")
+    monkeypatch.setattr(settings, "voice_callback_secret", "s")
+    h = auth_headers(super_admin_user)
+    url = f"/v1/super-admin/clients/{other_organization.id}/flags"
+    assert (await client.get(url, headers=h)).json()["data"]["ai_calls"] is True
+    await _set(client, super_admin_user, other_organization, ai_calls=False)
+    assert (await client.get(url, headers=h)).json()["data"]["ai_calls"] is False
+
+
+async def test_usage_logs_can_be_hidden_for_everyone_or_one_client(client, super_admin_user, admin_user, organization):
+    h_admin = auth_headers(admin_user)
+    assert (await client.get("/v1/auth/features", headers=h_admin)).json()["data"]["usage_logs"] is True
+    assert (await client.get("/v1/ai/credits/history", headers=h_admin)).status_code == 200
+
+    # Off for every client from Super Admin → Feature flags.
+    r = await client.put("/v1/super-admin/flags", json={"usage_logs": False}, headers=auth_headers(super_admin_user))
+    assert r.status_code == 200, r.text
+    assert (await client.get("/v1/auth/features", headers=h_admin)).json()["data"]["usage_logs"] is False
+    assert (await client.get("/v1/ai/credits/history", headers=h_admin)).status_code == 403
+
+    # One client switched back on.
+    await _set(client, super_admin_user, organization, usage_logs=True)
+    assert (await client.get("/v1/ai/credits/history", headers=h_admin)).status_code == 200

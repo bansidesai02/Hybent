@@ -389,3 +389,36 @@ async def delete_chat_attachments(storage_paths: list[str]) -> None:
         )
     except Exception as exc:
         logger.warning("Chat attachment delete failed | count=%d | error=%s", len(storage_paths), exc)
+
+
+# ── Free trial workspaces ──────────────────────────────────────────────────────
+# Files uploaded while setting up a free trial organization (its logo) live in
+# their own public bucket, apart from paying clients' files. Public, because
+# the logo is shown in emails.
+TRIAL_BUCKET = "trial-workspaces"
+
+
+def _ensure_public_bucket(client, bucket: str) -> None:
+    try:
+        client.storage.get_bucket(bucket)
+    except Exception:
+        client.storage.create_bucket(bucket, options={"public": True})
+
+
+async def upload_trial_logo(content: bytes, content_type: str, organization_id: str, ext: str) -> str:
+    """Store a trial organization's logo; returns its public URL."""
+    import asyncio
+    import uuid as _uuid
+
+    client = _get_supabase_client()
+    path = f"{organization_id}/logo-{_uuid.uuid4().hex[:10]}{ext}"
+
+    def _upload() -> str:
+        _ensure_public_bucket(client, TRIAL_BUCKET)
+        client.storage.from_(TRIAL_BUCKET).upload(
+            path=path, file=content, file_options={"content-type": content_type, "upsert": "true"},
+        )
+        return client.storage.from_(TRIAL_BUCKET).get_public_url(path)
+
+    url = await asyncio.get_event_loop().run_in_executor(None, _upload)
+    return url.rstrip("?")

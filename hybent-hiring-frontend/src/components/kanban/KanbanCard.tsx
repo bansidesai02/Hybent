@@ -55,7 +55,7 @@ export function KanbanCard({
                 Added by
               </span>
               <span className="max-w-[100px] truncate text-hb-xs font-semibold text-hb-muted">
-                {card.created_by_name || 'Admin'}
+                {card.created_by_name || '—'}
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-2.5">

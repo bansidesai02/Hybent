@@ -38,6 +38,10 @@ class ConnectionManager:
             self._user_orgs[user_id] = org_id
         logger.info(f"WS connected: user={user_id}, org={org_id}, total_connections={self.total}")
 
+    def is_online(self, user_id: str) -> bool:
+        """The user has Hybent open in at least one tab (on this server)."""
+        return bool(self._connections.get(str(user_id)))
+
     def disconnect(self, websocket: WebSocket, user_id: str) -> None:
         if user_id in self._connections:
             self._connections[user_id] = [

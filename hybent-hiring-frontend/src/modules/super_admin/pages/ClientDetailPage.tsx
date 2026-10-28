@@ -69,6 +69,7 @@ const FLAG_INFO: Record<string, { title: string; desc: string }> = {
   bulk: { title: 'Bulk candidate import', desc: 'Sheet upload parser support.' },
   analytics: { title: 'Report export', desc: 'Excel/CSV report downloads.' },
   copilot: { title: 'Hybent Copilot', desc: 'The AI recruiting assistant (page and floating widget).' },
+  usage_logs: { title: 'AI usage history', desc: 'Consumption history log (model, tokens, credits) on the AI Credits page.' },
   ai_calls: { title: 'AI Calls (Hybent AI Agent)', desc: 'Phone pre-screens, availability checks and interview reminders.' },
 }
 
@@ -122,6 +123,14 @@ export default function ClientDetailPage() {
     enabled: !!id,
   })
 
+  const { data: planFeatures } = useQuery({
+    queryKey: ['super-admin', 'plan-features', id],
+    queryFn: () => superAdminApi.getClientPlanFeatures(id!),
+    enabled: !!id,
+  })
+  // Copilot on a plan without it (Standard): asked to confirm, then forced.
+  const [forceCopilot, setForceCopilot] = useState(false)
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['super-admin', 'client-overview', id] })
     queryClient.invalidateQueries({ queryKey: ['super-admin', 'clients'] })
@@ -129,13 +138,16 @@ export default function ClientDetailPage() {
   }
 
   const updateFlagsMutation = useMutation({
-    mutationFn: (updatedFlags: Record<string, boolean>) => superAdminApi.updateClientFlags(id!, updatedFlags),
-    onSuccess: () => {
-      toast.success('Feature flag overrides updated')
+    mutationFn: ({ flags: updatedFlags, force = false }: { flags: Record<string, boolean>; force?: boolean }) =>
+      superAdminApi.updateClientFlags(id!, updatedFlags, force),
+    onSuccess: (_res, vars) => {
+      toast.success(vars.force ? 'Copilot force-enabled for this client' : 'Feature flag overrides updated')
+      setForceCopilot(false)
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'flags', id] })
       invalidate()
     },
-    onError: (err: any) => toast.error(err.message || 'Failed to update feature flag overrides.'),
+    onError: (err: any) =>
+      toast.error(err?.response?.data?.message || err.message || 'Failed to update feature flag overrides.'),
   })
 
   const isActive = overview?.organization.is_active ?? false
@@ -565,16 +577,35 @@ export default function ClientDetailPage() {
                 {/* AI Calls is always offered: it's off until switched on per client. */}
                 {Object.entries({ ai_calls: false, ...flags }).map(([key, val]) => {
                   const info = FLAG_INFO[key] ?? { title: key, desc: 'Platform toggle override.' }
+                  const all = { ai_calls: false, ...flags } as Record<string, boolean>
+                  // The Copilot is Pro-only: on Standard it's switched on only by force.
+                  const lockedCopilot = key === 'copilot' && planFeatures?.copilot_in_plan === false
                   return (
                     <div key={key} className="py-3.5 first:pt-0 last:pb-0">
                       <Switch
-                        label={info.title}
-                        description={info.desc}
+                        label={
+                          lockedCopilot ? (
+                            <span className="inline-flex flex-wrap items-center gap-2">
+                              {info.title}
+                              <Badge tone="brand">Pro feature</Badge>
+                              {val && <Badge tone="warning">Forced on</Badge>}
+                            </span>
+                          ) : info.title
+                        }
+                        description={
+                          lockedCopilot
+                            ? `${info.desc} Not in the ${planFeatures?.plan_name ?? 'current'} plan${val ? '; turned on by force.' : '. Turning it on needs a force-enable.'}`
+                            : info.desc
+                        }
                         checked={Boolean(val)}
                         disabled={updateFlagsMutation.isPending}
-                        onChange={(next) =>
-                          updateFlagsMutation.mutate({ ai_calls: false, ...flags, [key]: next } as Record<string, boolean>)
-                        }
+                        onChange={(next) => {
+                          if (lockedCopilot && next) {
+                            setForceCopilot(true)
+                            return
+                          }
+                          updateFlagsMutation.mutate({ flags: { ...all, [key]: next } })
+                        }}
                       />
                     </div>
                   )
@@ -718,6 +749,18 @@ export default function ClientDetailPage() {
           </div>
         )}
       </Dialog>
+
+      <ConfirmDialog
+        open={forceCopilot}
+        onClose={() => setForceCopilot(false)}
+        onConfirm={() =>
+          flags && updateFlagsMutation.mutate({ flags: { ai_calls: false, ...flags, copilot: true }, force: true })
+        }
+        title="Force-enable the Copilot?"
+        description={`The Copilot is a Pro feature and ${org?.name ?? 'this client'} is on the ${planFeatures?.plan_name ?? 'Standard'} plan. Turning it on gives them a Pro feature without the Pro plan. Their Copilot use still spends their AI credits. This is recorded in the audit log.`}
+        confirmLabel="Force-enable Copilot"
+        loading={updateFlagsMutation.isPending}
+      />
 
       <ConfirmDialog
         open={confirmToggle}

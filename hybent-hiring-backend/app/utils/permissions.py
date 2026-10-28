@@ -114,6 +114,7 @@ class NotificationType(str, Enum):
     COMMENT_ADDED = "comment_added"
     AI_CALL = "ai_call"
     SYSTEM = "system"
+    TRIAL = "trial"  # free trial reminders and expiry (services/trial_service.py)
     # ── Candidate-facing types ────────────────────────────────────────────────
     SHORTLISTED = "shortlisted"
     PROFILE_VIEWED = "profile_viewed"

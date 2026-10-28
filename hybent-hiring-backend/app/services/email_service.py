@@ -2,9 +2,13 @@
 Email service using Gmail SMTP.
 Falls back to console print if SMTP credentials are not configured.
 """
+import email.utils as email_utils
 import html
+import re
 import logging
 import smtplib
+from contextvars import ContextVar
+from dataclasses import dataclass
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING
@@ -19,7 +23,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _send_smtp(to: str, subject: str, html_body: str) -> None:
+# ── Organization branding ──────────────────────────────────────────────────────
+# Emails an organization sends go out from Hybent's address, but carry its name
+# as the sender, its admin/sender as Reply-To, and its logo and colour (with a
+# "Powered by Hybent" footer). dependencies.get_current_user sets this for the
+# signed-in user's organization; asyncio.to_thread carries it into the send.
+
+@dataclass(frozen=True)
+class EmailBranding:
+    sender_name: str | None = None
+    reply_to: str | None = None
+    brand_color: str | None = None
+
+
+email_branding: ContextVar[EmailBranding | None] = ContextVar("email_branding", default=None)
+
+
+def _from_header(from_name: str | None) -> str:
+    name = " ".join((from_name or settings.smtp_from_name or "Hybent").replace('"', "").split())
+    return email_utils.formataddr((name, settings.email_from_address))
+
+
+def _send_smtp(to: str, subject: str, html_body: str, from_name: str | None = None, reply_to: str | None = None) -> None:
     """Send email via Gmail SMTP with anti-spam best practices."""
     import email.utils
     import re
@@ -27,9 +52,9 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
     sender = settings.email_from_address
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = email.utils.formataddr((settings.smtp_from_name, sender))
+    msg["From"] = _from_header(from_name)
     msg["To"] = to
-    msg["Reply-To"] = sender
+    msg["Reply-To"] = reply_to or sender
     msg["Message-ID"] = email.utils.make_msgid(domain=sender.split("@")[-1])
     msg["Date"] = email.utils.formatdate(localtime=True)
     msg["MIME-Version"] = "1.0"
@@ -52,7 +77,7 @@ def _send_smtp(to: str, subject: str, html_body: str) -> None:
 
 
 
-def _send_resend(to: str, subject: str, html_body: str) -> None:
+def _send_resend(to: str, subject: str, html_body: str, from_name: str | None = None, reply_to: str | None = None) -> None:
     """Send email via Resend API."""
     import httpx
     url = "https://api.resend.com/emails"
@@ -61,8 +86,8 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
         "Content-Type": "application/json"
     }
     payload = {
-        "from": f"{settings.smtp_from_name} <{settings.email_from_address}>",
-        "reply_to": settings.email_from_address,
+        "from": _from_header(from_name),
+        "reply_to": reply_to or settings.email_from_address,
         "to": to,
         "subject": subject,
         "html": html_body
@@ -79,13 +104,19 @@ def _send_resend(to: str, subject: str, html_body: str) -> None:
             raise Exception(f"Resend API error: {response.text}")
 
 
-def send_email(to: str, subject: str, html_body: str, email_account: "EmailAccount | None" = None) -> bool:
+def send_email(
+    to: str, subject: str, html_body: str, email_account: "EmailAccount | None" = None,
+    from_name: str | None = None, reply_to: str | None = None,
+) -> bool:
     """Send email via SMTP or print to console if SMTP not configured.
     Returns True if sent successfully (or fallback used), False otherwise.
 
     `email_account` is the mailbox of the user who triggered the email (see
     EmailAccountsService.resolve_sender) — their own address as the sender.
     None means the platform's default sender, as for system mail.
+
+    `from_name` / `reply_to` default to the signed-in organization's branding
+    (email_branding); the address is always the platform's.
 
     If sending through the user's mailbox fails (token revoked, SMTP password
     changed), the email still goes out from the platform sender rather than
@@ -114,13 +145,19 @@ def send_email(to: str, subject: str, html_body: str, email_account: "EmailAccou
         return True
 
 
+    branding = email_branding.get()
+    if branding is not None:
+        from_name = from_name or branding.sender_name
+        reply_to = reply_to or branding.reply_to
+    # Only passed when set, so unbranded mail is sent exactly as before.
+    extra = {k: v for k, v in (("from_name", from_name), ("reply_to", reply_to)) if v}
     try:
         if settings.resend_api_key:
             logger.info("Using Resend API branch in send_email")
-            _send_resend(to, subject, html_body)
+            _send_resend(to, subject, html_body, **extra)
         else:
             logger.info("Using SMTP branch in send_email")
-            _send_smtp(to, subject, html_body)
+            _send_smtp(to, subject, html_body, **extra)
 
             
         logger.info(f"\u2705 Email sent \u2192 {to} | {subject}")
@@ -160,7 +197,12 @@ def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None,
     
     # If the organization has a custom logo, render that.
     if org_logo_url:
-        return f'<img src="{org_logo_url}" alt="{org_name or "Organization"}" style="max-height: 35px; max-width: 180px; display: block; margin: {margin};">'
+        # Alt text styled as the name, for mail apps that block images.
+        return (
+            f'<img src="{org_logo_url}" alt="{html.escape(org_name or "Organization")}" '
+            f'style="max-height: 35px; max-width: 180px; display: block; margin: {margin}; '
+            f'font-size: 18px; font-weight: 700; color: #0B1220;">'
+        )
     
     # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
     base_url = settings.frontend_url
@@ -175,11 +217,6 @@ def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None,
                 <img src="{base_url}/hybent/hybent-wordmark-light.png" alt="HYBENT" style="height: 22px; width: auto; display: block; margin: {margin};">
             </td>
         </tr>
-        <tr>
-            <td style="font-size: 11px; font-family: 'Plus Jakarta Sans', 'Roboto', Arial, sans-serif; color: #70757a; text-transform: uppercase; letter-spacing: 1.5px; padding-top: 8px; font-weight: 600;">
-                Where vision meets innovation
-            </td>
-        </tr>
     </table>
     """
 
@@ -187,6 +224,9 @@ def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None,
 def _get_base_template(content_html: str, org_logo_url: str | None = None, org_name: str | None = None) -> str:
     """Provides a consistent, premium wrapper for all emails."""
     branding_html = _get_logo_html(org_logo_url, org_name, is_centered=False)
+    brand = email_branding.get()
+    color = brand.brand_color if brand and brand.brand_color and re.fullmatch(r"#[0-9A-Fa-f]{6}", brand.brand_color) else None
+    button_bg = color or "linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF)"
     
     # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
     base_url = settings.frontend_url
@@ -211,7 +251,7 @@ def _get_base_template(content_html: str, org_logo_url: str | None = None, org_n
             .section-title {{ font-size: 14px; font-weight: 700; color: #3c4043; margin-bottom: 4px; text-transform: capitalize; }}
             .section-value {{ font-size: 15px; color: #3c4043; margin-bottom: 24px; }}
             .button-wrap {{ margin: 32px 0 16px; text-align: left; }}
-            .button {{ display: inline-block; background: linear-gradient(135deg, #22CFFF, #4C6FFF 40%, #A855F7 75%, #E85CFF); color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
+            .button {{ display: inline-block; background: {button_bg}; color: #ffffff !important; text-decoration: none; font-weight: 700; padding: 12px 32px; border-radius: 8px; font-size: 14px; }}
 
 
             .footer {{ background-color: #f8f9fa; padding: 24px; border-top: 1px solid #dadce0; text-align: center; color: #70757a; font-size: 12px; }}
@@ -771,3 +811,129 @@ def send_demo_request_email(
         </div>
     """
     return send_email(recipient, subject, _get_base_template(content, org_name="Hybent Hiring"))
+
+
+# ── 7-day free trial (services/trial_service.py) ──────────────────────────────
+# Every value from the trial form is HTML-escaped; dates are shown in UTC.
+
+TRIAL_PLAN_LINES = """
+        <ul>
+            <li><b>Standard</b> – $29/month, 5,000 AI credits a month</li>
+            <li><b>Pro</b> – $39/month, 10,000 AI credits a month and the Recruiter Copilot</li>
+        </ul>
+"""
+
+
+def _trial_date(value) -> str:
+    return f"{value:%d %B %Y, %H:%M} UTC"
+
+
+def _app_url(path: str) -> str:
+    return f"{settings.frontend_url.rstrip('/')}{path}"
+
+
+def _first_name(name: str | None) -> str:
+    return html.escape(name.split()[0] if name and name.split() else "there")
+
+
+def _trial_email(to: str, subject: str, content: str) -> bool:
+    return send_email(to, subject, _get_base_template(content, org_name="Hybent Hiring"))
+
+
+
+def send_trial_request_alert_email(rows: list[tuple[str, str]], company_name: str, review_url: str) -> bool:
+    """Tell the Hybent team a trial request is waiting for review."""
+    table = "".join(
+        f"<tr><td style=\"padding:4px 16px 4px 0;color:#70757a;vertical-align:top\">{html.escape(label)}</td>"
+        f"<td>{html.escape(value)}</td></tr>"
+        for label, value in rows if value
+    )
+    content = f"""
+        <h2 style="margin-top: 20px;">New free trial request</h2>
+        <table>{table}</table>
+        <div class="button-wrap"><a href="{review_url}" class="button">Review in Super Admin</a></div>
+    """
+    return _trial_email("info@hybent.com", f"[Trial request] {' '.join(company_name.split())}", content)
+
+
+
+
+def send_trial_reminder_email(to_email: str, to_name: str, company_name: str, trial_end, time_left: str) -> bool:
+    content = f"""
+        <h2 style="margin-top: 20px;">Your free trial ends in {time_left}</h2>
+        <p>Hi {_first_name(to_name)},</p>
+        <p>The Hybent Hiring trial for <b>{html.escape(company_name)}</b> ends on <b>{_trial_date(trial_end)}</b>.</p>
+        <p>Upgrade to keep everything you've set up, with no interruption for your team:</p>
+        {TRIAL_PLAN_LINES}
+        <div class="button-wrap"><a href="{_app_url('/hiring/admin/billing')}" class="button">Upgrade now</a></div>
+        <p>Not ready yet? Export your jobs, candidates and pipeline as Excel, CSV or PDF from the Billing page.</p>
+    """
+    return _trial_email(to_email, f"Your Hybent Hiring trial ends in {time_left}", content)
+
+
+def send_trial_expired_email(to_email: str, to_name: str, company_name: str, purge_at) -> bool:
+    content = f"""
+        <h2 style="margin-top: 20px;">Your free trial has ended</h2>
+        <p>Hi {_first_name(to_name)},</p>
+        <p>The 7-day Hybent Hiring trial for <b>{html.escape(company_name)}</b> has ended.
+        Your team's access is paused, and your data is kept until <b>{_trial_date(purge_at)}</b>.</p>
+        <p><b>To continue</b>, sign in as the admin and choose a plan on the Billing page.
+        Everything you set up during the trial is restored straight away.</p>
+        {TRIAL_PLAN_LINES}
+        <div class="button-wrap"><a href="{_app_url('/hiring/admin/billing')}" class="button">Choose a plan</a></div>
+        <p>You can still sign in as the admin to export your data as Excel, CSV or PDF.
+        If you don't upgrade, the workspace and its data are permanently deleted on that date.</p>
+    """
+    return _trial_email(to_email, "Your Hybent Hiring trial has ended", content)
+
+
+def send_trial_purge_warning_email(to_email: str, to_name: str, company_name: str, purge_at) -> bool:
+    content = f"""
+        <h2 style="margin-top: 20px;">Your trial data will be deleted soon</h2>
+        <p>Hi {_first_name(to_name)},</p>
+        <p>The trial workspace for <b>{html.escape(company_name)}</b> and all its data (jobs, candidates,
+        resumes, interviews and offers) will be permanently deleted on <b>{_trial_date(purge_at)}</b>.</p>
+        <p>To keep it, upgrade to Standard or Pro before then. To keep a copy, export it from the Billing page.</p>
+        <div class="button-wrap"><a href="{_app_url('/hiring/admin/billing')}" class="button">Upgrade or export</a></div>
+    """
+    return _trial_email(to_email, "Your Hybent Hiring trial data will be deleted in 7 days", content)
+
+
+def send_trial_otp_email(to_email: str, code: str, minutes: int) -> bool:
+    """The code that proves the applicant owns their work email, as one
+    selectable string so it copies in one go."""
+    content = f"""
+        <h2 style="margin: 20px 0 8px; font-size: 22px; color: #0B1220;">Verify your work email</h2>
+        <p style="margin: 0; color: #5F6368;">Enter this code on the Hybent Hiring free trial form to continue.</p>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 28px 0 8px;">
+            <tr><td style="padding: 14px 22px; border: 1px solid #DADCE0; border-radius: 12px; background: #F5F7FF;">
+                <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 700; letter-spacing: 10px; color: #0B1220; user-select: all; -webkit-user-select: all;">{html.escape(code)}</span>
+            </td></tr>
+        </table>
+        <p style="margin: 0 0 24px; font-size: 12px; color: #70757A;">Tip: double-click the code to select and copy it.</p>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="width: 100%; background: #F8F9FA; border-radius: 10px;">
+            <tr><td style="padding: 14px 16px; font-size: 13px; color: #5F6368; line-height: 1.6;">
+                &#9201;&nbsp; The code expires in <b style="color: #0B1220;">{minutes} minutes</b>.<br/>
+                &#128274;&nbsp; Never share it. Hybent will never ask you for this code.
+            </td></tr>
+        </table>
+        <p style="margin: 22px 0 0; font-size: 13px; color: #70757A;">
+            Didn't request a free trial? You can safely ignore this email; nothing happens without the code.
+        </p>
+    """
+    return _trial_email(to_email, f"{code} is your Hybent verification code", content)
+
+
+def render_trial_reply(body: str, cta_url: str | None = None, cta_label: str | None = None) -> str:
+    """A reply the Hybent team wrote in Super Admin, as a branded email. The
+    body is plain text: paragraphs are kept and every character is escaped."""
+    paragraphs = "".join(
+        f"<p>{html.escape(p.strip()).replace(chr(10), '<br/>')}</p>"
+        for p in re.split(r"\n\s*\n", body.strip()) if p.strip()
+    )
+    button = (
+        f'<div class="button-wrap"><a href="{html.escape(cta_url)}" class="button">{html.escape(cta_label or "Open")}</a></div>'
+        if cta_url else ""
+    )
+    return _get_base_template(f'<div style="margin-top: 12px;">{paragraphs}</div>{button}', org_name="Hybent Hiring")
+

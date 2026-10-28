@@ -542,6 +542,8 @@ async def _apply_subscription(db: AsyncSession, payment: Payment, org: Organizat
 
     if org:
         org.is_active = True
+    from app.services import trial_service
+    converted = await trial_service.mark_converted(db, payment.organization_id, sub)
     welcome_user = None
     if details.get("activate_user_id"):
         welcome_user = await db.get(User, uuid.UUID(details["activate_user_id"]))
@@ -552,6 +554,13 @@ async def _apply_subscription(db: AsyncSession, payment: Payment, org: Organizat
 
     await db.flush()
     await _resync_credits(db, payment.organization_id)
+    if converted:
+        notify_organization_roles.delay(
+            str(payment.organization_id), ["admin", "recruiter"], "trial",
+            f"Welcome to Hybent {plan.name}",
+            f"Your organization is now on the {plan.name} plan. Everything from your trial is kept.",
+            {"kind": "trial_converted", "plan": plan.name},
+        )
     return welcome_user
 
 

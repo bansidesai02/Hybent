@@ -51,6 +51,8 @@ export function useWebSocket() {
         if (msg.type === 'event') {
           if (msg.event === 'features_updated') {
             queryClient.invalidateQueries({ queryKey: ['org-features'] })
+            // AI Calls has its own status check (useAICallsStatus).
+            queryClient.invalidateQueries({ queryKey: ['voice-calls', 'status'] })
           }
           if (msg.event === 'connected') {
             failures.current = 0

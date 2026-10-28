@@ -18,8 +18,9 @@ from app.models.organization import Organization
 from app.models.super_admin import CompanySubscription
 from app.models.user import User
 from app.schemas.response import APIResponse
+from app.schemas.trial import TrialUpgrade
 from app.core.config import settings
-from app.services import billing_service, payment_service
+from app.services import billing_service, payment_service, trial_service
 from app.services.ai_credit_service import AICreditsService
 from app.services.email_service import send_email
 
@@ -72,8 +73,32 @@ async def get_billing(db: DB, current_user: Annotated[User, Depends(require_admi
             "payments_enabled": settings.stripe_enabled,
             "seat_prices_now": payment_service.prorated_seat_prices(sub) if settings.stripe_enabled else None,
             "stripe_managed": bool(sub and sub.stripe_subscription_id),
+            "trial": await trial_service.status_for_org(db, org_id),
         },
     )
+
+
+@router.post("/upgrade")
+async def upgrade_trial(body: TrialUpgrade, db: DB, current_user: Annotated[User, Depends(require_admin)]):
+    """A free trial's admin pays for Standard or Pro with Stripe Checkout,
+    during the trial or after it ends. The usual subscription payment link
+    is created for them and paid on /pay/<token>; paying converts the trial
+    (payment_service._apply_subscription)."""
+    payment_service.require_stripe()
+    sub = (await db.execute(
+        select(CompanySubscription).where(CompanySubscription.organization_id == current_user.organization_id)
+    )).scalar_one_or_none()
+    if not sub or not sub.is_trial:
+        raise HTTPException(status_code=409, detail="Only free trials upgrade here. To change plans, use Request this plan.")
+    plan = await billing_service.find_plan(db, body.plan_name)
+    if plan is None or plan.name not in billing_service.SELF_SERVE_PLANS:
+        raise HTTPException(status_code=400, detail="Choose Standard or Pro.")
+    org = await db.get(Organization, current_user.organization_id)
+    payment = await payment_service.create_subscription_link(db, org, plan, current_user)
+    await db.commit()
+    url = await payment_service.start_link_checkout(db, payment)
+    logger.info(f"Trial org {org.id} started checkout for {plan.name} (payment {payment.id}).")
+    return APIResponse.success(message="Redirecting to secure checkout.", data={"checkout_url": url})
 
 
 @router.post("/request-change")

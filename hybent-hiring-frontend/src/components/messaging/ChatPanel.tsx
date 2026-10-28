@@ -5,7 +5,8 @@ import { Avatar } from '@/components/hb'
 import { useAuthStore } from '@/store/authStore'
 import { useMessageStore } from '@/store/messageStore'
 import toast from 'react-hot-toast'
-import { format } from 'date-fns'
+import { format, formatDistanceToNowStrict, isToday, isYesterday } from 'date-fns'
+import { useQuery } from '@tanstack/react-query'
 import { X, MessageSquare, Check, CheckCheck, Clock, Users, ChevronRight } from 'lucide-react'
 import { ChatComposer } from './ChatComposer'
 import { MessageAttachments } from './MessageAttachments'
@@ -40,6 +41,16 @@ export function ChatPanel({ open, onClose, thread }: ChatPanelProps) {
   const isGroup = thread.kind === 'group'
   const threadId = isGroup ? thread.group.id : thread.recipient.id
   const title = isGroup ? group?.name ?? thread.group.name : thread.recipient.full_name
+
+  // "Active now" only while the teammate has Hybent open; else when they last did.
+  const { data: presence } = useQuery({
+    queryKey: ['chat-presence', thread.kind === 'dm' ? thread.recipient.id : null],
+    queryFn: () => chatApi.presence((thread as { recipient: { id: string } }).recipient.id),
+    enabled: thread.kind === 'dm',
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  })
+  const online = presence?.online === true
 
   const loadGroup = useCallback(async () => {
     if (thread.kind !== 'group') return
@@ -237,13 +248,17 @@ export function ChatPanel({ open, onClose, thread }: ChatPanelProps) {
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="relative shrink-0">
                     <Avatar name={title} src={thread.recipient.avatar_url || ''} size="md" className="shadow-hb-1" />
-                    <span className="absolute bottom-0 right-0 h-3 w-3 animate-pulse rounded-full border-2 border-hb-surface bg-hb-success" />
+                    {online && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 animate-pulse rounded-full border-2 border-hb-surface bg-hb-success" />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <h3 className="truncate text-hb-body font-semibold text-hb-text">{title}</h3>
                     <div className="mt-0.5 flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-hb-success" />
-                      <p className="font-mono text-hb-micro font-bold uppercase text-hb-muted">Active Now</p>
+                      <span className={`h-1.5 w-1.5 rounded-full ${online ? 'bg-hb-success' : 'bg-hb-dim'}`} />
+                      <p className="text-hb-micro font-semibold text-hb-muted">
+                        {online ? 'Active now' : presence ? lastSeenLabel(presence.last_seen_at) : '\u00a0'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -382,4 +397,16 @@ export function ChatPanel({ open, onClose, thread }: ChatPanelProps) {
       )}
     </AnimatePresence>
   )
+}
+
+/** "Last seen 5 min ago", "Last seen today at 3:20 PM", "Last seen yesterday at …", "Last seen Oct 27". */
+function lastSeenLabel(iso: string | null): string {
+  if (!iso) return 'Offline'
+  const at = new Date(iso)
+  const minutes = (Date.now() - at.getTime()) / 60_000
+  if (minutes < 1) return 'Last seen just now'
+  if (minutes < 60) return `Last seen ${formatDistanceToNowStrict(at)} ago`
+  if (isToday(at)) return `Last seen today at ${format(at, 'h:mm a')}`
+  if (isYesterday(at)) return `Last seen yesterday at ${format(at, 'h:mm a')}`
+  return `Last seen ${format(at, 'MMM d')}`
 }

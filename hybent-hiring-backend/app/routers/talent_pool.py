@@ -14,6 +14,7 @@ from app.utils.permissions import ApplicationStage
 
 from sqlalchemy.orm import selectinload
 
+from app.utils.candidate_labels import added_by_label
 router = APIRouter(prefix="/v1/talent-pool", tags=["talent_pool"])
 
 
@@ -204,20 +205,20 @@ async def list_talent_pool(
                 "invitations": [],
                 "other_offers": [],
                 "documents": [],
-                "created_by_name": "Admin",
+                "created_by_name": added_by_label(c),
                 "created_by_id": str(c.created_by_id) if c.created_by_id else None,
             }
             return d
         try:
             cb = c.created_by
             if cb is not None:
-                d["created_by_name"] = getattr(cb, "full_name", None) or "Admin"
+                d["created_by_name"] = added_by_label(c)
                 d["created_by_id"] = str(getattr(cb, "id", ""))
             else:
-                d["created_by_name"] = "Admin"
+                d["created_by_name"] = added_by_label(c)
                 d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         except Exception:
-            d["created_by_name"] = "Admin"
+            d["created_by_name"] = added_by_label(c)
             d["created_by_id"] = str(c.created_by_id) if c.created_by_id else None
         return d
 
@@ -306,7 +307,7 @@ async def get_suggested_matches(current_user: CurrentUser, db: DB):
                     "matched_skills": m["breakdown"].get("matched_skills", [])[:8],
                     "skills": (m["candidate"].skills or [])[:8],
                     "avatar_url": None,
-                    "created_by_name": getattr(m["candidate"].created_by, "full_name", None) or "Admin",
+                    "created_by_name": added_by_label(m["candidate"]),
                 }
                 for m in top
             ],

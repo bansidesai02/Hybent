@@ -632,7 +632,7 @@ export default function AllTalentListPage() {
       header: 'Added by',
       cell: (c) => (
         <div className="max-w-[180px]">
-          <p className="truncate text-hb-text">{c.created_by_name || 'Admin'}</p>
+          <p className="truncate text-hb-text">{c.created_by_name || '—'}</p>
           {c.hr_name && (
             <p className="truncate text-hb-xs text-hb-muted" title={c.hr_name}>Recruiter: {c.hr_name}</p>
           )}
@@ -1007,7 +1007,7 @@ export default function AllTalentListPage() {
                         />
                       }
                     />
-                    <Fact label="Added by" value={candidate.created_by_name || 'Admin'} />
+                    <Fact label="Added by" value={candidate.created_by_name || '—'} />
                     {candidate.hr_name && <Fact label="Recruiter" value={candidate.hr_name} />}
                   </div>
 

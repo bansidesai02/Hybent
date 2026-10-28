@@ -274,7 +274,8 @@ async def list_clients(db: DB, current_user: SuperAdminUser):
         # What the client actually gets: its own setting, else the platform default.
         own = flags_map.get(org.id, {})
         flags = {**flag_defaults, **{k: v for k, v in own.items() if k in feature_flags.ENFORCED}}
-        flags["ai_calls"] = bool(own.get("ai_calls", False))
+        # The client's own switch, else the env default (voice_calls.ai_calls_enabled).
+        flags["ai_calls"] = bool(own["ai_calls"]) if "ai_calls" in own else settings.ai_calls_enabled_for(org.id)
 
         clients_list.append({
             "id": str(org.id),
@@ -759,16 +760,55 @@ async def activate_client(client_id: uuid.UUID, db: DB, current_user: SuperAdmin
 @router.get("/clients/{client_id}/flags")
 async def get_client_feature_flags(client_id: uuid.UUID, db: DB, current_user: SuperAdminUser):
     flags = await feature_flags.effective_flags(db, client_id)
-    flags["ai_calls"] = bool(await db.scalar(
+    own = await db.scalar(
         select(CompanyFeatureFlag.is_enabled).where(
             CompanyFeatureFlag.organization_id == client_id, CompanyFeatureFlag.flag_key == "ai_calls"
         )
-    ))
+    )
+    # The client's own switch, else the env default (voice_calls.ai_calls_enabled).
+    flags["ai_calls"] = bool(own) if own is not None else settings.ai_calls_enabled_for(client_id)
     return APIResponse.success(data=flags)
 
 
+async def _plan_has_copilot(db, client_id: uuid.UUID) -> tuple[bool, str | None]:
+    """(the client's plan includes the Copilot, plan name). Pro and Custom do;
+    Standard and the Standard trial don't."""
+    sub = (await db.execute(
+        select(CompanySubscription).where(CompanySubscription.organization_id == client_id)
+    )).scalar_one_or_none()
+    if not sub or not sub.plan:
+        return True, None  # no plan: nothing to protect
+    plan = sub.plan
+    return plan.term_months is None or bool((plan.features or {}).get("copilot")), plan.name
+
+
+@router.get("/clients/{client_id}/plan-features")
+async def get_client_plan_features(client_id: uuid.UUID, db: DB, current_user: SuperAdminUser):
+    """What the client's plan includes, for the feature switches."""
+    copilot, plan_name = await _plan_has_copilot(db, client_id)
+    return APIResponse.success(data={"plan_name": plan_name, "copilot_in_plan": copilot})
+
+
 @router.put("/clients/{client_id}/flags")
-async def update_client_feature_flags(client_id: uuid.UUID, flags_update: dict[str, bool], db: DB, current_user: SuperAdminUser, request: Request):
+async def update_client_feature_flags(
+    client_id: uuid.UUID, flags_update: dict[str, bool], db: DB, current_user: SuperAdminUser, request: Request,
+    force: bool = Query(False, description="Turn on the Copilot for a plan that doesn't include it"),
+):
+    # The Copilot is a Pro feature. Switching it on for a client whose plan
+    # doesn't include it needs an explicit force, recorded in the audit log.
+    forced = False
+    if flags_update.get("copilot") is True:
+        current = await db.scalar(select(CompanyFeatureFlag.is_enabled).where(
+            CompanyFeatureFlag.organization_id == client_id, CompanyFeatureFlag.flag_key == "copilot"))
+        in_plan, plan_name = await _plan_has_copilot(db, client_id)
+        if current is not True and not in_plan:
+            if not force:
+                raise HTTPException(status_code=409, detail={
+                    "code": "copilot_requires_pro",
+                    "message": f"The Copilot is a Pro feature and this client is on {plan_name}. Force-enable it to turn it on anyway.",
+                })
+            forced = True
+
     for key, val in flags_update.items():
         flag_res = await db.execute(
             select(CompanyFeatureFlag).where(
@@ -790,10 +830,11 @@ async def update_client_feature_flags(client_id: uuid.UUID, flags_update: dict[s
         db=db,
         user_id=current_user.id,
         user_email=current_user.email,
-        action=f"Updated feature flags for client {client_id}",
+        action=(f"Force-enabled the Copilot outside its plan for client {client_id}" if forced
+                else f"Updated feature flags for client {client_id}"),
         module="Feature Flags",
         request=request,
-        metadata=flags_update
+        metadata={**flags_update, **({"forced_copilot": True} if forced else {})}
     )
 
     await db.commit()

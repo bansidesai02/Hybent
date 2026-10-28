@@ -55,6 +55,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     if org_id:
         ws_manager._user_orgs[user_id] = org_id
     
+    await _stamp_last_seen(user_id)
     # Send a welcome message
     await ws_manager.send_to_user(user_id, "connected", {"message": "Connected to Hybent Hiring notifications"})
 
@@ -65,7 +66,25 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
+        pass
+    finally:
+        # However the connection ended: the user was here until now.
         ws_manager.disconnect(websocket, user_id)
+        await _stamp_last_seen(user_id)
+
+
+async def _stamp_last_seen(user_id: str) -> None:
+    """Chat presence: "Last seen" is the last time a tab connected or closed."""
+    try:
+        from datetime import datetime, timezone
+        from sqlalchemy import update
+        from app.core.database import AsyncSessionLocal
+        from app.models.user import User
+        async with AsyncSessionLocal() as db:
+            await db.execute(update(User).where(User.id == uuid.UUID(user_id)).values(last_seen_at=datetime.now(timezone.utc)))
+            await db.commit()
+    except Exception as e:
+        logger.warning(f"[WS] Could not stamp last seen for {user_id}: {e}")
 
 
 @router.get("", response_model=list[NotificationOut])

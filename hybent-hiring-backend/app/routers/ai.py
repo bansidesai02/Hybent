@@ -19,6 +19,8 @@ from typing import Annotated
 
 logger = logging.getLogger(__name__)
 
+from app.services.feature_flags import require_feature
+
 router = APIRouter(prefix="/v1/ai", tags=["ai"])
 
 @router.post("/evaluate-notes")
@@ -282,7 +284,7 @@ from sqlalchemy import select
 from sqlalchemy import func
 from app.models.ai_usage import AIUsage
 
-@router.get("/credits/history")
+@router.get("/credits/history", dependencies=[Depends(require_feature("usage_logs"))])
 async def get_credits_history(
     db: DB,
     current_user: Annotated[User, Depends(require_recruiter)],
