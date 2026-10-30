@@ -48,12 +48,42 @@ function savedConsent(): Consent | null {
   }
 }
 
+/**
+ * EEA, UK and Switzerland need opt-in consent before analytics. Our main
+ * markets (India, UAE, US) allow analytics with an opt-out, so there it is on
+ * by default and the banner offers a way to switch it off. Ads stay denied
+ * everywhere until a visitor accepts marketing cookies.
+ */
+const OPT_IN_REGIONS = [
+  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU',
+  'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO', 'GB', 'CH',
+]
+
+/**
+ * Whether this visitor gets the opt-in banner (with Reject). Google applies the
+ * region defaults below by IP; the banner can only guess, so it uses the
+ * browser's time zone, and an unknown zone counts as opt-in to stay safe.
+ */
+export function needsOptIn(): boolean {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+    return zone === '' || zone.startsWith('Europe/') || zone === 'Atlantic/Reykjavik'
+  } catch {
+    return true
+  }
+}
+
 /** Starts GTM once. Skipped in dev and in the prerender's headless Chrome. */
 export function initAnalytics() {
   if (loaded || import.meta.env.DEV || navigator.webdriver) return
   loaded = true
   window.dataLayer = window.dataLayer || []
-  gtag('consent', 'default', { ...consentState({ analytics: false, marketing: false }), wait_for_update: 500 })
+  gtag('consent', 'default', {
+    ...consentState({ analytics: false, marketing: false }),
+    region: OPT_IN_REGIONS,
+    wait_for_update: 500,
+  })
+  gtag('consent', 'default', { ...consentState({ analytics: true, marketing: false }), wait_for_update: 500 })
   const saved = savedConsent()
   if (saved) gtag('consent', 'update', consentState(saved))
   window.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' })

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CONSENT_STORAGE_KEY, updateConsent } from '@/lib/analytics'
+import { CONSENT_STORAGE_KEY, needsOptIn, updateConsent } from '@/lib/analytics'
 
 export type CookiePreferences = {
   essential: boolean
@@ -11,9 +11,12 @@ export type CookiePreferences = {
 const STORAGE_KEY = CONSENT_STORAGE_KEY
 
 export function CookieBanner() {
+  /* EU visitors get opt-in with Reject; elsewhere analytics is on by default
+     and the banner is a notice with an opt-out under Customize. */
+  const [optIn] = useState(needsOptIn)
   const [isVisible, setIsVisible] = useState(false)
   const [showCustomizer, setShowCustomizer] = useState(false)
-  const [analytics, setAnalytics] = useState(false)
+  const [analytics, setAnalytics] = useState(!optIn)
   const [marketing, setMarketing] = useState(false)
 
   useEffect(() => {
@@ -49,6 +52,11 @@ export function CookieBanner() {
 
   const handleAcceptAll = () => {
     saveConsent({ essential: true, analytics: true, marketing: true })
+  }
+
+  /* The notice's OK keeps the default: analytics on, marketing off. */
+  const handleAcknowledge = () => {
+    saveConsent({ essential: true, analytics: true, marketing: false })
   }
 
   const handleRejectNonEssential = () => {
@@ -179,7 +187,9 @@ export function CookieBanner() {
                   margin: 0,
                 }}
               >
-                HYBENT uses essential cookies to ensure security, performance, and authentication across our AI recruitment platform. With your consent we also use Google Analytics to understand how visitors use our website.{' '}
+                HYBENT uses essential cookies to ensure security, performance, and authentication across our AI recruitment platform. {optIn
+                  ? 'With your consent we also use Google Analytics to understand how visitors use our website.'
+                  : 'We also use Google Analytics to understand how visitors use our website. You can switch it off under Customize.'}{' '}
                 <a
                   href="/cookies"
                   style={{
@@ -219,6 +229,7 @@ export function CookieBanner() {
               >
                 Customize
               </button>
+              {optIn && (
               <button
                 type="button"
                 onClick={handleRejectNonEssential}
@@ -236,9 +247,10 @@ export function CookieBanner() {
                 <span className="cb-long">Reject Non-Essential</span>
                 <span className="cb-short">Reject</span>
               </button>
+              )}
               <button
                 type="button"
-                onClick={handleAcceptAll}
+                onClick={optIn ? handleAcceptAll : handleAcknowledge}
                 className="btn btn-primary cb-accept"
                 style={{
                   fontSize: '0.85rem',
@@ -249,7 +261,7 @@ export function CookieBanner() {
                   boxShadow: '0 4px 14px rgba(108, 71, 255, 0.35)',
                 }}
               >
-                Accept All
+                {optIn ? 'Accept All' : 'OK'}
               </button>
             </div>
           </div>
