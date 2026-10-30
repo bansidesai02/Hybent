@@ -226,7 +226,7 @@ export default function HybentLoginPortal({
       <p className="hlp-foot">
         New to Hybent?{' '}
         <button type="button" className="hlp-underline" onClick={onCreateAccount} disabled={busy}>
-          Book a demo or request access
+          Start a 7-day free trial
         </button>
       </p>
     </HybentAuthShell>

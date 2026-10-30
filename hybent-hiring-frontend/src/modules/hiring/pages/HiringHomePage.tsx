@@ -1,5 +1,5 @@
 import { SiteView } from '@/modules/site/components/SiteView'
-import { AUTH, SITE } from '@/app/paths'
+import { SITE } from '@/app/paths'
 import { HiringSimulator } from '../components/HiringSimulator'
 
 /**
@@ -172,11 +172,11 @@ export default function HiringHomePage() {
           </p>
 
           <div className="hero__actions" data-rv="up" data-delay="240" style={{ justifyContent: 'center', marginInline: 'auto' }}>
-            <a className="btn btn-primary btn-lg" href={AUTH.register}>
-              Get started
+            <a className="btn btn-primary btn-lg" href={SITE.freeTrial}>
+              Start 7-day free trial
               <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
             </a>
-            <a className="btn btn-ghost btn-lg" href={`${AUTH.register}?demo=true`}>Book a demo</a>
+            <a className="btn btn-ghost btn-lg" href={`${SITE.contact}?topic=hiring`}>Book a demo</a>
           </div>
 
           {/* Interactive AI Autopilot Hiring Simulator Widget */}
@@ -327,8 +327,8 @@ export default function HiringHomePage() {
                   on your own candidates, not a demo dataset.
                 </p>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '30px' }}>
-                  <a className="btn btn-primary" href={AUTH.register}>
-                    Get started
+                  <a className="btn btn-primary" href={SITE.freeTrial}>
+                    Start 7-day free trial
                     <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
                   </a>
                   <a className="btn btn-ghost" href={SITE.contact}>Talk to us</a>
