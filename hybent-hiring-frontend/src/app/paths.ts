@@ -95,7 +95,6 @@ export const AUTH = {
   /** The platform's canonical sign-in — the Hybent company portal. Every
       redirect (RequireAuth, forced logout, /dashboard) lands here. */
   login: '/login',
-  register: '/register',
   resetPassword: '/reset-password',
   /** ?status=success|error|verifying selects the state; default is "sent". */
   verifyEmail: '/verify-email',

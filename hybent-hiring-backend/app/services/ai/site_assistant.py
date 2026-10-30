@@ -45,7 +45,7 @@ AI-powered recruitment platform holding the whole hiring pipeline in one place:
 - AI credits: AI features (parsing, match scoring, pre-screening, copilot) use credits. Standard includes 5,000 credits/month and Pro 10,000, shared by the team. Top-up: 5,000 credits for $10 from the AI Credits page.
 - Extra seats: every plan has exactly one admin seat; extra admin seats are not sold. Extra recruiter seats are $10/month (₹999/month) and add 1,000 AI credits each. Added from the Billing page or via us. Interviewers don't need a seat.
 - You can move from Standard to Pro or add seats later — talk to us.
-- Sign up: /register (pick a plan on /pricing).
+- Sign up: start a 7-day free trial of Standard or Pro on /pricing (or /free-trial). A business email is required and the Hybent team approves each request within one business day.
 - IT services / custom software projects have NO fixed price list: they are quoted per project after understanding scope. Do not invent a budget figure.
 
 # IT Services (page: /services)

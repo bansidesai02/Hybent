@@ -42,7 +42,6 @@ const HiringHomePage = lazy(() => import('@/modules/hiring/pages/HiringHomePage'
    and now redirect here — they were the same endpoints and the same accounts
    behind a second, drifting design system. */
 const HybentLoginRoute = lazy(() => import('@/modules/site/pages/HybentLoginRoute'))
-const HybentRegisterRoute = lazy(() => import('@/modules/site/pages/HybentRegisterRoute'))
 const HybentResetPasswordRoute = lazy(() => import('@/modules/site/pages/HybentResetPasswordRoute'))
 const HybentVerifyEmailRoute = lazy(() => import('@/modules/site/pages/HybentVerifyEmailRoute'))
 const HybentCreatePasswordRoute = lazy(() => import('@/modules/site/pages/HybentCreatePasswordRoute'))
@@ -150,7 +149,8 @@ export default function AppRoutes() {
       {/* The parent brand owns the canonical paths; the product keeps its own
           themed forms under /hiring. Both hit the same endpoints. */}
       <Route path="/login" element={<HybentLoginRoute />} />
-      <Route path="/register" element={<HybentRegisterRoute />} />
+      {/* The old "Book a demo / Request access" page: replaced by the free trial. */}
+      <Route path="/register" element={<RegisterRedirect />} />
       <Route path="/reset-password" element={<HybentResetPasswordRoute />} />
       {/* One route, four states — ?status=success|error|verifying, default sent. */}
       <Route path="/verify-email" element={<HybentVerifyEmailRoute />} />
@@ -159,7 +159,7 @@ export default function AppRoutes() {
           they are in inboxes, bookmarks and at least one nginx config, and a
           404 on a sign-in link is the worst possible way to learn that. */}
       <Route path="/hiring/login" element={<Navigate to="/login?product=hiring" replace />} />
-      <Route path="/hiring/register" element={<Navigate to="/register?product=hiring" replace />} />
+      <Route path="/hiring/register" element={<RegisterRedirect />} />
       <Route
         path="/hiring/reset-password"
         element={<Navigate to="/reset-password?product=hiring" replace />}
@@ -228,4 +228,12 @@ export default function AppRoutes() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
+}
+
+/** /register used to be the demo/access request; it now goes to the free trial. */
+function RegisterRedirect() {
+  const { search } = useLocation()
+  const plan = new URLSearchParams(search).get('plan')
+  const query = plan === 'standard' || plan === 'pro' ? `?plan=${plan}` : ''
+  return <Navigate to={`${SITE.freeTrial}${query}`} replace />
 }

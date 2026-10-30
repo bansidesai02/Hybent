@@ -1,4 +1,4 @@
-import { AUTH, PRODUCTS } from '@/app/paths'
+import { PRODUCTS, SITE } from '@/app/paths'
 import { SiteView } from '../components/SiteView'
 
 /**
@@ -87,7 +87,7 @@ export default function UseCasesPage() {
           <h1 style={{ fontSize: "clamp(2.35rem,4.6vw,3.6rem)", marginTop: "14px" }} data-rv="up" data-delay="80">How teams hire with Hybent Hiring</h1>
           <p className="hero__sub" data-rv="up" data-delay="160">Five hiring situations Hybent Hiring is built for, and the features that handle each one. Everything on this page is live today.</p>
           <div className="hero__actions" data-rv="up" data-delay="240">
-            <a className="btn btn-primary btn-lg" href={AUTH.register}>Start free <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            <a className="btn btn-primary btn-lg" href={SITE.freeTrial}>Start 7-day free trial <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             <a className="btn btn-ghost btn-lg" href="/pricing">See pricing</a>
           </div>
         </div>
@@ -123,11 +123,11 @@ export default function UseCasesPage() {
           </div>
           <div className="grid g2" style={{ marginTop: "28px" }}>
             <div className="card card--flat" data-rv="up">
-              <h3 className="h-md">Standard · $29 (₹2,799) / month</h3>
+              <h3 className="h-md">Standard · $29 / month</h3>
               <p style={{ marginTop: "10px" }}>For high-volume, tech, referral-driven and candidate-experience hiring: AI screening, automated scheduling, the Interviewer's Portal and the Candidate's Portal.</p>
             </div>
             <div className="card card--flat" data-rv="up" data-delay="80">
-              <h3 className="h-md">Pro · $39 (₹3,799) / month</h3>
+              <h3 className="h-md">Pro · $39 / month</h3>
               <p style={{ marginTop: "10px" }}>Everything in Standard plus the Recruiter's Copilot. The better fit for small teams where one person runs hiring.</p>
             </div>
           </div>

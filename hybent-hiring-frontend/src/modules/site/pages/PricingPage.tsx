@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { SiteView } from '../components/SiteView'
-import { AUTH, SITE } from '@/app/paths'
+import { SITE } from '@/app/paths'
 
 /**
  * Pricing for Hybent Hiring.
@@ -44,7 +44,7 @@ const PLANS: Plan[] = [
     price: { USD: '$29', INR: '₹2,799' },
     billed: 'Billed monthly',
     includes: STANDARD_INCLUDED,
-    cta: { label: 'Buy now', href: `${AUTH.register}?plan=standard` },
+    cta: { label: 'Start free trial', href: `${SITE.freeTrial}?plan=standard` },
     trial: `${SITE.freeTrial}?plan=standard`,
   },
   {
@@ -54,7 +54,7 @@ const PLANS: Plan[] = [
     billed: 'Billed monthly',
     featured: true,
     includes: ['Everything in Standard', 'Recruiter Copilot', '10,000 AI credits a month', '1 admin + 1 recruiter seat', 'Add more recruiters as you grow'],
-    cta: { label: 'Buy now', href: `${AUTH.register}?plan=pro` },
+    cta: { label: 'Start free trial', href: `${SITE.freeTrial}?plan=pro` },
     trial: `${SITE.freeTrial}?plan=pro`,
   },
   {
@@ -205,7 +205,7 @@ export default function PricingPage() {
                   Pick a plan and set up your workspace in minutes, or talk to us about a plan built around your team.
                 </p>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '30px' }}>
-                  <a className="btn btn-primary" href={`${AUTH.register}?plan=pro`}>
+                  <a className="btn btn-primary" href={`${SITE.freeTrial}?plan=pro`}>
                     Get started
                     <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
                   </a>
