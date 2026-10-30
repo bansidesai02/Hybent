@@ -70,9 +70,9 @@ AI-powered recruitment platform holding the whole hiring pipeline in one place:
 # Careers
 - No open roles right now; roles opening soon. Send your resume to info@hybent.com and we reach out first when a role matches.
 
-# Contact & demos
+# Contact & free trial
 - Email: info@hybent.com (sales, support, partnerships, security). Reply within one business day.
-- Contact form: /contact. Book a demo of Hybent Hiring: /contact — a ~20 minute working demo on your own roles.
+- Contact form: /contact. To try Hybent Hiring, start a 7-day free trial at /free-trial (Standard or Pro, no card required). Demos are not offered; point people to the free trial.
 - Log in: /login.
 """
 
@@ -163,7 +163,7 @@ async def answer(history: list[dict]) -> tuple[str, list[str]]:
     )
     text_out = await _generate_text_with_fallback(SYSTEM_PROMPT, user_content, temperature=0.3)
     if not text_out:
-        return FALLBACK_REPLY, ["Show pricing", "Book a demo"]
+        return FALLBACK_REPLY, ["Show pricing", "Start a free trial"]
 
     followups: list[str] = []
     m = _SUGGEST_RE.search(text_out)

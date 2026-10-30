@@ -37,7 +37,6 @@ export default function HomePage() {
 
             <div className="hero__actions" data-rv="up" data-delay="240">
               <a className="btn btn-primary btn-lg" href="/hybent-hiring">Explore Hybent Hiring <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-              <a className="btn btn-ghost btn-lg" href="/contact?topic=hiring">Book a demo</a>
             </div>
           </div>
 
@@ -152,7 +151,6 @@ export default function HomePage() {
               </div>
               <div className="product-card__actions">
                 <a className="btn btn-primary" href="/hybent-hiring">Explore Hybent Hiring <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                <a className="btn btn-ghost" href="/contact?topic=hiring">Book a demo</a>
               </div>
             </article>
           </div>
@@ -413,9 +411,9 @@ export default function HomePage() {
               <div data-rv="right">
                 <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Get started</span></p>
                 <h2 className="h-lg">See what Hybent Hiring does to your pipeline</h2>
-                <p className="lead" style={{ marginTop: "18px" }}>A working demo on your own roles, not a slide deck. Tell us how you hire today and we will show you the difference in twenty minutes.</p>
+                <p className="lead" style={{ marginTop: "18px" }}>Try it on your own roles, not a slide deck. Start a 7-day free trial with your team: no card required.</p>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "30px" }}>
-                  <a className="btn btn-primary btn-lg" href="/contact?topic=hiring">Book a demo <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                  <a className="btn btn-primary btn-lg" href="/free-trial">Start 7-day free trial <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg></a>
                   <a className="btn btn-ghost btn-lg" href="/hybent-hiring">Explore Hybent Hiring</a>
                 </div>
               </div>
