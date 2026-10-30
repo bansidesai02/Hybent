@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CONSENT_STORAGE_KEY, updateConsent } from '@/lib/analytics'
 
 export type CookiePreferences = {
   essential: boolean
@@ -7,7 +8,7 @@ export type CookiePreferences = {
   timestamp: number
 }
 
-const STORAGE_KEY = 'hybent_cookie_consent'
+const STORAGE_KEY = CONSENT_STORAGE_KEY
 
 export function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false)
@@ -41,6 +42,7 @@ export function CookieBanner() {
       timestamp: Date.now(),
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    updateConsent(data)
     setIsVisible(false)
     setShowCustomizer(false)
   }
@@ -177,7 +179,7 @@ export function CookieBanner() {
                   margin: 0,
                 }}
               >
-                HYBENT uses essential cookies to ensure security, performance, and authentication across our AI recruitment platform. We do not use analytics or marketing cookies today.{' '}
+                HYBENT uses essential cookies to ensure security, performance, and authentication across our AI recruitment platform. With your consent we also use Google Analytics to understand how visitors use our website.{' '}
                 <a
                   href="/cookies"
                   style={{
@@ -352,7 +354,7 @@ export function CookieBanner() {
                     Analytics &amp; Performance Cookies
                   </h4>
                   <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748b', lineHeight: '1.4' }}>
-                    Helps us understand platform usage trends, page performance, resume parsing speed, and improve user experience.
+                    Google Analytics (via Google Tag Manager) on our public website, to understand which pages visitors use and where they come from. Never used inside the app or candidate portal.
                   </p>
                 </div>
                 <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', flexShrink: 0, marginTop: '2px' }}>

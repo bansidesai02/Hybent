@@ -10,6 +10,7 @@ import { CookieBanner } from './CookieBanner'
 import { HybentChatbot } from '@/components/chatbot/HybentChatbot'
 import { ROUTE_META } from '@/app/routeMeta'
 import { applyPageMeta, routeMetaPath } from '@/app/seo'
+import { initAnalytics, setSiteTracking } from '@/lib/analytics'
 import '@/styles/hybent-site.css'
 
 /**
@@ -46,6 +47,13 @@ export default function AppLayout() {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
   const toggleDrawer = useCallback(() => setDrawerOpen((open) => !open), [])
+
+  /* GTM/GA4 runs on public pages only; switched off when the app takes over. */
+  useEffect(() => {
+    setSiteTracking(true)
+    initAnalytics()
+    return () => setSiteTracking(false)
+  }, [])
 
   /* Body scroll lock while the mobile drawer is open. */
   useEffect(() => {
