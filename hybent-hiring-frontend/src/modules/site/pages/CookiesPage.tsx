@@ -333,7 +333,7 @@ export default function CookiesPage() {
                     </div>
                     <h4 style={{ margin: '4px 0 8px', fontSize: '1.02rem', fontWeight: 700 }}>Analytics &amp; Performance</h4>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
-                      Google Analytics 4, loaded through Google Tag Manager, measures visits to our public website: pages viewed, how visitors arrived and roughly where they are. It runs only after you accept analytics cookies, and never inside the Hybent Hiring app or candidate portal.
+                      Google Analytics 4, loaded through Google Tag Manager, measures visits to our public website: pages viewed, how visitors arrived and roughly where they are. For visitors in the EU, EEA, UK and Switzerland it runs only after you accept analytics cookies; elsewhere it is on by default and you can switch it off in Cookie Settings. It never runs inside the Hybent Hiring app or candidate portal.
                     </p>
                   </div>
 
@@ -415,7 +415,7 @@ export default function CookiesPage() {
                     <strong style={{ color: '#0f172a' }}>Infrastructure &amp; Security Providers:</strong> Employed to detect rate limits, DDoS threats, and ensure continuous application availability.
                   </div>
                   <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <strong style={{ color: '#0f172a' }}>Google Analytics &amp; Google Tag Manager:</strong> Website analytics on our public pages, set only with your consent (cookies such as _ga). You can withdraw consent at any time from Cookie Settings.
+                    <strong style={{ color: '#0f172a' }}>Google Analytics &amp; Google Tag Manager:</strong> Website analytics on our public pages (cookies such as _ga). Opt-in for visitors in the EU, EEA, UK and Switzerland; for everyone else it can be switched off at any time from Cookie Settings.
                   </div>
                   <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <strong style={{ color: '#0f172a' }}>Customer Support Tooling:</strong> Powers live chat and help-desk widgets so support conversations and ticket history persist across your session.
