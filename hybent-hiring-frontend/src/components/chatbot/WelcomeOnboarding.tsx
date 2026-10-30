@@ -65,7 +65,7 @@ const HIRING_ONBOARDING_CARDS = [
   { id: 'h2', title: 'AI Resume Screening', prompt: 'How does Hybent Hiring parse and score resumes?', icon: Bot, color: 'from-teal-500 to-emerald-600' },
   { id: 'h3', title: 'Pricing & Plans', prompt: 'How much does Hybent Hiring cost?', icon: Globe, color: 'from-indigo-500 to-blue-600' },
   { id: 'h4', title: 'Interview Scheduling', prompt: 'How does interview scheduling work in Hybent Hiring?', icon: Users, color: 'from-amber-500 to-orange-600' },
-  { id: 'h5', title: 'Book a Demo', prompt: 'How do I book a demo of Hybent Hiring?', icon: Calendar, color: 'from-violet-600 to-pink-500' },
+  { id: 'h5', title: 'Start a Free Trial', prompt: 'How do I start a 7-day free trial of Hybent Hiring?', icon: Calendar, color: 'from-violet-600 to-pink-500' },
 ]
 
 const ONBOARDING_CARDS = SHOW_SERVICES ? SERVICE_ONBOARDING_CARDS : HIRING_ONBOARDING_CARDS

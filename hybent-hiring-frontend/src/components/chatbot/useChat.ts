@@ -14,7 +14,7 @@ I am **Hybent AI**. Ask me anything about Hybent Hiring, our pricing${SHOW_SERVI
     'What is Hybent Hiring?',
     'How much does it cost?',
     SHOW_SERVICES ? 'Can you build custom software for us?' : 'How does the AI screening work?',
-    'How do I book a demo?',
+    'How do I start a free trial?',
   ],
 }
 

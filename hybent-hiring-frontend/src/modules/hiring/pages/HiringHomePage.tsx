@@ -176,7 +176,6 @@ export default function HiringHomePage() {
               Start 7-day free trial
               <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
             </a>
-            <a className="btn btn-ghost btn-lg" href={`${SITE.contact}?topic=hiring`}>Book a demo</a>
           </div>
 
           {/* Interactive AI Autopilot Hiring Simulator Widget */}
