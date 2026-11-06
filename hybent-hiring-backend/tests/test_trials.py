@@ -249,7 +249,7 @@ async def test_approval_creates_a_trial_organization(client, db_session, plans, 
 
     to, subject, body = outbox["emails"][-1]
     assert to == "bill@initech-example.com" and subject == "Your Hybent Hiring trial"
-    assert f"/setup?token={req.setup_token}" in body and "Your trial ends on" in body
+    assert f"/setup?token={req.setup_token}" in body and "Your 7-day trial ends on" in body
     assert "Set up your organization" in body
 
     # Approving twice does nothing more.
@@ -556,7 +556,7 @@ async def test_info_email_keeps_request_pending(client, db_session, plans, super
 # ── Organization setup ───────────────────────────────────────────────────────
 
 SETUP = {
-    "password": "Initech2026", "full_name": "Bill Lumbergh", "company_name": "Initech",
+    "password": "Initech2026!", "full_name": "Bill Lumbergh", "company_name": "Initech",
     "website": "https://initech-example.com", "industry": "Software / SaaS", "size": "51-200",
     "timezone": "America/New_York", "brand_color": "#ff5500", "email_sender_name": "Initech Talent",
 }
@@ -577,7 +577,7 @@ async def test_setup_link_sets_up_the_organization_once(client, db_session, plan
     db_session.expire_all()
     org = await db_session.get(Organization, org_id)
     assert org.name == "Initech" and org.brand_color == "#FF5500" and org.email_sender_name == "Initech Talent"
-    login = await client.post("/v1/auth/login", json={"email": "bill@initech-example.com", "password": "Initech2026"})
+    login = await client.post("/v1/auth/login", json={"email": "bill@initech-example.com", "password": "Initech2026!"})
     assert login.status_code == 200
     # The link works once.
     assert (await client.get(f"/api/public/trial-setup/{token}")).status_code == 404

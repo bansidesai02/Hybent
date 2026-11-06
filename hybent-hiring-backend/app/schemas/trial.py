@@ -157,7 +157,7 @@ _HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
 class TrialSetupComplete(BaseModel):
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., max_length=128)
     full_name: str = Field(..., min_length=2, max_length=200)
     company_name: str = Field(..., min_length=2, max_length=200)
     website: str | None = Field(None, max_length=255)
@@ -180,6 +180,6 @@ class TrialSetupComplete(BaseModel):
     @field_validator("password")
     @classmethod
     def _strong(cls, v: str) -> str:
-        if not (re.search(r"[A-Za-z]", v) and re.search(r"\d", v)):
-            raise ValueError("Use at least 8 characters with letters and numbers.")
-        return v
+        # The same rule as every other password in the app.
+        from app.schemas.auth import validate_password_strength
+        return validate_password_strength(v)

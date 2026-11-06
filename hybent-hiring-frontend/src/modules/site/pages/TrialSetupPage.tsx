@@ -93,8 +93,8 @@ export default function TrialSetupPage() {
     const e: Errors = {}
     if (index === 0) {
       if (form.full_name.trim().length < 2) e.full_name = 'Enter your full name.'
-      if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password))
-        e.password = 'Use at least 8 characters with letters and numbers.'
+      const weak = passwordProblem(form.password)
+      if (weak) e.password = weak
       else if (form.password !== form.confirm) e.confirm = 'The passwords don’t match.'
     }
     if (index === 1) {
@@ -116,9 +116,12 @@ export default function TrialSetupPage() {
   }
 
   const uploadLogo = async (file: File | undefined) => {
+    if (fileRef.current) fileRef.current.value = ''
     if (!file) return
-    if (file.size > 2 * 1024 * 1024) {
-      setErrors((e) => ({ ...e, logo_url: 'The logo must be under 2 MB.' }))
+    // Same checks as the server (logo_rules.py), so most mistakes show at once.
+    const problem = await checkLogo(file)
+    if (problem) {
+      setErrors((e) => ({ ...e, logo_url: problem }))
       return
     }
     try {
@@ -228,7 +231,7 @@ export default function TrialSetupPage() {
                     </div>
                     <div style={{ marginTop: '16px' }}>{field('full_name', 'Full name', { autoComplete: 'name' })}</div>
                     <div className="grid g2" style={{ gap: '16px', marginTop: '16px' }}>
-                      {field('password', 'Password', { type: 'password', placeholder: 'At least 8 characters', autoComplete: 'new-password' })}
+                      {field('password', 'Password', { type: 'password', placeholder: '12+ chars: A-z, 0-9 and a symbol', autoComplete: 'new-password' })}
                       {field('confirm', 'Confirm password', { type: 'password', autoComplete: 'new-password' })}
                     </div>
                   </div>
@@ -237,13 +240,21 @@ export default function TrialSetupPage() {
                 {step === 1 && (
                   <div className="trial-step" key="s1">
                     <div className="setup-logo">
-                      <div className="setup-logo__preview">
-                        {form.logo_url ? <img src={form.logo_url} alt="Company logo" /> : <span>{(form.company_name || '?').slice(0, 1).toUpperCase()}</span>}
+                      <div className="setup-logo__preview setup-logo__preview--wide">
+                        {form.logo_url ? <img src={form.logo_url} alt="Company logo" /> : <span>{form.company_name || 'Your logo'}</span>}
                       </div>
                       <div>
                         <p style={{ fontWeight: 600 }}>Company logo</p>
-                        <p className="form-note">PNG, JPG or WEBP, under 2 MB. Shown in your emails to candidates.</p>
-                        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => uploadLogo(e.target.files?.[0])} />
+                        <p className="form-note">
+                          A horizontal logo, like the HYBENT wordmark below: a transparent PNG or WebP, at least
+                          300×40px and about 3 to 10 times wider than tall, under 2 MB. It sits at the top of every
+                          email your team sends.
+                        </p>
+                        <p className="setup-logo__example">
+                          <span>Example</span>
+                          <img src="/hybent/hybent-wordmark-light.png" alt="HYBENT wordmark" />
+                        </p>
+                        <input ref={fileRef} type="file" accept="image/png,image/webp" hidden onChange={(e) => uploadLogo(e.target.files?.[0])} />
                         <button type="button" className="btn btn-ghost" style={{ marginTop: '8px', height: '38px' }} disabled={uploading} onClick={() => fileRef.current?.click()}>
                           {uploading ? 'Uploading…' : form.logo_url ? 'Change logo' : 'Upload logo'}
                         </button>
@@ -322,4 +333,38 @@ export default function TrialSetupPage() {
       </section>
     </SiteView>
   )
+}
+
+/** The upload rules from the server (app/services/logo_rules.py): null when the file fits. */
+async function checkLogo(file: File): Promise<string | null> {
+  if (!['image/png', 'image/webp'].includes(file.type)) return 'Use a PNG or WebP file with a transparent background.'
+  if (file.size > 2 * 1024 * 1024) return 'The logo must be under 2 MB.'
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = reject
+      el.src = url
+    })
+    const { naturalWidth: w, naturalHeight: h } = img
+    if (w < 300 || h < 40) return `The logo is too small (${w}×${h}px). Use at least 300×40px.`
+    if (w / h < 2) return 'This looks like a square or stacked logo. Use a horizontal logo like the HYBENT wordmark.'
+    if (w / h > 12) return 'The logo is too thin. Use a horizontal logo about 3 to 10 times wider than tall.'
+    return null
+  } catch {
+    return 'That file isn’t a readable image.'
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+/** The app's password rule (app/schemas/auth.validate_password_strength). */
+function passwordProblem(pw: string): string | null {
+  if (pw.length < 12) return 'Use at least 12 characters.'
+  if (!/[A-Z]/.test(pw)) return 'Add an uppercase letter.'
+  if (!/[a-z]/.test(pw)) return 'Add a lowercase letter.'
+  if (!/[0-9]/.test(pw)) return 'Add a number.'
+  if (!/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(pw)) return 'Add a symbol, like ! or #.'
+  return null
 }

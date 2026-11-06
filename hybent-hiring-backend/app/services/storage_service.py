@@ -222,13 +222,16 @@ async def save_avatar(file: UploadFile, user_id: str) -> str:
 
 
 async def save_logo(file: UploadFile, organization_id: str) -> str:
-    """Save organization logo to Cloudinary (if configured) or local disk, and return URL."""
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP images are supported")
+    """Save organization logo to Cloudinary (if configured) or local disk, and return URL.
+    The logo must be in the HYBENT wordmark format (services/logo_rules.py)."""
+    from app.services.logo_rules import prepare_logo
 
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:  # 5MB
-        raise HTTPException(status_code=400, detail="Logo too large (max 5MB)")
+    content, ext, _ = prepare_logo(await file.read(), file.content_type)
+    return await save_logo_bytes(content, ext, organization_id)
+
+
+async def save_logo_bytes(content: bytes, ext: str, organization_id: str) -> str:
+    """Store a checked logo; returns its URL."""
 
     # 1. Cloudinary Upload Flow
     if settings.cloudinary_cloud_name:
@@ -249,7 +252,6 @@ async def save_logo(file: UploadFile, organization_id: str) -> str:
             raise HTTPException(status_code=500, detail=f"Image upload to Cloudinary failed: {str(e)}")
 
     # 2. Fallback Local Storage Flow
-    ext = ALLOWED_IMAGE_TYPES[file.content_type]
     filename = f"{uuid.uuid4()}{ext}"
     folder = UPLOAD_BASE / "logos"
     folder.mkdir(parents=True, exist_ok=True)

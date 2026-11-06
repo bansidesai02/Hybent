@@ -32,7 +32,7 @@ export type HybentCreatePasswordPortalProps = {
 /** 0–4: length, mixed case, a digit, a symbol. */
 function scorePassword(pw: string): number {
   let score = 0
-  if (pw.length >= 8) score++
+  if (pw.length >= 12) score++
   if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++
   if (/\d/.test(pw)) score++
   if (/[^A-Za-z0-9]/.test(pw)) score++
@@ -60,11 +60,20 @@ export default function HybentCreatePasswordPortal({
   const hasToken = Boolean(token)
   const strength = scorePassword(password)
 
+  // Mirrors the backend's validate_password_strength (as the reset page does).
   const passwordError = !password
     ? 'Choose a password.'
-    : password.length < 8
-      ? 'Password must be at least 8 characters.'
-      : ''
+    : password.length < 12
+      ? 'Password must be at least 12 characters.'
+      : !/[A-Z]/.test(password)
+        ? 'Add at least one uppercase letter.'
+        : !/[a-z]/.test(password)
+          ? 'Add at least one lowercase letter.'
+          : !/\d/.test(password)
+            ? 'Add at least one number.'
+            : !/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(password)
+              ? 'Add at least one symbol, e.g. ! @ # $ %.'
+              : ''
   const confirmError = !confirm
     ? 'Re-enter your password.'
     : confirm !== password
@@ -143,7 +152,7 @@ export default function HybentCreatePasswordPortal({
               type={reveal ? 'text' : 'password'}
               name="new-password"
               autoComplete="new-password"
-              placeholder="At least 8 characters"
+              placeholder="At least 12 characters"
               value={password}
               disabled={loading || !hasToken}
               aria-invalid={showPassword}

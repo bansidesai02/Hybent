@@ -1,7 +1,7 @@
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,11 @@ from app.services.email_service import send_team_invite
 from app.core.config import settings
 from app.services import billing_service
 
+import secrets
+from app.models.password_reset import PasswordResetToken
+
+# How long an invitee has to set their password.
+INVITE_LINK_VALID_DAYS = 7
 router = APIRouter(prefix="/v1/users", tags=["users"])
 
 
@@ -27,7 +32,9 @@ class UserInvite(BaseModel):
     email: str
     full_name: str
     role: UserRole
-    password: str = "TempPass@123"
+    # No longer used: the invitee sets their own password from the emailed
+    # link. Accepted so older clients don't break, then ignored.
+    password: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -90,11 +97,19 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
         email=data.email,
         full_name=data.full_name,
         role=role_str,
-        hashed_password=hash_password(data.password),
+        # Unusable until they set their own from the invite link.
+        hashed_password=hash_password(secrets.token_urlsafe(32)),
         is_verified=True,
     )
     db.add(user)
     await db.flush()
+
+    # The invite carries a one-time link to set a password, never a password.
+    setup_token = secrets.token_urlsafe(48)
+    db.add(PasswordResetToken(
+        user_id=user.id, token=setup_token,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=INVITE_LINK_VALID_DAYS),
+    ))
 
     # ── Commit user FIRST so they are saved even if email fails ──────────────
     await db.commit()
@@ -107,7 +122,7 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
     org = org_res.scalar_one_or_none()
     company_name = org.name if org else "Hybent Hiring"
 
-    # Team invites are account mail (they carry a temporary password), so they
+    # Team invites are account mail (they carry a set-password link), so they
     # always come from the platform address (info@hybent.com), never from the
     # inviting admin's personal mailbox.
     try:
@@ -117,8 +132,8 @@ async def invite_user(data: UserInvite, current_user: AdminUser, db: DB, backgro
             invited_by=current_user.full_name,
             company_name=company_name,
             role=role_str,
-            password=data.password,
-            login_url=f"{frontend_base}/login",
+            setup_url=f"{frontend_base.rstrip('/')}/reset-password?token={setup_token}",
+            valid_days=INVITE_LINK_VALID_DAYS,
             org_logo_url=org.logo_url if org else None,
         )
     except Exception as e:
