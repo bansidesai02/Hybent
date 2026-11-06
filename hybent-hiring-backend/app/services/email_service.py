@@ -195,13 +195,19 @@ def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None,
     align = "center" if is_centered else "left"
     margin = "0 auto" if is_centered else "0"
     
-    # If the organization has a custom logo, render that.
-    if org_logo_url:
-        # Alt text styled as the name, for mail apps that block images.
+    # The organization's logo, in the HYBENT wordmark's place and format: a
+    # horizontal mark 28px tall (logo_rules.py checks the upload). A relative
+    # URL can't load in a mail app, so the name is shown instead.
+    if org_logo_url and org_logo_url.startswith("http"):
         return (
-            f'<img src="{org_logo_url}" alt="{html.escape(org_name or "Organization")}" '
-            f'style="max-height: 35px; max-width: 180px; display: block; margin: {margin}; '
+            f'<img src="{html.escape(org_logo_url)}" alt="{html.escape(org_name or "Organization")}" height="28" '
+            f'style="height: 28px; width: auto; max-width: 240px; display: block; margin: {margin}; border: 0; '
             f'font-size: 18px; font-weight: 700; color: #0B1220;">'
+        )
+    if org_logo_url or (org_name and org_name != "Hybent Hiring"):
+        return (
+            f'<div style="font-size: 20px; font-weight: 800; letter-spacing: -0.01em; color: #0B1220; '
+            f'text-align: {align};">{html.escape(org_name or "")}</div>'
         )
     
     # Check if local development URL. If so, fall back to production domain for images to resolve correctly in Gmail
@@ -576,33 +582,34 @@ def send_team_invite(
     invited_by: str,
     company_name: str,
     role: str,
-    password: str,
-    login_url: str,
+    setup_url: str,
+    valid_days: int = 7,
     org_logo_url: str | None = None,
     email_account: "EmailAccount | None" = None,
 ) -> None:
+    """Invite a teammate with a one-time link to set their own password.
+    No password is ever put in an email."""
     subject = f"You've been invited to join {company_name}"
-    fname = to_name.split()[0].title() if to_name else "Team Member"
-    display_role = role.replace('_', ' ').title()
-    
+    fname = html.escape(to_name.split()[0].title() if to_name else "there")
+    display_role = html.escape(role.replace('_', ' ').title())
+
     content = f"""
         <h2 class="title" style="margin-top: 20px;">Join the team</h2>
-        <p class="description">Hi {fname}, you've been invited by <strong>{invited_by}</strong> to join <strong>{company_name}</strong> as a <strong>{display_role}</strong>.</p>
-        
+        <p class="description">Hi {fname}, <strong>{html.escape(invited_by)}</strong> has invited you to join
+        <strong>{html.escape(company_name)}</strong> on Hybent Hiring as a <strong>{display_role}</strong>.</p>
+
         <div class="info-box">
-            <p style="margin: 0 0 16px 0; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Access Credentials</p>
-            <div class="info-label">Email</div>
-            <div class="info-value" style="color: #4C6FFF;">{to_email}</div>
-            <div class="info-label">Temporary Password</div>
-            <div class="info-value" style="font-size: 22px;">{password}</div>
+            <div class="info-label">Your sign-in email</div>
+            <div class="info-value" style="color: #4C6FFF;">{html.escape(to_email)}</div>
         </div>
 
         <div class="button-wrap">
-            <a href="{login_url}" class="button">Complete Your Setup</a>
+            <a href="{html.escape(setup_url)}" class="button">Set your password</a>
         </div>
+        <p style="font-size: 13px; color: #70757a;">This link works once and expires in {valid_days} days. If it has
+        expired, use "Forgot password" on the sign-in page with this email.</p>
     """
     send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
-
 
 def send_rejection_email(
     candidate_email: str,
@@ -924,16 +931,22 @@ def send_trial_otp_email(to_email: str, code: str, minutes: int) -> bool:
     return _trial_email(to_email, f"{code} is your Hybent verification code", content)
 
 
-def render_trial_reply(body: str, cta_url: str | None = None, cta_label: str | None = None) -> str:
+def render_trial_reply(body: str, cta_url: str | None = None, cta_label: str | None = None, note: str | None = None) -> str:
     """A reply the Hybent team wrote in Super Admin, as a branded email. The
     body is plain text: paragraphs are kept and every character is escaped."""
     paragraphs = "".join(
         f"<p>{html.escape(p.strip()).replace(chr(10), '<br/>')}</p>"
         for p in re.split(r"\n\s*\n", body.strip()) if p.strip()
     )
+    note_html = (
+        f'<table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-top: 18px; '
+        f'background: #F5F7FF; border-radius: 10px;"><tr><td style="padding: 12px 16px; font-size: 14px; color: #3c4043;">'
+        f'{html.escape(note)}</td></tr></table>'
+        if note else ""
+    )
     button = (
         f'<div class="button-wrap"><a href="{html.escape(cta_url)}" class="button">{html.escape(cta_label or "Open")}</a></div>'
         if cta_url else ""
     )
-    return _get_base_template(f'<div style="margin-top: 12px;">{paragraphs}</div>{button}', org_name="Hybent Hiring")
+    return _get_base_template(f'<div style="margin-top: 12px;">{paragraphs}</div>{note_html}{button}', org_name="Hybent Hiring")
 

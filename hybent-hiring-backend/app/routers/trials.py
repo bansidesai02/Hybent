@@ -124,24 +124,20 @@ async def get_trial_setup(token: str, db: DB):
 async def upload_trial_setup_logo(token: str, db: DB, file: UploadFile = File(...)):
     """The organization's logo, stored with the other trial files."""
     from app.services import supabase_storage_service
-    from app.services.storage_service import ALLOWED_IMAGE_TYPES, save_logo
+    from app.services.logo_rules import prepare_logo
+    from app.services.storage_service import save_logo_bytes
 
     req = await trial_service.setup_request(db, token)
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail="Use a JPG, PNG or WEBP image.")
+    # Same format as the HYBENT wordmark: horizontal, transparent (logo_rules.py).
+    content, ext, content_type = prepare_logo(await file.read(), file.content_type)
     if settings.supabase_url and settings.supabase_service_role_key:
-        content = await file.read()
-        if len(content) > 2 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="The logo must be under 2 MB.")
         try:
-            url = await supabase_storage_service.upload_trial_logo(
-                content, file.content_type, str(req.organization_id), ALLOWED_IMAGE_TYPES[file.content_type],
-            )
+            url = await supabase_storage_service.upload_trial_logo(content, content_type, str(req.organization_id), ext)
         except Exception:
             logger.exception("Trial logo upload to Supabase failed.")
             raise HTTPException(status_code=502, detail="We couldn't upload the logo. Please try again.")
     else:
-        url = await save_logo(file, str(req.organization_id))
+        url = await save_logo_bytes(content, ext, str(req.organization_id))
     return APIResponse.success(data={"logo_url": url})
 
 
@@ -298,8 +294,7 @@ async def send_trial_reply(
         action = f"Asked {req.company_name} for more information"
 
     text = body.body.strip()
-    if body.kind == "approve":
-        text += f"\n\nYour trial ends on {req.trial_end:%d %B %Y at %H:%M} UTC."
+    note = f"Your 7-day trial ends on {req.trial_end:%d %B %Y at %H:%M} UTC." if body.kind == "approve" else None
     message = TrialMessage(
         request_id=req.id, kind=body.kind, to_email=req.contact_email, subject=body.subject.strip(), body=text,
         ai_generated=body.ai_generated, sent_by_id=current_user.id, sent_by_email=current_user.email,
@@ -312,7 +307,7 @@ async def send_trial_reply(
     )
     await db.commit()
 
-    html_body = email_service.render_trial_reply(text, cta_url, trial_replies.CTA_LABEL if cta_url else None)
+    html_body = email_service.render_trial_reply(text, cta_url, trial_replies.CTA_LABEL if cta_url else None, note)
     sent = False
     try:
         sent = await asyncio.to_thread(email_service.send_email, req.contact_email, message.subject, html_body)

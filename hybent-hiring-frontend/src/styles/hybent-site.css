@@ -1435,6 +1435,13 @@ html:not([data-theme]) .hb-site .figpanel{box-shadow:0 20px 54px -30px rgba(0,0,
 .hb-site .setup-logo__preview{display:grid;place-items:center;width:84px;height:84px;flex:none;border-radius:18px;overflow:hidden;
   border:1px solid var(--border);background:#fff;font-family:var(--f-display);font-size:2rem;font-weight:700;color:#4C6FFF}
 .hb-site .setup-logo__preview img{max-width:100%;max-height:100%;object-fit:contain}
+/* Logo in the HYBENT wordmark format: a wide box, the logo 28px tall as in emails. */
+.hb-site .setup-logo__preview--wide{width:220px;height:72px;padding:0 16px;font-size:1rem;color:var(--text)}
+.hb-site .setup-logo__preview--wide img{height:28px;width:auto;max-width:100%}
+.hb-site .setup-logo__example{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.72rem;color:var(--dim);
+  text-transform:uppercase;letter-spacing:.12em}
+.hb-site .setup-logo__example img{height:14px;width:auto}
+@media (max-width:560px){.hb-site .setup-logo{flex-direction:column;align-items:flex-start}}
 .hb-site .setup-colors{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .hb-site .setup-colors__swatch{width:34px;height:34px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--border);cursor:pointer;transition:transform .2s}
 .hb-site .setup-colors__swatch[aria-pressed="true"]{box-shadow:0 0 0 2px #0B1220;transform:scale(1.08)}

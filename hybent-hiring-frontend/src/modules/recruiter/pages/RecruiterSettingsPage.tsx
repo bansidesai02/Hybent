@@ -1,13 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
-import Cropper, { type Area, type Point } from 'react-easy-crop'
 import { Building2, Camera, Mail, ShieldCheck } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
 import { organizationsApi } from '@/api/organizations'
 import { authApi, profileApi } from '@/api/auth'
-import getCroppedImg from '@/utils/cropImage'
 import type { Organization } from '@/types'
 import { EmailAccountsSection } from '@/modules/recruiter/components/EmailAccountsSection'
 import { AICallSettingsCard } from '@/modules/recruiter/components/aiCalls/AICallSettingsCard'
@@ -57,12 +55,6 @@ export default function RecruiterSettingsPage() {
   const [orgName, setOrgName] = useState('')
   const [isPasswordChanging, setIsPasswordChanging] = useState(false)
 
-  // Cropper specific state
-  const [tempImage, setTempImage] = useState<string | null>(null)
-  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
-  const [isCropping, setIsCropping] = useState(false)
 
   // ── Data Fetching ───────────────────────────────────────────────────────────
   const { data: organization } = useQuery({
@@ -100,7 +92,8 @@ export default function RecruiterSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['organization', 'me'] })
       toast.success('Logo updated successfully')
     },
-    onError: () => toast.error('Failed to upload logo'),
+    // The server explains what's wrong with the file (logo_rules.py).
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to upload logo', { duration: 7000 }),
   })
 
   const changePasswordMutation = useMutation({
@@ -135,42 +128,12 @@ export default function RecruiterSettingsPage() {
 
   const onLogoClick = () => fileInputRef.current?.click()
 
+  // The logo goes up as-is: a horizontal, transparent mark like the HYBENT
+  // wordmark. The server checks the shape and trims the transparent edges.
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.addEventListener('load', () => {
-        setTempImage(reader.result as string)
-        setIsCropping(true)
-      })
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const onCropComplete = (_: Area, croppedAreaPixels: Area) => {
-    setCroppedAreaPixels(croppedAreaPixels)
-  }
-
-  const handleApplyCrop = async () => {
-    if (!tempImage || !croppedAreaPixels) return
-
-    try {
-      const croppedImageBlob = await getCroppedImg(tempImage, croppedAreaPixels)
-      if (croppedImageBlob) {
-        const file = new File([croppedImageBlob], 'cropped-logo.jpg', { type: 'image/jpeg' })
-        uploadLogoMutation.mutate(file)
-        setIsCropping(false)
-        setTempImage(null)
-      }
-    } catch (e) {
-      console.error(e)
-      toast.error('Failed to crop image')
-    }
-  }
-
-  const handleCancelCrop = () => {
-    setIsCropping(false)
-    setTempImage(null)
+    e.target.value = ''
+    if (file) uploadLogoMutation.mutate(file)
   }
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -216,7 +179,7 @@ export default function RecruiterSettingsPage() {
                   type="button"
                   onClick={onLogoClick}
                   aria-label={organization?.logo_url ? 'Change company logo' : 'Upload company logo'}
-                  className="group relative grid h-24 w-24 place-items-center overflow-hidden rounded-hb-md border border-dashed border-hb-border-strong bg-hb-surface-2 transition-colors duration-hb ease-hb hover:border-hb-blue/60 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  className="group relative grid h-20 w-60 place-items-center overflow-hidden rounded-hb-md border border-dashed border-hb-border-strong bg-hb-surface-2 transition-colors duration-hb ease-hb hover:border-hb-blue/60 focus-visible:outline-none focus-visible:shadow-hb-ring"
                 >
                   {organization?.logo_url ? (
                     <img src={organization.logo_url} alt="" className="h-full w-full object-contain p-2" />
@@ -235,8 +198,12 @@ export default function RecruiterSettingsPage() {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
-                  accept="image/*"
+                  accept="image/png,image/webp"
                 />
+                <p className="mt-2 max-w-[240px] text-hb-xs text-hb-muted">
+                  Horizontal logo like the HYBENT wordmark: transparent PNG or WebP, at least 300×40px, under 2 MB.
+                  Shown at the top of your emails.
+                </p>
               </div>
 
               <div className="flex w-full flex-1 flex-col gap-hb-3 sm:flex-row sm:items-end">
@@ -360,63 +327,6 @@ export default function RecruiterSettingsPage() {
         </Card>
       </div>
 
-      {/* ── Cropper Dialog ─────────────────────────────────────────────────────── */}
-      <Dialog
-        open={isCropping && !!tempImage}
-        onClose={handleCancelCrop}
-        title="Adjust logo"
-        description="Crop and position your image."
-        size="md"
-        footer={
-          <>
-            <Button variant="quiet" onClick={handleCancelCrop}>
-              Cancel
-            </Button>
-            <Button onClick={handleApplyCrop} loading={uploadLogoMutation.isPending}>
-              Apply image
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-hb-5">
-          <div className="relative h-[320px] overflow-hidden rounded-hb-md border border-hb-border bg-hb-surface-2">
-            {tempImage && (
-              <Cropper
-                image={tempImage}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onCropComplete={onCropComplete}
-                onZoomChange={setZoom}
-                cropShape="round"
-                showGrid={false}
-              />
-            )}
-          </div>
-
-          <div className="space-y-hb-2">
-            <div className="flex items-center justify-between gap-hb-3">
-              <Label htmlFor={zoomId}>Zoom level</Label>
-              <span className="font-mono text-hb-micro text-hb-muted">{Math.round(zoom * 100)}%</span>
-            </div>
-            <input
-              id={zoomId}
-              type="range"
-              value={zoom}
-              min={1}
-              max={3}
-              step={0.1}
-              /* The readout beside the label is a percentage while the raw
-                 value is 1–3, so without this a screen reader announces "2.1"
-                 against a visible "210%". */
-              aria-valuetext={`${Math.round(zoom * 100)}%`}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-full cursor-pointer accent-hb-blue"
-            />
-          </div>
-        </div>
-      </Dialog>
     </div>
   )
 }

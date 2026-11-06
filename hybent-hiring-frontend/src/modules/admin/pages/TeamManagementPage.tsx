@@ -61,7 +61,6 @@ const inviteSchema = z.object({
   full_name: z.string().min(2, 'Name required'),
   email: z.string().email('Valid email required'),
   role: z.string().min(1, 'Role required'),
-  password: z.string().min(8, 'Min 8 characters'),
 })
 type InviteForm = z.infer<typeof inviteSchema>
 
@@ -79,7 +78,7 @@ function InviteDialog({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
       open
       onClose={onClose}
       title="Invite a team member"
-      description="They will be able to sign in with the temporary password you set here."
+      description="They'll get an email with a one-time link to set their own password."
       size="sm"
       footer={
         <>
@@ -127,13 +126,6 @@ function InviteDialog({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               {...field}
             />
           )}
-        />
-        <Input
-          label="Temporary password"
-          type="password"
-          placeholder="Min 8 characters"
-          error={errors.password?.message}
-          {...register('password')}
         />
         <p className="text-hb-xs text-hb-muted">
           Admins and recruiters use a seat on your plan; interviewers don&apos;t.
