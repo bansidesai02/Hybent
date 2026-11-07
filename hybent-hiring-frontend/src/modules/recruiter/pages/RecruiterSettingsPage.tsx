@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import { Building2, Camera, Mail, ShieldCheck } from 'lucide-react'
 
+import PushNotificationsCard from '@/components/common/PushNotificationsCard'
 import { useAuth } from '@/hooks/useAuth'
 import { organizationsApi } from '@/api/organizations'
 import { authApi, profileApi } from '@/api/auth'
@@ -231,6 +232,9 @@ export default function RecruiterSettingsPage() {
             only renders for 'admin' or 'recruiter' (route-guarded), so
             !isAdmin here means recruiter. */}
         {isAdmin ? <EmailAccountsSection /> : <PersonalMailboxCard />}
+
+        {/* New public-link applications on the admin's phone; hidden during a support session. */}
+        {isAdmin && !user?.is_impersonating && <PushNotificationsCard />}
 
         {aiCallsEnabled && <AICallSettingsCard canEdit={!!isAdmin} />}
 

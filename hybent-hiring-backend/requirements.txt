@@ -93,3 +93,5 @@ psutil>=5.9.8
 # Testing
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
+# Web Push (phone notifications for admins)
+pywebpush==2.5.0

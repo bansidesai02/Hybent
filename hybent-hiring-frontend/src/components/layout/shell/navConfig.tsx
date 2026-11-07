@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import {
-  Activity, Brain, BriefcaseBusiness, Building2, CalendarDays, ClipboardCheck, FlaskConical,
+  Activity, Brain, BriefcaseBusiness, Building2, CalendarCheck, CalendarDays, ClipboardCheck, FlaskConical,
   Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, PhoneCall, ScrollText,
   Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
@@ -126,6 +126,7 @@ export function getNavSections(
         items: [
           { to: '/hiring/super-admin/clients', label: 'All clients', icon: Building2 },
           { to: '/hiring/super-admin/trials', label: 'Free trials', icon: FlaskConical },
+          { to: '/hiring/super-admin/demo-requests', label: 'Demo requests', icon: CalendarCheck },
           { to: '/hiring/super-admin/billing', label: 'Billing & plans', icon: CreditCard },
           { to: '/hiring/super-admin/ai-credits', label: 'AI credits', icon: Coins },
         ],

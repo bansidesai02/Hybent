@@ -26,6 +26,7 @@ from app.models.copilot_conversation import CopilotConversation, CopilotMessage
 from app.models.candidate_resume_chunk import CandidateResumeChunk
 from app.models.import_batch import ImportBatch
 from app.models.login_event import LoginEvent
+from app.models.push import PushSubscription, DemoRequestRecord
 from app.models.user_preference import UserPreference
 from app.models.designation_change_log import DesignationChangeLog
 from app.models.pre_screening import PreScreeningSession, PreScreeningResponse
@@ -46,7 +47,7 @@ __all__ = [
     "Offer", "Notification", "AuditLog", "CandidateInvitation", "PasswordResetToken",
     "OtherOffer", "JobReferral", "CandidateDocument", "Message", "MessageAttachment", "ChatGroup", "ChatGroupMember", "EmailAccount", "EmailMessage",
     "AIUsage", "OrganizationAICredits", "UserAICredits", "AICreditRule", "CopilotConversation", "CopilotMessage",
-    "CandidateResumeChunk", "ImportBatch", "LoginEvent",
+    "CandidateResumeChunk", "ImportBatch", "LoginEvent", "PushSubscription", "DemoRequestRecord",
     "UserPreference", "DesignationChangeLog",
     "PreScreeningSession", "PreScreeningResponse", "ScreeningRecommendation",
     "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag", "Payment",

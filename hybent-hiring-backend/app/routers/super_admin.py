@@ -8,6 +8,9 @@ import io
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
+from typing import Literal
+
+from pydantic import BaseModel, Field
 from sqlalchemy import String, cast, select, func, text, update, or_
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1542,6 +1545,90 @@ async def get_growth_analytics(db: DB, current_user: SuperAdminUser):
         "candidate_growth": candidate_growth,
         "revenue_growth": revenue_growth
     })
+
+
+# ── DEMO REQUESTS ─────────────────────────────────────────────────────────────
+_DEMO_STATUSES = ("new", "contacted", "converted", "closed")
+
+
+def _demo_out(d) -> dict:
+    return {
+        "id": str(d.id),
+        "first_name": d.first_name,
+        "last_name": d.last_name,
+        "work_email": d.work_email,
+        "company_name": d.company_name,
+        "team_size": d.team_size,
+        "monthly_hires": d.monthly_hires,
+        "hiring_challenge": d.hiring_challenge,
+        "status": d.status,
+        "notes": d.notes,
+        "email_sent": d.email_sent,
+        "created_at": d.created_at,
+        "updated_at": d.updated_at,
+    }
+
+
+@router.get("/demo-requests")
+async def list_demo_requests(
+    db: DB,
+    current_user: SuperAdminUser,
+    status: str = Query("all", pattern="^(all|new|contacted|converted|closed)$"),
+    q: str | None = Query(None, max_length=200),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Free demo requests from hybent.com, newest first."""
+    from app.models.push import DemoRequestRecord as Demo
+
+    conditions = []
+    if status != "all":
+        conditions.append(Demo.status == status)
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        conditions.append(or_(
+            Demo.first_name.ilike(term), Demo.last_name.ilike(term),
+            Demo.work_email.ilike(term), Demo.company_name.ilike(term),
+        ))
+    total = await db.scalar(select(func.count(Demo.id)).where(*conditions)) or 0
+    counts = dict((await db.execute(select(Demo.status, func.count(Demo.id)).group_by(Demo.status))).all())
+    rows = (await db.execute(
+        select(Demo).where(*conditions).order_by(Demo.created_at.desc()).limit(limit).offset(offset)
+    )).scalars().all()
+    return APIResponse.success(data={
+        "requests": [_demo_out(d) for d in rows],
+        "total": total,
+        "counts": {s: counts.get(s, 0) for s in _DEMO_STATUSES},
+    })
+
+
+class DemoRequestUpdate(BaseModel):
+    status: Literal["new", "contacted", "converted", "closed"] | None = None
+    notes: str | None = Field(None, max_length=5000)
+
+
+@router.patch("/demo-requests/{request_id}")
+async def update_demo_request(
+    request_id: uuid.UUID, payload: DemoRequestUpdate, db: DB, current_user: SuperAdminUser, request: Request,
+):
+    from app.models.push import DemoRequestRecord as Demo
+
+    demo = await db.get(Demo, request_id)
+    if not demo:
+        raise HTTPException(status_code=404, detail="Demo request not found.")
+    changes = payload.model_dump(exclude_unset=True)
+    for key, value in changes.items():
+        setattr(demo, key, value)
+    demo.updated_at = datetime.now(timezone.utc)
+    if "status" in changes:
+        await log_super_admin_action(
+            db=db, user_id=current_user.id, user_email=current_user.email,
+            action=f"Marked demo request from {demo.company_name} as {demo.status}"[:255],
+            module="Demo Requests", request=request,
+            metadata={"demo_request_id": str(demo.id), "status": demo.status},
+        )
+    await db.commit()
+    return APIResponse.success(data=_demo_out(demo))
 
 
 # ── 10. SUPPORT SESSIONS (IMPERSONATION) ──────────────────────────────────────

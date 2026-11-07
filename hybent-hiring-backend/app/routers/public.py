@@ -19,7 +19,8 @@ from app.models.job import Job
 from app.models.candidate import Candidate
 from app.models.application import Application
 from app.schemas.job import JobPublicOut
-from app.services import resume_intake
+from app.services import push_service, resume_intake
+from app.models.push import DemoRequestRecord
 from app.utils.permissions import ApplicationStage, NotificationType, UserRole
 from app.tasks.notifications import notify_organization_roles
 from app.services.ai import site_assistant
@@ -200,12 +201,38 @@ async def apply_to_public_job(
         + APPLY_SOURCE_PHRASES.get(source, "a shared application link."),
         {"candidate_id": str(candidate.id), "job_id": str(job.id)},
     )
+    push_service.queue_push("application", {
+        "title": f"New application: {job.title}",
+        "body": f"{candidate.full_name} applied through a public link.",
+        "url": f"/hiring/admin/candidates?openId={candidate.id}",
+        "tag": f"application-{candidate.id}",
+    }, organization_id=job.organization_id)
 
     return APIResponse.success(message="Application received. The hiring team will be in touch.")
 
 @router.post("/demo-request")
-async def demo_request(request: DemoRequest):
-    """Handle public demo requests from the landing page."""
+async def demo_request(request: DemoRequest, db: DB):
+    """Handle public demo requests from the landing page: saved for the super
+    admin portal, emailed to info@, and pushed to super admins' phones."""
+    record = None
+    saved = True
+    try:
+        record = DemoRequestRecord(
+            first_name=request.first_name,
+            last_name=request.last_name,
+            work_email=str(request.work_email),
+            company_name=request.company_name,
+            team_size=request.team_size,
+            monthly_hires=request.monthly_hires,
+            hiring_challenge=request.hiring_challenge,
+        )
+        db.add(record)
+        await db.commit()
+    except Exception:
+        logger.exception("Demo request could not be saved.")
+        await db.rollback()
+        saved = False
+
     try:
         sent = await asyncio.to_thread(
             send_demo_request_email,
@@ -220,7 +247,19 @@ async def demo_request(request: DemoRequest):
     except Exception:
         logger.exception("Demo request email failed.")
         sent = False
-    if not sent:
+
+    if saved:
+        if sent:
+            record.email_sent = True
+            await db.commit()
+        push_service.queue_push("demo_request", {
+            "title": "New demo request",
+            "body": f"{request.first_name} {request.last_name} from {request.company_name}",
+            "url": "/hiring/super-admin/demo-requests",
+            "tag": f"demo-{record.id}",
+        })
+    # Lost only if it was neither saved nor emailed.
+    if not saved and not sent:
         raise HTTPException(
             status_code=502,
             detail="We couldn't submit your request. Please try again, or email info@hybent.com.",
