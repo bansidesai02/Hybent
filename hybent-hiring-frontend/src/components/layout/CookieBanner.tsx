@@ -171,7 +171,7 @@ export function CookieBanner() {
                     fontWeight: 700,
                     margin: 0,
                     color: 'var(--text, #0f172a)',
-                    fontFamily: 'Sora, sans-serif',
+                    fontFamily: 'Figtree, sans-serif',
                   }}
                 >
                   We Value Your Privacy &amp; Cookie Preferences
@@ -283,7 +283,7 @@ export function CookieBanner() {
                   fontSize: '1.15rem',
                   fontWeight: 700,
                   margin: 0,
-                  fontFamily: 'Sora, sans-serif',
+                  fontFamily: 'Figtree, sans-serif',
                   color: 'var(--text, #0f172a)',
                 }}
               >

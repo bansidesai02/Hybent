@@ -12,7 +12,7 @@ import { Reveal } from './Reveal'
  * overview built one at 20px radius, super admin another at 24px, and the
  * shared `Card` primitive claimed 14px. All three are this now.
  *
- * The figure is Sora at the `hb-num` step, which is what gives a stat row the
+ * The figure is Figtree at the `hb-num` step, which is what gives a stat row the
  * same typographic weight as a site hero number.
  */
 

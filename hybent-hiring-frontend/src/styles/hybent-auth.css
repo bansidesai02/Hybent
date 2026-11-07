@@ -12,7 +12,7 @@
    Only the auth-specific card and form rules live here.
    ============================================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 
 /* The page ground, gradients and grid all come from .hb-surface. Only the
    auth-specific tokens live here — and they follow the site's own

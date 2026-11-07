@@ -1,4 +1,5 @@
 import { SiteView } from '../components/SiteView'
+import HeroRibbons from '../components/HeroRibbons'
 
 /**
  * FAQ — the questions buyers put to us before anything else.
@@ -10,6 +11,7 @@ export default function FaqPage() {
   return (
     <SiteView route="faq">
       <section className="hero">
+        <HeroRibbons />
         <div className="hero__orb orb-a" data-para="0.02"></div>
         <div className="hero__orb orb-b" data-para="-0.03"></div>
 

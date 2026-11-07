@@ -70,9 +70,9 @@ export default function CareersPage() {
               <rect x="108" y="120" width="132" height="5" rx="2.5" fill="var(--border)" />
               <rect x="108" y="146" width="60" height="14" rx="7" fill="var(--success)" opacity=".16" />
               <path d="M117 153l3 3 6-7" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" />
-              <text x="132" y="157" fontFamily="IBM Plex Mono" fontSize="7" letterSpacing=".8" fill="var(--success)">CHOSEN</text>
+              <text x="132" y="157" fontFamily="Geist Mono" fontSize="7" letterSpacing=".8" fill="var(--success)">CHOSEN</text>
               <rect x="108" y="168" width="76" height="14" rx="7" fill="var(--border)" />
-              <text x="116" y="179" fontFamily="IBM Plex Mono" fontSize="7" letterSpacing=".8" fill="var(--dim)">REJECTED ×2</text>
+              <text x="116" y="179" fontFamily="Geist Mono" fontSize="7" letterSpacing=".8" fill="var(--dim)">REJECTED ×2</text>
               <rect x="108" y="196" width="104" height="5" rx="2.5" fill="var(--border)" />
             </g>
             <g transform="translate(296,120)">

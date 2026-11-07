@@ -1,9 +1,11 @@
 import { SiteView } from '../components/SiteView'
+import HeroRibbons from '../components/HeroRibbons'
 
 export default function SecurityPage() {
   return (
     <SiteView route="security">
       <section className="hero">
+        <HeroRibbons />
         <div className="hero__orb orb-a" data-para="0.02"></div>
         <div className="hero__orb orb-b" data-para="-0.03"></div>
 
@@ -19,15 +21,15 @@ export default function SecurityPage() {
             <g>
               <rect x="88" y="18" width="128" height="34" rx="10" fill="var(--surface)" stroke="var(--border-strong)" />
               <circle cx="108" cy="35" r="5" fill="var(--success)" />
-              <text x="122" y="39" fontFamily="Sora" fontSize="11" fontWeight="600" fill="var(--text)">Hybent Hiring</text>
+              <text x="122" y="39" fontFamily="Figtree" fontSize="11" fontWeight="600" fill="var(--text)">Hybent Hiring</text>
               <rect x="228" y="18" width="86" height="34" rx="10" fill="var(--surface)" stroke="var(--border)" strokeDasharray="4 4" />
-              <text x="248" y="39" fontFamily="Sora" fontSize="11" fill="var(--dim)">CRM</text>
+              <text x="248" y="39" fontFamily="Figtree" fontSize="11" fill="var(--dim)">CRM</text>
               <rect x="326" y="18" width="86" height="34" rx="10" fill="var(--surface)" stroke="var(--border)" strokeDasharray="4 4" />
-              <text x="342" y="39" fontFamily="Sora" fontSize="11" fill="var(--dim)">HRMS</text>
+              <text x="342" y="39" fontFamily="Figtree" fontSize="11" fill="var(--dim)">HRMS</text>
             </g>
             <g stroke="var(--border-strong)" strokeWidth="1.6" fill="none">
               <path d="M152 52v22M271 52v22M369 52v22" /></g>
-            <g fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4">
+            <g fontFamily="Geist Mono" fontSize="8" letterSpacing="1.4">
               <rect x="48" y="78" width="380" height="30" rx="9" fill="url(#hbgh)" opacity=".18" stroke="var(--border-strong)" />
               <text x="66" y="97" fill="var(--text)">ENCRYPTION IN TRANSIT &amp; AT REST</text>
               <rect x="48" y="114" width="380" height="30" rx="9" fill="url(#hbgh)" opacity=".14" stroke="var(--border-strong)" />
@@ -37,7 +39,7 @@ export default function SecurityPage() {
               <rect x="48" y="186" width="380" height="30" rx="9" fill="url(#hbgh)" opacity=".07" stroke="var(--border-strong)" />
               <text x="66" y="205" fill="var(--text)">EXPLAINABLE AI DECISIONS</text>
             </g>
-            <text x="238" y="238" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.5" fill="var(--dim)">INHERITED BY EVERY PRODUCT ON DAY ONE</text>
+            <text x="238" y="238" textAnchor="middle" fontFamily="Geist Mono" fontSize="8" letterSpacing="1.5" fill="var(--dim)">INHERITED BY EVERY PRODUCT ON DAY ONE</text>
           </svg></div></div>
           <div className="shield-grid">
             <article className="card" data-rv="up"><span className="icon-tile"><svg aria-hidden="true"><use href="#i-lock" /></svg></span>
@@ -88,10 +90,10 @@ export default function SecurityPage() {
                     <circle cx="784" cy="76" r="34" fill="url(#hbgh)" opacity=".14" stroke="var(--border-strong)" strokeWidth="1.6" />
                     <path d="M784 62v26M773 77l11 11 11-11" fill="none" stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
                   </g>
-                  <g fontFamily="IBM Plex Mono" fontSize="9.5" letterSpacing="1.3" fill="var(--text)" textAnchor="middle">
+                  <g fontFamily="Geist Mono" fontSize="9.5" letterSpacing="1.3" fill="var(--text)" textAnchor="middle">
                     <text x="96" y="134">SUBMITTED</text><text x="325" y="134">ENCRYPTED</text><text x="555" y="134">ISOLATED</text><text x="784" y="134">YOURS TO TAKE</text>
                   </g>
-                  <g fontFamily="Manrope" fontSize="11" fill="var(--muted)" textAnchor="middle">
+                  <g fontFamily="Figtree" fontSize="11" fill="var(--muted)" textAnchor="middle">
                     <text x="96" y="156">Candidate applies</text>
                     <text x="325" y="156">In transit and at rest</text>
                     <text x="555" y="156">Per-tenant, role-gated</text>
@@ -99,7 +101,7 @@ export default function SecurityPage() {
                   </g>
                   <g transform="translate(300,178)">
                     <rect width="280" height="22" rx="11" fill="var(--cyan)" opacity=".13" />
-                    <text x="140" y="15" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="8.5" letterSpacing="1.2" fill="var(--cyan)">EVERY READ WRITTEN TO THE AUDIT LOG</text>
+                    <text x="140" y="15" textAnchor="middle" fontFamily="Geist Mono" fontSize="8.5" letterSpacing="1.2" fill="var(--cyan)">EVERY READ WRITTEN TO THE AUDIT LOG</text>
                   </g>
                 </svg>
               </div>

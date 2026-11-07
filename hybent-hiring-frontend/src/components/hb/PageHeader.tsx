@@ -9,7 +9,7 @@ import { Reveal } from './Reveal'
  * The header every page opens with.
  *
  * Only 18 of 77 pages used the old `.page-header` class, so titles drifted
- * across four sizes and three fonts. This is the one shape: Sora display title,
+ * across four sizes and three fonts. This is the one shape: Figtree display title,
  * optional lead, optional breadcrumb, actions right-aligned and wrapping under
  * the title on narrow screens rather than squeezing it.
  */

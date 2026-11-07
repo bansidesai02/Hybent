@@ -132,13 +132,13 @@
   --hb-s-12: 48px;
 
   /* ---------------------------------------------------------------------------
-     TYPE â€” Sora displays, Manrope reads, IBM Plex Mono labels.
+     TYPE â€” Figtree displays, Figtree reads, Geist Mono labels.
      The mono uppercase label is the site's signature; it is what carries the
      brand into forms and table headers where nothing else can.
      --------------------------------------------------------------------------- */
-  --hb-f-display: "Sora", -apple-system, "Segoe UI", system-ui, sans-serif;
-  --hb-f-body:    "Manrope", -apple-system, "Segoe UI", system-ui, sans-serif;
-  --hb-f-mono:    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --hb-f-display: "Figtree", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --hb-f-body:    "Figtree", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --hb-f-mono:    "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   --hb-tracking-display: -.028em;
   --hb-tracking-num:     -.02em;
