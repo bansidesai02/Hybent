@@ -15,6 +15,7 @@ import { disablePush, enablePush, getPushConfig, getPushState, sendTestPush, typ
 const STATE_TEXT: Record<PushState, string> = {
   on: 'On for this device.',
   off: 'Off for this device.',
+  'other-account': 'On for another account on this device, not this one yet. Turn it on to get this account’s notifications here too.',
   blocked: 'Blocked in this browser. Allow notifications for this site in the browser settings, then try again.',
   unsupported: "This browser can't receive notifications. On a phone, use Chrome (Android) or the installed app (iPhone).",
   'needs-install':
@@ -73,7 +74,7 @@ export default function PushNotificationsCard() {
             {config.devices > 0 && ` Your account has ${config.devices} device${config.devices === 1 ? '' : 's'} turned on.`}
           </p>
           <div className="flex flex-wrap gap-2.5">
-            {state === 'off' && (
+            {(state === 'off' || state === 'other-account') && (
               <Button
                 icon={<BellRing size={14} />}
                 loading={busy}

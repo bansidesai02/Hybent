@@ -35,10 +35,13 @@ async def test_only_admins_can_turn_push_on(client, push_on, admin_user, recruit
     assert (await client.post("/v1/push/subscribe", json=SUB, headers=auth_headers(admin_user))).status_code == 200
     cfg = (await client.get("/v1/push/config", headers=auth_headers(admin_user))).json()["data"]
     assert cfg["enabled"] and cfg["devices"] == 1 and cfg["public_key"] == "BPublicKeyForTests"
-    # Same device signed in as someone else: it moves to them, not duplicated.
+    # One phone, two accounts: both get their own notifications on it.
     assert (await client.post("/v1/push/subscribe", json=SUB, headers=auth_headers(super_admin_user))).status_code == 200
-    cfg = (await client.get("/v1/push/config", headers=auth_headers(admin_user))).json()["data"]
-    assert cfg["devices"] == 0
+    assert (await client.post("/v1/push/subscribe", json=SUB, headers=auth_headers(admin_user))).status_code == 200
+    for user in (admin_user, super_admin_user):
+        assert (await client.get("/v1/push/config", headers=auth_headers(user))).json()["data"]["devices"] == 1
+        r = await client.post("/v1/push/check", json={"endpoint": SUB["endpoint"]}, headers=auth_headers(user))
+        assert r.json()["data"]["mine"] is True
 
 
 async def test_push_off_without_server_keys(client, monkeypatch, admin_user):
@@ -54,6 +57,8 @@ async def test_unsubscribe_removes_only_own_device(client, db_session, push_on, 
     await client.post("/v1/push/subscribe", json=SUB, headers=auth_headers(admin_user))
     await client.post("/v1/push/unsubscribe", json={"endpoint": SUB["endpoint"]}, headers=auth_headers(super_admin_user))
     assert (await db_session.execute(select(PushSubscription))).scalar_one_or_none() is not None
+    r = await client.post("/v1/push/check", json={"endpoint": SUB["endpoint"]}, headers=auth_headers(super_admin_user))
+    assert r.json()["data"]["mine"] is False
     await client.post("/v1/push/unsubscribe", json={"endpoint": SUB["endpoint"]}, headers=auth_headers(admin_user))
     assert (await db_session.execute(select(PushSubscription))).scalar_one_or_none() is None
 

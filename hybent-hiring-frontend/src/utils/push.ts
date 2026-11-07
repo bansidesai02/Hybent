@@ -18,7 +18,8 @@ export interface PushConfig {
   events: string[]
 }
 
-export type PushState = 'unsupported' | 'needs-install' | 'blocked' | 'off' | 'on'
+/** other-account: on in this browser, but registered to another account that signed in here. */
+export type PushState = 'unsupported' | 'needs-install' | 'blocked' | 'off' | 'other-account' | 'on'
 
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
 const isStandalone = () =>
@@ -39,7 +40,14 @@ export async function getPushState(): Promise<PushState> {
   if (Notification.permission === 'denied') return 'blocked'
   const reg = await registration()
   const sub = await reg?.pushManager.getSubscription()
-  return sub ? 'on' : 'off'
+  if (!sub) return 'off'
+  // The browser only knows it is subscribed; the API knows for which account.
+  try {
+    const { data } = await api.post<{ mine: boolean }>('/v1/push/check', { endpoint: sub.endpoint }, { skipLoader: true })
+    return data.mine ? 'on' : 'other-account'
+  } catch {
+    return 'on'
+  }
 }
 
 function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
