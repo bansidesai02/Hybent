@@ -6,6 +6,7 @@ import { useScreeningNav } from '@/hooks/useScreeningNav'
 import { useAICallsNav } from '@/hooks/useAICallsNav'
 import { useIdleSignOut } from '@/hooks/useIdleSignOut'
 import { useFeatures } from '@/hooks/useFeatures'
+import { PULL_THRESHOLD, usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useThemeStore } from '@/store/themeStore'
@@ -211,6 +212,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
     [activeRole, basePath, navSections],
   )
   const { away: titleAway, text: h1Text } = useTitleScrolledAway(mainRef, location.pathname)
+  const { pull, refreshing } = usePullToRefresh(mainRef)
   const pageTitle = h1Text || activeNavLabel(navSections, location.pathname)
 
   return (
@@ -249,6 +251,18 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
           ref={mainRef}
           className="flex-1 overflow-y-auto overscroll-none px-4 pt-4 pb-[calc(var(--hb-mobile-nav)+1.5rem)] sm:px-hb-5 sm:pt-hb-5 md:px-hb-8 md:pt-hb-8 lg:p-hb-8 xl:p-hb-12"
         >
+          {/* Pull-to-refresh in the installed app (usePullToRefresh). */}
+          {(pull > 0 || refreshing) && (
+            <div
+              aria-live="polite"
+              className="flex justify-center overflow-hidden text-hb-xs font-semibold text-hb-muted"
+              style={{ height: refreshing ? 40 : pull }}
+            >
+              <span className="self-end pb-2">
+                {refreshing ? 'Refreshing…' : pull >= PULL_THRESHOLD ? 'Release to refresh' : 'Pull to refresh'}
+              </span>
+            </div>
+          )}
           {/* overflow-x-clip: a stray wide element can't make the whole page
               wobble sideways on a phone; wide content scrolls in its own box. */}
           <div className="mx-auto w-full max-w-[1440px] overflow-x-clip">

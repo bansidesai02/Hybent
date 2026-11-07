@@ -32,13 +32,13 @@ def push_enabled() -> bool:
     return bool(settings.vapid_public_key and settings.vapid_private_key)
 
 
-def _send_one(sub, payload: dict) -> int | None:
-    """Deliver to one device. Returns an HTTP status that means the device is
-    gone (404/410), else None."""
+def _send_one(sub, payload: dict) -> tuple[str, str | None]:
+    """Deliver to one device: ("ok", None), ("gone", status) when the push
+    service says the device no longer exists, or ("failed", reason)."""
     from pywebpush import WebPushException, webpush
 
     try:
-        webpush(
+        resp = webpush(
             subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
             data=json.dumps(payload),
             vapid_private_key=settings.vapid_private_key,
@@ -46,41 +46,53 @@ def _send_one(sub, payload: dict) -> int | None:
             ttl=24 * 3600,
             timeout=10,
         )
-        return None
+        status = getattr(resp, "status_code", 201)
+        if 200 <= status < 300:
+            return "ok", None
+        return "failed", f"push service answered {status}"
     except WebPushException as e:
         status = getattr(e.response, "status_code", None)
         if status in (404, 410):
-            return status
-        logger.warning("[push] delivery failed (%s): %s", status, e)
-        return None
+            return "gone", str(status)
+        body = (getattr(e.response, "text", "") or "")[:200]
+        logger.warning("[push] delivery failed (%s): %s %s", status, e, body)
+        return "failed", f"push service answered {status}: {body or e}"
     except Exception as e:  # network trouble etc.: try again next event
         logger.warning("[push] delivery failed: %s", e)
-        return None
+        return "failed", str(e)[:200]
 
 
-async def send_to_users(db: AsyncSession, user_ids: list[uuid.UUID], payload: dict) -> int:
+async def send_to_users(db: AsyncSession, user_ids: list[uuid.UUID], payload: dict) -> dict:
     """Push `payload` ({title, body, url, tag}) to every device of these users.
-    Devices the push service says are gone are removed. Returns devices reached."""
+    Devices the push service says are gone are removed.
+    Returns {"devices", "delivered", "errors"}."""
     from app.models.push import PushSubscription
 
+    result = {"devices": 0, "delivered": 0, "errors": []}
     if not push_enabled() or not user_ids:
-        return 0
+        return result
     subs = (await db.execute(
         select(PushSubscription).where(PushSubscription.user_id.in_(user_ids))
     )).scalars().all()
+    result["devices"] = len(subs)
     if not subs:
-        return 0
+        return result
 
-    results = await asyncio.gather(*(asyncio.to_thread(_send_one, s, payload) for s in subs))
-    gone = [s.id for s, status in zip(subs, results) if status in (404, 410)]
+    outcomes = await asyncio.gather(*(asyncio.to_thread(_send_one, s, payload) for s in subs))
     now = datetime.now(timezone.utc)
-    for s, status in zip(subs, results):
-        if status is None:
+    gone = []
+    for s, (state, detail) in zip(subs, outcomes):
+        if state == "ok":
             s.last_sent_at = now
+            result["delivered"] += 1
+        elif state == "gone":
+            gone.append(s.id)
+        else:
+            result["errors"].append(detail)
     if gone:
         await db.execute(delete(PushSubscription).where(PushSubscription.id.in_(gone)))
     await db.commit()
-    return len(subs) - len(gone)
+    return result
 
 
 async def recipients_for(db: AsyncSession, kind: str, organization_id: str | None) -> list[uuid.UUID]:

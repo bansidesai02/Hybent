@@ -42,8 +42,9 @@ export default function PushNotificationsCard() {
   const run = async (action: () => Promise<unknown>, done: string) => {
     setBusy(true)
     try {
-      await action()
-      toast.success(done)
+      const res: any = await action()
+      // The API's own wording when it has one (e.g. "Sent to 1 of 1 device(s)").
+      toast.success(res?.data?.message || res?.message || done)
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Something went wrong.')
     } finally {
