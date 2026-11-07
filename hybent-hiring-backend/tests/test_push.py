@@ -66,12 +66,17 @@ async def test_unsubscribe_removes_only_own_device(client, db_session, push_on, 
 async def test_test_push_and_gone_devices_are_removed(client, db_session, monkeypatch, push_on, admin_user):
     await client.post("/v1/push/subscribe", json=SUB, headers=auth_headers(admin_user))
     sent = []
-    monkeypatch.setattr(push_service, "_send_one", lambda sub, payload: sent.append(payload) or None)
+    monkeypatch.setattr(push_service, "_send_one", lambda sub, payload: sent.append(payload) or ("ok", None))
     r = await client.post("/v1/push/test", headers=auth_headers(admin_user))
     assert r.status_code == 200 and sent[0]["title"].startswith("Hybent")
 
-    monkeypatch.setattr(push_service, "_send_one", lambda sub, payload: 410)  # device uninstalled
-    assert (await client.post("/v1/push/test", headers=auth_headers(admin_user))).status_code == 404
+    # The push service refuses (e.g. wrong key): reported, not "sent".
+    monkeypatch.setattr(push_service, "_send_one", lambda sub, payload: ("failed", "push service answered 403: bad key"))
+    r = await client.post("/v1/push/test", headers=auth_headers(admin_user))
+    assert r.status_code == 502 and "403" in r.json()["message"]
+
+    monkeypatch.setattr(push_service, "_send_one", lambda sub, payload: ("gone", "410"))  # device uninstalled
+    assert (await client.post("/v1/push/test", headers=auth_headers(admin_user))).status_code == 502
     assert (await db_session.execute(select(PushSubscription))).scalar_one_or_none() is None
 
 

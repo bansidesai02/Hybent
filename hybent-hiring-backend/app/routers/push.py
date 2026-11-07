@@ -102,12 +102,20 @@ async def unsubscribe(payload: UnsubscribeRequest, current_user: CurrentUser, db
 async def send_test(current_user: CurrentUser, db: DB):
     """Send a test notification to the caller's own devices."""
     _allowed(current_user)
-    reached = await push_service.send_to_users(db, [current_user.id], {
+    result = await push_service.send_to_users(db, [current_user.id], {
         "title": "Hybent notifications are on",
         "body": "You'll get a notification like this for new applications and demo requests.",
         "url": "/hiring/super-admin/demo-requests" if current_user.role == "super_admin" else "/hiring/admin",
         "tag": "hybent-test",
     })
-    if not reached:
+    if not result["devices"]:
         raise HTTPException(status_code=404, detail="No device is turned on for your account yet.")
-    return APIResponse.success(message=f"Test sent to {reached} device(s).")
+    if not result["delivered"]:
+        raise HTTPException(
+            status_code=502,
+            detail="The phone's push service refused the notification: "
+                   + "; ".join(e for e in result["errors"] if e)[:300]
+                   if result["errors"] else "This device is no longer registered. Turn it on again.",
+        )
+    message = f"Sent to {result['delivered']} of {result['devices']} device(s). It can take a few seconds to show."
+    return APIResponse.success(message=message, data={"message": message, **result})
