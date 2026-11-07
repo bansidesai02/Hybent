@@ -950,3 +950,119 @@ def render_trial_reply(body: str, cta_url: str | None = None, cta_label: str | N
     )
     return _get_base_template(f'<div style="margin-top: 12px;">{paragraphs}</div>{note_html}{button}', org_name="Hybent Hiring")
 
+
+
+# ── Product demos (services/demo_service.py) ─────────────────────────────────
+
+def _demo_when(b) -> str:
+    """'Thursday, 13 November 2026 · 11:00–11:30 (India Standard Time)' in the visitor's zone."""
+    from datetime import timedelta
+    from app.services.demo_service import safe_tz
+    tz = safe_tz(b.timezone)
+    s = b.start_at.astimezone(tz)
+    e = s + timedelta(minutes=b.duration_minutes)
+    zone = s.tzname() or b.timezone
+    return f"{s:%A}, {s.day} {s:%B %Y} · {s:%H:%M}–{e:%H:%M} ({html.escape(b.timezone)}, {zone})"
+
+
+def _demo_gcal_link(b) -> str:
+    from datetime import timedelta
+    from urllib.parse import urlencode
+    fmt = "%Y%m%dT%H%M%SZ"
+    end = b.start_at + timedelta(minutes=b.duration_minutes)
+    return "https://calendar.google.com/calendar/render?" + urlencode({
+        "action": "TEMPLATE", "text": "Hybent Hiring demo",
+        "dates": f"{b.start_at.strftime(fmt)}/{end.strftime(fmt)}",
+        "details": f"Join: {b.meet_link or 'link in your confirmation email'}",
+        "location": b.meet_link or "Google Meet",
+    })
+
+
+def _demo_box(b) -> str:
+    link = (f'<a href="{html.escape(b.meet_link)}" style="color:#4C6FFF;">{html.escape(b.meet_link)}</a>'
+            if b.meet_link else "We'll email you the Google Meet link before the call.")
+    return f"""
+        <div class="info-box">
+            <div class="info-label">When</div>
+            <div class="info-value">{_demo_when(b)}</div>
+            <div class="info-label" style="margin-top:12px;">Where</div>
+            <div class="info-value">{link}</div>
+        </div>"""
+
+
+def send_demo_booked(b, rescheduled: bool = False) -> bool:
+    manage = _app_url(f"/book-demo/manage/{b.manage_token}")
+    title = "Your demo has moved" if rescheduled else "Your demo is booked"
+    content = f"""
+        <h2 class="title" style="margin-top: 20px;">{title}</h2>
+        <p class="description">Hi {_first_name(b.name)}, thanks for booking a Hybent Hiring demo for
+        <b>{html.escape(b.company)}</b>. In 30 minutes we'll show you AI screening, scheduling and the
+        Recruiter Copilot on roles like yours, and answer your questions.</p>
+        {_demo_box(b)}
+        <div class="button-wrap">
+            {f'<a href="{html.escape(b.meet_link)}" class="button">Join with Google Meet</a>' if b.meet_link else ''}
+        </div>
+        <p style="font-size: 14px;"><a href="{_demo_gcal_link(b)}" style="color:#4C6FFF;">Add to Google Calendar</a>
+        &nbsp;·&nbsp; <a href="{manage}" style="color:#4C6FFF;">Reschedule or cancel</a></p>
+    """
+    subject = ("Moved: " if rescheduled else "") + "Your Hybent Hiring demo"
+    return send_email(b.email, subject, _get_base_template(content))
+
+
+def send_demo_reminder(b, which: str) -> bool:
+    when = "in one hour" if which == "1h" else "tomorrow"
+    manage = _app_url(f"/book-demo/manage/{b.manage_token}")
+    content = f"""
+        <h2 class="title" style="margin-top: 20px;">Your demo is {when}</h2>
+        <p class="description">Hi {_first_name(b.name)}, a quick reminder about your Hybent Hiring demo.</p>
+        {_demo_box(b)}
+        <div class="button-wrap">
+            {f'<a href="{html.escape(b.meet_link)}" class="button">Join with Google Meet</a>' if b.meet_link else ''}
+        </div>
+        <p style="font-size: 14px;">Can't make it? <a href="{manage}" style="color:#4C6FFF;">Pick another time</a>.</p>
+    """
+    return send_email(b.email, f"Reminder: your Hybent Hiring demo is {when}", _get_base_template(content))
+
+
+def send_demo_cancelled(b) -> bool:
+    content = f"""
+        <h2 class="title" style="margin-top: 20px;">Your demo is cancelled</h2>
+        <p class="description">Hi {_first_name(b.name)}, your Hybent Hiring demo on {_demo_when(b)} is cancelled.</p>
+        <div class="button-wrap"><a href="{_app_url('/book-demo')}" class="button">Book another time</a></div>
+    """
+    return send_email(b.email, "Your Hybent Hiring demo is cancelled", _get_base_template(content))
+
+
+def send_demo_host_alert(b, kind: str) -> bool:
+    """Tell the Hybent team (demo_host_email) a demo was booked, moved or cancelled."""
+    from datetime import timedelta
+    from app.services.demo_service import HOST_TZ
+    s = b.start_at.astimezone(HOST_TZ)
+    rows = [("When (IST)", f"{s:%a %d %b %Y, %H:%M}–{(s + timedelta(minutes=b.duration_minutes)):%H:%M}"),
+            ("Name", b.name), ("Email", b.email), ("Company", b.company), ("Team size", b.team_size or ""),
+            ("Phone", b.phone or ""), ("Wants to see", b.notes or ""), ("Their time zone", b.timezone),
+            ("Meet", b.meet_link or "")]
+    table = "".join(
+        f"<tr><td style=\"padding:4px 16px 4px 0;color:#70757a;vertical-align:top\">{html.escape(k)}</td>"
+        f"<td>{html.escape(v)}</td></tr>" for k, v in rows if v)
+    content = f"""
+        <h2 style="margin-top: 20px;">Demo {html.escape(kind)}</h2>
+        <table>{table}</table>
+        <div class="button-wrap"><a href="{_app_url('/hiring/super-admin/demos')}" class="button">Open demo bookings</a></div>
+    """
+    return send_email(settings.demo_host_email, f"[Demo {kind}] {b.company} · {s:%a %d %b %H:%M} IST",
+                      _get_base_template(content), reply_to=b.email)
+
+
+def send_demo_link(b) -> bool:
+    """The meeting link for a booked demo, sent by the Hybent team."""
+    manage = _app_url(f"/book-demo/manage/{b.manage_token}")
+    content = f"""
+        <h2 class="title" style="margin-top: 20px;">Your demo link</h2>
+        <p class="description">Hi {_first_name(b.name)}, here is the link for your Hybent Hiring demo.</p>
+        {_demo_box(b)}
+        <div class="button-wrap"><a href="{html.escape(b.meet_link)}" class="button">Join the demo</a></div>
+        <p style="font-size: 14px;"><a href="{_demo_gcal_link(b)}" style="color:#4C6FFF;">Add to Google Calendar</a>
+        &nbsp;·&nbsp; <a href="{manage}" style="color:#4C6FFF;">Reschedule or cancel</a></p>
+    """
+    return send_email(b.email, "Your Hybent Hiring demo link", _get_base_template(content))

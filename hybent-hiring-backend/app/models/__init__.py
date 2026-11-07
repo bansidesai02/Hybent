@@ -40,6 +40,7 @@ from app.models.payment import Payment
 from app.models.integration_key import IntegrationKey
 from app.models.voice_call import VoiceCall, OrgVoiceSettings, VoiceSlotHold
 from app.models.trial_request import TrialEmailOTP, TrialMessage, TrialRequest
+from app.models.demo_booking import DemoBooking
 
 __all__ = [
     "Organization", "User", "RefreshToken", "Job", "Candidate",
@@ -53,5 +54,5 @@ __all__ = [
     "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag", "Payment",
     "CompanyUsage", "SuperAdminAuditLog", "ImpersonationLog",
     "PlatformSetting", "BillingTransaction", "IntegrationKey", "VoiceCall", "OrgVoiceSettings", "VoiceSlotHold",
-    "TrialRequest", "TrialEmailOTP", "TrialMessage",
+    "TrialRequest", "TrialEmailOTP", "TrialMessage", "DemoBooking",
 ]

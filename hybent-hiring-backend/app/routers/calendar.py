@@ -91,6 +91,8 @@ async def google_calendar_callback(
                 if user:
                     user.google_refresh_token = refresh_token
                     await db.commit()
+                    if str(getattr(user.role, "value", user.role)) == "super_admin":
+                        return RedirectResponse(url=f"{settings.frontend_url}/hiring/super-admin/demos?calendar=connected")
                     logger.info(f"Successfully connected Google Calendar for user {user.email}")
                 else:
                     logger.error(f"User {state} not found during calendar callback")

@@ -12,7 +12,7 @@ celery_app = Celery(
     "hybent_hiring_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening", "app.tasks.chat_retention", "app.tasks.trials", "app.tasks.push"]
+    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening", "app.tasks.chat_retention", "app.tasks.trials", "app.tasks.push", "app.tasks.demos"]
 )
 
 celery_app.conf.update(
@@ -66,6 +66,11 @@ celery_app.conf.beat_schedule = {
     },
     # Free trials: 1-day and 1-hour reminders, expiry notices, and the purge
     # 30 days after expiry. Every 5 minutes so the 1-hour reminder is on time.
+    # Demo bookings: the 24-hour and 1-hour reminders.
+    "send-demo-reminders": {
+        "task": "app.tasks.demos.send_demo_reminders",
+        "schedule": crontab(minute="*/5"),
+    },
     "process-trial-lifecycle": {
         "task": "app.tasks.trials.process_trial_lifecycle",
         "schedule": crontab(minute="*/5"),

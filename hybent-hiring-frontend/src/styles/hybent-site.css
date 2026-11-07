@@ -2296,3 +2296,74 @@ html:has(.hb-site) body{overflow-x:clip}
   .hb-site .card.sim-shell{padding:0}
 }
 
+/* Form labels: plain sentence case in the body font, easy to read
+   (they were tiny spaced-out mono capitals). */
+.hb-site .field label{font-family:var(--f-body);font-size:.9rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text)}
+
+/* ── Book a demo (BookDemoPage, DemoManagePage, DemoScheduler) ──
+   Calendly-style: an info column, then the month calendar and the times. */
+.hb-site .bd__shell{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);background:#fff;border:1px solid var(--border);
+  border-radius:28px;box-shadow:0 40px 90px -50px rgba(76,111,255,.45);overflow:hidden;max-width:1080px;margin:0 auto}
+.hb-site .bd__shell--narrow{display:block;max-width:760px}
+.hb-site .bd__info{padding:clamp(24px,3vw,36px);border-right:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(34,207,255,.07),rgba(168,85,247,.06) 60%,#fff)}
+.hb-site .bd__logo{width:44px;height:auto;margin-bottom:18px}
+.hb-site .bd__host{margin:0;color:var(--muted);font-weight:500}
+.hb-site .bd__title{margin:6px 0 18px;font-size:clamp(1.5rem,2.4vw,1.9rem);font-weight:600;line-height:1.15;letter-spacing:-.02em}
+.hb-site .bd__meta{list-style:none;padding:0;margin:0 0 22px;display:grid;gap:10px;color:var(--muted);font-weight:500}
+.hb-site .bd__meta li{display:flex;gap:10px;align-items:center}
+.hb-site .bd__meta span{display:grid;place-items:center;width:24px;color:#4C6FFF}
+.hb-site .bd__lead{margin:0 0 10px;color:var(--text);font-weight:500}
+.hb-site .bd__see{margin:0;padding-left:18px;display:grid;gap:7px;color:var(--muted);font-size:.94rem}
+.hb-site .bd__alt{margin-top:26px;font-size:.88rem;color:var(--muted)}
+.hb-site .bd__alt a{color:#4C6FFF;font-weight:600}
+.hb-site .bd__main{padding:clamp(24px,3vw,36px)}
+.hb-site .bd__step{margin:0 0 20px;font-size:1.25rem;font-weight:600}
+.hb-site .bd__when{font-size:1.1rem;font-weight:600;margin:0 0 6px}
+.hb-site .bd__manage{text-align:center}
+.hb-site .bd__manage .ds-done__actions{justify-content:center}
+.hb-site .bd__cancel{color:#C2410C}
+@media (max-width:860px){.hb-site .bd__shell{grid-template-columns:1fr}.hb-site .bd__info{border-right:0;border-bottom:1px solid var(--border)}}
+
+.hb-site .ds-pick{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:28px;align-items:start}
+@media (max-width:640px){.hb-site .ds-pick{grid-template-columns:1fr}}
+.hb-site .ds-cal__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hb-site .ds-cal__head b{font-weight:600}
+.hb-site .ds-cal__head button{width:36px;height:36px;border-radius:50%;border:0;background:rgba(76,111,255,.08);color:#4C6FFF;font-size:20px;cursor:pointer}
+.hb-site .ds-cal__head button:disabled{opacity:.3;cursor:default}
+.hb-site .ds-cal__grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
+.hb-site .ds-cal__wd{font-size:.72rem;font-weight:600;color:var(--dim);padding:4px 0;text-transform:uppercase;letter-spacing:.04em}
+.hb-site .ds-cal__day{aspect-ratio:1;border:0;border-radius:50%;background:none;font:inherit;font-size:.95rem;color:#B5BCCB}
+.hb-site .ds-cal__day.is-open{background:rgba(76,111,255,.10);color:#3450E0;font-weight:600;cursor:pointer;transition:background .15s}
+.hb-site .ds-cal__day.is-open:hover{background:rgba(76,111,255,.2)}
+.hb-site .ds-cal__day.is-on{background:var(--grad);color:#fff}
+.hb-site .ds-tz{display:grid;gap:6px;margin-top:20px;font-size:.85rem;font-weight:500}
+.hb-site .ds-tz select,.hb-site .ds-form select{height:42px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff;font:inherit;color:var(--text)}
+.hb-site .ds-times__day{margin:4px 0 12px;font-weight:600}
+.hb-site .ds-times__list{display:grid;gap:8px;max-height:400px;overflow:auto;padding-right:4px}
+.hb-site .ds-time{display:flex;gap:6px}
+.hb-site .ds-time button{flex:1;height:46px;border-radius:12px;border:1px solid rgba(76,111,255,.45);background:#fff;color:#3450E0;
+  font:inherit;font-weight:600;cursor:pointer;transition:all .15s}
+.hb-site .ds-time button:hover{border-color:#4C6FFF;box-shadow:inset 0 0 0 1px #4C6FFF}
+.hb-site .ds-time.is-on > button:first-child{background:#5C667C;border-color:#5C667C;color:#fff}
+.hb-site .ds-time .ds-time__next{background:var(--grad);border:0;color:#fff}
+.hb-site .ds-muted{color:var(--muted)}
+.hb-site .ds-error{color:#C2410C;font-weight:500;margin-top:12px}
+.hb-site .ds-back{border:0;background:none;color:#4C6FFF;font:inherit;font-weight:600;cursor:pointer;padding:0;margin-bottom:16px}
+.hb-site .ds-picked{display:flex;gap:12px;align-items:center;padding:14px 16px;border-radius:16px;margin-bottom:20px;
+  background:linear-gradient(120deg,rgba(34,207,255,.08),rgba(168,85,247,.08));border:1px solid rgba(76,111,255,.18)}
+.hb-site .ds-picked small{display:block;color:var(--muted);font-size:.82rem;margin-top:2px}
+.hb-site .ds-picked__dot{width:12px;height:12px;border-radius:50%;background:var(--grad);flex:none}
+.hb-site .ds-form{display:grid;gap:14px}
+.hb-site .ds-grid{gap:14px}
+.hb-site .ds-form .field{display:grid;gap:6px}
+.hb-site .ds-form input,.hb-site .ds-form textarea{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:12px;font:inherit;background:#fff;color:var(--text)}
+.hb-site .ds-form input:focus,.hb-site .ds-form textarea:focus,.hb-site .ds-form select:focus{outline:none;border-color:#4C6FFF;box-shadow:0 0 0 3px rgba(76,111,255,.15)}
+.hb-site .ds-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.hb-site .ds-submit{justify-self:start}
+.hb-site .ds-done{text-align:center;padding:24px 0}
+.hb-site .ds-done__tick{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--grad);color:#fff;font-size:28px;margin-bottom:16px}
+.hb-site .ds-done__when{font-size:1.05rem;margin:14px 0}
+.hb-site .ds-done__note{color:var(--muted)}
+.hb-site .ds-done__actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}
+.hb-site .ds-back{justify-self:start}

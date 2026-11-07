@@ -136,6 +136,13 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/v1/calendar/callback"
 
+    # ── Demo bookings (hybent.com/book-demo) ───────────────────────────────────
+    # A refresh token for the Google account that hosts demos (info@hybent.com),
+    # from the same OAuth client. With it, each booking becomes an event on that
+    # calendar with a Meet link and busy times there are hidden from visitors.
+    demo_google_refresh_token: str = ""
+    demo_host_email: str = "info@hybent.com"
+
     # ── Email Accounts (per-organization integrations) ─────────────────────────
     # Encrypts OAuth tokens / SMTP passwords for organization-connected mailboxes.
     # MUST be set to a strong random value via env in real deployments.

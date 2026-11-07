@@ -15,6 +15,7 @@ const SuperAdminFlags = lazy(() => import('@/modules/super_admin/pages/FeatureFl
 const SuperAdminAudit = lazy(() => import('@/modules/super_admin/pages/AuditLogsPage'))
 const SuperAdminHealth = lazy(() => import('@/modules/super_admin/pages/HealthPage'))
 const SuperAdminDemoRequests = lazy(() => import('@/modules/super_admin/pages/DemoRequestsPage'))
+const SuperAdminDemoBookings = lazy(() => import('@/modules/super_admin/pages/DemoBookingsPage'))
 const SuperAdminSettings = lazy(() => import('@/modules/super_admin/pages/SettingsPage'))
 const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePage'))
 const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
@@ -35,6 +36,7 @@ export default function SuperAdminRoutes() {
         <Route path="audit" element={<SuperAdminAudit />} />
         <Route path="health" element={<SuperAdminHealth />} />
         <Route path="demo-requests" element={<SuperAdminDemoRequests />} />
+        <Route path="demos" element={<SuperAdminDemoBookings />} />
         <Route path="settings" element={<SuperAdminSettings />} />
         <Route path="profile" element={<AdminProfilePage />} />
         <Route path="inbox" element={<InboxPage />} />
