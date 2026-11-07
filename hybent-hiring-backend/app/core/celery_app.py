@@ -12,7 +12,7 @@ celery_app = Celery(
     "hybent_hiring_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening", "app.tasks.chat_retention", "app.tasks.trials"]
+    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening", "app.tasks.chat_retention", "app.tasks.trials", "app.tasks.push"]
 )
 
 celery_app.conf.update(

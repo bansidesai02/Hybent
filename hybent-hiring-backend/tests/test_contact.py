@@ -112,20 +112,27 @@ async def test_demo_request_escapes_what_visitors_type(client, demo_outbox):
     assert "\r" not in subject and "\n" not in subject
 
 
-async def test_demo_request_reports_a_failed_send(client, monkeypatch):
+async def test_demo_request_is_kept_when_the_email_fails(client, db_session, monkeypatch):
+    """Saved for the super admin portal, so a failed email no longer loses it."""
+    from sqlalchemy import select
+    from app.models.push import DemoRequestRecord
     monkeypatch.setattr(email_service, "send_email", lambda *a: False)
     res = await client.post("/api/public/demo-request", json=DEMO)
-    assert res.status_code == 502
-    assert "info@hybent.com" in res.json()["message"]
+    assert res.status_code == 200
+    row = (await db_session.execute(select(DemoRequestRecord))).scalar_one()
+    assert row.email_sent is False and row.company_name == "Acme"
 
 
-async def test_demo_request_hides_internal_errors(client, monkeypatch):
+async def test_demo_request_reports_failure_only_when_lost(client, monkeypatch):
+    import app.routers.public as public
+
     def boom(*a):
         raise RuntimeError("smtp password=hunter2")
     monkeypatch.setattr(email_service, "send_email", boom)
+    monkeypatch.setattr(public, "DemoRequestRecord", lambda **kw: (_ for _ in ()).throw(RuntimeError("db down")))
     res = await client.post("/api/public/demo-request", json=DEMO)
     assert res.status_code == 502
-    assert "hunter2" not in res.text
+    assert "info@hybent.com" in res.json()["message"] and "hunter2" not in res.text
 
 
 async def test_demo_request_limits_input_size(client, demo_outbox):

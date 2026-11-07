@@ -166,6 +166,13 @@ class Settings(BaseSettings):
     # ── Firebase (push notifications) ──────────────────────────────────────────
     firebase_service_account_json: str = ""
 
+    # ── Web Push (phone notifications for admins) ──────────────────────────────
+    # Standard browser push with VAPID keys; no Firebase needed. Leave empty
+    # to keep push off. Generate a pair with: python -m app.services.push_service
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:info@hybent.com"
+
     # ── LinkedIn OAuth ─────────────────────────────────────────────────────────
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
