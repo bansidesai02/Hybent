@@ -27,6 +27,8 @@ const CareersPage = lazy(() => import('@/modules/site/pages/CareersPage'))
 const ContactPage = lazy(() => import('@/modules/site/pages/ContactPage'))
 const FreeTrialPage = lazy(() => import('@/modules/site/pages/FreeTrialPage'))
 const TrialSetupPage = lazy(() => import('@/modules/site/pages/TrialSetupPage'))
+const BookDemoPage = lazy(() => import('@/modules/site/pages/BookDemoPage'))
+const DemoManagePage = lazy(() => import('@/modules/site/pages/DemoManagePage'))
 const PrivacyPage = lazy(() => import('@/modules/site/pages/PrivacyPage'))
 const CookiesPage = lazy(() => import('@/modules/site/pages/CookiesPage'))
 
@@ -138,6 +140,8 @@ export default function AppRoutes() {
         <Route path="/faq/:section?" element={<FaqPage />} />
         <Route path="/contact/:section?" element={<ContactPage />} />
         <Route path="/free-trial" element={<FreeTrialPage />} />
+        <Route path="/book-demo" element={<BookDemoPage />} />
+        <Route path="/book-demo/manage/:token" element={<DemoManagePage />} />
         <Route path="/setup" element={<TrialSetupPage />} />
         <Route path="/privacy/:section?" element={<PrivacyPage />} />
         <Route path="/terms/:section?" element={<PrivacyPage />} />
