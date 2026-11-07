@@ -59,10 +59,10 @@ async def subscribe(payload: SubscribeRequest, current_user: CurrentUser, db: DB
     _allowed(current_user)
     if not push_service.push_enabled():
         raise HTTPException(status_code=503, detail="Phone notifications aren't configured on the server yet.")
-    existing = await db.scalar(select(PushSubscription).where(PushSubscription.endpoint == payload.endpoint))
+    existing = await db.scalar(select(PushSubscription).where(
+        PushSubscription.endpoint == payload.endpoint, PushSubscription.user_id == current_user.id,
+    ))
     if existing:
-        # Same device, maybe now a different account: it belongs to whoever turned it on last.
-        existing.user_id = current_user.id
         existing.p256dh = payload.keys.p256dh
         existing.auth = payload.keys.auth
     else:
@@ -76,6 +76,17 @@ async def subscribe(payload: SubscribeRequest, current_user: CurrentUser, db: DB
         ))
     await db.commit()
     return APIResponse.success(message="Phone notifications are on for this device.")
+
+
+@router.post("/check")
+async def check_device(payload: UnsubscribeRequest, current_user: CurrentUser, db: DB):
+    """Whether this browser's subscription is turned on for the signed-in
+    account. One phone can serve several accounts, so it can be on in the
+    browser (for another account) but not yet for this one."""
+    mine = await db.scalar(select(func.count(PushSubscription.id)).where(
+        PushSubscription.endpoint == payload.endpoint, PushSubscription.user_id == current_user.id,
+    ))
+    return APIResponse.success(data={"mine": bool(mine)})
 
 
 @router.post("/unsubscribe")

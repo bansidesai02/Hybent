@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,13 +12,15 @@ class PushSubscription(Base):
     """One device (browser / installed app) that asked for push notifications.
     Created only when an admin taps "Turn on" on that device."""
     __tablename__ = "push_subscriptions"
+    # One phone can serve several accounts (e.g. a super admin who is also an admin).
+    __table_args__ = (UniqueConstraint("user_id", "endpoint", name="uq_push_subscriptions_user_endpoint"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # The push service URL is unique per device subscription.
-    endpoint: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    # The push service URL of the device (shared by its accounts).
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
     p256dh: Mapped[str] = mapped_column(String(255), nullable=False)
     auth: Mapped[str] = mapped_column(String(255), nullable=False)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
