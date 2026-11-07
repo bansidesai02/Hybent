@@ -1,5 +1,6 @@
 import { PRODUCTS, SITE } from '@/app/paths'
 import { SiteView } from '../components/SiteView'
+import HeroRibbons from '../components/HeroRibbons'
 
 /**
  * Use Cases — the hiring situations Hybent Hiring is built for.
@@ -53,7 +54,7 @@ const USE_CASES = [
 const FAQS = [
   {
     q: 'Can a small team use Hybent Hiring?',
-    a: "Yes. Every plan includes one admin seat, and recruiter seats are added only when you need them at $10 (₹999) a month each. Standard is $29 (₹2,799) a month; Pro is $39 (₹3,799) and adds the Recruiter's Copilot.",
+    a: "Yes. Every plan includes one admin seat, and recruiter seats are added only when you need them at $10 a month each. Standard is $29 a month; Pro is $39 and adds the Recruiter's Copilot.",
   },
   {
     q: 'Can we bring in candidates we already have?',
@@ -79,6 +80,7 @@ export default function UseCasesPage() {
   return (
     <SiteView route="use-cases">
       <section className="hero">
+        <HeroRibbons />
         <div className="hero__orb orb-a" data-para="0.02"></div>
         <div className="hero__orb orb-b" data-para="-0.03"></div>
 
@@ -119,7 +121,7 @@ export default function UseCasesPage() {
         <div className="wrap">
           <div className="section-head" data-rv="up">
             <h2 className="h-lg">Which plan fits</h2>
-            <p className="lead" style={{ marginTop: "14px" }}>Both plans include one admin seat and are billed monthly. Recruiter seats are $10 (₹999) a month each.</p>
+            <p className="lead" style={{ marginTop: "14px" }}>Both plans include one admin seat and are billed monthly. Recruiter seats are $10 a month each.</p>
           </div>
           <div className="grid g2" style={{ marginTop: "28px" }}>
             <div className="card card--flat" data-rv="up">
@@ -136,9 +138,9 @@ export default function UseCasesPage() {
       </section>
 
       <section className="section" id="faq">
-        <div className="wrap" style={{ maxWidth: "900px" }}>
+        <div className="wrap">
           <div className="section-head" data-rv="up"><h2 className="h-lg">Questions</h2></div>
-          <div className="faq" data-rv="up" style={{ marginTop: "24px" }}>
+          <div className="faq" data-rv="up" style={{ marginTop: "24px", maxWidth: "900px" }}>
             {FAQS.map(({ q, a }, i) => (
               <details key={q} open={i === 0}><summary>{q}<span className="pm"></span></summary><div className="ans">{a}</div></details>
             ))}

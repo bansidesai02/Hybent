@@ -90,7 +90,7 @@ export default function App() {
             background: 'rgb(var(--hb-elevated))',
             color: 'rgb(var(--hb-text))',
             borderRadius: 'var(--hb-r-md)',
-            fontFamily: 'Manrope, sans-serif',
+            fontFamily: 'Figtree, sans-serif',
             fontSize: '14px',
             fontWeight: '600',
             boxShadow: 'var(--hb-sh-2)',

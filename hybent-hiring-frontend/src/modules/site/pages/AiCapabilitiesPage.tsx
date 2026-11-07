@@ -1,9 +1,11 @@
 import { SiteView } from '../components/SiteView'
+import HeroRibbons from '../components/HeroRibbons'
 
 export default function AiCapabilitiesPage() {
   return (
     <SiteView route="ai">
       <section className="hero">
+        <HeroRibbons />
         <div className="hero__orb orb-a" data-para="0.02"></div>
         <div className="hero__orb orb-b" data-para="-0.03"></div>
 
@@ -33,35 +35,35 @@ export default function AiCapabilitiesPage() {
             <g transform="translate(28,28)">
               <circle cx="34" cy="34" r="30" fill="none" stroke="var(--border)" strokeWidth="8" />
               <circle cx="34" cy="34" r="30" fill="none" stroke="url(#hbgh)" strokeWidth="8" strokeLinecap="round" strokeDasharray="177 189" transform="rotate(-90 34 34)" />
-              <text x="34" y="40" textAnchor="middle" fontFamily="Sora" fontSize="19" fontWeight="600" fill="var(--text)">94</text>
+              <text x="34" y="40" textAnchor="middle" fontFamily="Figtree" fontSize="19" fontWeight="600" fill="var(--text)">94</text>
               <rect x="84" y="14" width="130" height="9" rx="4.5" fill="var(--border-strong)" />
-              <text x="84" y="48" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.4" fill="var(--dim)">SENIOR BACKEND ENGINEER</text>
+              <text x="84" y="48" fontFamily="Geist Mono" fontSize="8" letterSpacing="1.4" fill="var(--dim)">SENIOR BACKEND ENGINEER</text>
             </g>
             <line x1="28" y1="110" x2="492" y2="110" stroke="var(--border)" />
-            <text x="28" y="134" fontFamily="IBM Plex Mono" fontSize="8" letterSpacing="1.5" fill="var(--dim)">EVIDENCE BEHIND THIS SCORE</text>
-            <g fontFamily="Manrope" fontSize="11" fill="var(--muted)">
+            <text x="28" y="134" fontFamily="Geist Mono" fontSize="8" letterSpacing="1.5" fill="var(--dim)">EVIDENCE BEHIND THIS SCORE</text>
+            <g fontFamily="Figtree" fontSize="11" fill="var(--muted)">
               <text x="28" y="164">Distributed systems</text>
               <rect x="230" y="155" width="230" height="8" rx="4" fill="var(--border)" />
               <rect x="230" y="155" width="212" height="8" rx="4" fill="url(#hbgh)" />
-              <text x="470" y="164" fontFamily="IBM Plex Mono" fontSize="9" fill="var(--text)">92</text>
+              <text x="470" y="164" fontFamily="Geist Mono" fontSize="9" fill="var(--text)">92</text>
 
               <text x="28" y="194">Language depth</text>
               <rect x="230" y="185" width="230" height="8" rx="4" fill="var(--border)" />
               <rect x="230" y="185" width="196" height="8" rx="4" fill="url(#hbgh)" />
-              <text x="470" y="194" fontFamily="IBM Plex Mono" fontSize="9" fill="var(--text)">85</text>
+              <text x="470" y="194" fontFamily="Geist Mono" fontSize="9" fill="var(--text)">85</text>
 
               <text x="28" y="224">Scale of ownership</text>
               <rect x="230" y="215" width="230" height="8" rx="4" fill="var(--border)" />
               <rect x="230" y="215" width="152" height="8" rx="4" fill="url(#hbgh)" />
-              <text x="470" y="224" fontFamily="IBM Plex Mono" fontSize="9" fill="var(--text)">66</text>
+              <text x="470" y="224" fontFamily="Geist Mono" fontSize="9" fill="var(--text)">66</text>
 
               <text x="28" y="254">Domain exposure</text>
               <rect x="230" y="245" width="230" height="8" rx="4" fill="var(--border)" />
               <rect x="230" y="245" width="118" height="8" rx="4" fill="url(#hbgh)" opacity=".55" />
-              <text x="470" y="254" fontFamily="IBM Plex Mono" fontSize="9" fill="var(--muted)">51</text>
+              <text x="470" y="254" fontFamily="Geist Mono" fontSize="9" fill="var(--muted)">51</text>
             </g>
             <rect x="28" y="268" width="180" height="18" rx="9" fill="var(--cyan)" opacity=".14" />
-            <text x="40" y="281" fontFamily="IBM Plex Mono" fontSize="7.5" letterSpacing="1.1" fill="var(--cyan)">HUMAN MAKES THE CALL</text>
+            <text x="40" y="281" fontFamily="Geist Mono" fontSize="7.5" letterSpacing="1.1" fill="var(--cyan)">HUMAN MAKES THE CALL</text>
           </svg>
                 <article className="card card--flat" style={{ padding: "20px 22px" }}><h3 className="h-sm">Grounded in your own data</h3><p className="small" style={{ marginTop: "8px" }}>Answers come from your candidates and your criteria, with a link back to the source record every time.</p></article>
                 <article className="card card--flat" style={{ padding: "20px 22px" }}><h3 className="h-sm">Assistance, not autonomy</h3><p className="small" style={{ marginTop: "8px" }}>The recruiter copilot can only see what the person using it can see, and a human signs off on every hiring decision.</p></article>

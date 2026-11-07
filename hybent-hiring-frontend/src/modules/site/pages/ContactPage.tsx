@@ -34,10 +34,10 @@ export default function ContactPage() {
               <circle cx="420" cy="46" r="26" fill="url(#hbgh)" opacity=".16" stroke="var(--border-strong)" strokeWidth="1.6" />
               <path d="M409 46l7 7 14-15" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               </g>
-              <g fontFamily="IBM Plex Mono" fontSize="9" letterSpacing="1.3" fill="var(--dim)" textAnchor="middle">
+              <g fontFamily="Geist Mono" fontSize="9" letterSpacing="1.3" fill="var(--dim)" textAnchor="middle">
               <text x="60" y="94">YOU DESCRIBE IT</text><text x="240" y="94">A PERSON REPLIES</text><text x="420" y="94">WE WORK IT</text>
               </g>
-              <text x="240" y="110" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="8.5" letterSpacing="1.2" fill="var(--cyan)">WITHIN ONE BUSINESS DAY</text>
+              <text x="240" y="110" textAnchor="middle" fontFamily="Geist Mono" fontSize="8.5" letterSpacing="1.2" fill="var(--cyan)">WITHIN ONE BUSINESS DAY</text>
               </svg></div>
               </div>
             <div className="figrow" data-rv="up">
@@ -59,7 +59,7 @@ export default function ContactPage() {
                     <path d="M30 12a13 13 0 00-13 13c0 10 13 21 13 21s13-11 13-21a13 13 0 00-13-13z" fill="var(--surface)" stroke="url(#hbgh)" strokeWidth="2.6" />
                     <circle cx="30" cy="25" r="5" fill="url(#hbgh)" />
                   </g>
-                  <g fontFamily="IBM Plex Mono" letterSpacing="1.6">
+                  <g fontFamily="Geist Mono" letterSpacing="1.6">
                     <text x="500" y="86" fontSize="12" fill="var(--text)">AHMEDABAD · GUJARAT · INDIA</text>
                     <text x="500" y="106" fontSize="9" fill="var(--dim)">HEADQUARTERS — ENGINEERING, PRODUCT &amp; DESIGN</text>
                     <text x="500" y="124" fontSize="9" fill="var(--dim)">MON–FRI · 09:00–18:00 IST</text>

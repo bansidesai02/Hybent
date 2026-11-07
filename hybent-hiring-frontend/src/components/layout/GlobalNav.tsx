@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { AUTH, PRODUCTS, SHOW_CUSTOMERS, SHOW_SERVICES, SHOW_SOLUTIONS, SITE } from '@/app/paths'
 import SolutionsMegaMenu from '@/components/SolutionsMegaMenu'
@@ -108,6 +108,18 @@ export function GlobalNav({
     }
   }, [])
 
+  /* ---------- Announcement bar (free trial) ----------
+     Hidden on the trial page itself. Closing it hides it only until the next
+     page load (nothing is remembered). `has-bar` on <html> pushes the nav and
+     page down by its height. */
+  const [barDismissed, setBarDismissed] = useState(false)
+  const showBar = !barDismissed && typeof window !== 'undefined' && !window.location.pathname.startsWith(SITE.freeTrial)
+  useEffect(() => {
+    document.documentElement.classList.toggle('has-bar', showBar)
+    return () => document.documentElement.classList.remove('has-bar')
+  }, [showBar])
+  const dismissBar = () => setBarDismissed(true)
+
   /* ---------- Escape closes the drawer ---------- */
   useEffect(() => {
     if (!drawerOpen) return
@@ -184,6 +196,15 @@ export function GlobalNav({
       {/* `data-drawer` rather than a class: the sticky-nav effect owns the
           `stuck` class through classList, and a className change here would
           wipe it. */}
+      {showBar && (
+        <div className="announce" role="region" aria-label="Announcement">
+          <a className="announce__link" href={SITE.freeTrial}>
+            <span>Try Hybent Hiring free for 7 days. No card required.</span>
+            <span className="announce__go" aria-hidden="true">Start free trial &rarr;</span>
+          </a>
+          <button type="button" className="announce__close" aria-label="Dismiss announcement" onClick={dismissBar}>&times;</button>
+        </div>
+      )}
       <header
         className="nav"
         id="nav"

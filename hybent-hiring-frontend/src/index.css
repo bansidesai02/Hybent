@@ -1075,7 +1075,7 @@
 /* The `.recruiter-root` / `.interviewer-root` / `.portal-root` wrappers went
    with the legacy shells in phase 10, so the `font-family: Poppins !important`
    block that used to sit here applied to nothing. It is gone: the product now
-   inherits the Hybent ramp (Sora display, Manrope body, IBM Plex Mono) from
+   inherits the Hybent ramp (Figtree display, Figtree body, Geist Mono) from
    `.hb-app`, which is what made the workspace type finally match the site. */
 
 /* Ensure strong/b tags are 700 and normal text is 400 */
@@ -1111,7 +1111,7 @@
    URLs and code wrap or scroll inside their own box. */
 .copilot-markdown {
   --cm-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --cm-mono: "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --cm-mono: "JetBrains Mono", "Geist Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --cm-body: 15px;
   --cm-h1: 26px;
   --cm-h2: 21px;

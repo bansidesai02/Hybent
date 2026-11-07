@@ -1,5 +1,6 @@
 import { SiteView } from '../components/SiteView'
 import { SHOW_SERVICES } from '@/app/paths'
+import HeroRibbons from '../components/HeroRibbons'
 
 const FACTS = [
   { label: 'Live product', value: 'Hybent Hiring', live: true },
@@ -49,6 +50,7 @@ export default function AboutPage() {
   return (
     <SiteView route="about">
       <section className="hero ab-hero">
+        <HeroRibbons />
         <div className="hero__orb orb-a" data-para="0.02"></div>
         <div className="hero__orb orb-b" data-para="-0.03"></div>
 

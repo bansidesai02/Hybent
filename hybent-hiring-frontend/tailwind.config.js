@@ -114,16 +114,16 @@ export default {
       },
 
       fontFamily: {
-        /* Sora displays, Manrope reads, IBM Plex Mono labels — the site's
+        /* Figtree displays, Figtree reads, Geist Mono labels — the site's
            stack, now available to the product. */
-        display: ['Sora', '-apple-system', 'Segoe UI', 'system-ui', 'sans-serif'],
-        body:    ['Manrope', '-apple-system', 'Segoe UI', 'system-ui', 'sans-serif'],
-        mono:    ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        display: ['Figtree', '-apple-system', 'Segoe UI', 'system-ui', 'sans-serif'],
+        body:    ['Figtree', '-apple-system', 'Segoe UI', 'system-ui', 'sans-serif'],
+        mono:    ['Geist Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
 
         /* Legacy. `sans` stays system-ui so unmigrated pages render exactly as
            they do today; they set Poppins inline. Removed in phase 10. */
         sans:     ['system-ui', 'sans-serif'],
-        sora:     ['Sora', 'system-ui', 'sans-serif'],
+        sora:     ['Figtree', 'system-ui', 'sans-serif'],
         fraunces: ['Fraunces', 'serif'],
         serif:    ['Fraunces', 'Georgia', 'serif'],
       },
@@ -162,7 +162,7 @@ export default {
            and `-.042em`. A dashboard title should not be a 75px hero, but it was
            sitting at 44px/1.08 — small and loose enough that it read as a form
            label rather than as the page speaking. Bigger, and tightened toward
-           the site's tracking, which is what makes large Sora look editorial. */
+           the site's tracking, which is what makes large Figtree look editorial. */
         'hb-display': ['clamp(32px, 3.3vw, 54px)', { lineHeight: '1.04', letterSpacing: '-.038em', fontWeight: '600' }],
         'hb-h2':      ['clamp(22px, 1.8vw, 29px)', { lineHeight: '1.18', letterSpacing: '-.026em', fontWeight: '600' }],
         'hb-h3':      ['clamp(17px, 1.2vw, 20px)', { lineHeight: '1.28', letterSpacing: '-.02em',  fontWeight: '600' }],

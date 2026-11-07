@@ -76,7 +76,7 @@ export function useChartTheme(): ChartTheme {
 export function axisProps(theme: ChartTheme) {
   return {
     stroke: theme.axis,
-    tick: { fill: theme.text, fontSize: 11, fontFamily: 'Manrope, sans-serif' },
+    tick: { fill: theme.text, fontSize: 11, fontFamily: 'Figtree, sans-serif' },
     tickLine: false,
     axisLine: { stroke: theme.grid },
   } as const
@@ -90,7 +90,7 @@ export function chartLabel(theme: ChartTheme, opts?: { emphasis?: boolean }) {
   return {
     fontSize: opts?.emphasis ? 12 : 11,
     fontWeight: 700,
-    fontFamily: 'IBM Plex Mono, monospace',
+    fontFamily: 'Geist Mono, monospace',
     fill: theme.text,
   } as const
 }
@@ -148,14 +148,14 @@ export function ChartTooltip(props: TooltipProps<number, string>) {
         border: '1px solid var(--hb-border)',
         borderRadius: 'var(--hb-r-sm)',
         boxShadow: 'var(--hb-sh-2)',
-        fontFamily: 'Manrope, sans-serif',
+        fontFamily: 'Figtree, sans-serif',
         fontSize: 12,
         color: 'rgb(var(--hb-text))',
         padding: '8px 12px',
       }}
       labelStyle={{
         color: 'rgb(var(--hb-muted))',
-        fontFamily: 'IBM Plex Mono, monospace',
+        fontFamily: 'Geist Mono, monospace',
         fontSize: 10,
         letterSpacing: '.14em',
         textTransform: 'uppercase',

@@ -1,6 +1,11 @@
+import { HeroBgVideo } from '@/modules/site/components/HeroBgVideo'
 import { SiteView } from '@/modules/site/components/SiteView'
 import { SITE } from '@/app/paths'
 import { HiringSimulator } from '../components/HiringSimulator'
+
+// Trying the launch film full width under the hero instead of the simulator.
+// Set to true to bring the simulator back.
+const SHOW_SIMULATOR = false
 
 /**
  * Hybent Hiring — the product's page inside the company site.
@@ -157,18 +162,16 @@ export default function HiringHomePage() {
   return (
     <SiteView route="hiring">
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="hero">
-        <div className="hero__orb orb-a" data-para="0.02" />
-        <div className="hero__orb orb-b" data-para="-0.03" />
+      <section className="hero hero--video">
+        <HeroBgVideo />
 
         <div className="wrap center">
           <h1 className="h-xl" data-rv="up" data-delay="80">
-            Hire on <span className="grad-text">autopilot</span>.
+            From resume to offer, <span className="grad-text">on autopilot</span>.
           </h1>
 
           <p className="hero__sub" data-rv="up" data-delay="160" style={{ marginInline: 'auto', textAlign: 'center' }}>
-            Hybent Hiring uses AI to parse resumes, score candidates, manage your pipeline and
-            close the best talent — in a fraction of the time.
+            AI parses, scores and schedules, so your team only meets the best.
           </p>
 
           <div className="hero__actions" data-rv="up" data-delay="240" style={{ justifyContent: 'center', marginInline: 'auto' }}>
@@ -176,10 +179,11 @@ export default function HiringHomePage() {
               Start 7-day free trial
               <svg className="arw" width="16" height="16" aria-hidden="true"><use href="#i-arrow" /></svg>
             </a>
+            <a className="btn btn-ghost btn-lg" href={SITE.bookDemo}>Book a demo</a>
           </div>
 
-          {/* Interactive AI Autopilot Hiring Simulator Widget */}
-          <HiringSimulator />
+          {/* Interactive AI Autopilot Hiring Simulator Widget (off while trying the full-width film) */}
+          {SHOW_SIMULATOR && <HiringSimulator />}
         </div>
       </section>
 

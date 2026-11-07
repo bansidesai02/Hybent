@@ -319,7 +319,7 @@ export function AiRecruitmentWorkflowAnimation() {
         position: 'relative',
         textAlign: 'left',
         color: '#1E293B',
-        fontFamily: 'var(--f-body, "Manrope", system-ui, sans-serif)',
+        fontFamily: 'var(--f-body, "Figtree", system-ui, sans-serif)',
       }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -363,7 +363,7 @@ export function AiRecruitmentWorkflowAnimation() {
           </div>
           <span
             style={{
-              fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+              fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
               fontSize: '10.5px',
               color: '#475569',
               fontWeight: 600,
@@ -385,7 +385,7 @@ export function AiRecruitmentWorkflowAnimation() {
               alignItems: 'center',
               gap: '5px',
               fontSize: '10px',
-              fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+              fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
               color: scanState !== 'complete' ? '#0284C7' : success,
               background: scanState !== 'complete' ? 'rgba(34, 207, 255, 0.12)' : 'rgba(16, 185, 129, 0.1)',
               border: scanState !== 'complete' ? '1px solid rgba(34, 207, 255, 0.3)' : '1px solid rgba(16, 185, 129, 0.25)',
@@ -425,7 +425,7 @@ export function AiRecruitmentWorkflowAnimation() {
               borderRadius: '6px',
               padding: '3px 10px',
               fontSize: '10.5px',
-              fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+              fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
               color: blue,
               cursor: 'pointer',
               fontWeight: 700,
@@ -455,7 +455,7 @@ export function AiRecruitmentWorkflowAnimation() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '10.5px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: dim, textTransform: 'uppercase', marginRight: '4px' }}>
+          <span style={{ fontSize: '10.5px', fontFamily: 'var(--f-mono, "Geist Mono", monospace)', color: dim, textTransform: 'uppercase', marginRight: '4px' }}>
             Candidates:
           </span>
           {CANDIDATES.map((c, i) => {
@@ -489,7 +489,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 <span
                   style={{
                     fontSize: '9px',
-                    fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                    fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
                     padding: '1px 5px',
                     borderRadius: '4px',
                     background: isActive ? blue : 'rgba(100, 116, 139, 0.12)',
@@ -504,7 +504,7 @@ export function AiRecruitmentWorkflowAnimation() {
           })}
         </div>
 
-        <div style={{ fontSize: '0.72rem', color: dim, fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)' }}>
+        <div style={{ fontSize: '0.72rem', color: dim, fontFamily: 'var(--f-mono, "Geist Mono", monospace)' }}>
           ⚡ 0.6s AI Vector Search
         </div>
       </div>
@@ -554,13 +554,13 @@ export function AiRecruitmentWorkflowAnimation() {
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "Geist Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 01 · RESUME INTELLIGENCE
               </span>
               <span
                 style={{
                   fontSize: '9px',
-                  fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                  fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
                   color: scanState === 'p1_parsing' ? '#0284C7' : success,
                   fontWeight: 600,
                 }}
@@ -579,13 +579,13 @@ export function AiRecruitmentWorkflowAnimation() {
               <div>
                 <h4 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 700, color: '#0F172A' }}>{candidate.name}</h4>
                 <div style={{ fontSize: '0.74rem', color: blue, fontWeight: 600 }}>{candidate.title}</div>
-                <div style={{ fontSize: '0.68rem', color: dim, fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)' }}>{candidate.experience}</div>
+                <div style={{ fontSize: '0.68rem', color: dim, fontFamily: 'var(--f-mono, "Geist Mono", monospace)' }}>{candidate.experience}</div>
               </div>
             </div>
 
             {/* Extracted Skills animated list */}
             <div style={{ marginBottom: '10px' }}>
-              <div style={{ fontSize: '0.68rem', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: '#64748B', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.68rem', fontFamily: 'var(--f-mono, "Geist Mono", monospace)', color: '#64748B', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>
                 Verified Skills ({visibleSkillsCount}/{candidate.skills.length}):
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '44px' }}>
@@ -594,7 +594,7 @@ export function AiRecruitmentWorkflowAnimation() {
                     key={i}
                     style={{
                       fontSize: '0.68rem',
-                      fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                      fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
                       padding: '2px 6px',
                       borderRadius: '4px',
                       background: 'rgba(76, 111, 255, 0.08)',
@@ -617,7 +617,7 @@ export function AiRecruitmentWorkflowAnimation() {
               borderRadius: '6px',
               fontSize: '0.68rem',
               color: '#475569',
-              fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+              fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -663,13 +663,13 @@ export function AiRecruitmentWorkflowAnimation() {
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "Geist Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 02 · AI MATCH SCORE
               </span>
               <span
                 style={{
                   fontSize: '9px',
-                  fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                  fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
                   color: scanState === 'p1_parsing' ? dim : candidate.verdictType === 'strong' ? '#059669' : blue,
                   background: scanState === 'p1_parsing' ? 'rgba(100, 116, 139, 0.08)' : candidate.verdictType === 'strong' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(76, 111, 255, 0.1)',
                   padding: '1px 6px',
@@ -728,7 +728,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 <div key={i}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', marginBottom: '2px' }}>
                     <span style={{ fontWeight: 600, color: scanState === 'p1_parsing' ? '#94A3B8' : '#334155' }}>{cr.label}</span>
-                    <span style={{ fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', fontWeight: 700, color: scanState === 'p1_parsing' ? '#94A3B8' : blue }}>
+                    <span style={{ fontFamily: 'var(--f-mono, "Geist Mono", monospace)', fontWeight: 700, color: scanState === 'p1_parsing' ? '#94A3B8' : blue }}>
                       {scanState === 'p1_parsing' ? '0%' : `${cr.score}%`}
                     </span>
                   </div>
@@ -798,13 +798,13 @@ export function AiRecruitmentWorkflowAnimation() {
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "Geist Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 03 · AUTOPILOT ACTIONS
               </span>
               <span
                 style={{
                   fontSize: '9px',
-                  fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                  fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
                   color: isScheduled ? success : scanState === 'p3_dispatching' ? '#F59E0B' : dim,
                   fontWeight: 700,
                 }}
@@ -875,7 +875,7 @@ export function AiRecruitmentWorkflowAnimation() {
                 marginBottom: '10px',
               }}
             >
-              <div style={{ fontSize: '0.66rem', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: dim, textTransform: 'uppercase', marginBottom: '2px', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.66rem', fontFamily: 'var(--f-mono, "Geist Mono", monospace)', color: dim, textTransform: 'uppercase', marginBottom: '2px', fontWeight: 600 }}>
                 Optimal Conflict-Free Slot:
               </div>
               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: scanState === 'p1_parsing' || scanState === 'p2_scoring' ? '#94A3B8' : '#0F172A', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -918,7 +918,7 @@ export function AiRecruitmentWorkflowAnimation() {
                   fontWeight: 700,
                 }}
               >
-                🎉 Google Meet Sent: <span style={{ fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', fontWeight: 600, color: '#334155' }}>meet.google.com/hyb-demo</span>
+                🎉 Google Meet Sent: <span style={{ fontFamily: 'var(--f-mono, "Geist Mono", monospace)', fontWeight: 600, color: '#334155' }}>meet.google.com/hyb-demo</span>
               </div>
             )}
           </div>
@@ -958,13 +958,13 @@ export function AiRecruitmentWorkflowAnimation() {
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: '9px', fontFamily: 'var(--f-mono, "Geist Mono", monospace)', color: blue, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               04 · RECRUITER COPILOT
             </span>
             <span
               style={{
                 fontSize: '9px',
-                fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+                fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
                 color: copilotDone ? success : copilotActive ? '#7C5CFF' : dim,
                 fontWeight: 700,
               }}
@@ -1063,7 +1063,7 @@ export function AiRecruitmentWorkflowAnimation() {
           flexWrap: 'wrap',
           gap: '8px',
           fontSize: '0.72rem',
-          fontFamily: 'var(--f-mono, "IBM Plex Mono", monospace)',
+          fontFamily: 'var(--f-mono, "Geist Mono", monospace)',
           color: dim,
         }}
       >

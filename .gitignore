@@ -22,3 +22,11 @@ archive/marketing/
 
 # Local env backups — may hold secrets.
 .env*.bak*
+
+# Demo video work: large media (frames, renders, voice recordings), kept out of git
+video/hybent-demo/
+video/founder audio files/
+
+# Local workspaces, not part of the app: growth/marketing docs and Claude skills
+growth/
+.claude/skills/

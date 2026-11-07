@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { SiteView } from '../components/SiteView'
 import { SITE } from '@/app/paths'
+import HeroRibbons from '../components/HeroRibbons'
 
 /**
  * Pricing for Hybent Hiring.
@@ -105,6 +106,7 @@ export default function PricingPage() {
   return (
     <SiteView route="pricing">
       <section className="hero">
+        <HeroRibbons variant="soft" />
         <div className="hero__orb orb-a" data-para="0.02"></div>
         <div className="hero__orb orb-b" data-para="-0.03"></div>
 

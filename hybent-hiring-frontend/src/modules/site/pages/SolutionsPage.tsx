@@ -1,9 +1,11 @@
 import { SiteView } from '../components/SiteView'
+import HeroRibbons from '../components/HeroRibbons'
 
 export default function SolutionsPage() {
   return (
     <SiteView route="solutions">
       <section className="hero">
+        <HeroRibbons />
         <div className="hero__orb orb-a" data-para="0.02"></div>
         <div className="hero__orb orb-b" data-para="-0.03"></div>
 
@@ -39,7 +41,7 @@ export default function SolutionsPage() {
             <rect x="1" y="1" width="238" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
             <path d="M40 30h160l-32 34v34l-96 24V64z" fill="url(#hbgh)" opacity=".16" />
             <path d="M40 30h160l-32 34v34l-96 24V64z" fill="none" stroke="url(#hbgh)" strokeWidth="2" />
-            <g fontFamily="IBM Plex Mono" fontSize="7.5" letterSpacing="1" fill="var(--dim)">
+            <g fontFamily="Geist Mono" fontSize="7.5" letterSpacing="1" fill="var(--dim)">
               <text x="206" y="34">1284</text><text x="176" y="70">312</text><text x="176" y="120">96</text></g>
           </svg>
                 <div className="card card--flat stat"><b>One</b><span>Rubric, applied to every applicant</span><em>Consistent, evidenced scoring</em></div>
@@ -72,7 +74,7 @@ export default function SolutionsPage() {
             <circle cx="164" cy="70" r="11" fill="url(#hbg)" />
             <rect x="182" y="64" width="24" height="5" rx="2.5" fill="var(--border-strong)" />
             <rect x="182" y="74" width="18" height="4" rx="2" fill="var(--border)" />
-            <g fontFamily="IBM Plex Mono" fontSize="7" letterSpacing="1.1" fill="var(--dim)" textAnchor="middle">
+            <g fontFamily="Geist Mono" fontSize="7" letterSpacing="1.1" fill="var(--dim)" textAnchor="middle">
               <text x="62" y="112">CANDIDATE</text><text x="178" y="112">EMPLOYEE</text></g>
           </svg>
                 <div className="card card--flat stat"><b>One</b><span>Candidate record, carried forward</span><em>Shared person model</em></div>
@@ -128,7 +130,7 @@ export default function SolutionsPage() {
             <rect x="1" y="1" width="238" height="138" rx="12" fill="var(--surface)" stroke="var(--border)" />
             <path d="M120 26l40 14v30c0 24-18 38-40 44-22-6-40-20-40-44V40z" fill="url(#hbgh)" opacity=".14" stroke="url(#hbgh)" strokeWidth="2" />
             <path d="M106 70l9 9 20-21" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            <g fontFamily="IBM Plex Mono" fontSize="7" letterSpacing="1.1" fill="var(--dim)" textAnchor="middle"><text x="120" y="126">SSO · RBAC · AUDIT</text></g>
+            <g fontFamily="Geist Mono" fontSize="7" letterSpacing="1.1" fill="var(--dim)" textAnchor="middle"><text x="120" y="126">SSO · RBAC · AUDIT</text></g>
           </svg>
                 <div className="card card--flat stat"><b>One</b><span>Security review, not one per product</span><em>Controls live in the platform</em></div>
                 <div className="card card--flat stat"><b>Full</b><span>Data export, whenever you ask</span><em>Open formats, no ticket</em></div>

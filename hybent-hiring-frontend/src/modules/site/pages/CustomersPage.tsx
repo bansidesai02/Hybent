@@ -465,10 +465,10 @@ export default function CustomersPage() {
               <g>
                 <circle cx="230" cy="120" r="46" fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6" />
                 <circle cx="230" cy="120" r="30" fill="url(#hbg)" opacity=".16" />
-                <text x="230" y="116" textAnchor="middle" fontFamily="Sora" fontSize="12" fontWeight="600" fill="var(--text)">Hybent</text>
-                <text x="230" y="132" textAnchor="middle" fontFamily="Sora" fontSize="12" fontWeight="600" fill="var(--text)">Hiring</text>
+                <text x="230" y="116" textAnchor="middle" fontFamily="Figtree" fontSize="12" fontWeight="600" fill="var(--text)">Hybent</text>
+                <text x="230" y="132" textAnchor="middle" fontFamily="Figtree" fontSize="12" fontWeight="600" fill="var(--text)">Hiring</text>
               </g>
-              <g fontFamily="IBM Plex Mono" fontSize="7.5" letterSpacing="1.1" textAnchor="middle">
+              <g fontFamily="Geist Mono" fontSize="7.5" letterSpacing="1.1" textAnchor="middle">
                 <g fill="var(--surface)" stroke="var(--border-strong)">
                   <rect x="36" y="40" width="120" height="32" rx="11" />
                   <rect x="304" y="40" width="120" height="32" rx="11" />

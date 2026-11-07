@@ -499,12 +499,12 @@ function Gallery() {
 
       <Section title="Type ramp">
         <div className="grid gap-3">
-          <p className="font-display text-hb-display text-hb-text">Display · Sora 32</p>
-          <p className="font-display text-hb-h2 text-hb-text">Heading 2 · Sora 22</p>
-          <p className="font-display text-hb-h3 text-hb-text">Heading 3 · Sora 17</p>
-          <p className="text-hb-body text-hb-text">Body · Manrope 14. The reading size for prose and table cells.</p>
-          <p className="text-hb-sm text-hb-muted">Small · Manrope 13, muted. Secondary information.</p>
-          <p className="font-mono text-hb-label uppercase text-hb-dim">Label · IBM Plex Mono 10</p>
+          <p className="font-display text-hb-display text-hb-text">Display · Figtree 32</p>
+          <p className="font-display text-hb-h2 text-hb-text">Heading 2 · Figtree 22</p>
+          <p className="font-display text-hb-h3 text-hb-text">Heading 3 · Figtree 17</p>
+          <p className="text-hb-body text-hb-text">Body · Figtree 14. The reading size for prose and table cells.</p>
+          <p className="text-hb-sm text-hb-muted">Small · Figtree 13, muted. Secondary information.</p>
+          <p className="font-mono text-hb-label uppercase text-hb-dim">Label · Geist Mono 10</p>
           <p className="font-display text-hb-num text-hb-text">1,284</p>
         </div>
       </Section>
