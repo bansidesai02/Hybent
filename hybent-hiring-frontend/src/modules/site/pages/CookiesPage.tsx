@@ -244,7 +244,7 @@ export default function CookiesPage() {
                   By accessing or using HYBENT products—including our flagship AI recruitment platform (Hybent Hiring), recruiter dashboards, and candidate portals—you acknowledge our data processing practices as described in this Policy and our <a href="/privacy" style={{ color: 'var(--violet, #6c47ff)', fontWeight: 600 }}>Privacy &amp; Terms Policy</a>.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px', marginTop: '24px' }}>
                   <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
                     <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Full Transparency</h4>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
@@ -284,7 +284,7 @@ export default function CookiesPage() {
                   In addition to cookies, HYBENT may utilize related browser storage technologies such as <strong>localStorage</strong>, <strong>sessionStorage</strong>, and secure HTTP-only cookies to handle authentication tokens, active workspace states, and feature configurations safely.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', marginTop: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '20px', marginTop: '24px' }}>
                   <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
                     <h4 style={{ margin: '0 0 8px', fontSize: '1.02rem', fontWeight: 700, color: '#0f172a' }}>First-Party Cookies</h4>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>
@@ -316,7 +316,7 @@ export default function CookiesPage() {
                 <p className="mono" style={{ color: 'var(--cyan)', margin: '0 0 6px', fontSize: '0.85rem' }}>Section 03</p>
                 <h2 className="h-sm" style={{ fontSize: '1.4rem', margin: 0 }}>3. Types of Cookies We Use</h2>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '20px', marginTop: '20px' }}>
                   <div style={{ background: 'var(--surface-2, #f8fafc)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(226,232,240,0.8)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                       <span className="chip" style={{ background: 'rgba(108,71,255,0.12)', color: 'var(--violet, #6c47ff)', fontWeight: 700 }}>Strictly Necessary</span>
@@ -407,7 +407,7 @@ export default function CookiesPage() {
                 <p className="small" style={{ marginTop: '16px', fontSize: '0.98rem', lineHeight: '1.7', color: '#334155' }}>
                   To deliver seamless enterprise integrations, HYBENT partners with vetted third-party service providers who may also issue cookies through our services:
                 </p>
-                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '16px' }}>
                   <div style={{ padding: '16px 20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <strong style={{ color: '#0f172a' }}>Google Services (OAuth 2.0 &amp; Google Meet):</strong> Used for secure single sign-on (SSO) authentication and automated interview calendar scheduling.
                   </div>
@@ -484,7 +484,7 @@ export default function CookiesPage() {
                   Any updates will be posted on this page with a revised &quot;Last Updated&quot; date at the top. We encourage users to check back periodically for updates.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px', marginTop: '24px' }}>
                   <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--surface-2, #f8fafc)', border: '1px solid rgba(226,232,240,0.8)' }}>
                     <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Revised Date</h4>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: '1.5' }}>

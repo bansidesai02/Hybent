@@ -24,7 +24,7 @@ export default function HomePage() {
                 one line tall whichever word is on screen. Words stay short on
                 purpose: the line has to fit the hero column without wrapping. */}
             <h1 data-rv="up" data-delay="80">
-              Intelligent software for<br />
+              Intelligent <br className="br-m" />software for<br />
               <span className="rot" aria-live="polite">
                 <span className="on">how you hire.</span>
                 <span>how you grow.</span>

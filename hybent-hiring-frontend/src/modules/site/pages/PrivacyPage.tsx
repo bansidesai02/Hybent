@@ -144,7 +144,7 @@ export default function PrivacyPage() {
               : 'Transparent, enterprise-grade protection for your data across all Hybent products.'}
           </p>
 
-          <div
+          <div className="legal-meta"
             data-rv="up"
             data-delay="220"
             style={{
@@ -281,7 +281,7 @@ export default function PrivacyPage() {
                   We collect information to provide, secure, and improve our services, communicate effectively with clients, and deliver high-performance enterprise applications. The types of data we collect depend on how you interact with Hybent:
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '20px' }}>
                   <div style={{ padding: '20px', borderRadius: '12px', background: '#f9fafb', border: '1px solid #f3f4f6' }}>
                     <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '10px', color: '#111827' }}>Directly Provided Data</h3>
                     <ul style={{ paddingLeft: '18px', margin: 0, color: '#4b5563', lineHeight: 1.6, fontSize: '0.9rem' }}>
@@ -341,7 +341,7 @@ export default function PrivacyPage() {
                   Hybent uses collected information strictly for legitimate operational, business, and service delivery purposes, including:
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '16px' }}>
                   {[
                     { title: 'Inquiries & Demo Requests', desc: 'Responding to contact submissions, answering technical queries, and setting up Hybent product demonstrations.' },
                     { title: 'Product & Service Delivery', desc: SHOW_SERVICES ? 'Operating Hybent Hiring, delivering IT services, custom software engineering, and managing client contracts.' : 'Operating Hybent Hiring and managing client contracts.' },
@@ -469,7 +469,7 @@ export default function PrivacyPage() {
                   Security is embedded into every layer of our platform architecture. We employ comprehensive administrative, technical, and physical safeguards designed to protect personal information against unauthorized access, loss, or alteration:
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px' }}>
                   <div style={{ padding: '18px', borderRadius: '12px', background: '#f9fafb', border: '1px solid #e5e7eb' }}>
                     <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 600 }}>End-to-End Encryption</h4>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: '#4b5563', lineHeight: 1.5 }}>
@@ -552,7 +552,7 @@ export default function PrivacyPage() {
                   Depending on your jurisdiction (including rights aligned with India's DPDP Act and global standards like GDPR), you possess specific privacy rights regarding your personal data:
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px' }}>
                   <div style={{ padding: '16px', borderRadius: '10px', background: '#f9fafb', border: '1px solid #f3f4f6' }}>
                     <strong style={{ color: '#111827', display: 'block', marginBottom: '4px' }}>Right to Access</strong>
                     <span style={{ fontSize: '0.88rem', color: '#4b5563' }}>Request confirmation and a copy of the personal data Hybent holds about you.</span>
@@ -671,7 +671,7 @@ export default function PrivacyPage() {
                   <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>11. Children's Privacy &amp; Policy Updates</h2>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '24px' }}>
                   <div style={{ padding: '22px', borderRadius: '12px', background: '#f9fafb', border: '1px solid #f3f4f6' }}>
                     <h3 style={{ fontSize: '1.05rem', fontWeight: 600, margin: '0 0 10px', color: '#111827' }}>Children's Privacy</h3>
                     <p style={{ color: 'var(--text, #374151)', lineHeight: 1.7, margin: 0, fontSize: '0.92rem' }}>

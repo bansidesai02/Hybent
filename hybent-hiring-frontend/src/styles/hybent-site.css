@@ -2612,3 +2612,57 @@ html.has-bar .hb-site .nav{top:36px;height:72px}
              linear-gradient(180deg,rgba(251,252,254,.6),rgba(251,252,254,0) 25%,rgba(251,252,254,0) 75%,#FBFCFE 100%)}
 .hb-site .hero--video h1{max-width:15ch;margin-inline:auto}
 @media (max-width:640px){.hb-site .hero--video{min-height:auto}}
+
+/* ── Responsive pass ─────────────────────────────────────────────────── */
+.hb-site .br-m{display:none}
+@media (max-width:640px){
+  .hb-site .br-m{display:inline}
+  /* Announcement: one line that never clips. */
+  .hb-site .announce{font-size:.8rem}
+  .hb-site .announce__more{display:none}
+  .hb-site .announce__link{padding:0 40px;white-space:nowrap}
+  /* Copilot block: room under the section text. */
+  .hb-site .cps{margin-top:28px}
+  /* Background-video hero: keep the moving cards away from the copy. */
+  .hb-site .hero-bgv__veil{background:linear-gradient(180deg,rgba(251,252,254,.72) 0%,rgba(251,252,254,.95) 22%,rgba(251,252,254,.95) 78%,#FBFCFE 100%)}
+}
+/* Grid tracks may shrink below their content on narrow phones. */
+@media (max-width:860px){
+  .hb-site .cj-card{grid-template-columns:minmax(0,1fr)}
+  .hb-site .cj-card__copy,.hb-site .cj-card__preview{min-width:0}
+}
+@media (max-width:360px){
+  .hb-site .cj-card{padding:18px}
+  .hb-site .cj-card__preview{padding:12px}
+  .hb-site .cj-cal{gap:4px}
+  .hb-site .cj-rubric{grid-template-columns:82px 1fr}
+  .hb-site .cps__box{padding:7px 7px 7px 14px;gap:8px}
+  .hb-site .cps__send{width:36px;height:36px}
+  .hb-site .ds-cal__grid{gap:3px}
+  .hb-site .bd__main,.hb-site .bd__info{padding:18px}
+}
+@media (max-width:640px){
+  .hb-site .legal-meta{border-radius:18px!important;flex-direction:column;align-items:flex-start;gap:4px!important}
+  .hb-site .legal-meta > span[style]{display:none}
+}
+.hb-site .privacy-layout > *{min-width:0}
+@media (max-width:900px){.hb-site .privacy-layout{grid-template-columns:minmax(0,1fr)!important}}
+.hb-site .privacy-layout p,.hb-site .privacy-layout li,.hb-site .privacy-layout a{overflow-wrap:anywhere}
+
+/* Copilot: nothing inside may push the stage wider than the screen. */
+.hb-site .product-stack{min-width:0;max-width:100%}
+.hb-site .product-stack > *,.hb-site .cps,.hb-site .cps__stage,.hb-site .cps__chat,.hb-site .cps__cand,.hb-site .cps__box{min-width:0;max-width:100%}
+.hb-site .cps__stage{width:100%}
+.hb-site .cps__chat{width:100%}
+.hb-site .cps__a{width:100%;max-width:560px;min-width:0}
+.hb-site .cps__q{overflow-wrap:anywhere}
+@media (max-width:640px){.hb-site .cps__who small{white-space:normal}}
+
+/* Home hero, two columns: the film runs toward the screen edge but always
+   stops 24px short, and the longest rotating line fits its column. */
+@media (min-width:901px){
+  .hb-site .hero#top .hero-film{margin-right:calc(-1 * min(160px, max(var(--pad), (100vw - var(--maxw)) / 2 + var(--pad)) - 24px))}
+}
+@media (min-width:901px){
+  .hb-site .hero#top h1{font-size:min(4.4vw,4.2rem)}
+}
