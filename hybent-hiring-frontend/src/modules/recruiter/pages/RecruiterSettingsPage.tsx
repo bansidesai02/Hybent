@@ -43,6 +43,7 @@ import {
 export default function RecruiterSettingsPage() {
   const { user, isAdmin } = useAuth()
   const aiCallsEnabled = useAICallsEnabled()
+  const isInterviewer = user?.role === 'interviewer'
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const zoomId = useId()
@@ -229,14 +230,14 @@ export default function RecruiterSettingsPage() {
 
         {/* Mailboxes are private to whoever connects them. Admins may connect
             several and choose a primary; a recruiter has exactly one. This page
-            only renders for 'admin' or 'recruiter' (route-guarded), so
-            !isAdmin here means recruiter. */}
-        {isAdmin ? <EmailAccountsSection /> : <PersonalMailboxCard />}
+            also renders for interviewers, who can't connect one (the API
+            allows admins and recruiters only). */}
+        {isAdmin ? <EmailAccountsSection /> : !isInterviewer && <PersonalMailboxCard />}
 
         {/* New public-link applications on the admin's phone; hidden during a support session. */}
         {isAdmin && !user?.is_impersonating && <PushNotificationsCard />}
 
-        {aiCallsEnabled && <AICallSettingsCard canEdit={!!isAdmin} />}
+        {aiCallsEnabled && !isInterviewer && <AICallSettingsCard canEdit={!!isAdmin} />}
 
         {/* Common Section: Account Security */}
         <Card as="section">

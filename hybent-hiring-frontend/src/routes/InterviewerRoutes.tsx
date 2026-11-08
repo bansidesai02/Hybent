@@ -12,6 +12,7 @@ const ScorecardHubPage = lazy(() => import('@/modules/interviewer/pages/Scorecar
 const PrepKitHubPage = lazy(() => import('@/modules/interviewer/pages/PrepKitHubPage'))
 const LiveRoomHubPage = lazy(() => import('@/modules/interviewer/pages/LiveRoomHubPage'))
 const InterviewerProfilePage = lazy(() => import('@/modules/interviewer/pages/InterviewerProfilePage'))
+const SettingsPage = lazy(() => import('@/modules/recruiter/pages/RecruiterSettingsPage'))
 
 export default function InterviewerRoutes() {
   return (
@@ -50,6 +51,7 @@ export default function InterviewerRoutes() {
         <Route path="hub/liveroom" element={<Navigate to="../../live-room-hub" replace />} />
 
         <Route path="profile" element={<InterviewerProfilePage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   )
