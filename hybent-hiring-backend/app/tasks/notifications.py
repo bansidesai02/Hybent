@@ -13,6 +13,7 @@ from app.models.scorecard import Scorecard
 from app.models.notification import Notification
 from app.models.user import User
 from app.websocket.manager import ws_manager
+from app.services import push_service
 from app.utils.permissions import UserRole
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,7 @@ async def _send_feedback_reminder_async(interview_id: str, user_id: str, org_id:
         db.add(notification)
         await db.commit()
         logger.info(f"Feedback reminder notification saved to DB for user {user_id} (Interview: {interview_id})")
+        await push_service.push_notification(db, user_id, notification.title, notification.message, notification.data, tag=str(notification.id))
 
 @celery_app.task
 def send_feedback_reminder(interview_id: str, user_id: str, organization_id: str, interview_title: str):
@@ -160,8 +162,8 @@ async def _send_system_notification_async(user_id: str, org_id: str, type: str, 
                 logger.error(f"Failed to broadcast notification via WS: {e}")
 
 
-        # Notifications are shown only inside Hybent (bell panel + in-app
-        # toasts over the WebSocket). No Firebase/browser push is sent.
+        # And on the phones this user turned notifications on for.
+        await push_service.push_notification(db, user_id, title, message, data, tag=notification_id)
 
 
 @celery_app.task

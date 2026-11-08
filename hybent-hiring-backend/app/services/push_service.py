@@ -1,11 +1,11 @@
 """
 Phone push notifications for admins (standard Web Push with VAPID keys).
 
-Deliberately narrow, after the old Firebase push was removed for being noisy:
-- a device only receives push after an admin taps "Turn on" on it
+Opt-in, after the old Firebase push was removed for prompting everyone:
+- a device only receives push after its user taps "Turn on" on it
   (POST /v1/push/subscribe); nothing ever asks for permission on its own;
-- only two events push: a candidate applying through a public link
-  (to that organization's admins) and a free demo request (to super admins).
+- what pushes: every in-app notification of that user, and free demo
+  requests (to super admins).
 
 Push is off unless VAPID keys are configured. Generate a pair with
 `python -m app.services.push_service` and set VAPID_PUBLIC_KEY /
@@ -45,6 +45,8 @@ def _send_one(sub, payload: dict) -> tuple[str, str | None]:
             vapid_claims={"sub": settings.vapid_subject},
             ttl=24 * 3600,
             timeout=10,
+            # Without this Android holds the push while the phone is idle.
+            headers={"Urgency": "high"},
         )
         status = getattr(resp, "status_code", 201)
         if 200 <= status < 300:
@@ -98,15 +100,39 @@ async def send_to_users(db: AsyncSession, user_ids: list[uuid.UUID], payload: di
 async def recipients_for(db: AsyncSession, kind: str, organization_id: str | None) -> list[uuid.UUID]:
     from app.models.user import User
 
-    if kind == "application" and organization_id:
-        query = select(User.id).where(
-            User.organization_id == uuid.UUID(str(organization_id)), User.role == "admin", User.is_active == True,  # noqa: E712
-        )
-    elif kind == "demo_request":
+    if kind == "demo_request":
         query = select(User.id).where(User.role == "super_admin", User.is_active == True)  # noqa: E712
     else:
         return []
     return list((await db.execute(query)).scalars().all())
+
+
+_WORKSPACE = {
+    "super_admin": "/hiring/super-admin",
+    "admin": "/hiring/admin",
+    "recruiter": "/hiring/recruiter",
+    "interviewer": "/hiring/interviewer",
+    "candidate": "/hiring/portal",
+}
+
+
+async def push_notification(db: AsyncSession, user_id, title: str, message: str, data: dict | None = None,
+                            tag: str | None = None) -> None:
+    """Send one in-app notification to the phones of the user it is for.
+    Never raises: the notification itself has already been saved."""
+    from app.models.user import User
+
+    if not push_enabled():
+        return
+    try:
+        uid = uuid.UUID(str(user_id))
+        role = await db.scalar(select(User.role).where(User.id == uid))
+        base = _WORKSPACE.get(role, "/")
+        data = data or {}
+        url = f"{base}/candidates?openId={data['candidate_id']}" if data.get("candidate_id") and role in ("admin", "recruiter") else base
+        await send_to_users(db, [uid], {"title": title, "body": message, "url": url, "tag": tag or str(uuid.uuid4())})
+    except Exception as e:
+        logger.warning("[push] notification push failed for %s: %s", user_id, e)
 
 
 def queue_push(kind: str, payload: dict, organization_id: str | None = None) -> None:

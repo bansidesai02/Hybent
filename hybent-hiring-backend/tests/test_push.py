@@ -98,9 +98,17 @@ async def test_demo_request_is_saved_listed_and_pushed(client, db_session, queue
     assert (await client.get("/v1/super-admin/demo-requests", headers=auth_headers(admin_user))).status_code == 403
 
 
-async def test_recipients(db_session, admin_user, recruiter_user, super_admin_user, organization):
-    users = await push_service.recipients_for(db_session, "application", str(organization.id))
-    assert users == [admin_user.id]
+async def test_every_notification_goes_to_the_users_own_phone(client, db_session, monkeypatch, push_on, admin_user, super_admin_user):
+    await client.post("/v1/push/subscribe", json=SUB, headers=auth_headers(admin_user))
+    sent = []
+    monkeypatch.setattr(push_service, "_send_one", lambda sub, payload: sent.append(payload) or ("ok", None))
+    await push_service.push_notification(db_session, admin_user.id, "New Job Application", "Asha applied", {"candidate_id": "c1"})
+    assert sent[0]["title"] == "New Job Application" and sent[0]["url"] == "/hiring/admin/candidates?openId=c1"
+    await push_service.push_notification(db_session, super_admin_user.id, "Other", "No device")
+    assert len(sent) == 1
+
+
+async def test_recipients(db_session, super_admin_user):
     assert await push_service.recipients_for(db_session, "demo_request", None) == [super_admin_user.id]
 
 

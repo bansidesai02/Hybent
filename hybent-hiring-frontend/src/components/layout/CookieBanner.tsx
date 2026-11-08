@@ -83,6 +83,7 @@ export function CookieBanner() {
           .cb-root .cb-text { flex-basis: 100% !important; }
           .cb-root .cb-actions { display: grid !important; grid-template-columns: 1fr 1fr; width: 100%; gap: 8px !important; }
           .cb-root .cb-accept { grid-column: 1 / -1; order: -1; }
+          .cb-root .cb-actions button:not(.cb-accept):only-of-type, .cb-root .cb-actions button:nth-child(2):last-child { grid-column: 1 / -1; }
           .cb-root .cb-actions button { padding: 11px 12px !important; font-size: 14px !important; }
           .cb-root .cb-long { display: none; }
         }

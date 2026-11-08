@@ -29,8 +29,22 @@ export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager'
 
 export const getPushConfig = () => api.get<PushConfig>('/v1/push/config', { skipLoader: true }).then((r) => r.data)
 
+/** The push worker's registration. getRegistration() matches by longest scope,
+ *  so with no push worker yet it returns the app's caching worker (scope "/"),
+ *  which has no push handler: a subscription there receives but never shows. */
 async function registration() {
-  return (await navigator.serviceWorker.getRegistration(SW_SCOPE)) ?? null
+  const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE)
+  return reg && new URL(reg.scope).pathname === SW_SCOPE ? reg : null
+}
+
+/** Drop a subscription an earlier version made on the caching worker. */
+async function removeMisplacedSubscription() {
+  const main = await navigator.serviceWorker.getRegistration('/')
+  if (!main || new URL(main.scope).pathname === SW_SCOPE) return
+  const sub = await main.pushManager.getSubscription()
+  if (!sub) return
+  await api.post('/v1/push/unsubscribe', { endpoint: sub.endpoint }, { skipLoader: true }).catch(() => undefined)
+  await sub.unsubscribe().catch(() => undefined)
 }
 
 /** Where this device stands, without asking the user anything. */
@@ -76,6 +90,7 @@ export async function enablePush(publicKey: string): Promise<void> {
 
   const reg = (await registration()) ?? (await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE }))
   await activated(reg)
+  await removeMisplacedSubscription()
   let sub = await reg.pushManager.getSubscription()
   if (sub) {
     // A subscription made with another server key can't receive ours.

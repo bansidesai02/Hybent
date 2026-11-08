@@ -4,8 +4,8 @@
  * the app's caching worker (src/firebase-messaging-sw.ts), so it works the
  * same on the dev server and in production and can't affect page caching.
  *
- * A device gets push only after an admin taps "Turn on" in Settings, and the
- * API sends only two events: a public-link application and a demo request.
+ * A device gets push only after its user taps "Turn on" in Settings; nothing
+ * asks for permission on its own.
  */
 
 self.addEventListener('install', () => self.skipWaiting())
@@ -24,6 +24,9 @@ self.addEventListener('push', (event) => {
       icon: '/pwa-192x192.png',
       badge: '/pwa-192x192.png',
       tag: data.tag,
+      // A repeat of the same tag still alerts instead of replacing silently.
+      renotify: Boolean(data.tag),
+      vibrate: [200, 100, 200],
       data: { url: data.url || '/' },
     })
   )

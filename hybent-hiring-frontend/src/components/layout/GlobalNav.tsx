@@ -199,7 +199,7 @@ export function GlobalNav({
       {showBar && (
         <div className="announce" role="region" aria-label="Announcement">
           <a className="announce__link" href={SITE.freeTrial}>
-            <span>Try Hybent Hiring free for 7 days. No card required.</span>
+            <span>Try Hybent Hiring free for 7 days<span className="announce__more">. No card required.</span></span>
             <span className="announce__go" aria-hidden="true">Start free trial &rarr;</span>
           </a>
           <button type="button" className="announce__close" aria-label="Dismiss announcement" onClick={dismissBar}>&times;</button>

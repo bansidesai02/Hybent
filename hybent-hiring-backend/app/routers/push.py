@@ -48,8 +48,8 @@ async def push_config(current_user: CurrentUser, db: DB):
         "public_key": settings.vapid_public_key or None,
         "devices": devices,
         "events": (
-            ["Free demo requests"] if current_user.role == "super_admin"
-            else ["Candidates applying through a public job link"]
+            ["Free demo requests", "Your Hybent notifications"] if current_user.role == "super_admin"
+            else ["All your Hybent notifications"]
         ),
     })
 
@@ -104,7 +104,7 @@ async def send_test(current_user: CurrentUser, db: DB):
     _allowed(current_user)
     result = await push_service.send_to_users(db, [current_user.id], {
         "title": "Hybent notifications are on",
-        "body": "You'll get a notification like this for new applications and demo requests.",
+        "body": "You'll get your Hybent notifications here, like this one.",
         "url": "/hiring/super-admin/demo-requests" if current_user.role == "super_admin" else "/hiring/admin",
         "tag": "hybent-test",
     })
