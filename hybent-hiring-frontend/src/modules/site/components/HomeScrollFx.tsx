@@ -21,7 +21,11 @@ export default function HomeScrollFx() {
     let frame = 0
     const update = () => {
       frame = 0
-      if (under) {
+      if (under && window.innerWidth <= 860) {
+        // Phones and small tablets: plain stacked sections (see hybent-site.css).
+        under.style.top = ''
+        under.style.transform = ''
+      } else if (under) {
         // Stick just under the nav, so the band slides over it with no gap
         // above. Too tall to fit? Then stick with its bottom on the screen's.
         const navBottom = document.getElementById('nav')?.getBoundingClientRect().bottom ?? 0

@@ -23,14 +23,13 @@ function load(video: HTMLVideoElement, q: Quality) {
   if (!video.getAttribute('src')) video.src = resolve(q)
 }
 
-/** Phones, data saver and reduced motion wait for a tap instead of autoplaying. */
+/** Data saver and reduced motion wait for a tap instead of autoplaying. */
 function shouldAutoplay(): boolean {
   if (typeof window === 'undefined') return false
   const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData
   return (
     !saveData &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
-    window.matchMedia('(min-width: 768px)').matches
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
 }
 
@@ -270,7 +269,16 @@ export function LaunchFilm({ fullBleed = false }: { fullBleed?: boolean }) {
           border-radius: 8px; font-size: 13px; text-align: left; }
         .launch-film .launch-film__menu button:hover { background: rgba(255, 255, 255, 0.1); }
         .launch-film:has(.launch-film__menu) .launch-film__bar { opacity: 1; }
-        @media (max-width: 600px) { .launch-film__volume, .launch-film__q-label { display: none; } }
+        .launch-film__progress { min-width: 0; }
+        @media (max-width: 600px) {
+          .launch-film__volume, .launch-film__q-label { display: none; }
+          .launch-film .launch-film__bar { gap: 8px; padding: 22px 10px 6px; }
+          .launch-film__quality { position: static; }
+          .launch-film__menu { left: 8px; right: 8px; bottom: 46px; min-width: 0; display: flex; gap: 2px; padding: 4px; }
+          .launch-film .launch-film__menu button { flex: 1; justify-content: center; padding: 6px 2px; font-size: 12px; white-space: nowrap; }
+          .launch-film .launch-film__menu button span { display: none; }
+          .launch-film .launch-film__menu button[aria-checked="true"] { background: rgba(255, 255, 255, 0.18); }
+        }
       `}</style>
     </div>
   )

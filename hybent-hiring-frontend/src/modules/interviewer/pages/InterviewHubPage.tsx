@@ -165,11 +165,11 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
                         <Card
                           variant="interactive"
                           padding="compact"
-                          className="flex flex-wrap items-center gap-hb-4"
+                          className="flex flex-col items-stretch gap-hb-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-hb-4"
                         >
-                          <IconTile size="sm">{cfg.icon}</IconTile>
+                          <IconTile size="sm" className="self-start sm:self-auto">{cfg.icon}</IconTile>
 
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 sm:flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-hb-sm font-semibold text-hb-text">
                                 {/* Some rows carry the candidate's name as the
@@ -217,7 +217,7 @@ export default function InterviewHubPage({ mode }: { mode: HubMode }) {
                             size="sm"
                             variant={done && mode === 'scorecard' ? 'ghost' : 'primary'}
                             to={cfg.ctaPath(interview.id)}
-                            className="shrink-0"
+                            className="w-full shrink-0 sm:w-auto"
                           >
                             {cfg.ctaLabel(interview)}
                           </Button>

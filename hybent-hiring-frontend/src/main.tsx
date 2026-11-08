@@ -9,6 +9,9 @@ import './index.css'
 // Capture the browser's install prompt as early as possible (installed app).
 import './pwa/install'
 import { hideBootScreen } from './pwa/bootScreen'
+import { startAutoUpdate } from './pwa/autoUpdate'
+
+startAutoUpdate()
 
 const googleClientId =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||

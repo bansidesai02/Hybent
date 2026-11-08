@@ -269,7 +269,7 @@ export default function HomePage() {
             <div className="split">
               <div data-rv="left">
                 <div className="shot-float">
-                  <img className="shot shot--team" src="/hybent/shot-team.webp" width="1024" height="687" alt="A recruiter and her hiring team reviewing candidates together on Hybent Hiring" loading="lazy" decoding="async" />
+                  <img className="shot shot--team" src="/hybent/shot-team-v2.webp" width="1024" height="687" alt="A recruiter and her hiring team reviewing candidates together on Hybent Hiring" loading="lazy" decoding="async" />
                   {/* Small product moments floating over the photo. */}
                   <div className="float-card float-card--a" aria-hidden="true">
                     <span className="float-card__icon float-card__icon--ok">&#10003;</span>

@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 public_router = APIRouter(prefix="/public", tags=["Public"])
 admin_router = APIRouter(prefix="/v1/super-admin/trials", tags=["super-admin"])
+from app.tasks.notifications import alert_super_admins
 router = APIRouter(prefix="/v1/trial", tags=["trial"])
 
 TRIAL_THANKS = (
@@ -97,6 +98,10 @@ async def request_trial(body: TrialRequestCreate, request: Request, db: DB):
     except Exception:
         # The request is saved and shows in Super Admin either way.
         logger.exception(f"Alert email for trial request {req.id} failed.")
+    alert_super_admins(
+        "New free trial request", f"{req.company_name} ({req.contact_email})",
+        f"/hiring/super-admin/trials?id={req.id}",
+    )
     return APIResponse.success(message=TRIAL_THANKS)
 
 

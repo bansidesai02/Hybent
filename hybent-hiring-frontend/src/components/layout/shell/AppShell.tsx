@@ -6,6 +6,7 @@ import { useScreeningNav } from '@/hooks/useScreeningNav'
 import { useAICallsNav } from '@/hooks/useAICallsNav'
 import { useIdleSignOut } from '@/hooks/useIdleSignOut'
 import { useFeatures } from '@/hooks/useFeatures'
+import { useChatDeepLink } from '@/hooks/useChatDeepLink'
 import { PULL_THRESHOLD, usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -213,6 +214,7 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
   )
   const { away: titleAway, text: h1Text } = useTitleScrolledAway(mainRef, location.pathname)
   const { pull, refreshing } = usePullToRefresh(mainRef)
+  useChatDeepLink(config.chat)
   const pageTitle = h1Text || activeNavLabel(navSections, location.pathname)
 
   return (

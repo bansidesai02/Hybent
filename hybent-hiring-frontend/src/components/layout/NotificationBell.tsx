@@ -67,6 +67,13 @@ function NotificationBellComponent() {
      leaving no way to get from "X applied" to X. */
   const openNotification = (n: (typeof notifications)[number]) => {
     if (!n.is_read) handleMarkRead(n.id)
+    // Platform alerts (demo requests, payments…) say where they lead.
+    const url = (n.data as Record<string, unknown> | null | undefined)?.url
+    if (typeof url === 'string' && url.startsWith('/')) {
+      setOpen(false)
+      navigate(url)
+      return
+    }
     const candidateId = (n.data as Record<string, unknown> | null | undefined)?.candidate_id
     if (typeof candidateId === 'string' && (user?.role === 'admin' || user?.role === 'recruiter')) {
       setOpen(false)

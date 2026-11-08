@@ -16,6 +16,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +25,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Roles that may turn push on, and who receives each event.
+# Roles that may turn push on.
 PUSH_ROLES = {"admin", "super_admin"}
 
 
@@ -97,16 +98,6 @@ async def send_to_users(db: AsyncSession, user_ids: list[uuid.UUID], payload: di
     return result
 
 
-async def recipients_for(db: AsyncSession, kind: str, organization_id: str | None) -> list[uuid.UUID]:
-    from app.models.user import User
-
-    if kind == "demo_request":
-        query = select(User.id).where(User.role == "super_admin", User.is_active == True)  # noqa: E712
-    else:
-        return []
-    return list((await db.execute(query)).scalars().all())
-
-
 _WORKSPACE = {
     "super_admin": "/hiring/super-admin",
     "admin": "/hiring/admin",
@@ -129,22 +120,19 @@ async def push_notification(db: AsyncSession, user_id, title: str, message: str,
         role = await db.scalar(select(User.role).where(User.id == uid))
         base = _WORKSPACE.get(role, "/")
         data = data or {}
-        url = f"{base}/candidates?openId={data['candidate_id']}" if data.get("candidate_id") and role in ("admin", "recruiter") else base
+        if data.get("url"):
+            url = data["url"]
+        elif data.get("candidate_id") and role in ("admin", "recruiter"):
+            url = f"{base}/candidates?openId={data['candidate_id']}"
+        elif data.get("group_id"):
+            url = f"{base}?{urlencode({'group': data['group_id'], 'name': data.get('group_name', '')})}"
+        elif data.get("sender_id"):
+            url = f"{base}?{urlencode({'chat': data['sender_id'], 'name': data.get('sender_name', '')})}"
+        else:
+            url = base
         await send_to_users(db, [uid], {"title": title, "body": message, "url": url, "tag": tag or str(uuid.uuid4())})
     except Exception as e:
         logger.warning("[push] notification push failed for %s: %s", user_id, e)
-
-
-def queue_push(kind: str, payload: dict, organization_id: str | None = None) -> None:
-    """Hand an event to the worker. Never raises: a public form must not fail
-    because Redis is down or push isn't configured."""
-    if not push_enabled():
-        return
-    try:
-        from app.tasks.push import send_event_push
-        send_event_push.delay(kind, payload, str(organization_id) if organization_id else None)
-    except Exception as e:
-        logger.warning("[push] could not queue %s push: %s", kind, e)
 
 
 if __name__ == "__main__":

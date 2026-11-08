@@ -15,6 +15,7 @@ Permission rules (all scoped to the caller's organization):
 - View members and messages: group members only. Org admins may view group
   details (not messages) for moderation.
 """
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -44,6 +45,10 @@ from app.services import chat_attachment_storage as storage
 from app.utils.permissions import UserRole
 from app.websocket.manager import ws_manager
 
+from app.tasks.notifications import send_system_notification
+from app.utils.permissions import NotificationType
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
 
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024  # strict 10 MB per file
@@ -537,7 +542,19 @@ async def send_group_message(group_id: uuid.UUID, payload: GroupMessageCreate, d
         "group_name": group.name,
         "preview": message_preview(message),
     }
-    await ws_manager.broadcast_to_users(await _member_ids(db, group.id), "group_message", ws_payload)
+    member_ids = await _member_ids(db, group.id)
+    await ws_manager.broadcast_to_users(member_ids, "group_message", ws_payload)
+    # On phones too (not saved to the bell: the chat itself is the record).
+    for member_id in member_ids:
+        if str(member_id) != str(current_user.id):
+            try:
+                send_system_notification.delay(
+                    str(member_id), str(current_user.organization_id), NotificationType.MESSAGE_RECEIVED,
+                    group.name, f"{current_user.full_name}: {ws_payload['preview'][:100]}",
+                    {"group_id": str(group.id), "group_name": group.name}, persist=False,
+                )
+            except Exception as e:
+                logger.warning(f"Could not queue the group message push: {e}")
     return APIResponse.success(message="Message sent.", data=out)
 
 

@@ -25,7 +25,7 @@ def push_on(monkeypatch):
 def queued(monkeypatch):
     calls = []
     import app.routers.public as public
-    monkeypatch.setattr(public.push_service, "queue_push", lambda kind, payload, organization_id=None: calls.append((kind, payload, organization_id)))
+    monkeypatch.setattr(public, "alert_super_admins", lambda title, message, url, type="system": calls.append((title, message, url)))
     monkeypatch.setattr("app.services.email_service.send_email", lambda *a, **k: True)
     return calls
 
@@ -83,7 +83,8 @@ async def test_test_push_and_gone_devices_are_removed(client, db_session, monkey
 async def test_demo_request_is_saved_listed_and_pushed(client, db_session, queued, super_admin_user, admin_user):
     r = await client.post("/api/public/demo-request", json=DEMO)
     assert r.status_code == 200
-    assert queued[0][0] == "demo_request" and "Acme" in queued[0][1]["body"]
+    assert queued[0][0] == "New demo request" and "Acme" in queued[0][1]
+    assert queued[0][2] == "/hiring/super-admin/demo-requests"
 
     h = auth_headers(super_admin_user)
     data = (await client.get("/v1/super-admin/demo-requests", headers=h)).json()["data"]
@@ -108,13 +109,24 @@ async def test_every_notification_goes_to_the_users_own_phone(client, db_session
     assert len(sent) == 1
 
 
-async def test_recipients(db_session, super_admin_user):
-    assert await push_service.recipients_for(db_session, "demo_request", None) == [super_admin_user.id]
+async def test_tapping_opens_the_right_place(client, db_session, monkeypatch, push_on, admin_user, super_admin_user):
+    h = auth_headers(super_admin_user)
+    await client.post("/v1/push/subscribe", json=SUB, headers=h)
+    await client.post("/v1/push/subscribe", json=SUB, headers=auth_headers(admin_user))
+    sent = []
+    monkeypatch.setattr(push_service, "_send_one", lambda sub, payload: sent.append(payload) or ("ok", None))
+    await push_service.push_notification(db_session, super_admin_user.id, "Payment received", "Acme", {"url": "/hiring/super-admin/billing"})
+    await push_service.push_notification(db_session, admin_user.id, "New message", "Hi", {"sender_id": "u1", "sender_name": "Asha K"})
+    await push_service.push_notification(db_session, admin_user.id, "Team", "Hi", {"group_id": "g1", "group_name": "Hiring"})
+    assert [p["url"] for p in sent] == [
+        "/hiring/super-admin/billing", "/hiring/admin?chat=u1&name=Asha+K", "/hiring/admin?group=g1&name=Hiring",
+    ]
 
 
-async def test_queue_push_never_raises(monkeypatch, push_on):
-    from app.tasks import push as push_task
+async def test_super_admin_alert_never_breaks_the_caller(monkeypatch):
+    from app.tasks import notifications
+
     def broken(*a, **k):
         raise ConnectionError("redis down")
-    monkeypatch.setattr(push_task.send_event_push, "delay", broken)
-    push_service.queue_push("demo_request", {"title": "x"})  # must not raise
+    monkeypatch.setattr(notifications.notify_super_admins, "delay", broken)
+    notifications.alert_super_admins("New demo request", "Acme", "/hiring/super-admin")  # must not raise

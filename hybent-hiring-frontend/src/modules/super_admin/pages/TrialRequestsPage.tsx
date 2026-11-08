@@ -164,9 +164,9 @@ export default function TrialRequestsPage() {
       header: 'Contact',
       width: '220px',
       cell: (r) => (
-        <span className="min-w-0">
-          <span className="block truncate text-hb-sm text-hb-text">{r.contact_name}</span>
-          <span className="block truncate text-hb-xs text-hb-muted">{r.contact_email}</span>
+        <span className="flex min-w-0 flex-col items-end sm:items-start">
+          <span className="block max-w-full truncate text-hb-sm text-hb-text">{r.contact_name}</span>
+          <span className="block max-w-full truncate text-hb-xs text-hb-muted">{r.contact_email}</span>
         </span>
       ),
     },
