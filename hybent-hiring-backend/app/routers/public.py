@@ -19,10 +19,10 @@ from app.models.job import Job
 from app.models.candidate import Candidate
 from app.models.application import Application
 from app.schemas.job import JobPublicOut
-from app.services import push_service, resume_intake
+from app.services import resume_intake
 from app.models.push import DemoRequestRecord
 from app.utils.permissions import ApplicationStage, NotificationType, UserRole
-from app.tasks.notifications import notify_organization_roles
+from app.tasks.notifications import alert_super_admins, notify_organization_roles
 from app.services.ai import site_assistant
 from app.services import lead_checks
 
@@ -246,12 +246,10 @@ async def demo_request(request: DemoRequest, db: DB):
         if sent:
             record.email_sent = True
             await db.commit()
-        push_service.queue_push("demo_request", {
-            "title": "New demo request",
-            "body": f"{request.first_name} {request.last_name} from {request.company_name}",
-            "url": "/hiring/super-admin/demo-requests",
-            "tag": f"demo-{record.id}",
-        })
+        alert_super_admins(
+            "New demo request", f"{request.first_name} {request.last_name} from {request.company_name}",
+            "/hiring/super-admin/demo-requests",
+        )
     # Lost only if it was neither saved nor emailed.
     if not saved and not sent:
         raise HTTPException(
@@ -350,6 +348,10 @@ async def contact(body: ContactRequest, request: Request):
             status_code=502,
             detail="We couldn't send your message. Please email info@hybent.com directly.",
         )
+    alert_super_admins(
+        f"New contact message: {topic}", f"{body.name} from {body.company}: {body.message[:120]}",
+        "/hiring/super-admin",
+    )
     return APIResponse.success(message=CONTACT_THANKS)
 
 

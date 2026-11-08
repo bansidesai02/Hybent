@@ -67,6 +67,13 @@ async def db_session(_create_schema):
                 await conn.execute(table.delete())
 
 
+@pytest.fixture(autouse=True)
+def _no_real_super_admin_alerts(monkeypatch):
+    """The worker would act on the developer's real database."""
+    from app.tasks.notifications import notify_super_admins
+    monkeypatch.setattr(notify_super_admins, "delay", lambda *a, **k: None)
+
+
 @pytest_asyncio.fixture
 async def client(db_session):
     async def _override_get_db():

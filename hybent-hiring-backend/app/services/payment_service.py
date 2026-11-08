@@ -33,7 +33,7 @@ from app.models.user import User
 from app.services import billing_service, stripe_gateway
 from app.services.ai_credit_service import TOPUP_PACKS, AICreditsService
 from app.services.email_service import send_email
-from app.tasks.notifications import notify_organization_roles
+from app.tasks.notifications import alert_super_admins, notify_organization_roles
 
 logger = logging.getLogger(__name__)
 
@@ -595,6 +595,11 @@ async def _after_payment(db: AsyncSession, payment: Payment, welcome_user: User 
     clear_blocked(organization_id=payment.organization_id)
     org_id = str(payment.organization_id)
     try:
+        org = await db.get(Organization, payment.organization_id)
+        alert_super_admins(
+            "Payment received", f"{org.name if org else 'A client'}: {payment.description} (${payment.amount_usd:,.2f})",
+            "/hiring/super-admin/billing",
+        )
         if payment.kind == "seats":
             sub = await _get_subscription(db, payment.organization_id)
             if sub and sub.stripe_subscription_id and sub.plan and sub.plan.term_months:
@@ -751,6 +756,11 @@ async def _renewal_paid(db: AsyncSession, invoice: dict) -> None:
     ))
     await db.commit()
     logger.info(f"Renewal paid for org {sub.organization_id}: {invoice.get('id')}.")
+    org = await db.get(Organization, sub.organization_id)
+    alert_super_admins(
+        "Renewal payment received", f"{org.name if org else 'A client'}: {sub.plan.name if sub.plan else 'subscription'}",
+        "/hiring/super-admin/billing",
+    )
 
 
 async def _renewal_failed(db: AsyncSession, invoice: dict) -> None:
@@ -759,6 +769,11 @@ async def _renewal_failed(db: AsyncSession, invoice: dict) -> None:
         return
     sub.status = "past_due"
     await db.commit()
+    org = await db.get(Organization, sub.organization_id)
+    alert_super_admins(
+        "Payment failed", f"{org.name if org else 'A client'}: their subscription renewal didn't go through.",
+        "/hiring/super-admin/billing",
+    )
     link = invoice.get("hosted_invoice_url")
     notify_organization_roles.delay(
         str(sub.organization_id), ["admin"], "system", "Payment failed",

@@ -172,6 +172,30 @@ def send_system_notification(user_id: str, org_id: str, type: str, title: str, m
 
 
 
+async def _notify_super_admins_async(type: str, title: str, message: str, data: dict | None = None):
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(User.id, User.organization_id).where(User.role == "super_admin", User.is_active == True)
+        )).all()
+    for uid, org_id in rows:
+        send_system_notification.delay(str(uid), str(org_id), type, title, message, data)
+
+
+@celery_app.task
+def notify_super_admins(type: str, title: str, message: str, data: dict | None = None):
+    run_async(_notify_super_admins_async(type, title, message, data))
+
+
+def alert_super_admins(title: str, message: str, url: str, type: str = "system") -> None:
+    """A platform event for Hybent's own team: bell and phone for every super
+    admin; `url` is where tapping it goes. Never raises: the event itself
+    (a form sent, a payment taken) has already happened."""
+    try:
+        notify_super_admins.delay(type, title, message, {"url": url})
+    except Exception as e:
+        logger.warning(f"Could not queue the super admin alert '{title}': {e}")
+
+
 async def _notify_organization_roles_async(org_id: str, roles: list[str], type: str, title: str, message: str, data: dict | None = None):
     async with AsyncSessionLocal() as db:
         query = select(User.id).where(
