@@ -235,7 +235,7 @@ function HybentChatbotInner() {
   }
 
   return (
-    <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-6 z-[99999] flex flex-col items-end pointer-events-none pb-safe">
+    <div className="hb-chatbot fixed bottom-3 right-3 sm:bottom-4 sm:right-6 z-[99999] flex flex-col items-end pointer-events-none pb-safe">
       {/* Main Glassmorphism Chat Panel */}
       <AnimatePresence>
         {isOpen && !isMinimized && (

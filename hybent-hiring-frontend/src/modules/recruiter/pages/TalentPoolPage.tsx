@@ -107,7 +107,7 @@ function MatchRow({
             <p className="truncate text-hb-body font-semibold text-hb-text">
               {candidate.full_name}
               {candidate.current_title && (
-                <span className="ml-2 font-normal text-hb-muted">{candidate.current_title}</span>
+                <span className="block truncate text-hb-sm font-normal text-hb-muted sm:ml-2 sm:inline">{candidate.current_title}</span>
               )}
             </p>
 

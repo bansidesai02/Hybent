@@ -58,6 +58,7 @@ export default function AppLayout() {
   /* Body scroll lock while the mobile drawer is open. */
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? 'hidden' : ''
+    document.documentElement.classList.toggle('drawer-open', drawerOpen)
     return () => {
       document.body.style.overflow = ''
     }

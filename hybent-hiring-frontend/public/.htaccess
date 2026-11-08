@@ -1,3 +1,16 @@
+# Caching. Pages, the service workers and files that keep the same name across
+# deploys (photos, videos) are checked with the server on every load, so a new
+# deploy shows at once; an unchanged file still answers with a light 304.
+# Vite's hashed bundles change name on every deploy, so they can be kept for a year.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|webp|png|jpe?g|svg|ico|gif|mp4|webm|json|webmanifest|xml|txt)$|^(firebase-messaging-sw|push-sw|sw|registerSW)\.js$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "-[A-Za-z0-9_-]{8}\.(js|css|woff2?|webp|png|jpe?g|svg)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
 RewriteEngine On
 RewriteBase /
 

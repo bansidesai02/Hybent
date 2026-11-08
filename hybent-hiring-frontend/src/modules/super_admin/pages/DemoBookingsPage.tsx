@@ -90,9 +90,9 @@ export default function DemoBookingsPage() {
     {
       key: 'who', header: 'Booked by',
       cell: (d) => (
-        <span className="min-w-0">
-          <span className="block truncate text-hb-sm font-semibold text-hb-text">{d.name}</span>
-          <span className="block truncate text-hb-xs text-hb-muted">{d.email}</span>
+        <span className="flex min-w-0 flex-col items-end sm:items-start">
+          <span className="block max-w-full truncate text-hb-sm font-semibold text-hb-text">{d.name}</span>
+          <span className="block max-w-full truncate text-hb-xs text-hb-muted">{d.email}</span>
         </span>
       ),
     },

@@ -23,7 +23,7 @@ export function ChatbotLauncher({
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
         onClick={onClick}
-        className="relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#6c47ff] via-[#8b6bff] to-[#ff6bc6] text-white shadow-[0_8px_32px_rgba(108,71,255,0.45)] border border-white/30 cursor-pointer overflow-hidden group"
+        className="hb-chatbot-launcher relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#6c47ff] via-[#8b6bff] to-[#ff6bc6] text-white shadow-[0_8px_32px_rgba(108,71,255,0.45)] border border-white/30 cursor-pointer overflow-hidden group"
         aria-label={isOpen ? 'Close chat' : 'Open Hybent AI assistant'}
         title={isOpen ? 'Close chat' : 'Ask Hybent AI'}
       >

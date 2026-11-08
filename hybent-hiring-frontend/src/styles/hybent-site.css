@@ -2666,3 +2666,45 @@ html.has-bar .hb-site .nav{top:36px;height:72px}
 @media (min-width:901px){
   .hb-site .hero#top h1{font-size:min(4.4vw,4.2rem)}
 }
+
+/* ── Phone design pass ───────────────────────────────────────────────── */
+html.drawer-open .hb-chatbot{display:none}
+@media (max-width:640px){
+  .hb-chatbot-launcher{transform:scale(.82);transform-origin:bottom right}
+  .hb-site .hero-film__frame{padding:10px;border-radius:24px}
+  .hb-site .hero-film__card{padding:4px;border-radius:18px}
+  .hb-site .hero-film__card .launch-film{border-radius:14px}
+  /* Menu: plain rows with one clean divider. */
+  .hb-site .drawer a{border-radius:0;padding:14px 2px}
+  /* Footer: link columns side by side instead of one long list. */
+  .hb-site .footer__top{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 20px}
+  .hb-site .footer__brand{grid-column:1/-1}
+  /* Wide diagrams shrink until their labels can't be read. */
+  .hb-site .figpanel:has(.fig[viewBox^="0 0 6"]),.hb-site .figpanel:has(.fig[viewBox^="0 0 7"]),
+  .hb-site .figpanel:has(.fig[viewBox^="0 0 8"]),.hb-site .figpanel:has(.fig[viewBox^="0 0 9"]),
+  .hb-site [data-route="contact"] .figrow,.hb-site[data-route="contact"] .figrow{display:none}
+  /* Copilot: laid out like a chat app, input at the bottom of the screen. */
+  .hb-site .cps__stage{height:calc(100svh - var(--nav-h) - 24px);justify-content:center;padding-bottom:64px}
+  .hb-site .cps__chat.is-open{flex:1 1 0;min-height:0;max-height:none;transition:none;
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 24px);mask-image:linear-gradient(180deg,transparent,#000 24px)}
+  .hb-site .cps__intro.is-gone{display:none}
+  .hb-site .cps__q{font-size:.9rem}
+  /* Legal pages: contents as a swipeable row, not 12 lines before the text. */
+  .hb-site .privacy-layout aside{position:static!important}
+  .hb-site .privacy-layout aside nav{display:flex!important;flex-direction:row!important;overflow-x:auto;gap:8px;padding-bottom:6px;scrollbar-width:none}
+  .hb-site .privacy-layout aside nav::-webkit-scrollbar{display:none}
+  .hb-site .privacy-layout aside nav > *{flex:none;width:auto!important;white-space:nowrap}
+  /* Book a demo: reach the calendar without a long read first. */
+  .hb-site .bd__lead,.hb-site .bd__see,.hb-site .bd__alt{display:none}
+  .hb-site .bd__logo{width:32px;margin-bottom:10px}
+  .hb-site .bd__title{margin-bottom:12px}
+  .hb-site .bd__meta{margin:0;gap:6px;font-size:.92rem}
+  .hb-site .ds-times__list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;overflow:visible;padding-right:0}
+  .hb-site .ds-time.is-on{grid-column:1/-1}
+}
+/* Cards taller than the screen can't be read while pinned: stack them plainly. */
+@media (max-width:860px){
+  .hb-site .cj-card{position:relative;top:auto;transform:none;filter:none}
+  .hb-site .curtain-under{position:relative}
+}
+@media (max-width:640px){.hb-site .btn-lg,.hb-site .hero__actions .btn{font-size:.98rem}}
