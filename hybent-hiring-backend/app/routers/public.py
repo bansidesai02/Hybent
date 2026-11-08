@@ -201,12 +201,6 @@ async def apply_to_public_job(
         + APPLY_SOURCE_PHRASES.get(source, "a shared application link."),
         {"candidate_id": str(candidate.id), "job_id": str(job.id)},
     )
-    push_service.queue_push("application", {
-        "title": f"New application: {job.title}",
-        "body": f"{candidate.full_name} applied through a public link.",
-        "url": f"/hiring/admin/candidates?openId={candidate.id}",
-        "tag": f"application-{candidate.id}",
-    }, organization_id=job.organization_id)
 
     return APIResponse.success(message="Application received. The hiring team will be in touch.")
 
