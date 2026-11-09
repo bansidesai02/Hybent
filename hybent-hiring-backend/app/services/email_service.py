@@ -99,7 +99,7 @@ def _send_resend(to: str, subject: str, html_body: str, from_name: str | None = 
 
     
     with httpx.Client() as client:
-        response = client.post(url, headers=headers, json=payload, timeout=5)
+        response = client.post(url, headers=headers, json=payload, timeout=15)
         if response.status_code >= 400:
             raise Exception(f"Resend API error: {response.text}")
 
@@ -142,7 +142,8 @@ def send_email(
             f"  Set RESEND_API_KEY or SMTP_USER/SMTP_PASSWORD in .env."
         )
         logger.debug(f"[CONSOLE EMAIL] To: {to} | Subject: {subject}")
-        return True
+        # Fine on a laptop; in production that email was simply lost.
+        return not settings.is_production
 
 
     branding = email_branding.get()
@@ -151,39 +152,21 @@ def send_email(
         reply_to = reply_to or branding.reply_to
     # Only passed when set, so unbranded mail is sent exactly as before.
     extra = {k: v for k, v in (("from_name", from_name), ("reply_to", reply_to)) if v}
-    try:
-        if settings.resend_api_key:
-            logger.info("Using Resend API branch in send_email")
-            _send_resend(to, subject, html_body, **extra)
-        else:
-            logger.info("Using SMTP branch in send_email")
-            _send_smtp(to, subject, html_body, **extra)
-
-            
-        logger.info(f"\u2705 Email sent \u2192 {to} | {subject}")
-        return True
-
-    except smtplib.SMTPAuthenticationError as e:
-        logger.error(
-            f"\u274c SMTP Auth Failed for '{settings.smtp_user}': {e}\n"
-            f"  Tip: Regenerate the Gmail App Password at myaccount.google.com/apppasswords"
-        )
-        return False
-    except smtplib.SMTPConnectError as e:
-        logger.error(
-            f"\u274c SMTP Connect Failed to {settings.smtp_host}:{settings.smtp_port}: {e}\n"
-            f"  Tip: Check firewall/network rules blocking outbound port 587."
-        )
-        return False
-    except smtplib.SMTPRecipientsRefused as e:
-        logger.error(f"\u274c SMTP Recipients Refused for '{to}': {e}")
-        return False
-    except smtplib.SMTPException as e:
-        logger.error(f"\u274c SMTP Error sending to '{to}': {e}")
-        return False
-    except Exception as e:
-        logger.error(f"\u274c Unexpected error sending email to '{to}': {e}", exc_info=True)
-        return False
+    # Resend first when configured; SMTP takes over if it fails, so one
+    # provider's bad day (key, quota, outage) doesn't lose the email.
+    providers = []
+    if settings.resend_api_key:
+        providers.append(("Resend", _send_resend))
+    if settings.smtp_user and settings.smtp_password:
+        providers.append(("SMTP", _send_smtp))
+    for name, send in providers:
+        try:
+            send(to, subject, html_body, **extra)
+            logger.info(f"\u2705 Email sent via {name} \u2192 {to} | {subject}")
+            return True
+        except Exception as e:
+            logger.error(f"\u274c {name} failed for '{to}' | {subject}: {e}")
+    return False
 
 
 # ── Email templates ────────────────────────────────────────────────────────────
@@ -747,7 +730,7 @@ def send_password_reset_email(
     reset_url: str,
     org_logo_url: str | None = None,
     org_name: str | None = None,
-) -> None:
+) -> bool:
     subject = "Reset Your Password"
     fname = to_name.split()[0].title() if to_name else "User"
     content = f"""
@@ -758,7 +741,7 @@ def send_password_reset_email(
             <a href="{reset_url}" class="button">Reset My Password</a>
         </div>
     """
-    send_email(to_email, subject, _get_base_template(content, org_logo_url, org_name))
+    return send_email(to_email, subject, _get_base_template(content, org_logo_url, org_name))
  
  
 def send_demo_request_email(

@@ -1090,13 +1090,15 @@ async def reset_user_password(user_id: uuid.UUID, db: DB, current_user: SuperAdm
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
     ))
     org = await db.get(Organization, user.organization_id) if user.organization_id else None
-    send_password_reset_email(
+    sent = send_password_reset_email(
         to_email=user.email,
         to_name=user.full_name,
         reset_url=f"{cfg.frontend_url}/reset-password?token={token}",
         org_logo_url=org.logo_url if org else None,
         org_name=org.name if org else None,
     )
+    if not sent:
+        raise HTTPException(status_code=502, detail=f"The reset email to {user.email} could not be sent. Try again shortly.")
 
     await log_super_admin_action(
         db=db,
