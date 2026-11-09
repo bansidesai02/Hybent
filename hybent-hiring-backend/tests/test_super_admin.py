@@ -39,7 +39,7 @@ async def test_reset_password_emails_link_instead_of_default(client, db_session,
     sent = []
     monkeypatch.setattr(
         "app.services.email_service.send_password_reset_email",
-        lambda **kw: sent.append(kw),
+        lambda **kw: sent.append(kw) or True,
     )
     r = await client.post(f"/v1/super-admin/users/{admin_user.id}/reset-password", headers=auth_headers(super_admin_user))
     assert r.status_code == 200
