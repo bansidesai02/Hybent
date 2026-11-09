@@ -95,8 +95,30 @@ export default function CandidateJourney() {
 
   useEffect(() => {
     const list = listRef.current
-    if (!list || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!list) return
     const cards = Array.from(list.querySelectorAll<HTMLElement>('.cj-card'))
+
+    // A card taller than the screen must not pin at the top, or its end could
+    // never be read. It scrolls until its bottom is on screen and pins there.
+    // clientHeight stays put while a phone's address bar slides in and out.
+    const place = () => {
+      const screen = document.documentElement.clientHeight
+      cards.forEach((card) => {
+        card.style.top = ''
+        const top = parseFloat(getComputedStyle(card).top) || 0
+        if (top + card.offsetHeight + 16 > screen) card.style.top = `${screen - card.offsetHeight - 16}px`
+      })
+    }
+    place()
+    const sizes = new ResizeObserver(place)
+    cards.forEach((card) => sizes.observe(card))
+    window.addEventListener('resize', place)
+    const stopPlacing = () => {
+      sizes.disconnect()
+      window.removeEventListener('resize', place)
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return stopPlacing
+
     let frame = 0
     const update = () => {
       frame = 0
@@ -115,6 +137,7 @@ export default function CandidateJourney() {
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', onScroll)
     return () => {
+      stopPlacing()
       cancelAnimationFrame(frame)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)

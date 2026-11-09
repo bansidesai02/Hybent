@@ -2702,9 +2702,4 @@ html.drawer-open .hb-chatbot{display:none}
   .hb-site .ds-times__list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;overflow:visible;padding-right:0}
   .hb-site .ds-time.is-on{grid-column:1/-1}
 }
-/* Cards taller than the screen can't be read while pinned: stack them plainly. */
-@media (max-width:860px){
-  .hb-site .cj-card{position:relative;top:auto;transform:none;filter:none}
-  .hb-site .curtain-under{position:relative}
-}
 @media (max-width:640px){.hb-site .btn-lg,.hb-site .hero__actions .btn{font-size:.98rem}}

@@ -21,16 +21,14 @@ export default function HomeScrollFx() {
     let frame = 0
     const update = () => {
       frame = 0
-      if (under && window.innerWidth <= 860) {
-        // Phones and small tablets: plain stacked sections (see hybent-site.css).
-        under.style.top = ''
-        under.style.transform = ''
-      } else if (under) {
+      if (under) {
         // Stick just under the nav, so the band slides over it with no gap
         // above. Too tall to fit? Then stick with its bottom on the screen's.
         const navBottom = document.getElementById('nav')?.getBoundingClientRect().bottom ?? 0
-        const fit = navBottom + under.offsetHeight <= window.innerHeight
-        const top = fit ? navBottom : window.innerHeight - under.offsetHeight
+        // clientHeight stays put while a phone's address bar slides in and out.
+        const screen = document.documentElement.clientHeight
+        const fit = navBottom + under.offsetHeight <= screen
+        const top = fit ? navBottom : screen - under.offsetHeight
         under.style.top = `${top}px`
         // Once the band has passed, carry the stuck section up with it (its
         // bottom never below the band's), so it never shows again underneath.
