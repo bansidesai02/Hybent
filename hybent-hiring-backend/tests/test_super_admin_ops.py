@@ -171,3 +171,11 @@ async def test_test_push_to_a_user(client, db_session, monkeypatch, super_admin_
 async def test_unknown_user_is_404(client, super_admin_user):
     h = auth_headers(super_admin_user)
     assert (await client.patch(f"/v1/super-admin/users/{uuid.uuid4()}", json={"full_name": "X"}, headers=h)).status_code == 404
+
+
+async def test_todo_counts(client, super_admin_user, admin_user):
+    r = await client.get("/v1/super-admin/todo", headers=auth_headers(super_admin_user))
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert {"trials_pending", "contact_new", "emails_failed", "errors_open", "sessions_active", "leads", "system"} <= d.keys()
+    assert (await client.get("/v1/super-admin/todo", headers=auth_headers(admin_user))).status_code == 403

@@ -107,48 +107,30 @@ export function getNavSections(
   candidateBadge: number,
   _scheduleBadge: number,
   screening?: ScreeningNav,
-  aiCalls?: AICallsNav
+  aiCalls?: AICallsNav,
+  superAdminTodo?: { leads: number; system: number; sessions_active: number }
 ): NavSection[] {
   const basePath = role === 'admin' ? '/hiring/admin' : '/hiring/recruiter'
 
   if (role === 'super_admin') {
+    // Eight places; related pages are tabs inside them (modules/super_admin/components/HubPage).
     return [
       {
         label: 'Overview',
         items: [
           { to: '/hiring/super-admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
           { to: '/hiring/super-admin/inbox', label: 'Gmail Inbox', icon: Inbox },
-          { to: '/hiring/super-admin/analytics', label: 'Analytics', icon: TrendingUp },
-        ],
-      },
-      {
-        label: 'Clients',
-        items: [
-          { to: '/hiring/super-admin/clients', label: 'All clients', icon: Building2 },
-          { to: '/hiring/super-admin/trials', label: 'Free trials', icon: FlaskConical },
-          { to: '/hiring/super-admin/demos', label: 'Demo bookings', icon: CalendarCheck },
-          { to: '/hiring/super-admin/demo-requests', label: 'Demo requests', icon: CalendarCheck },
-          { to: '/hiring/super-admin/contact-messages', label: 'Contact messages', icon: MessageSquare },
-          { to: '/hiring/super-admin/billing', label: 'Billing & plans', icon: CreditCard },
-          { to: '/hiring/super-admin/ai-credits', label: 'AI credits', icon: Coins },
-        ],
-      },
-      {
-        label: 'Platform',
-        items: [
-          { to: '/hiring/super-admin/users', label: 'All users', icon: Users },
-          { to: '/hiring/super-admin/flags', label: 'Feature flags', icon: ToggleLeft },
-          { to: '/hiring/super-admin/operations', label: 'Operations', icon: Wrench },
-          { to: '/hiring/super-admin/support-sessions', label: 'Support sessions', icon: Headset },
-          { to: '/hiring/super-admin/announcements', label: 'Announcements', icon: Megaphone },
-          { to: '/hiring/super-admin/audit', label: 'Audit logs', icon: ScrollText },
-          { to: '/hiring/super-admin/health', label: 'Health monitor', icon: Activity },
+          { to: '/hiring/super-admin/leads', label: 'Leads', icon: Handshake, badge: superAdminTodo?.leads },
+          { to: '/hiring/super-admin/clients', label: 'Clients', icon: Building2 },
+          { to: '/hiring/super-admin/billing', label: 'Billing', icon: CreditCard },
+          { to: '/hiring/super-admin/users', label: 'Users', icon: Users, badge: superAdminTodo?.sessions_active },
+          { to: '/hiring/super-admin/system', label: 'System', icon: Activity, badge: superAdminTodo?.system },
         ],
       },
       {
         label: 'Settings',
         pinned: true,
-        items: [{ to: '/hiring/super-admin/settings', label: 'Global settings', icon: Settings }],
+        items: [{ to: '/hiring/super-admin/settings', label: 'Settings', icon: Settings }],
       },
     ]
   }
@@ -252,8 +234,8 @@ const MOBILE_TAB_PATHS: Partial<Record<UserRole, (base: string) => string[]>> = 
   super_admin: () => [
     '/hiring/super-admin',
     '/hiring/super-admin/clients',
-    '/hiring/super-admin/users',
-    '/hiring/super-admin/analytics',
+    '/hiring/super-admin/leads',
+    '/hiring/super-admin/system',
   ],
 }
 

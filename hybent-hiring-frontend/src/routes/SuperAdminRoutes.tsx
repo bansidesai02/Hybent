@@ -1,5 +1,8 @@
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 import { lazy } from 'react'
+
+import HubPage from '@/modules/super_admin/components/HubPage'
+import { useSuperAdminTodo } from '@/hooks/useSuperAdminTodo'
 
 /* Phase 10: the Hybent shell is the only shell. */
 const Shell = lazy(() => import('@/components/layout/shell/AppShell').then(m => ({ default: m.SuperAdminShell })))
@@ -24,30 +27,106 @@ const SuperAdminSettings = lazy(() => import('@/modules/super_admin/pages/Settin
 const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePage'))
 const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
 
+const SA = '/hiring/super-admin'
+
+/** Old page addresses (notifications, emails, bookmarks) land on their tab. */
+const MOVED: Array<[string, string]> = [
+  ['analytics', '?tab=analytics'],
+  ['trials', 'leads'],
+  ['demos', 'leads?tab=demos'],
+  ['demo-requests', 'leads?tab=demo-requests'],
+  ['contact-messages', 'leads?tab=contact'],
+  ['ai-credits', 'billing?tab=credits'],
+  ['support-sessions', 'users?tab=sessions'],
+  ['operations', 'system'],
+  ['health', 'system?tab=health'],
+  ['audit', 'system?tab=audit'],
+  ['flags', 'settings?tab=flags'],
+  ['announcements', 'settings?tab=announcements'],
+]
+
+function Hubs() {
+  const { data: t } = useSuperAdminTodo()
+  return {
+    dashboard: (
+      <HubPage
+        label="Dashboard"
+        tabs={[
+          { value: 'overview', label: 'Overview', element: <SuperAdminDashboard /> },
+          { value: 'analytics', label: 'Analytics', element: <SuperAdminAnalytics /> },
+        ]}
+      />
+    ),
+    leads: (
+      <HubPage
+        label="Leads"
+        tabs={[
+          { value: 'trials', label: 'Free trials', count: t?.trials_pending, element: <SuperAdminTrials /> },
+          { value: 'demos', label: 'Demo bookings', count: t?.demos_upcoming, element: <SuperAdminDemoBookings /> },
+          { value: 'demo-requests', label: 'Demo requests', count: t?.demo_requests_new, element: <SuperAdminDemoRequests /> },
+          { value: 'contact', label: 'Contact messages', count: t?.contact_new, element: <SuperAdminContactMessages /> },
+        ]}
+      />
+    ),
+    billing: (
+      <HubPage
+        label="Billing"
+        tabs={[
+          { value: 'plans', label: 'Plans & payments', element: <SuperAdminBilling /> },
+          { value: 'credits', label: 'AI credits', element: <SuperAdminAICredits /> },
+        ]}
+      />
+    ),
+    users: (
+      <HubPage
+        label="Users"
+        tabs={[
+          { value: 'all', label: 'All users', element: <SuperAdminUsers /> },
+          { value: 'sessions', label: 'Support sessions', count: t?.sessions_active, element: <SuperAdminSupportSessions /> },
+        ]}
+      />
+    ),
+    system: (
+      <HubPage
+        label="System"
+        tabs={[
+          { value: 'problems', label: 'Problems', count: t?.system, element: <SuperAdminOperations /> },
+          { value: 'health', label: 'Health', element: <SuperAdminHealth /> },
+          { value: 'audit', label: 'Audit logs', element: <SuperAdminAudit /> },
+        ]}
+      />
+    ),
+    settings: (
+      <HubPage
+        label="Settings"
+        tabs={[
+          { value: 'general', label: 'General', element: <SuperAdminSettings /> },
+          { value: 'flags', label: 'Feature flags', element: <SuperAdminFlags /> },
+          { value: 'announcements', label: 'Announcements', element: <SuperAdminAnnouncements /> },
+        ]}
+      />
+    ),
+  }
+}
+
 export default function SuperAdminRoutes() {
+  const hubs = Hubs()
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route index element={<SuperAdminDashboard />} />
-        <Route path="analytics" element={<SuperAdminAnalytics />} />
+        <Route index element={hubs.dashboard} />
+        <Route path="leads" element={hubs.leads} />
         <Route path="clients" element={<SuperAdminClients />} />
         <Route path="clients/:id" element={<SuperAdminClientDetail />} />
-        <Route path="trials" element={<SuperAdminTrials />} />
-        <Route path="billing" element={<SuperAdminBilling />} />
-        <Route path="ai-credits" element={<SuperAdminAICredits />} />
-        <Route path="users" element={<SuperAdminUsers />} />
-        <Route path="flags" element={<SuperAdminFlags />} />
-        <Route path="audit" element={<SuperAdminAudit />} />
-        <Route path="health" element={<SuperAdminHealth />} />
-        <Route path="demo-requests" element={<SuperAdminDemoRequests />} />
-        <Route path="demos" element={<SuperAdminDemoBookings />} />
-        <Route path="operations" element={<SuperAdminOperations />} />
-        <Route path="contact-messages" element={<SuperAdminContactMessages />} />
-        <Route path="announcements" element={<SuperAdminAnnouncements />} />
-        <Route path="support-sessions" element={<SuperAdminSupportSessions />} />
-        <Route path="settings" element={<SuperAdminSettings />} />
+        <Route path="billing" element={hubs.billing} />
+        <Route path="users" element={hubs.users} />
+        <Route path="system" element={hubs.system} />
+        <Route path="settings" element={hubs.settings} />
         <Route path="profile" element={<AdminProfilePage />} />
         <Route path="inbox" element={<InboxPage />} />
+        {MOVED.map(([from, to]) => (
+          <Route key={from} path={from} element={<Navigate to={`${SA}/${to}`} replace />} />
+        ))}
       </Route>
     </Routes>
   )

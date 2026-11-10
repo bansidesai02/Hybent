@@ -17,6 +17,7 @@ import {
 
 import { superAdminApi } from '@/api/superAdmin'
 import { formatUptime } from '../components/formatUptime'
+import TodayCard from '../components/TodayCard'
 import {
   Badge,
   Button,
@@ -190,6 +191,8 @@ export default function DashboardPage() {
       />
 
       <div className="space-y-hb-6">
+        <TodayCard />
+
         {clientLimitAlerts.length > 0 && (
           <ul className="space-y-2">
             {clientLimitAlerts.map((client) => (
@@ -272,7 +275,7 @@ export default function DashboardPage() {
               label="Failed sign-ins (24h)"
               value={dashboard.failed_logins_24h ?? 0}
               icon={<Activity />}
-              onClick={() => navigate('/hiring/super-admin/audit')}
+              onClick={() => navigate('/hiring/super-admin/system?tab=audit')}
             />
           </StatGrid>
         )}
@@ -364,7 +367,7 @@ export default function DashboardPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                to="/hiring/super-admin/health"
+                to="/hiring/super-admin/system?tab=health"
                 className="mt-hb-4 w-full"
               >
                 Monitor health
@@ -377,7 +380,7 @@ export default function DashboardPage() {
           <CardHeader
             title="Recent administrative actions"
             action={
-              <Button variant="ghost" size="sm" to="/hiring/super-admin/audit">
+              <Button variant="ghost" size="sm" to="/hiring/super-admin/system?tab=audit">
                 Audit log
               </Button>
             }
