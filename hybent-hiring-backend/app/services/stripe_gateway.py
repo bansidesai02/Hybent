@@ -119,3 +119,28 @@ def construct_event(payload: bytes, signature: str | None) -> dict:
         raise StripeNotConfigured("Stripe webhooks are not configured (STRIPE_WEBHOOK_SECRET).")
     stripe.Webhook.construct_event(payload, signature or "", secret)
     return json.loads(payload)
+
+
+async def refund(session_id: str | None, invoice_id: str | None, amount_cents: int | None = None) -> dict:
+    """Refund the charge behind a Checkout session or an invoice (renewals),
+    all of it or `amount_cents`. API 2025-08-27.basil: invoices no longer carry
+    payment_intent, so it's read from the invoice's payments."""
+    def _do() -> dict:
+        intent = None
+        invoice = invoice_id
+        if session_id:
+            session = stripe.checkout.Session.retrieve(session_id, api_key=_key())
+            intent = session.get("payment_intent")
+            invoice = invoice or session.get("invoice")
+        if not intent and invoice:
+            payments = stripe.InvoicePayment.list(invoice=invoice, limit=1, api_key=_key())
+            if payments.data:
+                intent = (payments.data[0].get("payment") or {}).get("payment_intent")
+        if not intent:
+            raise ValueError("Stripe has no charge for this payment.")
+        params = {"payment_intent": intent, "api_key": _key()}
+        if amount_cents:
+            params["amount"] = amount_cents
+        return _plain(stripe.Refund.create(**params))
+
+    return await asyncio.to_thread(_do)

@@ -254,3 +254,50 @@ async def resend_payment_link(payment_id: uuid.UUID, db: DB, current_user: Super
         raise HTTPException(status_code=502, detail="Couldn't send the email. Copy the link and send it yourself.")
     await db.commit()
     return APIResponse.success(message="Payment link emailed to the client's admin.")
+
+
+@router.post("/v1/super-admin/payments/{payment_id}/refund")
+async def refund_payment(payment_id: uuid.UUID, db: DB, current_user: SuperAdminUser, request: Request,
+                         payload: dict = Body(default={})):
+    """Refund a paid payment in Stripe, all of it or part (`amount_usd`). What
+    it bought (plan, seats, credits) is not taken back: change that on the
+    client if needed."""
+    from app.routers.super_admin import log_super_admin_action
+
+    payment = await db.get(Payment, payment_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found.")
+    if payment.status != "paid":
+        raise HTTPException(status_code=400, detail="Only a paid payment can be refunded.")
+    if not settings.stripe_enabled:
+        raise HTTPException(status_code=503, detail="Stripe isn't configured on the server.")
+    refunded = float((payment.details or {}).get("refunded_usd", 0))
+    left = round(payment.amount_usd - refunded, 2)
+    try:
+        amount = round(float(payload.get("amount_usd") or left), 2)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Enter a valid amount.")
+    if amount <= 0 or amount > left:
+        raise HTTPException(status_code=400, detail=f"Refund between $0.01 and ${left:,.2f}.")
+    try:
+        result = await stripe_gateway.refund(payment.stripe_session_id, payment.stripe_invoice_id, int(round(amount * 100)))
+    except Exception as e:
+        logger.warning(f"Refund of payment {payment.id} failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Stripe refused the refund: {e}")
+
+    details = dict(payment.details or {})
+    details["refunded_usd"] = round(refunded + amount, 2)
+    details["refunds"] = [*details.get("refunds", []), {
+        "amount_usd": amount, "stripe_refund_id": result.get("id"),
+        "reason": (payload.get("reason") or "")[:300], "by": current_user.email,
+    }]
+    payment.details = details
+    if details["refunded_usd"] >= payment.amount_usd:
+        payment.status = "refunded"
+    await log_super_admin_action(
+        db=db, user_id=current_user.id, user_email=current_user.email,
+        action=f"Refunded ${amount:,.2f} of payment {payment.description}"[:255], module="Billing", request=request,
+        metadata={"payment_id": str(payment.id), "organization_id": str(payment.organization_id), "amount_usd": amount},
+    )
+    await db.commit()
+    return APIResponse.success(message=f"Refunded ${amount:,.2f}.", data=payment_service.payment_to_dict(payment))

@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { ArrowLeft, ArrowRight, Building2, Check, Plus } from 'lucide-react'
 
+import ExportButton from '../components/ExportButton'
 import { superAdminApi, type ClientCreatePayload, type PlanInfo } from '@/api/superAdmin'
 import type { Payment } from '@/api/billing'
 import { PaymentLinkCreatedDialog, PaymentLinkFields } from '../components/PaymentLinkFields'
@@ -329,9 +330,12 @@ export default function ClientsPage() {
         title="Clients"
         description="Onboard new tenants and manage subscriptions, usage and feature access."
         actions={
-          <Button icon={<Plus size={15} />} onClick={openWizard}>
-            Onboard client
-          </Button>
+          <>
+            <ExportButton kind="clients" />
+            <Button icon={<Plus size={15} />} onClick={openWizard}>
+              Onboard client
+            </Button>
+          </>
         }
       />
 

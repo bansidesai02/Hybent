@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Check, Copy, CreditCard, Link2, Receipt } from 'lucide-react'
+import { Check, Copy, CreditCard, Link2, Pencil, Receipt, RotateCcw } from 'lucide-react'
 
+import api from '@/api/axios'
 import { superAdminApi, type PlanInfo } from '@/api/superAdmin'
+import ExportButton from '../components/ExportButton'
 import type { Payment } from '@/api/billing'
 import { PaymentLinkCreatedDialog, PaymentLinkFields } from '../components/PaymentLinkFields'
 import { EMPTY_PAYMENT_LINK, toPaymentLinkPayload, type PaymentLinkDraft } from '../components/paymentLink'
@@ -54,6 +56,7 @@ const PAYMENT_TONE: Record<string, 'success' | 'info' | 'error' | 'neutral'> = {
   failed: 'error',
   expired: 'neutral',
   canceled: 'neutral',
+  refunded: 'neutral',
 }
 
 const PAYMENT_KIND_LABEL: Record<string, string> = {
@@ -100,6 +103,58 @@ export default function BillingPage() {
   })
 
   const [editing, setEditing] = useState<ClientRow | null>(null)
+  /* Plan being edited, as text fields. */
+  const [planEdit, setPlanEdit] = useState<{ plan: PlanInfo; price: string; credits: string; admins: string; recruiters: string; copilot: boolean } | null>(null)
+  const [refunding, setRefunding] = useState<{ payment: Payment; amount: string; reason: string } | null>(null)
+  const [busyDialog, setBusyDialog] = useState(false)
+
+  const savePlan = async () => {
+    if (!planEdit) return
+    const nums = [planEdit.price, planEdit.credits, planEdit.admins, planEdit.recruiters].map(Number)
+    if (nums.some((n) => Number.isNaN(n) || n < 0)) {
+      toast.error('Use numbers of 0 or more.')
+      return
+    }
+    setBusyDialog(true)
+    try {
+      await api.put(`/v1/super-admin/plans/${planEdit.plan.id}`, {
+        ...(planEdit.plan.is_custom ? {} : { price_monthly: nums[0] }),
+        ai_credits_monthly: Math.round(nums[1]),
+        included_admins: Math.round(nums[2]),
+        included_recruiters: Math.round(nums[3]),
+        copilot: planEdit.copilot,
+      })
+      toast.success(`${planEdit.plan.name} updated`)
+      setPlanEdit(null)
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'plans'] })
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Could not update the plan.')
+    } finally {
+      setBusyDialog(false)
+    }
+  }
+
+  const refundLeft = (p: Payment) => Math.round((p.amount_usd - Number((p.details as any)?.refunded_usd ?? 0)) * 100) / 100
+
+  const doRefund = async () => {
+    if (!refunding) return
+    const amount = Number(refunding.amount)
+    if (Number.isNaN(amount) || amount <= 0 || amount > refundLeft(refunding.payment)) {
+      toast.error(`Enter an amount up to $${refundLeft(refunding.payment).toFixed(2)}.`)
+      return
+    }
+    setBusyDialog(true)
+    try {
+      await api.post(`/v1/super-admin/payments/${refunding.payment.id}/refund`, { amount_usd: amount, reason: refunding.reason })
+      toast.success(`Refunded $${amount.toFixed(2)}`)
+      setRefunding(null)
+      refreshPayments()
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Refund failed.')
+    } finally {
+      setBusyDialog(false)
+    }
+  }
   const [planName, setPlanName] = useState('')
   const [extraAdmins, setExtraAdmins] = useState('0')
   const [extraRecruiters, setExtraRecruiters] = useState('0')
@@ -340,6 +395,22 @@ export default function BillingPage() {
               Cancel
             </Button>
           </span>
+        ) : p.status === 'paid' ? (
+          <span className="inline-flex items-center gap-2.5">
+            {p.receipt_url && (
+              <a href={p.receipt_url} target="_blank" rel="noreferrer" className="text-hb-xs font-semibold text-hb-blue hover:underline">
+                Invoice
+              </a>
+            )}
+            <Button
+              size="sm"
+              variant="quiet"
+              icon={<RotateCcw size={13} />}
+              onClick={() => setRefunding({ payment: p, amount: String(refundLeft(p)), reason: '' })}
+            >
+              Refund
+            </Button>
+          </span>
         ) : p.receipt_url ? (
           <a href={p.receipt_url} target="_blank" rel="noreferrer" className="text-hb-xs font-semibold text-hb-blue hover:underline">
             Invoice
@@ -354,7 +425,64 @@ export default function BillingPage() {
         eyebrow="Platform"
         title="Billing & plans"
         description="The published plans, every organisation's plan, term and seats, and their payments. Send a client a Stripe payment link after their demo; changes admins request arrive at info@hybent.com."
+        actions={<ExportButton kind="payments" />}
       />
+
+      <Dialog
+        open={!!planEdit}
+        onClose={() => setPlanEdit(null)}
+        title={planEdit ? `Edit ${planEdit.plan.name}` : ''}
+        description="New payment links use the new price. Clients already subscribed keep paying their current price in Stripe. Credits and seats apply to everyone on the plan."
+        size="md"
+        footer={
+          <>
+            <Button variant="quiet" size="sm" onClick={() => setPlanEdit(null)} disabled={busyDialog}>Cancel</Button>
+            <Button size="sm" loading={busyDialog} onClick={savePlan}>Save</Button>
+          </>
+        }
+      >
+        {planEdit && (
+          <div className="grid gap-hb-4 sm:grid-cols-2">
+            {!planEdit.plan.is_custom && (
+              <Input label="Price per month (USD)" type="number" min={0} value={planEdit.price} onChange={(e) => setPlanEdit({ ...planEdit, price: e.target.value })} />
+            )}
+            <Input label="AI credits per month" type="number" min={0} value={planEdit.credits} onChange={(e) => setPlanEdit({ ...planEdit, credits: e.target.value })} />
+            <Input label="Admin seats included" type="number" min={0} value={planEdit.admins} onChange={(e) => setPlanEdit({ ...planEdit, admins: e.target.value })} />
+            <Input label="Recruiter seats included" type="number" min={0} value={planEdit.recruiters} onChange={(e) => setPlanEdit({ ...planEdit, recruiters: e.target.value })} />
+            <div className="sm:col-span-2">
+              <Switch label="Recruiter Copilot" description="Included in this plan." checked={planEdit.copilot} onChange={(v) => setPlanEdit({ ...planEdit, copilot: v })} />
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={!!refunding}
+        onClose={() => setRefunding(null)}
+        title="Refund payment"
+        description={refunding ? `${refunding.payment.organization_name} · ${refunding.payment.description}. The money goes back through Stripe; what they bought stays until you change it on the client.` : undefined}
+        size="md"
+        footer={
+          <>
+            <Button variant="quiet" size="sm" onClick={() => setRefunding(null)} disabled={busyDialog}>Cancel</Button>
+            <Button size="sm" variant="danger" loading={busyDialog} onClick={doRefund}>Refund</Button>
+          </>
+        }
+      >
+        {refunding && (
+          <div className="space-y-hb-4">
+            <Input
+              label={`Amount (USD, up to ${refundLeft(refunding.payment).toFixed(2)})`}
+              type="number"
+              min={0}
+              step="0.01"
+              value={refunding.amount}
+              onChange={(e) => setRefunding({ ...refunding, amount: e.target.value })}
+            />
+            <Input label="Reason (for the audit log)" value={refunding.reason} onChange={(e) => setRefunding({ ...refunding, reason: e.target.value })} />
+          </div>
+        )}
+      </Dialog>
 
       <div className="space-y-hb-5">
         <StatGrid className="xl:grid-cols-3">
@@ -399,9 +527,28 @@ export default function BillingPage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-hb-4 text-hb-xs text-hb-dim">
-                {p.subscribers ?? 0} organisation{p.subscribers === 1 ? '' : 's'}
-              </p>
+              <div className="mt-hb-4 flex items-center justify-between">
+                <p className="text-hb-xs text-hb-dim">
+                  {p.subscribers ?? 0} organisation{p.subscribers === 1 ? '' : 's'}
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={<Pencil size={13} />}
+                  onClick={() =>
+                    setPlanEdit({
+                      plan: p,
+                      price: String(p.price_monthly),
+                      credits: String(p.ai_credits_monthly),
+                      admins: String(p.included_admins),
+                      recruiters: String(p.included_recruiters),
+                      copilot: Boolean(p.copilot),
+                    })
+                  }
+                >
+                  Edit
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
