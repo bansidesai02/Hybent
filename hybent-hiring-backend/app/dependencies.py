@@ -20,6 +20,7 @@ from app.models.organization import Organization
 from app.models.user import User
 from app.services import impersonation, trial_service
 from app.services.ai_metering import bind_request_scope
+from app.services import platform_notice
 from app.services.email_service import EmailBranding, email_branding
 from app.utils.integration_keys import parse_key, secret_matches
 from app.utils.permissions import UserRole, RECRUITER_ROLES, INTERVIEWER_ROLES, ADMIN_ONLY
@@ -109,6 +110,8 @@ async def get_current_user(
                 trial_service.check_expired_access(user.role, request.url.path)
         if user.role == UserRole.CANDIDATE.value and not _candidate_may_access(request.url.path):
             raise HTTPException(status_code=403, detail="This area is for the hiring team.")
+        # Maintenance mode from the super admin portal (cached, see platform_notice).
+        await platform_notice.enforce_maintenance(db, user.role, request.url.path, bool(impersonator_id))
         if impersonator_id:
             # Live session, not view-only-blocked; binds it for audit recording.
             await impersonation.resolve(db, request, user, impersonator_id, impersonation_sid)

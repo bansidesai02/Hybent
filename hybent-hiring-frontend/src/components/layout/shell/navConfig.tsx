@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import {
   Activity, Brain, BriefcaseBusiness, Building2, CalendarCheck, CalendarDays, ClipboardCheck, FlaskConical,
-  Coins, CreditCard, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, MessageSquare, PhoneCall, ScrollText, Wrench,
+  Coins, CreditCard, Headset, Megaphone, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, MessageSquare, PhoneCall, ScrollText, Wrench,
   Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
@@ -139,6 +139,8 @@ export function getNavSections(
           { to: '/hiring/super-admin/users', label: 'All users', icon: Users },
           { to: '/hiring/super-admin/flags', label: 'Feature flags', icon: ToggleLeft },
           { to: '/hiring/super-admin/operations', label: 'Operations', icon: Wrench },
+          { to: '/hiring/super-admin/support-sessions', label: 'Support sessions', icon: Headset },
+          { to: '/hiring/super-admin/announcements', label: 'Announcements', icon: Megaphone },
           { to: '/hiring/super-admin/audit', label: 'Audit logs', icon: ScrollText },
           { to: '/hiring/super-admin/health', label: 'Health monitor', icon: Activity },
         ],

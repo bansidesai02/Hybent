@@ -18,6 +18,8 @@ const SuperAdminDemoRequests = lazy(() => import('@/modules/super_admin/pages/De
 const SuperAdminDemoBookings = lazy(() => import('@/modules/super_admin/pages/DemoBookingsPage'))
 const SuperAdminOperations = lazy(() => import('@/modules/super_admin/pages/OperationsPage'))
 const SuperAdminContactMessages = lazy(() => import('@/modules/super_admin/pages/ContactMessagesPage'))
+const SuperAdminAnnouncements = lazy(() => import('@/modules/super_admin/pages/AnnouncementsPage'))
+const SuperAdminSupportSessions = lazy(() => import('@/modules/super_admin/pages/SupportSessionsPage'))
 const SuperAdminSettings = lazy(() => import('@/modules/super_admin/pages/SettingsPage'))
 const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePage'))
 const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
@@ -41,6 +43,8 @@ export default function SuperAdminRoutes() {
         <Route path="demos" element={<SuperAdminDemoBookings />} />
         <Route path="operations" element={<SuperAdminOperations />} />
         <Route path="contact-messages" element={<SuperAdminContactMessages />} />
+        <Route path="announcements" element={<SuperAdminAnnouncements />} />
+        <Route path="support-sessions" element={<SuperAdminSupportSessions />} />
         <Route path="settings" element={<SuperAdminSettings />} />
         <Route path="profile" element={<AdminProfilePage />} />
         <Route path="inbox" element={<InboxPage />} />

@@ -149,11 +149,12 @@ export default function SettingsPage() {
                 Email delivery
               </span>
             }
-            subtitle="Saved for reference only."
+            subtitle="The sender name is used on platform mail."
           />
-          <p className="mb-hb-4 rounded-hb-md border border-hb-warning/25 bg-hb-warning/8 p-3 text-hb-xs text-hb-text">
-            Not applied yet: email is sent with the server's own mail settings (SMTP / Resend environment
-            variables). Changing these fields does not change how mail is delivered.
+          <p className="mb-hb-4 rounded-hb-md border border-hb-blue/20 bg-hb-blue/8 p-3 text-hb-xs text-hb-text">
+            <b>Sender name</b> applies to platform mail (password resets, invites, alerts) within a minute of saving;
+            mail an organization sends still carries that organization's name. Provider and sender email stay on the
+            server's verified settings (SMTP / Resend), so mail never goes out from an address the domain can't send for.
           </p>
           <div className="space-y-hb-4">
             <Select

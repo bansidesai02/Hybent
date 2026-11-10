@@ -39,8 +39,46 @@ class EmailBranding:
 email_branding: ContextVar[EmailBranding | None] = ContextVar("email_branding", default=None)
 
 
+# Sender name for platform mail, set on the super admin Settings page. Saved
+# to Redis (PLATFORM_SENDER_KEY) so the API and the Celery worker both see it;
+# cached here for a minute. The sender address stays the server's verified one.
+PLATFORM_SENDER_KEY = "platform:email_sender_name"
+_sender_cache: tuple[float, str | None] | None = None
+
+
+def platform_sender_name() -> str | None:
+    global _sender_cache
+    import time
+    now = time.monotonic()
+    if _sender_cache and now - _sender_cache[0] < 60:
+        return _sender_cache[1]
+    name = None
+    try:
+        import redis
+        raw = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1).get(PLATFORM_SENDER_KEY)
+        name = raw.decode("utf-8").strip() or None if raw else None
+    except Exception:  # Redis down: the server's own sender name
+        name = None
+    _sender_cache = (now, name)
+    return name
+
+
+def set_platform_sender_name(name: str | None) -> None:
+    global _sender_cache
+    _sender_cache = None
+    try:
+        import redis
+        r = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1)
+        if name and name.strip():
+            r.set(PLATFORM_SENDER_KEY, name.strip()[:80])
+        else:
+            r.delete(PLATFORM_SENDER_KEY)
+    except Exception as e:
+        logger.warning(f"Could not save the platform sender name: {e}")
+
+
 def _from_header(from_name: str | None) -> str:
-    name = " ".join((from_name or settings.smtp_from_name or "Hybent").replace('"', "").split())
+    name = " ".join((from_name or platform_sender_name() or settings.smtp_from_name or "Hybent").replace('"', "").split())
     return email_utils.formataddr((name, settings.email_from_address))
 
 
