@@ -490,3 +490,66 @@ async def export_csv(kind: Literal["clients", "users", "payments"], db: DB, curr
         content=_csv(rows), media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="hybent-{kind}-{stamp}.csv"'},
     )
+
+
+# ── Announcement banner and maintenance mode ─────────────────────────────────
+from app.models.super_admin import PlatformSetting  # noqa: E402
+from app.services import platform_notice  # noqa: E402
+
+# Readable by anyone: the app shows it to signed-in users, and during
+# maintenance it is how the app learns why requests are refused.
+platform_router = APIRouter(prefix="/v1/platform", tags=["platform"])
+
+
+@platform_router.get("/status")
+async def platform_status(db: DB):
+    return APIResponse.success(data=await platform_notice.load(db))
+
+
+class AnnouncementIn(BaseModel):
+    active: bool = False
+    message: str = Field("", max_length=500)
+    tone: Literal["info", "warning", "success"] = "info"
+
+
+class MaintenanceIn(BaseModel):
+    enabled: bool = False
+    message: str = Field("", max_length=500)
+
+
+class PlatformNoticeIn(BaseModel):
+    announcement: AnnouncementIn | None = None
+    maintenance: MaintenanceIn | None = None
+
+
+@router.get("/platform-notice")
+async def get_platform_notice(db: DB, current_user: SuperAdminUser):
+    return APIResponse.success(data=await platform_notice.load(db, fresh=True))
+
+
+@router.put("/platform-notice")
+async def update_platform_notice(data: PlatformNoticeIn, db: DB, current_user: SuperAdminUser, request: Request):
+    setting = await db.scalar(select(PlatformSetting).where(PlatformSetting.setting_key == platform_notice.NOTICE_KEY))
+    value = dict(setting.setting_value) if setting else {}
+    changes = data.model_dump(exclude_none=True)
+    if data.announcement is not None and data.announcement.active and not data.announcement.message.strip():
+        raise HTTPException(status_code=400, detail="Write the announcement before turning it on.")
+    value.update(changes)
+    value["updated_at"] = datetime.now(timezone.utc).isoformat()
+    if setting:
+        setting.setting_value = value
+    else:
+        db.add(PlatformSetting(setting_key=platform_notice.NOTICE_KEY, setting_value=value))
+
+    parts = []
+    if data.announcement is not None:
+        parts.append("announcement " + ("on" if data.announcement.active else "off"))
+    if data.maintenance is not None:
+        parts.append("maintenance " + ("ON" if data.maintenance.enabled else "off"))
+    await log_super_admin_action(
+        db=db, user_id=current_user.id, user_email=current_user.email,
+        action=f"Platform notice: {', '.join(parts) or 'saved'}", module="Global Settings", request=request, metadata=changes,
+    )
+    await db.commit()
+    platform_notice.clear_cache()
+    return APIResponse.success(message="Saved.", data=await platform_notice.load(db, fresh=True))

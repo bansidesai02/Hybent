@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import logging
 import time
@@ -1496,6 +1497,9 @@ async def update_platform_settings(data: PlatformSettingsUpdate, db: DB, current
         metadata=update_dict,
     )
     await db.commit()
+    if "smtp_sender_name" in update_dict:
+        from app.services.email_service import set_platform_sender_name
+        await asyncio.to_thread(set_platform_sender_name, update_dict["smtp_sender_name"])
     return APIResponse.success(message="Settings saved successfully.", data=await _settings_payload(db, new_val, request))
 
 
