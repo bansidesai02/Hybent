@@ -185,6 +185,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     logger.exception(f"Unhandled exception on {request.method} {request.url}: {exc}")
+    from app.tasks.operations import queue_error
+    queue_error("api", f"{request.method} {request.url.path}", exc)
     return APIResponse.error(message="An unexpected system error occurred. Please try again later.", status_code=500)
 
 # ── Middleware ─────────────────────────────────────────────────────────────────

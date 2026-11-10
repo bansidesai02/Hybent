@@ -5,6 +5,7 @@ import { Mail, Palette, Save, Shield } from 'lucide-react'
 
 import { superAdminApi } from '@/api/superAdmin'
 import PushNotificationsCard from '@/components/common/PushNotificationsCard'
+import AlertPreferencesCard from '../components/AlertPreferencesCard'
 import { EmailAccountsSection } from '@/modules/recruiter/components/EmailAccountsSection'
 import {
   Button,
@@ -233,6 +234,10 @@ export default function SettingsPage() {
             impersonating an org admin just to reach this same panel. */}
         <div className="lg:col-span-2">
           <PushNotificationsCard />
+        </div>
+
+        <div className="lg:col-span-2">
+          <AlertPreferencesCard />
         </div>
 
         <div className="lg:col-span-2">

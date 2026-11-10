@@ -25,7 +25,7 @@ def push_on(monkeypatch):
 def queued(monkeypatch):
     calls = []
     import app.routers.public as public
-    monkeypatch.setattr(public, "alert_super_admins", lambda title, message, url, type="system": calls.append((title, message, url)))
+    monkeypatch.setattr(public, "alert_super_admins", lambda title, message, url, type="system", **k: calls.append((title, message, url)))
     monkeypatch.setattr("app.services.email_service.send_email", lambda *a, **k: True)
     return calls
 

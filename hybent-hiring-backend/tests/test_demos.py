@@ -188,3 +188,22 @@ async def test_super_admin_sends_meeting_link(client, db_session, super_admin_he
     assert r.json()["data"]["meet_link"] == "https://zoom.us/j/123"
     to, subject, body = fakes["emails"][-1]
     assert to == "ananya@initech-example.com" and "link" in subject.lower() and "https://zoom.us/j/123" in body
+
+
+@pytest.mark.asyncio
+async def test_booking_alerts_super_admins_who_want_it(client, db_session, monkeypatch, super_admin_user, super_admin_headers):
+    from app.tasks import notifications
+    sent = []
+    monkeypatch.setattr(notifications.notify_super_admins, "delay", lambda *a: sent.append(a))
+    slots = await _slots(client)
+    await client.post("/api/public/demo/book", json={**BASE, "start_at": slots[0]})
+    assert sent[-1][1] == "New demo booked" and sent[-1][3]["event"] == "demo_booked"
+    assert sent[-1][3]["url"] == "/hiring/super-admin/demos" and "IST" in sent[-1][2]
+
+    # The toggle: off is saved and listed; unknown events are refused.
+    r = await client.put("/v1/push/alerts", headers=super_admin_headers, json={"prefs": {"demo_booked": False}})
+    assert r.status_code == 200, r.text
+    items = {a["key"]: a["enabled"] for a in r.json()["data"]["alerts"]}
+    assert items["demo_booked"] is False and items["payment_failed"] is True
+    r = await client.put("/v1/push/alerts", headers=super_admin_headers, json={"prefs": {"nope": False}})
+    assert r.status_code == 422

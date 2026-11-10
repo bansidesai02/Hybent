@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.demo_booking import DemoBooking
 from app.services import calendar_service, email_service
+from app.tasks.notifications import alert_super_admins
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +158,12 @@ async def _make_event(db: AsyncSession, b: DemoBooking) -> None:
     b.meet_link = result.get("meeting_link") if b.calendar_event_id else None
 
 
+def _alert_team(b: DemoBooking, title: str, event: str) -> None:
+    """Bell and phone for super admins, showing the time in India."""
+    when = b.start_at.astimezone(HOST_TZ).strftime("%a %d %b, %H:%M IST")
+    alert_super_admins(title, f"{b.name} from {b.company} · {when}", "/hiring/super-admin/demos", event=event)
+
+
 async def book(db: AsyncSession, *, name: str, email: str, company: str, team_size: str | None,
                phone: str | None, notes: str | None, start_at: datetime, tz: str, ip: str | None) -> DemoBooking:
     start_at = _normalise(start_at)
@@ -177,6 +184,7 @@ async def book(db: AsyncSession, *, name: str, email: str, company: str, team_si
     await db.refresh(b)
     await asyncio.to_thread(email_service.send_demo_booked, b)
     await asyncio.to_thread(email_service.send_demo_host_alert, b, "booked")
+    _alert_team(b, "New demo booked", "demo_booked")
     return b
 
 
@@ -200,6 +208,7 @@ async def reschedule(db: AsyncSession, b: DemoBooking, start_at: datetime) -> De
     await db.refresh(b)
     await asyncio.to_thread(email_service.send_demo_booked, b, True)
     await asyncio.to_thread(email_service.send_demo_host_alert, b, "rescheduled")
+    _alert_team(b, "Demo moved", "demo_changed")
     return b
 
 
@@ -213,6 +222,7 @@ async def cancel(db: AsyncSession, b: DemoBooking, by_visitor: bool = True) -> D
     await asyncio.to_thread(email_service.send_demo_cancelled, b)
     if by_visitor:
         await asyncio.to_thread(email_service.send_demo_host_alert, b, "cancelled")
+        _alert_team(b, "Demo cancelled", "demo_changed")
     return b
 
 

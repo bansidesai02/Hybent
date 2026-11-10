@@ -542,6 +542,11 @@ async def mark_converted(db: AsyncSession, organization_id, sub: CompanySubscrip
     await db.execute(
         update(UserAICredits).where(UserAICredits.organization_id == organization_id).values(used_credits=0, daily_used=0)
     )
+    from app.tasks.notifications import alert_super_admins
+    alert_super_admins(
+        "Trial became paying", f"{req.company_name if req else 'A trial company'} bought a plan.",
+        f"/hiring/super-admin/clients/{organization_id}", event="trial_converted",
+    )
     logger.info(f"Trial organization {organization_id} converted to a paid plan.")
     return True
 

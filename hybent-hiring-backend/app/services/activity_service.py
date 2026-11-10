@@ -1,11 +1,30 @@
 import uuid
 import logging
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit_log import AuditLog
 from app.services import impersonation
 from app.websocket.manager import ws_manager
 
 logger = logging.getLogger(__name__)
+
+async def _alert_super_admins(db: AsyncSession, organization_id, action: str, resource_type: str) -> None:
+    """Tell Hybent's team about client activity that matters. Never blocks the action."""
+    from app.services.alert_catalog import ACTIVITY_ALERTS
+
+    hit = ACTIVITY_ALERTS.get((action, resource_type)) or ACTIVITY_ALERTS.get((action, None))
+    if not hit:
+        return
+    try:
+        from app.models.organization import Organization
+        from app.tasks.notifications import alert_super_admins
+
+        name = await db.scalar(select(Organization.name).where(Organization.id == organization_id))
+        alert_super_admins(hit[1], name or "A client", f"/hiring/super-admin/clients/{organization_id}",
+                           event=hit[0], throttle=str(organization_id))
+    except Exception as e:
+        logger.warning(f"Could not alert super admins about {action}: {e}")
+
 
 async def log_activity(
     db: AsyncSession,
@@ -31,6 +50,8 @@ async def log_activity(
     if support is not None:
         # A super admin acting through a support session, not the user.
         details = {**(details or {}), "impersonated_by": support.super_admin_email}
+    if support is None:
+        await _alert_super_admins(db, organization_id, action, resource_type)
     activity = AuditLog(
         organization_id=organization_id,
         user_id=user_id,
