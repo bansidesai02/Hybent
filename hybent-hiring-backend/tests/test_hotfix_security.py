@@ -49,7 +49,7 @@ async def _candidate(db, org, **over) -> Candidate:
 def sent_resets(monkeypatch):
     """Captures password reset / setup emails instead of sending them."""
     sent = []
-    monkeypatch.setattr(email_service, "send_password_reset_email", lambda **kw: sent.append(kw))
+    monkeypatch.setattr(email_service, "send_password_reset_email", lambda **kw: sent.append(kw) or True)
     return sent
 
 

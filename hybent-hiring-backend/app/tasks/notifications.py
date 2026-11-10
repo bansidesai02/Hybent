@@ -175,9 +175,15 @@ def send_system_notification(user_id: str, org_id: str, type: str, title: str, m
 async def _notify_super_admins_async(type: str, title: str, message: str, data: dict | None = None):
     async with AsyncSessionLocal() as db:
         rows = (await db.execute(
-            select(User.id, User.organization_id).where(User.role == "super_admin", User.is_active == True)
+            select(User.id, User.organization_id, User.alert_prefs).where(
+                User.role == "super_admin", User.is_active == True
+            )
         )).all()
-    for uid, org_id in rows:
+    event = (data or {}).get("event")
+    for uid, org_id, prefs in rows:
+        # Each super admin chooses their own alerts in Settings.
+        if event and (prefs or {}).get(event) is False:
+            continue
         send_system_notification.delay(str(uid), str(org_id), type, title, message, data)
 
 
@@ -186,12 +192,27 @@ def notify_super_admins(type: str, title: str, message: str, data: dict | None =
     run_async(_notify_super_admins_async(type, title, message, data))
 
 
-def alert_super_admins(title: str, message: str, url: str, type: str = "system") -> None:
-    """A platform event for Hybent's own team: bell and phone for every super
-    admin; `url` is where tapping it goes. Never raises: the event itself
-    (a form sent, a payment taken) has already happened."""
+def _throttled(event: str, key: str) -> bool:
+    """True if this event already alerted for this key in the last 10 minutes."""
     try:
-        notify_super_admins.delay(type, title, message, {"url": url})
+        import redis
+        client = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1)
+        return not client.set(f"alert:{event}:{key}", "1", nx=True, ex=600)
+    except Exception:
+        return False  # an extra alert is better than a lost one
+
+
+def alert_super_admins(title: str, message: str, url: str, type: str = "system",
+                       event: str | None = None, throttle: str | None = None) -> None:
+    """A platform event for Hybent's own team: bell and phone for every super
+    admin who has `event` on (services/alert_catalog.py); `url` is where tapping
+    it goes. `throttle` (a client's id) limits busy events to one per 10 minutes.
+    Never raises: the event itself (a form sent, a payment taken) has already
+    happened."""
+    try:
+        if event and throttle and _throttled(event, throttle):
+            return
+        notify_super_admins.delay(type, title, message, {"url": url, "event": event})
     except Exception as e:
         logger.warning(f"Could not queue the super admin alert '{title}': {e}")
 

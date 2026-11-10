@@ -598,7 +598,7 @@ async def _after_payment(db: AsyncSession, payment: Payment, welcome_user: User 
         org = await db.get(Organization, payment.organization_id)
         alert_super_admins(
             "Payment received", f"{org.name if org else 'A client'}: {payment.description} (${payment.amount_usd:,.2f})",
-            "/hiring/super-admin/billing",
+            "/hiring/super-admin/billing", event="payment_received",
         )
         if payment.kind == "seats":
             sub = await _get_subscription(db, payment.organization_id)
@@ -759,7 +759,7 @@ async def _renewal_paid(db: AsyncSession, invoice: dict) -> None:
     org = await db.get(Organization, sub.organization_id)
     alert_super_admins(
         "Renewal payment received", f"{org.name if org else 'A client'}: {sub.plan.name if sub.plan else 'subscription'}",
-        "/hiring/super-admin/billing",
+        "/hiring/super-admin/billing", event="payment_received",
     )
 
 
@@ -772,7 +772,7 @@ async def _renewal_failed(db: AsyncSession, invoice: dict) -> None:
     org = await db.get(Organization, sub.organization_id)
     alert_super_admins(
         "Payment failed", f"{org.name if org else 'A client'}: their subscription renewal didn't go through.",
-        "/hiring/super-admin/billing",
+        "/hiring/super-admin/billing", event="payment_failed",
     )
     link = invoice.get("hosted_invoice_url")
     notify_organization_roles.delay(

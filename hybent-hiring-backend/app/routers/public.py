@@ -20,6 +20,7 @@ from app.models.candidate import Candidate
 from app.models.application import Application
 from app.schemas.job import JobPublicOut
 from app.services import resume_intake
+from app.models.operations import ContactMessage
 from app.models.push import DemoRequestRecord
 from app.utils.permissions import ApplicationStage, NotificationType, UserRole
 from app.tasks.notifications import alert_super_admins, notify_organization_roles
@@ -202,6 +203,10 @@ async def apply_to_public_job(
         {"candidate_id": str(candidate.id), "job_id": str(job.id)},
     )
 
+    alert_super_admins(
+        "New application", f"{candidate.full_name} applied for {job.title}",
+        "/hiring/super-admin/clients", event="application_received", throttle=str(job.organization_id),
+    )
     return APIResponse.success(message="Application received. The hiring team will be in touch.")
 
 @router.post("/demo-request")
@@ -248,7 +253,7 @@ async def demo_request(request: DemoRequest, db: DB):
             await db.commit()
         alert_super_admins(
             "New demo request", f"{request.first_name} {request.last_name} from {request.company_name}",
-            "/hiring/super-admin/demo-requests",
+            "/hiring/super-admin/demo-requests", event="demo_request",
         )
     # Lost only if it was neither saved nor emailed.
     if not saved and not sent:
@@ -275,7 +280,7 @@ def _contact_rejected(field: str, message: str) -> HTTPException:
 
 
 @router.post("/contact")
-async def contact(body: ContactRequest, request: Request):
+async def contact(body: ContactRequest, request: Request, db: DB):
     """The hybent.com/contact form: checks the submission is plausibly real,
     then emails it to info@ tagged with what the visitor came for."""
     if body.website or (body.elapsed_ms is not None and body.elapsed_ms < lead_checks.MIN_FILL_MS):
@@ -342,15 +347,27 @@ async def contact(body: ContactRequest, request: Request):
         + (f" – {body.company}" if body.company else "")
         + (f" ({context})" if context else "")
     )
+    # Saved first, so a failed email no longer loses the message.
+    saved = True
+    try:
+        db.add(ContactMessage(
+            topic=topic, name=body.name, email=str(body.email), phone=phone[0], company=body.company,
+            location=body.location, message=body.message,
+        ))
+        await db.commit()
+    except Exception:
+        logger.exception("Contact message could not be saved.")
+        await db.rollback()
+        saved = False
     sent = await asyncio.to_thread(send_email, CONTACT_EMAIL, subject, html_body)
-    if not sent:
+    if not saved and not sent:
         raise HTTPException(
             status_code=502,
             detail="We couldn't send your message. Please email info@hybent.com directly.",
         )
     alert_super_admins(
         f"New contact message: {topic}", f"{body.name} from {body.company}: {body.message[:120]}",
-        "/hiring/super-admin",
+        "/hiring/super-admin/contact-messages", event="contact_message",
     )
     return APIResponse.success(message=CONTACT_THANKS)
 

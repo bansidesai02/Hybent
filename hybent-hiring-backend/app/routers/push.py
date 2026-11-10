@@ -6,10 +6,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 
 from app.core.config import settings
-from app.dependencies import DB, CurrentUser
+from app.dependencies import DB, CurrentUser, SuperAdminUser
 from app.models.push import PushSubscription
 from app.schemas.response import APIResponse
 from app.services import push_service
+from app.services.alert_catalog import ALERT_KEYS, ALERTS
 
 router = APIRouter(prefix="/v1/push", tags=["push"])
 
@@ -26,6 +27,11 @@ class SubscribeRequest(BaseModel):
 
 class UnsubscribeRequest(BaseModel):
     endpoint: str = Field(..., max_length=2000)
+
+
+class AlertPrefs(BaseModel):
+    """{event key: on or off}"""
+    prefs: dict[str, bool]
 
 
 def _allowed(user) -> None:
@@ -48,10 +54,32 @@ async def push_config(current_user: CurrentUser, db: DB):
         "public_key": settings.vapid_public_key or None,
         "devices": devices,
         "events": (
-            ["Free demo requests", "Your Hybent notifications"] if current_user.role == "super_admin"
+            ["Everything you switch on under Alerts below"] if current_user.role == "super_admin"
             else ["All your Hybent notifications"]
         ),
     })
+
+
+def _alerts_out(user) -> dict:
+    off = user.alert_prefs or {}
+    return {"alerts": [{**a, "enabled": off.get(a["key"]) is not False} for a in ALERTS]}
+
+
+@router.get("/alerts")
+async def get_alerts(current_user: SuperAdminUser):
+    """The events this super admin can be alerted about, and which are on."""
+    return APIResponse.success(data=_alerts_out(current_user))
+
+
+@router.put("/alerts")
+async def set_alerts(body: AlertPrefs, current_user: SuperAdminUser, db: DB):
+    if set(body.prefs) - ALERT_KEYS:
+        raise HTTPException(status_code=422, detail="Unknown alert.")
+    merged = {**(current_user.alert_prefs or {}), **body.prefs}
+    # Only "off" needs storing, so a future event starts on.
+    current_user.alert_prefs = {k: False for k, v in merged.items() if v is False}
+    await db.commit()
+    return APIResponse.success(data=_alerts_out(current_user))
 
 
 @router.post("/subscribe")

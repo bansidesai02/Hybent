@@ -71,8 +71,10 @@ async def test_honeypot_drops_bots_quietly(client, outbox):
     assert res.status_code == 200 and outbox == []
 
 
-async def test_failed_send_is_reported(client, outbox, monkeypatch):
+async def test_failed_send_is_reported_only_if_the_message_is_lost(client, outbox, monkeypatch):
     monkeypatch.setattr(public, "send_email", lambda *a: False)
+    assert (await client.post("/api/public/contact", json=VALID)).status_code == 200  # saved
+    monkeypatch.setattr(public, "ContactMessage", lambda **k: (_ for _ in ()).throw(RuntimeError("db down")))
     res = await client.post("/api/public/contact", json=VALID)
     assert res.status_code == 502
     assert "info@hybent.com" in res.json()["message"]

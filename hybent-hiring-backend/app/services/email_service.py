@@ -104,6 +104,12 @@ def _send_resend(to: str, subject: str, html_body: str, from_name: str | None = 
             raise Exception(f"Resend API error: {response.text}")
 
 
+def _log_delivery(to: str, subject: str, provider: str | None, sent: bool, error: str | None, html_body: str) -> None:
+    """Record the attempt for the super admin email log (never raises)."""
+    from app.tasks.operations import queue_email_log
+    queue_email_log(to, subject, provider, sent, error, html_body)
+
+
 def send_email(
     to: str, subject: str, html_body: str, email_account: "EmailAccount | None" = None,
     from_name: str | None = None, reply_to: str | None = None,
@@ -128,6 +134,7 @@ def send_email(
         try:
             get_provider(email_account.provider).send(email_account, to, subject, html_body)
             logger.info(f"✅ Email sent via {email_account.email_address} → {to} | {subject}")
+            _log_delivery(to, subject, email_account.email_address, True, None, html_body)
             return True
         except Exception as e:
             logger.warning(
@@ -135,6 +142,7 @@ def send_email(
                 f"falling back to the platform sender for {to}"
             )
 
+    last_error = "No email provider is configured."
     if not settings.resend_api_key and (not settings.smtp_user or not settings.smtp_password):
         # Console fallback — active when neither Resend nor SMTP is configured
         logger.warning(
@@ -143,6 +151,8 @@ def send_email(
         )
         logger.debug(f"[CONSOLE EMAIL] To: {to} | Subject: {subject}")
         # Fine on a laptop; in production that email was simply lost.
+        if settings.is_production:
+            _log_delivery(to, subject, None, False, last_error, html_body)
         return not settings.is_production
 
 
@@ -163,9 +173,12 @@ def send_email(
         try:
             send(to, subject, html_body, **extra)
             logger.info(f"\u2705 Email sent via {name} \u2192 {to} | {subject}")
+            _log_delivery(to, subject, name, True, None, html_body)
             return True
         except Exception as e:
             logger.error(f"\u274c {name} failed for '{to}' | {subject}: {e}")
+            last_error = f"{name}: {e}"
+    _log_delivery(to, subject, providers[-1][0] if providers else None, False, last_error, html_body)
     return False
 
 
@@ -569,7 +582,7 @@ def send_team_invite(
     valid_days: int = 7,
     org_logo_url: str | None = None,
     email_account: "EmailAccount | None" = None,
-) -> None:
+) -> bool:
     """Invite a teammate with a one-time link to set their own password.
     No password is ever put in an email."""
     subject = f"You've been invited to join {company_name}"
@@ -592,7 +605,7 @@ def send_team_invite(
         <p style="font-size: 13px; color: #70757a;">This link works once and expires in {valid_days} days. If it has
         expired, use "Forgot password" on the sign-in page with this email.</p>
     """
-    send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
+    return send_email(to_email, subject, _get_base_template(content, org_logo_url, company_name), email_account=email_account)
 
 def send_rejection_email(
     candidate_email: str,

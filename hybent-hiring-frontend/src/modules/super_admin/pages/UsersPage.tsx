@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { History, Key, MoreHorizontal, Pause, Play, Users } from 'lucide-react'
+import { History, Key, MoreHorizontal, Pause, Pencil, Play, Send, UserPlus, Users } from 'lucide-react'
 
+import api from '@/api/axios'
 import { superAdminApi, type UserDirectoryParams } from '@/api/superAdmin'
 import { useDebounce } from '@/components/chatbot/useDebounce'
 import {
   Avatar,
   Badge,
+  Button,
+  Input,
   Card,
   type Column,
   ConfirmDialog,
@@ -70,6 +73,13 @@ const PAGE_SIZE = 50
 
 type SortKey = NonNullable<UserDirectoryParams['sort']>
 
+const TEAM_ROLES = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'recruiter', label: 'HR / Recruiter' },
+  { value: 'interviewer', label: 'Interviewer' },
+]
+const isTeamRole = (role: string) => TEAM_ROLES.some((r) => r.value === role)
+
 export default function UsersPage() {
   const queryClient = useQueryClient()
   const location = useLocation()
@@ -86,6 +96,8 @@ export default function UsersPage() {
   const [confirmStatus, setConfirmStatus] = useState<any | null>(null)
   const [confirmReset, setConfirmReset] = useState<any | null>(null)
   const [historyFor, setHistoryFor] = useState<any | null>(null)
+  /* Add (no id) or edit (id) an account. */
+  const [form, setForm] = useState<{ id?: string; organization_id: string; full_name: string; email: string; role: string; canChangeRole: boolean } | null>(null)
 
   const search = useDebounce(searchQuery.trim(), 300)
 
@@ -144,6 +156,40 @@ export default function UsersPage() {
       setConfirmStatus(null)
     },
     onError: (err: any) => toast.error(err.message || 'Failed to update user status.'),
+  })
+
+  const apiError = (err: any, fallback: string) => toast.error(err?.response?.data?.message || err?.message || fallback)
+  const refreshUsers = () => queryClient.invalidateQueries({ queryKey: ['super-admin', 'users'] })
+
+  const saveUserMutation = useMutation({
+    mutationFn: async (f: NonNullable<typeof form>) => {
+      const res = f.id
+        ? await api.patch<any>(`/v1/super-admin/users/${f.id}`, {
+            full_name: f.full_name,
+            email: f.email,
+            ...(f.canChangeRole ? { role: f.role } : {}),
+          })
+        : await api.post<any>('/v1/super-admin/users', {
+            organization_id: f.organization_id,
+            full_name: f.full_name,
+            email: f.email,
+            role: f.role,
+          })
+      return { created: !f.id, data: res.data }
+    },
+    onSuccess: ({ created, data }) => {
+      if (created && data?.invite_sent === false) toast.error('Account created, but the invite email failed. Use Resend invite.')
+      else toast.success(created ? 'Account created and invite sent' : 'Account updated')
+      setForm(null)
+      refreshUsers()
+    },
+    onError: (err: any) => apiError(err, 'Could not save the account.'),
+  })
+
+  const resendInviteMutation = useMutation({
+    mutationFn: (userId: string) => api.post(`/v1/super-admin/users/${userId}/resend-invite`),
+    onSuccess: () => toast.success('Invite sent'),
+    onError: (err: any) => apiError(err, 'Could not send the invite.'),
   })
 
   const resetPasswordMutation = useMutation({
@@ -262,7 +308,19 @@ export default function UsersPage() {
         eyebrow="Platform"
         title="Users"
         description="Every administrator, recruiter, interviewer and candidate account across all tenants."
-        actions={!isLoading ? <Badge tone="info">{totalCount} accounts</Badge> : undefined}
+        actions={
+          <>
+            {!isLoading && <Badge tone="info">{totalCount} accounts</Badge>}
+            <Button
+              icon={<UserPlus size={15} />}
+              onClick={() =>
+                setForm({ organization_id: filterClient !== 'all' ? filterClient : '', full_name: '', email: '', role: 'recruiter', canChangeRole: true })
+              }
+            >
+              Add user
+            </Button>
+          </>
+        }
       />
 
       <Toolbar>
@@ -354,6 +412,26 @@ export default function UsersPage() {
           menu
             ? [
                 {
+                  label: 'Edit account',
+                  icon: <Pencil size={14} />,
+                  onSelect: () =>
+                    setForm({
+                      id: menu.user.id,
+                      organization_id: menu.user.organization_id,
+                      full_name: menu.user.full_name,
+                      email: menu.user.email,
+                      role: menu.user.role,
+                      canChangeRole: isTeamRole(menu.user.role),
+                    }),
+                },
+                ...(isTeamRole(menu.user.role) && menu.user.is_active
+                  ? [{
+                      label: 'Resend invite',
+                      icon: <Send size={14} />,
+                      onSelect: () => resendInviteMutation.mutate(menu.user.id),
+                    }]
+                  : []),
+                {
                   label: 'Sign-in history',
                   icon: <History size={14} />,
                   onSelect: () => setHistoryFor(menu.user),
@@ -393,6 +471,47 @@ export default function UsersPage() {
           showEmail={false}
           caption="Recorded sign-in attempts for this account"
         />
+      </Dialog>
+
+      <Dialog
+        open={!!form}
+        onClose={() => setForm(null)}
+        title={form?.id ? 'Edit account' : 'Add a team member'}
+        description={form?.id ? undefined : 'They get an email with a link to set their own password.'}
+        size="md"
+        footer={
+          <>
+            <Button variant="quiet" size="sm" onClick={() => setForm(null)} disabled={saveUserMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              loading={saveUserMutation.isPending}
+              disabled={!form?.full_name.trim() || !form?.email.trim() || !form?.organization_id}
+              onClick={() => form && saveUserMutation.mutate(form)}
+            >
+              {form?.id ? 'Save' : 'Create and invite'}
+            </Button>
+          </>
+        }
+      >
+        {form && (
+          <div className="space-y-hb-4">
+            {!form.id && (
+              <Select
+                label="Client"
+                value={form.organization_id}
+                onChange={(e) => setForm({ ...form, organization_id: e.target.value })}
+                options={[{ value: '', label: 'Choose a client' }, ...(clients ?? []).map((c) => ({ value: c.id, label: c.name }))]}
+              />
+            )}
+            <Input label="Full name" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+            <Input label="Email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            {form.canChangeRole && (
+              <Select label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} options={TEAM_ROLES} />
+            )}
+          </div>
+        )}
       </Dialog>
 
       <ConfirmDialog

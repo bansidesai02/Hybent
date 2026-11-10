@@ -100,7 +100,7 @@ async def request_trial(body: TrialRequestCreate, request: Request, db: DB):
         logger.exception(f"Alert email for trial request {req.id} failed.")
     alert_super_admins(
         "New free trial request", f"{req.company_name} ({req.contact_email})",
-        f"/hiring/super-admin/trials?id={req.id}",
+        f"/hiring/super-admin/trials?id={req.id}", event="trial_request",
     )
     return APIResponse.success(message=TRIAL_THANKS)
 
@@ -153,6 +153,10 @@ async def complete_trial_setup(token: str, body: TrialSetupComplete, request: Re
 
     req = await trial_service.setup_request(db, token, lock=True)
     admin = await trial_service.complete_setup(db, req, body)
+    alert_super_admins(
+        "Trial workspace set up", f"{req.company_name} finished setup and started using Hybent.",
+        f"/hiring/super-admin/trials?id={req.id}", event="trial_setup",
+    )
     await db.flush()
     session = await _issue_session(admin, db, "password", request)
     await db.commit()

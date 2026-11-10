@@ -14,6 +14,7 @@ def inbox(monkeypatch):
 
     def capture(to_email, to_name, reset_url, **kw):
         links.append((to_email, reset_url))
+        return True
     monkeypatch.setattr("app.services.email_service.send_password_reset_email", capture)
     return links
 

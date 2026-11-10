@@ -72,6 +72,9 @@ def _no_real_super_admin_alerts(monkeypatch):
     """The worker would act on the developer's real database."""
     from app.tasks.notifications import notify_super_admins
     monkeypatch.setattr(notify_super_admins, "delay", lambda *a, **k: None)
+    from app.tasks import operations
+    monkeypatch.setattr(operations.record_email, "delay", lambda *a, **k: None)
+    monkeypatch.setattr(operations.record_error, "delay", lambda *a, **k: None)
 
 
 @pytest_asyncio.fixture

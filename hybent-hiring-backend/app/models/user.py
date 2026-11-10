@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -40,6 +40,8 @@ class User(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
     google_refresh_token: Mapped[str | None] = mapped_column(String(500))
+    # Super admins: alert events switched off ({event: false}). Absent means on.
+    alert_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     fcm_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
     linkedin_access_token: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
