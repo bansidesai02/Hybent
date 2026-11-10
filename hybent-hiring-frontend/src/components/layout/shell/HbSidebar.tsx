@@ -6,6 +6,7 @@ import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useScreeningNav } from '@/hooks/useScreeningNav'
 import { useAICallsNav } from '@/hooks/useAICallsNav'
+import { useSuperAdminTodo } from '@/hooks/useSuperAdminTodo'
 import { useNotificationStore } from '@/store/notificationStore'
 import { useThemeStore } from '@/store/themeStore'
 import { prefetchRoute } from '@/utils/routePrefetch'
@@ -128,13 +129,14 @@ function HbSidebarComponent({
 
   const screening = useScreeningNav(role)
   const aiCalls = useAICallsNav(role)
+  const { data: superAdminTodo } = useSuperAdminTodo(role === 'super_admin' && !user?.is_impersonating)
 
   const sections = useMemo(
     () => {
-      const all = sectionsOverride ?? getNavSections(role, candidateBadge, scheduleBadge, screening, aiCalls)
+      const all = sectionsOverride ?? getNavSections(role, candidateBadge, scheduleBadge, screening, aiCalls, superAdminTodo)
       return hideCopilot ? withoutCopilot(all) : all
     },
-    [sectionsOverride, role, candidateBadge, scheduleBadge, screening, aiCalls, hideCopilot]
+    [sectionsOverride, role, candidateBadge, scheduleBadge, screening, aiCalls, superAdminTodo, hideCopilot]
   )
 
   const isGroupActive = useCallback(

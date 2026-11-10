@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import type { UserRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useScreeningNav } from '@/hooks/useScreeningNav'
+import { useSuperAdminTodo } from '@/hooks/useSuperAdminTodo'
 import { useAICallsNav } from '@/hooks/useAICallsNav'
 import { useIdleSignOut } from '@/hooks/useIdleSignOut'
 import { useFeatures } from '@/hooks/useFeatures'
@@ -202,13 +203,14 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
   )
   const screening = useScreeningNav(activeRole)
   const aiCalls = useAICallsNav(activeRole)
+  const { data: superAdminTodo } = useSuperAdminTodo(activeRole === 'super_admin' && !user?.is_impersonating)
   // A super admin can switch Copilot off per client: drop its page and widget.
   const features = useFeatures()
   const copilotOn = config.copilot && features?.copilot !== false
   const navSections = useMemo(() => {
-    const all = sections ?? getNavSections(activeRole, candidateBadge, 0, screening, aiCalls)
+    const all = sections ?? getNavSections(activeRole, candidateBadge, 0, screening, aiCalls, superAdminTodo)
     return features?.copilot === false ? withoutCopilot(all) : all
-  }, [sections, activeRole, candidateBadge, screening, aiCalls, features?.copilot])
+  }, [sections, activeRole, candidateBadge, screening, aiCalls, superAdminTodo, features?.copilot])
   const mobileTabs = useMemo(
     () => getMobileTabs(activeRole, basePath, navSections),
     [activeRole, basePath, navSections],

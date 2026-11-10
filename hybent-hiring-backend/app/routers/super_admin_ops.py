@@ -553,3 +553,36 @@ async def update_platform_notice(data: PlatformNoticeIn, db: DB, current_user: S
     await db.commit()
     platform_notice.clear_cache()
     return APIResponse.success(message="Saved.", data=await platform_notice.load(db, fresh=True))
+
+
+# ── Today's to-do: what needs a super admin, as counts ──────────────────────
+from app.models.demo_booking import DemoBooking  # noqa: E402
+from app.models.push import DemoRequestRecord  # noqa: E402
+from app.models.super_admin import ImpersonationLog  # noqa: E402
+from app.models.trial_request import TrialRequest  # noqa: E402
+
+
+@router.get("/todo")
+async def super_admin_todo(db: DB, current_user: SuperAdminUser):
+    """Counts for the dashboard's "Today" card and the sidebar badges.
+    Only things a person has to act on; zero means nothing to do."""
+    now = datetime.now(timezone.utc)
+    week = now - timedelta(days=7)
+
+    async def count(model, *where) -> int:
+        return await db.scalar(select(func.count()).select_from(model).where(*where)) or 0
+
+    data = {
+        "trials_pending": await count(TrialRequest, TrialRequest.status == "pending"),
+        "demo_requests_new": await count(DemoRequestRecord, DemoRequestRecord.status == "new"),
+        "demos_upcoming": await count(DemoBooking, DemoBooking.status == "booked",
+                                      DemoBooking.start_at >= now, DemoBooking.start_at < now + timedelta(days=1)),
+        "contact_new": await count(ContactMessage, ContactMessage.status == "new"),
+        "emails_failed": await count(EmailLog, EmailLog.status == "failed", EmailLog.created_at >= week),
+        "errors_open": await count(PlatformError, PlatformError.status == "open"),
+        "sessions_active": await count(ImpersonationLog, ImpersonationLog.ended_at.is_(None),
+                                       ImpersonationLog.expires_at > now),
+    }
+    data["leads"] = data["trials_pending"] + data["demo_requests_new"] + data["contact_new"]
+    data["system"] = data["emails_failed"] + data["errors_open"]
+    return APIResponse.success(data=data)
