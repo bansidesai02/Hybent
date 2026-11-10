@@ -69,43 +69,6 @@ export default function SecurityPage() {
             <span className="chip"><svg aria-hidden="true"><use href="#i-check" /></svg>Audit logging</span>
             <span className="chip"><svg aria-hidden="true"><use href="#i-check" /></svg>Explainable AI decisions</span>
             <span className="chip"><svg aria-hidden="true"><use href="#i-check" /></svg>WCAG 2.2 AA — target</span>
-            <div className="figrow" data-rv="up">
-              <div className="figpanel">
-                <svg className="fig" viewBox="0 0 880 210" role="img" aria-label="How candidate data moves through Hybent Hiring: encrypted in transit, stored encrypted and tenant-isolated, read only through role-based access with every read logged, and exported or deleted on request">
-                  <line x1="96" y1="76" x2="784" y2="76" stroke="var(--border)" strokeWidth="1.6" />
-                  <g>
-                    <circle cx="96" cy="76" r="34" fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6" />
-                    <rect x="82" y="62" width="28" height="20" rx="5" fill="none" stroke="url(#hbgh)" strokeWidth="2.4" />
-                    <path d="M82 66l14 9 14-9" fill="none" stroke="url(#hbgh)" strokeWidth="2.2" strokeLinejoin="round" />
-
-                    <circle cx="325" cy="76" r="34" fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6" />
-                    <rect x="312" y="72" width="26" height="20" rx="4" fill="none" stroke="url(#hbgh)" strokeWidth="2.4" />
-                    <path d="M317 72v-7a8 8 0 0116 0v7" fill="none" stroke="url(#hbgh)" strokeWidth="2.4" />
-
-                    <circle cx="555" cy="76" r="34" fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6" />
-                    <ellipse cx="555" cy="64" rx="17" ry="6.5" fill="none" stroke="url(#hbgh)" strokeWidth="2.4" />
-                    <path d="M538 64v22c0 3.6 7.6 6.5 17 6.5s17-2.9 17-6.5V64" fill="none" stroke="url(#hbgh)" strokeWidth="2.4" />
-                    <path d="M538 75c0 3.6 7.6 6.5 17 6.5s17-2.9 17-6.5" fill="none" stroke="url(#hbgh)" strokeWidth="2" />
-
-                    <circle cx="784" cy="76" r="34" fill="url(#hbgh)" opacity=".14" stroke="var(--border-strong)" strokeWidth="1.6" />
-                    <path d="M784 62v26M773 77l11 11 11-11" fill="none" stroke="url(#hbgh)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </g>
-                  <g fontFamily="Geist Mono" fontSize="9.5" letterSpacing="1.3" fill="var(--text)" textAnchor="middle">
-                    <text x="96" y="134">SUBMITTED</text><text x="325" y="134">ENCRYPTED</text><text x="555" y="134">ISOLATED</text><text x="784" y="134">YOURS TO TAKE</text>
-                  </g>
-                  <g fontFamily="Figtree" fontSize="11" fill="var(--muted)" textAnchor="middle">
-                    <text x="96" y="156">Candidate applies</text>
-                    <text x="325" y="156">In transit and at rest</text>
-                    <text x="555" y="156">Per-tenant, role-gated</text>
-                    <text x="784" y="156">Export or delete, on ask</text>
-                  </g>
-                  <g transform="translate(300,178)">
-                    <rect width="280" height="22" rx="11" fill="var(--cyan)" opacity=".13" />
-                    <text x="140" y="15" textAnchor="middle" fontFamily="Geist Mono" fontSize="8.5" letterSpacing="1.2" fill="var(--cyan)">EVERY READ WRITTEN TO THE AUDIT LOG</text>
-                  </g>
-                </svg>
-              </div>
-            </div>
           </div>
         </div>
       </section>

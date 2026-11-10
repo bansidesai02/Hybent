@@ -179,52 +179,6 @@ export default function HomePage() {
       </section>
 
       <section className="section" id="company">
-        <div className="wrap figrow" data-rv="up">
-            <div className="figpanel"><svg className="fig" role="img" aria-label="How Hybent Hiring processes an application: apply, parse, screen, shortlist, interview, offer" viewBox="0 0 700 190" width="700" height="190">
-            <line x1="60" y1="86" x2="646" y2="86" stroke="var(--border)" strokeWidth="1.6" />
-            <g>
-        
-              <rect x="18" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
-              <rect x="42" y="66" width="36" height="42" rx="5" fill="var(--surface-2)" stroke="var(--border)" />
-              <g fill="var(--border-strong)"><rect x="48" y="74" width="24" height="3.4" rx="1.7" /><rect x="48" y="82" width="18" height="3.4" rx="1.7" /><rect x="48" y="90" width="22" height="3.4" rx="1.7" /><rect x="48" y="98" width="14" height="3.4" rx="1.7" /></g>
-        
-              <rect x="140" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
-              <g><rect x="156" y="66" width="52" height="9" rx="4.5" fill="url(#hbgh)" opacity=".85" />
-                 <rect x="156" y="80" width="34" height="9" rx="4.5" fill="var(--border-strong)" />
-                 <rect x="156" y="94" width="46" height="9" rx="4.5" fill="var(--border-strong)" /></g>
-        
-              <rect x="262" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
-              <g transform="translate(304,86)">
-                <circle r="22" fill="none" stroke="var(--border)" strokeWidth="6" />
-                <circle r="22" fill="none" stroke="url(#hbgh)" strokeWidth="6" strokeLinecap="round" strokeDasharray="104 138" transform="rotate(-90)" />
-                <text y="4" textAnchor="middle" fontFamily="Figtree" fontSize="13" fontWeight="600" fill="var(--text)">94</text>
-              </g>
-        
-              <rect x="384" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
-              <g><rect x="400" y="64" width="52" height="14" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-                 <circle cx="410" cy="71" r="4" fill="url(#hbg)" />
-                 <rect x="400" y="82" width="52" height="14" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-                 <circle cx="410" cy="89" r="4" fill="url(#hbg)" opacity=".7" />
-                 <rect x="400" y="100" width="52" height="10" rx="5" fill="var(--surface-2)" opacity=".5" /></g>
-        
-              <rect x="506" y="52" width="84" height="68" rx="12" fill="var(--surface)" stroke="var(--border-strong)" />
-              <rect x="524" y="66" width="48" height="40" rx="7" fill="var(--surface-2)" stroke="var(--border)" />
-              <line x1="524" y1="78" x2="572" y2="78" stroke="var(--border)" />
-              <rect x="530" y="84" width="12" height="12" rx="3" fill="url(#hbg)" opacity=".8" />
-              <rect x="548" y="84" width="12" height="12" rx="3" fill="var(--border-strong)" />
-        
-              <rect x="628" y="52" width="54" height="68" rx="12" fill="url(#hbgh)" opacity=".14" stroke="var(--border-strong)" />
-              <path d="M643 88l7 7 15-16" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" />
-            </g>
-            <g fontFamily="Geist Mono" fontSize="8" letterSpacing="1.3" fill="var(--dim)" textAnchor="middle">
-              <text x="60" y="142">APPLY</text><text x="182" y="142">PARSE</text><text x="304" y="142">SCREEN</text>
-              <text x="426" y="142">SHORTLIST</text><text x="548" y="142">INTERVIEW</text><text x="655" y="142">OFFER</text>
-            </g>
-            <g fontFamily="Geist Mono" fontSize="7.5" letterSpacing="1" fill="var(--cyan)" textAnchor="middle">
-              <text x="182" y="34">AI</text><text x="304" y="34">AI</text><text x="548" y="34">AI</text>
-            </g>
-          </svg></div>
-        </div>
         <div className="wrap split">
           <div data-rv="left">
             <p className="eyebrow"><span className="bars"><i></i><i></i><i></i></span><span>Who we are</span></p>

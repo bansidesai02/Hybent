@@ -20,52 +20,13 @@ export default function ContactPage() {
             <div className="card" data-rv="right" style={{ padding: "clamp(24px,3vw,36px)" }}>
               <ContactForm />
             </div>
-            <div className="figrow" data-rv="up">
-              <div className="figpanel figpanel--stack"><p className="mono" style={{ marginBottom: "14px", color: "var(--dim)" }}>What happens after you send it</p>
-              <svg className="fig" viewBox="0 0 480 120" role="img" aria-label="Three steps after sending a message: you describe the problem, a named person replies within one business day, then we work through it together">
-              <line x1="60" y1="46" x2="420" y2="46" stroke="var(--border)" strokeWidth="1.6" />
-              <g>
-              <circle cx="60" cy="46" r="26" fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6" />
-              <rect x="48" y="38" width="24" height="17" rx="4" fill="none" stroke="url(#hbgh)" strokeWidth="2.4" />
-              <path d="M48 41l12 8 12-8" fill="none" stroke="url(#hbgh)" strokeWidth="2.2" strokeLinejoin="round" />
-              <circle cx="240" cy="46" r="26" fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1.6" />
-              <circle cx="240" cy="40" r="7.5" fill="url(#hbg)" />
-              <path d="M228 58a12 12 0 0124 0" fill="url(#hbg)" opacity=".55" />
-              <circle cx="420" cy="46" r="26" fill="url(#hbgh)" opacity=".16" stroke="var(--border-strong)" strokeWidth="1.6" />
-              <path d="M409 46l7 7 14-15" fill="none" stroke="url(#hbgh)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              </g>
-              <g fontFamily="Geist Mono" fontSize="9" letterSpacing="1.3" fill="var(--dim)" textAnchor="middle">
-              <text x="60" y="94">YOU DESCRIBE IT</text><text x="240" y="94">A PERSON REPLIES</text><text x="420" y="94">WE WORK IT</text>
-              </g>
-              <text x="240" y="110" textAnchor="middle" fontFamily="Geist Mono" fontSize="8.5" letterSpacing="1.2" fill="var(--cyan)">WITHIN ONE BUSINESS DAY</text>
-              </svg></div>
-              </div>
-            <div className="figrow" data-rv="up">
-              <div className="figpanel">
-                <svg className="fig" viewBox="0 0 900 190" role="img" aria-label="HYBENT is headquartered in Ahmedabad, Gujarat, India">
-                  <g stroke="var(--border)" strokeWidth="1.2" opacity=".85">
-                    <path d="M0 46h900M0 96h900M0 146h900M120 0v190M270 0v190M420 0v190M570 0v190M720 0v190" />
-                  </g>
-                  <g stroke="var(--border-strong)" strokeWidth="1.6" fill="none" opacity=".7">
-                    <path d="M0 118C140 118 200 74 330 74S520 122 660 122 820 70 900 70" />
-                  </g>
-                  <g opacity=".5" fill="url(#hbsoft)">
-                    <rect x="150" y="56" width="90" height="34" rx="7" /><rect x="470" y="106" width="76" height="30" rx="7" />
-                    <rect x="740" y="52" width="104" height="36" rx="7" /><rect x="300" y="126" width="86" height="30" rx="7" />
-                  </g>
-                  <g transform="translate(420,58)">
-                    <circle cx="30" cy="34" r="30" fill="url(#hbgh)" opacity=".13" />
-                    <circle cx="30" cy="34" r="19" fill="url(#hbgh)" opacity=".18" />
-                    <path d="M30 12a13 13 0 00-13 13c0 10 13 21 13 21s13-11 13-21a13 13 0 00-13-13z" fill="var(--surface)" stroke="url(#hbgh)" strokeWidth="2.6" />
-                    <circle cx="30" cy="25" r="5" fill="url(#hbgh)" />
-                  </g>
-                  <g fontFamily="Geist Mono" letterSpacing="1.6">
-                    <text x="500" y="86" fontSize="12" fill="var(--text)">AHMEDABAD · GUJARAT · INDIA</text>
-                    <text x="500" y="106" fontSize="9" fill="var(--dim)">HEADQUARTERS — ENGINEERING, PRODUCT &amp; DESIGN</text>
-                    <text x="500" y="124" fontSize="9" fill="var(--dim)">MON–FRI · 09:00–18:00 IST</text>
-                  </g>
-                </svg>
-              </div>
+            <div className="next-steps" data-rv="up">
+              <p className="mono">What happens after you send it</p>
+              <ol>
+                <li><span className="next-steps__n">1</span><b>You describe it</b><span>Tell us what you are trying to fix. Two lines is enough.</span></li>
+                <li><span className="next-steps__n">2</span><b>A person replies</b><span>Someone from the team answers within one business day, Mon–Fri IST.</span></li>
+                <li><span className="next-steps__n">3</span><b>We work it</b><span>A clear answer, a quote or a short call, whatever moves it forward.</span></li>
+              </ol>
             </div>
           </div>
         </div>
