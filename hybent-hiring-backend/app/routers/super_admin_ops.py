@@ -398,3 +398,95 @@ async def resend_invite(user_id: uuid.UUID, db: DB, current_user: SuperAdminUser
     )
     await db.commit()
     return APIResponse.success(message=f"Invite sent to {user.email}.")
+
+
+# ── Plans ─────────────────────────────────────────────────────────────────────
+class PlanEdit(BaseModel):
+    price_monthly: float | None = Field(None, ge=0, le=100000)
+    ai_credits_monthly: int | None = Field(None, ge=0, le=100_000_000)
+    included_admins: int | None = Field(None, ge=0, le=1000)
+    included_recruiters: int | None = Field(None, ge=0, le=1000)
+    max_jobs: int | None = Field(None, ge=0, le=100000)
+    copilot: bool | None = None
+
+
+@router.put("/plans/{plan_id}")
+async def edit_plan(plan_id: uuid.UUID, payload: PlanEdit, db: DB, current_user: SuperAdminUser, request: Request):
+    """Change what a plan costs and includes. New payment links use the new
+    price; clients already subscribed keep paying their old price in Stripe."""
+    from app.models.super_admin import SubscriptionPlan
+
+    plan = await db.get(SubscriptionPlan, plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found.")
+    changes = payload.model_dump(exclude_unset=True, exclude_none=True)
+    before = {}
+    if "copilot" in changes:
+        before["copilot"] = bool((plan.features or {}).get("copilot"))
+        plan.features = {**(plan.features or {}), "copilot": changes.pop("copilot")}
+    for key, value in changes.items():
+        before[key] = getattr(plan, key)
+        setattr(plan, key, value)
+    plan.updated_at = datetime.now(timezone.utc)
+    await log_super_admin_action(
+        db=db, user_id=current_user.id, user_email=current_user.email,
+        action=f"Edited plan {plan.name}"[:255], module="Billing", request=request,
+        metadata={"plan_id": str(plan.id), "before": before, "after": payload.model_dump(exclude_unset=True)},
+    )
+    await db.commit()
+    return APIResponse.success(message=f"{plan.name} updated.", data=billing_service.plan_to_dict(plan))
+
+
+# ── CSV exports ───────────────────────────────────────────────────────────────
+def _csv(rows: list[list]) -> str:
+    import csv
+    import io
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    for row in rows:
+        # A leading = + - @ would run as a formula in a spreadsheet.
+        writer.writerow([("'" + c) if isinstance(c, str) and c[:1] in ("=", "+", "-", "@") else c for c in row])
+    return buf.getvalue()
+
+
+@router.get("/exports/{kind}")
+async def export_csv(kind: Literal["clients", "users", "payments"], db: DB, current_user: SuperAdminUser, request: Request):
+    """Clients, users or payments as a CSV file. The export is audited."""
+    from fastapi.responses import Response
+    from app.models.payment import Payment
+
+    if kind == "clients":
+        orgs = (await db.execute(select(Organization).order_by(Organization.created_at))).scalars().all()
+        rows = [["name", "slug", "active", "industry", "size", "created_at"]] + [
+            [o.name, o.slug, o.is_active, o.industry or "", o.size or "", o.created_at.isoformat() if o.created_at else ""] for o in orgs
+        ]
+    elif kind == "users":
+        users = (await db.execute(
+            select(User, Organization.name).join(Organization, Organization.id == User.organization_id, isouter=True)
+            .order_by(User.created_at)
+        )).all()
+        rows = [["name", "email", "role", "client", "active", "last_login", "created_at"]] + [
+            [u.full_name, u.email, u.role, org or "", u.is_active,
+             u.last_login.isoformat() if u.last_login else "", u.created_at.isoformat() if u.created_at else ""]
+            for u, org in users
+        ]
+    else:
+        payments = (await db.execute(
+            select(Payment, Organization.name).join(Organization, Organization.id == Payment.organization_id, isouter=True)
+            .order_by(Payment.created_at)
+        )).all()
+        rows = [["client", "kind", "description", "status", "amount_usd", "refunded_usd", "paid_at", "created_at"]] + [
+            [org or "", p.kind, p.description, p.status, p.amount_usd, (p.details or {}).get("refunded_usd", 0),
+             p.paid_at.isoformat() if p.paid_at else "", p.created_at.isoformat() if p.created_at else ""]
+            for p, org in payments
+        ]
+    await log_super_admin_action(
+        db=db, user_id=current_user.id, user_email=current_user.email,
+        action=f"Exported {kind} ({len(rows) - 1} rows)", module="Exports", request=request, metadata={"kind": kind},
+    )
+    await db.commit()
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return Response(
+        content=_csv(rows), media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="hybent-{kind}-{stamp}.csv"'},
+    )

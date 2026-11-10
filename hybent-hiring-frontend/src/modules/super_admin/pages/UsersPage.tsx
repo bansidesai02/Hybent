@@ -27,6 +27,7 @@ import {
   ToolbarFilters,
 } from '@/components/hb'
 import { formatDate, formatDateTime, timeAgo } from '@/utils/formatters'
+import ExportButton from '../components/ExportButton'
 import LoginEventsTable from '../components/LoginEventsTable'
 
 /**
@@ -311,6 +312,7 @@ export default function UsersPage() {
         actions={
           <>
             {!isLoading && <Badge tone="info">{totalCount} accounts</Badge>}
+            <ExportButton kind="users" />
             <Button
               icon={<UserPlus size={15} />}
               onClick={() =>
