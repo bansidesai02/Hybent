@@ -491,7 +491,8 @@ function AnalysisActions({
     toast.success('Kept in the talent database')
   }
 
-  const passes = (scoring?.final_score ?? 0) >= threshold
+  const rejected = ((scoring as { criteria_failed?: string[] } | undefined)?.criteria_failed?.length ?? 0) > 0
+  const passes = !rejected && (scoring?.final_score ?? 0) >= threshold
   const alreadyRejected = currentStage === 'rejected'
 
   /* Uploaded without a job: nothing was matched, so there is no pass or fail

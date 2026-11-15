@@ -173,4 +173,6 @@ async def score_application(
     application.match_score = score
     candidate.match_score = score
     candidate.score_breakdown = breakdown
+    from app.services.job_criteria import apply_outcome
+    apply_outcome(breakdown, application, candidate)  # outside the job's experience range
     return score

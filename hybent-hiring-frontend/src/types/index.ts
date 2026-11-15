@@ -174,6 +174,7 @@ export interface Job {
   job_type: string
   experience_level: string | null
   min_experience_years?: number | null
+  max_experience_years?: number | null
   description: string
   requirements: string | null
   responsibilities: string | null
@@ -218,6 +219,8 @@ export interface Candidate {
     missing_skills: string[]
     shortlisted: boolean
     reasoning: string
+    /** Job criteria the candidate failed (e.g. experience outside the range); rejected for these. */
+    criteria_failed?: string[]
   } | null
   skills: string[]
   years_experience: number | null

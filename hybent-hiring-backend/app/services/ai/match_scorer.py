@@ -563,6 +563,27 @@ async def evaluate_candidate_match(
     user_id: Optional[uuid.UUID] = None,
     organization_id: Optional[uuid.UUID] = None
 ) -> tuple[float, dict]:
+    """Score, then check the job's hard criteria (experience range). A failed
+    criterion leaves the score as is and puts "REJECTED: <why>" at the top of
+    the summary; callers reject with job_criteria.apply_outcome."""
+    from app.services import job_criteria
+    score, breakdown = await _evaluate_candidate_match(
+        candidate_data, candidate_skills, years_experience, job, match_threshold,
+        background_tasks, user_id, organization_id,
+    )
+    return score, job_criteria.annotate(breakdown, years_experience, job)
+
+
+async def _evaluate_candidate_match(
+    candidate_data: dict,
+    candidate_skills: list[str],
+    years_experience: Optional[float],
+    job,
+    match_threshold: float = 70.0,
+    background_tasks: Optional[BackgroundTasks] = None,
+    user_id: Optional[uuid.UUID] = None,
+    organization_id: Optional[uuid.UUID] = None
+) -> tuple[float, dict]:
     """
     3-Tier Candidate Match Evaluation:
       1. Primary LLM: Groq (Llama-3.3-70b)

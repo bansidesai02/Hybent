@@ -349,6 +349,9 @@ async def upload_and_create(
     # Priority 6: score breakdown is a separate field, not buried in parsed_data
     candidate.score_breakdown = breakdown
     candidate.parsed_data = parsed
+    # Outside the job's experience range: rejected, reason at the top of the summary.
+    from app.services.job_criteria import apply_outcome
+    apply_outcome(breakdown, candidate=candidate)
 
     await log_activity(
         db,
