@@ -9,6 +9,7 @@ class JobCreate(BaseModel):
     job_type: str = "full_time"
     experience_level: str | None = None
     min_experience_years: int | None = 0
+    max_experience_years: int | None = None
     description: str
     requirements: str | None = None
     responsibilities: str | None = None
@@ -29,6 +30,7 @@ class JobUpdate(BaseModel):
     job_type: str | None = None
     experience_level: str | None = None
     min_experience_years: int | None = None
+    max_experience_years: int | None = None
     description: str | None = None
     requirements: str | None = None
     responsibilities: str | None = None
@@ -57,6 +59,7 @@ class JobPublicOut(OrmSchema):
     job_type: str
     experience_level: str | None = None
     min_experience_years: int | None = 0
+    max_experience_years: int | None = None
     description: str
     requirements: str | None = None
     responsibilities: str | None = None
@@ -76,6 +79,7 @@ class JobOut(OrmSchema):
     job_type: str
     experience_level: str | None = None
     min_experience_years: int | None = 0
+    max_experience_years: int | None = None
     description: str
     requirements: str | None = None
     responsibilities: str | None = None

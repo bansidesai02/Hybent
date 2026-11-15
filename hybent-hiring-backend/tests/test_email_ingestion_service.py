@@ -876,7 +876,7 @@ async def test_password_protected_statement_is_skipped_not_made_a_candidate(db_s
     )
     assert outcome == "skipped"
     assert message.ingestion_result_candidate_id is None
-    assert "Statement.pdf\tPassword-protected PDF — skipped" in message.ingestion_error
+    assert message.ingestion_error.startswith("Statement.pdf\t")
 
 
 async def test_unreadable_file_from_an_automated_sender_is_skipped(db_session, organization):

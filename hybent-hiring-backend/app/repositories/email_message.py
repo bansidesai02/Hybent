@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import desc, or_, update
+from sqlalchemy import desc, func, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -10,6 +10,39 @@ from app.repositories.base import BaseRepository
 
 
 RESUME_STATUSES = (EmailIngestionStatus.CREATED, EmailIngestionStatus.MATCHED_EXISTING)
+
+# The Inbox's tabs. Every email with a resume attached is listed, including
+# the ones that didn't become a candidate, so nothing silently disappears.
+_BECAME_CANDIDATE = or_(
+    EmailMessage.ingestion_status.in_(RESUME_STATUSES),
+    EmailMessage.ingestion_result_candidate_id.is_not(None),
+)
+# Skipped with no reason recorded = it had no PDF/DOC/DOCX at all (an email
+# from before the Inbox only fetched resumes): not a resume email.
+# coalesce: a not-yet-processed email (NULL status) must not compare as NULL
+# here, or "NOT (...)" would drop it from the list.
+_NO_DOCUMENT = (
+    func.coalesce(EmailMessage.ingestion_status, "") == EmailIngestionStatus.SKIPPED_NOT_RESUME
+) & EmailMessage.ingestion_error.is_(None)
+_IN_PROGRESS = or_(
+    EmailMessage.ingestion_status.is_(None),
+    EmailMessage.ingestion_status.in_((EmailIngestionStatus.PROCESSING, EmailIngestionStatus.RETRY_PENDING)),
+)
+_NEEDS_REVIEW = (
+    EmailMessage.ingestion_status.in_((EmailIngestionStatus.SKIPPED_NOT_RESUME, EmailIngestionStatus.FAILED))
+    & EmailMessage.ingestion_error.is_not(None)
+    & EmailMessage.ingestion_result_candidate_id.is_(None)
+)
+_PROCESSING = EmailMessage.has_attachments.is_(True) & _IN_PROGRESS & EmailMessage.ingestion_result_candidate_id.is_(None)
+_FAILED = (EmailMessage.ingestion_status == EmailIngestionStatus.FAILED) & EmailMessage.ingestion_result_candidate_id.is_(None)
+INBOX_VIEWS = {
+    # Only real resumes: ones that became candidates, or are still being read.
+    # "Not a resume" (statements, bills) never shows.
+    "all": or_(_BECAME_CANDIDATE, _PROCESSING, _FAILED),
+    "candidates": _BECAME_CANDIDATE,
+    "review": _FAILED,
+    "processing": _PROCESSING,
+}
 
 
 def _claimable_status():
@@ -46,10 +79,15 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
         return result.scalar_one_or_none()
 
     async def list_for_account(
-        self, email_account_id: uuid.UUID, limit: int = 50, offset: int = 0, resumes_only: bool = False
+        self, email_account_id: uuid.UUID, limit: int = 50, offset: int = 0, resumes_only: bool = False,
+        view: str | None = None, since: datetime | None = None,
     ) -> list[EmailMessage]:
         query = select(EmailMessage).where(EmailMessage.email_account_id == email_account_id)
-        if resumes_only:
+        if since is not None:
+            query = query.where(or_(EmailMessage.received_at.is_(None), EmailMessage.received_at >= since))
+        if view:
+            query = query.where(INBOX_VIEWS[view])
+        elif resumes_only:
             # Mail the ingestion pass turned into (or matched to) a candidate —
             # the rest of a mailbox is newsletters and alerts. Includes
             # messages still retrying some attachments (or that failed on the
@@ -186,3 +224,17 @@ class EmailMessageRepository(BaseRepository[EmailMessage]):
         if candidate_id is not None:
             values["ingestion_result_candidate_id"] = candidate_id
         await self.db.execute(update(EmailMessage).where(EmailMessage.id == message_id).values(**values))
+
+    async def view_counts(self, email_account_id: uuid.UUID, since: datetime | None = None) -> dict[str, int]:
+        """How many emails each Inbox tab holds."""
+        from sqlalchemy import func
+
+        out = {}
+        for name, condition in INBOX_VIEWS.items():
+            out[name] = await self.db.scalar(
+                select(func.count(EmailMessage.id)).where(
+                    EmailMessage.email_account_id == email_account_id, condition,
+                    *([or_(EmailMessage.received_at.is_(None), EmailMessage.received_at >= since)] if since is not None else []),
+                )
+            ) or 0
+        return out

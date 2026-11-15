@@ -139,6 +139,8 @@ async def create_application(data: ApplicationCreate, current_user: RecruiterUse
         cand.match_score = score
         cand.score_breakdown = breakdown
         app.match_score = score
+        from app.services.job_criteria import apply_outcome
+        apply_outcome(breakdown, app, cand)  # outside the job's experience range
         db.add(cand)
         db.add(app)
         await db.flush()

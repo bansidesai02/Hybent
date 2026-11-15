@@ -1,22 +1,24 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
-import { format } from 'date-fns'
-import { Download, FileText, Paperclip, RefreshCw, UserRound } from 'lucide-react'
+import { format, formatDistanceToNow } from 'date-fns'
+import { AlertTriangle, Download, FileText, Paperclip, PenSquare, RefreshCw, Reply, RotateCcw, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { inboxApi } from '@/api/inbox'
+import { inboxApi, type InboxView } from '@/api/inbox'
 import { useAuth } from '@/hooks/useAuth'
 import type { EmailAttachment, EmailMessage, EmailMessageDetail } from '@/types'
-import { Badge, Button, Card, Dialog, EmptyState, PageHeader, Select, Skeleton } from '@/components/hb'
+import { Badge, Button, Card, Dialog, EmptyState, Input, PageHeader, Select, Skeleton, Tabs, Textarea } from '@/components/hb'
 
 /**
- * The caller's own mailbox — never another member's. Their primary by
- * default; an admin with several connected Gmail mailboxes can switch between
- * them. Reading is Gmail-only for now — SMTP has no read protocol.
+ * Resume email from a connected Gmail. Only emails with a PDF/DOC/DOCX
+ * attached are brought in: every one the mailbox ever received, then new ones
+ * every few minutes. Each shows what became of it (candidate created, already
+ * in the system, processing, or needs review), and the mailbox can send and
+ * reply from here through Gmail.
  *
- * Only applications are listed — mail that email ingestion turned into (or
- * matched to) a candidate. The rest of a mailbox is alerts and newsletters.
+ * Personal mailboxes are private to their owner; the company mailboxes an
+ * admin connected are shared with admins and recruiters.
  */
 
 function formatSize(bytes: number): string {
@@ -30,16 +32,47 @@ function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
+function errMsg(err: any, fallback: string) {
+  return err?.response?.data?.detail || err?.response?.data?.message || fallback
+}
+
+const VIEWS: { value: InboxView; label: string }[] = [
+  { value: 'all', label: 'All resumes' },
+  { value: 'candidates', label: 'Became candidates' },
+  { value: 'review', label: 'Failed' },
+  { value: 'processing', label: 'Processing' },
+]
+
+/** What became of an email's resumes, as a badge. */
+function StatusBadge({ message }: { message: EmailMessage }) {
+  const s = message.ingestion_status
+  if (message.candidate_count) {
+    return (
+      <Badge tone="success">
+        {s === 'matched_existing' ? 'Already a candidate' : plural(message.candidate_count, 'candidate')}
+      </Badge>
+    )
+  }
+  if (s === 'skipped_not_resume') return <Badge tone="warning">Not a resume?</Badge>
+  if (s === 'failed') return <Badge tone="error">Failed</Badge>
+  if (s === 'retry_pending') return <Badge tone="warning">Retrying</Badge>
+  return <Badge tone="info">Processing</Badge>
+}
+
+type ComposeState = { replyTo?: EmailMessageDetail } | null
+
 export default function InboxPage() {
   const { basePath } = useAuth()
   const queryClient = useQueryClient()
   const [openMessage, setOpenMessage] = useState<EmailMessage | null>(null)
-  /** One of the caller's own mailboxes; undefined = their primary. */
   const [accountId, setAccountId] = useState<string | undefined>(undefined)
+  const [view, setView] = useState<InboxView>('all')
+  const [compose, setCompose] = useState<ComposeState>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['inbox', accountId ?? 'primary'],
-    queryFn: () => inboxApi.list({ account_id: accountId }).then((r) => r.data),
+    queryKey: ['inbox', accountId ?? 'primary', view],
+    queryFn: () => inboxApi.list({ account_id: accountId, view }).then((r) => r.data),
+    refetchInterval: 60_000,
   })
 
   const detailQuery = useQuery({
@@ -51,32 +84,52 @@ export default function InboxPage() {
   const syncMutation = useMutation({
     mutationFn: () => inboxApi.sync(accountId),
     onSuccess: (res) => {
-      toast.success(
-        res.data.new_count > 0 ? `${res.data.new_count} new message(s)` : 'Inbox is up to date'
-      )
+      const n = res.data.new_count
+      toast.success(n > 0 ? `${plural(n, 'new resume email')} found` : 'Inbox is up to date')
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message || 'Sync failed'),
+    onError: (err: any) => toast.error(errMsg(err, 'Sync failed')),
+  })
+
+  const retryMutation = useMutation({
+    mutationFn: (id: string) => inboxApi.retry(id, accountId),
+    onSuccess: () => {
+      toast.success('Queued. It will be processed again in a few minutes.')
+      setOpenMessage(null)
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+    },
+    onError: (err: any) => toast.error(errMsg(err, 'Could not retry')),
   })
 
   const account = data?.account
   const messages = data?.messages ?? []
+  const counts = data?.counts ?? {}
   const isGmail = account?.provider === 'gmail'
+  const needsReconnect = !!account && !!account.status && account.status !== 'connected'
   const mailboxes = data?.mailboxes ?? []
+  const canUse = isGmail && !needsReconnect
+
+  const subtitle = account
+    ? [
+        account.email_address,
+        account.shared ? 'company mailbox' : 'only you can see this mailbox',
+        account.last_synced_at
+          ? `synced ${formatDistanceToNow(new Date(account.last_synced_at), { addSuffix: true })}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : 'Connect a Gmail in Settings to see the resumes it receives here.'
 
   return (
     <div className="pb-hb-10">
       <PageHeader
         eyebrow="Mail"
         title="Inbox"
-        description={
-          account
-            ? `${account.email_address} — only you can see this mailbox`
-            : 'Connect a mailbox in Settings to see your inbox here.'
-        }
+        description={subtitle}
         actions={
           account && isGmail ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {mailboxes.length > 1 && (
                 <Select
                   aria-label="Mailbox"
@@ -87,7 +140,7 @@ export default function InboxPage() {
                   }}
                   options={mailboxes.map((m) => ({
                     value: m.id,
-                    label: m.is_default ? `${m.email_address} (primary)` : m.email_address,
+                    label: `${m.email_address}${m.shared ? ' (company)' : m.is_default ? ' (primary)' : ''}`,
                   }))}
                   fieldClassName="min-w-[220px]"
                 />
@@ -98,13 +151,45 @@ export default function InboxPage() {
                 icon={<RefreshCw size={15} />}
                 onClick={() => syncMutation.mutate()}
                 loading={syncMutation.isPending}
+                disabled={!canUse}
               >
                 Sync now
+              </Button>
+              <Button size="sm" icon={<PenSquare size={15} />} onClick={() => setCompose({})} disabled={!canUse}>
+                Compose
               </Button>
             </div>
           ) : undefined
         }
       />
+
+      {needsReconnect && isGmail && (
+        <Card className="mb-hb-4 border-hb-warning/40">
+          <div className="flex flex-wrap items-center gap-3">
+            <AlertTriangle size={18} className="text-hb-warning" aria-hidden />
+            <p className="min-w-0 flex-1 text-hb-sm text-hb-text">
+              Google access for <b>{account?.email_address}</b> has expired, so new resumes are not coming in.
+              Reconnect it to continue.
+            </p>
+            <Button size="sm" to={`${basePath}/settings`}>
+              Reconnect in Settings
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {account && isGmail && (
+        <Tabs<InboxView>
+          aria-label="Filter resume emails"
+          value={view}
+          onChange={(v) => {
+            setOpenMessage(null)
+            setView(v)
+          }}
+          className="mb-hb-4"
+          items={VIEWS.map((v) => ({ ...v, count: counts[v.value] }))}
+        />
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -116,7 +201,7 @@ export default function InboxPage() {
         <Card>
           <EmptyState
             title="No mailbox connected"
-            description="Connect your Gmail in Settings to see the applications it receives here. Only you will see it."
+            description="Connect a Gmail in Settings. Resumes it receives after connecting come in here every few minutes."
           />
         </Card>
       ) : !isGmail ? (
@@ -129,14 +214,22 @@ export default function InboxPage() {
       ) : messages.length === 0 ? (
         <Card>
           <EmptyState
-            title="No applications yet"
-            description="Emails with resumes attached show up here once they've been turned into candidates. The mailbox is checked automatically every few minutes."
-            action={{
-              label: 'Sync now',
-              onClick: () => {
-                if (!syncMutation.isPending) syncMutation.mutate()
-              },
-            }}
+            title={view === 'all' ? 'No resume emails yet' : 'Nothing here'}
+            description={
+              view === 'all'
+                ? 'Resumes emailed to this Gmail after it was connected show up here within a few minutes.'
+                : 'No emails in this tab right now.'
+            }
+            action={
+              view === 'all' && canUse
+                ? {
+                    label: 'Sync now',
+                    onClick: () => {
+                      if (!syncMutation.isPending) syncMutation.mutate()
+                    },
+                  }
+                : undefined
+            }
           />
         </Card>
       ) : (
@@ -160,21 +253,18 @@ export default function InboxPage() {
                       </p>
                       {message.received_at && (
                         <span className="shrink-0 text-hb-xs text-hb-dim">
-                          {format(new Date(message.received_at), 'MMM d, h:mm a')}
+                          {format(new Date(message.received_at), 'MMM d, yyyy')}
                         </span>
                       )}
                     </div>
                     <p className={`truncate text-hb-sm ${message.is_read ? 'text-hb-muted' : 'text-hb-text'}`}>
+                      <Paperclip size={12} className="mr-1 inline text-hb-dim" aria-hidden />
                       {message.subject || '(no subject)'}
                     </p>
                     <p className="truncate text-hb-xs text-hb-dim">{message.snippet}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
-                    {!!message.candidate_count && (
-                      <Badge tone="success">{plural(message.candidate_count, 'candidate')}</Badge>
-                    )}
-                    {message.ingestion_status === 'retry_pending' && <Badge tone="warning">Retrying</Badge>}
-                    {!message.is_read && <Badge tone="info">New</Badge>}
+                    <StatusBadge message={message} />
                   </div>
                 </button>
               </li>
@@ -195,13 +285,137 @@ export default function InboxPage() {
             <Skeleton className="h-40 w-full" rounded="md" />
           </div>
         ) : (
-          <MessageDetail detail={detailQuery.data} candidatesPath={`${basePath}/candidates`} accountId={accountId} />
+          <>
+            <div className="mb-hb-4 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                icon={<Reply size={15} />}
+                disabled={!canUse}
+                onClick={() => setCompose({ replyTo: detailQuery.data })}
+              >
+                Reply
+              </Button>
+              {!detailQuery.data.candidates.length &&
+                ['skipped_not_resume', 'failed'].includes(detailQuery.data.ingestion_status || '') && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={<RotateCcw size={15} />}
+                    loading={retryMutation.isPending}
+                    onClick={() => retryMutation.mutate(detailQuery.data!.id)}
+                  >
+                    Try again
+                  </Button>
+                )}
+            </div>
+            <MessageDetail detail={detailQuery.data} candidatesPath={`${basePath}/candidates`} accountId={accountId} />
+          </>
         )}
       </Dialog>
+
+      <ComposeDialog
+        state={compose}
+        fromAddress={account?.email_address}
+        accountId={accountId}
+        onClose={() => setCompose(null)}
+      />
     </div>
   )
 }
 
+const splitAddresses = (v: string) =>
+  v
+    .split(/[,;\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+
+/** New email or reply, sent through the connected Gmail. */
+function ComposeDialog({
+  state,
+  fromAddress,
+  accountId,
+  onClose,
+}: {
+  state: ComposeState
+  fromAddress?: string
+  accountId?: string
+  onClose: () => void
+}) {
+  const reply = state?.replyTo
+  const [to, setTo] = useState('')
+  const [cc, setCc] = useState('')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [openedFor, setOpenedFor] = useState<ComposeState>(null)
+
+  // Fill the form each time the dialog opens (fresh, or for a reply).
+  if (state && state !== openedFor) {
+    setOpenedFor(state)
+    setTo(reply ? reply.reply_to || reply.from_address || '' : '')
+    setCc('')
+    const s = reply?.subject || ''
+    setSubject(reply ? (/^re:/i.test(s) ? s : `Re: ${s}`) : '')
+    setBody('')
+  }
+  if (!state && openedFor) setOpenedFor(null)
+
+  const send = useMutation({
+    mutationFn: () =>
+      inboxApi.send(
+        {
+          to: splitAddresses(to),
+          cc: splitAddresses(cc),
+          subject: subject.trim(),
+          body,
+          reply_to_message_id: reply?.id,
+        },
+        accountId
+      ),
+    onSuccess: () => {
+      toast.success(`Sent from ${fromAddress}`)
+      onClose()
+    },
+    onError: (err: any) => toast.error(errMsg(err, 'Could not send')),
+  })
+
+  const ready = splitAddresses(to).length > 0 && !!subject.trim() && !!body.trim()
+
+  return (
+    <Dialog
+      open={!!state}
+      onClose={onClose}
+      title={reply ? 'Reply' : 'New email'}
+      description={fromAddress ? `From ${fromAddress}. It also appears in this Gmail's Sent folder.` : undefined}
+      size="lg"
+    >
+      <div className="space-y-hb-3">
+        <Input
+          label="To"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          placeholder="name@company.com, another@company.com"
+        />
+        <Input label="Cc" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Optional" />
+        <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+        <Textarea
+          label="Message"
+          rows={10}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={reply ? 'Write your reply…' : 'Write your email…'}
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => send.mutate()} loading={send.isPending} disabled={!ready}>
+            Send
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
 
 function MessageDetail({
   detail,

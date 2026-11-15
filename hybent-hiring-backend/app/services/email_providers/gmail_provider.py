@@ -195,6 +195,88 @@ def _parse_from_header(value: str | None) -> tuple[str | None, str | None]:
     return None, value.strip()
 
 
+# Received mail with a PDF / Word document attached: the resume search. Sent
+# mail, drafts and chats are left out; spam and bin are excluded by Gmail.
+RESUME_QUERY = "has:attachment (filename:pdf OR filename:doc OR filename:docx) -in:sent -in:drafts -in:chats"
+
+
+def search_message_ids(
+    account: EmailAccount, query: str, page_token: str | None = None, max_results: int = 100
+) -> tuple[list[str], str | None]:
+    """One page of message ids matching a Gmail search, newest first, and the
+    token for the next (older) page — None when there are no more."""
+    params = {"q": query, "maxResults": max_results}
+    if page_token:
+        params["pageToken"] = page_token
+    response = _gmail_get(
+        account, f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages",
+        params=params, timeout=15,
+    )
+    if response.status_code >= 400:
+        raise ValueError(f"Gmail API search failed: {response.text}")
+    body = response.json()
+    return [m["id"] for m in body.get("messages", [])], body.get("nextPageToken")
+
+
+def get_message_metadata(account: EmailAccount, message_id: str) -> dict | None:
+    """From, To, subject, snippet and date of one message (no body); None if
+    Gmail won't return it."""
+    response = _gmail_get(
+        account, f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages/{message_id}",
+        params={"format": "metadata", "metadataHeaders": ["From", "Subject", "To", "Message-ID", "References"]},
+        timeout=10,
+    )
+    if response.status_code >= 400:
+        return None
+    detail = response.json()
+    headers = detail.get("payload", {}).get("headers", [])
+    from_name, from_address = _parse_from_header(_header(headers, "From"))
+    return {
+        "provider_message_id": detail["id"],
+        "thread_id": detail.get("threadId"),
+        "from_name": from_name,
+        "from_address": from_address,
+        "to_address": _header(headers, "To"),
+        "subject": _header(headers, "Subject"),
+        "snippet": detail.get("snippet"),
+        "received_at_ms": int(detail.get("internalDate", "0")),
+        "message_id_header": _header(headers, "Message-ID"),
+        "references": _header(headers, "References"),
+    }
+
+
+def send_message(
+    account: EmailAccount, to: list[str], subject: str, html_body: str, cc: list[str] | None = None,
+    thread_id: str | None = None, in_reply_to: str | None = None, references: str | None = None,
+) -> dict:
+    """Send from this mailbox through the Gmail API. With `thread_id` and
+    `in_reply_to` it is a reply and lands in the same conversation in Gmail.
+    Returns Gmail's {id, threadId}; the message also appears in Gmail's Sent."""
+    mime = MIMEText(html_body, "html", "utf-8")
+    mime["to"] = ", ".join(to)
+    if cc:
+        mime["cc"] = ", ".join(cc)
+    mime["from"] = (
+        f"{account.display_name} <{account.email_address}>" if account.display_name else account.email_address
+    )
+    mime["subject"] = subject
+    if in_reply_to:
+        mime["In-Reply-To"] = in_reply_to
+        mime["References"] = f"{references} {in_reply_to}".strip() if references else in_reply_to
+    payload = {"raw": base64.urlsafe_b64encode(mime.as_bytes()).decode("utf-8")}
+    if thread_id:
+        payload["threadId"] = thread_id
+    url = f"https://gmail.googleapis.com/gmail/v1/users/{account.email_address}/messages/send"
+    refresh_token = crypto.decrypt(account.refresh_token_encrypted) if account.refresh_token_encrypted else None
+    response = httpx.post(url, headers={"Authorization": f"Bearer {_get_access_token(account)}"}, json=payload, timeout=20)
+    if response.status_code == 401 and refresh_token:
+        _forget_access_token(refresh_token)
+        response = httpx.post(url, headers={"Authorization": f"Bearer {_get_access_token(account)}"}, json=payload, timeout=20)
+    if response.status_code >= 400:
+        raise ValueError(f"Gmail API send failed: {response.text[:300]}")
+    return response.json()
+
+
 def list_recent_messages(account: EmailAccount, max_results: int = 30) -> list[dict]:
     """Inbox message metadata (id, threadId, from, subject, snippet, received_at) —
     no bodies, kept cheap for periodic syncing."""

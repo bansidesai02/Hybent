@@ -168,6 +168,18 @@ export function CandidateProfileView({
         </div>
       </header>
 
+      {(candidate.score_breakdown?.criteria_failed?.length ?? 0) > 0 && (
+        <div role="note" className="mb-hb-4 rounded-hb-md border border-hb-error/25 bg-hb-error/8 p-3 text-hb-sm text-hb-text">
+          <p className="font-semibold text-hb-error">Rejected: doesn't meet the job criteria</p>
+          <ul className="mt-1 list-disc pl-5">
+            {candidate.score_breakdown!.criteria_failed!.map((r: string) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+          <p className="mt-1 text-hb-xs text-hb-muted">The match score above is the profile's real fit; it isn't lowered for this.</p>
+        </div>
+      )}
+
       <Tabs items={tabs} value={tab} onChange={setTab} aria-label="Candidate profile sections" />
 
       <TabPanel value="details" active={tab === 'details'}>

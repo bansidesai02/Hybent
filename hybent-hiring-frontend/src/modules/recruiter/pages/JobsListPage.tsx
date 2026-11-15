@@ -78,7 +78,8 @@ const EXPERIENCE_LABEL: Record<string, string> = {
 function experienceDisplay(job: Job) {
   const parts: string[] = []
   if (job.min_experience_years != null && job.min_experience_years > 0) {
-    parts.push(`${job.min_experience_years}+ years`)
+    const max = (job as { max_experience_years?: number | null }).max_experience_years
+    parts.push(max && max >= job.min_experience_years ? `${job.min_experience_years}-${max} years` : `${job.min_experience_years}+ years`)
   }
   if (job.experience_level) {
     const key = job.experience_level.toLowerCase().trim()

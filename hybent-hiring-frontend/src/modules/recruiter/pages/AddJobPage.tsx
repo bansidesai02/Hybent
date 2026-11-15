@@ -49,6 +49,8 @@ const schema = z.object({
   job_type: z.string().default('full_time'),
   experience_level: z.string().optional(),
   min_experience_years: z.coerce.number().min(0).optional(),
+  /* 0 / empty = no upper limit. Candidates outside min–max are rejected at screening. */
+  max_experience_years: z.coerce.number().min(0).optional(),
   is_remote: z.boolean().default(false),
   openings: z.coerce.number().int().min(1).default(1),
   status: z.enum(['draft', 'active', 'paused', 'closed']).default('active'),
@@ -72,7 +74,8 @@ const LEVEL_LABEL: Record<string, string> = Object.fromEntries(
 function experienceDisplay(job: Job) {
   const parts: string[] = []
   if (job.min_experience_years != null && job.min_experience_years > 0) {
-    parts.push(`${job.min_experience_years}+ years`)
+    const max = (job as { max_experience_years?: number | null }).max_experience_years
+    parts.push(max && max >= job.min_experience_years ? `${job.min_experience_years}-${max} years` : `${job.min_experience_years}+ years`)
   }
   if (job.experience_level) {
     const key = job.experience_level.toLowerCase().trim()
@@ -141,6 +144,7 @@ export default function AddJobPage() {
       skills_required: [],
       job_type: 'full_time',
       min_experience_years: 0,
+      max_experience_years: 0,
     },
   })
 
@@ -171,6 +175,7 @@ export default function AddJobPage() {
       job_type: jobData.job_type,
       experience_level: jobData.experience_level || '',
       min_experience_years: (jobData as any).min_experience_years ?? 0,
+      max_experience_years: (jobData as any).max_experience_years ?? 0,
       jd_url: jobData.jd_url,
       jd_filename: jobData.jd_filename,
     })
@@ -480,6 +485,14 @@ export default function AddJobPage() {
                 min="0"
                 placeholder="3"
                 {...register('min_experience_years')}
+              />
+              <Input
+                label="Maximum experience (years)"
+                type="number"
+                min="0"
+                placeholder="No limit"
+                description="Candidates outside this range are rejected at screening, with the reason. Leave 0 for no limit."
+                {...register('max_experience_years')}
               />
               <Controller
                 name="experience_level"

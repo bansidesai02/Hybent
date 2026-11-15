@@ -24,6 +24,8 @@ class Job(Base):
     job_type: Mapped[str] = mapped_column(String(50), default="full_time")  # full_time, part_time, contract, remote
     experience_level: Mapped[str | None] = mapped_column(String(50))  # junior, mid, senior, lead
     min_experience_years: Mapped[int | None] = mapped_column(Integer, default=0)
+    # Above this is outside the range too (job_criteria). None = no upper limit.
+    max_experience_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     requirements: Mapped[str | None] = mapped_column(Text)
     responsibilities: Mapped[str | None] = mapped_column(Text)
