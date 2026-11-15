@@ -147,6 +147,27 @@ _AUTOMATED_SENDER = re.compile(
 )
 
 
+# Subjects/filenames of mail that is never an application.
+_NOT_AN_APPLICATION = re.compile(
+    r"\b(statement|bill|invoice|receipt|balance|securities|funds|contract note|e-?bill|payment|"
+    r"transaction|account summary|tax|gst|order|policy|premium|otp|ledger|portfolio|tickets?|booking|accepted|declined|invitation|updated invitation|reminder)\b",
+    re.IGNORECASE,
+)
+_AUTOMATED_SENDER_EXTRA = re.compile(r"(^|[._-])(e?bill|alerts?|statements?|noreply|no-reply)([._-]|@)", re.IGNORECASE)
+
+
+def _is_obviously_not_an_application(filename: str, subject: str | None, from_address: str | None) -> bool:
+    """Bank/broker statements, bills and alerts: skipped before any parse, so
+    they never become (or match) a candidate."""
+    if from_address and (_AUTOMATED_SENDER.search(from_address) or _AUTOMATED_SENDER_EXTRA.search(from_address)):
+        return True
+    # Calendar replies/invites ("Accepted: Interview @ ...") are never a resume.
+    if re.match(r"\s*(accepted|declined|tentative|invitation|updated invitation|canceled event|cancelled event)\b", subject or "", re.IGNORECASE):
+        return True
+    text = f"{subject or ''} {re.sub(r'[_.-]+', ' ', filename or '')}"
+    return bool(_NOT_AN_APPLICATION.search(text)) and not _APPLICATION_WORDS.search(text)
+
+
 def _looks_like_an_application(filename: str, subject: str | None, body: str | None, from_address: str | None) -> bool:
     """Whether an unreadable attachment is plausibly a resume someone sent in:
     the file is named like one, or the email reads like an application —
@@ -563,6 +584,10 @@ class EmailApplicationIngestionService:
         # The real sender, kept for judging unreadable files even when the
         # headers below stop standing in for the applicant.
         sender_address = from_address
+
+        if _is_obviously_not_an_application(filename, message.subject, sender_address):
+            logger.info(f"[ingest] msg={message.id}   {filename}: statement/bill/alert — not a resume")
+            return None, EmailIngestionStatus.SKIPPED_NOT_RESUME
 
         # With several resumes the sender is not the applicant — only their
         # own resumes identify them.

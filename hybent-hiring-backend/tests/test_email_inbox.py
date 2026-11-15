@@ -84,6 +84,14 @@ def test_get_message_full_extracts_html_and_text_parts():
     assert body["body_html"] == "<p>Hi</p>"
 
 
+def _meta(pid):
+    return {
+        "provider_message_id": pid, "thread_id": f"t-{pid}", "from_name": "Jane",
+        "from_address": "jane@acme.com", "to_address": "me@acme.com",
+        "subject": f"Resume {pid}", "snippet": "snippet", "received_at_ms": 1700000000000,
+    }
+
+
 async def test_sync_account_dedupes_by_provider_message_id(db_session, organization):
     account = EmailAccount(
         organization_id=organization.id,
@@ -95,16 +103,10 @@ async def test_sync_account_dedupes_by_provider_message_id(db_session, organizat
     await db_session.commit()
     await db_session.refresh(account)
 
-    fake_messages = [
-        {
-            "provider_message_id": "m1", "thread_id": "t1", "from_name": "Jane",
-            "from_address": "jane@acme.com", "to_address": "me@acme.com",
-            "subject": "Hi", "snippet": "snippet", "received_at_ms": 1700000000000,
-        }
-    ]
     service = EmailInboxService(db_session)
 
-    with patch("app.services.email_providers.gmail_provider.list_recent_messages", return_value=fake_messages):
+    with patch("app.services.email_providers.gmail_provider.search_message_ids", return_value=(["m1"], None)), \
+         patch("app.services.email_providers.gmail_provider.get_message_metadata", side_effect=lambda acc, pid: _meta(pid)):
         first_count = await service.sync_account(account)
         second_count = await service.sync_account(account)  # same message again
 
@@ -112,7 +114,37 @@ async def test_sync_account_dedupes_by_provider_message_id(db_session, organizat
     assert second_count == 0
     messages = await service.list_messages(account.id)
     assert len(messages) == 1
+    assert messages[0].has_attachments is True
 
+
+async def test_sync_only_brings_in_resumes_received_after_connecting(db_session, organization):
+    """Only resume emails that arrived after the mailbox was connected come in;
+    older mail (statements, bills, old threads) never does."""
+    from app.services.email_providers import gmail_provider
+
+    account = EmailAccount(
+        organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
+        email_address="hr@acme.com", refresh_token_encrypted=crypto.encrypt("rt"),
+    )
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+
+    pages = {None: (["n1", "n2"], "p2"), "p2": (["n3"], None)}
+    queries = []
+
+    def search(acc, query, page_token=None, max_results=100):
+        queries.append(query)
+        return pages[page_token]
+
+    service = EmailInboxService(db_session)
+    with patch.object(gmail_provider, "search_message_ids", side_effect=search), \
+         patch.object(gmail_provider, "get_message_metadata", side_effect=lambda acc, pid: _meta(pid)):
+        assert await service.sync_account(account, history_pages=5) == 3
+        assert await service.sync_account(account) == 0
+
+    after = f"after:{int(account.created_at.timestamp())}"
+    assert queries and all(q == f"{gmail_provider.RESUME_QUERY} {after}" for q in queries)
 
 async def test_sync_account_skips_non_gmail_providers(db_session, organization):
     account = EmailAccount(

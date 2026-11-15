@@ -8,12 +8,12 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.candidate import Candidate
 from app.models.email_account import EmailAccount, EmailAccountProvider
-from app.models.email_message import EmailMessage
+from app.models.email_message import EmailIngestionStatus, EmailMessage
 from app.repositories.email_message import EmailMessageRepository
 from app.services.email_providers import gmail_provider
 
@@ -29,23 +29,75 @@ class EmailInboxService:
         self.db = db
         self.repo = EmailMessageRepository(db)
 
-    async def sync_account(self, account: EmailAccount) -> int:
-        """Fetch recent inbox metadata and store anything not already synced.
-        Returns how many new messages were added."""
+    async def sync_account(self, account: EmailAccount, history_pages: int = 1) -> int:
+        """Bring in emails that have a resume (PDF/DOC/DOCX) attached — never
+        the rest of the mailbox. Each run takes the newest ones, plus
+        `history_pages` pages of older ones until every resume the mailbox
+        ever received is in. Returns how many new messages were added."""
         if not _supports_inbox(account):
             return 0
 
-        messages = gmail_provider.list_recent_messages(account, max_results=30)
+        # Only resumes that arrived after this mailbox was connected — older
+        # mail (statements, bills, old threads) is never brought in.
+        query = f"{gmail_provider.RESUME_QUERY} after:{int(account.created_at.timestamp())}"
         new_count = 0
-        for msg in messages:
-            existing = await self.repo.get_by_provider_id(account.id, msg["provider_message_id"])
-            if existing is not None:
+        token = None
+        for _ in range(max(1, history_pages)):
+            ids, token = gmail_provider.search_message_ids(account, query, page_token=token, max_results=100)
+            new_count += await self._store(account, ids)
+            if not token:
+                break
+        account.resume_backfill_done = True
+        await self._hide_non_applications(account)
+        account.last_synced_at = datetime.now(timezone.utc)
+        self.db.add(account)
+        await self.db.commit()
+        return new_count
+
+    async def _hide_non_applications(self, account: EmailAccount) -> None:
+        """Statements, bills and alerts brought in before they were filtered:
+        mark them not-a-resume and unlink any candidate they were matched to,
+        so they leave the Inbox and are never processed."""
+        from app.services.email_ingestion_service import _is_obviously_not_an_application
+        rows = (await self.db.execute(
+            select(EmailMessage).where(
+                EmailMessage.email_account_id == account.id,
+                func.coalesce(EmailMessage.ingestion_status, "") != EmailIngestionStatus.SKIPPED_NOT_RESUME,
+            )
+        )).scalars().all()
+        for m in rows:
+            if _is_obviously_not_an_application("", m.subject, m.from_address):
+                m.ingestion_status = EmailIngestionStatus.SKIPPED_NOT_RESUME
+                m.ingestion_result_candidate_id = None
+                m.ingestion_error = None
+                m.ingestion_locked_at = None
+
+    async def _store(self, account: EmailAccount, provider_ids: list[str]) -> int:
+        """Save the metadata of the ones not saved yet."""
+        from app.services.email_ingestion_service import _is_obviously_not_an_application
+        if not provider_ids:
+            return 0
+        known = set((await self.db.execute(
+            select(EmailMessage.provider_message_id).where(
+                EmailMessage.email_account_id == account.id,
+                EmailMessage.provider_message_id.in_(provider_ids),
+            )
+        )).scalars())
+        new_count = 0
+        for provider_id in provider_ids:
+            if provider_id in known:
+                continue
+            msg = gmail_provider.get_message_metadata(account, provider_id)
+            if msg is None:
                 continue
             received_at = (
                 datetime.fromtimestamp(msg["received_at_ms"] / 1000, tz=timezone.utc)
                 if msg.get("received_at_ms")
                 else None
             )
+            # Statements, bills and alerts are kept only as "seen" (so they
+            # are not fetched again) and never shown or processed.
+            junk = _is_obviously_not_an_application("", msg.get("subject"), msg.get("from_address"))
             email_message = EmailMessage(
                 organization_id=account.organization_id,
                 email_account_id=account.id,
@@ -57,11 +109,14 @@ class EmailInboxService:
                 subject=msg.get("subject"),
                 snippet=msg.get("snippet"),
                 received_at=received_at,
+                # Found by the resume search, so it has a document attached.
+                has_attachments=True,
+                ingestion_status=EmailIngestionStatus.SKIPPED_NOT_RESUME if junk else None,
             )
             self.db.add(email_message)
             new_count += 1
         if new_count:
-            await self.db.commit()
+            await self.db.flush()
         return new_count
 
     async def list_messages(

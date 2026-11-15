@@ -95,6 +95,10 @@ class EmailAccount(Base):
     use_tls: Mapped[bool] = mapped_column(Boolean, default=True)
 
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Bringing in every resume this mailbox ever received, one page per sync:
+    # the Gmail page token to continue from, and whether it reached the oldest.
+    resume_backfill_token: Mapped[str | None] = mapped_column(Text)
+    resume_backfill_done: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     last_error: Mapped[str | None] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(

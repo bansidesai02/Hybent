@@ -1,4 +1,5 @@
 """Inbox API: role-based account resolution, sync, and message detail."""
+from datetime import datetime as _dt, timezone as _tz
 from unittest.mock import patch
 
 from app.utils import crypto
@@ -12,6 +13,8 @@ SMTP_PAYLOAD = {
     "smtp_password": "app-password",
     "use_tls": True,
 }
+
+CONNECTED_LONG_AGO = _dt(2020, 1, 1, tzinfo=_tz.utc)
 
 
 async def test_inbox_empty_when_nothing_connected(client, recruiter_headers):
@@ -55,26 +58,30 @@ async def test_sync_and_list_gmail_inbox(client, admin_headers, db_session, orga
     from app.models.email_account import EmailAccount, EmailAccountProvider
 
     account = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
         email_address="gmail@acme.com", is_default=True, connected_by_user_id=admin_user.id,
         refresh_token_encrypted=crypto.encrypt("refresh-token"),
     )
     db_session.add(account)
     await db_session.commit()
 
-    fake_messages = [{
+    fake = {
         "provider_message_id": "m1", "thread_id": "t1", "from_name": "Jane",
         "from_address": "jane@acme.com", "to_address": "gmail@acme.com",
         "subject": "Hello", "snippet": "Hi there", "received_at_ms": 1700000000000,
-    }]
-    with patch("app.services.email_providers.gmail_provider.list_recent_messages", return_value=fake_messages):
+    }
+    with patch("app.services.email_providers.gmail_provider.search_message_ids", return_value=(["m1"], None)), \
+         patch("app.services.email_providers.gmail_provider.get_message_metadata", return_value=fake):
         sync_response = await client.post("/v1/inbox/sync", headers=admin_headers)
     assert sync_response.status_code == 200
     assert sync_response.json()["data"]["new_count"] == 1
+    assert sync_response.json()["data"]["history_done"] is True
 
-    # Synced, but not a resume application — the Inbox only lists those.
-    list_response = await client.get("/v1/inbox", headers=admin_headers)
-    assert list_response.json()["data"]["messages"] == []
+    # A resume email waiting to be processed is listed (tab "Processing"), not hidden.
+    data = (await client.get("/v1/inbox", headers=admin_headers)).json()["data"]
+    assert [m["subject"] for m in data["messages"]] == ["Hello"]
+    assert data["counts"] == {"all": 1, "candidates": 0, "review": 0, "processing": 1}
+    assert data["account"]["history_done"] is True and data["account"]["last_synced_at"]
 
     from sqlalchemy import select
     from app.models.candidate import Candidate
@@ -87,7 +94,7 @@ async def test_sync_and_list_gmail_inbox(client, admin_headers, db_session, orga
     ))
     await db_session.commit()
 
-    list_response = await client.get("/v1/inbox", headers=admin_headers)
+    list_response = await client.get("/v1/inbox", params={"view": "candidates"}, headers=admin_headers)
     messages = list_response.json()["data"]["messages"]
     assert len(messages) == 1
     assert messages[0]["subject"] == "Hello"
@@ -100,7 +107,7 @@ async def test_get_message_detail_fetches_body(client, admin_headers, db_session
     from app.models.email_message import EmailMessage
 
     account = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
         email_address="gmail@acme.com", is_default=True, connected_by_user_id=admin_user.id,
         refresh_token_encrypted=crypto.encrypt("refresh-token"),
     )
@@ -134,7 +141,7 @@ async def test_message_detail_has_headers_attachments_and_candidates(client, adm
     from app.models.email_message import EmailIngestionStatus, EmailMessage
 
     account = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL,
         email_address="gmail@acme.com", is_default=True, connected_by_user_id=admin_user.id,
         refresh_token_encrypted=crypto.encrypt("refresh-token"),
     )
@@ -184,16 +191,54 @@ async def test_message_detail_has_headers_attachments_and_candidates(client, adm
     assert missing.status_code == 404
 
 
-async def test_another_admins_inbox_is_private(client, db_session, organization, admin_user, second_admin_user):
-    """Two admins, one mailbox: only its owner sees it, lists it or opens its
+async def test_company_mailbox_is_shared_and_personal_one_is_private(
+    client, db_session, organization, admin_user, second_admin_user, recruiter_user, second_recruiter_user
+):
+    """A mailbox an admin connected (company scope) is read by every admin and
+    recruiter; a recruiter's personal one stays theirs alone."""
+    from app.models.email_account import EmailAccount, EmailAccountProvider, EmailAccountScope
+    from tests.conftest import auth_headers
+
+    company = EmailAccount(
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="hr@acme.com",
+        is_default=True, connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+        scope=EmailAccountScope.ORGANIZATION,
+    )
+    personal = EmailAccount(
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="neha@acme.com",
+        is_default=True, connected_by_user_id=recruiter_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+        scope=EmailAccountScope.PERSONAL,
+    )
+    db_session.add_all([company, personal])
+    await db_session.commit()
+
+    other_admin = (await client.get("/v1/inbox", headers=auth_headers(second_admin_user))).json()["data"]
+    assert other_admin["account"]["email_address"] == "hr@acme.com" and other_admin["account"]["shared"] is True
+    assert [m["email_address"] for m in other_admin["mailboxes"]] == ["hr@acme.com"]
+
+    owner = (await client.get("/v1/inbox", headers=auth_headers(recruiter_user))).json()["data"]
+    assert owner["account"]["email_address"] == "neha@acme.com"            # own first
+    assert sorted(m["email_address"] for m in owner["mailboxes"]) == ["hr@acme.com", "neha@acme.com"]
+
+    other_recruiter = (await client.get("/v1/inbox", headers=auth_headers(second_recruiter_user))).json()["data"]
+    assert other_recruiter["account"]["email_address"] == "hr@acme.com"
+    asked = (await client.get("/v1/inbox", params={"account_id": str(personal.id)},
+                              headers=auth_headers(second_recruiter_user))).json()["data"]
+    assert asked["account"] is None
+
+
+async def test_personal_mailbox_messages_stay_private(client, db_session, organization, recruiter_user, second_recruiter_user):
+    """A recruiter's personal mailbox: nobody else lists it or opens its
     messages — even when asking for it by id."""
     from app.models.email_account import EmailAccount, EmailAccountProvider
     from app.models.email_message import EmailIngestionStatus, EmailMessage
     from tests.conftest import auth_headers
 
+    from app.models.email_account import EmailAccountScope
     account = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="owner@acme.com",
-        is_default=True, connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="owner@acme.com",
+        is_default=True, connected_by_user_id=recruiter_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
+        scope=EmailAccountScope.PERSONAL,
     )
     db_session.add(account)
     await db_session.commit()
@@ -206,7 +251,7 @@ async def test_another_admins_inbox_is_private(client, db_session, organization,
     await db_session.commit()
     await db_session.refresh(message)
 
-    owner, other = auth_headers(admin_user), auth_headers(second_admin_user)
+    owner, other = auth_headers(recruiter_user), auth_headers(second_recruiter_user)
 
     assert (await client.get("/v1/inbox", headers=owner)).json()["data"]["account"]["id"] == str(account.id)
     other_view = (await client.get("/v1/inbox", headers=other)).json()["data"]
@@ -221,11 +266,11 @@ async def test_admin_can_switch_between_their_own_mailboxes(client, db_session, 
     from app.models.email_account import EmailAccount, EmailAccountProvider
 
     first = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="one@acme.com",
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="one@acme.com",
         is_default=True, connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
     )
     second = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="two@acme.com",
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="two@acme.com",
         connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
     )
     db_session.add_all([first, second])
@@ -249,7 +294,7 @@ async def test_partly_processed_email_still_shows_with_per_file_outcomes(
     from app.models.email_message import EmailIngestionStatus, EmailMessage
 
     account = EmailAccount(
-        organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="me@acme.com",
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="me@acme.com",
         is_default=True, connected_by_user_id=admin_user.id, refresh_token_encrypted=crypto.encrypt("rt"),
     )
     db_session.add(account)
@@ -284,3 +329,80 @@ async def test_partly_processed_email_still_shows_with_per_file_outcomes(
         ("scan.pdf", None, "Waiting to retry — AI parsing temporarily failed"),
         ("invoice.pdf", None, "Not a resume"),
     ]
+
+
+async def _gmail_with_message(db_session, organization, owner, **message_fields):
+    from app.models.email_account import EmailAccount, EmailAccountProvider
+    from app.models.email_message import EmailMessage
+
+    account = EmailAccount(
+        created_at=CONNECTED_LONG_AGO, organization_id=organization.id, provider=EmailAccountProvider.GMAIL, email_address="hr@acme.com",
+        display_name="Acme HR", is_default=True, connected_by_user_id=owner.id,
+        refresh_token_encrypted=crypto.encrypt("rt"),
+    )
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    message = EmailMessage(organization_id=organization.id, email_account_id=account.id,
+                           provider_message_id="g1", thread_id="th1", subject="My resume", **message_fields)
+    db_session.add(message)
+    await db_session.commit()
+    await db_session.refresh(message)
+    return account, message
+
+
+async def test_send_and_reply_from_the_inbox(client, db_session, organization, admin_user, admin_headers):
+    account, message = await _gmail_with_message(db_session, organization, admin_user, has_attachments=True)
+    sent = []
+
+    def fake_send(acc, to, subject, html_body, cc=None, thread_id=None, in_reply_to=None, references=None):
+        sent.append(dict(to=to, subject=subject, body=html_body, cc=cc, thread_id=thread_id, in_reply_to=in_reply_to))
+        return {"id": "x", "threadId": thread_id or "new"}
+
+    meta = {"message_id_header": "<abc@mail.gmail.com>", "references": None}
+    with patch("app.services.email_providers.gmail_provider.send_message", side_effect=fake_send), \
+         patch("app.services.email_providers.gmail_provider.get_message_metadata", return_value=meta):
+        new = await client.post("/v1/inbox/send", headers=admin_headers, json={
+            "to": ["jane@x.com"], "subject": "Interview", "body": "Hi Jane,\n<b>Thursday</b> works?",
+        })
+        reply = await client.post("/v1/inbox/send", headers=admin_headers, json={
+            "to": ["jane@x.com"], "cc": ["boss@acme.com"], "subject": "Re: My resume", "body": "Thanks!",
+            "reply_to_message_id": str(message.id),
+        })
+        bad = await client.post("/v1/inbox/send", headers=admin_headers, json={"to": ["not-an-email"], "subject": "x", "body": "y"})
+
+    assert new.status_code == 200, new.text and "hr@acme.com" in new.json()["message"]
+    assert sent[0]["thread_id"] is None and sent[0]["to"] == ["jane@x.com"]
+    assert "&lt;b&gt;Thursday&lt;/b&gt;" in sent[0]["body"] and "<br>" in sent[0]["body"]   # escaped, line breaks kept
+    assert reply.status_code == 200
+    assert sent[1]["thread_id"] == "th1" and sent[1]["in_reply_to"] == "<abc@mail.gmail.com>"
+    assert sent[1]["cc"] == ["boss@acme.com"]
+    assert bad.status_code == 422
+
+
+async def test_send_needs_a_connected_gmail(client, db_session, organization, admin_user, admin_headers):
+    account, _ = await _gmail_with_message(db_session, organization, admin_user)
+    account.status = "reauth_required"
+    await db_session.commit()
+    r = await client.post("/v1/inbox/send", headers=admin_headers, json={"to": ["a@x.com"], "subject": "s", "body": "b"})
+    assert r.status_code == 409
+
+
+async def test_failed_resume_is_listed_for_review_and_can_be_retried(
+    client, db_session, organization, admin_user, admin_headers
+):
+    from app.models.email_message import EmailIngestionStatus
+
+    _, message = await _gmail_with_message(
+        db_session, organization, admin_user, has_attachments=True, ingestion_attempts=3,
+        ingestion_status=EmailIngestionStatus.FAILED, ingestion_error="cv.pdf\tCould not read it",
+    )
+    data = (await client.get("/v1/inbox", params={"view": "review"}, headers=admin_headers)).json()["data"]
+    assert [m["subject"] for m in data["messages"]] == ["My resume"]
+
+    r = await client.post(f"/v1/inbox/{message.id}/retry", headers=admin_headers)
+    assert r.status_code == 200
+    await db_session.refresh(message)
+    assert message.ingestion_status is None and message.ingestion_attempts == 0 and message.ingestion_error is None
+    data = (await client.get("/v1/inbox", params={"view": "processing"}, headers=admin_headers)).json()["data"]
+    assert [m["subject"] for m in data["messages"]] == ["My resume"]
