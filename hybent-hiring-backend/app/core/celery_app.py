@@ -12,7 +12,7 @@ celery_app = Celery(
     "hybent_hiring_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening", "app.tasks.chat_retention", "app.tasks.trials", "app.tasks.demos", "app.tasks.operations"]
+    include=["app.tasks.notifications", "app.tasks.email_accounts", "app.tasks.email_inbox", "app.tasks.email_ingestion", "app.tasks.screening", "app.tasks.chat_retention", "app.tasks.trials", "app.tasks.demos", "app.tasks.operations", "app.tasks.sms"]
 )
 
 celery_app.conf.update(
@@ -29,6 +29,11 @@ celery_app.conf.update(
 
 # Configure periodic tasks (Beat Schedule)
 celery_app.conf.beat_schedule = {
+    # SMS reminders 1 day and 1 hour before interviews.
+    "sms-interview-reminders": {
+        "task": "app.tasks.sms.send_interview_sms_reminders",
+        "schedule": crontab(minute="*/5"),
+    },
     # Check for missing interview feedback every 5 minutes
     "check-missing-feedback": {
         "task": "app.tasks.notifications.check_pending_feedback",

@@ -169,6 +169,8 @@ async def send_offer(offer_id: uuid.UUID, current_user: RecruiterUser, db: DB):
 
     offer.status = OfferStatus.SENT
     offer.sent_at = datetime.now(timezone.utc)
+    from app.tasks.sms import sms_offer_sent
+    sms_offer_sent.delay(str(offer.id))
     
     await log_activity(
         db,

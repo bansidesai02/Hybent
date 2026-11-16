@@ -130,6 +130,18 @@ class Settings(BaseSettings):
     # mail as" alias), or the provider rewrites the From.
     email_from_address: str = "info@hybent.com"
     resend_api_key: str = ""
+    # SMS. Provider "android" = your own Android phone running the free
+    # "SMS Gateway for Android" app (sms-gate.app), sending from its SIM;
+    # "msg91" = MSG91 with DLT templates. Without credentials: test mode
+    # (messages are logged, not sent).
+    sms_provider: str = "android"
+    android_sms_url: str = "https://api.sms-gate.app/3rdparty/v1/message"
+    android_sms_username: str = ""
+    android_sms_password: str = ""
+    # A personal SIM gets blocked when it sends a lot: cap per company per day.
+    sms_daily_limit: int = 50
+    msg91_auth_key: str = ""
+    msg91_sender_id: str = "HYBENT"
 
     # ── Google Calendar ────────────────────────────────────────────────────────
     google_client_id: str = ""

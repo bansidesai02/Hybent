@@ -105,6 +105,8 @@ async def _send_feedback_reminder_async(interview_id: str, user_id: str, org_id:
         db.add(notification)
         await db.commit()
         logger.info(f"Feedback reminder notification saved to DB for user {user_id} (Interview: {interview_id})")
+        from app.tasks.sms import sms_feedback_reminder
+        sms_feedback_reminder.delay(interview_id, user_id)
         await push_service.push_notification(db, user_id, notification.title, notification.message, notification.data, tag=str(notification.id))
 
 @celery_app.task
@@ -245,7 +247,12 @@ async def _notify_interview_team_async(interview_id: str, type: str, title: str,
             return
             
         org_id = str(interview.organization_id)
-        
+
+        from app.utils.permissions import NotificationType
+        if type == NotificationType.INTERVIEW_SCHEDULED:
+            from app.tasks.sms import sms_interview_scheduled
+            sms_interview_scheduled.delay(interview_id)
+
         # 1. Notify Admins and Recruiters
         query_staff = select(User.id).where(
             User.organization_id == interview.organization_id,
@@ -365,6 +372,9 @@ def notify_candidate_stage_change(user_id: str | None, candidate_id: str, new_st
     If the candidate has a linked portal user account, send them a personal
     notification for their stage change.
     """
+    from app.tasks.sms import sms_stage_change
+    sms_stage_change.delay(candidate_id, new_stage)
+
     if not user_id:
         return  # Candidate has no portal account; nothing to notify
 
