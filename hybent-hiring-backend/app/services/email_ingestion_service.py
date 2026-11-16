@@ -537,6 +537,11 @@ class EmailApplicationIngestionService:
         broadcast excludes the acting user, which here is whoever connected
         the mailbox — the one person most likely to be watching for it."""
         try:
+            from app.tasks.sms import sms_application_received
+            sms_application_received.delay(str(candidate_id))
+        except Exception as e:
+            logger.warning(f"Could not queue application SMS for {candidate_id}: {e}")
+        try:
             candidate = await self.db.get(Candidate, candidate_id)
             await ws_manager.broadcast_to_org(
                 org_id=str(account.organization_id),

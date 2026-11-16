@@ -1,5 +1,6 @@
 # Import all models so Alembic can detect them for migrations
 from app.models.organization import Organization
+from app.models.sms import SmsLog, SmsSettings
 from app.models.user import User, RefreshToken
 from app.models.job import Job
 from app.models.candidate import Candidate
@@ -55,5 +56,5 @@ __all__ = [
     "SubscriptionPlan", "CompanySubscription", "CompanyFeatureFlag", "Payment",
     "CompanyUsage", "SuperAdminAuditLog", "ImpersonationLog",
     "PlatformSetting", "BillingTransaction", "IntegrationKey", "VoiceCall", "OrgVoiceSettings", "VoiceSlotHold",
-    "TrialRequest", "TrialEmailOTP", "TrialMessage", "DemoBooking",
+    "TrialRequest", "TrialEmailOTP", "TrialMessage", "DemoBooking", "SmsSettings", "SmsLog",
 ]

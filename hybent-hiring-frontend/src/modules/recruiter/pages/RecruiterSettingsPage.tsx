@@ -12,6 +12,7 @@ import { EmailAccountsSection } from '@/modules/recruiter/components/EmailAccoun
 import { AICallSettingsCard } from '@/modules/recruiter/components/aiCalls/AICallSettingsCard'
 import { useAICallsEnabled } from '@/hooks/useAICallsNav'
 import { PersonalMailboxCard } from '@/modules/recruiter/components/PersonalMailboxCard'
+import { SmsSettingsCard } from '@/modules/recruiter/components/SmsSettingsCard'
 import {
   Badge,
   Button,
@@ -233,6 +234,8 @@ export default function RecruiterSettingsPage() {
             also renders for interviewers, who can't connect one (the API
             allows admins and recruiters only). */}
         {isAdmin ? <EmailAccountsSection /> : !isInterviewer && <PersonalMailboxCard />}
+
+        {isAdmin && <SmsSettingsCard />}
 
         {/* New public-link applications on the admin's phone; hidden during a support session. */}
         {isAdmin && !user?.is_impersonating && <PushNotificationsCard />}
