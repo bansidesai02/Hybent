@@ -480,6 +480,15 @@ async def trial_access(db: AsyncSession, organization_id) -> str | None:
     return "expired" if trial_end is None or _now() >= trial_end else "active"
 
 
+PAID_PLAN_DETAIL = "To access this feature, you’ll need to upgrade to one of our paid plans."
+
+
+async def require_paid_plan(db: AsyncSession, organization_id) -> None:
+    """Refuse a paid-only feature (SMS, connecting a mailbox) to a trial."""
+    if await trial_access(db, organization_id) is not None:
+        raise HTTPException(status_code=402, detail=PAID_PLAN_DETAIL)
+
+
 def check_expired_access(role: str, path: str) -> None:
     """Raise for a request an expired trial organization can't make."""
     if role != UserRole.ADMIN.value:

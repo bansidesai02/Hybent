@@ -74,6 +74,8 @@ class TestSms(BaseModel):
 @router.post("/test")
 async def send_test_sms(body: TestSms, db: DB, current_user: AdminUser):
     """Send one message with sample values to check a template end to end."""
+    from app.services.trial_service import require_paid_plan
+    await require_paid_plan(db, current_user.organization_id)
     event = sms_service.EVENTS.get(body.event)
     if not event:
         raise HTTPException(status_code=422, detail="Unknown SMS event.")

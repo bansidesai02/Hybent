@@ -55,6 +55,8 @@ async def list_email_accounts(db: DB, current_user: CurrentUser):
 
 @router.post("/smtp", response_model=EmailAccountRead)
 async def connect_smtp_account(payload: EmailAccountCreateSMTP, db: DB, current_user: EmailAccountsConnector):
+    from app.services.trial_service import require_paid_plan
+    await require_paid_plan(db, current_user.organization_id)
     service = EmailAccountsService(db)
     try:
         account = await service.connect_smtp(
@@ -68,7 +70,9 @@ async def connect_smtp_account(payload: EmailAccountCreateSMTP, db: DB, current_
 
 
 @router.get("/gmail/authorize")
-async def gmail_authorize(current_user: EmailAccountsConnector):
+async def gmail_authorize(db: DB, current_user: EmailAccountsConnector):
+    from app.services.trial_service import require_paid_plan
+    await require_paid_plan(db, current_user.organization_id)
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(status_code=400, detail="Gmail integration is not configured")
     # Signed and short-lived, so the callback can trust who started the flow.
