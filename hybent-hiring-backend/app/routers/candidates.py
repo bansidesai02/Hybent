@@ -793,6 +793,8 @@ async def update_candidate_stage(candidate_id: uuid.UUID, data: CandidateStageUp
                         years_experience=candidate.years_experience,
                         job=job,
                         match_threshold=70.0,
+                        previous_score=candidate.match_score,
+                        previous_breakdown=candidate.score_breakdown,
                     )
                     candidate.match_score = score
                     candidate.score_breakdown = breakdown

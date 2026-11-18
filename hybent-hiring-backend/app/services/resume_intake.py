@@ -164,6 +164,8 @@ async def score_application(
                 background_tasks=background_tasks,
                 user_id=user_id,
                 organization_id=candidate.organization_id,
+                previous_score=candidate.match_score,
+                previous_breakdown=candidate.score_breakdown,
             )
     except Exception as exc:
         logger.warning("Resume intake: match scoring failed for candidate %s on job %s: %s", candidate.id, job.id, exc)

@@ -135,6 +135,8 @@ async def create_application(data: ApplicationCreate, current_user: RecruiterUse
             candidate_skills=cand.skills or [],
             years_experience=cand.years_experience,
             job=job,
+            previous_score=cand.match_score,
+            previous_breakdown=cand.score_breakdown,
         )
         cand.match_score = score
         cand.score_breakdown = breakdown

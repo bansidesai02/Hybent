@@ -231,7 +231,7 @@ export default function TrialSetupPage() {
                     </div>
                     <div style={{ marginTop: '16px' }}>{field('full_name', 'Full name', { autoComplete: 'name' })}</div>
                     <div className="grid g2" style={{ gap: '16px', marginTop: '16px' }}>
-                      {field('password', 'Password', { type: 'password', placeholder: '12+ chars: A-z, 0-9 and a symbol', autoComplete: 'new-password' })}
+                      {field('password', 'Password', { type: 'password', placeholder: '8+ chars: A-z, 0-9 and a symbol', autoComplete: 'new-password' })}
                       {field('confirm', 'Confirm password', { type: 'password', autoComplete: 'new-password' })}
                     </div>
                   </div>
@@ -343,7 +343,7 @@ async function checkLogo(file: File): Promise<string | null> {
 
 /** The app's password rule (app/schemas/auth.validate_password_strength). */
 function passwordProblem(pw: string): string | null {
-  if (pw.length < 12) return 'Use at least 12 characters.'
+  if (pw.length < 8) return 'Use at least 8 characters.'
   if (!/[A-Z]/.test(pw)) return 'Add an uppercase letter.'
   if (!/[a-z]/.test(pw)) return 'Add a lowercase letter.'
   if (!/[0-9]/.test(pw)) return 'Add a number.'

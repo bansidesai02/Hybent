@@ -63,8 +63,8 @@ export default function HybentCreatePasswordPortal({
   // Mirrors the backend's validate_password_strength (as the reset page does).
   const passwordError = !password
     ? 'Choose a password.'
-    : password.length < 12
-      ? 'Password must be at least 12 characters.'
+    : password.length < 8
+      ? 'Password must be at least 8 characters.'
       : !/[A-Z]/.test(password)
         ? 'Add at least one uppercase letter.'
         : !/[a-z]/.test(password)
@@ -152,7 +152,7 @@ export default function HybentCreatePasswordPortal({
               type={reveal ? 'text' : 'password'}
               name="new-password"
               autoComplete="new-password"
-              placeholder="At least 12 characters"
+              placeholder="At least 8 characters"
               value={password}
               disabled={loading || !hasToken}
               aria-invalid={showPassword}

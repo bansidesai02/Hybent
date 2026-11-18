@@ -233,10 +233,20 @@ def _get_logo_html(org_logo_url: str | None = None, org_name: str | None = None,
     # horizontal mark 28px tall (logo_rules.py checks the upload). A relative
     # URL can't load in a mail app, so the name is shown instead.
     if org_logo_url and org_logo_url.startswith("http"):
-        return (
-            f'<img src="{html.escape(org_logo_url)}" alt="{html.escape(org_name or "Organization")}" height="28" '
-            f'style="height: 28px; width: auto; max-width: 240px; display: block; margin: {margin}; border: 0; '
+        # Logo with the company name beside it (a table, so mail apps keep them on one line).
+        img = (
+            f'<img src="{html.escape(org_logo_url)}" alt="{html.escape(org_name or "Organization")}" height="32" '
+            f'style="height: 32px; width: auto; max-width: 200px; display: block; border: 0; '
             f'font-size: 18px; font-weight: 700; color: #0B1220;">'
+        )
+        name_cell = (
+            f'<td style="padding-left: 10px; vertical-align: middle; font-size: 18px; font-weight: 800; '
+            f'letter-spacing: -0.01em; color: #0B1220; white-space: nowrap;">{html.escape(org_name)}</td>'
+            if org_name and org_name != "Hybent Hiring" else ""
+        )
+        return (
+            f'<table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: {margin};">'
+            f'<tr><td style="vertical-align: middle;">{img}</td>{name_cell}</tr></table>'
         )
     if org_logo_url or (org_name and org_name != "Hybent Hiring"):
         return (

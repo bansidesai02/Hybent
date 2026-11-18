@@ -197,8 +197,8 @@ function SetPasswordForm({
   // caught here instead of coming back as a generic 422.
   const passwordError = !password
     ? 'Enter a new password.'
-    : password.length < 12
-      ? 'Password must be at least 12 characters.'
+    : password.length < 8
+      ? 'Password must be at least 8 characters.'
       : !/[A-Z]/.test(password)
         ? 'Add at least one uppercase letter.'
         : !/[a-z]/.test(password)
@@ -287,7 +287,7 @@ function SetPasswordForm({
               type={reveal ? 'text' : 'password'}
               name="new-password"
               autoComplete="new-password"
-              placeholder="At least 12 characters"
+              placeholder="At least 8 characters"
               value={password}
               disabled={loading || !hasToken}
               aria-invalid={showPassword}
@@ -317,7 +317,7 @@ function SetPasswordForm({
             <p className="hlp-err" id="hrs-password-err" role="alert">{passwordError}</p>
           ) : (
             <p className="hlp-hint" id="hrs-password-hint">
-              At least 12 characters, with upper and lower case letters, a number and a symbol.
+              At least 8 characters, with upper and lower case letters, a number and a symbol.
             </p>
           )}
         </div>

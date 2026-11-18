@@ -17,7 +17,9 @@ import {
   AlertTriangle,
   Briefcase,
   CheckCircle,
+  ChevronLeft,
   ChevronRight,
+  SkipForward,
   Clock,
   FileText,
   Loader2,
@@ -451,25 +453,48 @@ export default function PreScreeningPage() {
             />
           </div>
 
-          {/* Next button */}
-          {isAnswered && (
+          {/* Navigation: previous, skip, next */}
+          <div className="flex items-center gap-2">
             <Button
+              variant="ghost"
               size="lg"
-              className="w-full"
-              onClick={() => runNext()}
-              loading={nextLoading}
-              disabled={nextLoading}
-              icon={
-                currentIndex + 1 < session.questions.length ? (
-                  <ChevronRight size={16} />
-                ) : (
-                  <CheckCircle size={16} />
-                )
-              }
+              onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+              disabled={currentIndex === 0 || nextLoading}
+              icon={<ChevronLeft size={16} />}
             >
-              {currentIndex + 1 < session.questions.length ? 'Next question' : 'Finish & submit'}
+              Previous
             </Button>
-          )}
+            <div className="flex-1" />
+            {!isAnswered && (
+              <Button
+                variant="quiet"
+                size="lg"
+                onClick={() => runNext()}
+                loading={nextLoading}
+                disabled={nextLoading}
+                icon={<SkipForward size={16} />}
+              >
+                {currentIndex + 1 < session.questions.length ? 'Skip' : 'Skip & finish'}
+              </Button>
+            )}
+            {isAnswered && (
+              <Button
+                size="lg"
+                onClick={() => runNext()}
+                loading={nextLoading}
+                disabled={nextLoading}
+                icon={
+                  currentIndex + 1 < session.questions.length ? (
+                    <ChevronRight size={16} />
+                  ) : (
+                    <CheckCircle size={16} />
+                  )
+                }
+              >
+                {currentIndex + 1 < session.questions.length ? 'Next question' : 'Finish & submit'}
+              </Button>
+            )}
+          </div>
 
           {/* Dot indicators */}
           <div
@@ -477,10 +502,12 @@ export default function PreScreeningPage() {
             aria-label={`${answeredIndices.size} of ${session.questions.length} questions answered`}
           >
             {session.questions.map((_, i) => (
-              <span
+              <button
+                type="button"
                 key={i}
-                aria-hidden
-                className={`h-2 w-2 rounded-full ${
+                onClick={() => setCurrentIndex(i)}
+                aria-label={`Go to question ${i + 1}`}
+                className={`h-2.5 w-2.5 cursor-pointer rounded-full ${
                   answeredIndices.has(i)
                     ? 'bg-hb-success'
                     : i === currentIndex
