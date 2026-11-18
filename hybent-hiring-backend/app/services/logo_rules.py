@@ -1,40 +1,52 @@
-"""The logo an organization uploads, in the same format as the HYBENT wordmark.
+"""The logo an organization uploads, shown at the top of its emails.
 
-Emails show it where Hybent's own wordmark sits (a horizontal mark about
-28px tall, on white), so it must be a horizontal logo with a transparent
-background, not a square icon or a screenshot. Transparent margins are
-trimmed so the mark fills its row.
+Accepts any ordinary logo file and fixes it up instead of rejecting it:
+a plain white (or near-white) background is made transparent, empty
+margins are trimmed, and very large images are scaled down. Square and
+stacked logos are fine; they just render smaller next to the text.
 """
 import io
 
 from fastapi import HTTPException
 
-# PNG or WebP: both carry transparency.
-LOGO_TYPES = {"image/png": ".png", "image/webp": ".webp"}
-MAX_BYTES = 2 * 1024 * 1024
-MIN_WIDTH, MIN_HEIGHT = 300, 40
-# Width to height. HYBENT's wordmark is about 9:1; a stacked or square logo won't read at 28px.
-MIN_RATIO, MAX_RATIO = 2.0, 12.0
+LOGO_TYPES = {"image/png": ".png", "image/webp": ".webp", "image/jpeg": ".jpg", "image/jpg": ".jpg"}
+MAX_BYTES = 5 * 1024 * 1024
+MIN_SIDE = 16
+MAX_WIDTH, MAX_HEIGHT = 1200, 400
+# A pixel this close to white counts as background when the corners are white.
+WHITE_CUTOFF = 240
 
-RULES_TEXT = (
-    "Upload a horizontal logo like the HYBENT wordmark: a transparent PNG or WebP, "
-    f"at least {MIN_WIDTH}×{MIN_HEIGHT}px, about 3 to 10 times wider than tall, under 2 MB."
-)
+RULES_TEXT = "Upload a PNG, JPG or WebP logo under 5 MB."
 
 
 def _reject(message: str) -> HTTPException:
     return HTTPException(status_code=400, detail=f"{message} {RULES_TEXT}")
 
 
+def _clear_white_background(img):
+    """If the image has no transparency and its corners are near-white,
+    make near-white pixels transparent."""
+    w, h = img.size
+    px = img.load()
+    corners = [px[0, 0], px[w - 1, 0], px[0, h - 1], px[w - 1, h - 1]]
+    if not all(min(c[:3]) >= WHITE_CUTOFF for c in corners):
+        return img
+    data = [
+        (r, g, b, 0) if min(r, g, b) >= WHITE_CUTOFF else (r, g, b, a)
+        for (r, g, b, a) in img.getdata()
+    ]
+    img.putdata(data)
+    return img
+
+
 def prepare_logo(content: bytes, content_type: str | None) -> tuple[bytes, str, str]:
-    """Check the logo and trim its transparent edges.
-    Returns (bytes, extension, content type)."""
+    """Clean up the logo. Returns (bytes, extension, content type)."""
     from PIL import Image, UnidentifiedImageError
 
     if content_type not in LOGO_TYPES:
-        raise _reject("Use a PNG or WebP file with a transparent background.")
+        raise _reject("That file type isn't supported.")
     if len(content) > MAX_BYTES:
-        raise _reject("The logo is larger than 2 MB.")
+        raise _reject("The logo is larger than 5 MB.")
     try:
         img = Image.open(io.BytesIO(content))
         img.load()
@@ -42,22 +54,18 @@ def prepare_logo(content: bytes, content_type: str | None) -> tuple[bytes, str, 
         raise _reject("That file isn't a readable image.")
 
     img = img.convert("RGBA")
-    alpha = img.getchannel("A")
-    if alpha.getextrema()[0] == 255:
-        raise _reject("The logo needs a transparent background (no white or coloured box behind it).")
-    box = alpha.getbbox()
+    if img.getchannel("A").getextrema()[0] == 255:
+        img = _clear_white_background(img)
+
+    box = img.getchannel("A").getbbox()
     if box is None:
         raise _reject("The logo is empty.")
     img = img.crop(box)
 
     w, h = img.size
-    if w < MIN_WIDTH or h < MIN_HEIGHT:
-        raise _reject(f"The logo is too small ({w}×{h}px after trimming).")
-    ratio = w / h
-    if ratio < MIN_RATIO:
-        raise _reject("This looks like a square or stacked logo.")
-    if ratio > MAX_RATIO:
-        raise _reject("The logo is too thin.")
+    if w < MIN_SIDE or h < MIN_SIDE:
+        raise _reject(f"The logo is too small ({w}×{h}px).")
+    img.thumbnail((MAX_WIDTH, MAX_HEIGHT), Image.LANCZOS)
 
     out = io.BytesIO()
     img.save(out, "PNG", optimize=True)
