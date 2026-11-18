@@ -540,7 +540,7 @@ async def _evaluate_candidate_match_gemini(prompt: str) -> Optional[dict]:
         response = await asyncio.to_thread(
             model.generate_content,
             f"{SYSTEM_PROMPT.strip()}\n\n{prompt.strip()}",
-            generation_config={"response_mime_type": "application/json", "temperature": 0.1}
+            generation_config={"response_mime_type": "application/json", "temperature": 0}
         )
         if response and response.text:
             cleaned = response.text.strip()
@@ -561,17 +561,45 @@ async def evaluate_candidate_match(
     match_threshold: float = 70.0,
     background_tasks: Optional[BackgroundTasks] = None,
     user_id: Optional[uuid.UUID] = None,
-    organization_id: Optional[uuid.UUID] = None
+    organization_id: Optional[uuid.UUID] = None,
+    previous_score: Optional[float] = None,
+    previous_breakdown: Optional[dict] = None,
 ) -> tuple[float, dict]:
     """Score, then check the job's hard criteria (experience range). A failed
     criterion leaves the score as is and puts "REJECTED: <why>" at the top of
     the summary; callers reject with job_criteria.apply_outcome."""
     from app.services import job_criteria
+    # The AI score varies run to run, so the same resume scored for the same
+    # job must reuse its saved score instead of showing a new number.
+    key = score_cache_key(candidate_data, years_experience, job)
+    if (
+        previous_score is not None and isinstance(previous_breakdown, dict)
+        and key and previous_breakdown.get("score_key") == key
+    ):
+        return previous_score, previous_breakdown
     score, breakdown = await _evaluate_candidate_match(
         candidate_data, candidate_skills, years_experience, job, match_threshold,
         background_tasks, user_id, organization_id,
     )
-    return score, job_criteria.annotate(breakdown, years_experience, job)
+    breakdown = job_criteria.annotate(breakdown, years_experience, job)
+    if key and isinstance(breakdown, dict) and score is not None:
+        breakdown["score_key"] = key
+    return score, breakdown
+
+
+def score_cache_key(candidate_data: dict | None, years_experience, job) -> str | None:
+    """Fingerprint of everything the score depends on: the parsed resume and
+    the job's requirements. Changes when either changes."""
+    if not job:
+        return None
+    import hashlib
+    # The parsed resume and the role's title. The upload screen scores against
+    # a copy of the job (no id or description), so those aren't part of the
+    # key; otherwise adding the candidate to the job would score them again.
+    title = (getattr(job, "title", None) or "").strip().lower()
+    payload = {"c": candidate_data or {}, "t": title}
+    raw = json.dumps(payload, sort_keys=True, default=str)
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
 
 async def _evaluate_candidate_match(
@@ -679,7 +707,7 @@ async def _evaluate_candidate_match(
                 ],
                 model=get_best_groq_model(groq_client),
                 response_format={"type": "json_object"},
-                temperature=0.1,
+                temperature=0,
             )
             
             if hasattr(response, 'usage'):
