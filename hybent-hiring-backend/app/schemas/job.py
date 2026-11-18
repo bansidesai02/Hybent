@@ -49,6 +49,7 @@ class PublicOrganizationOut(OrmSchema):
     name: str
     slug: str
     logo_url: str | None = None
+    website: str | None = None
 
 
 class JobPublicOut(OrmSchema):

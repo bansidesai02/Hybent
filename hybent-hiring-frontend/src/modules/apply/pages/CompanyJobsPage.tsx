@@ -109,14 +109,14 @@ export default function CompanyJobsPage() {
   const org = data.organization
   return (
     <div className="hb-app min-h-screen">
-      <header className="border-b border-hb-border bg-hb-surface">
+      <header className="sticky top-0 z-30 border-b border-hb-border bg-hb-surface/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
             {org.logo_url && <img src={org.logo_url} alt="" className="h-9 w-auto max-w-[180px] object-contain" />}
             <span className="truncate font-display text-hb-h3 font-bold text-hb-text">{org.name}</span>
           </div>
           {org.website && (
-            <a href={org.website} target="_blank" rel="noopener noreferrer" className="shrink-0 text-hb-sm font-semibold text-hb-blue hover:underline">
+            <a href={/^https?:\/\//i.test(org.website) ? org.website : `https://${org.website}`} target="_blank" rel="noopener noreferrer" className="shrink-0 text-hb-sm font-semibold text-hb-blue hover:underline">
               Home
             </a>
           )}

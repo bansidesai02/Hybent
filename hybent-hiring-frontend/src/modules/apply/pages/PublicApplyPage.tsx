@@ -57,7 +57,7 @@ interface PublicJob {
   ai_calls?: boolean
   application_deadline: string | null
   openings?: number
-  organization: { name: string; slug: string; logo_url: string | null }
+  organization: { name: string; slug: string; logo_url: string | null; website?: string | null }
 }
 
 /* JD text saved as bullets often loses the first "•" (the parser keeps it
@@ -250,7 +250,7 @@ export default function PublicApplyPage() {
   return (
     <div className="hb-app min-h-screen">
       {/* The hiring company's brand, not Hybent's. */}
-      <header className="border-b border-hb-border bg-hb-surface">
+      <header className="sticky top-0 z-30 border-b border-hb-border bg-hb-surface/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
             {job.organization.logo_url && (
@@ -258,9 +258,16 @@ export default function PublicApplyPage() {
             )}
             <span className="truncate font-display text-hb-h3 font-bold text-hb-text">{job.organization.name}</span>
           </div>
-          <Link to={`/apply/${job.organization.slug}`} className="shrink-0 text-hb-sm font-semibold text-hb-blue hover:underline">
-            All jobs
-          </Link>
+          {job.organization.website && (
+            <a
+              href={/^https?:\/\//i.test(job.organization.website) ? job.organization.website : `https://${job.organization.website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 text-hb-sm font-semibold text-hb-blue hover:underline"
+            >
+              Home
+            </a>
+          )}
         </div>
       </header>
 
@@ -456,7 +463,7 @@ export default function PublicApplyPage() {
           )}
         </div>
 
-        <aside className="space-y-hb-6 lg:sticky lg:top-6 lg:h-fit">
+        <aside className="space-y-hb-6 lg:sticky lg:top-24 lg:h-fit">
           {!showForm && (
             <Button size="lg" className="w-full" onClick={openForm}>
               Apply for this job
