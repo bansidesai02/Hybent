@@ -246,7 +246,9 @@ async def test_process_message_credits_the_user_who_connected_the_mailbox(db_ses
     assert activity.user_id == admin_user.id
 
 
-async def test_process_message_dedupes_existing_candidate_without_reparsing(db_session, organization):
+async def test_process_message_known_sender_resume_is_parsed_then_matched(db_session, organization):
+    """A known candidate's resume is still read first (it could be any PDF),
+    then linked to them by the resume's email."""
     account = _gmail_account(organization.id)
     db_session.add(account)
     await db_session.commit()
@@ -261,24 +263,44 @@ async def test_process_message_dedupes_existing_candidate_without_reparsing(db_s
 
     message = await _make_message(db_session, organization, account)
 
-    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=_full_message_payload()), \
-         patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"), \
-         patch("app.services.ai.resume_parser.parse_resume", new=AsyncMock()) as mock_parse:
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=_full_message_payload()),          patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"),          patch("app.services.ai.resume_parser.parse_resume",
+               new=AsyncMock(return_value={"full_name": "Bob Applicant", "email": "bob@candidate.com", "skills": []})) as mock_parse:
         service = EmailApplicationIngestionService(db_session)
         outcome = await service.process_message(account, message)
 
     assert outcome == "matched_existing"
-    mock_parse.assert_not_called()  # known duplicate by sender address — skip the expensive AI parse
+    mock_parse.assert_awaited_once()
     await db_session.refresh(message)
     assert message.ingestion_status == EmailIngestionStatus.MATCHED_EXISTING
     assert message.ingestion_result_candidate_id == existing.id
 
-    # still exactly one candidate with this email in the org
     from sqlalchemy import select, func
     count = (await db_session.execute(
         select(func.count()).select_from(Candidate).where(Candidate.email == "bob@candidate.com")
     )).scalar_one()
     assert count == 1
+
+
+async def test_process_message_known_sender_non_resume_pdf_is_skipped(db_session, organization):
+    """A known candidate sending some other PDF (offer letter, ID) is not
+    listed as "Already a candidate": the parser says it isn't a resume."""
+    from fastapi import HTTPException
+    account = _gmail_account(organization.id)
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    db_session.add(Candidate(organization_id=organization.id, email="bob@candidate.com", full_name="Bob Applicant"))
+    await db_session.commit()
+
+    message = await _make_message(db_session, organization, account)
+    with patch("app.services.email_providers.gmail_provider.get_message_full", return_value=_full_message_payload()),          patch("app.services.email_providers.gmail_provider.get_attachment_content", return_value=b"pdf-bytes"),          patch("app.services.ai.resume_parser.parse_resume",
+               new=AsyncMock(side_effect=HTTPException(status_code=400, detail="Not a resume"))):
+        outcome = await EmailApplicationIngestionService(db_session).process_message(account, message)
+
+    assert outcome == "skipped"
+    await db_session.refresh(message)
+    assert message.ingestion_status == EmailIngestionStatus.SKIPPED_NOT_RESUME
+    assert message.ingestion_result_candidate_id is None
 
 
 async def test_process_message_org_isolation_same_email_different_orgs(

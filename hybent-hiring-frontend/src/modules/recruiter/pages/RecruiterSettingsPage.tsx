@@ -201,10 +201,10 @@ export default function RecruiterSettingsPage() {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
-                  accept="image/png,image/webp"
+                  accept="image/png,image/webp,image/jpeg"
                 />
                 <p className="mt-2 max-w-[240px] text-hb-xs text-hb-muted">
-                  Horizontal logo like the HYBENT wordmark: transparent PNG or WebP, at least 300×40px, under 2 MB.
+                  PNG, JPG or WebP under 5 MB. A white background is removed for you; a horizontal logo looks best.
                   Shown at the top of your emails.
                 </p>
               </div>

@@ -599,17 +599,11 @@ class EmailApplicationIngestionService:
         if multi:
             from_name = from_address = None
 
-        # Cheap identity guess from headers first, so an obvious duplicate
-        # sender can skip the expensive AI parse below entirely.
-        header_email = from_address
-        if header_email:
-            existing = await self._find_existing_candidate(organization_id, header_email)
-            if existing:
-                logger.info(
-                    f"[ingest] msg={message.id}   {filename}: sender {header_email} is already candidate "
-                    f"{existing.id} ({existing.full_name}) — matched without parsing"
-                )
-                return await self._link_duplicate(message, existing, account, from_address, from_name)
+        # No match-by-sender before parsing: a known candidate also sends
+        # other PDFs (signed offer, ID proof, payslip), and matching them
+        # unread listed those as "Already a candidate" resumes. Every file is
+        # parsed (and checked to be a resume) first; the match on the
+        # resume's own email below then links real resumes to the candidate.
 
         # A resume mislabeled with a generic/wrong content-type (some mail
         # clients do this) is still worth attempting via its file extension —
