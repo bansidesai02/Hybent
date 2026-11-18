@@ -987,6 +987,16 @@ function ScheduleDrawer({
   })
 
   const blocked = !time || slotState(date, time, interviews) !== 'available'
+  // Interviews are created on the scheduler's Google Calendar, so it must be connected first.
+  const calendarConnected = !!useAuthStore((st) => st.user?.is_calendar_connected)
+  const [connectFromDrawer, connectingFromDrawer] = useAsyncAction(async () => {
+    try {
+      const res = await authApi.connectCalendar()
+      window.location.href = res.data.auth_url
+    } catch {
+      toast.error('Could not connect your calendar')
+    }
+  })
 
   return (
     <Drawer
@@ -998,14 +1008,20 @@ function ScheduleDrawer({
           <Button variant="quiet" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form={formId}
-            disabled={blocked}
-            loading={isSubmitting || mutation.isPending}
-          >
-            Schedule
-          </Button>
+          {calendarConnected ? (
+            <Button
+              type="submit"
+              form={formId}
+              disabled={blocked}
+              loading={isSubmitting || mutation.isPending}
+            >
+              Schedule
+            </Button>
+          ) : (
+            <Button icon={<CalendarCheck size={16} />} loading={connectingFromDrawer} onClick={() => connectFromDrawer()}>
+              Connect Google Calendar
+            </Button>
+          )}
         </>
       }
     >
@@ -1014,6 +1030,11 @@ function ScheduleDrawer({
         onSubmit={handleSubmit((d) => (d.panelist_ids.length === 0 ? setPendingNoPanel(d) : mutation.mutate(d)))}
         className="space-y-hb-5"
       >
+        {!calendarConnected && (
+          <p role="alert" className="rounded-hb-sm border border-hb-warning/30 bg-hb-warning/10 p-3 text-hb-sm text-hb-text">
+            Connect your Google Calendar to schedule interviews. The invite and the Meet link are created on your calendar.
+          </p>
+        )}
         <ConfirmDialog
           open={!!pendingNoPanel}
           onClose={() => setPendingNoPanel(null)}
@@ -1992,12 +2013,20 @@ export default function InterviewsListPage() {
       toast.success('Google Calendar connected')
       authApi.me().then((res) => setUser(res.data)).catch(() => {})
     } else if (error === 'calendar_auth_failed') {
-      toast.error('Could not connect your calendar')
+      const reason = searchParams.get('reason')
+      toast.error(
+        reason === 'access_denied'
+          ? 'Calendar not connected: access was cancelled or your Google account is not allowed yet.'
+          : reason === 'no_refresh_token'
+            ? 'Google did not grant offline access. Remove Hybent from your Google account permissions and connect again.'
+            : 'Could not connect your calendar. Please try again.',
+      )
     }
 
     const next = new URLSearchParams(searchParams)
     next.delete('success')
     next.delete('error')
+    next.delete('reason')
     setSearchParams(next, { replace: true })
      
   }, [])

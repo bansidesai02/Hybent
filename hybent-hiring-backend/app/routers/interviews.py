@@ -160,6 +160,13 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
     if data.scheduled_at < (now - timedelta(minutes=5)):
         raise HTTPException(status_code=400, detail="Cannot schedule an interview in the past")
 
+    # Interviews go on the scheduler's Google Calendar (invite + Meet link).
+    if not current_user.is_calendar_connected:
+        raise HTTPException(
+            status_code=409,
+            detail="Connect your Google Calendar before scheduling an interview.",
+        )
+
     panelists = [(p.user_id, p.role) for p in data.panelist_ids]
     if len(await resolve_panelists(db, current_user.organization_id, panelists)) != len(panelists):
         raise HTTPException(status_code=400, detail="Panelists must be active members of your hiring team")
