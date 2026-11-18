@@ -64,6 +64,35 @@ async def _get_active_job_or_404(db: DB, org_slug: str, job_id: uuid.UUID) -> Jo
     return job
 
 
+@router.get("/jobs/{org_slug}")
+async def list_public_jobs(org_slug: str, db: DB):
+    """One company's careers page: its open jobs, reached only from that
+    company's apply links (it isn't linked from or listed on hybent.com)."""
+    org = (await db.execute(
+        select(Organization).where(Organization.slug == org_slug, Organization.is_active == True)  # noqa: E712
+    )).scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail="Careers page not found.")
+    jobs = (await db.execute(
+        select(Job)
+        .where(Job.organization_id == org.id, Job.status == "active", Job.is_deleted == False)  # noqa: E712
+        .order_by(Job.created_at.desc())
+    )).scalars().all()
+    return APIResponse.success(message="Jobs retrieved.", data={
+        "organization": {"name": org.name, "slug": org.slug, "logo_url": org.logo_url, "website": org.website},
+        "jobs": [{
+            "id": str(j.id),
+            "title": j.title,
+            "location": j.location,
+            "is_remote": j.is_remote,
+            "job_type": j.job_type,
+            "experience_level": j.experience_level,
+            "min_experience_years": j.min_experience_years,
+            "created_at": j.created_at,
+        } for j in jobs],
+    })
+
+
 @router.get("/jobs/{org_slug}/{job_id}")
 async def get_public_job(org_slug: str, job_id: uuid.UUID, db: DB):
     """Public, unauthenticated job view — used by the shareable apply link."""

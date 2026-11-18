@@ -5,6 +5,9 @@ import axios from './axios'
  * "apply to this job" link (e.g. attached to a LinkedIn post).
  */
 export const publicApi = {
+  /** One company's open jobs (its careers page). */
+  listJobs: (orgSlug: string) => axios.get(`/api/public/jobs/${orgSlug}`),
+
   getJob: (orgSlug: string, jobId: string) =>
     axios.get(`/api/public/jobs/${orgSlug}/${jobId}`),
 
