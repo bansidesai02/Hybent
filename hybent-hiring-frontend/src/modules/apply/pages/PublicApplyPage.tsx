@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Check, CheckCircle2, Loader2, MapPin } from 'lucide-react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { AlertTriangle, ArrowLeft, Briefcase, Check, CheckCircle2, Loader2, MapPin, UserRound } from 'lucide-react'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
 
@@ -8,6 +8,8 @@ import { publicApi } from '@/api/public'
 import { useAsyncAction } from '@/hooks/useAsyncAction'
 import { formatDate } from '@/utils/formatters'
 import { Badge, Button, Card, Checkbox, Dropzone, Input } from '@/components/hb'
+import { ShareJob } from '@/modules/apply/components/ShareJob'
+import { CompanyFooter, useNoIndex } from '@/modules/apply/components/CompanyFooter'
 
 /**
  * The public, no-login "apply to this job" page — the destination of a
@@ -55,7 +57,7 @@ interface PublicJob {
   ai_calls?: boolean
   application_deadline: string | null
   openings?: number
-  organization: { name: string; slug: string; logo_url: string | null }
+  organization: { name: string; slug: string; logo_url: string | null; website?: string | null }
 }
 
 /* JD text saved as bullets often loses the first "•" (the parser keeps it
@@ -115,16 +117,10 @@ export default function PublicApplyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  // Phones: a pinned "Apply now" bar until the form itself is on screen.
+  // Job details first; "Apply for this job" swaps in the form (like Keka's careers pages).
   const formRef = useRef<HTMLDivElement>(null)
-  const [formInView, setFormInView] = useState(false)
-  useEffect(() => {
-    const el = formRef.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => setFormInView(e.isIntersecting), { threshold: 0.05 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [job])
+  const [showForm, setShowForm] = useState(false)
+  useNoIndex()
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -150,6 +146,10 @@ export default function PublicApplyPage() {
       })
       .finally(() => setLoading(false))
   }, [orgSlug, jobId])
+
+  useEffect(() => {
+    if (job) document.title = `${job.title} at ${job.organization.name}`
+  }, [job])
 
   const [handleSubmit, isSubmitting] = useAsyncAction(async () => {
     if (!orgSlug || !jobId) return
@@ -236,214 +236,258 @@ export default function PublicApplyPage() {
     )
   }
 
+  const applyUrl = `${window.location.origin}/apply/${job.organization.slug}/${job.id}`
+  const meta = [
+    job.min_experience_years ? `${job.min_experience_years}+ Years` : job.experience_level,
+    job.is_remote ? 'Remote' : job.location || null,
+    JOB_TYPE_LABEL[job.job_type] || job.job_type,
+  ].filter(Boolean) as string[]
+  const openForm = () => {
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
-    <Shell>
-      <div className="mb-hb-6 text-center">
-        {/* The hiring company's brand, not Hybent's. */}
-        <div className="mb-hb-5 inline-flex items-center gap-3">
-          {job.organization.logo_url && (
-            <img
-              src={job.organization.logo_url}
-              alt=""
-              className="h-10 w-auto max-w-[220px] object-contain"
-            />
+    <div className="hb-app min-h-screen">
+      {/* The hiring company's brand, not Hybent's. */}
+      <header className="sticky top-0 z-30 border-b border-hb-border bg-hb-surface/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {job.organization.logo_url && (
+              <img src={job.organization.logo_url} alt="" className="h-9 w-auto max-w-[180px] object-contain" />
+            )}
+            <span className="truncate font-display text-hb-h3 font-bold text-hb-text">{job.organization.name}</span>
+          </div>
+          {job.organization.website && (
+            <a
+              href={/^https?:\/\//i.test(job.organization.website) ? job.organization.website : `https://${job.organization.website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 text-hb-sm font-semibold text-hb-blue hover:underline"
+            >
+              Home
+            </a>
           )}
-          <span className="font-display text-hb-h3 font-bold text-hb-text">{job.organization.name}</span>
         </div>
-        <h1 className="mt-1 font-display text-hb-h1 text-hb-text">{job.title}</h1>
-        <p className="mt-2 inline-flex flex-wrap items-center justify-center gap-2 text-hb-sm text-hb-muted">
-          <span className="inline-flex items-center gap-1">
-            <MapPin size={13} aria-hidden />
-            {job.is_remote ? 'Remote' : job.location || 'Not specified'}
-          </span>
-          <span aria-hidden>·</span>
-          <span>{JOB_TYPE_LABEL[job.job_type] || job.job_type}</span>
-          {job.experience_level && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="capitalize">{job.experience_level}</span>
-            </>
-          )}
-        </p>
+      </header>
+
+      <div className="border-b border-hb-border bg-gradient-to-r from-hb-blue/10 via-hb-cyan/5 to-transparent">
+        <div className="mx-auto max-w-6xl px-4 py-hb-8">
+          <h1 className="font-display text-hb-h1 text-hb-text">{job.title}</h1>
+          <p className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-hb-sm text-hb-muted">
+            {meta.map((m, i) => (
+              <span key={i} className="inline-flex items-center gap-1.5">
+                {i === 0 ? <UserRound size={14} aria-hidden /> : i === 1 ? <MapPin size={14} aria-hidden /> : <Briefcase size={14} aria-hidden />}
+                <span className="capitalize">{m}</span>
+              </span>
+            ))}
+          </p>
+        </div>
       </div>
 
-      <Card padding="loose" className="space-y-hb-6">
-        <div className="space-y-hb-5">
-          {job.description && <Prose title="About the role" body={job.description} />}
-          {job.responsibilities && <Prose title="Key responsibilities" body={job.responsibilities} />}
-          {job.requirements && <Prose title="Requirements" body={job.requirements} />}
-          {job.skills_required?.length > 0 && (
-            <section>
-              <h2 className="font-display text-hb-h3 text-hb-text">Skills required</h2>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {job.skills_required.map((skill) => (
-                  <Badge key={skill}>{skill}</Badge>
-                ))}
-              </div>
-            </section>
-          )}
-          <div className="grid gap-hb-3 sm:grid-cols-2">
-            <Fact
-              label="Experience"
-              value={
-                job.min_experience_years
-                  ? `${job.min_experience_years}+ years`
-                  : job.experience_level
-                    ? job.experience_level.charAt(0).toUpperCase() + job.experience_level.slice(1)
-                    : 'Open to all levels'
-              }
-            />
-            <Fact label="Employment type" value={JOB_TYPE_LABEL[job.job_type] || job.job_type} />
-            <Fact label="Location" value={job.is_remote ? 'Remote' : job.location || 'Not specified'} />
-            {job.application_deadline ? (
-              <Fact label="Apply by" value={formatDate(job.application_deadline)} />
-            ) : (
-              <Fact
-                label="Openings"
-                value={`${job.openings ?? 1} ${(job.openings ?? 1) === 1 ? 'position' : 'positions'}`}
-              />
-            )}
-          </div>
+      <main className="mx-auto grid max-w-6xl gap-hb-8 px-4 py-hb-8 lg:grid-cols-[1fr_300px]">
+        <div className="min-w-0">
+          {showForm ? (
+            <Card padding="loose">
+              <div ref={formRef} className="scroll-mt-4 space-y-hb-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="inline-flex items-center gap-1.5 text-hb-sm font-semibold text-hb-blue hover:underline"
+                >
+                  <ArrowLeft size={14} aria-hidden /> Back to job details
+                </button>
+                <h2 className="font-display text-hb-h3 text-hb-text">Apply for this role</h2>
 
-          {job.benefits && <Prose title="Benefits" body={job.benefits} />}
-        </div>
-
-        <div ref={formRef} className="scroll-mt-4 space-y-hb-4 border-t border-hb-border pt-hb-5">
-          <h2 className="font-display text-hb-h3 text-hb-text">Apply for this role</h2>
-
-          <div className="grid gap-hb-4 sm:grid-cols-2">
-            <Input
-              label="Full name"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Jane Doe"
-            />
-            <Input
-              label="Email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane@example.com"
-            />
-            <Input
-              label="Phone"
-              type="tel"
-              required
-              maxLength={50}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 90000 00000"
-            />
-            <Input
-              label="LinkedIn profile"
-              maxLength={500}
-              value={linkedinUrl}
-              onChange={(e) => setLinkedinUrl(e.target.value)}
-              placeholder="Optional — linkedin.com/in/yourname"
-            />
-          </div>
-
-          <div className="grid gap-hb-4 sm:grid-cols-2">
-            <Input
-              label="Current CTC"
-              required
-              maxLength={100}
-              value={currentCtc}
-              onChange={(e) => setCurrentCtc(e.target.value)}
-              placeholder="e.g. ₹6,00,000"
-            />
-            <Input
-              label="Expected CTC"
-              required
-              maxLength={100}
-              value={expectedCtc}
-              onChange={(e) => setExpectedCtc(e.target.value)}
-              placeholder="e.g. ₹8,00,000"
-            />
-          </div>
-
-          {/* Chips rather than a <select>: seven short options read at a
-              glance and take one tap, where the native dropdown opened the
-              platform's unstyled list. Real radios underneath, so arrow keys
-              and screen readers work as for any radio group. */}
-          <fieldset>
-            <legend className="mb-2 font-mono text-hb-label uppercase text-hb-dim">
-              Notice period
-              <span className="ml-1 text-hb-error" aria-hidden>*</span>
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {NOTICE_PERIOD_OPTIONS.map((option) => (
-                <label key={option} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="notice_period"
-                    value={option}
+                <div className="grid gap-hb-4 sm:grid-cols-2">
+                  <Input
+                    label="Full name"
                     required
-                    checked={noticePeriod === option}
-                    onChange={() => setNoticePeriod(option)}
-                    className="peer sr-only"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Jane Doe"
                   />
-                  <span
-                    className={clsx(
-                      'inline-flex h-10 items-center gap-1.5 rounded-hb-full border px-4',
-                      'font-body text-hb-sm font-semibold whitespace-nowrap',
-                      'transition-all duration-hb ease-hb',
-                      'border-hb-border bg-hb-surface text-hb-muted',
-                      'hover:border-hb-border-strong hover:text-hb-text',
-                      'peer-checked:border-hb-blue/50 peer-checked:bg-hb-blue/10 peer-checked:text-hb-blue',
-                      'peer-focus-visible:border-hb-blue/60 peer-focus-visible:shadow-hb-ring'
-                    )}
-                  >
-                    {noticePeriod === option && <Check size={14} aria-hidden />}
-                    {option}
-                  </span>
-                </label>
-              ))}
+                  <Input
+                    label="Email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="jane@example.com"
+                  />
+                  <Input
+                    label="Phone"
+                    type="tel"
+                    required
+                    maxLength={50}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 90000 00000"
+                  />
+                  <Input
+                    label="LinkedIn profile"
+                    maxLength={500}
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="Optional — linkedin.com/in/yourname"
+                  />
+                </div>
+
+                <div className="grid gap-hb-4 sm:grid-cols-2">
+                  <Input
+                    label="Current CTC"
+                    required
+                    maxLength={100}
+                    value={currentCtc}
+                    onChange={(e) => setCurrentCtc(e.target.value)}
+                    placeholder="e.g. ₹6,00,000"
+                  />
+                  <Input
+                    label="Expected CTC"
+                    required
+                    maxLength={100}
+                    value={expectedCtc}
+                    onChange={(e) => setExpectedCtc(e.target.value)}
+                    placeholder="e.g. ₹8,00,000"
+                  />
+                </div>
+
+                {/* Chips rather than a <select>: seven short options read at a
+                    glance and take one tap, where the native dropdown opened the
+                    platform's unstyled list. Real radios underneath, so arrow keys
+                    and screen readers work as for any radio group. */}
+                <fieldset>
+                  <legend className="mb-2 font-mono text-hb-label uppercase text-hb-dim">
+                    Notice period
+                    <span className="ml-1 text-hb-error" aria-hidden>*</span>
+                  </legend>
+                  <div className="flex flex-wrap gap-2">
+                    {NOTICE_PERIOD_OPTIONS.map((option) => (
+                      <label key={option} className="cursor-pointer">
+                        <input
+                          type="radio"
+                          name="notice_period"
+                          value={option}
+                          required
+                          checked={noticePeriod === option}
+                          onChange={() => setNoticePeriod(option)}
+                          className="peer sr-only"
+                        />
+                        <span
+                          className={clsx(
+                            'inline-flex h-10 items-center gap-1.5 rounded-hb-full border px-4',
+                            'font-body text-hb-sm font-semibold whitespace-nowrap',
+                            'transition-all duration-hb ease-hb',
+                            'border-hb-border bg-hb-surface text-hb-muted',
+                            'hover:border-hb-border-strong hover:text-hb-text',
+                            'peer-checked:border-hb-blue/50 peer-checked:bg-hb-blue/10 peer-checked:text-hb-blue',
+                            'peer-focus-visible:border-hb-blue/60 peer-focus-visible:shadow-hb-ring'
+                          )}
+                        >
+                          {noticePeriod === option && <Check size={14} aria-hidden />}
+                          {option}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <Dropzone
+                  title={resume ? resume.name : 'Upload your resume'}
+                  description={resume ? 'Click to replace' : 'Drag & drop or click to browse'}
+                  formats={['PDF', 'DOC', 'DOCX']}
+                  accept=".pdf,.doc,.docx"
+                  onFiles={(files) => setResume(files[0] ?? null)}
+                />
+
+                {job?.ai_calls && (
+                  <Checkbox
+                    checked={aiCallConsent}
+                    onChange={(e) => setAiCallConsent(e.target.checked)}
+                    label={
+                      <span className="text-hb-sm text-hb-muted">
+                        I agree to a short screening call from the Hybent AI Agent, an AI assistant calling on behalf of
+                        the hiring team. The call may be recorded for hiring purposes, and I can ask it to stop calling me at any time.
+                      </span>
+                    }
+                  />
+                )}
+
+                <Button onClick={() => handleSubmit()} loading={isSubmitting} size="lg" className="w-full">
+                  Submit application
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <Card padding="loose">
+            <div className="space-y-hb-5">
+              {job.description && <Prose title="About the role" body={job.description} />}
+              {job.responsibilities && <Prose title="Key responsibilities" body={job.responsibilities} />}
+              {job.requirements && <Prose title="Requirements" body={job.requirements} />}
+              {job.skills_required?.length > 0 && (
+                <section>
+                  <h2 className="font-display text-hb-h3 text-hb-text">Skills required</h2>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {job.skills_required.map((skill) => (
+                      <Badge key={skill}>{skill}</Badge>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <div className="grid gap-hb-3 sm:grid-cols-2">
+                <Fact
+                  label="Experience"
+                  value={
+                    job.min_experience_years
+                      ? `${job.min_experience_years}+ years`
+                      : job.experience_level
+                        ? job.experience_level.charAt(0).toUpperCase() + job.experience_level.slice(1)
+                        : 'Open to all levels'
+                  }
+                />
+                <Fact label="Employment type" value={JOB_TYPE_LABEL[job.job_type] || job.job_type} />
+                <Fact label="Location" value={job.is_remote ? 'Remote' : job.location || 'Not specified'} />
+                {job.application_deadline ? (
+                  <Fact label="Apply by" value={formatDate(job.application_deadline)} />
+                ) : (
+                  <Fact
+                    label="Openings"
+                    value={`${job.openings ?? 1} ${(job.openings ?? 1) === 1 ? 'position' : 'positions'}`}
+                  />
+                )}
+              </div>
+
+              {job.benefits && <Prose title="Benefits" body={job.benefits} />}
             </div>
-          </fieldset>
-
-          <Dropzone
-            title={resume ? resume.name : 'Upload your resume'}
-            description={resume ? 'Click to replace' : 'Drag & drop or click to browse'}
-            formats={['PDF', 'DOC', 'DOCX']}
-            accept=".pdf,.doc,.docx"
-            onFiles={(files) => setResume(files[0] ?? null)}
-          />
-
-          {job?.ai_calls && (
-            <Checkbox
-              checked={aiCallConsent}
-              onChange={(e) => setAiCallConsent(e.target.checked)}
-              label={
-                <span className="text-hb-sm text-hb-muted">
-                  I agree to a short screening call from the Hybent AI Agent, an AI assistant calling on behalf of
-                  the hiring team. The call may be recorded for hiring purposes, and I can ask it to stop calling me at any time.
-                </span>
-              }
-            />
+            </Card>
           )}
-
-          <Button onClick={() => handleSubmit()} loading={isSubmitting} size="lg" className="w-full">
-            Submit application
-          </Button>
         </div>
-      </Card>
 
-      {/* Phones: the form sits under a long description, so keep the way to
-          it in thumb reach until it's on screen. */}
-      {!formInView && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-hb-border bg-hb-surface/95 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md sm:hidden">
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          >
-            Apply now
+        <aside className="space-y-hb-6 lg:sticky lg:top-24 lg:h-fit">
+          {!showForm && (
+            <Button size="lg" className="w-full" onClick={openForm}>
+              Apply for this job
+            </Button>
+          )}
+          <ShareJob url={applyUrl} title={job.title} company={job.organization.name} />
+          <Link to={`/apply/${job.organization.slug}`} className="inline-block text-hb-sm font-semibold text-hb-blue hover:underline">
+            View all job openings
+          </Link>
+        </aside>
+      </main>
+
+      <div className="mx-auto max-w-6xl px-4 pb-hb-8">
+        <CompanyFooter company={job.organization.name} />
+      </div>
+
+      {/* Phones: the button sits under a long description, so keep it in thumb reach. */}
+      {!showForm && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-hb-border bg-hb-surface/95 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md lg:hidden">
+          <Button size="lg" className="w-full" onClick={openForm}>
+            Apply for this job
           </Button>
         </div>
       )}
-    </Shell>
+    </div>
   )
 }

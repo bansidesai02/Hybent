@@ -57,6 +57,7 @@ const PayPage = lazy(() => import('@/modules/billing/pages/PayPage'))
 
 /* ── Public, no-login apply link (e.g. attached to a LinkedIn post) ───────── */
 const PublicApplyPage = lazy(() => import('@/modules/apply/pages/PublicApplyPage'))
+const CompanyJobsPage = lazy(() => import('@/modules/apply/pages/CompanyJobsPage'))
 
 /* ── Design system review surface ─────────────────────────────────────────────
    The condition wraps the `import()` itself, not just the route. Vite replaces
@@ -176,6 +177,8 @@ export default function AppRoutes() {
 
       {/* ── Public apply link — no login required to view or submit ── */}
       <Route path="/apply/:orgSlug/:jobId" element={<PublicApplyPage />} />
+      {/* A company's own careers page, reached from its apply links only. */}
+      <Route path="/apply/:orgSlug" element={<CompanyJobsPage />} />
 
       {/* ── Design system, dev only ── */}
       {kitchenSinkRoute}

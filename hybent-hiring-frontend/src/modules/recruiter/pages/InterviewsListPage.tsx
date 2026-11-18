@@ -38,6 +38,7 @@ import {
   Button,
   Card,
   Checkbox,
+  ConfirmDialog,
   Dialog,
   Drawer,
   EmptyState,
@@ -809,7 +810,8 @@ function TimeSlots({
 
 const scheduleSchema = z.object({
   candidate_id: z.string().min(1, 'Choose a candidate'),
-  panelist_ids: z.array(z.string()).min(1, 'Choose at least one interviewer'),
+  // Optional: scheduling with nobody on the panel asks for confirmation first.
+  panelist_ids: z.array(z.string()),
   title: z.string().min(2, 'Choose an interview stage'),
   scheduled_at: z.string().min(1, 'Pick a date and time'),
   duration_minutes: z.coerce.number().int().min(15).default(60),
@@ -842,7 +844,7 @@ function PanelistPicker({
 
       {options.length === 0 ? (
         <p className="text-hb-sm text-hb-muted">
-          No interviewers on the team yet. Invite one from Team management.
+          No interviewers on the team yet. You can still schedule, or invite one from Team management.
         </p>
       ) : (
         <div className="max-h-[168px] space-y-2 overflow-y-auto rounded-hb-sm border border-hb-border bg-hb-surface p-3">
@@ -897,6 +899,8 @@ function ScheduleDrawer({
   const formId = 'schedule-interview-form'
   const [date, setDate] = useState(initialDate)
   const [time, setTime] = useState(initialTime)
+  // Held while the recruiter confirms scheduling with no interviewer.
+  const [pendingNoPanel, setPendingNoPanel] = useState<ScheduleForm | null>(null)
 
   const blankForm = (): ScheduleForm => ({
     duration_minutes: 60,
@@ -1007,9 +1011,22 @@ function ScheduleDrawer({
     >
       <form
         id={formId}
-        onSubmit={handleSubmit((d) => mutation.mutate(d))}
+        onSubmit={handleSubmit((d) => (d.panelist_ids.length === 0 ? setPendingNoPanel(d) : mutation.mutate(d)))}
         className="space-y-hb-5"
       >
+        <ConfirmDialog
+          open={!!pendingNoPanel}
+          onClose={() => setPendingNoPanel(null)}
+          onConfirm={() => {
+            if (pendingNoPanel) mutation.mutate(pendingNoPanel)
+            setPendingNoPanel(null)
+          }}
+          title="Schedule without an interviewer?"
+          description="Would you like to schedule this interview without an interviewer? You can add one later."
+          confirmLabel="Schedule anyway"
+          cancelLabel="Go back"
+          loading={mutation.isPending}
+        />
         <section className="space-y-hb-3">
           <p className="font-mono text-hb-label uppercase text-hb-dim">
             {date.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
