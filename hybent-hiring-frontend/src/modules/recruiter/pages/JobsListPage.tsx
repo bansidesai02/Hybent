@@ -11,6 +11,8 @@ import { organizationsApi } from '@/api/organizations'
 import { formatDate } from '@/utils/formatters'
 import type { Job, JobStatus } from '@/types'
 import { LinkedInShareModal } from '@/modules/recruiter/components/LinkedInShareModal'
+import { PersonalisedLinkHint } from '@/modules/billing/components/PersonalisedLinkHint'
+import { useIsTrial } from '@/hooks/usePaidFeature'
 import {
   Badge,
   Button,
@@ -243,6 +245,7 @@ function JobDetailDialog({ job, orgSlug, onClose }: { job: Job; orgSlug: string 
 /* —— Page ——————————————————————————————————————————————————————————————————— */
 
 export default function JobsListPage() {
+  const isTrial = useIsTrial()
   const { basePath, user } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -394,9 +397,16 @@ export default function JobsListPage() {
           <IconButton label="Share on LinkedIn" onClick={() => setLinkedInJob(job)}>
             <LinkedInGlyph />
           </IconButton>
-          <IconButton label="Copy apply link" onClick={() => copyApplyLink(organization?.slug, job)}>
-            <Link2 size={14} />
-          </IconButton>
+          <span className="group relative inline-flex">
+            <IconButton label="Copy apply link" onClick={() => copyApplyLink(organization?.slug, job)}>
+              <Link2 size={14} />
+            </IconButton>
+            {isTrial && (
+              <span className="invisible absolute right-0 top-full z-20 pt-2 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                <PersonalisedLinkHint compact />
+              </span>
+            )}
+          </span>
 
           {isAdmin && (
             <>
