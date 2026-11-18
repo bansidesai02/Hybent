@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { PAID_PLAN_MESSAGE, useIsTrial } from '@/hooks/usePaidFeature'
 import { formatDistanceToNow } from 'date-fns'
 import { MessageSquareText } from 'lucide-react'
 
@@ -20,6 +21,7 @@ const STATUS_TONE = { sent: 'success', test: 'info', failed: 'error', skipped: '
  * id; until a provider key is set, messages are only logged ("Test").
  */
 export function SmsSettingsCard() {
+  const isTrial = useIsTrial()
   const queryClient = useQueryClient()
   const { data } = useQuery({
     queryKey: [...SMS_KEY, 'settings'],
@@ -132,7 +134,7 @@ export function SmsSettingsCard() {
               onChange={(e) => setTestEvent(e.target.value)}
             />
             <Input label="To mobile" value={testPhone} placeholder="98765 43210" onChange={(e) => setTestPhone(e.target.value)} />
-            <Button variant="ghost" onClick={() => test.mutate()} loading={test.isPending} disabled={testPhone.trim().length < 10}>
+            <Button variant="ghost" onClick={() => (isTrial ? toast.error(PAID_PLAN_MESSAGE) : test.mutate())} loading={test.isPending} disabled={testPhone.trim().length < 10}>
               Send test
             </Button>
           </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
+import { PAID_PLAN_MESSAGE, useIsTrial } from '@/hooks/usePaidFeature'
 import {
   Mail,
   MoreHorizontal,
@@ -79,6 +80,7 @@ function providerLabel(provider: EmailAccount['provider']) {
 }
 
 export function EmailAccountsSection() {
+  const isTrial = useIsTrial()
   const queryClient = useQueryClient()
   useMailboxOAuthResult()
 
@@ -229,7 +231,7 @@ export function EmailAccountsSection() {
           </IconTile>
         }
         action={
-          <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => setConnectDialogOpen(true)}>
+          <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => (isTrial ? toast.error(PAID_PLAN_MESSAGE) : setConnectDialogOpen(true))}>
             Connect account
           </Button>
         }
@@ -239,7 +241,7 @@ export function EmailAccountsSection() {
         <EmptyState
           title="No mailboxes connected"
           description="Your emails currently go out from the platform's default address. Connect Gmail or a custom SMTP mailbox to send as yourself."
-          action={{ label: 'Connect account', onClick: () => setConnectDialogOpen(true) }}
+          action={{ label: 'Connect account', onClick: () => (isTrial ? toast.error(PAID_PLAN_MESSAGE) : setConnectDialogOpen(true)) }}
         />
       ) : (
         <ul className="space-y-3">
