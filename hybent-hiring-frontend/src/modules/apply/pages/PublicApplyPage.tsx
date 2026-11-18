@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Check, CheckCircle2, Loader2, MapPin } from 'lucide-react'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
@@ -239,18 +239,17 @@ export default function PublicApplyPage() {
   return (
     <Shell>
       <div className="mb-hb-6 text-center">
-        <Link to="/" className="mb-hb-5 inline-flex items-center gap-3">
-          <img src="/hybent_logo.webp" alt="" className="h-9 w-9 object-contain" />
-          <img src="/hybent_wordmark_dark.webp" alt="Hybent" className="h-6" />
-        </Link>
-        {job.organization.logo_url && (
-          <img
-            src={job.organization.logo_url}
-            alt=""
-            className="mx-auto mb-hb-3 h-10 w-10 rounded-hb-sm object-contain"
-          />
-        )}
-        <p className="font-mono text-hb-label uppercase text-hb-dim">{job.organization.name}</p>
+        {/* The hiring company's brand, not Hybent's. */}
+        <div className="mb-hb-5 inline-flex items-center gap-3">
+          {job.organization.logo_url && (
+            <img
+              src={job.organization.logo_url}
+              alt=""
+              className="h-10 w-auto max-w-[220px] object-contain"
+            />
+          )}
+          <span className="font-display text-hb-h3 font-bold text-hb-text">{job.organization.name}</span>
+        </div>
         <h1 className="mt-1 font-display text-hb-h1 text-hb-text">{job.title}</h1>
         <p className="mt-2 inline-flex flex-wrap items-center justify-center gap-2 text-hb-sm text-hb-muted">
           <span className="inline-flex items-center gap-1">

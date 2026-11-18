@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
+import { PAID_PLAN_MESSAGE, useIsTrial } from '@/hooks/usePaidFeature'
 import { Mail, Plug, SendHorizonal, Unplug } from 'lucide-react'
 
 import { emailAccountsApi, type ConnectSmtpPayload } from '@/api/emailAccounts'
@@ -62,6 +63,7 @@ function statusLabel(status: string) {
 }
 
 export function PersonalMailboxCard() {
+  const isTrial = useIsTrial()
   const queryClient = useQueryClient()
   useMailboxOAuthResult()
   const [connectDialogOpen, setConnectDialogOpen] = useState(false)
@@ -171,7 +173,7 @@ export function PersonalMailboxCard() {
         <EmptyState
           title="No mailbox connected"
           description="Until you connect one, your emails go out from the platform's default address. You can connect one mailbox — connecting a different one later replaces it."
-          action={{ label: 'Connect account', onClick: () => setConnectDialogOpen(true) }}
+          action={{ label: 'Connect account', onClick: () => (isTrial ? toast.error(PAID_PLAN_MESSAGE) : setConnectDialogOpen(true)) }}
         />
       ) : (
         <div className="flex items-center gap-3">
