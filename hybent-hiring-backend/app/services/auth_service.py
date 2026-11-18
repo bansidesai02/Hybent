@@ -170,16 +170,36 @@ async def resend_mfa(mfa_token: str, db: AsyncSession) -> None:
     await platform_security.issue_mfa_code(db, user)
 
 
-async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
-    """Rotate refresh token and issue new access token."""
-    result = await db.execute(
-        select(RefreshToken).where(
-            RefreshToken.token == refresh_tok,
-            RefreshToken.is_revoked == False,
+# Two tabs (or two requests) can refresh with the same token at once: the
+# first rotates it and the second arrived with a now-revoked token, which used
+# to sign the user out. A token rotated moments ago is still accepted.
+ROTATION_GRACE_SECONDS = 60
+
+
+async def _just_rotated(db: AsyncSession, token_obj: RefreshToken) -> bool:
+    """True when this revoked token was replaced by a rotation in the last
+    ROTATION_GRACE_SECONDS (a sign-out revokes without a replacement)."""
+    since = datetime.now(timezone.utc) - timedelta(seconds=ROTATION_GRACE_SECONDS)
+    newer = await db.scalar(
+        select(func.count(RefreshToken.id)).where(
+            RefreshToken.user_id == token_obj.user_id,
+            RefreshToken.is_revoked == False,  # noqa: E712
+            RefreshToken.created_at >= since,
+            RefreshToken.created_at >= token_obj.created_at,
+            RefreshToken.id != token_obj.id,
         )
     )
-    token_obj = result.scalar_one_or_none()
+    return bool(newer)
+
+
+async def refresh_access_token(refresh_tok: str, db: AsyncSession) -> dict:
+    """Rotate refresh token and issue new access token."""
+    token_obj = (await db.execute(
+        select(RefreshToken).where(RefreshToken.token == refresh_tok)
+    )).scalar_one_or_none()
     if not token_obj or token_obj.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    if token_obj.is_revoked and not await _just_rotated(db, token_obj):
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
     # Revoke old token (rotation)

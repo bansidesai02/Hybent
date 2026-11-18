@@ -116,6 +116,8 @@ api.interceptors.response.use(
  * callers wait for the one refresh in flight. Requests made outside axios
  * (e.g. the Copilot's streaming fetch) call this themselves on a 401.
  */
+let refreshTokenSent: string | null = null
+
 export async function refreshAccessToken(): Promise<string> {
   // A support session's token is never refreshed: the refresh would come back
   // as the super admin's own account. When it stops working, the session is over.
@@ -135,6 +137,7 @@ export async function refreshAccessToken(): Promise<string> {
   try {
     // Try cookie-based refresh first, then localStorage fallback
     const refreshToken = tokenStorage.getRefreshToken()
+    refreshTokenSent = refreshToken
     const payload = refreshToken ? { refresh_token: refreshToken } : undefined
 
     const { data } = await axios.post(
@@ -160,6 +163,17 @@ export async function refreshAccessToken(): Promise<string> {
     processQueue(null, newToken)
     return newToken
   } catch (refreshError: any) {
+    // Another tab refreshed first and saved new tokens: use those instead of
+    // signing out.
+    const sent = refreshTokenSent
+    const stored = tokenStorage.getRefreshToken()
+    const storedAccess = tokenStorage.getAccessToken()
+    if (refreshError?.response?.status === 401 && stored && sent && stored !== sent && storedAccess) {
+      const { useAuthStore } = await import('@/store/authStore')
+      useAuthStore.getState().setTokens(storedAccess, stored)
+      processQueue(null, storedAccess)
+      return storedAccess
+    }
     processQueue(refreshError, null)
 
     try {
