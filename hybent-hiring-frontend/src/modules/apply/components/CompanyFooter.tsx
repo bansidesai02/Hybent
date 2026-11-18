@@ -8,8 +8,7 @@ export function CompanyFooter({ company }: { company: string }) {
       <p className="mt-1.5 inline-flex flex-wrap items-center justify-center gap-1.5 text-hb-xs text-hb-dim">
         © {new Date().getFullYear()} {company}. Powered by
         <a href="https://hybent.com" target="_blank" rel="noopener noreferrer" aria-label="Hybent" className="inline-flex items-center gap-1">
-          <img src="/hybent_logo.webp" alt="" className="h-4 w-4 object-contain" />
-          <img src="/hybent_wordmark_dark.webp" alt="Hybent" className="h-3" />
+          <img src="/hybent/hybent-wordmark-light.png" alt="Hybent" className="h-3" />
         </a>
       </p>
     </footer>
