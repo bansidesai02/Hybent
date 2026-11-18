@@ -28,6 +28,8 @@ import {
   TagInput,
   Textarea,
 } from '@/components/hb'
+import { PersonalisedLinkHint } from '@/modules/billing/components/PersonalisedLinkHint'
+import { useIsTrial } from '@/hooks/usePaidFeature'
 import type { Job } from '@/types'
 
 /**
@@ -98,6 +100,7 @@ async function toPngBlob(file: File): Promise<Blob> {
 }
 
 export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
+  const isTrial = useIsTrial()
   const [screen, setScreen] = useState<Screen>('compose')
 
   // ── LinkedIn connection ─────────────────────────────────────────────────────
@@ -492,6 +495,7 @@ export function LinkedInShareModal({ job, onClose }: LinkedInShareModalProps) {
                 Copy apply link
               </Button>
             </div>
+            {isTrial && <PersonalisedLinkHint />}
           </div>
 
           {/* Right — the recruiter's own image, optional */}
