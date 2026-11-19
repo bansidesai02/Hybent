@@ -113,6 +113,7 @@ class NotificationType(str, Enum):
     CANDIDATE_JOINED = "candidate_joined"  # a candidate created their portal account
     COMMENT_ADDED = "comment_added"
     AI_CALL = "ai_call"
+    PRE_SCREENING_COMPLETED = "pre_screening_completed"
     SYSTEM = "system"
     TRIAL = "trial"  # free trial reminders and expiry (services/trial_service.py)
     # ── Candidate-facing types ────────────────────────────────────────────────

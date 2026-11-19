@@ -371,6 +371,30 @@ async def take_session(token: str, db: DB):
     )
 
 
+async def _notify_completed(session: PreScreeningSession, db: AsyncSession) -> None:
+    """Tell the organization's admins and recruiters a candidate finished."""
+    from app.models.user import UserRole
+    from app.tasks.notifications import notify_organization_roles
+    from app.utils.permissions import NotificationType
+
+    try:
+        candidate = await db.get(Candidate, session.candidate_id)
+        job = await db.get(Job, session.job_id) if session.job_id else None
+        name = candidate.full_name if candidate else "A candidate"
+        for_job = f" for {job.title}" if job else ""
+        notify_organization_roles.delay(
+            str(session.organization_id),
+            [UserRole.ADMIN, UserRole.RECRUITER],
+            NotificationType.PRE_SCREENING_COMPLETED,
+            "Pre-screening completed",
+            f"{name} completed the pre-screening{for_job}. Review the answers.",
+            {"candidate_id": str(session.candidate_id), "session_id": str(session.id),
+             "path": f"/pre-screening/{session.id}"},
+        )
+    except Exception:
+        logger.exception(f"Pre-screening {session.id}: completion notification failed.")
+
+
 # ── Update status ──────────────────────────────────────────────────────────────
 
 @router.patch("/sessions/{session_id}/status")
@@ -387,9 +411,14 @@ async def update_session_status(
     if body.status not in allowed:
         raise HTTPException(status_code=400, detail=f"Status must be one of: {allowed}")
 
+    just_completed = body.status == "completed" and session.status != "completed"
     session.status = body.status
     if body.status == "completed" and not session.completed_at:
         session.completed_at = datetime.now(timezone.utc)
+
+    if just_completed:
+        await db.commit()
+        await _notify_completed(session, db)
 
     return {"id": str(session.id), "status": session.status}
 
