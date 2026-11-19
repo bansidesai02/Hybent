@@ -119,6 +119,8 @@ async def _make_user(db_session, organization, role: str) -> User:
         role=role,
         is_active=True,
         is_verified=True,
+        # Scheduling needs a connected Google Calendar (interviews router).
+        google_refresh_token="test-calendar-token" if role in ("admin", "recruiter") else None,
     )
     db_session.add(user)
     await db_session.commit()

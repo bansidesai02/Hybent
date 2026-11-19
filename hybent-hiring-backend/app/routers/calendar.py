@@ -1,7 +1,7 @@
 import logging
 import uuid
 import httpx
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -11,12 +11,27 @@ from app.core.config import settings
 from app.dependencies import get_db, CurrentUser
 from app.models.user import User
 from app.schemas.response import APIResponse
+from app.utils.security import create_oauth_state, decode_oauth_state
 
 router = APIRouter(prefix="/v1/calendar", tags=["calendar"])
 logger = logging.getLogger(__name__)
 
 # Essential scopes for calendar and meet link generation
 SCOPES = " ".join(["https://www.googleapis.com/auth/calendar.events"])
+
+
+# The schedule page for each role, where the callback returns.
+INTERVIEWS_PATH = {
+    "admin": "/hiring/admin/interviews",
+    "recruiter": "/hiring/recruiter/interviews",
+    "super_admin": "/hiring/super-admin/demos",
+}
+
+
+def _back(user: User | None, query: str) -> RedirectResponse:
+    role = str(getattr(user.role, "value", user.role)) if user else "admin"
+    path = INTERVIEWS_PATH.get(role, INTERVIEWS_PATH["admin"])
+    return RedirectResponse(url=f"{settings.frontend_url.rstrip('/')}{path}?{query}")
 
 
 @router.get("/auth")
@@ -33,7 +48,9 @@ async def google_calendar_auth(current_user: CurrentUser):
         "access_type": "offline",
         "include_granted_scopes": "true",
         "prompt": "consent",
-        "state": str(current_user.id),
+        # Signed and short-lived (as for Gmail): a bare user id let anyone
+        # attach their Google calendar to someone else's account.
+        "state": create_oauth_state(str(current_user.id), str(current_user.organization_id)),
     }
     
     auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
@@ -51,19 +68,22 @@ async def google_calendar_callback(
     db: AsyncSession = Depends(get_db)
 ):
     """Callback for Google OAuth2. Saves the refresh token to the user."""
-    if error:
-        logger.error(f"Google Calendar OAuth error: {error}")
-        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")
+    user = None
+    try:
+        claims = decode_oauth_state(state)
+        user = await db.get(User, uuid.UUID(claims["sub"]))
+        if user is None or str(user.organization_id) != claims.get("org"):
+            user = None
+    except Exception:
+        logger.warning("Rejected Google Calendar callback with an invalid or expired state")
 
-    if not code:
-        logger.error("No authorization code received in callback")
-        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")
+    if error or not code or user is None:
+        logger.error(f"Google Calendar OAuth failed: error={error!r} user={'ok' if user else 'invalid state'}")
+        reason = "access_denied" if error == "access_denied" else (error or "invalid_state")
+        return _back(user, f"error=calendar_auth_failed&reason={quote(reason)}")
 
     try:
-        # Exchange code for tokens using httpx directly
-        # By constructing the auth URL manually WITHOUT a code_challenge,
-        # we don't need to provide a code_verifier here.
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=20) as client:
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
                 data={
@@ -72,35 +92,22 @@ async def google_calendar_callback(
                     "code": code,
                     "grant_type": "authorization_code",
                     "redirect_uri": settings.google_redirect_uri,
-                }
+                },
             )
-            
-            if token_response.status_code != 200:
-                logger.error(f"Failed to exchange code for token: {token_response.text}")
-                return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")
-            
-            tokens = token_response.json()
-            refresh_token = tokens.get("refresh_token")
-            
-            logger.info(f"Callback successful. Received refresh token: {bool(refresh_token)}")
-            
-            if refresh_token:
-                user_id = uuid.UUID(state)
-                result = await db.execute(select(User).where(User.id == user_id))
-                user = result.scalar_one_or_none()
-                if user:
-                    user.google_refresh_token = refresh_token
-                    await db.commit()
-                    if str(getattr(user.role, "value", user.role)) == "super_admin":
-                        return RedirectResponse(url=f"{settings.frontend_url}/hiring/super-admin/demos?calendar=connected")
-                    logger.info(f"Successfully connected Google Calendar for user {user.email}")
-                else:
-                    logger.error(f"User {state} not found during calendar callback")
-            else:
-                logger.warning(f"No refresh token returned for user {state}. Ensure prompt='consent' was used.")
-                    
-        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?success=calendar_connected")
+        if token_response.status_code != 200:
+            logger.error(f"Google Calendar token exchange failed: {token_response.text}")
+            return _back(user, "error=calendar_auth_failed&reason=token_exchange")
 
+        refresh_token = token_response.json().get("refresh_token")
+        if not refresh_token:
+            # Used to report success here while saving nothing.
+            logger.warning(f"No refresh token returned for {user.email}")
+            return _back(user, "error=calendar_auth_failed&reason=no_refresh_token")
+
+        user.google_refresh_token = refresh_token
+        await db.commit()
+        logger.info(f"Connected Google Calendar for {user.email}")
+        return _back(user, "success=calendar_connected")
     except Exception as e:
         logger.error(f"Google Calendar callback failed: {e}")
-        return RedirectResponse(url=f"{settings.frontend_url}/hiring/recruiter/interviews?error=calendar_auth_failed")
+        return _back(user, "error=calendar_auth_failed&reason=server")
