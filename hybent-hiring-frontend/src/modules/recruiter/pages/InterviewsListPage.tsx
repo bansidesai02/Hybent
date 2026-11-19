@@ -52,6 +52,7 @@ import {
   type BadgeTone,
 } from '@/components/hb'
 import { InterviewAIStatus } from '@/modules/recruiter/components/aiCalls/InterviewAIStatus'
+import { openInNewTab } from '@/utils/openInNewTab'
 
 /**
  * Interview scheduling.
@@ -1021,8 +1022,7 @@ function ScheduleDrawer({
   const [drawerConnectInfo, setDrawerConnectInfo] = useState(false)
   const [connectFromDrawer, connectingFromDrawer] = useAsyncAction(async () => {
     try {
-      const res = await authApi.connectCalendar()
-      window.location.href = res.data.auth_url
+      await openInNewTab(async () => (await authApi.connectCalendar()).data.auth_url)
     } catch {
       toast.error('Could not connect your calendar')
     }
@@ -2187,6 +2187,25 @@ export default function InterviewsListPage() {
     // Once per visit to the page.
   }, [])
 
+  /* Google opens in a new tab: when the user comes back to this one, pick up
+     a calendar connected (or removed) there. */
+  useEffect(() => {
+    const onFocus = () => {
+      authApi
+        .calendarStatus()
+        .then((res) => {
+          const u = useAuthStore.getState().user
+          if (u && !!u.is_calendar_connected !== res.data.connected) {
+            setUser({ ...u, is_calendar_connected: res.data.connected })
+            if (res.data.connected) toast.success('Google Calendar connected')
+          }
+        })
+        .catch(() => {})
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
   const [disconnectCalendar, disconnectingCalendar] = useAsyncAction(async () => {
     try {
       await authApi.disconnectCalendar()
@@ -2201,8 +2220,7 @@ export default function InterviewsListPage() {
 
   const [connectCalendar, connectingCalendar] = useAsyncAction(async () => {
     try {
-      const res = await authApi.connectCalendar()
-      window.location.href = res.data.auth_url
+      await openInNewTab(async () => (await authApi.connectCalendar()).data.auth_url)
     } catch {
       toast.error('Could not connect your calendar')
     }

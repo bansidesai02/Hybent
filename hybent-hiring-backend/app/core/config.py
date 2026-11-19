@@ -178,6 +178,10 @@ class Settings(BaseSettings):
     # Development only: lets one company request free trials again and again
     # (no one-trial-per-domain rule, no hourly code limit). Never set in production.
     trial_testing_mode: bool = False
+    # Start a trial as soon as the form is sent (verified work email, email domain
+    # matches the website). Flagged requests still wait for a super admin. Set
+    # TRIAL_AUTO_APPROVE=false to review every request by hand again.
+    trial_auto_approve: bool = True
 
     # ── Logging ────────────────────────────────────────────────────────────────
     log_level: str = "INFO"

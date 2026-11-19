@@ -9,6 +9,7 @@ import type { DemoAdminItem } from '@/api/demo'
 import { useDebounce } from '@/components/chatbot/useDebounce'
 import { Badge, Button, Card, type Column, DataTable, Dialog, Input, PageHeader, Select, Tabs, Textarea, Toolbar, ToolbarSearch } from '@/components/hb'
 import { formatDateTime } from '@/utils/formatters'
+import { openInNewTab } from '@/utils/openInNewTab'
 
 /** Demos booked from hybent.com/book-demo (app/routers/demos.py). */
 
@@ -45,10 +46,8 @@ export default function DemoBookingsPage() {
   const connectCalendar = async () => {
     setConnecting(true)
     try {
-      const res = await authApi.connectCalendar()
-      const url = (res.data as { auth_url?: string })?.auth_url
-      if (url) window.location.href = url
-      else throw new Error('No sign-in link')
+      await openInNewTab(async () => ((await authApi.connectCalendar()).data as { auth_url?: string })?.auth_url)
+      setConnecting(false)
     } catch (err) {
       toast.error(demoError(err, 'Google Calendar is not set up on the server.'))
       setConnecting(false)

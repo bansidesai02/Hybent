@@ -98,17 +98,12 @@ async def test_super_admin_switch_overrides_the_env_default(client, super_admin_
     assert (await client.get(url, headers=h)).json()["data"]["ai_calls"] is False
 
 
-async def test_usage_logs_can_be_hidden_for_everyone_or_one_client(client, super_admin_user, admin_user, organization):
+async def test_usage_logs_are_off_for_every_client(client, super_admin_user, admin_user, organization):
     h_admin = auth_headers(admin_user)
-    assert (await client.get("/v1/auth/features", headers=h_admin)).json()["data"]["usage_logs"] is True
-    assert (await client.get("/v1/ai/credits/history", headers=h_admin)).status_code == 200
-
-    # Off for every client from Super Admin → Feature flags.
-    r = await client.put("/v1/super-admin/flags", json={"usage_logs": False}, headers=auth_headers(super_admin_user))
-    assert r.status_code == 200, r.text
     assert (await client.get("/v1/auth/features", headers=h_admin)).json()["data"]["usage_logs"] is False
     assert (await client.get("/v1/ai/credits/history", headers=h_admin)).status_code == 403
 
-    # One client switched back on.
+    # Even a saved per-client switch can't turn it back on.
     await _set(client, super_admin_user, organization, usage_logs=True)
-    assert (await client.get("/v1/ai/credits/history", headers=h_admin)).status_code == 200
+    assert (await client.get("/v1/ai/credits/history", headers=h_admin)).status_code == 403
+

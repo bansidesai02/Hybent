@@ -30,6 +30,7 @@ import {
   Switch,
   type ContextMenuItem,
 } from '@/components/hb'
+import { openInNewTab } from '@/utils/openInNewTab'
 
 /**
  * An admin's (or super admin's) own mailboxes. They may connect several and
@@ -141,8 +142,7 @@ export function EmailAccountsSection() {
 
   const handleGmailConnect = async () => {
     try {
-      const res = await emailAccountsApi.gmailAuthorize()
-      window.location.href = res.data.auth_url
+      await openInNewTab(async () => (await emailAccountsApi.gmailAuthorize()).data.auth_url)
     } catch {
       toast.error('Could not start Gmail connection')
     }

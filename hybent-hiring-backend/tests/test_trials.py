@@ -59,6 +59,9 @@ def outbox(monkeypatch):
 
     monkeypatch.setattr(lead_checks, "domain_accepts_mail", accepts)
     monkeypatch.setattr(lead_checks, "rate_limited", lambda ip: False)
+    # These tests walk through the manual review; auto-approve has its own tests.
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "trial_auto_approve", False)
 
     async def no_storage(org_id, candidate_id):
         sent.setdefault("deleted_files", []).append((org_id, candidate_id))
@@ -164,6 +167,32 @@ async def test_valid_request_is_saved_and_emailed(client, db_session, outbox):
     assert recipients == ["info@hybent.com"]
     alert = outbox["emails"][0][2]
     assert "<script>" not in alert and "&lt;script&gt;" in alert
+
+
+async def test_auto_approve_starts_the_trial(client, db_session, outbox, plans, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "trial_auto_approve", True)
+    res = await _submit(client)
+    assert res.status_code == 200, res.text
+    setup_url = res.json()["data"]["setup_url"]
+    assert "/setup?token=" in setup_url
+    req = (await db_session.execute(select(TrialRequest))).scalar_one()
+    assert req.status == "active" and req.reviewed_by_id is None
+    assert setup_url.endswith(req.setup_token)
+    admin = (await db_session.execute(select(User).where(User.email == VALID["contact_email"]))).scalar_one()
+    assert admin.organization_id == req.organization_id
+    recipients = sorted(to for to, _, _ in outbox["emails"])
+    assert recipients == sorted(["info@hybent.com", VALID["contact_email"]])
+
+
+async def test_flagged_request_is_not_auto_approved(client, db_session, plans, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "trial_auto_approve", True)
+    res = await _submit(client, company_website="https://some-other-site.com")
+    assert res.status_code == 200, res.text
+    assert "setup_url" not in (res.json().get("data") or {})
+    req = (await db_session.execute(select(TrialRequest))).scalar_one()
+    assert req.status == "pending"
 
 
 @pytest.mark.parametrize("email", ["bill@gmail.com", "bill@yahoo.com", "bill@outlook.com", "bill@hotmail.com", "bill@mailinator.com"])

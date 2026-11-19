@@ -90,6 +90,10 @@ async def request_trial(body: TrialRequestCreate, request: Request, db: DB):
     req = await trial_service.create_request(db, body, ip, request.headers.get("user-agent"))
     logger.info(f"Trial request {req.id} from {req.company_domain}.")
 
+    setup_url = None
+    if settings.trial_auto_approve and not req.risk_flags:
+        setup_url = await _auto_approve(db, req.id)
+
     review_url = f"{settings.frontend_url.rstrip('/')}/hiring/super-admin/trials?id={req.id}"
     try:
         await asyncio.to_thread(
@@ -99,10 +103,60 @@ async def request_trial(body: TrialRequestCreate, request: Request, db: DB):
         # The request is saved and shows in Super Admin either way.
         logger.exception(f"Alert email for trial request {req.id} failed.")
     alert_super_admins(
-        "New free trial request", f"{req.company_name} ({req.contact_email})",
+        "New free trial started" if setup_url else "New free trial request",
+        f"{req.company_name} ({req.contact_email})",
         f"/hiring/super-admin/trials?id={req.id}", event="trial_request",
     )
+    if setup_url:
+        return APIResponse.success(message=TRIAL_STARTED, data={"setup_url": setup_url})
     return APIResponse.success(message=TRIAL_THANKS)
+
+
+TRIAL_STARTED = "Your free trial is ready. Set up your organization to start using Hybent."
+AUTO_APPROVE_SUBJECT = "Your Hybent free trial is ready"
+AUTO_APPROVE_BODY = (
+    "Hi {name},\n\n"
+    "Thank you for choosing Hybent. Your {days}-day free trial for {company} has started.\n\n"
+    "Use the button below to set up your organization and your password. "
+    "If you already did this from the website, you can sign in at {login}.\n\n"
+    "Team Hybent"
+)
+
+
+async def _auto_approve(db, request_id: uuid.UUID) -> str | None:
+    """Start the trial right away (the work email is verified and matches the
+    website). Emails the setup link and returns it so the form can open it.
+    On any problem the request stays pending for a super admin."""
+    try:
+        req = await trial_service.lock_request(db, request_id)
+        token = await trial_service.approve(db, req, None)
+        req.admin_notes = ((req.admin_notes or "") + "\nAuto-approved.").strip()
+        setup_url = f"{settings.frontend_url.rstrip('/')}/setup?token={token}"
+        text = AUTO_APPROVE_BODY.format(
+            name=req.contact_name.split()[0] if req.contact_name else "there", days=trial_service.TRIAL_DAYS,
+            company=req.company_name, login=f"{settings.frontend_url.rstrip('/')}/login",
+        )
+        message = TrialMessage(
+            request_id=req.id, kind="approve", to_email=req.contact_email, subject=AUTO_APPROVE_SUBJECT,
+            body=text, ai_generated=False, sent_by_id=None, sent_by_email="auto-approve",
+        )
+        db.add(message)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception(f"Auto-approve of trial request {request_id} failed; left for review.")
+        return None
+
+    note = f"Your {trial_service.TRIAL_DAYS}-day trial ends on {req.trial_end:%d %B %Y at %H:%M} UTC."
+    html_body = email_service.render_trial_reply(text, setup_url, trial_replies.CTA_LABEL, note)
+    try:
+        message.delivered = bool(await asyncio.to_thread(
+            email_service.send_email, req.contact_email, AUTO_APPROVE_SUBJECT, html_body,
+        ))
+        await db.commit()
+    except Exception:
+        logger.exception(f"Welcome email for auto-approved trial {request_id} failed.")
+    return setup_url
 
 
 @public_router.get("/trial-setup/{token}")

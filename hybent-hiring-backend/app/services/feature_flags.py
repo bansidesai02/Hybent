@@ -26,7 +26,10 @@ ENFORCED = {
 }
 # Before these were enforced every client had all four, so a client with no
 # saved setting keeps them: switching them on by default changes nothing.
-BUILT_IN_DEFAULTS = {"ai": True, "bulk": True, "analytics": True, "copilot": True, "usage_logs": True}
+BUILT_IN_DEFAULTS = {"ai": True, "bulk": True, "analytics": True, "copilot": True, "usage_logs": False}
+# Off for every client, whatever the plan or a saved switch says. The AI usage
+# history (model, tokens, credits per call) stays internal to Hybent.
+ALWAYS_OFF = {"usage_logs"}
 
 
 async def _global_defaults(db: AsyncSession) -> dict:
@@ -61,6 +64,7 @@ async def effective_flags(db: AsyncSession, organization_id: uuid.UUID | None) -
             .where(CompanyFeatureFlag.organization_id == organization_id)
         )).all()
         flags.update({k: bool(v) for k, v in rows if k in ENFORCED})
+    flags.update({k: False for k in ALWAYS_OFF})
     return flags
 
 

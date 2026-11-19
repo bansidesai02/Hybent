@@ -356,9 +356,10 @@ async def _unique_slug(db: AsyncSession, name: str) -> str:
             return slug
 
 
-async def approve(db: AsyncSession, req: TrialRequest, reviewer: User) -> str:
+async def approve(db: AsyncSession, req: TrialRequest, reviewer: User | None) -> str:
     """Create the trial organization and its admin. Returns the admin's
-    set-password token; the caller commits and then emails it."""
+    set-password token; the caller commits and then emails it. reviewer is
+    None when the trial was approved automatically."""
     if req.status != "pending":
         raise HTTPException(status_code=409, detail=f"This request is already {req.status}.")
     # Things may have changed since the request came in.
@@ -420,7 +421,7 @@ async def approve(db: AsyncSession, req: TrialRequest, reviewer: User) -> str:
 
     req.status = "active"
     req.organization_id = org.id
-    req.reviewed_by_id = reviewer.id
+    req.reviewed_by_id = reviewer.id if reviewer else None
     req.reviewed_at = now
     req.trial_start = now
     req.trial_end = trial_end
