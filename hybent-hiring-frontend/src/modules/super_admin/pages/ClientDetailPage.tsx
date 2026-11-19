@@ -69,7 +69,6 @@ const FLAG_INFO: Record<string, { title: string; desc: string }> = {
   bulk: { title: 'Bulk candidate import', desc: 'Sheet upload parser support.' },
   analytics: { title: 'Report export', desc: 'Excel/CSV report downloads.' },
   copilot: { title: 'Hybent Copilot', desc: 'The AI recruiting assistant (page and floating widget).' },
-  usage_logs: { title: 'AI usage history', desc: 'Consumption history log (model, tokens, credits) on the AI Credits page.' },
   ai_calls: { title: 'AI Calls (Hybent AI Agent)', desc: 'Phone pre-screens, availability checks and interview reminders.' },
 }
 

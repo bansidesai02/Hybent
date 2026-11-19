@@ -204,7 +204,14 @@ export function TrialRequestForm() {
     }
     try {
       setStatus('sending')
-      await trialApi.request(payload)
+      const res = await trialApi.request(payload)
+      // Auto-approved: the trial has started, go straight to organization setup.
+      const setupUrl: string | undefined = res?.setup_url ?? res?.data?.setup_url
+      if (setupUrl) {
+        const u = new URL(setupUrl)
+        window.location.assign(`${u.pathname}${u.search}`)
+        return
+      }
       setStatus('sent')
     } catch (err: any) {
       // A check the server makes (a domain that already had a trial, say),

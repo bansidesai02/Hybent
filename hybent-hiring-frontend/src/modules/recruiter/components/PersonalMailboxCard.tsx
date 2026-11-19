@@ -19,6 +19,7 @@ import {
   Input,
   Switch,
 } from '@/components/hb'
+import { openInNewTab } from '@/utils/openInNewTab'
 
 /**
  * A recruiter's one mailbox. Exactly one may be connected; it is their
@@ -122,8 +123,7 @@ export function PersonalMailboxCard() {
 
   const handleGmailConnect = async () => {
     try {
-      const res = await emailAccountsApi.gmailAuthorize()
-      window.location.href = res.data.auth_url
+      await openInNewTab(async () => (await emailAccountsApi.gmailAuthorize()).data.auth_url)
     } catch {
       toast.error('Could not start Gmail connection')
     }
