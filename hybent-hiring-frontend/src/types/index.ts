@@ -43,6 +43,7 @@ export type NotificationType =
   | 'candidate_deleted'
   | 'candidate_joined'
   | 'comment_added'
+  | 'pre_screening_completed'
   | 'system'
   // Candidate-facing types
   | 'shortlisted'

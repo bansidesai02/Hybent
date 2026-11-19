@@ -49,7 +49,8 @@ function notifIcon(type: NotificationType): ReactNode {
     case 'message_received': return <MessageCircle size={15} />
     case 'application_received': return <FileText size={15} />
     case 'candidate_joined': return <UserPlus size={15} />
-    case 'feedback_reminder': return <CheckCircle size={15} />
+    case 'feedback_reminder':
+    case 'pre_screening_completed': return <CheckCircle size={15} />
     default: return <Bell size={15} />
   }
 }
@@ -72,6 +73,13 @@ function NotificationBellComponent() {
     if (typeof url === 'string' && url.startsWith('/')) {
       setOpen(false)
       navigate(url)
+      return
+    }
+    // A page inside the recruiter app, e.g. "/pre-screening/<id>".
+    const path = (n.data as Record<string, unknown> | null | undefined)?.path
+    if (typeof path === 'string' && path.startsWith('/') && (user?.role === 'admin' || user?.role === 'recruiter')) {
+      setOpen(false)
+      navigate(`${basePath}${path}`)
       return
     }
     const candidateId = (n.data as Record<string, unknown> | null | undefined)?.candidate_id
