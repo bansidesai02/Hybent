@@ -322,9 +322,9 @@ TOOLS = [
                     "experience_min": {"type": "number", "description": "Minimum years of experience. Use 0 for freshers, 5 for senior roles."},
                     "experience_max": {"type": "number", "description": "Maximum years of experience. Use 2 for junior/fresher roles."},
                     "salary_max_lpa": {"type": "number", "description": "Maximum expected salary in LPA (e.g. 10 for 'budget 10 LPA', 'under 12 LPA')."},
-                    "designation": {"type": "string", "description": "Job title/designation filter (e.g. 'Senior Engineer', 'Frontend Developer')."},
+                    "designation": {"type": "string", "description": "Job title filter (e.g. 'Senior Engineer', 'Frontend Developer'). Matches the candidate's current title OR the job they applied for, so use it for 'candidates for <role>'."},
                     "tag": {"type": "string", "description": "Filter by talent pool tag."},
-                    "sort_by": {"type": "string", "description": "Sort results: 'experience' (highest first) or 'created_at' (newest first)."},
+                    "sort_by": {"type": "string", "description": "Sort results: 'match_score' (best AI match first — use for 'top'/'best' candidates), 'experience' (highest first) or 'created_at' (newest first). Every result includes its match_score."},
                     "detailed": {"type": "boolean", "description": "Set to true ONLY if the user explicitly requested detailed information, full profiles, or 'in details'. Default is false."}
                 }
             }
@@ -743,9 +743,15 @@ async def execute_read_tool(
                 conds.append("email ILIKE :e")
                 params["e"] = f"%{args['email']}%"
 
-            # Designation / job title
+            # Designation / job title — the candidate's current title OR the job
+            # they applied for. "Top candidates for Senior Full-Stack Engineer"
+            # means applicants to that role, who rarely hold that title already.
             if args.get("designation"):
-                conds.append("current_title ILIKE :desig")
+                conds.append(
+                    "(current_title ILIKE :desig OR EXISTS ("
+                    " SELECT 1 FROM applications a JOIN jobs j ON j.id = a.job_id"
+                    " WHERE a.candidate_id = candidates.id AND j.title ILIKE :desig))"
+                )
                 params["desig"] = f"%{args['designation']}%"
 
             # Tag filter
@@ -990,7 +996,9 @@ async def execute_read_tool(
 
             # ── Ordering & Limits ──────────────────────────────────────────
             order_clause = "ORDER BY created_at DESC"
-            if args.get("sort_by") == "experience":
+            if args.get("sort_by") == "match_score":
+                order_clause = "ORDER BY match_score DESC NULLS LAST, created_at DESC"
+            elif args.get("sort_by") == "experience":
                 order_clause = "ORDER BY COALESCE(years_experience, 0) DESC, created_at DESC"
             elif args.get("sort_by") == "created_at":
                 order_clause = "ORDER BY created_at DESC"
@@ -1107,10 +1115,13 @@ async def execute_read_tool(
                     if skills: score += 0.5
                     return score
 
-                # Sort by AI score (best first)
-                ranked_dicts = sorted(
-                    (dict(r._mapping) for r in res_all), key=_score_candidate, reverse=True
+                # Sort by AI score (best first) — or, when asked for the best
+                # matches, by the stored AI match score itself.
+                rank_key = (
+                    (lambda c: c.get("match_score") or 0)
+                    if args.get("sort_by") == "match_score" else _score_candidate
                 )
+                ranked_dicts = sorted((dict(r._mapping) for r in res_all), key=rank_key, reverse=True)
                 sink["data"] = {
                     "total": match_count,
                     "candidates": [_compact_candidate(c) for c in ranked_dicts[:_SEARCH_SUBSET_SIZE]],

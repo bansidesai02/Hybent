@@ -708,5 +708,10 @@ async def portal_prep_hub(application_id: uuid.UUID, current_user: CurrentUser, 
     candidate_skills = " ".join(candidate.skills or [])
     resume_highlights = f"Summary: {candidate_summary}\nSkills: {candidate_skills}"
     
-    materials = await generate_prep_materials(job.title, f"{desc} {skills}", resume_highlights)
+    # Candidates can't spend AI credits themselves (ai_metering.NO_AI_ROLES), so
+    # charge the hiring organization, as ai_metering prescribes for candidate
+    # endpoints. Without this scope every prep hub came back empty.
+    from app.services.ai_metering import ai_scope
+    async with ai_scope(application.organization_id):
+        materials = await generate_prep_materials(job.title, f"{desc} {skills}", resume_highlights)
     return APIResponse.success(message="Prep materials generated successfully.", data=materials)

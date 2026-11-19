@@ -49,7 +49,7 @@ async def create_offer(data: OfferCreate, current_user: RecruiterUser, db: DB):
     offer = Offer(
         organization_id=current_user.organization_id,
         created_by_id=current_user.id,
-        **data.model_dump(),
+        **data.model_dump(exclude={"application_id"}),
         application_id=uuid.UUID(data.application_id),
     )
     db.add(offer)
