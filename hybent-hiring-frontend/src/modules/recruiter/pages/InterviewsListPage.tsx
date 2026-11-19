@@ -806,6 +806,35 @@ function TimeSlots({
   )
 }
 
+/* ── Before connecting Google Calendar ─────────────────────────────────────── */
+
+/** Google shows an "unverified app" screen until its review is done; telling
+ *  people first keeps them from backing out of the connection. */
+function CalendarConnectInfo({ open, onClose, onConfirm }: { open: boolean; onClose: () => void; onConfirm: () => void }) {
+  return (
+    <ConfirmDialog
+      open={open}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title="Connect Google Calendar"
+      description={
+        <span className="block space-y-2">
+          <span className="block">
+            Interviews you schedule are added to your Google Calendar with a Google Meet link, and invites go to
+            the candidate and interviewers.
+          </span>
+          <span className="block">
+            Google may show <strong>"Google hasn't verified this app"</strong> while our review is in progress.
+            Click <strong>Advanced</strong>, then <strong>Go to hybent.com</strong>, then <strong>Continue</strong>.
+          </span>
+        </span>
+      }
+      confirmLabel="Continue to Google"
+      cancelLabel="Not now"
+    />
+  )
+}
+
 /* ── Schedule drawer ────────────────────────────────────────────────────────── */
 
 const scheduleSchema = z.object({
@@ -989,6 +1018,7 @@ function ScheduleDrawer({
   const blocked = !time || slotState(date, time, interviews) !== 'available'
   // Interviews are created on the scheduler's Google Calendar, so it must be connected first.
   const calendarConnected = !!useAuthStore((st) => st.user?.is_calendar_connected)
+  const [drawerConnectInfo, setDrawerConnectInfo] = useState(false)
   const [connectFromDrawer, connectingFromDrawer] = useAsyncAction(async () => {
     try {
       const res = await authApi.connectCalendar()
@@ -1018,7 +1048,7 @@ function ScheduleDrawer({
               Schedule
             </Button>
           ) : (
-            <Button icon={<CalendarCheck size={16} />} loading={connectingFromDrawer} onClick={() => connectFromDrawer()}>
+            <Button icon={<CalendarCheck size={16} />} loading={connectingFromDrawer} onClick={() => setDrawerConnectInfo(true)}>
               Connect Google Calendar
             </Button>
           )}
@@ -1030,6 +1060,14 @@ function ScheduleDrawer({
         onSubmit={handleSubmit((d) => (d.panelist_ids.length === 0 ? setPendingNoPanel(d) : mutation.mutate(d)))}
         className="space-y-hb-5"
       >
+        <CalendarConnectInfo
+          open={drawerConnectInfo}
+          onClose={() => setDrawerConnectInfo(false)}
+          onConfirm={() => {
+            setDrawerConnectInfo(false)
+            connectFromDrawer()
+          }}
+        />
         {!calendarConnected && (
           <p role="alert" className="rounded-hb-sm border border-hb-warning/30 bg-hb-warning/10 p-3 text-hb-sm text-hb-text">
             Connect your Google Calendar to schedule interviews. The invite and the Meet link are created on your calendar.
@@ -2130,6 +2168,37 @@ export default function InterviewsListPage() {
     onError: () => toast.error('Failed to update the interview'),
   })
 
+  const [connectInfoOpen, setConnectInfoOpen] = useState(false)
+  const [disconnectOpen, setDisconnectOpen] = useState(false)
+
+  /* "Synced" only means a token is saved: ask the server, which checks with
+     Google and forgets a token whose access was removed in the Google account. */
+  useEffect(() => {
+    if (!user?.is_calendar_connected) return
+    authApi
+      .calendarStatus()
+      .then((res) => {
+        if (!res.data.connected && user) {
+          setUser({ ...user, is_calendar_connected: false })
+          toast.error('Your Google Calendar was disconnected. Connect it again to schedule interviews.')
+        }
+      })
+      .catch(() => {})
+    // Once per visit to the page.
+  }, [])
+
+  const [disconnectCalendar, disconnectingCalendar] = useAsyncAction(async () => {
+    try {
+      await authApi.disconnectCalendar()
+      if (user) setUser({ ...user, is_calendar_connected: false })
+      toast.success('Google Calendar disconnected')
+    } catch {
+      toast.error('Could not disconnect your calendar')
+    } finally {
+      setDisconnectOpen(false)
+    }
+  })
+
   const [connectCalendar, connectingCalendar] = useAsyncAction(async () => {
     try {
       const res = await authApi.connectCalendar()
@@ -2171,21 +2240,44 @@ export default function InterviewsListPage() {
 
   return (
     <div className="pb-hb-10">
+      <CalendarConnectInfo
+        open={connectInfoOpen}
+        onClose={() => setConnectInfoOpen(false)}
+        onConfirm={() => {
+          setConnectInfoOpen(false)
+          connectCalendar()
+        }}
+      />
+      <ConfirmDialog
+        open={disconnectOpen}
+        onClose={() => setDisconnectOpen(false)}
+        onConfirm={() => disconnectCalendar()}
+        title="Disconnect Google Calendar?"
+        description="Hybent will stop adding interviews to your calendar, and you won't be able to schedule new interviews until you connect it again. Interviews already on your calendar stay there."
+        confirmLabel="Disconnect"
+        destructive
+        loading={disconnectingCalendar}
+      />
       <PageHeader
         title="Schedule"
         description="Book interviews and keep the day on track."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {user?.is_calendar_connected ? (
-              <Badge tone="success" dot>
-                Calendar synced
-              </Badge>
+              <>
+                <Badge tone="success" dot>
+                  Calendar synced
+                </Badge>
+                <Button variant="quiet" size="sm" onClick={() => setDisconnectOpen(true)}>
+                  Disconnect
+                </Button>
+              </>
             ) : (
               <Button
                 variant="ghost"
                 icon={<CalendarCheck size={16} />}
                 loading={connectingCalendar}
-                onClick={() => connectCalendar()}
+                onClick={() => setConnectInfoOpen(true)}
               >
                 Connect Google Calendar
               </Button>

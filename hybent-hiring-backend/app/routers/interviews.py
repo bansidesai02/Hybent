@@ -166,6 +166,16 @@ async def create_interview(data: InterviewCreate, current_user: RecruiterUser, d
             status_code=409,
             detail="Connect your Google Calendar before scheduling an interview.",
         )
+    # Access may have been removed in the Google account since it was connected.
+    import asyncio
+    from app.services.calendar_service import token_is_valid
+    if await asyncio.to_thread(token_is_valid, current_user.google_refresh_token) is False:
+        current_user.google_refresh_token = None
+        await db.commit()
+        raise HTTPException(
+            status_code=409,
+            detail="Your Google Calendar is no longer connected. Connect it again to schedule interviews.",
+        )
 
     panelists = [(p.user_id, p.role) for p in data.panelist_ids]
     if len(await resolve_panelists(db, current_user.organization_id, panelists)) != len(panelists):
