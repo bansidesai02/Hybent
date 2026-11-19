@@ -3,6 +3,7 @@ import uuid
 import logging
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.models.organization_ai_credits import OrganizationAICredits
@@ -83,17 +84,25 @@ class AICreditsService:
         if sub and sub.current_period_end and sub.current_period_end > datetime.now(timezone.utc):
             reset_at = sub.current_period_end
 
-        org_credits = OrganizationAICredits(
-            organization_id=organization_id,
-            allowed_credits=monthly,
-            used_credits=0,
-            purchased_credits=0,
-            reset_at=reset_at,
+        # Several screening tasks for a brand-new organization can get here at
+        # once. ON CONFLICT DO NOTHING lets the first create the pool and the
+        # rest read it back, instead of failing on the unique constraint.
+        inserted = await db.execute(
+            pg_insert(OrganizationAICredits)
+            .values(
+                id=uuid.uuid4(),
+                organization_id=organization_id,
+                allowed_credits=monthly,
+                used_credits=0,
+                purchased_credits=0,
+                reset_at=reset_at,
+            )
+            .on_conflict_do_nothing(index_elements=[OrganizationAICredits.organization_id])
+            .returning(OrganizationAICredits.id)
         )
-        db.add(org_credits)
-        await db.flush()
-        logger.info(f"Initialized AI credits for organization {organization_id}: {monthly} credits/month.")
-        return org_credits
+        if inserted.scalar_one_or_none():
+            logger.info(f"Initialized AI credits for organization {organization_id}: {monthly} credits/month.")
+        return (await db.execute(query.execution_options(populate_existing=True))).scalar_one()
 
     @staticmethod
     def org_remaining(org_credits: OrganizationAICredits) -> int:
