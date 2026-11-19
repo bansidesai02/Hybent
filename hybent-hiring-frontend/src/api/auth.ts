@@ -34,6 +34,9 @@ export const authApi = {
     api.put('/v1/auth/me/password', { current_password, new_password }),
 
   connectCalendar: () => api.get<{ auth_url: string }>('/v1/calendar/auth'),
+  /** Checks with Google; clears a token whose access was removed. */
+  calendarStatus: () => api.get<{ connected: boolean }>('/v1/calendar/status', { skipLoader: true } as any),
+  disconnectCalendar: () => api.delete<{ connected: boolean }>('/v1/calendar'),
 
   forgotPassword: (email: string) =>
     api.post<{ message: string }>('/v1/auth/forgot-password', { email }),

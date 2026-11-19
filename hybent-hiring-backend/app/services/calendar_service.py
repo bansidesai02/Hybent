@@ -43,6 +43,42 @@ def get_calendar_service(refresh_token: str | None = None):
     return build("calendar", "v3", credentials=creds)
 
 
+def token_is_valid(refresh_token: str | None) -> bool | None:
+    """True if Google still accepts this refresh token, False if the user
+    removed Hybent's access (or it expired), None if we couldn't tell
+    (network error, Google not configured)."""
+    if not refresh_token or not settings.google_client_id or not settings.google_client_secret:
+        return None
+    import httpx
+    try:
+        r = httpx.post("https://oauth2.googleapis.com/token", data={
+            "client_id": settings.google_client_id,
+            "client_secret": settings.google_client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }, timeout=10)
+    except Exception as e:
+        logger.warning(f"Couldn't check the Google Calendar token: {e}")
+        return None
+    if r.status_code == 200:
+        return True
+    if r.status_code in (400, 401) and "invalid_grant" in r.text:
+        return False
+    logger.warning(f"Unexpected answer checking the Google Calendar token: {r.status_code} {r.text[:200]}")
+    return None
+
+
+def revoke_token(refresh_token: str | None) -> None:
+    """Tell Google to drop Hybent's access (best effort)."""
+    if not refresh_token:
+        return
+    import httpx
+    try:
+        httpx.post("https://oauth2.googleapis.com/revoke", params={"token": refresh_token}, timeout=10)
+    except Exception as e:
+        logger.warning(f"Couldn't revoke the Google Calendar token: {e}")
+
+
 async def create_calendar_event(
     title: str,
     description: str,

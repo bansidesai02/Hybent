@@ -111,3 +111,34 @@ async def google_calendar_callback(
     except Exception as e:
         logger.error(f"Google Calendar callback failed: {e}")
         return _back(user, "error=calendar_auth_failed&reason=server")
+
+
+@router.get("/status")
+async def calendar_status(current_user: CurrentUser, db: AsyncSession = Depends(get_db)):
+    """Is the calendar really connected? If the user removed Hybent's access
+    in their Google account, the saved token is cleared so the app asks them
+    to connect again instead of showing "synced"."""
+    import asyncio
+    from app.services.calendar_service import token_is_valid
+
+    token = current_user.google_refresh_token
+    if token:
+        valid = await asyncio.to_thread(token_is_valid, token)
+        if valid is False:
+            current_user.google_refresh_token = None
+            await db.commit()
+            logger.info(f"Google Calendar access was removed for {current_user.email}; cleared the token")
+    return APIResponse.success(data={"connected": bool(current_user.google_refresh_token)})
+
+
+@router.delete("")
+async def disconnect_calendar(current_user: CurrentUser, db: AsyncSession = Depends(get_db)):
+    """Disconnect Google Calendar: revoke Hybent's access at Google and forget the token."""
+    import asyncio
+    from app.services.calendar_service import revoke_token
+
+    token = current_user.google_refresh_token
+    current_user.google_refresh_token = None
+    await db.commit()
+    await asyncio.to_thread(revoke_token, token)
+    return APIResponse.success(message="Google Calendar disconnected.", data={"connected": False})
