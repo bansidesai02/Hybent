@@ -196,7 +196,7 @@ export function DemoScheduler(props: Props) {
           <textarea id="ds-notes" rows={3} value={form.notes} onChange={set('notes')} placeholder="e.g. AI screening for engineering roles, the Recruiter Copilot…" /></div>
         <input className="ds-hp" tabIndex={-1} autoComplete="off" aria-hidden="true" value={form.website} onChange={set('website')} />
         {error && <p className="ds-error" role="alert">{error}</p>}
-        <button className="btn btn-primary btn-lg ds-submit" type="submit" disabled={busy}>
+        <button className="btn btn-primary btn-lg ds-submit" type="submit" data-umami-event="demo-booking-submit" disabled={busy}>
           {busy ? 'Booking…' : 'Book demo'}
         </button>
         <p className="form-note">You’ll get a calendar invite and a Google Meet link by email. Reschedule or cancel any time from that email.</p>
