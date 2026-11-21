@@ -462,7 +462,7 @@ export function TrialRequestForm() {
           </div>
 
           <div className="trial-actions trial-actions--single">
-            <button className="btn btn-primary btn-lg" type="submit" disabled={status === 'sending'}>
+            <button className="btn btn-primary btn-lg" type="submit" data-umami-event="trial-request-submit" disabled={status === 'sending'}>
               {status === 'sending' ? 'Sending…' : `Get ${planName} trial`}{' '}
               <svg className="arw" width="17" height="17" aria-hidden="true"><use href="#i-arrow" /></svg>
             </button>

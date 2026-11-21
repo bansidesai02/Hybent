@@ -332,7 +332,7 @@ export function ContactForm() {
 
       <button
         className="btn btn-primary btn-lg"
-        type="submit"
+        type="submit" data-umami-event="contact-submit"
         disabled={status === 'sending'}
         style={{ width: '100%', marginTop: '22px' }}
       >
