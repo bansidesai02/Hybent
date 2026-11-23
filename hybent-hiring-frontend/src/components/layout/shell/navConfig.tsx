@@ -2,7 +2,7 @@ import type { ComponentType } from 'react'
 import {
   Activity, Brain, BriefcaseBusiness, Building2, CalendarCheck, CalendarDays, ClipboardCheck, FlaskConical,
   Coins, CreditCard, Headset, Megaphone, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, MessageSquare, PhoneCall, ScrollText, Wrench,
-  Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video,
+  Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video, MessageCircle,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { CopilotSparkle } from '@/modules/recruiter/components/Copilot/CopilotSparkle'
@@ -120,6 +120,7 @@ export function getNavSections(
         items: [
           { to: '/hiring/super-admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
           { to: '/hiring/super-admin/inbox', label: 'Gmail Inbox', icon: Inbox },
+          { to: '/hiring/super-admin/whatsapp', label: 'WhatsApp', icon: MessageCircle },
           { to: '/hiring/super-admin/leads', label: 'Leads', icon: Handshake, badge: superAdminTodo?.leads },
           { to: '/hiring/super-admin/clients', label: 'Clients', icon: Building2 },
           { to: '/hiring/super-admin/billing', label: 'Billing', icon: CreditCard },

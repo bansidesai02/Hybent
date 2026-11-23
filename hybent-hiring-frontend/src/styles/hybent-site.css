@@ -2310,9 +2310,9 @@ html:has(.hb-site) body{overflow-x:clip}
 
 
 /* ── Announcement bar above the nav ── */
-html.has-bar .hb-site{--nav-h:108px}
-html.has-bar .hb-site .nav{top:36px;height:72px}
-@media (max-width:640px){html.has-bar .hb-site{--nav-h:100px} html.has-bar .hb-site .nav{height:64px}}
+html.has-bar .hb-site,.hb-site:has(> .announce){--nav-h:108px}
+html.has-bar .hb-site .nav,.hb-site:has(> .announce) .nav{top:36px;height:72px}
+@media (max-width:640px){html.has-bar .hb-site,.hb-site:has(> .announce){--nav-h:100px} html.has-bar .hb-site .nav,.hb-site:has(> .announce) .nav{height:64px}}
 .hb-site .announce{position:fixed;top:0;left:0;right:0;height:36px;z-index:901;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(90deg,#22CFFF,#4C6FFF 45%,#A855F7);color:#fff;font-size:.84rem}
 .hb-site .announce__link{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;padding:0 44px;min-width:0}
