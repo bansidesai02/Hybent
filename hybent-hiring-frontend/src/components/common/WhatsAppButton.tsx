@@ -5,7 +5,7 @@ import { X } from 'lucide-react'
 /** Hybent's WhatsApp number (the Hybent AI bot answers there). */
 const WHATSAPP_NUMBER = '918799029798'
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello! I'd like to know how Hybent can help us hire faster.")}`
-const BUBBLE_KEY = 'hb-wa-bubble-dismissed'
+const BUBBLE_KEY = 'hb-wa-bubble-dismissed-v2'
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
