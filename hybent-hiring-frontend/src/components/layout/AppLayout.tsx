@@ -8,6 +8,7 @@ import { SiteSvgDefs } from './SiteSvgDefs'
 import { CookieBanner } from './CookieBanner'
 
 import { HybentChatbot } from '@/components/chatbot/HybentChatbot'
+import { WhatsAppButton } from '@/components/common/WhatsAppButton'
 import { ROUTE_META } from '@/app/routeMeta'
 import { applyPageMeta, routeMetaPath } from '@/app/seo'
 import { initAnalytics, setSiteTracking } from '@/lib/analytics'
@@ -17,7 +18,7 @@ import '@/styles/hybent-site.css'
  * Hybent AI answers from the site's content via /api/public/assistant
  * (backend: app/services/ai/site_assistant.py). Set to false to hide it.
  */
-const SHOW_CHATBOT = true
+const SHOW_CHATBOT = false
 
 /**
  * The single shell every public surface renders inside — the Hybent company
@@ -127,7 +128,7 @@ export default function AppLayout() {
         <Outlet />
       </main>
       <GlobalFooter />
-      {SHOW_CHATBOT && <HybentChatbot />}
+      {SHOW_CHATBOT ? <HybentChatbot /> : <WhatsAppButton />}
       <CookieBanner />
     </div>
   )

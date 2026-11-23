@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.sms import SmsLog, SmsSettings, SmsStatus
+from app.services import whatsapp_service
 
 logger = logging.getLogger(__name__)
 
@@ -101,15 +102,19 @@ async def get_settings(db: AsyncSession, organization_id: uuid.UUID) -> SmsSetti
 
 
 def provider_live() -> bool:
-    """Credentials for the chosen provider are configured (else test mode)."""
+    """Credentials for the chosen provider are configured (else test mode).
+    WhatsApp, once configured, is used ahead of the SMS providers."""
+    if whatsapp_service.configured():
+        return True
     if settings.sms_provider == "msg91":
         return bool(settings.msg91_auth_key)
     return bool(settings.android_sms_username and settings.android_sms_password)
 
 
 def needs_template_ids() -> bool:
-    """MSG91 sends DLT templates by id; the Android phone sends plain text."""
-    return settings.sms_provider == "msg91"
+    """MSG91 sends DLT templates by id; the Android phone sends plain text;
+    WhatsApp templates are named after the event, so need no id."""
+    return settings.sms_provider == "msg91" and not whatsapp_service.configured()
 
 
 def _send_msg91(template_id: str, to: str, event: SmsEvent, values: dict[str, str]) -> str:
@@ -184,6 +189,14 @@ async def send(
         logger.info(f"[sms:test] {key} → {to}: {log.body}")
     elif needs_template_ids() and not cfg["template_id"]:
         log.error = "No MSG91 template id set for this message"
+    elif whatsapp_service.configured():
+        try:
+            log.provider_ref = whatsapp_service.send_event(key, to, event.variables, values)
+            log.status = SmsStatus.SENT
+        except Exception as e:
+            log.status = SmsStatus.FAILED
+            log.error = str(e)[:500]
+            logger.warning(f"[whatsapp] {key} → {to} failed: {e}")
     elif await _sent_today(db, organization_id) >= settings.sms_daily_limit:
         log.error = f"Daily SMS limit reached ({settings.sms_daily_limit})"
     else:

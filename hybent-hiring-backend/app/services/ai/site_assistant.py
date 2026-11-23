@@ -151,8 +151,16 @@ def rate_limited(client_ip: str) -> bool:
     return False
 
 
-async def answer(history: list[dict]) -> tuple[str, list[str]]:
-    """history: [{role: 'user'|'assistant', content}], oldest first, last is the user's question."""
+WHATSAPP_NOTE = (
+    "\n\n(You are replying on WhatsApp, not the website. Use only *single asterisks* for bold, "
+    "no Markdown links, headings or tables; write full links like https://hybent.com/pricing. "
+    "Keep it under 6 short lines.)"
+)
+
+
+async def answer(history: list[dict], channel: str = "web") -> tuple[str, list[str]]:
+    """history: [{role: 'user'|'assistant', content}], oldest first, last is the user's question.
+    channel "whatsapp" asks for WhatsApp formatting."""
     transcript = "\n\n".join(
         f"{'Visitor' if m['role'] == 'user' else 'Hybent AI'}: {m['content']}" for m in history[:-1]
     )
@@ -160,6 +168,7 @@ async def answer(history: list[dict]) -> tuple[str, list[str]]:
     user_content = (
         (f"Conversation so far:\n{transcript}\n\n" if transcript else "")
         + f"Visitor's new message: {question}\n\nReply as Hybent AI."
+        + (WHATSAPP_NOTE if channel == "whatsapp" else "")
     )
     text_out = await _generate_text_with_fallback(SYSTEM_PROMPT, user_content, temperature=0.3)
     if not text_out:
