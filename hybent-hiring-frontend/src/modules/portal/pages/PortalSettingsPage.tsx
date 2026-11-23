@@ -61,6 +61,8 @@ const SECTIONS: Array<{ title: string; items: SettingItem[] }> = [
   },
 ]
 
+import { PhoneSmsCard } from '@/modules/portal/components/PhoneVerify'
+
 export default function PortalSettingsPage() {
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [smsAlerts, setSmsAlerts] = useState(false)
@@ -77,6 +79,7 @@ export default function PortalSettingsPage() {
 
       <div className="grid max-w-5xl gap-hb-5 lg:grid-cols-[1fr_300px]">
         <div className="space-y-hb-5">
+          <PhoneSmsCard />
           {SECTIONS.map((section, idx) => (
             <motion.div
               key={section.title}

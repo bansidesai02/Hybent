@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Briefcase, Calendar, FileSearch, FileText, Map, User } from 'lucide-react'
 import { portalApi } from '@/api/portal'
 import { AppShell } from './AppShell'
+import { PhoneVerifyPrompt } from '@/modules/portal/components/PhoneVerify'
 import type { NavSection } from './navConfig'
 
 /**
@@ -71,6 +72,8 @@ export function PortalShell() {
   }, [offersUnlocked])
 
   return (
+    <>
+    <PhoneVerifyPrompt />
     <AppShell
       role="candidate"
       sections={sections}
@@ -85,5 +88,6 @@ export function PortalShell() {
         ],
       }}
     />
+    </>
   )
 }

@@ -32,6 +32,9 @@ class Candidate(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(50))
+    # Mobile verified by OTP (Firebase) and agreed to SMS updates.
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sms_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     location: Mapped[str | None] = mapped_column(String(255))
     linkedin_url: Mapped[str | None] = mapped_column(String(500))
     portfolio_url: Mapped[str | None] = mapped_column(String(500))

@@ -7,7 +7,7 @@ from app.routers import (
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
     activities, reports, messages, chat, search, public, copilot, bulk_import, linkedin, designations, api_compat, screening,
     super_admin, candidate_files, pre_screening, email_accounts, inbox, billing, payments,
-    integrations, voice_calls, trials, push, super_admin_ops, demos, sms,
+    integrations, voice_calls, trials, push, super_admin_ops, demos, sms, phone_verification, whatsapp_webhook,
 )
 
 api_router = APIRouter()
@@ -60,5 +60,7 @@ api_router.include_router(trials.public_router, prefix="/api")
 api_router.include_router(trials.admin_router)
 api_router.include_router(trials.router)
 api_router.include_router(sms.router)
+api_router.include_router(phone_verification.router)
+api_router.include_router(whatsapp_webhook.router)
 api_router.include_router(demos.public_router, prefix="/api")
 api_router.include_router(demos.admin_router)

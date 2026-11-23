@@ -55,8 +55,8 @@ async def _job_title(db, candidate: Candidate, application_id=None) -> str:
 async def _candidate_event(candidate_id: str, key: str):
     async with AsyncSessionLocal() as db:
         c = await db.get(Candidate, uuid.UUID(candidate_id))
-        if not c:
-            return
+        if not c or not c.sms_opt_in:
+            return  # only candidates who verified their mobile and agreed
         org = await db.get(Organization, c.organization_id)
         values = {
             "name": (c.full_name or "").split(" ")[0] or "there",
@@ -86,7 +86,7 @@ async def _offer_sent(offer_id: str):
         offer = await db.get(Offer, uuid.UUID(offer_id))
         app = await db.get(Application, offer.application_id) if offer else None
         c = await db.get(Candidate, app.candidate_id) if app else None
-        if not c:
+        if not c or not c.sms_opt_in:
             return
         await sms_service.send(
             db, c.organization_id, "offer_sent", c.phone,
@@ -125,7 +125,7 @@ async def _interview_sms(interview_id: str, candidate_key: str | None, interview
         if not iv or iv.status == InterviewStatus.CANCELLED:
             return
         c, org, panel, values = await _interview_context(db, iv)
-        if candidate_key and c:
+        if candidate_key and c and c.sms_opt_in:
             await sms_service.send(db, iv.organization_id, candidate_key, c.phone, values,
                                    recipient_name=c.full_name, candidate_id=c.id, interview_id=iv.id)
         if interviewer_key:

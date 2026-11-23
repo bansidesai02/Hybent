@@ -142,6 +142,19 @@ class Settings(BaseSettings):
     sms_daily_limit: int = 50
     msg91_auth_key: str = ""
     msg91_sender_id: str = "HYBENT"
+    # WhatsApp Cloud API (Meta). When the token and phone number id are set,
+    # candidate/interviewer updates and the mobile OTP go out on WhatsApp from
+    # Hybent's business number, using Meta-approved templates (whatsapp_service).
+    whatsapp_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_business_account_id: str = ""
+    whatsapp_api_version: str = "v21.0"
+    # Incoming messages (the Hybent AI chatbot): Meta calls /v1/whatsapp/webhook.
+    # VERIFY_TOKEN is any secret string also typed into the Meta dashboard;
+    # APP_SECRET (App settings > Basic) signs every webhook call.
+    whatsapp_verify_token: str = ""
+    whatsapp_app_secret: str = ""
+    whatsapp_bot_enabled: bool = True
 
     # ── Google Calendar ────────────────────────────────────────────────────────
     google_client_id: str = ""
