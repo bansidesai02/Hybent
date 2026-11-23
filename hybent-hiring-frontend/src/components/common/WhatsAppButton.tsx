@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 /** Hybent's WhatsApp number (the Hybent AI bot answers there). */
 const WHATSAPP_NUMBER = '918799029798'
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi Hybent')}`
-const BUBBLE_KEY = 'hb-wa-bubble-dismissed'
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello! I'd like to know how Hybent can help us hire faster.")}`
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -17,50 +14,12 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 /** Floating "Chat on WhatsApp" button on the marketing site. */
 export function WhatsAppButton() {
-  const [bubble, setBubble] = useState(false)
-
-  useEffect(() => {
-    let dismissed = false
-    try { dismissed = sessionStorage.getItem(BUBBLE_KEY) === '1' } catch { /* ignore */ }
-    if (dismissed) return
-    const t = window.setTimeout(() => setBubble(true), 2500)
-    return () => window.clearTimeout(t)
-  }, [])
-
-  const closeBubble = () => {
-    setBubble(false)
-    try { sessionStorage.setItem(BUBBLE_KEY, '1') } catch { /* ignore */ }
-  }
-
   return (
-    <div className="fixed bottom-5 right-5 z-[60] flex items-end gap-3 sm:bottom-6 sm:right-6">
-      <AnimatePresence>
-        {bubble && (
-          <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6 }}
-            className="relative mb-2 hidden max-w-[240px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] sm:block"
-          >
-            <button
-              type="button"
-              onClick={closeBubble}
-              aria-label="Dismiss"
-              className="absolute right-1.5 top-1.5 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            >
-              <X size={13} />
-            </button>
-            <p className="pr-4 font-semibold text-slate-900">Questions about Hybent?</p>
-            <p className="mt-0.5 leading-snug">Chat with us on WhatsApp. We reply instantly.</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="fixed bottom-5 right-5 z-[60] sm:bottom-6 sm:right-6">
       <motion.a
         href={WHATSAPP_URL}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={closeBubble}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.94 }}
         aria-label="Chat with Hybent on WhatsApp"
