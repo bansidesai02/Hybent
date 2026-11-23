@@ -25,6 +25,7 @@ const SuperAdminAnnouncements = lazy(() => import('@/modules/super_admin/pages/A
 const SuperAdminSupportSessions = lazy(() => import('@/modules/super_admin/pages/SupportSessionsPage'))
 const SuperAdminSettings = lazy(() => import('@/modules/super_admin/pages/SettingsPage'))
 const AdminProfilePage = lazy(() => import('@/modules/admin/pages/AdminProfilePage'))
+const WhatsAppConsolePage = lazy(() => import('@/modules/super_admin/pages/WhatsAppConsolePage'))
 const InboxPage = lazy(() => import('@/modules/recruiter/pages/InboxPage'))
 
 const SA = '/hiring/super-admin'
@@ -124,6 +125,7 @@ export default function SuperAdminRoutes() {
         <Route path="settings" element={hubs.settings} />
         <Route path="profile" element={<AdminProfilePage />} />
         <Route path="inbox" element={<InboxPage />} />
+        <Route path="whatsapp" element={<WhatsAppConsolePage />} />
         {MOVED.map(([from, to]) => (
           <Route key={from} path={from} element={<Navigate to={`${SA}/${to}`} replace />} />
         ))}

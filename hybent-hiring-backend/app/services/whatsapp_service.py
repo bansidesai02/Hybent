@@ -144,15 +144,26 @@ def _template_payloads() -> list[dict]:
     return out
 
 
-def template_status() -> dict[str, str]:
-    """name -> APPROVED / PENDING / REJECTED for our templates on Meta."""
+def template_status(only_hybent: bool = True) -> dict[str, str]:
+    """name -> APPROVED / PENDING / REJECTED for (our) templates on Meta."""
     if not settings.whatsapp_business_account_id:
         return {}
     r = httpx.get(_url(f"{settings.whatsapp_business_account_id}/message_templates"), headers=_headers(),
                   params={"fields": "name,status,language", "limit": 200}, timeout=20)
     if r.status_code >= 400:
         raise RuntimeError(_error(r))
-    return {t["name"]: t["status"] for t in r.json().get("data", []) if t["name"].startswith("hybent_")}
+    return {t["name"]: t["status"] for t in r.json().get("data", [])
+            if not only_hybent or t["name"].startswith("hybent_")}
+
+
+def create_template(name: str, body: str) -> dict:
+    """Submit one UTILITY text template; returns Meta's {id, status, category}."""
+    r = httpx.post(_url(f"{settings.whatsapp_business_account_id}/message_templates"), headers=_headers(), timeout=20,
+                   json={"name": name, "language": LANG, "category": "UTILITY",
+                         "components": [{"type": "BODY", "text": body}]})
+    if r.status_code >= 400:
+        raise RuntimeError(_error(r))
+    return r.json()
 
 
 def sync_templates() -> dict[str, str]:

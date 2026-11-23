@@ -60,3 +60,13 @@ async def test_bot_answers_once_with_buttons():
     assert payload["to"] == sender and payload["type"] == "interactive"
     assert payload["interactive"]["body"]["text"] == "*$39* a month"
     assert [b["reply"]["title"] for b in payload["interactive"]["action"]["buttons"]] == ["Free trial"]
+
+
+@pytest.mark.asyncio
+async def test_console_is_super_admin_only_and_sends(client, admin_headers, super_admin_headers):
+    r = await client.post("/v1/whatsapp/console/send", json={"to": "9876543210", "text": "hi"}, headers=admin_headers)
+    assert r.status_code == 403
+    with patch.object(whatsapp_service, "send_text", return_value="wamid.9") as send:
+        r = await client.post("/v1/whatsapp/console/send", json={"to": "98765 43210", "text": "hi"}, headers=super_admin_headers)
+    assert r.status_code == 200 and r.json()["data"]["message_id"] == "wamid.9"
+    assert send.call_args.args == ("919876543210", "hi")
