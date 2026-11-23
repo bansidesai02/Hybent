@@ -586,3 +586,45 @@ async def super_admin_todo(db: DB, current_user: SuperAdminUser):
     data["leads"] = data["trials_pending"] + data["demo_requests_new"] + data["contact_new"]
     data["system"] = data["emails_failed"] + data["errors_open"]
     return APIResponse.success(data=data)
+
+
+# ── Connected mailboxes ──────────────────────────────────────────────────────
+from app.models.email_account import EmailAccount, EmailAccountStatus  # noqa: E402
+
+NEEDS_LOGIN = {EmailAccountStatus.REAUTH_REQUIRED, EmailAccountStatus.ERROR}
+
+
+@router.get("/mailboxes")
+async def super_admin_mailboxes(db: DB, current_user: SuperAdminUser):
+    """Every Gmail/Outlook/SMTP mailbox organizations connected: who uses the
+    inbox, and whose mailbox stopped syncing and needs a fresh sign-in."""
+    rows = (await db.execute(
+        select(EmailAccount, Organization.name, User.full_name, User.email)
+        .join(Organization, Organization.id == EmailAccount.organization_id)
+        .outerjoin(User, User.id == EmailAccount.connected_by_user_id)
+        .where(EmailAccount.status != EmailAccountStatus.DISCONNECTED)
+        .order_by(EmailAccount.created_at.desc())
+    )).all()
+    items, providers = [], {}
+    for acc, org, owner_name, owner_email in rows:
+        providers[acc.provider] = providers.get(acc.provider, 0) + 1
+        items.append({
+            "id": str(acc.id),
+            "organization_id": str(acc.organization_id),
+            "organization": org,
+            "provider": acc.provider,
+            "email_address": acc.email_address,
+            "status": acc.status,
+            "needs_login": acc.status in NEEDS_LOGIN,
+            "owner": owner_name or owner_email,
+            "last_synced_at": acc.last_synced_at.isoformat() if acc.last_synced_at else None,
+            "last_error": acc.last_error,
+            "connected_at": acc.created_at.isoformat() if acc.created_at else None,
+        })
+    return APIResponse.success(data={
+        "total": len(items),
+        "needs_login": sum(1 for i in items if i["needs_login"]),
+        "organizations": len({i["organization_id"] for i in items}),
+        "providers": providers,
+        "mailboxes": items,
+    })

@@ -179,3 +179,24 @@ async def test_todo_counts(client, super_admin_user, admin_user):
     d = r.json()["data"]
     assert {"trials_pending", "contact_new", "emails_failed", "errors_open", "sessions_active", "leads", "system"} <= d.keys()
     assert (await client.get("/v1/super-admin/todo", headers=auth_headers(admin_user))).status_code == 403
+
+
+async def test_mailboxes_lists_connected_accounts(client, db_session, super_admin_user, admin_user):
+    from app.models.email_account import EmailAccount
+
+    db_session.add_all([
+        EmailAccount(organization_id=admin_user.organization_id, provider="gmail", email_address="hr@acme.test",
+                     status="connected", connected_by_user_id=admin_user.id),
+        EmailAccount(organization_id=admin_user.organization_id, provider="outlook", email_address="jobs@acme.test",
+                     status="reauth_required", scope="personal", connected_by_user_id=None),
+        EmailAccount(organization_id=admin_user.organization_id, provider="gmail", email_address="old@acme.test",
+                     status="disconnected"),
+    ])
+    await db_session.commit()
+    r = await client.get("/v1/super-admin/mailboxes", headers=auth_headers(super_admin_user))
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["total"] == 2 and d["needs_login"] == 1 and d["organizations"] == 1
+    assert d["providers"] == {"gmail": 1, "outlook": 1}
+    assert {m["email_address"] for m in d["mailboxes"]} == {"hr@acme.test", "jobs@acme.test"}
+    assert (await client.get("/v1/super-admin/mailboxes", headers=auth_headers(admin_user))).status_code == 403

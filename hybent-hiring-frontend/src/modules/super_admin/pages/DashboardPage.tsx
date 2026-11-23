@@ -18,6 +18,7 @@ import {
 import { superAdminApi } from '@/api/superAdmin'
 import { formatUptime } from '../components/formatUptime'
 import TodayCard from '../components/TodayCard'
+import MailboxesCard from '../components/MailboxesCard'
 import {
   Badge,
   Button,
@@ -191,7 +192,10 @@ export default function DashboardPage() {
       />
 
       <div className="space-y-hb-6">
-        <TodayCard />
+        <div className="grid gap-hb-6 lg:grid-cols-2">
+          <TodayCard />
+          <MailboxesCard />
+        </div>
 
         {clientLimitAlerts.length > 0 && (
           <ul className="space-y-2">
