@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 
 /** Hybent's WhatsApp number (the Hybent AI bot answers there). */
 const WHATSAPP_NUMBER = '918799029798'
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi Hybent')}`
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello! I'd like to know how Hybent can help us hire faster.")}`
 const BUBBLE_KEY = 'hb-wa-bubble-dismissed'
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -37,21 +37,46 @@ export function WhatsAppButton() {
       <AnimatePresence>
         {bubble && (
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            initial={{ opacity: 0, y: 10, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6 }}
-            className="relative mb-2 hidden max-w-[240px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] sm:block"
+            exit={{ opacity: 0, y: 8, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            className="relative mb-2 hidden w-[280px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_48px_-16px_rgba(15,23,42,0.35),0_0_0_1px_rgba(15,23,42,0.06)] sm:block"
           >
-            <button
-              type="button"
+            <div className="flex items-center gap-3 bg-gradient-to-r from-[#075E54] to-[#128C7E] px-4 py-3 text-white">
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-bold ring-1 ring-white/30">
+                H
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#25D366] ring-2 ring-[#0b6b5f]" aria-hidden />
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block text-sm font-semibold">Hybent Team</span>
+                <span className="block text-[11px] text-white/75">Online · replies in seconds</span>
+              </span>
+              <button
+                type="button"
+                onClick={closeBubble}
+                aria-label="Dismiss"
+                className="ml-auto rounded-full p-1 text-white/70 hover:bg-white/10 hover:text-white"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="bg-[#efeae2] px-4 py-3">
+              <div className="relative max-w-[92%] rounded-lg rounded-tl-none bg-white px-3 py-2 text-[13px] leading-snug text-slate-700 shadow-sm">
+                Hiring for a role? 👋 Ask us anything about Hybent, from pricing to a quick demo.
+                <span className="mt-1 block text-right text-[10px] text-slate-400">now</span>
+              </div>
+            </div>
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={closeBubble}
-              aria-label="Dismiss"
-              className="absolute right-1.5 top-1.5 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="flex items-center justify-center gap-2 bg-white px-4 py-2.5 text-sm font-semibold text-[#128C7E] hover:bg-slate-50"
             >
-              <X size={13} />
-            </button>
-            <p className="pr-4 font-semibold text-slate-900">Questions about Hybent?</p>
-            <p className="mt-0.5 leading-snug">Chat with us on WhatsApp. We reply instantly.</p>
+              <WhatsAppIcon className="h-4 w-4" />
+              Start chat
+            </a>
           </motion.div>
         )}
       </AnimatePresence>
