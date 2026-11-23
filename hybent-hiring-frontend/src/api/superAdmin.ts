@@ -380,6 +380,32 @@ export const superAdminApi = {
   getImpersonations: (params?: { status?: 'all' | 'active' | 'ended'; organization_id?: string; limit?: number; offset?: number }) =>
     api.get<{ sessions: SupportSessionRow[]; total: number; minutes: number }>('/v1/super-admin/impersonations', { params })
       .then(res => res.data),
+
+  /** Mailboxes organizations connected (Gmail / Outlook / SMTP). */
+  getMailboxes: () =>
+    api.get<MailboxSummary>('/v1/super-admin/mailboxes', { skipLoader: true }).then(res => res.data),
+}
+
+export interface MailboxRow {
+  id: string
+  organization_id: string
+  organization: string
+  provider: string
+  email_address: string
+  status: string
+  needs_login: boolean
+  owner: string | null
+  last_synced_at: string | null
+  last_error: string | null
+  connected_at: string | null
+}
+
+export interface MailboxSummary {
+  total: number
+  needs_login: number
+  organizations: number
+  providers: Record<string, number>
+  mailboxes: MailboxRow[]
 }
 
 // ── Free trial requests (/v1/super-admin/trials) ─────────────────────────────
