@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { AUTH, PRODUCTS, SHOW_CUSTOMERS, SHOW_SERVICES, SHOW_SOLUTIONS, SITE } from '@/app/paths'
 import SolutionsMegaMenu from '@/components/SolutionsMegaMenu'
@@ -114,7 +114,9 @@ export function GlobalNav({
      page down by its height. */
   const [barDismissed, setBarDismissed] = useState(false)
   const showBar = !barDismissed && typeof window !== 'undefined' && !window.location.pathname.startsWith(SITE.freeTrial)
-  useEffect(() => {
+  // Layout effect: set before the first paint, or the bar covers the nav for a
+  // frame. The CSS also keys off the bar itself (:has), so it never depends on this.
+  useLayoutEffect(() => {
     document.documentElement.classList.toggle('has-bar', showBar)
     return () => document.documentElement.classList.remove('has-bar')
   }, [showBar])
