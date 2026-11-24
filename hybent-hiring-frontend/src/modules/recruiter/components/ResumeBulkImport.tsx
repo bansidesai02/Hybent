@@ -60,8 +60,13 @@ export function ResumeBulkImport({
   const [error, setError] = useState('')
 
   const { data: jobs } = useQuery({
-    queryKey: ['active-jobs'],
-    queryFn: () => jobsApi.list({ status: 'active', limit: 100 }).then((r) => r.data.items),
+    // Own key: 'active-jobs' is cached in other shapes by other pages.
+    queryKey: ['active-jobs', 'resume-import'],
+    queryFn: () =>
+      jobsApi.list({ status: 'active', limit: 100 }).then((r) => {
+        const d: any = r.data
+        return (Array.isArray(d) ? d : Array.isArray(d?.items) ? d.items : []) as Array<{ id: string; title: string }>
+      }),
   })
 
   const { data: status } = useQuery({
