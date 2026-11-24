@@ -16,6 +16,7 @@ Rollback is the Excel import's: candidates carry `import_batch_id`.
 """
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import re
@@ -48,6 +49,9 @@ MAX_FILES = 500
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024     # everything sent in one import
 MAX_UNPACKED_BYTES = 300 * 1024 * 1024   # everything a ZIP may unpack to (zip bombs)
 SOURCE = "bulk_import"
+# Resumes read by AI at the same time. Parsing is the slow part (an AI call
+# per file); saving stays one at a time so duplicate checks stay exact.
+PARSE_CONCURRENCY = 6
 
 
 def _skip(name: str, reason: str) -> dict:
@@ -213,15 +217,12 @@ class _OutOfCredits(Exception):
     pass
 
 
-async def import_one(db: AsyncSession, batch: ImportBatch, job: Job | None, name: str, data: bytes) -> dict:
-    """Parse one resume and create its candidate. Returns the item's result."""
+async def parse_one(batch: ImportBatch, name: str, data: bytes) -> dict:
+    """AI-read one resume (no database work, so many run at once). Returns
+    {"parsed": {...}} or a finished item result. Raises _OutOfCredits."""
     from app.services.ai.resume_parser import NotAResumeError, parse_resume
-    from app.services.ai.resume_rag import stage_candidate_resume_chunks
     from app.services.ai_metering import ai_scope
-    from app.services.resume_intake import apply_parsed_resume, score_application
-    from app.utils.category import detect_category_from_skills, extract_core_category
     from app.utils.exceptions import InsufficientCreditsException
-    from app.utils.job_matching import resolve_or_create_pool_job
 
     org_id = batch.organization_id
     mime = MIME.get(PurePosixPath(name).suffix.lower(), "application/octet-stream")
@@ -241,7 +242,19 @@ async def import_one(db: AsyncSession, batch: ImportBatch, job: Job | None, name
     except Exception as exc:
         logger.warning("Bulk resume import: parse failed for %r: %s", name, exc)
         return {**result, "status": "failed", "reason": "Couldn't read this resume right now. Try it again later."}
+    return {"parsed": parsed}
 
+
+async def save_one(db: AsyncSession, batch: ImportBatch, job: Job | None, name: str, data: bytes, parsed: dict) -> dict:
+    """Create the candidate for a parsed resume. Returns the item's result."""
+    from app.services.ai.resume_rag import stage_candidate_resume_chunks
+    from app.services.resume_intake import apply_parsed_resume, score_application
+    from app.utils.category import detect_category_from_skills, extract_core_category
+    from app.utils.job_matching import resolve_or_create_pool_job
+
+    org_id = batch.organization_id
+    mime = MIME.get(PurePosixPath(name).suffix.lower(), "application/octet-stream")
+    result = {"file": name}
     full_name = parsed.get("full_name") or PurePosixPath(name).stem or "Unknown Candidate"
     email = (parsed.get("email") or "").strip().lower() or None
     if email:
@@ -300,6 +313,14 @@ async def import_one(db: AsyncSession, batch: ImportBatch, job: Job | None, name
     return out
 
 
+async def import_one(db: AsyncSession, batch: ImportBatch, job: Job | None, name: str, data: bytes) -> dict:
+    """Parse and save one resume."""
+    got = await parse_one(batch, name, data)
+    if "parsed" not in got:
+        return got
+    return await save_one(db, batch, job, name, data, got["parsed"])
+
+
 async def process_batch(db: AsyncSession, batch_id) -> None:
     """Work through the batch's pending files, committing after each."""
     from app.services.ai.resume_rag import index_candidate_resume_by_id
@@ -321,27 +342,47 @@ async def process_batch(db: AsyncSession, batch_id) -> None:
     items = [dict(i) for i in details.get("items") or []]
     created_ids = []
     out_of_credits = None
-    for idx, item in enumerate(items):
-        if item.get("status") != "pending":
-            continue
+    sem = asyncio.Semaphore(PARSE_CONCURRENCY)
+
+    async def parse(idx):
+        async with sem:
+            name = items[idx]["file"]
+            try:
+                return await parse_one(batch, name, files.get(name, b""))
+            except _OutOfCredits as exc:
+                return {"out_of_credits": str(exc)}
+            except Exception:
+                logger.exception("Bulk resume import: %r failed to parse", name)
+                return {"file": name, "status": "failed", "reason": "Something went wrong with this file. Try it again."}
+
+    pending = [i for i, it in enumerate(items) if it.get("status") == "pending"]
+    # Chunks: a chunk is parsed in parallel, then saved and committed, so the
+    # progress bar moves every few seconds.
+    for start in range(0, len(pending), PARSE_CONCURRENCY):
+        chunk = pending[start:start + PARSE_CONCURRENCY]
         if out_of_credits:
-            items[idx] = {"file": item["file"], "status": "failed", "reason": out_of_credits}
-            continue
-        try:
-            items[idx] = await import_one(db, batch, job, item["file"], files.get(item["file"], b""))
-        except _OutOfCredits as exc:
-            await db.rollback()
-            batch = await db.get(ImportBatch, batch.id)
-            out_of_credits = f"{exc} — add credits and import this file again."
-            items[idx] = {"file": item["file"], "status": "failed", "reason": out_of_credits}
-        except Exception as exc:
-            logger.exception("Bulk resume import: %r failed", item.get("file"))
-            await db.rollback()
-            batch = await db.get(ImportBatch, batch.id)
-            items[idx] = {"file": item["file"], "status": "failed",
-                          "reason": "Something went wrong with this file. Try it again."}
-        if items[idx].get("status") == "created":
-            created_ids.append(items[idx]["candidate_id"])
+            for idx in chunk:
+                items[idx] = {"file": items[idx]["file"], "status": "failed", "reason": out_of_credits}
+        else:
+            parsed_list = await asyncio.gather(*(parse(i) for i in chunk))
+            for idx, got in zip(chunk, parsed_list):
+                name = items[idx]["file"]
+                if "out_of_credits" in got or out_of_credits:
+                    out_of_credits = out_of_credits or f"{got['out_of_credits']} — add credits and import this file again."
+                    items[idx] = {"file": name, "status": "failed", "reason": out_of_credits}
+                    continue
+                if "parsed" not in got:
+                    items[idx] = got
+                    continue
+                try:
+                    async with db.begin_nested():
+                        items[idx] = await save_one(db, batch, job, name, files.get(name, b""), got["parsed"])
+                except Exception:
+                    logger.exception("Bulk resume import: %r failed to save", name)
+                    items[idx] = {"file": name, "status": "failed",
+                                  "reason": "Something went wrong with this file. Try it again."}
+                if items[idx].get("status") == "created":
+                    created_ids.append(items[idx]["candidate_id"])
         _save(batch, items)
         await db.commit()
 
