@@ -49,8 +49,15 @@ class CopilotState(TypedDict, total=False):
     answer: str
     iterations: int
     tokens_used: int
-    # Write call awaiting approval: {"id", "tool_call_id", "name", "args"}.
+    # Write calls planned this turn, not yet shown for approval:
+    # [{"tool_call_id", "name", "args"}]. Models call one action per turn, so
+    # the plan is collected over several turns, then approved as one list.
+    staged: list[dict]
+    # Write calls awaiting approval: {"id", "calls": [{"tool_call_id", "name", "args"}]}.
     pending: Optional[dict]
+    # Actions already approved (and run, or declined) this turn, by
+    # nodes.action_key. Re-planning one of them is refused.
+    done_actions: list[str]
 
 
 @dataclass

@@ -52,9 +52,22 @@
 {"q": "Schedule an interview", "focus": null, "expect_any": [null]}
 {"q": "Need developer", "focus": null, "expect_any": [null, "search_candidates"]}
 {"q": "Which AI model are you?", "focus": null, "expect_any": [null]}
-{"q": "How do I bulk import candidates?", "focus": null, "expect_any": [null]}
+{"q": "How do I bulk import candidates?", "focus": null, "expect_any": [null, "platform_help"]}
 {"q": "Thanks, that's all", "focus": null, "expect_any": [null]}
 {"q": "Move him to hired", "focus": null, "expect_any": [null, "update_candidate_stage"]}
 {"q": "Score?", "focus": null, "expect_any": [null]}
 {"q": "Find Python devs with 3+ years, compare the best 3, and book an interview with the strongest one tomorrow at 4 pm with Priya", "focus": null, "expect_any": ["search_candidates"]}
 {"q": "Find the top React candidate and show their full profile", "focus": null, "expect_any": ["search_candidates"]}
+{"q": "How much does the Pro plan cost?", "focus": null, "expect_any": ["platform_help"]}
+{"q": "Copilot kis plan mein milta hai?", "focus": null, "expect_any": ["platform_help"]}
+{"q": "How many AI credits do we get each month and how do I top up?", "focus": null, "expect_any": ["platform_help"]}
+{"q": "Where do I add a new recruiter to my team?", "focus": null, "expect_any": ["platform_help"]}
+{"q": "Shortlist Rahul Sharma", "focus": null, "expect_any": ["tag_candidate", "search_candidates"]}
+{"q": "Kavya Nair ko shortlisted tag laga do", "focus": null, "expect_any": ["tag_candidate", "search_candidates"]}
+{"q": "Email Rahul Sharma that his interview is confirmed for Monday", "focus": null, "expect_any": ["email_candidate", "search_candidates"]}
+{"q": "Move Rahul's interview to Friday 3pm", "focus": null, "expect_any": ["reschedule_interview", "search_interviews", "search_candidates"]}
+{"q": "Cancel Ananya Rao's interview, the role is on hold", "focus": null, "expect_any": ["cancel_interview", "search_interviews", "search_candidates"]}
+{"q": "Reject Rahul Sharma", "focus": null, "expect_any": ["reject_candidate"]}
+{"q": "Make Rahul Sharma an offer of 12 LPA for the Python Developer job and send it", "focus": null, "expect_any": ["create_offer"]}
+{"q": "Add a new candidate Riya Shah, riya.shah@example.com, from LinkedIn", "focus": null, "expect_any": ["add_candidate"]}
+{"q": "Rahul Sharma ko WhatsApp pe bata do ki woh shortlisted hai", "focus": null, "expect_any": ["whatsapp_candidate"]}

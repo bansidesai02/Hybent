@@ -32,7 +32,13 @@ export interface ConversationMessage {
 export interface ConversationDetail extends ConversationSummary {
   messages: ConversationMessage[]
   /** Restored from last_context.pending_action — null when no action is awaiting approval. */
-  pending_tool_call: { name: string; args: Record<string, any>; id: string } | null
+  pending_tool_call: {
+    name: string
+    args: Record<string, any>
+    id: string
+    /** Several actions approved together (name is then "run_actions"). */
+    steps?: { name: string; title: string; args?: Record<string, any> }[]
+  } | null
 }
 
 // ── API-layer message (strips internal id field — backend doesn't need it) ───

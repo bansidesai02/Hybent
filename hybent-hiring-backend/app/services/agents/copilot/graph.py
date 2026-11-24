@@ -2,9 +2,11 @@
 from langgraph.graph import END, START, StateGraph
 
 from app.services.agents.checkpointer import get_checkpointer
-from app.services.agents.copilot import tools_candidate, tools_read, tools_write  # noqa: F401 — register tools
+from app.services.agents.copilot import (  # noqa: F401 — register tools
+    tools_actions, tools_candidate, tools_platform, tools_read, tools_write,
+)
 from app.services.agents.copilot.nodes import (
-    agent, approval, finalize, route_after_agent, route_after_tools, tools,
+    agent, approval, finalize, route_after_agent, stage, tools,
 )
 from app.services.agents.copilot.state import CopilotContext, CopilotState
 
@@ -16,11 +18,15 @@ def build_graph(checkpointer):
     g = StateGraph(CopilotState, context_schema=CopilotContext)
     g.add_node("agent", agent)
     g.add_node("tools", tools)
+    g.add_node("stage", stage)
     g.add_node("approval", approval)
     g.add_node("finalize", finalize)
     g.add_edge(START, "agent")
-    g.add_conditional_edges("agent", route_after_agent, {"tools": "tools", "finalize": "finalize"})
-    g.add_conditional_edges("tools", route_after_tools, {"approval": "approval", "agent": "agent"})
+    g.add_conditional_edges(
+        "agent", route_after_agent, {"tools": "tools", "stage": "stage", "finalize": "finalize"},
+    )
+    g.add_edge("tools", "agent")
+    g.add_edge("stage", "approval")
     g.add_edge("approval", "agent")
     g.add_edge("finalize", END)
     return g.compile(checkpointer=checkpointer)

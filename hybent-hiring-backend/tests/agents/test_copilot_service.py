@@ -99,7 +99,7 @@ async def test_plain_answer_sse_order(monkeypatch, env):
 
 async def test_approval_round_trip_and_stale_card(monkeypatch, env):
     move = '{"candidate_name": "Rahul Mehta", "new_stage": "hired"}'
-    _script(monkeypatch, LLMTurn(tool_calls=[ToolCall("w1", "update_candidate_stage", move)]))
+    _script(monkeypatch, LLMTurn(tool_calls=[ToolCall("w1", "update_candidate_stage", move)]), LLMTurn(content="Planned: hire Rahul."))
     events = await _events(user_message="hire rahul")
     approval = next(e for e in events if e["type"] == "approval")
     action_id = approval["pending_tool_call"]["id"]

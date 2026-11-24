@@ -35,7 +35,8 @@ SCHEMAS: dict[str, tuple[str, dict]] = {
         }),
     ),
     "get_candidates_for_job": (
-        "Applicants of a specific job opening.",
+        "Applicants of a specific job opening. Use this (not search_candidates) for 'who applied for X', "
+        "'X job/role ke applicants', 'candidates for the X opening'.",
         params({"job_title": _S, "detailed": {"type": "boolean"}}, required=["job_title"]),
     ),
     "search_jobs": ("Job openings by title/status.", params({
