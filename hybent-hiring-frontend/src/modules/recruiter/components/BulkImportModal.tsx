@@ -30,6 +30,7 @@ import {
   type SheetPreviewData,
   type SheetInfo,
 } from '@/api/bulkImport'
+import { ResumeBulkImport } from './ResumeBulkImport'
 
 /**
  * Bulk candidate import: upload → sheet-select → preview → importing → complete.
@@ -142,16 +143,19 @@ function ResultDetails({
   )
 }
 
-type Stage = 'upload' | 'sheet-select' | 'preview' | 'importing' | 'complete' | 'error'
+type Stage = 'resumes' | 'upload' | 'sheet-select' | 'preview' | 'importing' | 'complete' | 'error'
 
 interface BulkImportModalProps {
   open: boolean
   onClose: () => void
   onSuccess?: (result: ImportResultData) => void
+  /** A resume (PDF / ZIP) import finished. */
+  onResumesImported?: () => void
 }
 
-export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalProps) {
+export function BulkImportModal({ open, onClose, onSuccess, onResumesImported }: BulkImportModalProps) {
   const [stage, setStage] = useState<Stage>('upload')
+  const [resumeFiles, setResumeFiles] = useState<File[]>([])
   const [file, setFile] = useState<File | null>(null)
   const [fileId, setFileId] = useState<string>('')
   const [fileName, setFileName] = useState<string>('')
@@ -196,6 +200,27 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
       return 'Backend is unreachable. Please ensure API server is running and healthy, then retry.'
     }
     return fallback
+  }
+
+  /** Excel/CSV keeps the sheet flow; PDFs, Word files and ZIPs go to the resume import. */
+  const handleFiles = (picked: File[]) => {
+    const isSheet = (f: File) => /\.(xlsx|csv)$/i.test(f.name)
+    const isResume = (f: File) => /\.(pdf|docx?|zip)$/i.test(f.name)
+    const sheets = picked.filter(isSheet)
+    if (sheets.length) {
+      if (picked.length > 1) {
+        toast.error('Upload one Excel/CSV file on its own, or resumes (PDF, Word, ZIP), not both together.')
+        return
+      }
+      handleFileSelect(sheets[0])
+      return
+    }
+    const resumes = picked.filter(isResume)
+    if (resumes.length < picked.length) toast.error('Some files were left out: only PDF, DOC, DOCX and ZIP work here.')
+    if (!resumes.length) return
+    setError('')
+    setResumeFiles((prev) => (stage === 'resumes' ? [...prev, ...resumes] : resumes))
+    setStage('resumes')
   }
 
   const handleFileSelect = async (selectedFile: File) => {
@@ -290,6 +315,7 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
 
   const resetModal = () => {
     setStage('upload')
+    setResumeFiles([])
     setFile(null)
     setFileId('')
     setFileName('')
@@ -322,6 +348,7 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
         </Button>
       )
     }
+    if (stage === 'resumes') return undefined
     if (stage === 'sheet-select') {
       return (
         <>
@@ -382,13 +409,14 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
           >
             <Dropzone
               icon={<FileSpreadsheet />}
-              title="Drag and drop your file"
-              description="Or click to select. Maximum 50 MB."
-              formats={['XLSX', 'CSV']}
-              accept=".xlsx,.csv"
+              title="Drag and drop your files"
+              description="An Excel/CSV sheet of candidates, or resumes: PDF and Word files, or a ZIP of them. You can pick many at once."
+              formats={['XLSX', 'CSV', 'PDF', 'DOCX', 'ZIP']}
+              accept=".xlsx,.csv,.pdf,.doc,.docx,.zip"
+              multiple
               busy={loading}
               busyLabel="Uploading…"
-              onFiles={([selected]) => handleFileSelect(selected)}
+              onFiles={handleFiles}
             />
 
             {file && (
@@ -412,6 +440,26 @@ export function BulkImportModal({ open, onClose, onSuccess }: BulkImportModalPro
                 {error}
               </p>
             )}
+          </motion.div>
+        )}
+
+        {/* RESUME FILES (PDF / Word / ZIP) */}
+        {stage === 'resumes' && (
+          <motion.div key="resumes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <ResumeBulkImport
+              files={resumeFiles}
+              onBack={resetModal}
+              onRemove={(i) => {
+                const next = resumeFiles.filter((_, j) => j !== i)
+                if (next.length) setResumeFiles(next)
+                else resetModal()
+              }}
+              onFinished={(st) => {
+                onResumesImported?.()
+                toast.success(`Resume import finished: ${st.created} added`)
+              }}
+              onClose={handleClose}
+            />
           </motion.div>
         )}
 

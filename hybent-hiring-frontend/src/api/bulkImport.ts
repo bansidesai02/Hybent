@@ -66,7 +66,48 @@ export interface ImportBatchDetail extends ImportBatchSummary {
   }>
 }
 
+export type ResumeItemStatus = 'pending' | 'created' | 'duplicate' | 'not_resume' | 'skipped' | 'failed'
+
+export interface ResumeImportItem {
+  file: string
+  status: ResumeItemStatus
+  reason?: string
+  name?: string
+  candidate_id?: string
+  score?: number
+  rejected?: boolean
+}
+
+export interface ResumeImportStatus {
+  id: string
+  status: string
+  file_name: string
+  job_title: string | null
+  total: number
+  done: number
+  created: number
+  rejected: number
+  duplicate: number
+  not_resume: number
+  skipped: number
+  failed: number
+  items: ResumeImportItem[]
+}
+
 export const bulkImportApi = {
+  /** Many resumes at once: PDF / DOC / DOCX files and ZIPs of them. */
+  startResumes: (files: File[], jobId?: string) => {
+    const form = new FormData()
+    files.forEach((f) => form.append('files', f))
+    if (jobId) form.append('job_id', jobId)
+    return api.post<ResumeImportStatus>('/v1/bulk-import/resumes', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
+  resumeStatus: (batchId: string) =>
+    api.get<ResumeImportStatus>(`/v1/bulk-import/resumes/${batchId}`, { skipLoader: true }),
+
   upload: (formData: FormData) =>
     api.post<UploadResponseData>('/v1/bulk-import/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
