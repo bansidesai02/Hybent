@@ -577,7 +577,16 @@ async def download_failed_rows(
     duplicates = failure_details.get("duplicates", [])
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["type", "row_number", "email", "full_name", "errors"])
+    if failure_details.get("kind") == "resumes":
+        # A resume import: every file that didn't become a new candidate.
+        writer.writerow(["file", "result", "name", "reason"])
+        for it in failure_details.get("items", []):
+            if it.get("status") != "created" or it.get("rejected"):
+                writer.writerow([it.get("file"), "rejected" if it.get("rejected") else it.get("status"),
+                                 it.get("name", ""), it.get("reason", "")])
+        invalid_rows, duplicates = [], []
+    else:
+        writer.writerow(["type", "row_number", "email", "full_name", "errors"])
     for row in invalid_rows:
         writer.writerow(["invalid", row.get("row_number"), "", "", "; ".join(row.get("errors", []))])
     for dup in duplicates:
@@ -613,3 +622,68 @@ async def download_original_file(
         media_type="application/octet-stream",
         headers={"Content-Disposition": f"attachment; filename={batch.file_name}"},
     )
+
+
+# ── Resume files (PDF / Word / ZIP) ──────────────────────────────────────────
+from fastapi import Form  # noqa: E402
+
+from app.models.job import Job  # noqa: E402
+from app.services import bulk_resume_import as resume_import  # noqa: E402
+
+
+@router.post("/resumes", status_code=202)
+async def start_resume_import(
+    current_user: RecruiterUser,
+    db: DB,
+    background_tasks: BackgroundTasks,
+    files: list[UploadFile] = File(...),
+    job_id: str | None = Form(None),
+):
+    """Import many resumes at once: PDF/DOC/DOCX files and ZIPs of them.
+    Each becomes a candidate (scored against `job_id` when one is chosen).
+    Runs in the background; poll GET /resumes/{id} for progress."""
+    uploads, total = [], 0
+    for f in files:
+        data = await f.read()
+        total += len(data)
+        if total > resume_import.MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="Keep one import under 100 MB. Split the files into smaller ZIPs.")
+        uploads.append((f.filename or "file", data))
+
+    job = None
+    if job_id and job_id not in ("null", "undefined"):
+        try:
+            job = (await db.execute(select(Job).where(
+                Job.id == uuid.UUID(job_id), Job.organization_id == current_user.organization_id))).scalar_one_or_none()
+        except ValueError:
+            job = None
+        if job is None:
+            raise HTTPException(status_code=404, detail="That job wasn't found.")
+
+    accepted, skipped = resume_import.collect(uploads)
+    if not accepted:
+        reason = skipped[0]["reason"] if skipped else "No files were sent."
+        raise HTTPException(status_code=400, detail=f"No resumes to import. {reason}. Upload PDF, DOC or DOCX files, or a ZIP of them.")
+
+    batch = resume_import.new_batch(current_user.organization_id, current_user.id, accepted, skipped, job)
+    db.add(batch)
+    await db.commit()
+
+    try:
+        from app.tasks.bulk_import import process_resume_import
+        process_resume_import.delay(str(batch.id))
+    except Exception as exc:  # no broker (local dev): run it in this process
+        logger.warning("Bulk resume import: queue unavailable (%s); running in-process", exc)
+        from app.tasks.bulk_import import run_resume_import
+        background_tasks.add_task(run_resume_import, str(batch.id))
+
+    return APIResponse.success(message="Import started.", data=resume_import.summary(batch), status_code=202)
+
+
+@router.get("/resumes/{batch_id}")
+async def resume_import_status(batch_id: uuid.UUID, current_user: RecruiterUser, db: DB):
+    batch = (await db.execute(select(ImportBatch).where(
+        ImportBatch.id == batch_id, ImportBatch.organization_id == current_user.organization_id))).scalar_one_or_none()
+    if batch is None or (batch.failure_details or {}).get("kind") != resume_import.KIND:
+        raise HTTPException(status_code=404, detail="Import not found")
+    return APIResponse.success(data=resume_import.summary(batch))

@@ -1322,6 +1322,10 @@ export default function AllTalentListPage() {
           setShowBulkImport(false)
           toast.success(`Imported ${result.created_count} candidates`)
         }}
+        onResumesImported={() => {
+          invalidateAll()
+          queryClient.invalidateQueries({ queryKey: ['jobs', 'all-for-filters'] })
+        }}
       />
 
       <BulkImportHistoryModal
