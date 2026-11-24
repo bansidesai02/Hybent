@@ -95,3 +95,25 @@ async def test_resume_import_refuses_an_upload_with_no_resumes(client, admin_use
                           headers=auth_headers(admin_user))
     assert r.status_code == 400
     assert "No resumes to import" in str(r.json())
+
+
+async def test_resume_import_retries_a_busy_ai(client, db_session, admin_user, fake_ai, monkeypatch):
+    from app.services.ai import resume_parser
+
+    calls = {}
+
+    async def flaky(data, mime, name, **_):
+        calls[name] = calls.get(name, 0) + 1
+        if calls[name] < 3:  # rate-limited twice, then fine
+            raise RuntimeError("429 Resource exhausted")
+        return {"full_name": "Dana", "email": "dana@example.com", "skills": []}
+
+    monkeypatch.setattr(resume_parser, "parse_resume", flaky)
+    monkeypatch.setattr(bri, "RETRY_WAITS", (0, 0))
+    monkeypatch.setattr(bri, "FINAL_PAUSE", 0)
+    r = await client.post("/v1/bulk-import/resumes", files=[("files", ("dana.pdf", PDF, "application/pdf"))],
+                          headers=auth_headers(admin_user))
+    await bri.process_batch(db_session, r.json()["data"]["id"])
+    s = (await client.get(f"/v1/bulk-import/resumes/{r.json()['data']['id']}", headers=auth_headers(admin_user))).json()["data"]
+    assert s["created"] == 1 and s["failed"] == 0
+    assert "retry" not in s["items"][0]

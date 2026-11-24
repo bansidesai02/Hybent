@@ -51,7 +51,12 @@ MAX_UNPACKED_BYTES = 300 * 1024 * 1024   # everything a ZIP may unpack to (zip b
 SOURCE = "bulk_import"
 # Resumes read by AI at the same time. Parsing is the slow part (an AI call
 # per file); saving stays one at a time so duplicate checks stay exact.
-PARSE_CONCURRENCY = 6
+PARSE_CONCURRENCY = 3
+# A failed AI read (rate limit, timeout) is retried after these waits, then
+# once more one at a time at the end of the batch.
+RETRY_WAITS = (3, 8)
+FINAL_PAUSE = 10
+TRANSIENT = "Couldn't read this resume right now. Try it again later."
 
 
 def _skip(name: str, reason: str) -> dict:
@@ -238,10 +243,11 @@ async def parse_one(batch: ImportBatch, name: str, data: bytes) -> dict:
     except HTTPException as exc:
         if exc.status_code == 400:
             return {**result, "status": "not_resume", "reason": str(exc.detail)}
-        return {**result, "status": "failed", "reason": "Couldn't read this resume right now. Try it again later."}
+        logger.warning("Bulk resume import: parse of %r got HTTP %s: %s", name, exc.status_code, exc.detail)
+        return {**result, "status": "failed", "reason": TRANSIENT, "retry": True}
     except Exception as exc:
-        logger.warning("Bulk resume import: parse failed for %r: %s", name, exc)
-        return {**result, "status": "failed", "reason": "Couldn't read this resume right now. Try it again later."}
+        logger.warning("Bulk resume import: parse failed for %r: %s: %s", name, type(exc).__name__, exc)
+        return {**result, "status": "failed", "reason": TRANSIENT, "retry": True}
     return {"parsed": parsed}
 
 
@@ -348,12 +354,39 @@ async def process_batch(db: AsyncSession, batch_id) -> None:
         async with sem:
             name = items[idx]["file"]
             try:
-                return await parse_one(batch, name, files.get(name, b""))
+                got = await parse_one(batch, name, files.get(name, b""))
+                for wait in RETRY_WAITS:
+                    if not got.get("retry"):
+                        break
+                    await asyncio.sleep(wait)
+                    got = await parse_one(batch, name, files.get(name, b""))
+                return got
             except _OutOfCredits as exc:
                 return {"out_of_credits": str(exc)}
             except Exception:
                 logger.exception("Bulk resume import: %r failed to parse", name)
-                return {"file": name, "status": "failed", "reason": "Something went wrong with this file. Try it again."}
+                return {"file": name, "status": "failed", "retry": True, "reason": "Something went wrong with this file. Try it again."}
+
+    async def take(idx, got, credits_msg):
+        """Record one parse result, saving the candidate. Returns the out-of-credits message, if any."""
+        name = items[idx]["file"]
+        if "out_of_credits" in got or credits_msg:
+            credits_msg = credits_msg or f"{got['out_of_credits']} — add credits and import this file again."
+            items[idx] = {"file": name, "status": "failed", "reason": credits_msg}
+            return credits_msg
+        if "parsed" not in got:
+            items[idx] = got
+            return None
+        try:
+            async with db.begin_nested():
+                items[idx] = await save_one(db, batch, job, name, files.get(name, b""), got["parsed"])
+        except Exception as exc:
+            logger.exception("Bulk resume import: %r failed to save", name)
+            items[idx] = {"file": name, "status": "failed", "retry": True,
+                          "reason": f"Something went wrong with this file ({type(exc).__name__}). Try it again."}
+        if items[idx].get("status") == "created":
+            created_ids.append(items[idx]["candidate_id"])
+        return None
 
     pending = [i for i, it in enumerate(items) if it.get("status") == "pending"]
     # Chunks: a chunk is parsed in parallel, then saved and committed, so the
@@ -366,26 +399,24 @@ async def process_batch(db: AsyncSession, batch_id) -> None:
         else:
             parsed_list = await asyncio.gather(*(parse(i) for i in chunk))
             for idx, got in zip(chunk, parsed_list):
-                name = items[idx]["file"]
-                if "out_of_credits" in got or out_of_credits:
-                    out_of_credits = out_of_credits or f"{got['out_of_credits']} — add credits and import this file again."
-                    items[idx] = {"file": name, "status": "failed", "reason": out_of_credits}
-                    continue
-                if "parsed" not in got:
-                    items[idx] = got
-                    continue
-                try:
-                    async with db.begin_nested():
-                        items[idx] = await save_one(db, batch, job, name, files.get(name, b""), got["parsed"])
-                except Exception:
-                    logger.exception("Bulk resume import: %r failed to save", name)
-                    items[idx] = {"file": name, "status": "failed",
-                                  "reason": "Something went wrong with this file. Try it again."}
-                if items[idx].get("status") == "created":
-                    created_ids.append(items[idx]["candidate_id"])
+                out_of_credits = await take(idx, got, out_of_credits)
         _save(batch, items)
         await db.commit()
 
+    # Last chance for files that failed for a passing reason (AI busy, rate
+    # limit): once more, one at a time, after a pause.
+    again = [i for i, it in enumerate(items) if it.get("status") == "failed" and it.get("retry")]
+    if again and not out_of_credits:
+        await asyncio.sleep(FINAL_PAUSE)
+        for idx in again:
+            got = await parse(idx)
+            out_of_credits = await take(idx, got, out_of_credits)
+            _save(batch, items)
+            await db.commit()
+
+    for it in items:
+        it.pop("retry", None)
+    _save(batch, items)
     batch.status = "completed"
     await db.commit()
 
