@@ -194,7 +194,9 @@ async def stream_copilot_agent(
             "answer": "",
             "iterations": 0,
             "tokens_used": 0,
+            "staged": [],
             "pending": None,
+            "done_actions": [],
         }
 
     answer_parts: list[str] = []

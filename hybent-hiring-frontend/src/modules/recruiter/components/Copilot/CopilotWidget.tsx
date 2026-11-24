@@ -10,6 +10,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ConversationSummary } from '@/api/copilot'
 import { candidatesApi } from '@/api/candidates'
 import { useCopilotConversations } from './useCopilotConversations'
+import { ApprovalSteps } from './ApprovalSteps'
+import { useStickToBottom } from './useStickToBottom'
 import { CopilotSteps } from './CopilotSteps'
 import { CopilotMarkdown } from './CopilotMarkdown'
 import { CopilotSparkle } from './CopilotSparkle'
@@ -892,6 +894,8 @@ export function CopilotWidget() {
     const el = messagesRef.current
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [messages, isThinking, isTranscribing])
+  // …and keep following as steps, streamed text or the approval card appear.
+  useStickToBottom(messagesRef, isOpen && !isMinimized)
 
   const keepInBounds = useCallback((pos: { x: number; y: number } | null, minimized: boolean) => {
     if (!pos) return
@@ -2353,8 +2357,18 @@ export function CopilotWidget() {
                           <div className="my-1 rounded-hb-md border border-hb-blue/35 bg-hb-blue/[0.04] p-3.5">
                             <div className="mb-2 flex items-center gap-1.5 text-hb-sm font-bold text-hb-text">
                               <span>⚠️</span>
-                              <span>Approval Required: {(pendingApproval.name as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</span>
+                              <span>
+                                {pendingApproval.steps?.length > 1
+                                  ? `Approval Required: ${pendingApproval.steps.length} actions`
+                                  : `Approval Required: ${(pendingApproval.name as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}`}
+                              </span>
                             </div>
+                            {pendingApproval.steps?.length > 1 ? (
+                              <div className="mb-4">
+                                <ApprovalSteps steps={pendingApproval.steps} />
+                              </div>
+                            ) : (
+                            <>
                             <div className="mb-3 text-hb-xs text-hb-muted">
                               Review the action below and confirm to proceed.
                             </div>
@@ -2373,6 +2387,8 @@ export function CopilotWidget() {
                                 </div>
                               ))}
                             </div>
+                            </>
+                            )}
                             <div style={{ display: 'flex', gap: '8px' }}>
                               <button
                                 onClick={() => handleSend(undefined, pendingApproval)}

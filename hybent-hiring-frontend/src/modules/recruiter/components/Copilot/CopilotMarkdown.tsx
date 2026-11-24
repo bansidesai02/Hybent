@@ -15,10 +15,11 @@
  * Typography lives in index.css (`.copilot-markdown`), shared by the full
  * Copilot page and the floating popup.
  */
-import { memo, useState } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Check, Copy } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowUpRight, Check, Copy } from 'lucide-react'
 
 /* Minimal hast shapes — enough to read a table's text for the card view. */
 type HastNode = { type: string; tagName?: string; value?: string; children?: HastNode[] }
@@ -100,6 +101,26 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   )
 }
 
+/** A link to a page in the app ("[Open Settings](/hiring/admin/settings)"):
+ *  a button that navigates in place, keeping the chat's state. */
+function InAppLink({ href, children }: { href: string; children: ReactNode }) {
+  const navigate = useNavigate()
+  return (
+    <a
+      href={href}
+      className="cm-app-link"
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return // new tab still works
+        e.preventDefault()
+        navigate(href)
+      }}
+    >
+      {children}
+      <ArrowUpRight size={13} aria-hidden />
+    </a>
+  )
+}
+
 const components: Components = {
   pre({ node }) {
     const codeEl = hastChildren(node as unknown as HastNode, 'code')[0] as
@@ -132,6 +153,7 @@ const components: Components = {
   },
   a({ href, children }) {
     const external = !!href && /^https?:\/\//.test(href) && !href.includes(window.location.host)
+    if (href?.startsWith('/')) return <InAppLink href={href}>{children}</InAppLink>
     return (
       <a href={href} {...(external ? { target: '_blank', rel: 'noreferrer noopener' } : {})}>
         {children}

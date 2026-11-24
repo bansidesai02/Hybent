@@ -342,6 +342,8 @@ async def get_conversation(
             "args": pa.get("args"),
             "id": pa.get("id"),
         }
+        if pa.get("steps"):  # several actions approved together (agent v2)
+            pending_tool_call["steps"] = pa["steps"]
 
     return ConversationDetail(
         id=str(conv.id),

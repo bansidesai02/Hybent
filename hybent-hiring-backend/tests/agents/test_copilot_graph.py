@@ -1,4 +1,5 @@
 """Copilot agent graph, end to end with a scripted LLM (no network, no DB)."""
+import json
 import uuid
 
 import pytest
@@ -224,10 +225,16 @@ def writes(monkeypatch):
 _MOVE = '{"candidate_name": "Rahul Mehta", "new_stage": "technical_round_selected"}'
 
 
+def _outcome_note(llm_call: dict) -> str:
+    """The system note the approval node adds with each action's real outcome."""
+    return next(m["content"] for m in llm_call["messages"] if m["role"] == "system" and "planned actions" in m["content"])
+
+
 async def test_write_pauses_for_approval_then_continues(monkeypatch, saved, writes):
     graph = build_graph(InMemorySaver())
     llm = ScriptedLLM(
         LLMTurn(tool_calls=[_call("w1", "update_candidate_stage", _MOVE)]),
+        LLMTurn(content="Planned: move Rahul to Technical Round Selected."),
         LLMTurn(content="**Done.** Rahul is now Technical Round Selected. [SUGGEST:Schedule his interview]"),
     )
     monkeypatch.setattr(nodes, "stream_chat", llm)
@@ -240,6 +247,9 @@ async def test_write_pauses_for_approval_then_continues(monkeypatch, saved, writ
     assert saved["ctx"]["pending_action"]["id"] == card["id"]  # reload can restore the card
     assert saved["ctx"]["pending_action"]["agent"] == "v2"
     assert any(e["type"] == "step" and e.get("detail") == "Waiting for your approval" for e in events)
+    # The model was told the action is only planned, not done.
+    planned = [m for m in llm.calls[1]["messages"] if m["role"] == "tool"][0]
+    assert "NOT done yet" in planned["content"]
 
     events, _ = await _stream(graph, Command(resume={"action_id": card["id"], "approved": True}), "approved", "tw")
     assert writes == [("update_candidate_stage", {"candidate_name": "Rahul Mehta", "new_stage": "technical_round_selected"})]
@@ -247,14 +257,14 @@ async def test_write_pauses_for_approval_then_continues(monkeypatch, saved, writ
     assert answer.startswith("**Done.**")
     assert "pending_action" not in saved["ctx"]
     # The agent saw the write's real outcome before answering.
-    tool_msg = [m for m in llm.calls[1]["messages"] if m["role"] == "tool"][0]
-    assert "has been moved" in tool_msg["content"]
+    assert "has been moved" in _outcome_note(llm.calls[2])
 
 
 async def test_declined_or_mismatched_approval_does_not_run(monkeypatch, saved, writes):
     graph = build_graph(InMemorySaver())
     monkeypatch.setattr(nodes, "stream_chat", ScriptedLLM(
         LLMTurn(tool_calls=[_call("w1", "update_candidate_stage", _MOVE)]),
+        LLMTurn(content="Planned: move Rahul."),
         LLMTurn(content="Okay, I won't move him."),
     ))
     _, interrupts = await _stream(graph, _input("move rahul"), "move rahul", "td")
@@ -279,6 +289,7 @@ async def test_new_message_while_approval_pending_starts_fresh(monkeypatch, save
     graph = build_graph(InMemorySaver())
     monkeypatch.setattr(nodes, "stream_chat", ScriptedLLM(
         LLMTurn(tool_calls=[_call("w1", "update_candidate_stage", _MOVE)]),
+        LLMTurn(content="Planned: move Rahul."),
     ))
     _, interrupts = await _stream(graph, _input("move rahul"), "move rahul", "tn")
     assert interrupts
@@ -288,7 +299,141 @@ async def test_new_message_while_approval_pending_starts_fresh(monkeypatch, save
     assert interrupts == [] and writes == []
     assert saved["reply"] == "Pipeline has 9."
     snapshot = await graph.aget_state({"configurable": {"thread_id": "tn"}})
-    assert not snapshot.interrupts and not snapshot.values.get("pending")
+    assert not snapshot.interrupts and not snapshot.values.get("pending") and not snapshot.values.get("staged")
+
+
+def _move(name: str, stage: str = "technical_round_selected") -> str:
+    return json.dumps({"candidate_name": name, "new_stage": stage})
+
+
+async def test_one_action_per_turn_is_collected_into_one_approval(monkeypatch, saved, writes):
+    """Real models call one tool per turn: the plan grows over several turns
+    and is approved once, then runs in order."""
+    graph = build_graph(InMemorySaver())
+    llm = ScriptedLLM(
+        LLMTurn(tool_calls=[_call("w1", "update_candidate_stage", _move("Rahul Mehta"))]),
+        LLMTurn(tool_calls=[_call("w2", "update_candidate_stage", _move("Asha Rao"))]),
+        LLMTurn(tool_calls=[_call("w3", "update_candidate_stage", _move("Rahul Mehta"))]),  # duplicate
+        LLMTurn(content="Planned: move Rahul and Asha."),
+        LLMTurn(content="**Both moved.**"),
+    )
+    monkeypatch.setattr(nodes, "stream_chat", llm)
+
+    events, interrupts = await _stream(graph, _input("move rahul and asha"), "move rahul and asha", "tb")
+    assert writes == [] and len(interrupts) == 1
+    card = interrupts[0]["pending_tool_call"]
+    assert card["name"] == "run_actions"
+    assert [s["args"]["candidate_name"] for s in card["steps"]] == ["Rahul Mehta", "Asha Rao"]
+    assert list(card["args"]) == ["Step 1", "Step 2"]  # readable by older approval cards
+    assert saved["ctx"]["pending_action"]["steps"] == card["steps"]  # reload restores the list
+    assert "2 actions" in "".join(e["content"] for e in events if e["type"] == "chunk")
+    dup = next(m for m in llm.calls[3]["messages"] if m.get("tool_call_id") == "w3")
+    assert "already planned" in dup["content"]
+
+    await _stream(graph, Command(resume={"action_id": card["id"], "approved": True}), "approved", "tb")
+    assert [a["candidate_name"] for _, a in writes] == ["Rahul Mehta", "Asha Rao"]
+    note = _outcome_note(llm.calls[4])
+    assert note.index("Rahul Mehta") < note.index("Asha Rao")
+
+
+async def test_several_actions_in_one_turn_are_approved_together(monkeypatch, saved, writes):
+    graph = build_graph(InMemorySaver())
+    llm = ScriptedLLM(
+        LLMTurn(tool_calls=[
+            _call("w1", "update_candidate_stage", _move("Rahul Mehta")),
+            _call("w2", "update_candidate_stage", _move("Asha Rao")),
+        ]),
+        LLMTurn(content="Planned both."),
+        LLMTurn(content="**Both moved.**"),
+    )
+    monkeypatch.setattr(nodes, "stream_chat", llm)
+    _, interrupts = await _stream(graph, _input("move both"), "move both", "tt")
+    card = interrupts[0]["pending_tool_call"]
+    assert len(card["steps"]) == 2
+    await _stream(graph, Command(resume={"action_id": card["id"], "approved": True}), "ok", "tt")
+    assert len(writes) == 2
+
+
+async def test_one_failing_action_does_not_stop_the_rest(monkeypatch, saved, writes):
+    async def flaky(name, args, organization_id, user_id, db):
+        if args["candidate_name"] == "Asha Rao":
+            raise RuntimeError("db down")
+        writes.append((name, args))
+        return "✅ moved"
+
+    monkeypatch.setattr(legacy, "execute_write_tool", flaky)
+    graph = build_graph(InMemorySaver())
+    llm = ScriptedLLM(
+        LLMTurn(tool_calls=[_call("w1", "update_candidate_stage", _move("Asha Rao"))]),
+        LLMTurn(tool_calls=[_call("w2", "update_candidate_stage", _move("Rahul Mehta"))]),
+        LLMTurn(content="Planned both."),
+        LLMTurn(content="Rahul moved; Asha failed."),
+    )
+    monkeypatch.setattr(nodes, "stream_chat", llm)
+    _, interrupts = await _stream(graph, _input("move both"), "move both", "tf")
+    events, _ = await _stream(
+        graph, Command(resume={"action_id": interrupts[0]["pending_tool_call"]["id"], "approved": True}), "approved", "tf",
+    )
+    assert [a["candidate_name"] for _, a in writes] == ["Rahul Mehta"]
+    states = {e["id"]: e["state"] for e in events if e["type"] == "step" and e["id"].endswith("-run")}
+    assert states == {"w1-run": "error", "w2-run": "done"}
+    assert "NOT done" in _outcome_note(llm.calls[3]).splitlines()[1]
+
+
+async def test_declining_a_batch_runs_none_of_it(monkeypatch, saved, writes):
+    graph = build_graph(InMemorySaver())
+    llm = ScriptedLLM(
+        LLMTurn(tool_calls=[_call("w1", "update_candidate_stage", _move("Rahul Mehta"))]),
+        LLMTurn(tool_calls=[_call("w2", "update_candidate_stage", _move("Asha Rao"))]),
+        LLMTurn(content="Planned both."),
+        LLMTurn(content="Okay, nothing changed."),
+    )
+    monkeypatch.setattr(nodes, "stream_chat", llm)
+    _, interrupts = await _stream(graph, _input("move both"), "move both", "tx")
+    card = interrupts[0]["pending_tool_call"]
+    await _stream(graph, Command(resume={"action_id": card["id"], "approved": False}), "no", "tx")
+    assert writes == []
+    assert "declined" in _outcome_note(llm.calls[3])
+
+
+async def test_batch_is_capped(monkeypatch, saved, writes):
+    monkeypatch.setattr(nodes, "MAX_BATCH_ACTIONS", 2)
+    graph = build_graph(InMemorySaver())
+    llm = ScriptedLLM(
+        LLMTurn(tool_calls=[_call(f"w{i}", "update_candidate_stage", _move(f"Person {i}")) for i in range(3)]),
+        LLMTurn(content="Planned 2; the third can follow."),
+    )
+    monkeypatch.setattr(nodes, "stream_chat", llm)
+    _, interrupts = await _stream(graph, _input("move all"), "move all", "tc")
+    assert len(interrupts[0]["pending_tool_call"]["steps"]) == 2
+
+
+async def test_approved_action_is_not_run_again_in_the_same_turn(monkeypatch, saved, writes):
+    """The model re-called a just-approved cancel; the second run failed and
+    the answer hid the success. A repeat is now refused before it runs."""
+    graph = build_graph(InMemorySaver())
+    llm = ScriptedLLM(
+        LLMTurn(tool_calls=[_call("w1", "update_candidate_stage", _move("Rahul Mehta"))]),
+        LLMTurn(content="Planned: move Rahul."),
+        LLMTurn(tool_calls=[_call("w2", "update_candidate_stage", _move("Rahul Mehta"))]),  # repeat
+        LLMTurn(content="**Done.** Rahul moved."),
+    )
+    monkeypatch.setattr(nodes, "stream_chat", llm)
+    _, interrupts = await _stream(graph, _input("move rahul"), "move rahul", "tr")
+    _, again = await _stream(
+        graph, Command(resume={"action_id": interrupts[0]["pending_tool_call"]["id"], "approved": True}), "ok", "tr",
+    )
+    assert len(writes) == 1 and again == []  # ran once; no second approval card
+    refused = next(m for m in llm.calls[3]["messages"] if m.get("tool_call_id") == "w2")
+    assert "Already done" in refused["content"]
+    assert saved["reply"] == "**Done.** Rahul moved."
+
+
+def test_action_key_ignores_free_text():
+    a = nodes.action_key("cancel_interview", {"candidate_name": "Axay P", "reason": "Cancelled by recruiter"})
+    b = nodes.action_key("cancel_interview", {"candidate_name": "axay p", "reason": "Cancelled per request"})
+    assert a == b
+    assert a != nodes.action_key("cancel_interview", {"candidate_name": "Asha Rao"})
 
 
 def test_tool_schemas_are_valid_and_writes_need_approval():
@@ -301,7 +446,12 @@ def test_tool_schemas_are_valid_and_writes_need_approval():
         props = fn["parameters"]["properties"]
         assert set(fn["parameters"].get("required", [])) <= set(props), fn["name"]
     writes = {n for n in names if REGISTRY.get(n).kind == "write"}
-    assert writes == {"schedule_meeting", "update_candidate_stage", "send_pre_screening_invite"}
+    assert writes == {
+        "schedule_meeting", "update_candidate_stage", "send_pre_screening_invite",
+        "tag_candidate", "email_candidate", "reschedule_interview", "cancel_interview",
+        "email_team_member", "update_job_status", "update_candidate_details",
+        "reject_candidate", "create_offer", "send_offer", "add_candidate", "whatsapp_candidate",
+    }
     # Generic DB writes must never be model-callable.
     assert "db_update" not in names
     # Stable order → identical prompt prefix on every call.

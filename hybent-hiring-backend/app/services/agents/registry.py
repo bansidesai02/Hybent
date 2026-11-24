@@ -33,6 +33,10 @@ class ToolContext:
     # Everything the recruiter has typed in this conversation (lower-cased) —
     # lets write tools check a choice really came from them, not the model.
     recruiter_text: str = ""
+    # Write actions already planned earlier in this request: [(tool name, args)].
+    # Lets a prepare step accept something an earlier step will create
+    # (send_offer after create_offer).
+    planned: list = field(default_factory=list)
 
 
 @dataclass

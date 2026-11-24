@@ -51,6 +51,8 @@ import { useCopilotChat } from '@/modules/recruiter/components/Copilot/useCopilo
 import { useVoiceInput } from '@/modules/recruiter/components/Copilot/useVoiceInput'
 import { BotMessageContent } from '@/modules/recruiter/components/Copilot/CopilotMessageContent'
 import { CopilotSteps } from '@/modules/recruiter/components/Copilot/CopilotSteps'
+import { ApprovalSteps, type ApprovalStep } from '@/modules/recruiter/components/Copilot/ApprovalSteps'
+import { useStickToBottom } from '@/modules/recruiter/components/Copilot/useStickToBottom'
 import { EditableUserMessage } from '@/modules/recruiter/components/Copilot/EditableUserMessage'
 import {
   EXAMPLE_PROMPTS,
@@ -296,19 +298,28 @@ function ApprovalCard({
   onApprove,
   onDismiss,
 }: {
-  pendingApproval: { name?: string; args?: Record<string, unknown> }
+  pendingApproval: { name?: string; args?: Record<string, unknown>; steps?: ApprovalStep[] }
   onApprove: () => void
   onDismiss: () => void
 }) {
   const name = (pendingApproval?.name ?? '').replace(/_/g, ' ')
   const args = Object.entries(pendingApproval?.args ?? {})
+  const steps = pendingApproval?.steps ?? []
 
   return (
     <AssistantRow>
       <div className="rounded-hb-md border border-hb-blue/30 bg-hb-blue/5 p-4">
-        <p className="text-hb-sm font-semibold text-hb-text">Approve this action?</p>
-        <p className="mt-1 text-hb-sm capitalize text-hb-text">{name}</p>
-        {args.length > 0 && (
+        <p className="text-hb-sm font-semibold text-hb-text">
+          {steps.length > 1 ? `Approve these ${steps.length} actions?` : 'Approve this action?'}
+        </p>
+        {steps.length > 1 ? (
+          <div className="mt-2">
+            <ApprovalSteps steps={steps} />
+          </div>
+        ) : (
+          <p className="mt-1 text-hb-sm capitalize text-hb-text">{name}</p>
+        )}
+        {steps.length <= 1 && args.length > 0 && (
           <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-hb-xs">
             {args.map(([k, v]) => (
               <div key={k} className="contents">
@@ -320,7 +331,7 @@ function ApprovalCard({
         )}
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="sm" icon={<Check size={14} />} onClick={onApprove}>
-            Approve and run
+            {steps.length > 1 ? `Approve and run all ${steps.length}` : 'Approve and run'}
           </Button>
           <Button size="sm" variant="ghost" onClick={onDismiss}>
             Dismiss
@@ -587,6 +598,8 @@ export default function CopilotPage() {
     lastScrolledConv.current = key
     el.scrollTo({ top: el.scrollHeight, behavior: instant ? 'auto' : 'smooth' })
   }, [messages, isThinking, conversationId])
+  // …and keep following as steps, streamed text or the approval card appear.
+  useStickToBottom(threadRef, messages.length > 0)
 
   const onSend = useCallback((text: string) => handleSend(text, messages), [handleSend, messages])
 

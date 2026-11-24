@@ -1189,6 +1189,21 @@
 }
 .copilot-markdown a:hover { text-decoration-color: rgb(var(--hb-blue)); }
 
+/* A link to a page in the app reads as a small button. */
+.copilot-markdown a.cm-app-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid rgb(var(--hb-blue) / 0.3);
+  border-radius: 999px;
+  background: rgb(var(--hb-blue) / 0.06);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.copilot-markdown a.cm-app-link:hover { background: rgb(var(--hb-blue) / 0.12); }
+
 .copilot-markdown blockquote {
   margin: 0 0 var(--cm-gap);
   padding: 2px 0 2px 16px;
