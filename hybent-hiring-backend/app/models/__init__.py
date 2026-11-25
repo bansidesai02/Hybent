@@ -1,6 +1,7 @@
 # Import all models so Alembic can detect them for migrations
 from app.models.organization import Organization
 from app.models.sms import SmsLog, SmsSettings
+from app.models.whatsapp import WhatsAppContact, WhatsAppMessage
 from app.models.user import User, RefreshToken
 from app.models.job import Job
 from app.models.candidate import Candidate

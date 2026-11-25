@@ -13,7 +13,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.dependencies import SuperAdminUser
+from app.dependencies import DB, SuperAdminUser
 from app.schemas.response import APIResponse
 from app.services import whatsapp_service
 from app.services.sms_service import msisdn
@@ -60,8 +60,9 @@ async def receive(request: Request):
             # Only our own number; delivery/read statuses are ignored for now.
             if (value.get("metadata") or {}).get("phone_number_id") != settings.whatsapp_phone_number_id:
                 continue
+            names = {c.get("wa_id"): (c.get("profile") or {}).get("name") for c in value.get("contacts", [])}
             for message in value.get("messages", []):
-                whatsapp_answer.delay(message)
+                whatsapp_answer.delay(message, names.get(message.get("from")))
     return {"ok": True}
 
 
@@ -117,3 +118,86 @@ async def console_templates(current_user: SuperAdminUser):
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
     return APIResponse.success(message="Templates.", data=[{"name": k, "status": v} for k, v in sorted(status.items())])
+
+
+# ── Super admin: WhatsApp inbox (people who messaged Hybent) ─────────────
+
+from uuid import UUID  # noqa: E402
+
+from sqlalchemy import desc, select  # noqa: E402
+
+from app.models.whatsapp import WhatsAppContact, WhatsAppMessage  # noqa: E402
+from app.services import whatsapp_bot  # noqa: E402
+
+
+def _contact_out(c: WhatsAppContact) -> dict:
+    return {
+        "id": str(c.id), "phone": c.phone, "name": (c.lead or {}).get("name") or c.profile_name,
+        "kind": c.kind, "status": c.status, "lead": c.lead or {}, "bot_paused": c.bot_paused,
+        "handoff_requested_at": c.handoff_requested_at, "last_message_at": c.last_message_at,
+        "can_reply": whatsapp_bot.within_reply_window(c),
+    }
+
+
+@router.get("/console/contacts")
+async def console_contacts(db: DB, current_user: SuperAdminUser, kind: str | None = None):
+    q = select(WhatsAppContact).order_by(desc(WhatsAppContact.last_message_at)).limit(200)
+    if kind:
+        q = q.where(WhatsAppContact.kind == kind)
+    rows = (await db.execute(q)).scalars().all()
+    return APIResponse.success(message="Contacts.", data=[_contact_out(c) for c in rows])
+
+
+@router.get("/console/contacts/{contact_id}/messages")
+async def console_messages(contact_id: UUID, db: DB, current_user: SuperAdminUser):
+    c = await db.get(WhatsAppContact, contact_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    msgs = (await db.execute(select(WhatsAppMessage).where(WhatsAppMessage.contact_id == contact_id)
+                             .order_by(WhatsAppMessage.created_at).limit(500))).scalars().all()
+    return APIResponse.success(message="Messages.", data={
+        "contact": _contact_out(c),
+        "messages": [{"id": str(m.id), "direction": m.direction, "author": m.author, "text": m.text,
+                      "created_at": m.created_at} for m in msgs],
+    })
+
+
+class TeamReply(BaseModel):
+    text: str = Field(..., min_length=1, max_length=4000)
+
+
+@router.post("/console/contacts/{contact_id}/reply")
+async def console_reply(contact_id: UUID, body: TeamReply, db: DB, current_user: SuperAdminUser):
+    """A person from the team replies; the bot stays paused for this chat."""
+    _need_whatsapp()
+    c = await db.get(WhatsAppContact, contact_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    if not whatsapp_bot.within_reply_window(c):
+        raise HTTPException(status_code=400, detail="More than 24 hours since their last message: WhatsApp only allows a template now.")
+    try:
+        wamid = await run_in_threadpool(whatsapp_service.send_text, c.wa_id, body.text)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    db.add(WhatsAppMessage(contact_id=c.id, direction="out", author="team", text=body.text, wamid=wamid))
+    c.bot_paused = True
+    c.last_message_at = whatsapp_bot._now()
+    await db.commit()
+    return APIResponse.success(message="Sent.", data=_contact_out(c))
+
+
+class BotState(BaseModel):
+    paused: bool
+
+
+@router.put("/console/contacts/{contact_id}/bot")
+async def console_bot(contact_id: UUID, body: BotState, db: DB, current_user: SuperAdminUser):
+    """Take a chat over from the bot, or hand it back."""
+    c = await db.get(WhatsAppContact, contact_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    c.bot_paused = body.paused
+    if not body.paused:
+        c.handoff_requested_at = None
+    await db.commit()
+    return APIResponse.success(message="Saved.", data=_contact_out(c))

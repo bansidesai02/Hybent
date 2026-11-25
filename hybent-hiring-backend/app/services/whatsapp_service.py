@@ -96,6 +96,23 @@ def send_text(to: str, body: str) -> str:
     return _post_message({"to": to, "type": "text", "text": {"body": body[:4096], "preview_url": False}})
 
 
+def download_media(media_id: str, max_bytes: int) -> tuple[bytes, str]:
+    """A file someone sent us (resume): Meta gives a short-lived URL that
+    needs our token. Returns (bytes, mime type). Raises on failure/too big."""
+    r = httpx.get(_url(media_id), headers=_headers(), timeout=20)
+    if r.status_code >= 400:
+        raise RuntimeError(_error(r))
+    meta = r.json()
+    if int(meta.get("file_size") or 0) > max_bytes:
+        raise ValueError("too_big")
+    f = httpx.get(meta["url"], headers=_headers(), timeout=60, follow_redirects=True)
+    if f.status_code >= 400:
+        raise RuntimeError(f"WhatsApp media HTTP {f.status_code}")
+    if len(f.content) > max_bytes:
+        raise ValueError("too_big")
+    return f.content, meta.get("mime_type") or "application/octet-stream"
+
+
 def mark_read(message_id: str) -> None:
     """Blue ticks on the person's message."""
     httpx.post(_url(f"{settings.whatsapp_phone_number_id}/messages"), headers=_headers(), timeout=10,

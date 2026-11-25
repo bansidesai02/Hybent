@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { FileText, MessageCircle, RefreshCw, Send } from 'lucide-react'
 
 import { whatsappConsoleApi } from '@/api/whatsappConsole'
+import { WhatsAppInbox } from '../components/WhatsAppInbox'
 import { Badge, type BadgeTone, Button, Card, CardHeader, IconTile, Input, PageHeader, Textarea } from '@/components/hb'
 
 const errorText = (err: any) => err?.response?.data?.detail || err?.message || 'Something went wrong'
@@ -52,8 +53,10 @@ export default function WhatsAppConsolePage() {
       <PageHeader
         eyebrow="Platform"
         title="WhatsApp console"
-        description="Send a WhatsApp message and create a message template from Hybent, through the WhatsApp Cloud API."
+        description="Chats with people who message Hybent, plus tools to send a message and create templates through the WhatsApp Cloud API."
       />
+
+      <WhatsAppInbox />
 
       <div className="grid gap-hb-6 lg:grid-cols-2">
         <Card as="section">

@@ -7,5 +7,5 @@ from app.services import whatsapp_bot
 
 
 @celery_app.task
-def whatsapp_answer(message: dict):
-    run_async(whatsapp_bot.handle(message))
+def whatsapp_answer(message: dict, profile_name: str | None = None):
+    run_async(whatsapp_bot.handle(message, profile_name))
