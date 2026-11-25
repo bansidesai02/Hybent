@@ -107,6 +107,9 @@ export function GlobalFooter() {
           <div className="footer__brand">
             <img className="wm t-dark" src="/hybent/hybent-wordmark-dark.png" alt="HYBENT" /><img className="wm t-light" src="/hybent/hybent-wordmark-light.png" alt="HYBENT" />
             <p className="small" style={{ maxWidth: "34ch" }}>Intelligent enterprise software, built AI-first. Headquartered in Ahmedabad, India.</p>
+            <p className="small" style={{ marginTop: "12px" }}>
+              <a href="mailto:info@hybent.com">info@hybent.com</a> · <a href="tel:+918799029798">+91 87990 29798</a>
+            </p>
             {SOCIAL_LINKS.length > 0 && (
               <div className="socials" style={{ marginTop: "22px" }}>
                 {SOCIAL_LINKS.map((link) => (

@@ -13,6 +13,7 @@ export default function ContactPage() {
               <p className="lead" style={{ marginTop: "22px" }}>Send us the problem, not a meeting request. Someone from the team replies within one business day — with an answer, not a calendar link to another calendar link.</p>
               <div style={{ marginTop: "34px" }}>
                 <div className="contact-item"><span className="icon-tile" style={{ width: "38px", height: "38px", borderRadius: "11px" }}><svg style={{ width: "17px", height: "17px" }} aria-hidden="true"><use href="#i-mail" /></svg></span><span><b><a href="mailto:info@hybent.com">info@hybent.com</a></b><span>Sales, support, partnerships &amp; security</span></span></div>
+                <div className="contact-item"><span className="icon-tile" style={{ width: "38px", height: "38px", borderRadius: "11px" }}><svg style={{ width: "17px", height: "17px" }} aria-hidden="true"><use href="#i-phone" /></svg></span><span><b><a href="tel:+918799029798">+91 87990 29798</a></b><span>Call or <a href="https://wa.me/918799029798" target="_blank" rel="noopener noreferrer">WhatsApp</a> · Mon–Fri, 09:00–18:00 IST</span></span></div>
                 <div className="contact-item"><span className="icon-tile" style={{ width: "38px", height: "38px", borderRadius: "11px" }}><svg style={{ width: "17px", height: "17px" }} aria-hidden="true"><use href="#i-pin" /></svg></span><span><b>Ahmedabad, Gujarat, India</b><span>Headquarters · Mon–Fri, 09:00–18:00 IST</span></span></div>
               </div>
             </div>
