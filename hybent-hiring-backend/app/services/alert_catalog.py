@@ -11,6 +11,7 @@ ALERTS: list[dict[str, str]] = [
     {"group": "Leads", "key": "demo_changed", "label": "Demo moved or cancelled", "hint": "A visitor rescheduled or cancelled their demo."},
     {"group": "Leads", "key": "demo_request", "label": "Demo request", "hint": "The older demo request form."},
     {"group": "Leads", "key": "contact_message", "label": "Contact message", "hint": "A message from the contact form."},
+    {"group": "Leads", "key": "whatsapp_handoff", "label": "WhatsApp chat needs you", "hint": "Someone on Hybent's WhatsApp asked for a person, or wrote in a chat you took over."},
     {"group": "Leads", "key": "trial_request", "label": "Free trial request", "hint": "A company asked for a 7-day trial."},
     {"group": "Trials and billing", "key": "trial_setup", "label": "Trial workspace set up", "hint": "An approved company finished its setup."},
     {"group": "Trials and billing", "key": "trial_converted", "label": "Trial became paying", "hint": "A trial company bought a plan."},

@@ -315,9 +315,11 @@ async def _send(db, contact: WhatsAppContact, payload: dict, text: str, author: 
 async def _notify_team(contact: WhatsAppContact, reason: str, last_text: str) -> None:
     who = contact.profile_name or contact.phone or contact.wa_id
     try:
-        from app.tasks.notifications import notify_super_admins
-        notify_super_admins.delay("whatsapp_handoff", f"WhatsApp: {who} needs a reply",
-                                  f"{reason}: “{last_text[:140]}”", {"contact_id": str(contact.id)})
+        from app.tasks.notifications import alert_super_admins
+        # Bell + phone push (for super admins who turned push on); tap opens the chats.
+        alert_super_admins(f"WhatsApp: {who} needs a reply", f"{reason}: “{last_text[:140]}”",
+                           "/hiring/super-admin/whatsapp", type="whatsapp_handoff",
+                           event="whatsapp_handoff", throttle=str(contact.id))
     except Exception as e:
         logger.warning(f"[whatsapp] notify team failed: {e}")
 
