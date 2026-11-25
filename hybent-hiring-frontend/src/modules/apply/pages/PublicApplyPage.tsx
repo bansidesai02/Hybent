@@ -299,6 +299,18 @@ export default function PublicApplyPage() {
                 </button>
                 <h2 className="font-display text-hb-h3 text-hb-text">Apply for this role</h2>
 
+                {jobId && (
+                  <a
+                    href={`https://wa.me/918799029798?text=${encodeURIComponent(`Apply HB-${jobId.slice(0, 8)}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-hb-sm bg-[#25D366] px-4 py-2.5 text-hb-sm font-semibold text-white transition hover:brightness-105"
+                  >
+                    Apply on WhatsApp in 2 minutes
+                  </a>
+                )}
+                {jobId && <p className="-mt-hb-2 text-center text-hb-xs text-hb-muted">or fill in the form below</p>}
+
                 <div className="grid gap-hb-4 sm:grid-cols-2">
                   <Input
                     label="Full name"
