@@ -137,13 +137,17 @@ async def mark_read(notification_id: uuid.UUID, current_user: CurrentUser, db: D
 
 
 @router.post("/read-all")
-async def mark_all_read(current_user: CurrentUser, db: DB):
-    result = await db.execute(
-        select(Notification).where(
-            Notification.user_id == current_user.id,
-            Notification.is_read == False,
-        )
+async def mark_all_read(current_user: CurrentUser, db: DB, types: str | None = None):
+    """Mark every unread notification read, or only those of the given
+    comma-separated `types` (e.g. opening Candidates clears the new-applicant ones)."""
+    q = select(Notification).where(
+        Notification.user_id == current_user.id,
+        Notification.is_read == False,  # noqa: E712
     )
+    wanted = [t.strip() for t in (types or "").split(",") if t.strip()]
+    if wanted:
+        q = q.where(Notification.type.in_(wanted))
+    result = await db.execute(q)
     for notif in result.scalars().all():
         notif.is_read = True
         notif.read_at = datetime.now(timezone.utc)
