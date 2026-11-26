@@ -21,7 +21,6 @@ import { HbSidebar } from './HbSidebar'
 import { HbTopbar } from './HbTopbar'
 import { HbBottomNav } from './HbBottomNav'
 import { InstallAppCard } from './InstallAppCard'
-import { ProductTour } from '@/components/tour/ProductTour'
 import { activeNavLabel, getMobileTabs, getNavSections, withoutCopilot, type NavSection } from './navConfig'
 
 type TopbarMenuItem = { label: string; icon: ReactNode; path: string }
@@ -293,12 +292,6 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
 
       <HbBottomNav tabs={mobileTabs} onMore={() => setDrawerOpen((o) => !o)} moreOpen={drawerOpen} />
       <InstallAppCard />
-      <ProductTour
-        userId={user?.id}
-        firstName={user?.full_name?.split(' ')[0]}
-        basePath={basePath}
-        enabled={(activeRole === 'admin' || activeRole === 'recruiter') && !user?.is_impersonating}
-      />
 
       {(config.chat || copilotOn) && (
         <Suspense fallback={null}>
