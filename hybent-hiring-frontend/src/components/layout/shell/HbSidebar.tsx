@@ -378,15 +378,26 @@ function HbSidebarComponent({
         <div className="flex h-hb-topbar flex-none items-center px-hb-5 lg:px-[14px]">
           <Link
             to={overviewPath}
-            className="flex items-center gap-2.5 rounded-hb-sm focus-visible:outline-none focus-visible:shadow-hb-ring"
+            className="flex items-start gap-2.5 rounded-hb-sm focus-visible:outline-none focus-visible:shadow-hb-ring"
             aria-label="Hybent Overview"
           >
             <img src="/hybent/hybent-mark.png" alt="Hybent logo mark" className="h-7 w-7 flex-none object-contain" />
-            <img
-              src={theme === 'dark' ? '/hybent/hybent-wordmark-dark.png' : '/hybent/hybent-wordmark-light.png'}
-              alt="HYBENT"
-              className={clsx('h-[17px] object-contain', REVEAL)}
-            />
+            <span className={clsx('inline-flex h-[34px] flex-col items-stretch justify-between', REVEAL)}>
+              <img
+                src={theme === 'dark' ? '/hybent/hybent-wordmark-dark.png' : '/hybent/hybent-wordmark-light.png'}
+                alt="HYBENT"
+                className="h-[14px] object-contain"
+              />
+              {/* Product tag: gradient hairlines either side, text in the
+                  wordmark's blue→violet "E" gradient. */}
+              <span className="flex items-center gap-2">
+                <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-transparent to-sky-400/70" />
+                <span className="bg-gradient-to-r from-sky-500 via-blue-500 to-violet-500 bg-clip-text pl-[0.32em] text-[13px] font-bold uppercase leading-none tracking-[0.32em] text-transparent">
+                  Hiring
+                </span>
+                <span aria-hidden className="h-px flex-1 bg-gradient-to-l from-transparent to-violet-500/70" />
+              </span>
+            </span>
           </Link>
         </div>
 
