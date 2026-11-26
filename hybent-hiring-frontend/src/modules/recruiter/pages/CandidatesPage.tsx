@@ -421,11 +421,15 @@ export default function CandidatesPage() {
       cardTitle: true,
       width: 'minmax(0, 2fr)',
       cell: (c) => (
-        <CellStack
-          leading={<Avatar name={c.full_name} src={c.avatar_url} size="md" />}
-          primary={c.full_name}
-          secondary={`${c.email} • Added by ${c.created_by_name || '—'}`}
-        />
+        /* Capped width: a table cell grows to fit its text, so without this a
+           long email pushed Source and the row actions off the right edge. */
+        <div className="max-w-[15rem] xl:max-w-[20rem] 2xl:max-w-[26rem]" title={`${c.email} • Added by ${c.created_by_name || '—'}`}>
+          <CellStack
+            leading={<Avatar name={c.full_name} src={c.avatar_url} size="md" />}
+            primary={c.full_name}
+            secondary={`${c.email} • Added by ${c.created_by_name || '—'}`}
+          />
+        </div>
       ),
     },
     {
@@ -434,7 +438,7 @@ export default function CandidatesPage() {
       width: 'minmax(0, 1.2fr)',
       cell: (c) => (
         <span
-          className="block w-full truncate text-hb-muted"
+          className="block max-w-[11rem] truncate text-hb-muted xl:max-w-[16rem]"
           title={c.applied_job_title || c.current_title || ''}
         >
           {c.applied_job_title || c.current_title || '—'}

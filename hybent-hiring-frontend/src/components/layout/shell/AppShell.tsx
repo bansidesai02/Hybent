@@ -10,6 +10,7 @@ import { useFeatures } from '@/hooks/useFeatures'
 import { useChatDeepLink } from '@/hooks/useChatDeepLink'
 import { PULL_THRESHOLD, usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { useNotificationStore } from '@/store/notificationStore'
+import { notificationsApi } from '@/api/notifications'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useThemeStore } from '@/store/themeStore'
 import { SkeletonStats, Skeleton } from '@/components/hb'
@@ -20,6 +21,7 @@ import { HbSidebar } from './HbSidebar'
 import { HbTopbar } from './HbTopbar'
 import { HbBottomNav } from './HbBottomNav'
 import { InstallAppCard } from './InstallAppCard'
+import { ProductTour } from '@/components/tour/ProductTour'
 import { activeNavLabel, getMobileTabs, getNavSections, withoutCopilot, type NavSection } from './navConfig'
 
 type TopbarMenuItem = { label: string; icon: ReactNode; path: string }
@@ -201,6 +203,16 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
     () => notifications.filter((n) => !n.is_read && (n.type === 'application_received' || n.type === 'stage_changed')).length,
     [notifications],
   )
+  // Opening Candidates is "seeing" the new applicants: clear their badge
+  // (here and on the server) instead of waiting for each bell item to be read.
+  const markTypesRead = useNotificationStore((s) => s.markTypesRead)
+  const onCandidates = location.pathname.startsWith(`${basePath}/candidates`)
+  useEffect(() => {
+    if (!onCandidates || candidateBadge === 0) return
+    const types = ['application_received', 'stage_changed']
+    markTypesRead(types)
+    notificationsApi.markTypesRead(types).catch(() => { /* badge already cleared locally */ })
+  }, [onCandidates, candidateBadge, markTypesRead])
   const screening = useScreeningNav(activeRole)
   const aiCalls = useAICallsNav(activeRole)
   const { data: superAdminTodo } = useSuperAdminTodo(activeRole === 'super_admin' && !user?.is_impersonating)
@@ -281,6 +293,12 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
 
       <HbBottomNav tabs={mobileTabs} onMore={() => setDrawerOpen((o) => !o)} moreOpen={drawerOpen} />
       <InstallAppCard />
+      <ProductTour
+        userId={user?.id}
+        firstName={user?.full_name?.split(' ')[0]}
+        basePath={basePath}
+        enabled={(activeRole === 'admin' || activeRole === 'recruiter') && !user?.is_impersonating}
+      />
 
       {(config.chat || copilotOn) && (
         <Suspense fallback={null}>

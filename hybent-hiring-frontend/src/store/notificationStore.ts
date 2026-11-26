@@ -9,6 +9,7 @@ interface NotificationState {
   setUnreadCount: (count: number) => void
   markRead: (id: string) => void
   markAllRead: () => void
+  markTypesRead: (types: string[]) => void
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
@@ -49,6 +50,15 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       ),
       unreadCount: Math.max(0, state.unreadCount - 1),
     })),
+
+  markTypesRead: (types) =>
+    set((state) => {
+      const cleared = state.notifications.filter((n) => !n.is_read && types.includes(n.type)).length
+      return {
+        notifications: state.notifications.map((n) => (types.includes(n.type) ? { ...n, is_read: true } : n)),
+        unreadCount: Math.max(0, state.unreadCount - cleared),
+      }
+    }),
 
   markAllRead: () =>
     set((state) => ({
