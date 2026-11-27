@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hybent.hiring",
+      "sha256_cert_fingerprints": [
+        "57:0A:40:7A:03:12:C2:AB:90:11:5B:78:80:80:94:64:20:F7:B3:73:04:57:58:2D:05:D9:C0:56:7C:C6:4C:4B"
+      ]
+    }
+  }
+]
