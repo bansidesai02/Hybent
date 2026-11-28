@@ -396,3 +396,24 @@ async def test_saved_list_has_only_candidates_brought_in_from_outside(client, db
     item = data["items"][0]
     assert (item["full_name"], item["origin"], item["has_email"], item["saved_by"]) == \
         ("Dev GitHub", "github", False, admin_user.full_name)
+
+
+def test_pdl_score_uses_every_skill_not_the_first_dozen():
+    """PDL lists skills A-Z: "python" sits past the first 12 for most people."""
+    f = gs.normalize_filters({"job_titles": ["backend developer"], "skills": ["python", "django"]})
+    skills = sorted([f"skill{i:02d}" for i in range(20)] + ["python", "django"])
+    person = gs._pdl_person({"id": "x", "full_name": "a b", "job_title": "backend developer", "skills": skills}, set())
+    gs.score_hit(person, f)
+    assert person["missing_skills"] == [] and person["match_score"] >= 85
+
+
+def test_github_unknown_frameworks_are_not_missing():
+    f = gs.normalize_filters({"job_titles": ["python developer"], "skills": ["python", "django", "aws"]})
+    hit = {"job_title": "Open source enthusiast", "skills": ["python"], "source": "github"}
+    gs.score_hit(hit, f)
+    assert hit["missing_skills"] == [] and hit["match_score"] >= 55
+
+
+def test_pdl_query_needs_at_least_one_asked_skill():
+    q = gs.build_pdl_query(gs.normalize_filters({"job_titles": ["backend developer"], "skills": ["python", "aws"]}))
+    assert {"bool": {"should": [{"term": {"skills": "python"}}, {"term": {"skills": "aws"}}]}} in q["bool"]["must"]
