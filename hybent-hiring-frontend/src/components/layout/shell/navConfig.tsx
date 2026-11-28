@@ -283,6 +283,14 @@ export function activeNavLabel(sections: NavSection[], pathname: string): string
   )
 }
 
+/** The nav without Global Search, for free trials (it's a paid-plan feature). */
+export function withoutGlobalSearch(sections: NavSection[]): NavSection[] {
+  return sections.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !('to' in item && item.to.endsWith('/global-search'))),
+  }))
+}
+
 /** The nav without Copilot, for clients whose super admin switched it off. */
 export function withoutCopilot(sections: NavSection[]): NavSection[] {
   return sections.map((section) => ({

@@ -80,9 +80,19 @@ async def _org_job(db, organization_id, job_id):
     return job
 
 
+async def require_global_search(db, organization_id) -> None:
+    """Global Search is a paid-plan feature: free trials get a 402, unless
+    TRIAL_GLOBAL_SEARCH_ENABLED turns on their limited allowance."""
+    from app.core.config import settings
+    from app.services.trial_service import require_paid_plan
+    if not settings.trial_global_search_enabled:
+        await require_paid_plan(db, organization_id)
+
+
 @router.post("/global")
 async def global_candidate_search(body: GlobalSearchRequest, current_user: CurrentUser, db: DB):
     """Plain-English candidate search across the org's own database and outside sources."""
+    await require_global_search(db, current_user.organization_id)
     if body.filters is not None:
         filters = gs.normalize_filters(body.filters)
     elif body.query.strip():
@@ -344,6 +354,7 @@ async def global_search_saved(current_user: CurrentUser, db: DB,
 @router.post("/global/import")
 async def import_outside_candidate(body: ImportOutsideRequest, current_user: CurrentUser, db: DB):
     """Adds an outside profile to the org's candidates, and to a job's pipeline when job_id is given."""
+    await require_global_search(db, current_user.organization_id)
     job = await _org_job(db, current_user.organization_id, body.job_id)
     try:
         cand, created = await gs.import_outside(
@@ -368,6 +379,7 @@ class NetworkContactRequest(BaseModel):
 @router.post("/network/request")
 async def request_network_contact(body: NetworkContactRequest, current_user: CurrentUser, db: DB):
     """Asks a Talent Network member for their contact details (they get an email to say yes or no)."""
+    await require_global_search(db, current_user.organization_id)
     await _org_job(db, current_user.organization_id, body.job_id)
     try:
         await tn.request_contact(db, organization_id=current_user.organization_id, user=current_user,

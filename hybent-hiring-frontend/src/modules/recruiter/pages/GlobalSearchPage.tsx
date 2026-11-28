@@ -20,6 +20,7 @@ import { searchHistoryApi } from '@/api/search'
 import { SearchLibrary } from '@/modules/recruiter/components/globalSearch/SearchLibrary'
 import { HISTORY_KEY, SAVED_KEY } from '@/modules/recruiter/components/globalSearch/queryKeys'
 import { timeAgo } from '@/utils/formatters'
+import { useIsTrial } from '@/hooks/usePaidFeature'
 import { Avatar, Badge, Button, Card, EmptyState, IconTile, ScoreRing, Select, Skeleton, Tabs } from '@/components/hb'
 
 const STEPS = [
@@ -325,8 +326,10 @@ export default function GlobalSearchPage() {
   })
   const jobs: Array<{ id: string; title: string }> = (jobsData as any)?.items ?? []
 
-  // Free trial: its Global (PDL) searches. null for paid companies.
-  const { data: quota } = useQuery({ queryKey: QUOTA_KEY, queryFn: getSearchQuota })
+  const isTrial = useIsTrial()
+  // Free trial: its Global (PDL) searches (only when trials are allowed in;
+  // see TRIAL_GLOBAL_SEARCH_ENABLED). null for paid companies.
+  const { data: quota } = useQuery({ queryKey: QUOTA_KEY, queryFn: getSearchQuota, enabled: !isTrial })
 
   const search = useMutation({
     mutationFn: candidateGlobalSearch,
@@ -414,6 +417,26 @@ export default function GlobalSearchPage() {
     (search.error as any)?.response?.data?.detail ?? (search.error ? 'Search failed. Please try again.' : null)
   const outside = result?.outside
   const own = result?.own ?? []
+
+  // Global Search is a paid-plan feature: a free trial reaching this page
+  // directly sees the upgrade card, not the search.
+  if (isTrial) {
+    return (
+      <Card padding="loose" className="mx-auto mt-hb-10 max-w-xl text-center">
+        <IconTile>
+          <Lock />
+        </IconTile>
+        <h1 className="mt-hb-3 font-display text-hb-h3 text-hb-text">Global Search is on our paid plans</h1>
+        <p className="mt-hb-2 text-hb-sm text-hb-muted">
+          Search millions of candidate profiles outside Hybent, GitHub developers and the Hybent Talent Network, all
+          from one search box.
+        </p>
+        <Button className="mt-hb-4" to="/hiring/admin/billing">
+          See plans
+        </Button>
+      </Card>
+    )
+  }
 
   return (
     <div>

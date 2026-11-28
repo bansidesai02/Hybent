@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     # Free Global (PDL) searches a free-trial company gets in total. Example
     # searches, chip edits, history and searches that find nobody don't count.
     trial_global_searches: int = 1
+    # Off: free trials don't get Global Search at all (it is for paid plans).
+    # On: they get trial_global_searches Global searches.
+    trial_global_search_enabled: bool = False
 
     # ── Copilot agent v2 (LangGraph) ───────────────────────────────────────────
     # COPILOT_AGENT_V2=true turns it on for every org; otherwise only the org

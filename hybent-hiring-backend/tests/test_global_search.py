@@ -436,6 +436,20 @@ async def trial_org(db_session, organization):
 
 
 @pytest.fixture
+def trial_search_on(monkeypatch):
+    """Trials get their limited Global searches (off by default)."""
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "trial_global_search_enabled", True)
+
+
+async def test_trials_have_no_global_search_by_default(client, admin_headers, trial_org, no_outside):
+    r = await client.post("/v1/search/global", json={"query": "react developer"}, headers=admin_headers)
+    assert r.status_code == 402
+    r = await client.post("/v1/search/global/import", json={"person": {"external_id": "x"}}, headers=admin_headers)
+    assert r.status_code == 402
+
+
+@pytest.fixture
 def pdl_calls(monkeypatch, no_outside):
     calls = []
     real = gs.search_outside
@@ -453,7 +467,7 @@ async def _gsearch(client, headers, **body):
     return r.json()["data"]
 
 
-async def test_trial_gets_one_global_search(client, admin_headers, trial_org, pdl_calls):
+async def test_trial_gets_one_global_search(client, admin_headers, trial_org, trial_search_on, pdl_calls):
     # Preview: free sources and the AI's chips, no Global search used.
     d = await _gsearch(client, admin_headers, query="react developer", skip_outside=True)
     assert d["outside_preview"] and d["outside"] is None and not pdl_calls
@@ -472,12 +486,12 @@ async def test_trial_gets_one_global_search(client, admin_headers, trial_org, pd
     assert d["outside_locked"] and d["outside"] is None and d["own"] is not None and len(pdl_calls) == 2
 
 
-async def test_trial_examples_are_free(client, admin_headers, trial_org, pdl_calls):
+async def test_trial_examples_are_free(client, admin_headers, trial_org, trial_search_on, pdl_calls):
     d = await _gsearch(client, admin_headers, query="HR executive in Pune")
     assert d["outside"] and d["trial_quota"]["remaining"] == 1
 
 
-async def test_trial_search_that_finds_nobody_is_not_used_up(client, admin_headers, trial_org, monkeypatch, no_outside):
+async def test_trial_search_that_finds_nobody_is_not_used_up(client, admin_headers, trial_org, trial_search_on, monkeypatch, no_outside):
     async def empty(org_id, f):
         return {"total": 0, "results": [], "cached": False}
     monkeypatch.setattr(gs, "search_outside", empty)
@@ -485,7 +499,7 @@ async def test_trial_search_that_finds_nobody_is_not_used_up(client, admin_heade
     assert d["trial_quota"]["remaining"] == 1
 
 
-async def test_removing_the_search_from_history_does_not_refund_it(client, admin_headers, trial_org, pdl_calls):
+async def test_removing_the_search_from_history_does_not_refund_it(client, admin_headers, trial_org, trial_search_on, pdl_calls):
     d = await _gsearch(client, admin_headers, query="react developer")
     await client.delete(f"/v1/search/global/history/{d['search_id']}", headers=admin_headers)
     assert (await client.get("/v1/search/global/history", headers=admin_headers)).json()["data"] == []
