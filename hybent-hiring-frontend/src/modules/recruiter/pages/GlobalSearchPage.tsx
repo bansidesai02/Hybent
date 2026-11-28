@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useLocation } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Briefcase, Building2, Check, Code2, Globe, Lock, Send, ShieldCheck, Link2, Mail, MapPin, Plus, Search, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Briefcase, Building2, Check, Code2, RefreshCw, Globe, Lock, Send, ShieldCheck, Link2, Mail, MapPin, Plus, Search, Sparkles, X } from 'lucide-react'
 
 import {
   candidateGlobalSearch,
@@ -14,6 +15,10 @@ import {
   type OwnCandidateHit,
 } from '@/api/search'
 import { jobsApi } from '@/api/jobs'
+import { searchHistoryApi } from '@/api/search'
+import { SearchLibrary } from '@/modules/recruiter/components/globalSearch/SearchLibrary'
+import { HISTORY_KEY, SAVED_KEY } from '@/modules/recruiter/components/globalSearch/queryKeys'
+import { timeAgo } from '@/utils/formatters'
 import { Avatar, Badge, Button, Card, EmptyState, IconTile, ScoreRing, Select, Skeleton, Tabs } from '@/components/hb'
 
 const STEPS = [
@@ -296,6 +301,14 @@ export default function GlobalSearchPage() {
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<Tab>('outside')
   const [result, setResult] = useState<GlobalSearchResponse | null>(null)
+  /** Set when the results on screen were reopened from history, not just run. */
+  const [savedAt, setSavedAt] = useState<string | null>(null)
+  const qc = useQueryClient()
+  const basePath = useLocation().pathname.replace(/\/global-search.*$/, '')
+  const refreshLibrary = () => {
+    qc.invalidateQueries({ queryKey: HISTORY_KEY })
+    qc.invalidateQueries({ queryKey: SAVED_KEY })
+  }
 
   const [jobId, setJobId] = useState('')
   const [added, setAdded] = useState<Record<string, boolean>>({})
@@ -308,8 +321,32 @@ export default function GlobalSearchPage() {
 
   const search = useMutation({
     mutationFn: candidateGlobalSearch,
-    onSuccess: (data) => setResult(data),
+    onSuccess: (data) => {
+      setResult(data)
+      setSavedAt(null)
+      qc.invalidateQueries({ queryKey: HISTORY_KEY })
+    },
   })
+
+  const openRun = useMutation({
+    mutationFn: searchHistoryApi.get,
+    onSuccess: (data) => {
+      setResult(data)
+      setSavedAt(data.saved_at)
+      setQuery(data.query ?? '')
+      setJobId(data.job_id ?? '')
+      setAdded({})
+      setRequested({})
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    onError: () => toast.error('Could not open that search'),
+  })
+
+  const backToLibrary = () => {
+    setResult(null)
+    setSavedAt(null)
+    refreshLibrary()
+  }
 
   const [requested, setRequested] = useState<Record<string, boolean>>({})
   const request = useMutation({
@@ -325,6 +362,7 @@ export default function GlobalSearchPage() {
     mutationFn: importOutsideCandidate,
     onSuccess: (data, vars) => {
       setAdded((a) => ({ ...a, [vars.person.external_id]: true }))
+      qc.invalidateQueries({ queryKey: SAVED_KEY })
       const job = jobs.find((j) => j.id === vars.job_id)
       if (!data.created && !job) toast.success('Already in your candidates')
       else toast.success(job ? `Added to ${job.title} pipeline` : 'Saved to your candidates')
@@ -342,7 +380,7 @@ export default function GlobalSearchPage() {
     if (!result) return
     const next = withoutChip(result.filters, key, value)
     if (!next.job_titles.length && !next.skills.length) return
-    search.mutate({ filters: next, scope: 'both', job_id: jobId || undefined })
+    search.mutate({ query, filters: next, scope: 'both', job_id: jobId || undefined })
   }
 
   const changeJob = (id: string) => {
@@ -350,7 +388,7 @@ export default function GlobalSearchPage() {
     setAdded({}) // "Added" was for the previous job
     // Re-rank against the new job. Filters are reused, so no AI call, and the
     // outside results come from cache, so no extra credits.
-    if (result) search.mutate({ filters: result.filters, scope: 'both', job_id: id || undefined })
+    if (result) search.mutate({ query, filters: result.filters, scope: 'both', job_id: id || undefined })
   }
 
   const errorMsg =
@@ -430,7 +468,11 @@ export default function GlobalSearchPage() {
             </div>
           )}
 
-          {!result && !search.isPending && (
+          {!result && !search.isPending && !openRun.isPending && (
+            <SearchLibrary
+              basePath={basePath}
+              onOpenRun={(id) => openRun.mutate(id)}
+              emptyFallback={
             <ol className="mt-hb-10 grid gap-hb-4 text-left sm:grid-cols-3">
               {STEPS.map((s, i) => (
                 <li key={s.title}>
@@ -445,6 +487,30 @@ export default function GlobalSearchPage() {
                 </li>
               ))}
             </ol>
+              }
+            />
+          )}
+
+          {result && (
+            <div className="mb-hb-3 flex flex-wrap items-center justify-between gap-2">
+              <Button size="sm" variant="quiet" icon={<ArrowLeft size={14} />} onClick={backToLibrary}>
+                Recent searches & saved candidates
+              </Button>
+              {savedAt && (
+                <span className="inline-flex items-center gap-2 text-hb-sm text-hb-muted">
+                  Saved results from {timeAgo(savedAt)}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={<RefreshCw size={13} />}
+                    loading={search.isPending}
+                    onClick={() => search.mutate({ query, filters: result.filters, scope: 'both', job_id: jobId || undefined })}
+                  >
+                    Refresh
+                  </Button>
+                </span>
+              )}
+            </div>
           )}
 
           {result && (

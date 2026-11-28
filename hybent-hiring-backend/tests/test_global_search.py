@@ -353,3 +353,46 @@ async def test_hidden_or_deleted_profiles_leave_search(client, db_session, organ
 
     assert (await client.delete(f"/api/public/talent/manage/{p.manage_token}")).status_code == 200
     assert (await client.get(f"/api/public/talent/manage/{p.manage_token}")).status_code == 404
+
+
+# ── Search history + saved candidates ───────────────────────────────────────
+
+async def test_search_is_kept_and_reopens_without_searching_again(client, db_session, admin_headers,
+                                                                  other_org_admin_headers, no_outside, monkeypatch):
+    r = await client.post("/v1/search/global", json={"query": "react developer"}, headers=admin_headers)
+    run_id = r.json()["data"]["search_id"]
+
+    # Editing a chip re-runs the same search: it updates the entry, not adds one.
+    f = r.json()["data"]["filters"]
+    await client.post("/v1/search/global", json={"query": "react developer", "filters": f}, headers=admin_headers)
+    history = (await client.get("/v1/search/global/history", headers=admin_headers)).json()["data"]
+    assert len(history) == 1 and history[0]["id"] == run_id and history[0]["counts"]["outside"] == 1
+
+    # Reopening spends nothing: the outside search must not be called.
+    async def boom(*a, **k):
+        raise AssertionError("reopening a saved search must not search again")
+    monkeypatch.setattr(gs, "search_outside", boom)
+    saved = (await client.get(f"/v1/search/global/history/{run_id}", headers=admin_headers)).json()["data"]
+    assert saved["outside"]["results"][0]["full_name"] == "Ravi Mehta" and saved["query"] == "react developer"
+
+    # Another company can't see or delete it.
+    assert (await client.get(f"/v1/search/global/history/{run_id}", headers=other_org_admin_headers)).status_code == 404
+    assert (await client.get("/v1/search/global/history", headers=other_org_admin_headers)).json()["data"] == []
+    assert (await client.delete(f"/v1/search/global/history/{run_id}", headers=other_org_admin_headers)).status_code == 404
+    assert (await client.delete(f"/v1/search/global/history/{run_id}", headers=admin_headers)).status_code == 200
+
+
+async def test_saved_list_has_only_candidates_brought_in_from_outside(client, db_session, admin_headers, organization,
+                                                                      admin_user, no_outside):
+    db_session.add(Candidate(organization_id=organization.id, email="applied@example.com", full_name="Applied Directly",
+                             source="careers_page"))
+    await db_session.commit()
+    person = {"external_id": "gh-42", "full_name": "Dev GitHub", "job_title": "Go developer",
+              "skills": ["go"], "source": "github", "github_url": "https://github.com/dev"}
+    await client.post("/v1/search/global/import", json={"person": person}, headers=admin_headers)
+
+    data = (await client.get("/v1/search/global/saved", headers=admin_headers)).json()["data"]
+    assert data["total"] == 1
+    item = data["items"][0]
+    assert (item["full_name"], item["origin"], item["has_email"], item["saved_by"]) == \
+        ("Dev GitHub", "github", False, admin_user.full_name)

@@ -105,3 +105,52 @@ export const requestNetworkContact = async (body: { profile_id: string; job_id?:
   const { data } = await api.post<{ status: 'pending' }>('/v1/search/network/request', body)
   return data
 }
+
+/* ── Search history + saved candidates ───────────────────────────────────── */
+
+export interface SearchRunSummary {
+  id: string
+  query: string | null
+  filters: GlobalSearchFilters
+  counts: { outside: number; github: number; network: number; own: number }
+  job_id: string | null
+  job_title: string | null
+  searched_by: string | null
+  is_mine: boolean
+  created_at: string | null
+}
+
+export interface SavedSearchRun extends GlobalSearchResponse {
+  search_id: string
+  job_id: string | null
+  query: string | null
+  saved_at: string | null
+}
+
+export interface SavedCandidate {
+  id: string
+  full_name: string
+  job_title: string | null
+  company: string | null
+  location: string | null
+  skills: string[]
+  origin: 'pdl' | 'github' | 'network'
+  github_url: string | null
+  linkedin_url: string | null
+  has_email: boolean
+  pipeline_stage: string | null
+  jobs: string[]
+  saved_by: string | null
+  saved_at: string | null
+}
+
+export const searchHistoryApi = {
+  list: async (limit = 20) => (await api.get<SearchRunSummary[]>('/v1/search/global/history', { params: { limit }, skipLoader: true })).data,
+  get: async (id: string) => (await api.get<SavedSearchRun>(`/v1/search/global/history/${id}`, { skipLoader: true })).data,
+  remove: async (id: string) => (await api.delete(`/v1/search/global/history/${id}`)).data,
+  saved: async (page = 1, limit = 25) =>
+    (await api.get<{ items: SavedCandidate[]; total: number; page: number }>('/v1/search/global/saved', {
+      params: { page, limit },
+      skipLoader: true,
+    })).data,
+}
