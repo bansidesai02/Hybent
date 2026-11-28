@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Request, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -35,10 +35,16 @@ CONTACT_EMAIL = "info@hybent.com"
 # Where a shared apply link was opened from. Links were built for LinkedIn
 # posts, so anything missing or unknown is recorded as LinkedIn. "referral"
 # is a link a candidate shared from the portal's Job Openings page.
-PUBLIC_APPLY_SOURCES = {"linkedin", "careers_page", "referral"}
+# Job boards that take our XML feed, plus Google for Jobs (see job_syndication).
+JOB_BOARD_SOURCES = {
+    "google": "Google Jobs.", "indeed": "Indeed.", "jooble": "Jooble.", "adzuna": "Adzuna.",
+    "careerjet": "Careerjet.", "talent": "Talent.com.", "jobfeed": "a job board.",
+}
+PUBLIC_APPLY_SOURCES = {"linkedin", "careers_page", "referral", *JOB_BOARD_SOURCES}
 APPLY_SOURCE_PHRASES = {
     "careers_page": "the careers page.",
     "referral": "a referral link shared by a candidate.",
+    **JOB_BOARD_SOURCES,
 }
 
 
@@ -157,6 +163,7 @@ async def apply_to_public_job(
 
     job = await _get_active_job_or_404(db, org_slug, job_id)
     resume_content = await resume_intake.read_resume_upload(resume)
+    await resume_intake.require_resume(resume, resume_content)  # a wrong file is refused, not saved
     email = email.strip().lower()
 
     candidate = (await db.execute(
@@ -413,3 +420,166 @@ async def assistant(body: AssistantRequest, request: Request):
         raise HTTPException(status_code=422, detail="The last message must be from the visitor.")
     reply, followups = await site_assistant.answer(history)
     return APIResponse.success(message="ok", data={"reply": reply, "followups": followups})
+
+
+# ── Job syndication: Google for Jobs sitemap + job-board XML feed ──────────
+from fastapi import Response  # noqa: E402
+
+from app.services import job_syndication  # noqa: E402
+
+# Boards we submit the feed to. Each gets its own URL (?board=...) so the
+# applicants it sends are tagged with it as their source.
+FEED_BOARDS = {"indeed", "jooble", "adzuna", "careerjet", "talent", "jobfeed"}
+
+
+@router.get("/jobs-sitemap.xml", include_in_schema=False)
+async def jobs_sitemap(db: DB):
+    """Apply pages of every published job, for Google (listed in robots.txt)."""
+    xml = await job_syndication.jobs_sitemap_xml(db)
+    return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@router.get("/job-feed.xml", include_in_schema=False)
+async def job_feed(db: DB, board: str = "jobfeed"):
+    """Indeed-style XML feed of every published job, for job boards."""
+    board = board.lower() if board.lower() in FEED_BOARDS else "jobfeed"
+    xml = await job_syndication.jobs_feed_xml(db, source=board)
+    return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+# ── Hybent Talent Network (candidate side, no login) ───────────────────────
+from pydantic import BaseModel  # noqa: E402
+
+from app.services import talent_network as tn  # noqa: E402
+
+
+async def _signup_rate_limited(request: Request) -> bool:
+    """5 signups an hour per IP; the confirm email is the real gate."""
+    import redis.asyncio as aioredis
+    from app.core.config import settings
+    # Behind nginx: the client is the first x-forwarded-for hop, as for the other public forms.
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "?")
+    r = aioredis.from_url(settings.redis_url)
+    try:
+        key = f"talent:signup:{ip}"
+        n = await r.incr(key)
+        if n == 1:
+            await r.expire(key, 3600)
+        return n > 5
+    except Exception:
+        return False
+    finally:
+        await r.aclose()
+
+
+@router.get("/talent/consent")
+async def talent_consent():
+    return APIResponse.success(message="Consent text.", data={"version": tn.CONSENT_VERSION, "text": tn.CONSENT_TEXT})
+
+
+@router.post("/talent/signup", status_code=201)
+async def talent_signup(
+    request: Request,
+    db: DB,
+    background_tasks: BackgroundTasks,
+    full_name: str = Form(...),
+    email: str = Form(...),
+    phone: str | None = Form(None),
+    location: str | None = Form(None),
+    looking_for: str | None = Form(None),
+    linkedin_url: str | None = Form(None),
+    source: str | None = Form(None),
+    consent: bool = Form(False),
+    resume: UploadFile = File(...),
+):
+    if not consent:
+        raise HTTPException(status_code=400, detail="Please tick the box to agree to be found by companies.")
+    full_name = full_name.strip()
+    if not full_name or len(full_name) > 255:
+        raise HTTPException(status_code=400, detail="Please enter your full name.")
+    try:
+        email = validate_email(email.strip(), check_deliverability=False).normalized.lower()
+    except EmailNotValidError:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    if await _signup_rate_limited(request):
+        raise HTTPException(status_code=429, detail="Too many sign-ups from here. Please try again in an hour.")
+    content = await resume_intake.read_resume_upload(resume)
+    await resume_intake.require_resume(resume, content)  # a wrong file is refused, not saved
+
+    def clip(v, n):
+        v = (v or "").strip()
+        return v[:n] or None
+
+    profile_id = await tn.signup(
+        db, full_name=full_name, email=email, phone=clip(phone, 50), location=clip(location, 255),
+        looking_for=clip(looking_for, 255), linkedin_url=clip(linkedin_url, 500), source=clip(source, 50),
+    )
+    await db.commit()
+    # Email + resume parse after the response: the candidate isn't kept waiting.
+    background_tasks.add_task(tn.finish_signup, profile_id, content, resume.content_type or "", resume.filename or "")
+    return APIResponse.success(message="Check your email to confirm your profile.", data={"email": email})
+
+
+@router.post("/talent/verify/{token}")
+async def talent_verify(token: str, db: DB):
+    p = await tn.verify(db, token)
+    if not p:
+        raise HTTPException(status_code=404, detail="This link has already been used or has expired.")
+    await db.commit()
+    return APIResponse.success(message="Email confirmed. Your profile is live.",
+                               data={"manage_token": p.manage_token, "profile": tn.profile_out(p)})
+
+
+@router.get("/talent/manage/{token}")
+async def talent_manage_get(token: str, db: DB):
+    p = await tn.by_manage_token(db, token)
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found. It may have been deleted.")
+    return APIResponse.success(message="Profile.",
+                               data={**tn.profile_out(p), "requests": await tn.requests_for(db, p)})
+
+
+class TalentVisibility(BaseModel):
+    is_visible: bool
+
+
+@router.patch("/talent/manage/{token}")
+async def talent_manage_visibility(token: str, body: TalentVisibility, db: DB):
+    p = await tn.by_manage_token(db, token)
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found. It may have been deleted.")
+    p.is_visible = body.is_visible
+    await db.commit()
+    return APIResponse.success(message="Saved.", data=tn.profile_out(p))
+
+
+@router.delete("/talent/manage/{token}")
+async def talent_manage_delete(token: str, db: DB):
+    p = await tn.by_manage_token(db, token)
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found. It may have been deleted.")
+    await db.delete(p)  # cascades to contact requests; companies keep only candidates who said yes
+    await db.commit()
+    return APIResponse.success(message="Your profile is deleted.", data=None)
+
+
+@router.get("/talent/respond/{token}")
+async def talent_request_get(token: str, db: DB):
+    req = await tn.by_request_token(db, token)
+    if not req:
+        raise HTTPException(status_code=404, detail="This request was not found.")
+    return APIResponse.success(message="Request.", data=await tn.request_summary(db, req))
+
+
+class TalentAnswer(BaseModel):
+    accept: bool
+
+
+@router.post("/talent/respond/{token}")
+async def talent_request_answer(token: str, body: TalentAnswer, db: DB):
+    req = await tn.by_request_token(db, token)
+    if not req:
+        raise HTTPException(status_code=404, detail="This request was not found.")
+    await tn.respond(db, req, body.accept)
+    await db.commit()
+    return APIResponse.success(message="Thanks, we told the company.", data=await tn.request_summary(db, req))

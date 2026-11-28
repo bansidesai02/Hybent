@@ -50,6 +50,16 @@ async def read_resume_upload(file: UploadFile) -> bytes:
     return content
 
 
+async def require_resume(file: UploadFile, content: bytes) -> None:
+    """Rejects a file that isn't a resume (wrong PDF, blank scan, locked file)
+    before anything is saved, with the reason. Text PDFs and DOCX take a
+    second or two; scanned PDFs need OCR and can take ~15s."""
+    import asyncio
+    await asyncio.to_thread(
+        resume_parser.check_is_resume, content, file.content_type or "", file.filename or ""
+    )
+
+
 async def store_resume(candidate: Candidate, file: UploadFile, content: bytes) -> None:
     """Production → Supabase Storage; local/Docker → Cloudinary (or local
     disk). The candidate must already have an id (flushed)."""

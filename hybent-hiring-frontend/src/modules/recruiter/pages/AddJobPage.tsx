@@ -23,6 +23,7 @@ import {
   PageHeader,
   Select,
   StatusPill,
+  Switch,
   TagInput,
   Textarea,
 } from '@/components/hb'
@@ -52,6 +53,8 @@ const schema = z.object({
   /* 0 / empty = no upper limit. Candidates outside min–max are rejected at screening. */
   max_experience_years: z.coerce.number().min(0).optional(),
   is_remote: z.boolean().default(false),
+  /* Listed on Google for Jobs and job boards. Off for confidential hiring. */
+  publish_externally: z.boolean().default(true),
   openings: z.coerce.number().int().min(1).default(1),
   status: z.enum(['draft', 'active', 'paused', 'closed']).default('active'),
   jd_url: z.string().nullable().optional(),
@@ -141,6 +144,7 @@ export default function AddJobPage() {
       status: 'active',
       openings: 1,
       is_remote: false,
+      publish_externally: true,
       skills_required: [],
       job_type: 'full_time',
       min_experience_years: 0,
@@ -170,6 +174,7 @@ export default function AddJobPage() {
       requirements: jobData.requirements || '',
       skills_required: jobData.skills_required || [],
       is_remote: jobData.is_remote,
+      publish_externally: jobData.publish_externally ?? false,
       openings: jobData.openings,
       status: jobData.status as FormData['status'],
       job_type: jobData.job_type,
@@ -536,6 +541,19 @@ export default function AddJobPage() {
               placeholder="We're looking for a Senior React Developer with 5+ years of experience building scalable web applications..."
               error={errors.description?.message}
               {...register('description')}
+            />
+
+            <Controller
+              name="publish_externally"
+              control={control}
+              render={({ field }) => (
+                <Switch
+                  checked={!!field.value}
+                  onChange={field.onChange}
+                  label="Publish on Google Jobs & job boards"
+                  description="Free reach: Google for Jobs, Indeed, Jooble, Adzuna and Careerjet. Turn off for confidential hiring. Your apply link works either way."
+                />
+              )}
             />
 
             <Button type="submit" fullWidth size="lg" loading={mutation.isPending}>

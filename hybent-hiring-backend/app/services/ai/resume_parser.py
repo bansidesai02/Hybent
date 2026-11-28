@@ -283,12 +283,17 @@ def _pdf_text_ocr(content: bytes) -> str:
         pdf.close()
 
 
+# pdfium first: it reads a text layer in well under a second, while
+# pdfplumber can spend ~25s walking the images of a scanned PDF only to find
+# nothing. When pdfium finds no text at all, the PDF has no text layer and the
+# other two readers are skipped (see extract_text_from_pdf).
 _PDF_EXTRACTORS = (
-    ("pdfplumber", _pdf_text_pdfplumber),
     ("pdfium", _pdf_text_pdfium),
+    ("pdfplumber", _pdf_text_pdfplumber),
     ("pypdf2", _pdf_text_pypdf2),
     ("ocr", _pdf_text_ocr),
 )
+_TEXT_LAYER_READERS = {"pdfplumber", "pypdf2"}
 
 
 def is_password_protected_pdf(content: bytes) -> bool:
@@ -311,14 +316,19 @@ def extract_text_from_pdf(content: bytes) -> str:
     have an empty message, which is why failures used to log as just
     "pdfplumber extraction failed: " with no clue what went wrong."""
     best = ""
+    no_text_layer = False
     for name, extract in _PDF_EXTRACTORS:
+        if no_text_layer and name in _TEXT_LAYER_READERS:
+            continue
         try:
             text = extract(content)
         except Exception as e:
             logger.warning(f"PDF text extraction via {name} failed: {type(e).__name__}: {str(e) or 'no message'}")
             continue
+        if name == "pdfium" and not text.strip():
+            no_text_layer = True  # a scan: go straight to OCR
         if len(text) >= MIN_TEXT_CHARS:
-            if name != "pdfplumber":
+            if name != "pdfium":
                 logger.info(f"PDF text extracted via {name} ({len(text)} chars)")
             return text
         if len(text) > len(best):
@@ -892,6 +902,29 @@ async def parse_resume(
             )
         logger.error(f"Groq parsing failed: {e}")
         return _regex_fallback(text)
+
+
+def check_is_resume(file_content: bytes, content_type: str, filename: str = "") -> None:
+    """The quick part of parse_resume(): read the text and confirm it is a
+    resume, raising the same errors, without the full AI parse. Lets a form
+    reject a wrong file on submit instead of saving it. Blocking; call it
+    with asyncio.to_thread."""
+    file_type = _detect_file_type(file_content, content_type, filename)
+    if file_type == "pdf":
+        text = extract_text_from_pdf(file_content)
+    elif file_type == "docx":
+        text = extract_text_from_docx(file_content)
+    elif file_type == "doc":
+        text = extract_text_from_doc(file_content)
+    else:
+        raise NotAResumeError()
+    if not text or len(text.strip()) < MIN_TEXT_CHARS:
+        if file_type == "pdf" and is_password_protected_pdf(file_content):
+            raise ProtectedDocumentError()
+        raise UnreadableDocumentError()
+    ok = _verify_is_resume_with_llm(text) if groq_client else _verify_is_resume_with_keywords(text)
+    if not ok:
+        raise NotAResumeError()
 
 
 @ai_feature("jd_parsing")

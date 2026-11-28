@@ -59,3 +59,4 @@ __all__ = [
     "PlatformSetting", "BillingTransaction", "IntegrationKey", "VoiceCall", "OrgVoiceSettings", "VoiceSlotHold",
     "TrialRequest", "TrialEmailOTP", "TrialMessage", "DemoBooking", "SmsSettings", "SmsLog",
 ]
+from app.models.talent_network import TalentContactRequest, TalentProfile

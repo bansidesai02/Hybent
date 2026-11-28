@@ -183,6 +183,7 @@ export interface Job {
   skills_required: string[]
   status: JobStatus
   is_remote: boolean
+  publish_externally?: boolean
   application_deadline: string | null
   openings: number
   display_order?: number

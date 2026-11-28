@@ -16,6 +16,7 @@ const OffersPage = lazy(() => import('@/modules/recruiter/pages/OffersPage'))
 const AnalyticsPage = lazy(() => import('@/modules/recruiter/pages/AnalyticsPage'))
 const ReportsPage = lazy(() => import('@/modules/recruiter/pages/ReportsPage'))
 const TalentPoolPage = lazy(() => import('@/modules/recruiter/pages/TalentPoolPage'))
+const GlobalSearchPage = lazy(() => import('@/modules/recruiter/pages/GlobalSearchPage'))
 const AllTalentListPage = lazy(() => import('@/modules/recruiter/pages/AllTalentListPage'))
 const RecruiterSettingsPage = lazy(() => import('@/modules/recruiter/pages/RecruiterSettingsPage'))
 const PreScreeningReviewPage = lazy(() => import('@/modules/recruiter/pages/PreScreeningReviewPage'))
@@ -52,6 +53,7 @@ export default function AdminRoutes() {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="talent-pool" element={<TalentPoolPage />} />
+        <Route path="global-search" element={<GlobalSearchPage />} />
         <Route path="screening" element={<ScreeningPage />} />
         <Route path="ai-calls" element={<AICallsPage />} />
         <Route path="all-talent" element={<AllTalentListPage />} />
