@@ -6,7 +6,7 @@ from app.routers import (
     interviews, scorecards, offers,
     analytics, notifications, talent_pool, portal, admin, calendar, invitations,
     activities, reports, messages, chat, search, public, copilot, bulk_import, linkedin, designations, api_compat, screening,
-    super_admin, candidate_files, pre_screening, email_accounts, inbox, billing, payments,
+    super_admin, candidate_files, pre_screening, email_accounts, inbox, billing, payments, invoices,
     integrations, voice_calls, trials, push, super_admin_ops, demos, sms, phone_verification, whatsapp_webhook,
 )
 
@@ -47,6 +47,7 @@ api_router.include_router(api_compat.router)
 api_router.include_router(super_admin.router)
 api_router.include_router(billing.router)
 api_router.include_router(payments.router)
+api_router.include_router(invoices.router)
 api_router.include_router(candidate_files.router)
 api_router.include_router(pre_screening.router)
 api_router.include_router(email_accounts.router)

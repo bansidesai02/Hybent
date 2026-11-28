@@ -54,6 +54,7 @@ const PreScreeningPage = lazy(() => import('@/modules/portal/pages/candidate/Pre
 
 /* ── Plan payment link a client pays after a demo (/pay/<token>) ──────────── */
 const PayPage = lazy(() => import('@/modules/billing/pages/PayPage'))
+const InvoicePage = lazy(() => import('@/modules/billing/pages/InvoicePage'))
 
 /* ── Public, no-login apply link (e.g. attached to a LinkedIn post) ───────── */
 const PublicApplyPage = lazy(() => import('@/modules/apply/pages/PublicApplyPage'))
@@ -173,6 +174,7 @@ export default function AppRoutes() {
       {/* ── Token-gated candidate flows ── */}
       <Route path="/onboarding/:token" element={<OnboardingPage />} />
       <Route path="/pay/:token" element={<PayPage />} />
+      <Route path="/invoice/:token" element={<InvoicePage />} />
       <Route path="/pre-screening/:token" element={<PreScreeningPage />} />
 
       {/* ── Public apply link — no login required to view or submit ── */}

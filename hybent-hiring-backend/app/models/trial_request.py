@@ -52,6 +52,8 @@ class TrialRequest(Base):
     contact_title: Mapped[str] = mapped_column(String(200), nullable=False)
     contact_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     contact_phone: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Agreed on the form to get updates (e.g. the trial's invoice) on WhatsApp.
+    whatsapp_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     contact_linkedin_url: Mapped[str] = mapped_column(String(500), nullable=False)
     hiring_needs: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The plan the trial was requested from: "standard" or "pro". The trial runs on its Trial plan.

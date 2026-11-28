@@ -11,6 +11,7 @@ const SuperAdminAnalytics = lazy(() => import('@/modules/super_admin/pages/Analy
 const SuperAdminClients = lazy(() => import('@/modules/super_admin/pages/ClientsPage'))
 const SuperAdminClientDetail = lazy(() => import('@/modules/super_admin/pages/ClientDetailPage'))
 const SuperAdminBilling = lazy(() => import('@/modules/super_admin/pages/BillingPage'))
+const SuperAdminInvoices = lazy(() => import('@/modules/super_admin/pages/InvoicesPage'))
 const SuperAdminAICredits = lazy(() => import('@/modules/super_admin/pages/AICreditsPage'))
 const SuperAdminTrials = lazy(() => import('@/modules/super_admin/pages/TrialRequestsPage'))
 const SuperAdminUsers = lazy(() => import('@/modules/super_admin/pages/UsersPage'))
@@ -38,6 +39,7 @@ const MOVED: Array<[string, string]> = [
   ['demo-requests', 'leads?tab=demo-requests'],
   ['contact-messages', 'leads?tab=contact'],
   ['ai-credits', 'billing?tab=credits'],
+  ['invoices', 'billing?tab=invoices'],
   ['support-sessions', 'users?tab=sessions'],
   ['operations', 'system'],
   ['health', 'system?tab=health'],
@@ -74,6 +76,7 @@ function Hubs() {
         label="Billing"
         tabs={[
           { value: 'plans', label: 'Plans & payments', element: <SuperAdminBilling /> },
+          { value: 'invoices', label: 'Invoices', element: <SuperAdminInvoices /> },
           { value: 'credits', label: 'AI credits', element: <SuperAdminAICredits /> },
         ]}
       />

@@ -91,6 +91,8 @@ export function TrialRequestForm() {
   const planName = PLAN_NAMES[plan]
   const [values, setValues] = useState<Values>(EMPTY)
   const [accepted, setAccepted] = useState(false)
+  // Optional consent to get updates (the trial's invoice) on WhatsApp.
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [serverMessage, setServerMessage] = useState('')
@@ -198,6 +200,7 @@ export function TrialRequestForm() {
       contact_email: values.contact_email.trim().toLowerCase(),
       homepage: values.homepage || undefined,
       accept_terms: true,
+      whatsapp_opt_in: whatsappOptIn,
       plan,
       email_verification_token: verificationToken,
       elapsed_ms: Date.now() - shownAt.current,
@@ -351,6 +354,15 @@ export function TrialRequestForm() {
               onChange={(v) => update('contact_phone', v ?? '')}
             />
             {errorFor('contact_phone')}
+            <label htmlFor="tf-whatsapp_opt_in" className="trial-terms" style={{ marginTop: '8px' }}>
+              <input
+                id="tf-whatsapp_opt_in"
+                type="checkbox"
+                checked={whatsappOptIn}
+                onChange={(e) => setWhatsappOptIn(e.target.checked)}
+              />
+              <span>Send me trial updates and my invoice on WhatsApp too (optional).</span>
+            </label>
           </div>
           <div style={{ marginTop: '16px' }}>
             {input('contact_linkedin_url', 'Your LinkedIn profile', { type: 'url', placeholder: 'https://www.linkedin.com/in/your-name' })}

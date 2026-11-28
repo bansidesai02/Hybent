@@ -364,7 +364,14 @@ export default function BillingPage() {
       key: 'amount',
       header: 'Amount',
       align: 'right',
-      cell: (p) => <span className="font-mono tabular-nums text-hb-text">{formatUsdCents(p.amount_usd)}</span>,
+      cell: (p) => (
+        <span className="font-mono tabular-nums text-hb-text">
+          {/* Trial invoices can be in rupees; the field holds the amount in `currency`. */}
+          {p.currency && p.currency !== 'USD'
+            ? `${p.currency === 'INR' ? '₹' : `${p.currency} `}${p.amount_usd.toLocaleString('en-IN')}`
+            : formatUsdCents(p.amount_usd)}
+        </span>
+      ),
     },
     {
       key: 'status',

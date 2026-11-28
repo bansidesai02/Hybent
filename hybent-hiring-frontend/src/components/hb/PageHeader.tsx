@@ -81,7 +81,7 @@ export function PageHeader({
             <p className="mb-3 hidden font-mono text-hb-eyebrow uppercase text-hb-muted md:block">{eyebrow}</p>
           )}
           {/* Phones get an app-sized large title (26px), not the desktop hero. */}
-          <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-hb-text md:text-hb-display">{title}</h1>
+          <h1 data-tour="page-title" className="font-display text-[26px] font-semibold leading-tight tracking-tight text-hb-text md:text-hb-display">{title}</h1>
           {description && (
             /* The site's `.lead`, at 62ch — the measure it sets for the same
                role. It was `hb-body` at 14px, which put the page's opening
@@ -92,7 +92,7 @@ export function PageHeader({
 
         {actions && (
           /* Phones: actions sit in one row under the title, sharing the width. */
-          <div className="flex shrink-0 flex-wrap items-center gap-2 max-md:[&>*]:flex-1 max-md:[&>*]:justify-center">{actions}</div>
+          <div data-tour="page-actions" className="flex shrink-0 flex-wrap items-center gap-2 max-md:[&>*]:flex-1 max-md:[&>*]:justify-center">{actions}</div>
         )}
       </Reveal>
     </header>
