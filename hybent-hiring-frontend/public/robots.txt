@@ -11,5 +11,9 @@ Disallow: /onboarding/
 Disallow: /pre-screening/
 Disallow: /pay/
 Disallow: /dev/
+Disallow: /talent/verify/
+Disallow: /talent/manage/
+Disallow: /talent/respond/
 
 Sitemap: https://hybent.com/sitemap.xml
+Sitemap: https://hybent.com/api/public/jobs-sitemap.xml

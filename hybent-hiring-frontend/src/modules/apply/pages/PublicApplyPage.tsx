@@ -9,7 +9,7 @@ import { useAsyncAction } from '@/hooks/useAsyncAction'
 import { formatDate } from '@/utils/formatters'
 import { Badge, Button, Card, Checkbox, Dropzone, Input } from '@/components/hb'
 import { ShareJob } from '@/modules/apply/components/ShareJob'
-import { CompanyFooter, useNoIndex } from '@/modules/apply/components/CompanyFooter'
+import { CompanyFooter } from '@/modules/apply/components/CompanyFooter'
 
 /**
  * The public, no-login "apply to this job" page — the destination of a
@@ -57,7 +57,65 @@ interface PublicJob {
   ai_calls?: boolean
   application_deadline: string | null
   openings?: number
+  /** Listed on Google for Jobs and the job-board feed. Off for confidential hiring. */
+  publish_externally?: boolean
+  created_at?: string | null
   organization: { name: string; slug: string; logo_url: string | null; website?: string | null }
+}
+
+const EMPLOYMENT_TYPES: Record<string, string> = {
+  full_time: 'FULL_TIME', part_time: 'PART_TIME', contract: 'CONTRACTOR',
+  internship: 'INTERN', temporary: 'TEMPORARY', remote: 'FULL_TIME',
+}
+
+/** schema.org JobPosting, which is what Google for Jobs reads off the page. */
+function jobPostingJsonLd(job: PublicJob, url: string) {
+  const parts = [job.description, job.responsibilities, job.requirements, job.benefits].filter(Boolean)
+  // Google wants HTML in description; keep line breaks as <br>.
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const description = parts.map((p) => esc(p as string).replace(/\n/g, '<br>')).join('<br><br>')
+  const place = (job.location || '').split(/[·|/(]| - /)[0]
+  const bits = place.split(',').map((b) => b.trim()).filter(Boolean)
+  const data: Record<string, unknown> = {
+    '@context': 'https://schema.org/',
+    '@type': 'JobPosting',
+    title: job.title,
+    description,
+    identifier: { '@type': 'PropertyValue', name: job.organization.name, value: job.id },
+    datePosted: (job.created_at || new Date().toISOString()).slice(0, 10),
+    employmentType: EMPLOYMENT_TYPES[job.job_type] ?? 'FULL_TIME',
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: job.organization.name,
+      ...(job.organization.website ? { sameAs: job.organization.website } : {}),
+      ...(job.organization.logo_url ? { logo: job.organization.logo_url } : {}),
+    },
+    url,
+    directApply: true,
+  }
+  if (job.application_deadline) data.validThrough = job.application_deadline
+  if (job.skills_required?.length) data.skills = job.skills_required.join(', ')
+  if (job.min_experience_years) {
+    data.experienceRequirements = {
+      '@type': 'OccupationalExperienceRequirements',
+      monthsOfExperience: job.min_experience_years * 12,
+    }
+  }
+  if (job.is_remote) {
+    data.jobLocationType = 'TELECOMMUTE'
+    data.applicantLocationRequirements = { '@type': 'Country', name: bits.length > 1 ? bits[bits.length - 1] : 'India' }
+  }
+  if (bits.length || !job.is_remote) {
+    data.jobLocation = {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: bits[0] || undefined,
+        addressCountry: bits.length > 1 ? bits[bits.length - 1] : 'IN',
+      },
+    }
+  }
+  return data
 }
 
 /* JD text saved as bullets often loses the first "•" (the parser keeps it
@@ -112,7 +170,10 @@ function Prose({ title, body }: { title: string; body: string }) {
 export default function PublicApplyPage() {
   const { orgSlug, jobId } = useParams<{ orgSlug: string; jobId: string }>()
   // `?source=careers_page` from the Hybent careers page; the backend ignores unknown values.
-  const source = useSearchParams()[0].get('source') || undefined
+  // Google for Jobs links straight to this page with no ?source, so a Google referrer counts as "google".
+  const source =
+    useSearchParams()[0].get('source') ||
+    (/(^|\.)google\./.test(document.referrer ? new URL(document.referrer).hostname : '') ? 'google' : undefined)
   const [job, setJob] = useState<PublicJob | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -120,7 +181,8 @@ export default function PublicApplyPage() {
   // Job details first; "Apply for this job" swaps in the form (like Keka's careers pages).
   const formRef = useRef<HTMLDivElement>(null)
   const [showForm, setShowForm] = useState(false)
-  useNoIndex()
+  // No blanket useNoIndex() here: a published job must be indexable for Google
+  // for Jobs. The effect below adds noindex only to jobs that aren't published.
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -149,6 +211,27 @@ export default function PublicApplyPage() {
 
   useEffect(() => {
     if (job) document.title = `${job.title} at ${job.organization.name}`
+  }, [job])
+
+  // Google for Jobs: published jobs carry JobPosting JSON-LD. Confidential
+  // ones get noindex instead, so a shared link never lands in search results.
+  useEffect(() => {
+    if (!job) return
+    const added: HTMLElement[] = []
+    if (job.publish_externally) {
+      const s = document.createElement('script')
+      s.type = 'application/ld+json'
+      s.text = JSON.stringify(jobPostingJsonLd(job, `${window.location.origin}/apply/${job.organization.slug}/${job.id}`))
+      document.head.appendChild(s)
+      added.push(s)
+    } else {
+      const m = document.createElement('meta')
+      m.name = 'robots'
+      m.content = 'noindex'
+      document.head.appendChild(m)
+      added.push(m)
+    }
+    return () => added.forEach((el) => el.remove())
   }, [job])
 
   const [handleSubmit, isSubmitting] = useAsyncAction(async () => {
@@ -426,7 +509,7 @@ export default function PublicApplyPage() {
                 )}
 
                 <Button onClick={() => handleSubmit()} loading={isSubmitting} size="lg" className="w-full">
-                  Submit application
+                  {isSubmitting ? 'Checking your resume…' : 'Submit application'}
                 </Button>
               </div>
             </Card>

@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import {
   Activity, Brain, BriefcaseBusiness, Building2, CalendarCheck, CalendarDays, ClipboardCheck, FlaskConical,
-  Coins, CreditCard, Headset, Megaphone, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, MessageSquare, PhoneCall, ScrollText, Wrench,
+  Coins, CreditCard, Globe, Headset, Megaphone, Database, FileText, Handshake, Inbox, LayoutDashboard, Lightbulb, ListChecks, MessageSquare, PhoneCall, ScrollText, Wrench,
   Settings, SquareKanban, ToggleLeft, TrendingUp, Upload, Users, UsersRound, Video, MessageCircle,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
@@ -186,6 +186,7 @@ export function getNavSections(
       items: [
         { to: basePath, label: 'Overview', icon: LayoutDashboard, end: true },
         { to: `${basePath}/copilot`, label: 'Recruiter Copilot', icon: CopilotSparkle, customActivePath: `${basePath}/copilot` },
+        { to: `${basePath}/global-search`, label: 'Global Search', icon: Globe },
         { to: `${basePath}/inbox`, label: 'Gmail Inbox', icon: Inbox },
         { to: `${basePath}/jobs`, label: 'Open Positions', icon: BriefcaseBusiness },
         candidatesGroup(basePath, role, candidateBadge, screening),

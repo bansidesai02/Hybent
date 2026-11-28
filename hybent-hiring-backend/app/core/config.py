@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     huggingface_api_key: str = ""
     openai_api_key: str = ""
 
+    # ── Global Search (outside candidates) ─────────────────────────────────────
+    # People Data Labs person search. Empty = the Global tab shows "not set up".
+    pdl_api_key: str = ""
+    # GitHub token for developer search: optional, but without one GitHub allows
+    # ~60 profile lookups an hour. No scopes needed (public data only).
+    github_token: str = ""
+    # Outside searches each organization may run per day (each costs PDL credits).
+    global_search_daily_limit: int = 20
+
     # ── Copilot agent v2 (LangGraph) ───────────────────────────────────────────
     # COPILOT_AGENT_V2=true turns it on for every org; otherwise only the org
     # ids in COPILOT_AGENT_V2_ORGS (comma-separated) get the new agent.

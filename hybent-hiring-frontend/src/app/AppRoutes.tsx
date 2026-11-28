@@ -59,6 +59,10 @@ const InvoicePage = lazy(() => import('@/modules/billing/pages/InvoicePage'))
 /* ── Public, no-login apply link (e.g. attached to a LinkedIn post) ───────── */
 const PublicApplyPage = lazy(() => import('@/modules/apply/pages/PublicApplyPage'))
 const CompanyJobsPage = lazy(() => import('@/modules/apply/pages/CompanyJobsPage'))
+const TalentSignupPage = lazy(() => import('@/modules/talent/pages/TalentNetworkPages').then((m) => ({ default: m.TalentSignupPage })))
+const TalentVerifyPage = lazy(() => import('@/modules/talent/pages/TalentNetworkPages').then((m) => ({ default: m.TalentVerifyPage })))
+const TalentManagePage = lazy(() => import('@/modules/talent/pages/TalentNetworkPages').then((m) => ({ default: m.TalentManagePage })))
+const TalentRespondPage = lazy(() => import('@/modules/talent/pages/TalentNetworkPages').then((m) => ({ default: m.TalentRespondPage })))
 
 /* ── Design system review surface ─────────────────────────────────────────────
    The condition wraps the `import()` itself, not just the route. Vite replaces
@@ -181,6 +185,12 @@ export default function AppRoutes() {
       <Route path="/apply/:orgSlug/:jobId" element={<PublicApplyPage />} />
       {/* A company's own careers page, reached from its apply links only. */}
       <Route path="/apply/:orgSlug" element={<CompanyJobsPage />} />
+
+      {/* ── Hybent Talent Network (candidates opt in to be found) ── */}
+      <Route path="/talent" element={<TalentSignupPage />} />
+      <Route path="/talent/verify/:token" element={<TalentVerifyPage />} />
+      <Route path="/talent/manage/:token" element={<TalentManagePage />} />
+      <Route path="/talent/respond/:token" element={<TalentRespondPage />} />
 
       {/* ── Design system, dev only ── */}
       {kitchenSinkRoute}

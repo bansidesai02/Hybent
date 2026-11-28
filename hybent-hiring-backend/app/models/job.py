@@ -40,6 +40,9 @@ class Job(Base):
 
     application_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     openings: Mapped[int] = mapped_column(Integer, default=1)
+    # Listed on Google for Jobs and in the job-board feed (Indeed, Jooble, ...).
+    # Off for confidential hiring; the apply link still works either way.
+    publish_externally: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
     # AI pre-screen setup for this job: {questions: [...], criteria: {...}, client_facing}
     voice_call_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", index=True)

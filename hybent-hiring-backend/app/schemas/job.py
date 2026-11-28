@@ -20,6 +20,7 @@ class JobCreate(BaseModel):
     openings: int = 1
     display_order: int | None = None
     status: JobStatus = JobStatus.ACTIVE
+    publish_externally: bool = True
     jd_url: str | None = None
     jd_filename: str | None = None
 
@@ -41,6 +42,7 @@ class JobUpdate(BaseModel):
     openings: int | None = None
     display_order: int | None = None
     status: JobStatus | None = None
+    publish_externally: bool | None = None
     jd_url: str | None = None
     jd_filename: str | None = None
 
@@ -69,6 +71,8 @@ class JobPublicOut(OrmSchema):
     is_remote: bool
     application_deadline: datetime | None = None
     openings: int = 1
+    publish_externally: bool = True
+    created_at: datetime | None = None
     organization: PublicOrganizationOut
 
 
@@ -90,6 +94,7 @@ class JobOut(OrmSchema):
     is_remote: bool
     application_deadline: datetime | None = None
     openings: int
+    publish_externally: bool = True
     display_order: int = 0
     created_at: datetime
     updated_at: datetime

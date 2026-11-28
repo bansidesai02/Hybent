@@ -23,7 +23,7 @@ import { candidatesApi } from '@/api/candidates'
 import { jobsApi } from '@/api/jobs'
 import { adminApi } from '@/api/admin'
 import { designationsApi, type DesignationItem } from '@/api/designations'
-import { formatCandidateDate, formatExperience, stageLabel } from '@/utils/formatters'
+import { formatCandidateDate, formatDateTime, formatExperience, stageLabel, timeAgo } from '@/utils/formatters'
 import type { Candidate } from '@/types'
 import { CandidateProfileView } from '@/modules/recruiter/components/CandidateProfileView'
 import { CandidateActionsPanel } from '@/modules/recruiter/components/CandidateActionsPanel'
@@ -515,6 +515,17 @@ export default function CandidatesPage() {
           </div>
         )
       },
+    },
+    {
+      key: 'added',
+      header: 'Added',
+      width: '112px',
+      cell: (c) => (
+        <div className="whitespace-nowrap" title={formatDateTime(c.created_at)}>
+          <p className="text-hb-sm text-hb-text">{formatCandidateDate(c)}</p>
+          <p className="text-hb-micro text-hb-dim">{timeAgo(c.created_at)}</p>
+        </div>
+      ),
     },
     {
       key: 'source',
