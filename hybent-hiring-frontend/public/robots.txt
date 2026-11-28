@@ -16,4 +16,4 @@ Disallow: /talent/manage/
 Disallow: /talent/respond/
 
 Sitemap: https://hybent.com/sitemap.xml
-Sitemap: https://hybent.com/api/public/jobs-sitemap.xml
+Sitemap: https://api.hybent.com/api/public/jobs-sitemap.xml
