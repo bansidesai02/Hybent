@@ -53,7 +53,11 @@ def fakes(monkeypatch):
     from app.routers import candidates as cand_router
     from app.tasks import notifications, screening
 
-    calls = {"parse": 0, "score": [], "notify": [], "parse_error": None}
+    calls = {"parse": 0, "score": [], "notify": [], "parse_error": None, "check_error": None}
+
+    def fake_check(content, content_type, filename=""):
+        if calls["check_error"]:
+            raise calls["check_error"]
 
     async def fake_parse(content, content_type, filename, **kwargs):
         calls["parse"] += 1
@@ -72,6 +76,7 @@ def fakes(monkeypatch):
         return None
 
     monkeypatch.setattr(resume_parser, "parse_resume", fake_parse)
+    monkeypatch.setattr(resume_parser, "check_is_resume", fake_check)
     monkeypatch.setattr(match_scorer, "evaluate_candidate_match", fake_score)
     monkeypatch.setattr(resume_intake, "save_resume", fake_save_resume)
     monkeypatch.setattr(resume_intake, "stage_candidate_resume_chunks", noop)
@@ -164,7 +169,26 @@ async def test_job_without_requirements_is_parsed_but_not_scored(client, db_sess
     assert len(cand.parsed_data["experience"]) == 2
 
 
+async def test_wrong_file_is_refused_and_nothing_saved(client, db_session, organization, job, fakes):
+    """A readable PDF that isn't a resume (a brochure, a plan) is turned away."""
+    fakes["check_error"] = NotAResumeError()
+    r = await client.post(f"/api/public/jobs/{organization.slug}/{job.id}/apply",
+                          data=_apply_form(), files={"resume": PDF})
+    assert r.status_code == 400
+    assert (await db_session.execute(select(Candidate))).first() is None
+
+
+async def test_unreadable_scan_still_applies(client, db_session, organization, job, fakes):
+    """A file the check can't read (locked, poor scan) isn't held against a real applicant."""
+    from app.services.ai.resume_parser import UnreadableDocumentError
+    fakes["check_error"] = UnreadableDocumentError()
+    r = await client.post(f"/api/public/jobs/{organization.slug}/{job.id}/apply",
+                          data=_apply_form(), files={"resume": PDF})
+    assert r.status_code == 200
+
+
 async def test_unparseable_resume_still_applies_unscored(client, db_session, organization, job, fakes):
+    """The quick check passed but the full parse failed: applies, unscored."""
     fakes["parse_error"] = NotAResumeError()
     r = await client.post(f"/api/public/jobs/{organization.slug}/{job.id}/apply",
                           data=_apply_form(), files={"resume": PDF})

@@ -51,13 +51,22 @@ async def read_resume_upload(file: UploadFile) -> bytes:
 
 
 async def require_resume(file: UploadFile, content: bytes) -> None:
-    """Rejects a file that isn't a resume (wrong PDF, blank scan, locked file)
-    before anything is saved, with the reason. Text PDFs and DOCX take a
+    """Rejects a readable file that isn't a resume (some other PDF) before
+    anything is saved, with the reason. Unreadable or locked files pass. Text PDFs and DOCX take a
     second or two; scanned PDFs need OCR and can take ~15s."""
     import asyncio
-    await asyncio.to_thread(
-        resume_parser.check_is_resume, content, file.content_type or "", file.filename or ""
-    )
+    try:
+        await asyncio.to_thread(
+            resume_parser.check_is_resume, content, file.content_type or "", file.filename or ""
+        )
+    except (resume_parser.UnreadableDocumentError, resume_parser.ProtectedDocumentError):
+        # Can't be read (locked, or a scan OCR can't make out): let it through
+        # unparsed, so a real applicant isn't turned away; a recruiter can open it.
+        pass
+    except resume_parser.NotAResumeError:
+        raise  # readable, and clearly not a resume
+    except Exception as exc:  # AI check down: don't block applicants over an outage
+        logger.warning("Resume check unavailable (%s: %s); accepting the file", type(exc).__name__, exc)
 
 
 async def store_resume(candidate: Candidate, file: UploadFile, content: bytes) -> None:
