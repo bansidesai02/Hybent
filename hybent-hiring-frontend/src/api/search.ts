@@ -76,7 +76,23 @@ export interface GlobalSearchResponse {
   github_error: string | null
   /** Hybent Talent Network members (consented). Names shortened, no contact details. */
   network: NetworkHit[] | null
+  /** Free trial: AI chips and free sources shown, Global not searched yet. */
+  outside_preview?: boolean
+  /** Free trial: its Global search is used up. */
+  outside_locked?: boolean
+  trial_quota?: TrialQuota
+  search_id?: string
 }
+
+/** A free trial's Global (PDL) searches. null for paid companies. */
+export interface TrialQuota {
+  limit: number
+  used: number
+  remaining: number
+}
+
+export const getSearchQuota = async () =>
+  (await api.get<TrialQuota | null>('/v1/search/global/quota', { skipLoader: true })).data
 
 export interface NetworkHit extends OutsideCandidateHit {
   profile_id: string
@@ -91,6 +107,7 @@ export const candidateGlobalSearch = async (body: {
   filters?: GlobalSearchFilters
   scope?: 'own' | 'outside' | 'both'
   job_id?: string
+  skip_outside?: boolean
 }): Promise<GlobalSearchResponse> => {
   const { data } = await api.post<GlobalSearchResponse>('/v1/search/global', body, { skipLoader: true })
   return data

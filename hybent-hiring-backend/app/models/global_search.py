@@ -3,7 +3,7 @@ it later without spending outside-search credits again."""
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,5 +24,10 @@ class GlobalSearchRun(Base):
     counts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     # The whole response as it was shown (outside, github, network, own lists).
     results: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # This search used one of a trial's free Global (PDL) searches.
+    charged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Removed from history by the team. A charged run is hidden, not deleted,
+    # so removing it can't give a trial its search back.
+    hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)

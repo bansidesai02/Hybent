@@ -59,6 +59,9 @@ class GlobalSearchRequest(BaseModel):
     # "both" and "outside" also ask GitHub when the search is for a developer.
     # Score results against this job's requirements. Optional.
     job_id: Optional[uuid.UUID] = None
+    # Free-trial preview: search every free source and show what the AI
+    # understood, but don't use the trial's Global (PDL) search yet.
+    skip_outside: bool = False
 
 
 class ImportOutsideRequest(BaseModel):
@@ -92,18 +95,37 @@ async def global_candidate_search(body: GlobalSearchRequest, current_user: Curre
     job = await _org_job(db, current_user.organization_id, body.job_id)
     data: dict = {"filters": filters, "own": None, "outside": None, "outside_error": None,
                   "github": None, "github_error": None, "network": None}
+
+    # Free trial: a set number of Global (PDL) searches in total.
+    quota = await _trial_quota(db, current_user.organization_id)
+    previous = await _same_search(db, current_user, body.query)
+    charge = False
+    run_outside = body.scope in ("outside", "both")
+    if quota is not None and run_outside:
+        free_rerun = is_sample(body.query) or (previous is not None and previous.charged)
+        if body.skip_outside and not free_rerun:
+            run_outside = False
+            data["outside_preview"] = True
+        elif not free_rerun:
+            if quota["remaining"] > 0:
+                charge = True  # confirmed below, only if it finds someone
+            else:
+                run_outside = False
+                data["outside_locked"] = True
+                data["outside_error"] = TRIAL_LIMIT_DETAIL
     if body.scope in ("own", "both"):
         data["own"] = gs.rank(await gs.search_own(db, current_user.organization_id, filters), filters, job)
     if body.scope in ("outside", "both"):
         # Hybent Talent Network: free, consented, contact only on the member's yes.
         data["network"] = gs.rank(await tn.search_network(db, current_user.organization_id, filters), filters, job)
-    if body.scope in ("outside", "both"):
+    if run_outside:
         try:
             outside = await gs.search_outside(current_user.organization_id, filters)
             outside["results"] = gs.rank(outside["results"], filters, job)
             data["outside"] = outside
         except (gs.GlobalSearchLimit, gs.GlobalSearchUnavailable) as e:
             data["outside_error"] = str(e)
+    if body.scope in ("outside", "both"):
         if github_search.is_tech_search(filters):
             try:
                 gh = await github_search.search_github(filters)
@@ -116,8 +138,12 @@ async def global_candidate_search(body: GlobalSearchRequest, current_user: Curre
             except github_search.GitHubUnavailable as e:
                 data["github_error"] = str(e)
 
+    # A search that found nobody or failed doesn't use the trial's search.
+    charged = charge and bool((data.get("outside") or {}).get("results"))
     if body.scope == "both":
-        data["search_id"] = str(await _save_run(db, current_user, body, filters, data))
+        data["search_id"] = str(await _save_run(db, current_user, body, filters, data, previous, charged))
+    if quota is not None:
+        data["trial_quota"] = await _trial_quota(db, current_user.organization_id)
     return APIResponse.success(message="Search complete.", data=data)
 
 
@@ -137,6 +163,51 @@ SAME_SEARCH_WINDOW = timedelta(minutes=30)
 HISTORY_KEEP = 200  # newest runs kept per organization
 SAVED_SOURCES = ("global_search", "talent_network")
 
+TRIAL_LIMIT_DETAIL = "You've used your free Global search. Upgrade to search millions of profiles."
+
+# The page's example searches: free for trials (they answer from cache), so a
+# trial can see Global results before spending its own search. Keep in step
+# with EXAMPLES in GlobalSearchPage.tsx.
+SAMPLE_QUERIES = {
+    "react developer in ahmedabad, 3–5 years",
+    "python django developer bangalore with aws",
+    "hr executive in pune",
+}
+
+
+def is_sample(query: str | None) -> bool:
+    return " ".join((query or "").lower().split()) in SAMPLE_QUERIES
+
+
+async def _trial_quota(db, organization_id) -> dict | None:
+    """None for paid companies; else the trial's Global search allowance."""
+    from app.core.config import settings
+    from app.services.trial_service import trial_access
+    if await trial_access(db, organization_id) is None:
+        return None
+    used = (await db.execute(select(func.count(GlobalSearchRun.id)).where(
+        GlobalSearchRun.organization_id == organization_id, GlobalSearchRun.charged.is_(True),
+    ))).scalar() or 0
+    limit = max(0, settings.trial_global_searches)
+    return {"limit": limit, "used": used, "remaining": max(0, limit - used)}
+
+
+async def _same_search(db, user, query: str | None):
+    """The user's last run if this request is the same search again (a chip
+    edit, a job switch, or confirming a trial preview)."""
+    query = (query or "").strip()[:300]
+    if not query:
+        return None
+    last = (await db.execute(
+        select(GlobalSearchRun)
+        .where(GlobalSearchRun.organization_id == user.organization_id, GlobalSearchRun.user_id == user.id)
+        .order_by(desc(GlobalSearchRun.created_at)).limit(1)
+    )).scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+    if last and last.query == query and last.created_at and now - last.created_at < SAME_SEARCH_WINDOW:
+        return last
+    return None
+
 
 def _counts(data: dict) -> dict:
     return {
@@ -147,26 +218,24 @@ def _counts(data: dict) -> dict:
     }
 
 
-async def _save_run(db, user, body: GlobalSearchRequest, filters: dict, data: dict) -> uuid.UUID:
+async def _save_run(db, user, body: GlobalSearchRequest, filters: dict, data: dict,
+                    previous: "GlobalSearchRun | None", charged: bool) -> uuid.UUID:
     query = (body.query or "").strip()[:300] or None
     results = {k: data.get(k) for k in ("outside", "outside_error", "github", "github_error", "network", "own")}
-    last = (await db.execute(
-        select(GlobalSearchRun)
-        .where(GlobalSearchRun.organization_id == user.organization_id, GlobalSearchRun.user_id == user.id)
-        .order_by(desc(GlobalSearchRun.created_at)).limit(1)
-    )).scalar_one_or_none()
     now = datetime.now(timezone.utc)
-    if last and query and last.query == query and last.created_at and now - last.created_at < SAME_SEARCH_WINDOW:
-        run = last
-    else:
+    run = previous
+    if run is None:
         run = GlobalSearchRun(organization_id=user.organization_id, user_id=user.id, query=query)
         db.add(run)
     run.filters, run.job_id, run.counts, run.results, run.created_at = filters, body.job_id, _counts(data), results, now
+    run.charged = bool(run.charged) or charged
     await db.flush()
 
-    # Keep the newest HISTORY_KEEP runs per org.
+    # Keep the newest HISTORY_KEEP runs per org. Runs that used a trial's
+    # search are kept: deleting them would hand the trial its search back.
     old_ids = (await db.execute(
-        select(GlobalSearchRun.id).where(GlobalSearchRun.organization_id == user.organization_id)
+        select(GlobalSearchRun.id).where(GlobalSearchRun.organization_id == user.organization_id,
+                                         GlobalSearchRun.charged.is_(False))
         .order_by(desc(GlobalSearchRun.created_at)).offset(HISTORY_KEEP)
     )).scalars().all()
     if old_ids:
@@ -183,7 +252,7 @@ async def global_search_history(current_user: CurrentUser, db: DB, limit: int = 
         select(GlobalSearchRun, User.full_name, Job.title)
         .outerjoin(User, User.id == GlobalSearchRun.user_id)
         .outerjoin(Job, Job.id == GlobalSearchRun.job_id)
-        .where(GlobalSearchRun.organization_id == current_user.organization_id)
+        .where(GlobalSearchRun.organization_id == current_user.organization_id, GlobalSearchRun.hidden.is_(False))
         .order_by(desc(GlobalSearchRun.created_at)).limit(limit)
     )).all()
     return APIResponse.success(message="Search history.", data=[{
@@ -200,6 +269,7 @@ async def global_search_history_item(run_id: uuid.UUID, current_user: CurrentUse
     Network request statuses are refreshed, since they change after the search."""
     run = (await db.execute(select(GlobalSearchRun).where(
         GlobalSearchRun.id == run_id, GlobalSearchRun.organization_id == current_user.organization_id,
+        GlobalSearchRun.hidden.is_(False),
     ))).scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Search not found")
@@ -227,7 +297,12 @@ async def delete_global_search_history_item(run_id: uuid.UUID, current_user: Cur
     ))).scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Search not found")
-    await db.delete(run)
+    if run.charged:
+        # Keep the row: it counts against a trial's searches. Just hide it.
+        run.hidden = True
+        run.results, run.counts = {}, {}
+    else:
+        await db.delete(run)
     await db.commit()
     return APIResponse.success(message="Removed from history.", data=None)
 
@@ -302,3 +377,9 @@ async def request_network_contact(body: NetworkContactRequest, current_user: Cur
     await db.commit()
     return APIResponse.success(message="Request sent. We will email you when they answer.",
                                data={"status": "pending"})
+
+
+@router.get("/global/quota")
+async def global_search_quota(current_user: CurrentUser, db: DB):
+    """Free-trial allowance of Global (PDL) searches; null for paid companies."""
+    return APIResponse.success(message="Quota.", data=await _trial_quota(db, current_user.organization_id))

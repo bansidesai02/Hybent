@@ -417,3 +417,84 @@ def test_github_unknown_frameworks_are_not_missing():
 def test_pdl_query_needs_at_least_one_asked_skill():
     q = gs.build_pdl_query(gs.normalize_filters({"job_titles": ["backend developer"], "skills": ["python", "aws"]}))
     assert {"bool": {"should": [{"term": {"skills": "python"}}, {"term": {"skills": "aws"}}]}} in q["bool"]["must"]
+
+
+# ── Free trial: 1 Global search ─────────────────────────────────────────────
+
+@pytest.fixture
+async def trial_org(db_session, organization):
+    from datetime import timedelta
+    from app.models.super_admin import CompanySubscription, SubscriptionPlan
+    plan = SubscriptionPlan(name="Pro", term_months=1, price_monthly=99.0, price_yearly=1188.0)
+    db_session.add(plan)
+    await db_session.flush()
+    db_session.add(CompanySubscription(organization_id=organization.id, plan_id=plan.id, status="active",
+                                       is_trial=True, trial_end=datetime.now(timezone.utc) + timedelta(days=7),
+                                       current_period_end=datetime.now(timezone.utc) + timedelta(days=7)))
+    await db_session.commit()
+    return organization
+
+
+@pytest.fixture
+def pdl_calls(monkeypatch, no_outside):
+    calls = []
+    real = gs.search_outside
+
+    async def counting(org_id, f):
+        calls.append(f)
+        return await real(org_id, f)
+    monkeypatch.setattr(gs, "search_outside", counting)
+    return calls
+
+
+async def _gsearch(client, headers, **body):
+    r = await client.post("/v1/search/global", json=body, headers=headers)
+    assert r.status_code == 200, r.text
+    return r.json()["data"]
+
+
+async def test_trial_gets_one_global_search(client, admin_headers, trial_org, pdl_calls):
+    # Preview: free sources and the AI's chips, no Global search used.
+    d = await _gsearch(client, admin_headers, query="react developer", skip_outside=True)
+    assert d["outside_preview"] and d["outside"] is None and not pdl_calls
+    assert d["trial_quota"] == {"limit": 1, "used": 0, "remaining": 1}
+
+    # Confirming uses the one search.
+    d = await _gsearch(client, admin_headers, query="react developer", filters=d["filters"])
+    assert d["outside"]["results"] and d["trial_quota"]["remaining"] == 0
+
+    # Refining the same search (chip edit) is free.
+    d = await _gsearch(client, admin_headers, query="react developer", filters=d["filters"])
+    assert d["outside"]["results"] and len(pdl_calls) == 2 and d["trial_quota"]["used"] == 1
+
+    # A new search is locked; the free sources still answer.
+    d = await _gsearch(client, admin_headers, query="java developer")
+    assert d["outside_locked"] and d["outside"] is None and d["own"] is not None and len(pdl_calls) == 2
+
+
+async def test_trial_examples_are_free(client, admin_headers, trial_org, pdl_calls):
+    d = await _gsearch(client, admin_headers, query="HR executive in Pune")
+    assert d["outside"] and d["trial_quota"]["remaining"] == 1
+
+
+async def test_trial_search_that_finds_nobody_is_not_used_up(client, admin_headers, trial_org, monkeypatch, no_outside):
+    async def empty(org_id, f):
+        return {"total": 0, "results": [], "cached": False}
+    monkeypatch.setattr(gs, "search_outside", empty)
+    d = await _gsearch(client, admin_headers, query="underwater basket weaver")
+    assert d["trial_quota"]["remaining"] == 1
+
+
+async def test_removing_the_search_from_history_does_not_refund_it(client, admin_headers, trial_org, pdl_calls):
+    d = await _gsearch(client, admin_headers, query="react developer")
+    await client.delete(f"/v1/search/global/history/{d['search_id']}", headers=admin_headers)
+    assert (await client.get("/v1/search/global/history", headers=admin_headers)).json()["data"] == []
+    quota = (await client.get("/v1/search/global/quota", headers=admin_headers)).json()["data"]
+    assert quota["remaining"] == 0
+
+
+async def test_paid_companies_have_no_trial_limit(client, admin_headers, pdl_calls):
+    for q in ("react developer", "java developer", "go developer"):
+        d = await _gsearch(client, admin_headers, query=q)
+        assert d["outside"] and "trial_quota" not in d
+    assert (await client.get("/v1/search/global/quota", headers=admin_headers)).json()["data"] is None
