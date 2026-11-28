@@ -922,30 +922,65 @@ def send_trial_reminder_email(to_email: str, to_name: str, company_name: str, tr
     return _trial_email(to_email, f"Your Hybent Hiring trial ends in {time_left}", content)
 
 
+def _trial_plan_card(name: str, price: str, points: list[str], badge: str = "") -> str:
+    tag = (f'<span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;'
+           f'background:#EEF2FF;color:#4F46E5;font-size:11px;font-weight:700;">{badge}</span>') if badge else ""
+    items = "".join(f'<tr><td style="padding:3px 0;font-size:13px;color:#3C4043;">&#10003;&nbsp; {p}</td></tr>' for p in points)
+    return f"""
+        <td valign="top" width="50%" style="padding:6px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E3E6EE;border-radius:12px;">
+            <tr><td style="padding:16px;">
+              <div style="font-size:15px;font-weight:700;color:#0B1220;">{name}{tag}</div>
+              <div style="margin:6px 0 10px;font-size:22px;font-weight:800;color:#0B1220;">{price}<span style="font-size:13px;font-weight:500;color:#70757A;"> /month</span></div>
+              <table role="presentation" cellpadding="0" cellspacing="0">{items}</table>
+            </td></tr>
+          </table>
+        </td>"""
+
+
 def send_trial_expired_email(to_email: str, to_name: str, company_name: str, purge_at) -> bool:
+    purge = f"{purge_at:%d %B %Y}"
     content = f"""
-        <h2 style="margin-top: 20px;">Your free trial has ended</h2>
-        <p>Hi {_first_name(to_name)},</p>
-        <p>The 7-day Hybent Hiring trial for <b>{html.escape(company_name)}</b> has ended.
-        Your team's access is paused, and your data is kept until <b>{_trial_date(purge_at)}</b>.</p>
-        <p><b>To continue</b>, sign in as the admin and choose a plan on the Billing page.
-        Everything you set up during the trial is restored straight away.</p>
-        {TRIAL_PLAN_LINES}
-        <div class="button-wrap"><a href="{_app_url('/hiring/admin/billing')}" class="button">Choose a plan</a></div>
-        <p>You can still sign in as the admin to export your data as Excel, CSV or PDF.
-        If you don't upgrade, the workspace and its data are permanently deleted on that date.</p>
+        <div style="margin-top:20px;"><span style="display:inline-block;padding:4px 12px;border-radius:999px;background:#FFF4E5;color:#B45309;font-size:12px;font-weight:700;letter-spacing:.3px;">TRIAL ENDED</span></div>
+        <h2 style="margin:12px 0 8px;font-size:24px;color:#0B1220;">Your workspace is paused</h2>
+        <p style="margin:0 0 16px;color:#3C4043;">Hi {_first_name(to_name)}, the 7-day Hybent Hiring trial for <b>{html.escape(company_name)}</b> has ended.
+        Nothing is lost: pick a plan and your team is back in, with every job, candidate and interview right where you left it.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;background:#F5F7FF;border-left:4px solid #4F46E5;border-radius:8px;">
+          <tr><td style="padding:12px 16px;font-size:14px;color:#3C4043;">&#128274; Your data is safely kept until <b style="color:#0B1220;">{purge}</b>.</td></tr>
+        </table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px;"><tr>
+          {_trial_plan_card("Standard", "$29", ["5,000 AI credits a month", "AI resume screening", "Unlimited jobs"])}
+          {_trial_plan_card("Pro", "$39", ["10,000 AI credits a month", "Recruiter Copilot", "Everything in Standard"], "POPULAR")}
+        </tr></table>
+        <div class="button-wrap" style="margin-top:24px;"><a href="{_app_url('/hiring/admin/billing')}" class="button">Choose a plan &amp; restore access</a></div>
+        <p style="margin:4px 0 0;text-align:center;font-size:12px;color:#70757A;">Sign in with the admin account of {html.escape(company_name)}.</p>
+        <hr style="border:none;border-top:1px solid #EEF0F4;margin:24px 0 16px;">
+        <p style="margin:0;font-size:13px;color:#5F6368;">Not ready yet? Sign in as the admin to export your data as Excel, CSV or PDF.
+        If no plan is chosen by {purge}, the workspace and its data are permanently deleted.
+        Questions? Call or WhatsApp us on <b>+91 87990 29798</b>.</p>
     """
     return _trial_email(to_email, "Your Hybent Hiring trial has ended", content)
 
 
 def send_trial_purge_warning_email(to_email: str, to_name: str, company_name: str, purge_at) -> bool:
+    purge = f"{purge_at:%d %B %Y}"
     content = f"""
-        <h2 style="margin-top: 20px;">Your trial data will be deleted soon</h2>
-        <p>Hi {_first_name(to_name)},</p>
-        <p>The trial workspace for <b>{html.escape(company_name)}</b> and all its data (jobs, candidates,
-        resumes, interviews and offers) will be permanently deleted on <b>{_trial_date(purge_at)}</b>.</p>
-        <p>To keep it, upgrade to Standard or Pro before then. To keep a copy, export it from the Billing page.</p>
-        <div class="button-wrap"><a href="{_app_url('/hiring/admin/billing')}" class="button">Upgrade or export</a></div>
+        <div style="margin-top:20px;"><span style="display:inline-block;padding:4px 12px;border-radius:999px;background:#FDECEC;color:#B42318;font-size:12px;font-weight:700;letter-spacing:.3px;">7 DAYS LEFT</span></div>
+        <h2 style="margin:12px 0 8px;font-size:24px;color:#0B1220;">Your trial data will be deleted soon</h2>
+        <p style="margin:0 0 16px;color:#3C4043;">Hi {_first_name(to_name)}, the trial workspace for <b>{html.escape(company_name)}</b> is still paused.
+        Choose a plan to keep it, or export a copy before it goes.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;background:#FFF5F5;border-left:4px solid #D92D20;border-radius:8px;">
+          <tr><td style="padding:12px 16px;font-size:14px;color:#3C4043;">&#9888;&#65039; On <b style="color:#0B1220;">{purge}</b> we permanently delete all jobs, candidates, resumes, interviews and offers. This can't be undone.</td></tr>
+        </table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px;"><tr>
+          {_trial_plan_card("Standard", "$29", ["5,000 AI credits a month", "AI resume screening", "Unlimited jobs"])}
+          {_trial_plan_card("Pro", "$39", ["10,000 AI credits a month", "Recruiter Copilot", "Everything in Standard"], "POPULAR")}
+        </tr></table>
+        <div class="button-wrap" style="margin-top:24px;"><a href="{_app_url('/hiring/admin/billing')}" class="button">Keep my workspace</a></div>
+        <p style="margin:4px 0 0;text-align:center;font-size:12px;color:#70757A;">Sign in with the admin account of {html.escape(company_name)}.</p>
+        <hr style="border:none;border-top:1px solid #EEF0F4;margin:24px 0 16px;">
+        <p style="margin:0;font-size:13px;color:#5F6368;">Just want a copy? Sign in as the admin and export your data as Excel, CSV or PDF from the Billing page.
+        Questions? Call or WhatsApp us on <b>+91 87990 29798</b>.</p>
     """
     return _trial_email(to_email, "Your Hybent Hiring trial data will be deleted in 7 days", content)
 
