@@ -60,3 +60,4 @@ __all__ = [
     "TrialRequest", "TrialEmailOTP", "TrialMessage", "DemoBooking", "SmsSettings", "SmsLog",
 ]
 from app.models.talent_network import TalentContactRequest, TalentProfile
+from app.models.global_search import GlobalSearchRun

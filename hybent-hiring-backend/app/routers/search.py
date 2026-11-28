@@ -116,7 +116,154 @@ async def global_candidate_search(body: GlobalSearchRequest, current_user: Curre
             except github_search.GitHubUnavailable as e:
                 data["github_error"] = str(e)
 
+    if body.scope == "both":
+        data["search_id"] = str(await _save_run(db, current_user, body, filters, data))
     return APIResponse.success(message="Search complete.", data=data)
+
+
+# ── Search history and saved candidates ────────────────────────────────────
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+from sqlalchemy import desc, func  # noqa: E402
+
+from app.models.application import Application  # noqa: E402
+from app.models.candidate import Candidate  # noqa: E402
+from app.models.global_search import GlobalSearchRun  # noqa: E402
+from app.models.user import User  # noqa: E402
+
+# Editing a chip or switching the job re-runs the same search: within this
+# window it updates the user's last run instead of adding another row.
+SAME_SEARCH_WINDOW = timedelta(minutes=30)
+HISTORY_KEEP = 200  # newest runs kept per organization
+SAVED_SOURCES = ("global_search", "talent_network")
+
+
+def _counts(data: dict) -> dict:
+    return {
+        "outside": (data.get("outside") or {}).get("total") or 0,
+        "github": (data.get("github") or {}).get("total") or 0,
+        "network": len(data.get("network") or []),
+        "own": len(data.get("own") or []),
+    }
+
+
+async def _save_run(db, user, body: GlobalSearchRequest, filters: dict, data: dict) -> uuid.UUID:
+    query = (body.query or "").strip()[:300] or None
+    results = {k: data.get(k) for k in ("outside", "outside_error", "github", "github_error", "network", "own")}
+    last = (await db.execute(
+        select(GlobalSearchRun)
+        .where(GlobalSearchRun.organization_id == user.organization_id, GlobalSearchRun.user_id == user.id)
+        .order_by(desc(GlobalSearchRun.created_at)).limit(1)
+    )).scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+    if last and query and last.query == query and last.created_at and now - last.created_at < SAME_SEARCH_WINDOW:
+        run = last
+    else:
+        run = GlobalSearchRun(organization_id=user.organization_id, user_id=user.id, query=query)
+        db.add(run)
+    run.filters, run.job_id, run.counts, run.results, run.created_at = filters, body.job_id, _counts(data), results, now
+    await db.flush()
+
+    # Keep the newest HISTORY_KEEP runs per org.
+    old_ids = (await db.execute(
+        select(GlobalSearchRun.id).where(GlobalSearchRun.organization_id == user.organization_id)
+        .order_by(desc(GlobalSearchRun.created_at)).offset(HISTORY_KEEP)
+    )).scalars().all()
+    if old_ids:
+        from sqlalchemy import delete
+        await db.execute(delete(GlobalSearchRun).where(GlobalSearchRun.id.in_(old_ids)))
+    await db.commit()
+    return run.id
+
+
+@router.get("/global/history")
+async def global_search_history(current_user: CurrentUser, db: DB, limit: int = Query(20, ge=1, le=100)):
+    """The team's recent Global Searches, newest first."""
+    rows = (await db.execute(
+        select(GlobalSearchRun, User.full_name, Job.title)
+        .outerjoin(User, User.id == GlobalSearchRun.user_id)
+        .outerjoin(Job, Job.id == GlobalSearchRun.job_id)
+        .where(GlobalSearchRun.organization_id == current_user.organization_id)
+        .order_by(desc(GlobalSearchRun.created_at)).limit(limit)
+    )).all()
+    return APIResponse.success(message="Search history.", data=[{
+        "id": str(r.id), "query": r.query, "filters": r.filters, "counts": r.counts,
+        "job_id": str(r.job_id) if r.job_id else None, "job_title": job_title,
+        "searched_by": name, "is_mine": r.user_id == current_user.id,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    } for r, name, job_title in rows])
+
+
+@router.get("/global/history/{run_id}")
+async def global_search_history_item(run_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """A saved search with the results it found, so reopening it costs nothing.
+    Network request statuses are refreshed, since they change after the search."""
+    run = (await db.execute(select(GlobalSearchRun).where(
+        GlobalSearchRun.id == run_id, GlobalSearchRun.organization_id == current_user.organization_id,
+    ))).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail="Search not found")
+    data = {"filters": run.filters, **(run.results or {}), "search_id": str(run.id),
+            "job_id": str(run.job_id) if run.job_id else None, "query": run.query,
+            "saved_at": run.created_at.isoformat() if run.created_at else None}
+    network = data.get("network") or []
+    if network:
+        from app.models.talent_network import TalentContactRequest
+        ids = [uuid.UUID(n["profile_id"]) for n in network if n.get("profile_id")]
+        status = {str(r.profile_id): r for r in (await db.execute(select(TalentContactRequest).where(
+            TalentContactRequest.organization_id == current_user.organization_id,
+            TalentContactRequest.profile_id.in_(ids),
+        ))).scalars().all()}
+        for n in network:
+            r = status.get(n.get("profile_id"))
+            n["request_status"] = r.status if r else None
+    return APIResponse.success(message="Saved search.", data=data)
+
+
+@router.delete("/global/history/{run_id}")
+async def delete_global_search_history_item(run_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    run = (await db.execute(select(GlobalSearchRun).where(
+        GlobalSearchRun.id == run_id, GlobalSearchRun.organization_id == current_user.organization_id,
+    ))).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail="Search not found")
+    await db.delete(run)
+    await db.commit()
+    return APIResponse.success(message="Removed from history.", data=None)
+
+
+@router.get("/global/saved")
+async def global_search_saved(current_user: CurrentUser, db: DB,
+                              page: int = Query(1, ge=1), limit: int = Query(25, ge=1, le=100)):
+    """Candidates the team brought in from outside: saved or added from Global
+    Search (PDL, GitHub) or accepted from the Talent Network."""
+    base = [Candidate.organization_id == current_user.organization_id, Candidate.is_deleted.is_(False),
+            Candidate.source.in_(SAVED_SOURCES)]
+    total = (await db.execute(select(func.count(Candidate.id)).where(*base))).scalar() or 0
+    rows = (await db.execute(
+        select(Candidate, User.full_name).outerjoin(User, User.id == Candidate.created_by_id)
+        .where(*base).order_by(desc(Candidate.created_at)).offset((page - 1) * limit).limit(limit)
+    )).all()
+    jobs: dict = {}
+    if rows:
+        for cid, title in (await db.execute(
+            select(Application.candidate_id, Job.title).join(Job, Job.id == Application.job_id)
+            .where(Application.candidate_id.in_([c.id for c, _ in rows]))
+        )).all():
+            jobs.setdefault(cid, []).append(title)
+    items = []
+    for c, saved_by in rows:
+        pd = c.parsed_data or {}
+        origin = "network" if c.source == "talent_network" else (pd.get("external_source") or "pdl")
+        items.append({
+            "id": str(c.id), "full_name": c.full_name, "job_title": c.current_title,
+            "company": c.current_company, "location": c.location, "skills": list(c.skills or [])[:8],
+            "origin": origin, "github_url": c.github_url, "linkedin_url": c.linkedin_url,
+            "has_email": not (c.email or "").endswith(".invalid"),
+            "pipeline_stage": c.pipeline_stage, "jobs": jobs.get(c.id, []),
+            "saved_by": saved_by, "saved_at": c.created_at.isoformat() if c.created_at else None,
+        })
+    return APIResponse.success(message="Saved candidates.", data={"items": items, "total": total, "page": page})
 
 
 @router.post("/global/import")
