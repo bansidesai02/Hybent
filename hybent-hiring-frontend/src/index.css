@@ -1304,3 +1304,24 @@
   .copilot-markdown h3 { font-size: 15.5px; }
   .copilot-markdown .cm-code pre { font-size: 12.5px; padding: 12px 14px; }
 }
+
+/* ============================================
+   No zoom, on every device (site, sign-in, app, installed PWA)
+   ============================================ */
+/* Unlayered on purpose: it must beat every page's own input font size.
+   iOS zooms the whole page into any field under 16px the moment it's focused,
+   and keeps it zoomed; 16px on phones and tablets stops that everywhere —
+   sign-in, the marketing site and dialogs portalled outside the app shell. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* No double-tap zoom anywhere, and no 300ms tap delay. */
+  touch-action: manipulation;
+}
+@media (max-width: 1023.98px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

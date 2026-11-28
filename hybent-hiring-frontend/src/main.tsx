@@ -8,6 +8,8 @@ import App from './App'
 import './index.css'
 // Capture the browser's install prompt as early as possible (installed app).
 import './pwa/install'
+// No pinch zoom on iOS (Safari ignores user-scalable=no).
+import './pwa/noZoom'
 import { hideBootScreen } from './pwa/bootScreen'
 import { startAutoUpdate } from './pwa/autoUpdate'
 

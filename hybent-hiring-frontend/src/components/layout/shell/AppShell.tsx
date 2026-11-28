@@ -22,7 +22,8 @@ import { HbTopbar } from './HbTopbar'
 import { HbBottomNav } from './HbBottomNav'
 import { InstallAppCard } from './InstallAppCard'
 import { ProductTour } from '@/components/tour/ProductTour'
-import { activeNavLabel, getMobileTabs, getNavSections, withoutCopilot, type NavSection } from './navConfig'
+import { activeNavLabel, getMobileTabs, getNavSections, withoutCopilot, withoutGlobalSearch, type NavSection } from './navConfig'
+import { useIsTrial } from '@/hooks/usePaidFeature'
 
 type TopbarMenuItem = { label: string; icon: ReactNode; path: string }
 
@@ -219,10 +220,14 @@ export function AppShell({ role, sections, footerSubtitle, topbar }: AppShellPro
   // A super admin can switch Copilot off per client: drop its page and widget.
   const features = useFeatures()
   const copilotOn = config.copilot && features?.copilot !== false
+  // Global Search is for paid plans: hidden from free trials.
+  const isTrial = useIsTrial()
   const navSections = useMemo(() => {
-    const all = sections ?? getNavSections(activeRole, candidateBadge, 0, screening, aiCalls, superAdminTodo)
-    return features?.copilot === false ? withoutCopilot(all) : all
-  }, [sections, activeRole, candidateBadge, screening, aiCalls, superAdminTodo, features?.copilot])
+    let all = sections ?? getNavSections(activeRole, candidateBadge, 0, screening, aiCalls, superAdminTodo)
+    if (features?.copilot === false) all = withoutCopilot(all)
+    if (isTrial) all = withoutGlobalSearch(all)
+    return all
+  }, [sections, activeRole, candidateBadge, screening, aiCalls, superAdminTodo, features?.copilot, isTrial])
   const mobileTabs = useMemo(
     () => getMobileTabs(activeRole, basePath, navSections),
     [activeRole, basePath, navSections],

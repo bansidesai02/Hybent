@@ -198,8 +198,13 @@ def build_pdl_query(f: dict) -> dict:
         must.append({"terms": {"location_locality": CITY_ALIASES.get(f["city"], [f["city"]])}})
     if f["job_titles"]:
         must.append({"bool": {"should": [{"match": {"job_title": t}} for t in f["job_titles"]]}})
-    for s in f["skills"]:
-        (should if f["job_titles"] else must).append({"term": {"skills": s}})
+    if f["skills"] and f["job_titles"]:
+        # At least one of the asked skills (a "Backend Developer" with none of
+        # python/django/aws isn't a match), and each extra one ranks higher.
+        must.append({"bool": {"should": [{"term": {"skills": s}} for s in f["skills"]]}})
+        should += [{"term": {"skills": s}} for s in f["skills"]]
+    else:
+        must += [{"term": {"skills": s}} for s in f["skills"]]
     years = {}
     if f["min_years"] is not None:
         years["gte"] = f["min_years"]
@@ -226,7 +231,10 @@ def _pdl_person(p: dict, wanted: set[str]) -> dict:
         "company": (text(p.get("job_company_name")) or "").title() or None,
         "location": text(p.get("location_name")),
         "years_experience": p.get("inferred_years_experience"),
-        "skills": skills[:12],
+        # All of them: PDL lists skills A-Z, so the first dozen were "agile,
+        # algorithms, ..." and a Python developer's "python" was cut off before
+        # scoring. The page shows the matched ones first.
+        "skills": skills[:80],
         "matched_skills": [s for s in skills if s.lower() in wanted],
         "has_email": bool(p.get("work_email") or p.get("personal_emails") or p.get("emails")),
         "has_phone": bool(p.get("mobile_phone") or p.get("phone_numbers")),
@@ -249,7 +257,8 @@ async def search_outside(organization_id: uuid.UUID, f: dict) -> dict:
         raise GlobalSearchUnavailable("Outside search is not set up yet.")
 
     key_src = json.dumps(f, sort_keys=True)
-    cache_key = "gsearch:pdl:" + hashlib.sha256(key_src.encode()).hexdigest()
+    # v2: full skill lists and skills required (results cached before were truncated).
+    cache_key = "gsearch:pdl:v2:" + hashlib.sha256(key_src.encode()).hexdigest()
     r = _redis()
     try:
         try:
@@ -359,7 +368,13 @@ def score_hit(hit: dict, f: dict, job=None) -> None:
         t_score = title_similarity(title, f["job_titles"])
         title_hit = t_score >= 0.6
         years_part = _years_fit(hit.get("years_experience"), f)
-        if f["skills"]:
+        if hit.get("source") == "github" and f["skills"]:
+            # GitHub only tells us the language someone codes in, not their
+            # frameworks or cloud: what it can't know isn't counted as missing.
+            missing = []
+            skill_part = 1.0 if matched else 0.0
+            score = 55 * skill_part + 30 * t_score + 15 * years_part
+        elif f["skills"]:
             score = 55 * len(matched) / len(f["skills"]) + 30 * t_score + 15 * years_part
         else:
             # Only a role to go on: the title can't make anyone a perfect

@@ -6,6 +6,7 @@ import { ArrowLeft, Briefcase, Building2, Check, Code2, RefreshCw, Globe, Lock, 
 
 import {
   candidateGlobalSearch,
+  getSearchQuota,
   importOutsideCandidate,
   requestNetworkContact,
   type NetworkHit,
@@ -19,6 +20,7 @@ import { searchHistoryApi } from '@/api/search'
 import { SearchLibrary } from '@/modules/recruiter/components/globalSearch/SearchLibrary'
 import { HISTORY_KEY, SAVED_KEY } from '@/modules/recruiter/components/globalSearch/queryKeys'
 import { timeAgo } from '@/utils/formatters'
+import { useIsTrial } from '@/hooks/usePaidFeature'
 import { Avatar, Badge, Button, Card, EmptyState, IconTile, ScoreRing, Select, Skeleton, Tabs } from '@/components/hb'
 
 const STEPS = [
@@ -41,6 +43,11 @@ function Reason({ text }: { text: string }) {
  */
 
 type Tab = 'outside' | 'network' | 'github' | 'own'
+
+const QUOTA_KEY = ['global-search', 'quota']
+
+/** Example searches are free for trials (backend: SAMPLE_QUERIES in search.py). */
+const isSample = (q: string) => EXAMPLES.some((e) => e.toLowerCase() === q.trim().toLowerCase().replace(/\s+/g, ' '))
 
 const EXAMPLES = [
   'React developer in Ahmedabad, 3–5 years',
@@ -319,12 +326,18 @@ export default function GlobalSearchPage() {
   })
   const jobs: Array<{ id: string; title: string }> = (jobsData as any)?.items ?? []
 
+  const isTrial = useIsTrial()
+  // Free trial: its Global (PDL) searches (only when trials are allowed in;
+  // see TRIAL_GLOBAL_SEARCH_ENABLED). null for paid companies.
+  const { data: quota } = useQuery({ queryKey: QUOTA_KEY, queryFn: getSearchQuota, enabled: !isTrial })
+
   const search = useMutation({
     mutationFn: candidateGlobalSearch,
     onSuccess: (data) => {
       setResult(data)
       setSavedAt(null)
       qc.invalidateQueries({ queryKey: HISTORY_KEY })
+      if (data.trial_quota) qc.setQueryData(QUOTA_KEY, data.trial_quota)
     },
   })
 
@@ -373,7 +386,16 @@ export default function GlobalSearchPage() {
   const run = (q = query, job = jobId) => {
     if (!q.trim()) return
     setQuery(q)
-    search.mutate({ query: q, scope: 'both', job_id: job || undefined })
+    // A trial with its free Global search unused sees the AI's chips and the
+    // free sources first, and spends the search only when it confirms.
+    const preview = !!quota && quota.remaining > 0 && !isSample(q)
+    search.mutate({ query: q, scope: 'both', job_id: job || undefined, skip_outside: preview })
+  }
+
+  const spendFreeSearch = () => {
+    if (!result) return
+    setTab('outside')
+    search.mutate({ query, filters: result.filters, scope: 'both', job_id: jobId || undefined })
   }
 
   const removeChip = (key: ChipKey, value?: string) => {
@@ -395,6 +417,26 @@ export default function GlobalSearchPage() {
     (search.error as any)?.response?.data?.detail ?? (search.error ? 'Search failed. Please try again.' : null)
   const outside = result?.outside
   const own = result?.own ?? []
+
+  // Global Search is a paid-plan feature: a free trial reaching this page
+  // directly sees the upgrade card, not the search.
+  if (isTrial) {
+    return (
+      <Card padding="loose" className="mx-auto mt-hb-10 max-w-xl text-center">
+        <IconTile>
+          <Lock />
+        </IconTile>
+        <h1 className="mt-hb-3 font-display text-hb-h3 text-hb-text">Global Search is on our paid plans</h1>
+        <p className="mt-hb-2 text-hb-sm text-hb-muted">
+          Search millions of candidate profiles outside Hybent, GitHub developers and the Hybent Talent Network, all
+          from one search box.
+        </p>
+        <Button className="mt-hb-4" to="/hiring/admin/billing">
+          See plans
+        </Button>
+      </Card>
+    )
+  }
 
   return (
     <div>
@@ -451,6 +493,17 @@ export default function GlobalSearchPage() {
               </div>
             </div>
           </form>
+
+          {quota && (
+            <p className={`mt-hb-3 flex items-center gap-2 text-hb-sm ${result ? '' : 'justify-center'}`}>
+              <Badge tone={quota.remaining > 0 ? 'brand' : 'warning'}>Free trial</Badge>
+              <span className="text-hb-muted">
+                {quota.remaining > 0
+                  ? `${quota.remaining} free Global search left. Examples, GitHub and Hybent Network are free.`
+                  : 'Free Global search used. GitHub, Hybent Network and your candidates are still free.'}
+              </span>
+            </p>
+          )}
 
           {!result && (
             <div className="mt-hb-4 flex flex-wrap items-center justify-center gap-1.5">
@@ -614,7 +667,37 @@ export default function GlobalSearchPage() {
                 />
               )
             ) : tab === 'outside' ? (
-              result?.outside_error ? (
+              result?.outside_preview ? (
+                <Card padding="loose" className="text-center">
+                  <IconTile>
+                    <Sparkles />
+                  </IconTile>
+                  <h3 className="mt-hb-3 text-hb-lg font-semibold text-hb-text">Your free Global search is ready</h3>
+                  <p className="mx-auto mt-1 max-w-xl text-hb-sm text-hb-muted">
+                    Check the <strong>AI understood</strong> chips above and remove any that don't fit. When they
+                    look right, search millions of profiles outside Hybent. Your trial includes{' '}
+                    {quota?.limit === 1 ? 'one Global search' : `${quota?.limit} Global searches`}; refining it
+                    afterwards is free. GitHub, Hybent Network and your own candidates are free.
+                  </p>
+                  <Button className="mt-hb-4" size="lg" icon={<Search size={16} />} loading={search.isPending} onClick={spendFreeSearch}>
+                    Use my free Global search
+                  </Button>
+                </Card>
+              ) : result?.outside_locked ? (
+                <Card padding="loose" className="text-center">
+                  <IconTile>
+                    <Lock />
+                  </IconTile>
+                  <h3 className="mt-hb-3 text-hb-lg font-semibold text-hb-text">You've used your free Global search</h3>
+                  <p className="mx-auto mt-1 max-w-xl text-hb-sm text-hb-muted">
+                    Upgrade to search millions of profiles outside Hybent, as often as you need. GitHub, Hybent
+                    Network and your own candidates stay free, and your past searches are under Recent searches.
+                  </p>
+                  <Button className="mt-hb-4" size="lg" to="/hiring/admin/billing">
+                    See plans
+                  </Button>
+                </Card>
+              ) : result?.outside_error ? (
                 <EmptyState tone="error" icon={<Globe />} title="Outside search unavailable" description={result.outside_error} />
               ) : outside && outside.results.length ? (
                 <>

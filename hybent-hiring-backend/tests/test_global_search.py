@@ -396,3 +396,119 @@ async def test_saved_list_has_only_candidates_brought_in_from_outside(client, db
     item = data["items"][0]
     assert (item["full_name"], item["origin"], item["has_email"], item["saved_by"]) == \
         ("Dev GitHub", "github", False, admin_user.full_name)
+
+
+def test_pdl_score_uses_every_skill_not_the_first_dozen():
+    """PDL lists skills A-Z: "python" sits past the first 12 for most people."""
+    f = gs.normalize_filters({"job_titles": ["backend developer"], "skills": ["python", "django"]})
+    skills = sorted([f"skill{i:02d}" for i in range(20)] + ["python", "django"])
+    person = gs._pdl_person({"id": "x", "full_name": "a b", "job_title": "backend developer", "skills": skills}, set())
+    gs.score_hit(person, f)
+    assert person["missing_skills"] == [] and person["match_score"] >= 85
+
+
+def test_github_unknown_frameworks_are_not_missing():
+    f = gs.normalize_filters({"job_titles": ["python developer"], "skills": ["python", "django", "aws"]})
+    hit = {"job_title": "Open source enthusiast", "skills": ["python"], "source": "github"}
+    gs.score_hit(hit, f)
+    assert hit["missing_skills"] == [] and hit["match_score"] >= 55
+
+
+def test_pdl_query_needs_at_least_one_asked_skill():
+    q = gs.build_pdl_query(gs.normalize_filters({"job_titles": ["backend developer"], "skills": ["python", "aws"]}))
+    assert {"bool": {"should": [{"term": {"skills": "python"}}, {"term": {"skills": "aws"}}]}} in q["bool"]["must"]
+
+
+# ── Free trial: 1 Global search ─────────────────────────────────────────────
+
+@pytest.fixture
+async def trial_org(db_session, organization):
+    from datetime import timedelta
+    from app.models.super_admin import CompanySubscription, SubscriptionPlan
+    plan = SubscriptionPlan(name="Pro", term_months=1, price_monthly=99.0, price_yearly=1188.0)
+    db_session.add(plan)
+    await db_session.flush()
+    db_session.add(CompanySubscription(organization_id=organization.id, plan_id=plan.id, status="active",
+                                       is_trial=True, trial_end=datetime.now(timezone.utc) + timedelta(days=7),
+                                       current_period_end=datetime.now(timezone.utc) + timedelta(days=7)))
+    await db_session.commit()
+    return organization
+
+
+@pytest.fixture
+def trial_search_on(monkeypatch):
+    """Trials get their limited Global searches (off by default)."""
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "trial_global_search_enabled", True)
+
+
+async def test_trials_have_no_global_search_by_default(client, admin_headers, trial_org, no_outside):
+    r = await client.post("/v1/search/global", json={"query": "react developer"}, headers=admin_headers)
+    assert r.status_code == 402
+    r = await client.post("/v1/search/global/import", json={"person": {"external_id": "x"}}, headers=admin_headers)
+    assert r.status_code == 402
+
+
+@pytest.fixture
+def pdl_calls(monkeypatch, no_outside):
+    calls = []
+    real = gs.search_outside
+
+    async def counting(org_id, f):
+        calls.append(f)
+        return await real(org_id, f)
+    monkeypatch.setattr(gs, "search_outside", counting)
+    return calls
+
+
+async def _gsearch(client, headers, **body):
+    r = await client.post("/v1/search/global", json=body, headers=headers)
+    assert r.status_code == 200, r.text
+    return r.json()["data"]
+
+
+async def test_trial_gets_one_global_search(client, admin_headers, trial_org, trial_search_on, pdl_calls):
+    # Preview: free sources and the AI's chips, no Global search used.
+    d = await _gsearch(client, admin_headers, query="react developer", skip_outside=True)
+    assert d["outside_preview"] and d["outside"] is None and not pdl_calls
+    assert d["trial_quota"] == {"limit": 1, "used": 0, "remaining": 1}
+
+    # Confirming uses the one search.
+    d = await _gsearch(client, admin_headers, query="react developer", filters=d["filters"])
+    assert d["outside"]["results"] and d["trial_quota"]["remaining"] == 0
+
+    # Refining the same search (chip edit) is free.
+    d = await _gsearch(client, admin_headers, query="react developer", filters=d["filters"])
+    assert d["outside"]["results"] and len(pdl_calls) == 2 and d["trial_quota"]["used"] == 1
+
+    # A new search is locked; the free sources still answer.
+    d = await _gsearch(client, admin_headers, query="java developer")
+    assert d["outside_locked"] and d["outside"] is None and d["own"] is not None and len(pdl_calls) == 2
+
+
+async def test_trial_examples_are_free(client, admin_headers, trial_org, trial_search_on, pdl_calls):
+    d = await _gsearch(client, admin_headers, query="HR executive in Pune")
+    assert d["outside"] and d["trial_quota"]["remaining"] == 1
+
+
+async def test_trial_search_that_finds_nobody_is_not_used_up(client, admin_headers, trial_org, trial_search_on, monkeypatch, no_outside):
+    async def empty(org_id, f):
+        return {"total": 0, "results": [], "cached": False}
+    monkeypatch.setattr(gs, "search_outside", empty)
+    d = await _gsearch(client, admin_headers, query="underwater basket weaver")
+    assert d["trial_quota"]["remaining"] == 1
+
+
+async def test_removing_the_search_from_history_does_not_refund_it(client, admin_headers, trial_org, trial_search_on, pdl_calls):
+    d = await _gsearch(client, admin_headers, query="react developer")
+    await client.delete(f"/v1/search/global/history/{d['search_id']}", headers=admin_headers)
+    assert (await client.get("/v1/search/global/history", headers=admin_headers)).json()["data"] == []
+    quota = (await client.get("/v1/search/global/quota", headers=admin_headers)).json()["data"]
+    assert quota["remaining"] == 0
+
+
+async def test_paid_companies_have_no_trial_limit(client, admin_headers, pdl_calls):
+    for q in ("react developer", "java developer", "go developer"):
+        d = await _gsearch(client, admin_headers, query=q)
+        assert d["outside"] and "trial_quota" not in d
+    assert (await client.get("/v1/search/global/quota", headers=admin_headers)).json()["data"] is None

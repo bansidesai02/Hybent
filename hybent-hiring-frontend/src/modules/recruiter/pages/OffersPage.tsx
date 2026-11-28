@@ -160,7 +160,8 @@ function CreateOfferDialog({ onClose, onSuccess }: { onClose: () => void; onSucc
       }
     >
       <form id={formId} onSubmit={handleSubmit((d) => mutation.mutate(d))} className="pb-2">
-        <div className="grid gap-hb-4 md:grid-cols-2">
+        {/* minmax(0,1fr): long option text or a date field must not widen the column past a small phone. */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-hb-4 md:grid-cols-[repeat(2,minmax(0,1fr))] [&>*]:min-w-0">
           <Controller
             name="application_id"
             control={control}
