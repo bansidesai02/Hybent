@@ -7,13 +7,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowLeft, Briefcase, Calendar, Download, Loader2, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
+  ArrowLeft, Bell, Briefcase, Compass, Calendar, Download, Loader2, LogOut, Menu, Moon, Search, SearchX, Settings, Sun, User, Users, X,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { globalSearch } from '@/api/search'
 import { useThemeStore } from '@/store/themeStore'
 import { useInstallPrompt } from '@/pwa/install'
 import { SHOW_INSTALL_EVENT } from './InstallAppCard'
+import { startProductTour } from '@/components/tour/tourEvents'
 import type { SearchResult, SearchResults } from '@/types'
 
 const MessageInbox = lazy(() =>
@@ -47,20 +48,50 @@ interface HbTopbarProps {
   menuItems?: Array<{ label: string; icon: ReactNode; path: string }>
 }
 
-/** Deferred so the bell and inbox never compete with the page's own data. */
+/* Start fetching both chunks as soon as the shell loads, so they're ready
+   by the time the widgets mount. */
+const preloadWidgets = () => {
+  void import('../MessageInbox')
+  void import('../NotificationBell')
+}
+if (typeof window !== 'undefined') window.setTimeout(preloadWidgets, 0)
+
+/** The two icons exactly as the real widgets draw them, shown until the real
+    ones (with their sockets and fetches) mount, so nothing pops in on refresh. */
+function WidgetPlaceholders({ messages }: { messages: boolean }) {
+  return (
+    <>
+      {messages && (
+        <div className="hidden sm:block" aria-hidden>
+          <span className="relative block rounded-xl p-2">
+            <svg className="h-5 w-5 text-hb-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </span>
+        </div>
+      )}
+      <span className="relative block rounded-hb-sm p-2 text-hb-muted" aria-hidden>
+        <Bell size={20} strokeWidth={2} />
+      </span>
+    </>
+  )
+}
+
+/** Deferred a moment so the bell and inbox never compete with the page's own
+    data; placeholders hold their place meanwhile. */
 function DeferredWidgets({ messages }: { messages: boolean }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const id = window.setTimeout(() => setReady(true), 700)
+    const id = window.setTimeout(() => setReady(true), 250)
     return () => window.clearTimeout(id)
   }, [])
 
-  const reserved = messages ? 'w-[76px]' : 'w-9'
-  if (!ready) return <div className={clsx('h-9', reserved)} aria-hidden />
+  if (!ready) return <WidgetPlaceholders messages={messages} />
 
   return (
-    <Suspense fallback={<div className={clsx('h-9', reserved)} aria-hidden />}>
+    <Suspense fallback={<WidgetPlaceholders messages={messages} />}>
       {messages && (
         <div className="hidden sm:block">
           <MessageInbox />
@@ -481,6 +512,23 @@ function HbTopbarComponent({
                     {item.label}
                   </Link>
                 ))}
+
+                {(user?.role === 'admin' || user?.role === 'recruiter') && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      startProductTour()
+                    }}
+                    className="mt-1 flex w-full items-center gap-2.5 rounded-hb-sm px-3 py-2 text-left text-hb-sm text-hb-text transition-colors duration-hb hover:bg-hb-surface-2 focus-visible:outline-none focus-visible:shadow-hb-ring"
+                  >
+                    <span className="text-hb-dim">
+                      <Compass size={15} aria-hidden />
+                    </span>
+                    Product tour
+                  </button>
+                )}
 
                 {install.available && (
                   <button
