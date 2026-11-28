@@ -40,6 +40,8 @@ class TrialRequestCreate(BaseModel):
     contact_linkedin_url: str = Field(..., max_length=500)
     hiring_needs: str | None = Field(None, max_length=2000)
     accept_terms: bool
+    # Optional: updates such as the trial's invoice on WhatsApp.
+    whatsapp_opt_in: bool = False
     # Which plan to try; the trial gets that plan's features.
     plan: Literal["standard", "pro"] = "pro"
     # From verify-code: proves the applicant owns contact_email.

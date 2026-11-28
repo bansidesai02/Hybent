@@ -47,6 +47,12 @@ TEMPLATES: dict[str, tuple[str, tuple[str, ...]]] = {
     "interviewer_reminder": (
         "Reminder: your interview with {{1}} is at {{2}}. Join here: {{3}} . Thank you.",
         ("Raj Patel", "21 Nov, 11:00 AM", "https://meet.google.com/abc-defg-hij")),
+    # A trial's invoice (services/invoice_service.py); only to companies that
+    # ticked WhatsApp updates on the trial form.
+    "trial_invoice": (
+        "Hi {{1}}, your Hybent invoice {{2}} for {{3}} is ready. Please pay by {{4}} to keep your workspace active. "
+        "View and pay here: {{5}} . Questions? Call or WhatsApp us on this number.",
+        ("Raj", "HYB-2026-0001", "Rs. 3,799", "1 Dec 2026", "https://hybent.com/invoice/abc123")),
     "interviewer_feedback": (
         "Please share your feedback for {{1}} ({{2}}) here: {{3}} . Thank you.",
         ("Raj Patel", "Sales Executive", "https://hybent.com/hiring")),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clock, LogOut } from 'lucide-react'
+import { Clock, LogOut, Receipt } from 'lucide-react'
 
 import { trialApi } from '@/api/trial'
 import { useAuth } from '@/hooks/useAuth'
@@ -55,6 +55,31 @@ export function TrialBanner() {
   const isAdmin = user!.role === 'admin'
   const expired = trial.status === 'expired' || new Date(trial.trial_end).getTime() <= now
 
+  const invoice = trial.invoice && trial.invoice.status !== 'paid' ? trial.invoice : null
+
+  if (!expired && invoice) {
+    // From the day before the trial ends: pay the invoice (access runs to its due date).
+    return (
+      <div
+        role="status"
+        className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-hb-warning/30 bg-hb-warning/10 px-4 py-2 text-hb-sm"
+      >
+        <span className="flex items-center gap-2 text-hb-text">
+          <Receipt size={15} aria-hidden className="text-hb-warning" />
+          <span>
+            <b>Invoice {invoice.invoice_number}</b> · {invoice.total_label} due {formatTrialDate(invoice.due_at)}
+            <span className="hidden text-hb-muted sm:inline"> · pay to keep your workspace after the trial</span>
+          </span>
+        </span>
+        {isAdmin ? (
+          <a href={invoice.url} className="font-semibold text-hb-blue hover:underline">View &amp; pay invoice</a>
+        ) : (
+          <span className="text-hb-muted">Your admin has the invoice.</span>
+        )}
+      </div>
+    )
+  }
+
   if (!expired) {
     const urgent = new Date(trial.trial_end).getTime() - now < 86_400_000
     return (
@@ -94,8 +119,26 @@ export function TrialBanner() {
   return (
     <div className="fixed inset-0 z-[9998] grid place-items-center overflow-y-auto bg-hb-bg/90 p-4 backdrop-blur-sm">
       <Card padding="loose" className="w-full max-w-lg" role="alertdialog" aria-labelledby="trial-ended-title">
-        <h2 id="trial-ended-title" className="font-display text-hb-h2 text-hb-text">Your free trial has ended</h2>
-        {isAdmin ? (
+        <h2 id="trial-ended-title" className="font-display text-hb-h2 text-hb-text">
+          {invoice ? 'Your workspace is paused' : 'Your free trial has ended'}
+        </h2>
+        {isAdmin && invoice ? (
+          <>
+            <p className="mt-2 text-hb-sm text-hb-muted">
+              Invoice <b>{invoice.invoice_number}</b> ({invoice.total_label}) wasn&apos;t paid by its due date, so your
+              team&apos;s access is paused. Pay it and send us the receipt, and we&apos;ll restore everything straight away.
+              Your data is kept until <b>{formatTrialDate(trial.data_purge_at)}</b>.
+            </p>
+            <div className="mt-hb-5 flex flex-wrap gap-2">
+              <Button icon={<Receipt size={15} />} href={invoice.url}>View invoice &amp; pay</Button>
+            </div>
+            <p className="mt-hb-5 font-mono text-hb-label uppercase text-hb-muted">Download your data</p>
+            <div className="mt-2"><TrialExportButtons /></div>
+            <div className="mt-hb-5 flex flex-wrap justify-end gap-2 border-t border-hb-border pt-hb-4">
+              <Button variant="quiet" size="sm" icon={<LogOut size={14} />} onClick={() => logout()}>Sign out</Button>
+            </div>
+          </>
+        ) : isAdmin ? (
           <>
             <p className="mt-2 text-hb-sm text-hb-muted">
               Your team&apos;s access is paused. Choose a plan to pick up where you left off; everything from the trial

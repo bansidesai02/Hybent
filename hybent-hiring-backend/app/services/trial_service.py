@@ -59,7 +59,7 @@ VERIFIED_VALID_MINUTES = 60
 
 # After expiry an admin can still reach these, to upgrade or export.
 EXPIRED_ALLOWED_PREFIXES = (
-    "/v1/billing", "/v1/trial", "/v1/auth/", "/v1/users/me", "/v1/notifications", "/v1/payments",
+    "/v1/billing", "/v1/trial", "/v1/auth/", "/v1/users/me", "/v1/notifications", "/v1/payments", "/v1/invoices",
 )
 EXPIRED_DETAIL = {
     "code": "trial_expired",
@@ -296,6 +296,7 @@ async def create_request(db: AsyncSession, body, ip: str | None, user_agent: str
         contact_title=body.contact_title,
         contact_email=email,
         contact_phone=phone[0],
+        whatsapp_opt_in=bool(body.whatsapp_opt_in),
         contact_linkedin_url=body.contact_linkedin_url,
         hiring_needs=body.hiring_needs,
         plan_interest=body.plan,
@@ -330,7 +331,7 @@ def request_rows(req: TrialRequest) -> list[tuple[str, str]]:
         ("Plan to try", PLAN_LABELS.get(req.plan_interest, req.plan_interest)),
         ("Contact", f"{req.contact_name}, {req.contact_title}"),
         ("Email", req.contact_email),
-        ("Phone", req.contact_phone),
+        ("Phone", req.contact_phone + (" (WhatsApp OK)" if req.whatsapp_opt_in else "")),
         ("LinkedIn", req.contact_linkedin_url),
         ("Hiring needs", req.hiring_needs or ""),
         ("Checks", " · ".join(req.risk_flags) if req.risk_flags else "✅ Email domain matches website"),
@@ -526,7 +527,20 @@ async def status_for_org(db: AsyncSession, organization_id) -> dict | None:
         "plan": PLAN_LABELS.get(req.plan_interest, "Pro") if req else "Pro",
         # Upgrading online needs Stripe; otherwise it's arranged by email.
         "payments_enabled": settings.stripe_enabled,
+        # Set from Day 6: the invoice to pay. trial_end above is then its due
+        # date (the grace period), not the original end of the trial.
+        "invoice": await _invoice_summary(db, organization_id),
     }
+
+
+async def _invoice_summary(db: AsyncSession, organization_id) -> dict | None:
+    from app.services import invoice_service
+
+    payment = await invoice_service.trial_invoice(db, organization_id)
+    if payment is None or payment.status == "canceled":
+        return None
+    inv = invoice_service.invoice_to_dict(payment)
+    return {k: inv[k] for k in ("invoice_number", "status", "total_label", "due_at", "url")}
 
 
 # ── Conversion ───────────────────────────────────────────────────────────────
@@ -616,12 +630,34 @@ async def process_lifecycle(db: AsyncSession, now: datetime | None = None) -> di
     Each step stamps its row in the same commit as it acts, so a retry or an
     overlapping run doesn't send anything twice."""
     now = now or _now()
-    done = {"reminder_1d": 0, "reminder_1h": 0, "expired": 0, "purge_warning": 0, "purged": 0}
+    from app.services import invoice_service
+
+    done = {"invoiced": 0, "reminder_1d": 0, "reminder_1h": 0, "expired": 0, "purge_warning": 0, "purged": 0}
 
     async def due(*conditions):
         return list((await db.execute(
             select(TrialRequest).where(*conditions).with_for_update(skip_locked=True)
         )).scalars().all())
+
+    # Day 6: invoice the plan the trial was for. It replaces the 1-day
+    # reminder, and the workspace stays open until it's due (grace).
+    for req in await due(
+        TrialRequest.status == "active", TrialRequest.trial_end <= now + timedelta(days=1),
+        TrialRequest.trial_end > now,
+    ):
+        sub = await _subscription(db, req.organization_id)
+        if sub is None or not sub.is_trial or await invoice_service.trial_invoice(db, req.organization_id):
+            continue
+        try:
+            invoice = await invoice_service.create_trial_invoice(db, req, sub)
+            req.reminder_1d_sent_at = req.reminder_1d_sent_at or now
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            logger.exception(f"Trial invoice for {req.organization_id} failed; the 1-day reminder goes instead.")
+            continue
+        await invoice_service.send_invoice(db, invoice)
+        done["invoiced"] += 1
 
     # 1 day left (and more than an hour, or the 1-hour reminder covers it).
     for req in await due(
@@ -643,6 +679,8 @@ async def process_lifecycle(db: AsyncSession, now: datetime | None = None) -> di
     ):
         req.reminder_1h_sent_at = now
         await db.commit()
+        if await invoice_service.trial_invoice(db, req.organization_id):
+            continue  # invoiced: access runs on to the due date, nothing ends in an hour
         await _email_each(await _org_recipients(db, req.organization_id, ("admin",)),
                           email_service.send_trial_reminder_email, req.company_name, req.trial_end, "1 hour")
         _notify(req.organization_id, ["admin", "recruiter"], "Your free trial ends in 1 hour",
@@ -658,18 +696,32 @@ async def process_lifecycle(db: AsyncSession, now: datetime | None = None) -> di
             req.converted_at = req.converted_at or now
             await db.commit()
             continue
+        invoice = await invoice_service.trial_invoice(db, req.organization_id)
+        if invoice is not None and invoice.status == "pending" and invoice.expires_at and invoice.expires_at > now:
+            continue  # grace period: open until the invoice is due
         req.status = "expired"
         req.data_purge_at = req.trial_end + timedelta(days=RETENTION_DAYS)
         req.expired_notice_sent_at = now
         if sub is not None:
             sub.status = "expired"
+            # The grace period may have pushed access past the trial's end.
+            sub.trial_end = min(sub.trial_end or now, now)
         await db.commit()
-        await _email_each(await _org_recipients(db, req.organization_id, ("admin",)),
-                          email_service.send_trial_expired_email, req.company_name, req.data_purge_at)
-        _notify(req.organization_id, ["admin"], "Your free trial has ended",
-                "Choose Standard or Pro on the Billing page to restore access for your team. "
-                f"Your data is kept until {req.data_purge_at:%d %B %Y}.",
-                {"kind": "trial_expired", "data_purge_at": req.data_purge_at.isoformat()})
+        if invoice is not None and invoice.status == "pending":
+            await invoice_service.send_overdue(db, invoice, req.data_purge_at)
+            number = invoice.details.get("invoice_number")
+            _notify(req.organization_id, ["admin"], "Workspace paused: invoice unpaid",
+                    f"Invoice {number} wasn't paid by its due date, so access is paused. Pay it to restore everything; "
+                    f"your data is kept until {req.data_purge_at:%d %B %Y}.",
+                    {"kind": "trial_expired", "url": invoice_service.invoice_url(invoice),
+                     "data_purge_at": req.data_purge_at.isoformat()})
+        else:
+            await _email_each(await _org_recipients(db, req.organization_id, ("admin",)),
+                              email_service.send_trial_expired_email, req.company_name, req.data_purge_at)
+            _notify(req.organization_id, ["admin"], "Your free trial has ended",
+                    "Choose Standard or Pro on the Billing page to restore access for your team. "
+                    f"Your data is kept until {req.data_purge_at:%d %B %Y}.",
+                    {"kind": "trial_expired", "data_purge_at": req.data_purge_at.isoformat()})
         done["expired"] += 1
 
     for req in await due(

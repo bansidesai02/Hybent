@@ -15,6 +15,7 @@ ALERTS: list[dict[str, str]] = [
     {"group": "Leads", "key": "trial_request", "label": "Free trial request", "hint": "A company asked for a 7-day trial."},
     {"group": "Trials and billing", "key": "trial_setup", "label": "Trial workspace set up", "hint": "An approved company finished its setup."},
     {"group": "Trials and billing", "key": "trial_converted", "label": "Trial became paying", "hint": "A trial company bought a plan."},
+    {"group": "Trials and billing", "key": "trial_invoice", "label": "Trial invoice", "hint": "A trial was invoiced on its last day, or its invoice went unpaid."},
     {"group": "Trials and billing", "key": "payment_received", "label": "Payment received", "hint": "A payment or renewal came through."},
     {"group": "Trials and billing", "key": "payment_failed", "label": "Payment failed", "hint": "A client's renewal didn't go through."},
     {"group": "Client activity", "key": "job_posted", "label": "Job posted", "hint": "A client created a job."},

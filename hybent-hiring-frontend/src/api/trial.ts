@@ -19,6 +19,8 @@ export interface TrialRequestPayload {
   contact_linkedin_url: string
   hiring_needs?: string
   accept_terms: boolean
+  /** Optional: updates such as the trial's invoice on WhatsApp. */
+  whatsapp_opt_in?: boolean
   /** The plan to try; the trial gets that plan's features and seats. */
   plan: TrialPlan
   /** From verifyCode: proves the applicant owns contact_email. */
@@ -42,6 +44,15 @@ export interface TrialStatus {
   payments_enabled: boolean
   /** The plan this trial mirrors: suggested first when upgrading. */
   plan: 'Standard' | 'Pro'
+  /** From the day before the trial ends: the invoice to pay. trial_end is
+      then its due date (3 days' grace), not the original end of the trial. */
+  invoice: {
+    invoice_number: string
+    status: 'pending' | 'overdue' | 'paid'
+    total_label: string
+    due_at: string
+    url: string
+  } | null
 }
 
 export type ExportFormat = 'xlsx' | 'csv' | 'pdf'
