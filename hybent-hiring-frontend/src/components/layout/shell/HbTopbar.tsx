@@ -297,7 +297,7 @@ function HbTopbarComponent({
           {/* Same mark + wordmark as the sidebar's brand row. */}
           <span
             className={clsx(
-              'absolute inset-y-0 left-0 flex items-center gap-2 transition-opacity duration-hb',
+              'absolute inset-y-0 left-0 right-0 flex items-center gap-2 overflow-hidden transition-opacity duration-hb',
               showMobileTitle && mobileTitle ? 'opacity-0' : 'opacity-100'
             )}
           >
@@ -305,7 +305,7 @@ function HbTopbarComponent({
             <img
               src={theme === 'dark' ? '/hybent/hybent-wordmark-dark.png' : '/hybent/hybent-wordmark-light.png'}
               alt="Hybent"
-              className="h-[16px] w-auto object-contain"
+              className="h-[16px] w-auto min-w-0 object-contain object-left max-[359px]:h-[13px]"
             />
           </span>
           {mobileTitle && (

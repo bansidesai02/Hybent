@@ -100,7 +100,7 @@ export function Field({
   const describedBy = [descId, errId].filter(Boolean).join(' ') || undefined
 
   return (
-    <div className={clsx('grid gap-2', className)}>
+    <div className={clsx('grid grid-cols-[minmax(0,1fr)] gap-2', className)}>
       {label && (
         <Label htmlFor={id} required={required}>
           {label}
