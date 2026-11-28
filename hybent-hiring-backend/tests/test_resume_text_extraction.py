@@ -1,5 +1,7 @@
-"""PDF text extraction falls through pdfplumber -> pdfium -> PyPDF2 -> OCR,
-and a document nothing can read is 'unreadable', not 'not a resume'."""
+"""PDF text extraction falls through pdfium -> pdfplumber -> PyPDF2 -> OCR
+(skipping the two slow text-layer readers when pdfium finds no text at all,
+i.e. a scan), and a document nothing can read is 'unreadable', not 'not a
+resume'."""
 from unittest.mock import patch
 
 import pytest
@@ -17,20 +19,30 @@ def _chain(**overrides):
                 raise value
             return value
         return run
-    names = ["pdfplumber", "pdfium", "pypdf2", "ocr"]
+    names = ["pdfium", "pdfplumber", "pypdf2", "ocr"]
     return patch.object(rp, "_PDF_EXTRACTORS", tuple((n, stage(overrides.get(n, ""))) for n in names))
 
 
 def test_first_extractor_with_enough_text_wins():
-    with _chain(pdfplumber=LONG, pdfium="should not be used"):
+    with _chain(pdfium=LONG, pdfplumber="should not be used"):
         assert rp.extract_text_from_pdf(b"%PDF") == LONG
 
 
-def test_falls_back_when_pdfplumber_crashes(caplog):
-    with _chain(pdfplumber=Exception(), pdfium=LONG):
+def test_falls_back_when_pdfium_crashes(caplog):
+    with _chain(pdfium=Exception(), pdfplumber=LONG):
         assert rp.extract_text_from_pdf(b"%PDF") == LONG
     # The failure is logged with its type even when the exception has no message.
-    assert "via pdfplumber failed: Exception: no message" in caplog.text
+    assert "via pdfium failed: Exception: no message" in caplog.text
+
+
+def test_scan_skips_the_slow_text_layer_readers():
+    """pdfium found no text at all: pdfplumber (~25s on a scan) and PyPDF2 are
+    not run; OCR is."""
+    def boom(_):
+        raise AssertionError("text-layer reader should have been skipped")
+    with patch.object(rp, "_PDF_EXTRACTORS", (("pdfium", lambda _: ""), ("pdfplumber", boom),
+                                              ("pypdf2", boom), ("ocr", lambda _: LONG))):
+        assert rp.extract_text_from_pdf(b"%PDF") == LONG
 
 
 def test_ocr_is_used_for_scans_with_no_text_layer():
@@ -39,7 +51,7 @@ def test_ocr_is_used_for_scans_with_no_text_layer():
 
 
 def test_returns_best_partial_text_when_nothing_is_long_enough():
-    with _chain(pdfplumber="short", pypdf2="a bit longer", ocr=Exception("boom")):
+    with _chain(pdfium="short", pypdf2="a bit longer", ocr=Exception("boom")):
         assert rp.extract_text_from_pdf(b"%PDF") == "a bit longer"
 
 
