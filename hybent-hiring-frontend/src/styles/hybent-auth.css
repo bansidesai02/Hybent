@@ -40,7 +40,7 @@
   --r-sm:10px; --r-md:16px; --r-lg:22px; --r-full:999px;
 
   display:flex;
-  min-height:100dvh;
+  min-height:100vh;min-height:100dvh;
   overflow-x:hidden;
 }
 .hlp *,.hlp *::before,.hlp *::after{box-sizing:border-box}
@@ -636,10 +636,10 @@
    are desktop flourishes — on a phone edge the beam reads as a glitch. */
 @media (max-width:520px){
   .hlp .hlp-stage{padding:0}
-  .hlp-card,.hlp-card--wide{margin:0;min-height:100dvh;border-radius:0;transform:none}
+  .hlp-card,.hlp-card--wide{margin:0;min-height:100vh;min-height:100dvh;border-radius:0;transform:none}
   .hlp-beams,.hlp-card__glow,.hlp-card__sheen{display:none}
   .hlp-card__in{
-    min-height:100dvh;display:flex;flex-direction:column;justify-content:center;
+    min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;
     border:0;box-shadow:none;
     padding:calc(28px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
   }
